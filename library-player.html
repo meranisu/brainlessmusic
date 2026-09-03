@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>brainlessmusic — library &amp; player</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root{
+    --navy-top:#0C3FA0;
+    --navy-mid:#071B4D;
+    --navy-deep:#0A1024;
+    --bg:#0A1024;
+    --surface:#151F3D;
+    --surface-2:#1D2A4D;
+    --offwhite:#F3F6FB;
+    --blue:#8CA0E0;
+    --orange:#FF5A33;
+    --white:#FFFFFF;
+    --text-dim:#5C6996;
+    --danger:#FF5A33;
+    --ok:#7FD48C;
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    background:#000;
+    min-height:100vh;
+    font-family:'Inter',sans-serif;
+    color:var(--white);
+  }
+
+  ::-webkit-scrollbar{width:8px; height:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--surface-2); border-radius:4px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+
+  /* ===== App shell ===== */
+  .app{
+    max-width:920px;
+    margin:0 auto;
+    min-height:100vh;
+    background:linear-gradient(180deg, var(--navy-top) 0%, var(--navy-mid) 22%, var(--navy-deep) 55%);
+    display:flex; flex-direction:column;
+    padding-bottom:110px; /* room for mini player */
+  }
+
+  /* ===== Hero header (matches login.html) ===== */
+  .hero{ position:relative; overflow:hidden; padding-top:8px; }
+
+  .grid-motif{
+    position:absolute; top:-30px; right:-50px; width:280px; height:220px;
+    pointer-events:none; opacity:.5; z-index:0;
+  }
+  .grid-motif .sq{ position:absolute; border:2px solid rgba(140,160,224,.35); border-radius:2px; }
+  .grid-motif .sq:nth-child(1){ width:100px; height:100px; top:6px; left:30px; animation:sqdrift 9s ease-in-out infinite; }
+  .grid-motif .sq:nth-child(2){ width:74px; height:74px; top:80px; left:120px; animation:sqdrift 11s ease-in-out infinite reverse; }
+  .grid-motif .sq:nth-child(3){ width:126px; height:126px; top:110px; left:10px; animation:sqdrift 13s ease-in-out infinite; }
+  @keyframes sqdrift{
+    0%,100%{ transform:translate(0,0); opacity:.5; }
+    50%{ transform:translate(-6px,8px); opacity:.9; }
+  }
+
+  .dot-motif{
+    position:absolute; top:14px; right:26px; width:120px; height:150px;
+    pointer-events:none; z-index:0;
+    display:grid; grid-template-columns:repeat(10,1fr); grid-auto-rows:1fr; gap:2.5px;
+    -webkit-mask-image:radial-gradient(ellipse 60% 90% at 50% 40%, #000 55%, transparent 100%);
+            mask-image:radial-gradient(ellipse 60% 90% at 50% 40%, #000 55%, transparent 100%);
+  }
+  .dot-motif span{
+    width:100%; aspect-ratio:1; border-radius:50%; background:rgba(255,255,255,.5);
+    animation:dotshimmer 3.4s ease-in-out infinite;
+  }
+  @keyframes dotshimmer{ 0%,100%{opacity:.2;} 50%{opacity:.65;} }
+
+  .sweep{
+    position:absolute; top:0; left:-40%; width:34%; height:100%;
+    background:linear-gradient(100deg, transparent 0%, rgba(255,90,51,.5) 45%, rgba(255,255,255,.65) 50%, rgba(255,90,51,.5) 55%, transparent 100%);
+    transform:skewX(-18deg);
+    animation:heroSweep 6.5s cubic-bezier(.4,0,.2,1) infinite;
+    pointer-events:none; mix-blend-mode:screen; z-index:0;
+  }
+  @keyframes heroSweep{
+    0%{ left:-40%; opacity:0; }
+    8%{ opacity:.85; }
+    40%{ opacity:.85; }
+    52%{ left:120%; opacity:0; }
+    100%{ left:120%; opacity:0; }
+  }
+
+  .white-band{
+    position:relative; z-index:1;
+    background:var(--offwhite);
+    clip-path:polygon(0 0, 100% 0%, 100% 82%, 0% 100%);
+    padding:20px 24px 30px;
+    box-shadow:0 14px 34px rgba(0,0,0,.3);
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+  }
+  .logo-lockup{ display:flex; align-items:center; gap:14px; }
+  .logo-mark{
+    flex-shrink:0; width:46px; height:46px; border-radius:50%;
+    border:4px solid var(--navy-mid);
+    display:flex; align-items:center; justify-content:center; position:relative;
+  }
+  .logo-mark::after{
+    content:''; width:16px; height:16px; border-radius:50%; background:var(--orange);
+    animation:markpulse 5.5s ease-in-out infinite;
+  }
+  @keyframes markpulse{
+    0%,15%{ background:var(--white); transform:scale(.8); }
+    28%,45%{ background:var(--orange); transform:scale(1.15); }
+    60%,100%{ background:var(--orange); transform:scale(1); }
+  }
+  .logo-text .eyebrow{
+    font-family:'Barlow Condensed'; font-weight:700; font-size:10px; letter-spacing:2.2px;
+    color:var(--text-dim); text-transform:uppercase; margin-bottom:1px;
+  }
+  .logo-text h1{
+    font-family:'Barlow Condensed'; font-weight:900; font-size:26px; letter-spacing:.2px;
+    color:var(--navy-mid); line-height:1; text-transform:lowercase;
+  }
+  .logo-text h1 span{ color:var(--orange); }
+
+  .gear{
+    background:var(--navy-deep); border:none; color:var(--blue);
+    width:38px; height:38px; border-radius:12px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; transition:background .15s;
+  }
+  .gear:hover{background:var(--surface-2);}
+
+  /* ===== Connection panel ===== */
+  .panel{
+    margin:16px 24px 18px; background:var(--surface); border-radius:20px;
+    padding:18px 20px; display:none;
+  }
+  .panel.open{display:block;}
+  .panel h2{
+    font-family:'Barlow Condensed'; font-weight:700; font-size:13px;
+    letter-spacing:1.5px; text-transform:uppercase; color:var(--text-dim);
+    margin-bottom:14px;
+  }
+  .field-row{display:flex; gap:10px; margin-bottom:10px;}
+  .field-row > div{flex:1;}
+  .field{margin-bottom:10px;}
+  label{
+    display:block; font-size:11px; color:var(--text-dim); margin-bottom:5px;
+    font-weight:600; letter-spacing:.3px;
+  }
+  input[type=text], input[type=password]{
+    width:100%; background:var(--navy-deep); border:1px solid var(--surface-2);
+    color:var(--white); padding:9px 11px; border-radius:9px;
+    font-family:'Inter'; font-size:13px; transition:border-color .15s;
+  }
+  input:focus{outline:none; border-color:var(--orange);}
+  .btn{
+    background:var(--orange); color:var(--white); border:none;
+    padding:10px 18px; border-radius:10px; font-weight:700; font-size:13px;
+    cursor:pointer; font-family:'Inter'; transition:filter .15s, transform .1s;
+  }
+  .btn:hover{filter:brightness(1.1);}
+  .btn:active{transform:scale(.97);}
+  .btn.ghost{
+    background:transparent; border:1px solid var(--surface-2); color:var(--blue);
+  }
+  .btn:disabled{opacity:.35; cursor:not-allowed;}
+  .status-msg{
+    font-size:12px; margin-top:10px; padding:8px 11px; border-radius:8px; display:none;
+  }
+  .status-msg.show{display:block;}
+  .status-msg.ok{background:rgba(127,212,140,.12); color:var(--ok);}
+  .status-msg.err{background:rgba(255,90,51,.12); color:var(--orange);}
+  #reqlog{
+    margin-top:12px; background:var(--bg); border-radius:9px; padding:10px;
+    font-size:10.5px; color:var(--text-dim); max-height:150px; overflow-y:auto;
+    font-family:ui-monospace,monospace; white-space:pre-wrap; word-break:break-all;
+  }
+  #reqlog div{margin-bottom:5px; padding-bottom:5px; border-bottom:1px solid var(--surface-2);}
+
+  /* ===== Library ===== */
+  .lib-header{
+    display:flex; align-items:baseline; justify-content:space-between;
+    padding:6px 24px 12px;
+  }
+  .lib-header h2{
+    font-family:'Barlow Condensed'; font-weight:800; font-size:20px;
+    text-transform:uppercase; letter-spacing:.5px;
+  }
+  .lib-header .count{font-size:12px; color:var(--text-dim); font-weight:600;}
+
+  .search-wrap{padding:0 24px 14px;}
+  .search-wrap input{
+    background:var(--surface); border:1px solid var(--surface-2);
+  }
+
+  .empty-state{
+    margin:20px 24px; padding:30px 20px; text-align:center;
+    background:var(--surface); border-radius:16px; color:var(--text-dim); font-size:13px;
+  }
+  .empty-state .btn{margin-top:12px;}
+
+  .track-list{padding:0 14px;}
+  .track-row{
+    display:flex; align-items:center; gap:14px;
+    padding:10px 10px; border-radius:12px; cursor:pointer;
+    transition:background .12s;
+  }
+  .track-row:hover{background:var(--surface);}
+  .track-row.active{background:var(--surface-2);}
+  .track-row .thumb{
+    width:46px; height:46px; border-radius:9px; flex-shrink:0;
+    background:var(--surface); border:1px solid var(--surface-2);
+    overflow:hidden; display:flex; align-items:center; justify-content:center;
+  }
+  .track-row .thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+  .track-row .info{flex:1; min-width:0;}
+  .track-row .info .t{
+    font-size:14px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .track-row.active .info .t{color:var(--orange);}
+  .track-row .info .a{
+    font-size:11.5px; color:var(--text-dim); margin-top:2px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .track-row .badge{
+    font-family:'Barlow Condensed'; font-weight:800; font-size:9px; letter-spacing:1px;
+    color:var(--blue); border:1px solid var(--surface-2); padding:3px 7px; border-radius:6px;
+    flex-shrink:0;
+  }
+  .track-row .playing-icon{
+    width:16px; flex-shrink:0; color:var(--orange); display:none;
+  }
+  .track-row.active .playing-icon{display:block;}
+
+  /* placeholder disc svg used as fallback art */
+  .disc-placeholder{width:60%; height:60%; color:var(--text-dim);}
+
+  /* ===== Mini player bar ===== */
+  .mini-player{
+    position:fixed; left:0; right:0; bottom:0;
+    max-width:920px; margin:0 auto;
+    background:var(--surface);
+    border-top:1px solid var(--surface-2);
+    display:none; align-items:center; gap:12px;
+    padding:10px 16px; z-index:40;
+  }
+  .mini-player.show{display:flex;}
+  .mini-player .thumb{
+    width:44px; height:44px; border-radius:9px; overflow:hidden; flex-shrink:0;
+    background:var(--bg); border:2px solid var(--orange);
+  }
+  .mini-player .thumb img{width:100%; height:100%; object-fit:cover;}
+  .mini-player .info{flex:1; min-width:0; cursor:pointer;}
+  .mini-player .info .t{font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .mini-player .info .a{font-size:11px; color:var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .mini-player button{background:none; border:none; color:var(--white); cursor:pointer; flex-shrink:0;}
+  .mini-player .miniprog{
+    position:absolute; left:0; top:0; height:2px; background:var(--orange);
+    transition:width .15s linear;
+  }
+
+  /* ===== Now Playing overlay ===== */
+  .np-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(4px);
+    display:none; align-items:center; justify-content:center; z-index:100;
+    padding:20px;
+  }
+  .np-overlay.show{display:flex;}
+
+  .np-sheet{
+    width:100%; max-width:420px; max-height:92vh; overflow-y:auto;
+    background:var(--bg); border-radius:28px;
+    box-shadow:0 30px 80px rgba(0,0,0,.6);
+    padding-bottom:10px;
+  }
+  .np-top{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 22px 6px;
+  }
+  .np-top button{background:none; border:none; color:var(--white); cursor:pointer;}
+  .np-top .lbl{
+    font-family:'Barlow Condensed'; font-weight:800; font-size:11px; letter-spacing:2.5px; color:var(--text-dim);
+  }
+
+  .art-wrap{ padding:10px 22px 0;}
+  .art-card{
+    width:100%; aspect-ratio:1; border-radius:20px;
+    border:2px solid var(--orange);
+    overflow:hidden; position:relative; background:var(--surface);
+    display:flex; align-items:center; justify-content:center;
+    transition:box-shadow .3s;
+  }
+  .art-card.playing{
+    animation:artpulse 2.6s ease-in-out infinite;
+  }
+  @keyframes artpulse{
+    0%,100%{box-shadow:0 0 0 0 rgba(255,90,51,.0);}
+    50%{box-shadow:0 0 34px 4px rgba(255,90,51,.35);}
+  }
+  .art-card img{width:100%; height:100%; object-fit:cover; display:block;}
+  .art-card .disc-placeholder{width:40%; height:40%;}
+  .art-tag{
+    position:absolute; top:14px; left:14px;
+    font-family:'Barlow Condensed'; font-weight:800; font-size:10px; letter-spacing:2px;
+    color:var(--white); background:rgba(10,16,36,.6); padding:4px 10px; border-radius:20px;
+  }
+
+  .track-block{ padding:18px 22px 0; text-align:center;}
+  .track-block .t{
+    font-family:'Barlow Condensed'; font-weight:900; font-size:24px; color:var(--white);
+    text-transform:uppercase; letter-spacing:.3px;
+  }
+  .track-block .a{ font-size:13px; color:var(--blue); margin-top:5px; font-weight:600;}
+
+  .quick-row{
+    display:flex; justify-content:space-between; gap:10px;
+    padding:18px 22px 0;
+  }
+  .qbtn{
+    flex:1; background:var(--surface); border:none; border-radius:20px;
+    display:flex; align-items:center; justify-content:center;
+    height:38px; color:var(--blue); cursor:pointer; transition:background .15s, color .15s;
+  }
+  .qbtn:hover{background:var(--surface-2);}
+  .qbtn.active{color:var(--orange);}
+
+  .wave-wrap{ position:relative; padding:22px 22px 0;}
+  .wave{ display:flex; align-items:center; gap:2.5px; height:52px; cursor:pointer;}
+  .wave span{ flex:1; background:var(--surface-2); border-radius:2px; transition:background .1s;}
+  .wave span.played{ background:var(--orange);}
+  .play-fab{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,calc(-50% + 11px));
+    width:56px; height:56px; border-radius:50%;
+    background:var(--bg); border:3px solid var(--orange);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; transition:transform .15s;
+  }
+  .play-fab:active{transform:translate(-50%,calc(-50% + 11px)) scale(.94);}
+  .play-fab.playing{animation:fabpulse 2.2s ease-in-out infinite;}
+  @keyframes fabpulse{
+    0%,100%{box-shadow:0 0 0 0 rgba(255,90,51,.4);}
+    50%{box-shadow:0 0 0 8px rgba(255,90,51,0);}
+  }
+  .wave-time{ display:flex; justify-content:space-between; padding:8px 22px 0;
+    font-family:'Barlow Condensed'; font-size:12px; font-weight:700; color:var(--text-dim);}
+
+  .transport-row{
+    display:flex; align-items:center; justify-content:center; gap:22px;
+    padding:16px 22px 0;
+  }
+  .transport-row button{
+    background:none; border:none; color:var(--white); cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition:color .15s, transform .1s;
+  }
+  .transport-row button:hover{color:var(--orange);}
+  .transport-row button:active{transform:scale(.9);}
+  .transport-row .skip10{color:var(--blue); font-family:'Barlow Condensed'; font-weight:800; font-size:9px;}
+  .transport-row .skip10 span{display:block; text-align:center; margin-top:1px;}
+
+  .stop-row{display:flex; justify-content:center; padding:10px 22px 0;}
+  .stop-row button{
+    background:var(--surface); border:1px solid var(--surface-2); color:var(--text-dim);
+    font-family:'Barlow Condensed'; font-weight:700; font-size:11px; letter-spacing:1.5px;
+    padding:7px 18px; border-radius:20px; cursor:pointer; display:flex; align-items:center; gap:6px;
+  }
+  .stop-row button:hover{color:var(--orange); border-color:var(--orange);}
+
+  .volume-row{
+    display:flex; align-items:center; gap:10px; padding:18px 22px 0; color:var(--text-dim);
+  }
+  .volume-row input[type=range]{
+    flex:1; -webkit-appearance:none; height:4px; border-radius:2px;
+    background:var(--surface-2); outline:none;
+  }
+  .volume-row input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:14px; height:14px; border-radius:50%;
+    background:var(--orange); cursor:pointer;
+  }
+
+  .format-row{ text-align:center; padding:14px 22px 0;}
+  .format-row span{
+    font-family:'Barlow Condensed'; font-size:11px; letter-spacing:1.5px; color:var(--text-dim); font-weight:700;
+    background:var(--surface); padding:5px 14px; border-radius:20px;
+  }
+
+  .up-next-header{
+    display:flex; align-items:baseline; justify-content:space-between;
+    padding:26px 22px 10px; border-top:2px solid var(--surface); margin-top:22px;
+  }
+  .up-next-header .h{
+    font-family:'Barlow Condensed'; font-weight:800; font-size:15px; letter-spacing:1px; color:var(--white); text-transform:uppercase;
+  }
+  .up-next-header .c{ font-size:11px; color:var(--text-dim); font-weight:600;}
+
+  .qrow{ display:flex; align-items:center; gap:12px; padding:9px 22px; cursor:pointer; border-radius:10px;}
+  .qrow:hover{background:var(--surface);}
+  .qrow .num{ width:20px; font-family:'Barlow Condensed'; font-weight:700; font-size:14px; color:var(--text-dim); flex-shrink:0; text-align:center;}
+  .qrow .thumb{ width:38px; height:38px; border-radius:6px; flex-shrink:0; background:var(--surface); border:1px solid var(--surface-2); overflow:hidden;}
+  .qrow .thumb img{width:100%; height:100%; object-fit:cover;}
+  .qrow .info{flex:1; min-width:0;}
+  .qrow .info .t{ font-size:13px; font-weight:700; color:var(--white); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .qrow .info .a{ font-size:11px; color:var(--text-dim); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .qrow .badge{
+    font-family:'Barlow Condensed'; font-weight:800; font-size:9px; letter-spacing:1px;
+    color:var(--orange); border:1px solid var(--orange); padding:2px 6px; border-radius:5px; flex-shrink:0;
+  }
+
+  .bottom-pad{ height:14px;}
+
+  @media (max-width:480px){
+    .np-sheet{border-radius:22px 22px 0 0; max-width:100%;}
+    .np-overlay{padding:0; align-items:flex-end;}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="hero">
+    <div class="grid-motif"><div class="sq"></div><div class="sq"></div><div class="sq"></div></div>
+    <div class="dot-motif" id="dotMotif"></div>
+    <div class="sweep"></div>
+    <div class="white-band">
+      <div class="logo-lockup">
+        <div class="logo-mark"></div>
+        <div class="logo-text">
+          <div class="eyebrow">Self-hosted · Personal audio</div>
+          <h1>brainless<span>music</span></h1>
+        </div>
+      </div>
+      <button class="gear" id="gearBtn" title="Connection settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="panel" id="panel">
+    <h2>Connection</h2>
+    <div class="field"><label>API base URL</label><input type="text" id="baseUrl" value="http://localhost:3000"></div>
+    <div class="field-row">
+      <div><label>Login path</label><input type="text" id="loginPath" value="/auth/login"></div>
+      <div><label>Library list path</label><input type="text" id="libPath" value="/tracks"></div>
+    </div>
+    <div class="field-row">
+      <div><label>Stream path (use {id})</label><input type="text" id="streamPath" value="/tracks/{id}/stream"></div>
+      <div><label>Cover art path (use {id}, optional — leave blank, no endpoint exists yet)</label><input type="text" id="coverPath" value=""></div>
+    </div>
+    <div class="field-row">
+      <div><label>Username</label><input type="text" id="username"></div>
+      <div><label>Password</label><input type="password" id="password"></div>
+    </div>
+    <button class="btn" id="loginBtn">Log in &amp; load library</button>
+    <button class="btn ghost" id="logToggle" style="margin-left:8px;">Toggle request log</button>
+    <div class="status-msg" id="connStatus"></div>
+    <div id="reqlog" style="display:none;"></div>
+  </div>
+
+  <div class="lib-header">
+    <h2>Library</h2>
+    <div class="count" id="trackCount">not loaded</div>
+  </div>
+  <div class="search-wrap">
+    <input type="text" id="search" placeholder="Filter by title or artist…">
+  </div>
+
+  <div id="emptyState" class="empty-state">
+    Not connected yet. Open the settings icon above, log in, and your library will show up here.
+  </div>
+
+  <div class="track-list" id="trackList"></div>
+</div>
+
+<!-- Mini player -->
+<div class="mini-player" id="miniPlayer">
+  <div class="miniprog" id="miniProg" style="width:0%"></div>
+  <div class="thumb" id="miniThumb"></div>
+  <div class="info" id="miniInfo">
+    <div class="t" id="miniTitle">—</div>
+    <div class="a" id="miniArtist">—</div>
+  </div>
+  <button id="miniPlayBtn" title="Play/pause">
+    <svg id="miniPlayIcon" width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l15 8-15 8z"/></svg>
+  </button>
+</div>
+
+<!-- Now Playing overlay -->
+<div class="np-overlay" id="npOverlay">
+  <div class="np-sheet">
+    <div class="np-top">
+      <button id="npClose"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M7 14l5 5 1.4-1.4L9.8 14H21v-2H9.8l3.6-3.6L12 7z"/></svg></button>
+      <div class="lbl">PLAYING FROM LIBRARY</div>
+      <button id="npStopIcon" title="Stop"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg></button>
+    </div>
+
+    <div class="art-wrap">
+      <div class="art-card" id="artCard">
+        <svg class="disc-placeholder" id="discPlaceholder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></svg>
+        <img id="npArt" style="display:none;" alt="">
+        <div class="art-tag" id="artTag">—</div>
+      </div>
+    </div>
+
+    <div class="track-block">
+      <div class="t" id="npTitle">No track loaded</div>
+      <div class="a" id="npArtist">—</div>
+    </div>
+
+    <div class="quick-row">
+      <div class="qbtn" id="qPrev" title="Previous track"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></div>
+      <div class="qbtn" id="qBack10" title="Back 10s"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v6h6M4.5 13a8 8 0 108-9.5"/></svg></div>
+      <div class="qbtn" id="qFwd10" title="Forward 10s"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 4v6h-6M19.5 13a8 8 0 11-8-9.5"/></svg></div>
+      <div class="qbtn" id="qNext" title="Next track"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM6 6l8.5 6L6 18z"/></svg></div>
+    </div>
+
+    <div class="wave-wrap">
+      <div class="wave" id="wave"></div>
+      <div class="play-fab" id="playFab">
+        <svg id="playFabIcon" width="22" height="22" viewBox="0 0 24 24" fill="var(--orange)"><path d="M6 4l15 8-15 8z"/></svg>
+      </div>
+    </div>
+    <div class="wave-time"><span id="timeCur">0:00</span><span id="timeDur">0:00</span></div>
+
+    <div class="transport-row">
+      <button id="tPrev" title="Previous"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
+      <button id="tBack10" class="skip10" title="Back 10s"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v6h6M4.5 13a8 8 0 108-9.5"/></svg><span>10</span></button>
+      <button id="tFwd10" class="skip10" title="Forward 10s"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 4v6h-6M19.5 13a8 8 0 11-8-9.5"/></svg><span>10</span></button>
+      <button id="tNext" title="Next"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM6 6l8.5 6L6 18z"/></svg></button>
+    </div>
+
+    <div class="stop-row">
+      <button id="stopBtn"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg> STOP</button>
+    </div>
+
+    <div class="volume-row">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7"/></svg>
+      <input type="range" id="volume" min="0" max="100" value="80">
+    </div>
+
+    <div class="format-row"><span id="formatRow">— · — · —</span></div>
+
+    <div class="up-next-header">
+      <div class="h">Up Next</div>
+      <div class="c" id="upNextCount">0 tracks</div>
+    </div>
+    <div id="queueList"></div>
+    <div class="bottom-pad"></div>
+  </div>
+</div>
+
+<script>
+let token = null;
+let library = [];
+
+/* If arriving from login.html with ?base=&token=, skip straight to the library. */
+(function bootstrapFromHandoff(){
+  const params = new URLSearchParams(window.location.search);
+  const handoffBase = params.get('base');
+  const handoffToken = params.get('token');
+  if(handoffBase && handoffToken){
+    document.addEventListener('DOMContentLoaded', () => {
+      $('baseUrl').value = handoffBase;
+      token = handoffToken;
+      setConnStatus(true, 'Signed in via login screen — loading library…');
+      loadLibrary();
+    });
+  }
+})();
+let filteredIndexToLibraryIndex = [];
+let currentIndex = -1;
+let audio = new Audio();
+audio.volume = 0.8;
+const coverCache = {};
+
+const $ = id => document.getElementById(id);
+
+/* Build the abstract dot-matrix motif in the hero (same technique as login.html) */
+(function buildDotMotif(){
+  const dm = document.getElementById('dotMotif');
+  const cols = 10, rows = 12;
+  for(let i=0;i<cols*rows;i++){
+    const d = document.createElement('span');
+    d.style.animationDelay = (Math.random()*3.4).toFixed(2)+'s';
+    dm.appendChild(d);
+  }
+})();
+
+function base(){ return $('baseUrl').value.replace(/\/$/, ''); }
+function authHeaders(){ return token ? {Authorization:'Bearer '+token} : {}; }
+
+function log(kind, text){
+  const box = $('reqlog');
+  const div = document.createElement('div');
+  div.style.color = kind==='err' ? 'var(--orange)' : (kind==='ok' ? 'var(--ok)' : 'var(--blue)');
+  div.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+  box.prepend(div);
+}
+
+function setConnStatus(ok, msg){
+  const el = $('connStatus');
+  el.className = 'status-msg show ' + (ok?'ok':'err');
+  el.textContent = msg;
+}
+
+/* ===== Panel toggle ===== */
+$('gearBtn').onclick = () => $('panel').classList.toggle('open');
+$('logToggle').onclick = () => {
+  const box = $('reqlog');
+  box.style.display = box.style.display==='none' ? 'block' : 'none';
+};
+
+/* ===== Login + library load ===== */
+$('loginBtn').onclick = async () => {
+  $('loginBtn').disabled = true;
+  const url = base() + $('loginPath').value;
+  const body = { username: $('username').value, password: $('password').value };
+  log('req', `POST ${url}`);
+  try {
+    const res = await fetch(url, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    const text = await res.text();
+    let data; try{ data = JSON.parse(text); }catch{ data = null; }
+    if(!res.ok){
+      log('err', `${res.status} ${res.statusText} — ${text.slice(0,200)}`);
+      setConnStatus(false, `Login failed: ${res.status} ${res.statusText}`);
+      return;
+    }
+    token = data && (data.token || data.accessToken || data.access_token || data.jwt);
+    if(!token){
+      log('err', `200 OK but no token field found. Raw: ${text.slice(0,300)}`);
+      setConnStatus(false, 'Logged in but could not find a token field in the response — check the log.');
+      return;
+    }
+    log('ok', 'Login OK — token acquired.');
+    setConnStatus(true, 'Logged in. Loading library…');
+    await loadLibrary();
+  } catch(e){
+    log('err', `Network error: ${e.message}`);
+    setConnStatus(false, `Network error: ${e.message}`);
+  } finally {
+    $('loginBtn').disabled = false;
+  }
+};
+
+async function loadLibrary(){
+  const url = base() + $('libPath').value;
+  log('req', `GET ${url}`);
+  try {
+    const res = await fetch(url, { headers: authHeaders() });
+    const text = await res.text();
+    let data; try{ data = JSON.parse(text); }catch{ data = null; }
+    if(!res.ok){
+      log('err', `${res.status} ${res.statusText} — ${text.slice(0,200)}`);
+      setConnStatus(false, `Could not load library: ${res.status} ${res.statusText}`);
+      return;
+    }
+    let raw = Array.isArray(data) ? data
+            : (data && Array.isArray(data.tracks)) ? data.tracks
+            : (data && Array.isArray(data.items)) ? data.items
+            : (data && Array.isArray(data.results)) ? data.results
+            : null;
+    if(!raw){
+      log('err', `200 OK but response isn't an array (checked root/.tracks/.items/.results). Raw: ${text.slice(0,300)}`);
+      setConnStatus(false, "Got a response but couldn't find a track array in it — check the log for the raw shape.");
+      return;
+    }
+    library = raw.map(normalizeTrack);
+    log('ok', `Loaded ${library.length} tracks.`);
+    setConnStatus(true, `Loaded ${library.length} tracks.`);
+    $('panel').classList.remove('open');
+    renderLibrary();
+  } catch(e){
+    log('err', `Network error: ${e.message}`);
+    setConnStatus(false, `Network error: ${e.message}`);
+  }
+}
+
+function normalizeTrack(t){
+  // Real backend shape (confirmed): { id, title, artist, album, duration (seconds, float), format }
+  // No bitrate/sampleRate columns exist in the schema — not omitted, just not tracked.
+  return {
+    id: t.id,
+    title: t.title ?? 'Untitled',
+    artist: t.artist ?? 'Unknown artist',
+    album: t.album ?? '',
+    duration: t.duration ?? null,
+    format: (t.format ?? '').toString().toUpperCase(),
+    bitrate: null,
+    sampleRate: null,
+    raw: t
+  };
+}
+
+/* ===== Library rendering ===== */
+function renderLibrary(){
+  const q = $('search').value.trim().toLowerCase();
+  const list = $('trackList');
+  list.innerHTML = '';
+  filteredIndexToLibraryIndex = [];
+
+  const visible = library
+    .map((t,i)=>({t,i}))
+    .filter(({t}) => !q || t.title.toLowerCase().includes(q) || t.artist.toLowerCase().includes(q));
+
+  $('trackCount').textContent = library.length ? `${library.length} tracks` : 'not loaded';
+  $('emptyState').style.display = library.length ? 'none' : 'block';
+
+  visible.forEach(({t,i})=>{
+    filteredIndexToLibraryIndex.push(i);
+    const row = document.createElement('div');
+    row.className = 'track-row' + (i===currentIndex ? ' active' : '');
+    row.innerHTML = `
+      <div class="thumb" data-thumb="${i}">${discSvg()}</div>
+      <div class="info">
+        <div class="t">${escapeHtml(t.title)}</div>
+        <div class="a">${escapeHtml(t.artist)}</div>
+      </div>
+      <svg class="playing-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      ${t.format ? `<div class="badge">${escapeHtml(t.format)}</div>` : ''}
+    `;
+    row.onclick = () => playTrack(i, true);
+    list.appendChild(row);
+    loadThumb(t.id, row.querySelector('[data-thumb]'));
+  });
+}
+
+function discSvg(){
+  return `<svg class="disc-placeholder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></svg>`;
+}
+
+function escapeHtml(s){
+  return (s??'').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+$('search').addEventListener('input', renderLibrary);
+
+/* ===== Cover art ===== */
+async function loadThumb(id, el){
+  if(!id || !$('coverPath').value){ return; }
+  if(coverCache[id] === 'missing') return;
+  if(coverCache[id]){ el.innerHTML = `<img src="${coverCache[id]}">`; return; }
+  const url = base() + $('coverPath').value.replace('{id}', encodeURIComponent(id));
+  try {
+    const res = await fetch(url, { headers: authHeaders() });
+    if(!res.ok){ coverCache[id] = 'missing'; return; }
+    const blob = await res.blob();
+    const objUrl = URL.createObjectURL(blob);
+    coverCache[id] = objUrl;
+    el.innerHTML = `<img src="${objUrl}">`;
+  } catch(e){
+    coverCache[id] = 'missing';
+  }
+}
+
+/* ===== Playback ===== */
+async function playTrack(libIndex, autoplay){
+  currentIndex = libIndex;
+  const t = library[libIndex];
+  renderLibrary();
+  renderQueue();
+  updateNowPlayingMeta(t);
+  $('miniPlayer').classList.add('show');
+
+  const streamUrl = base() + $('streamPath').value.replace('{id}', encodeURIComponent(t.id));
+  log('req', `GET ${streamUrl} (Authorization: Bearer …)`);
+  try {
+    const res = await fetch(streamUrl, { headers: authHeaders() });
+    if(!res.ok){
+      const text = await res.text();
+      log('err', `${res.status} ${res.statusText} — ${text.slice(0,200)}`);
+      setConnStatus(false, `Stream failed: ${res.status} ${res.statusText}`);
+      return;
+    }
+    log('ok', `${res.status} OK — streaming "${t.title}"`);
+    const blob = await res.blob();
+    const objUrl = URL.createObjectURL(blob);
+    audio.src = objUrl;
+    if(autoplay){ await audio.play().catch(e=>log('err','play() failed: '+e.message)); }
+  } catch(e){
+    log('err', `Network error: ${e.message}`);
+    setConnStatus(false, `Network error: ${e.message}`);
+  }
+}
+
+function updateNowPlayingMeta(t){
+  $('npTitle').textContent = t.title;
+  $('npArtist').textContent = t.album ? `${t.artist} — ${t.album}` : t.artist;
+  $('miniTitle').textContent = t.title;
+  $('miniArtist').textContent = t.artist;
+  $('artTag').textContent = t.format || '—';
+  const fmtParts = [
+    t.sampleRate ? (t.sampleRate/1000)+' kHz' : null,
+    t.bitrate ? Math.round(t.bitrate)+' kbps' : null,
+    t.format || null
+  ].filter(Boolean);
+  $('formatRow').textContent = fmtParts.length ? fmtParts.join(' · ') : '— · — · —';
+
+  const img = $('npArt'), disc = $('discPlaceholder');
+  const cached = coverCache[t.id];
+  if(cached && cached !== 'missing'){
+    img.src = cached; img.style.display='block'; disc.style.display='none';
+  } else {
+    img.style.display='none'; disc.style.display='block';
+    loadThumb(t.id, {innerHTML:''}); // warm cache; overlay art updates on next open if needed
+  }
+  const miniThumb = $('miniThumb');
+  miniThumb.innerHTML = (cached && cached!=='missing') ? `<img src="${cached}" style="width:100%;height:100%;object-fit:cover;">` : discSvg();
+
+  buildWave();
+}
+
+function buildWave(){
+  const wave = $('wave');
+  wave.innerHTML = '';
+  const bars = 36;
+  for(let i=0;i<bars;i++){
+    const h = 14 + Math.round(Math.sin(i*0.7)*10 + Math.random()*16);
+    const bar = document.createElement('span');
+    bar.style.height = Math.max(8,h)+'px';
+    wave.appendChild(bar);
+  }
+  wave.onclick = (e) => {
+    if(!audio.duration) return;
+    const rect = wave.getBoundingClientRect();
+    const frac = (e.clientX - rect.left) / rect.width;
+    audio.currentTime = Math.max(0, Math.min(1, frac)) * audio.duration;
+  };
+}
+
+function fmtTime(s){
+  if(!isFinite(s) || s<0) s = 0;
+  const m = Math.floor(s/60), sec = Math.floor(s%60);
+  return `${m}:${sec.toString().padStart(2,'0')}`;
+}
+
+audio.addEventListener('timeupdate', () => {
+  $('timeCur').textContent = fmtTime(audio.currentTime);
+  $('timeDur').textContent = fmtTime(audio.duration || 0);
+  const frac = audio.duration ? audio.currentTime/audio.duration : 0;
+  const bars = document.querySelectorAll('#wave span');
+  const litCount = Math.round(frac * bars.length);
+  bars.forEach((b,i)=> b.classList.toggle('played', i < litCount));
+  $('miniProg').style.width = (frac*100)+'%';
+});
+
+audio.addEventListener('loadedmetadata', () => {
+  $('timeDur').textContent = fmtTime(audio.duration || 0);
+});
+
+audio.addEventListener('play', () => setPlayingUI(true));
+audio.addEventListener('pause', () => setPlayingUI(false));
+audio.addEventListener('ended', () => { nextTrack(); });
+
+function setPlayingUI(playing){
+  $('playFabIcon').innerHTML = playing
+    ? '<rect x="5" y="4" width="5" height="16" fill="var(--orange)"/><rect x="14" y="4" width="5" height="16" fill="var(--orange)"/>'
+    : '<path d="M6 4l15 8-15 8z" fill="var(--orange)"/>';
+  $('miniPlayIcon').innerHTML = playing
+    ? '<rect x="5" y="4" width="5" height="16"/><rect x="14" y="4" width="5" height="16"/>'
+    : '<path d="M6 4l15 8-15 8z"/>';
+  $('playFab').classList.toggle('playing', playing);
+  $('artCard').classList.toggle('playing', playing);
+}
+
+function togglePlay(){
+  if(!audio.src) return;
+  if(audio.paused){ audio.play(); } else { audio.pause(); }
+}
+function stopPlayback(){
+  audio.pause();
+  audio.currentTime = 0;
+}
+function seekBy(sec){
+  if(!audio.duration) return;
+  audio.currentTime = Math.max(0, Math.min(audio.duration, audio.currentTime + sec));
+}
+function nextTrack(){
+  if(!library.length) return;
+  const next = (currentIndex + 1) % library.length;
+  playTrack(next, true);
+}
+function prevTrack(){
+  if(!library.length) return;
+  const prev = (currentIndex - 1 + library.length) % library.length;
+  playTrack(prev, true);
+}
+
+$('playFab').onclick = togglePlay;
+$('miniPlayBtn').onclick = (e) => { e.stopPropagation(); togglePlay(); };
+$('stopBtn').onclick = stopPlayback;
+$('npStopIcon').onclick = stopPlayback;
+$('tFwd10').onclick = () => seekBy(10);
+$('tBack10').onclick = () => seekBy(-10);
+$('qFwd10').onclick = () => seekBy(10);
+$('qBack10').onclick = () => seekBy(-10);
+$('tNext').onclick = nextTrack;
+$('tPrev').onclick = prevTrack;
+$('qNext').onclick = nextTrack;
+$('qPrev').onclick = prevTrack;
+
+$('volume').oninput = (e) => { audio.volume = e.target.value/100; };
+
+/* ===== Now playing overlay open/close ===== */
+$('miniInfo').onclick = () => $('npOverlay').classList.add('show');
+$('miniThumb').onclick = () => $('npOverlay').classList.add('show');
+$('npClose').onclick = () => $('npOverlay').classList.remove('show');
+$('npOverlay').addEventListener('click', (e) => { if(e.target.id==='npOverlay') $('npOverlay').classList.remove('show'); });
+
+/* ===== Up next queue ===== */
+function renderQueue(){
+  const q = $('queueList');
+  q.innerHTML = '';
+  if(!library.length){ $('upNextCount').textContent = '0 tracks'; return; }
+  const order = [];
+  for(let i=1;i<=Math.min(library.length-1, 12); i++){
+    order.push((currentIndex + i) % library.length);
+  }
+  $('upNextCount').textContent = `${order.length} tracks`;
+  order.forEach((idx, n) => {
+    const t = library[idx];
+    const row = document.createElement('div');
+    row.className = 'qrow';
+    row.innerHTML = `
+      <div class="num">${n+1}</div>
+      <div class="thumb" data-thumb-q="${idx}">${discSvg()}</div>
+      <div class="info"><div class="t">${escapeHtml(t.title)}</div><div class="a">${escapeHtml(t.artist)}</div></div>
+      ${t.format ? `<div class="badge">${escapeHtml(t.format)}</div>` : ''}
+    `;
+    row.onclick = () => playTrack(idx, true);
+    q.appendChild(row);
+    loadThumb(t.id, row.querySelector('[data-thumb-q]'));
+  });
+}
+</script>
+</body>
+</html>

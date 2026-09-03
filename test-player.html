@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>brainlessmusic — playback test</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --border:#30363d; --text:#e6edf3;
+    --dim:#8b949e; --accent:#58a6ff; --ok:#3fb950; --err:#f85149;
+    --mono: ui-monospace, "SF Mono", Consolas, monospace;
+  }
+  *{box-sizing:border-box}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--mono);
+    max-width:760px; margin:40px auto; padding:0 20px; line-height:1.5;
+  }
+  h1{font-size:18px; font-weight:600; margin-bottom:4px}
+  .sub{color:var(--dim); font-size:13px; margin-bottom:28px}
+  section{
+    background:var(--panel); border:1px solid var(--border); border-radius:6px;
+    padding:16px 18px; margin-bottom:16px;
+  }
+  section h2{
+    font-size:12px; text-transform:uppercase; letter-spacing:0.06em;
+    color:var(--dim); margin:0 0 12px 0; font-weight:600;
+  }
+  label{display:block; font-size:12px; color:var(--dim); margin:10px 0 4px}
+  input[type=text], input[type=password]{
+    width:100%; background:#010409; border:1px solid var(--border); color:var(--text);
+    padding:7px 9px; border-radius:4px; font-family:var(--mono); font-size:13px;
+  }
+  input:focus{outline:1px solid var(--accent)}
+  .row{display:flex; gap:10px}
+  .row > div{flex:1}
+  button{
+    background:var(--accent); color:#0d1117; border:none; padding:8px 14px;
+    border-radius:4px; font-family:var(--mono); font-weight:600; font-size:13px;
+    cursor:pointer; margin-top:12px;
+  }
+  button:hover{filter:brightness(1.1)}
+  button:disabled{opacity:0.4; cursor:not-allowed}
+  button.secondary{background:transparent; border:1px solid var(--border); color:var(--text)}
+  .status{font-size:12px; margin-top:10px; padding:8px 10px; border-radius:4px; display:none}
+  .status.show{display:block}
+  .status.ok{background:rgba(63,185,80,0.1); color:var(--ok); border:1px solid rgba(63,185,80,0.3)}
+  .status.err{background:rgba(248,81,73,0.1); color:var(--err); border:1px solid rgba(248,81,73,0.3)}
+  audio{width:100%; margin-top:12px}
+  #log{
+    background:#010409; border:1px solid var(--border); border-radius:4px;
+    padding:10px; font-size:11px; color:var(--dim); max-height:220px; overflow-y:auto;
+    white-space:pre-wrap; word-break:break-all;
+  }
+  #log div{margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid #21262d}
+  #log .t-req{color:var(--accent)}
+  #log .t-ok{color:var(--ok)}
+  #log .t-err{color:var(--err)}
+  .hint{font-size:11px; color:var(--dim); margin-top:6px}
+  .authmode{display:flex; gap:16px; margin-top:8px; font-size:12px; color:var(--dim)}
+  .authmode label{display:flex; align-items:center; gap:5px; margin:0}
+  .authmode input{width:auto}
+</style>
+</head>
+<body>
+
+<h1>brainlessmusic — playback test</h1>
+<div class="sub">Minimal harness: log in against your backend, request a stream, confirm it plays. No build step — just open this file in a browser.</div>
+
+<section>
+  <h2>1 · Connection</h2>
+  <label>API base URL</label>
+  <input type="text" id="baseUrl" value="http://localhost:3000">
+
+  <div class="row">
+    <div>
+      <label>Login path</label>
+      <input type="text" id="loginPath" value="/auth/login">
+    </div>
+    <div>
+      <label>Stream path (use <code>{id}</code> as placeholder, numeric track id)</label>
+      <input type="text" id="streamPath" value="/tracks/{id}/stream">
+    </div>
+  </div>
+
+  <div class="authmode">
+    <label><input type="radio" name="authmode" value="header" checked> Authorization: Bearer header</label>
+    <label><input type="radio" name="authmode" value="query"> ?token= query param</label>
+  </div>
+  <div class="hint">Query param mode is NOT supported by the current backend — the stream route's auth check (<code>src/plugins/auth.ts</code>) only reads an <code>Authorization: Bearer</code> header, so a <code>?token=</code> request will get a 401. Use header mode (default). It fetches the file as a blob rather than letting &lt;audio&gt; hit the URL directly, so native range requests aren't triggered by the browser — but the server's byte-range support (206 Partial Content) is confirmed working if you curl it directly with a Range header.</div>
+</section>
+
+<section>
+  <h2>2 · Auth</h2>
+  <div class="row">
+    <div>
+      <label>Username</label>
+      <input type="text" id="username">
+    </div>
+    <div>
+      <label>Password</label>
+      <input type="password" id="password">
+    </div>
+  </div>
+  <button id="loginBtn">Log in</button>
+  <div id="loginStatus" class="status"></div>
+</section>
+
+<section>
+  <h2>3 · Play</h2>
+  <label>Track ID (numeric — see <code>GET /tracks</code> for real ids)</label>
+  <input type="text" id="trackId" placeholder="e.g. 16">
+  <button id="playBtn" disabled>Load &amp; play</button>
+  <button id="pingBtn" class="secondary">Test connection (no auth)</button>
+  <audio id="audio" controls></audio>
+  <div id="playStatus" class="status"></div>
+</section>
+
+<section>
+  <h2>Request log</h2>
+  <div id="log"></div>
+</section>
+
+<script>
+let token = null;
+
+const $ = id => document.getElementById(id);
+const logEl = $('log');
+
+function log(kind, text) {
+  const div = document.createElement('div');
+  div.className = 't-' + kind;
+  const ts = new Date().toLocaleTimeString();
+  div.textContent = `[${ts}] ${text}`;
+  logEl.prepend(div);
+}
+
+function setStatus(el, ok, msg) {
+  el.className = 'status show ' + (ok ? 'ok' : 'err');
+  el.textContent = msg;
+}
+
+function base() {
+  return $('baseUrl').value.replace(/\/$/, '');
+}
+
+$('pingBtn').onclick = async () => {
+  const url = base() + '/health';
+  log('req', `GET ${url}`);
+  try {
+    const res = await fetch(url);
+    log(res.ok ? 'ok' : 'err', `${res.status} ${res.statusText} — server reachable`);
+  } catch (e) {
+    log('err', `Network error: ${e.message} — is the server running and reachable from this browser? (check CORS if base URL isn't localhost)`);
+  }
+};
+
+$('loginBtn').onclick = async () => {
+  const url = base() + $('loginPath').value;
+  const body = { username: $('username').value, password: $('password').value };
+  log('req', `POST ${url} — logging in as "${body.username}"`);
+  $('loginBtn').disabled = true;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = null; }
+
+    if (!res.ok) {
+      log('err', `${res.status} ${res.statusText} — ${text.slice(0,200)}`);
+      setStatus($('loginStatus'), false, `Login failed: ${res.status} ${res.statusText}`);
+      return;
+    }
+
+    token = data && (data.token || data.accessToken || data.access_token || data.jwt);
+    if (!token) {
+      log('err', `200 OK but no token field found in response. Raw: ${text.slice(0,300)}`);
+      setStatus($('loginStatus'), false, 'Got 200 but could not find a token field (checked token/accessToken/access_token/jwt). Check the log for the raw response.');
+      return;
+    }
+    log('ok', `Login OK — token acquired (${token.slice(0,12)}...)`);
+    setStatus($('loginStatus'), true, 'Logged in.');
+    $('playBtn').disabled = false;
+  } catch (e) {
+    log('err', `Network error: ${e.message}`);
+    setStatus($('loginStatus'), false, `Network error: ${e.message}`);
+  } finally {
+    $('loginBtn').disabled = false;
+  }
+};
+
+$('playBtn').onclick = async () => {
+  const id = $('trackId').value.trim();
+  if (!id) { setStatus($('playStatus'), false, 'Enter a track ID first.'); return; }
+  const path = $('streamPath').value.replace('{id}', encodeURIComponent(id));
+  const authMode = document.querySelector('input[name=authmode]:checked').value;
+  const audio = $('audio');
+
+  if (authMode === 'query') {
+    const url = base() + path + (path.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token);
+    log('req', `<audio src> = ${url}`);
+    audio.src = url;
+    try {
+      await audio.play();
+      log('ok', 'Playback started (query-param mode — native range/seek requests go straight to the server).');
+      setStatus($('playStatus'), true, 'Playing.');
+    } catch (e) {
+      log('err', `audio.play() failed: ${e.message}`);
+      setStatus($('playStatus'), false, `Could not start playback: ${e.message}`);
+    }
+  } else {
+    const url = base() + path;
+    log('req', `GET ${url} (Authorization: Bearer ...)`);
+    try {
+      const res = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+      if (!res.ok) {
+        const text = await res.text();
+        log('err', `${res.status} ${res.statusText} — ${text.slice(0,200)}`);
+        setStatus($('playStatus'), false, `Stream request failed: ${res.status} ${res.statusText}`);
+        return;
+      }
+      const acceptRanges = res.headers.get('accept-ranges');
+      const contentType = res.headers.get('content-type');
+      log('ok', `${res.status} OK — content-type: ${contentType || 'unknown'}, accept-ranges: ${acceptRanges || 'not set (seeking within the blob still works via <audio>, but the server itself isn\\'t doing range requests here)'}`);
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      audio.src = objectUrl;
+      await audio.play();
+      setStatus($('playStatus'), true, `Playing (${(blob.size/1024/1024).toFixed(2)} MB fetched).`);
+    } catch (e) {
+      log('err', `Error: ${e.message}`);
+      setStatus($('playStatus'), false, `Error: ${e.message}`);
+    }
+  }
+};
+</script>
+</body>
+</html>
