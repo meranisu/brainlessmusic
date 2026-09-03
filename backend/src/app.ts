@@ -1,5 +1,7 @@
 import cors from '@fastify/cors';
+import multipart from '@fastify/multipart';
 import Fastify from 'fastify';
+import { config } from './config.js';
 import { registerAuthDecorator } from './plugins/auth.js';
 import albumsRoute from './routes/albums.js';
 import artistsRoute from './routes/artists.js';
@@ -22,6 +24,13 @@ export function buildApp() {
   // frontend dev servers can hit it. Auth is still enforced via JWT bearer token
   // regardless of origin.
   app.register(cors, { origin: true });
+
+  app.register(multipart, {
+    limits: {
+      fileSize: config.maxUploadSizeMb * 1024 * 1024,
+      files: 1,
+    },
+  });
 
   app.register(healthRoute);
   app.register(authRoute);

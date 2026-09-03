@@ -1,10 +1,8 @@
 import { readdir, stat } from 'node:fs/promises';
-import { basename, extname, join } from 'node:path';
-import { parseFile } from 'music-metadata';
+import { extname, join } from 'node:path';
 import { config } from '../config.js';
 import { findTrackByPath, upsertTrack } from '../db/library.js';
-
-const AUDIO_EXTENSIONS = new Set(['.flac', '.opus', '.mp3', '.m4a', '.ogg']);
+import { AUDIO_EXTENSIONS, extractTrackTags } from './trackTags.js';
 
 export interface ScanFailure {
   path: string;
@@ -37,29 +35,14 @@ type ScanFileResult = { status: 'added' | 'updated' } | { status: 'failed'; erro
 
 async function scanFile(filePath: string): Promise<ScanFileResult> {
   try {
-    const [stats, metadata] = await Promise.all([
-      stat(filePath),
-      parseFile(filePath, { duration: true }),
-    ]);
-    const { common, format } = metadata;
-
-    const fileNameWithoutExt = basename(filePath, extname(filePath));
-    const title = common.title?.trim() || fileNameWithoutExt;
-    const artistName = common.artist?.trim() || common.albumartist?.trim() || 'Unknown Artist';
-    const albumTitle = common.album?.trim() || null;
+    const [stats, tags] = await Promise.all([stat(filePath), extractTrackTags(filePath)]);
 
     const existed = Boolean(findTrackByPath(filePath));
 
     upsertTrack({
       path: filePath,
-      title,
-      artistName,
-      albumTitle,
-      albumYear: common.year ?? null,
-      trackNumber: common.track?.no ?? null,
-      duration: format.duration ?? null,
-      format: format.codec ?? format.container ?? extname(filePath).slice(1).toUpperCase(),
       fileSize: stats.size,
+      ...tags,
     });
 
     return { status: existed ? 'updated' : 'added' };

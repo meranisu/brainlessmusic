@@ -6,4 +6,6 @@ export const config = {
   jwtSecret: process.env.JWT_SECRET ?? 'change-me',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
   libraryPath: process.env.LIBRARY_PATH ?? './library',
+  uploadStagingPath: process.env.UPLOAD_STAGING_PATH ?? './data/upload-staging',
+  maxUploadSizeMb: Number(process.env.MAX_UPLOAD_SIZE_MB ?? 100),
 };
