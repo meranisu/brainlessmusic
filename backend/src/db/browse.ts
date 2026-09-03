@@ -44,6 +44,31 @@ export interface TrackSummary {
   album: string | null;
   duration: number | null;
   format: string | null;
+  hidden: boolean;
+  notRecommended: boolean;
+}
+
+export interface TrackDetail extends TrackSummary {
+  trackNumber: number | null;
+  fileSize: number;
+  bitrate: number | null;
+  sampleRate: number | null;
+  playCount: number;
+  dateAdded: string;
+  lastPlayedAt: string | null;
+  lastStreamError: string | null;
+}
+
+export type VisibilityFilter = 'all' | 'only' | 'exclude';
+export type SortField = 'title' | 'artist' | 'album' | 'duration' | 'dateAdded' | 'playCount';
+export type SortOrder = 'asc' | 'desc';
+
+export interface ListTracksOptions {
+  search?: string;
+  sort?: SortField;
+  order?: SortOrder;
+  hidden?: VisibilityFilter;
+  notRecommended?: VisibilityFilter;
 }
 
 export interface SearchResults {
@@ -83,11 +108,64 @@ const TRACK_SUMMARY_SELECT = `
     a.name as artist,
     al.title as album,
     t.duration as duration,
-    t.format as format
+    t.format as format,
+    t.hidden as hidden,
+    t.not_recommended as notRecommended
   FROM tracks t
   LEFT JOIN artists a ON a.id = t.artist_id
   LEFT JOIN albums al ON al.id = t.album_id
 `;
+
+interface RawTrackSummary extends Omit<TrackSummary, 'hidden' | 'notRecommended'> {
+  hidden: number;
+  notRecommended: number;
+}
+
+function toTrackSummary(row: RawTrackSummary): TrackSummary {
+  return { ...row, hidden: Boolean(row.hidden), notRecommended: Boolean(row.notRecommended) };
+}
+
+const SORT_COLUMNS: Record<SortField, string> = {
+  title: 't.title COLLATE NOCASE',
+  artist: 'a.name COLLATE NOCASE',
+  album: 'al.title COLLATE NOCASE',
+  duration: 't.duration',
+  dateAdded: 't.date_added',
+  playCount: 't.play_count',
+};
+
+function visibilityClause(column: string, filter: VisibilityFilter | undefined): string | null {
+  if (filter === 'only') return `${column} = 1`;
+  if (filter === 'exclude') return `${column} = 0`;
+  return null; // 'all' or unset — no filter
+}
+
+/**
+ * Shared WHERE-clause + params builder for listTracks/countTracks, so the
+ * two stay in sync — pagination without a matching filtered count is a
+ * classic source of an inconsistent total.
+ */
+function buildTrackFilter(options: ListTracksOptions): { where: string; params: unknown[] } {
+  const clauses: string[] = [];
+  const params: unknown[] = [];
+
+  if (options.search?.trim()) {
+    clauses.push('(t.title LIKE ? OR a.name LIKE ? OR al.title LIKE ?)');
+    const pattern = `%${options.search.trim()}%`;
+    params.push(pattern, pattern, pattern);
+  }
+
+  const hiddenClause = visibilityClause('t.hidden', options.hidden ?? 'exclude');
+  if (hiddenClause) clauses.push(hiddenClause);
+
+  const notRecommendedClause = visibilityClause('t.not_recommended', options.notRecommended ?? 'all');
+  if (notRecommendedClause) clauses.push(notRecommendedClause);
+
+  return {
+    where: clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '',
+    params,
+  };
+}
 
 export function countArtists(): number {
   return (db.prepare('SELECT COUNT(*) as count FROM artists').get() as { count: number }).count;
@@ -150,27 +228,83 @@ export function getAlbumDetail(id: number): AlbumDetail | undefined {
   return { ...album, tracks };
 }
 
-export function countTracks(): number {
-  return (db.prepare('SELECT COUNT(*) as count FROM tracks').get() as { count: number }).count;
+export function countTracks(options: ListTracksOptions = {}): number {
+  const { where, params } = buildTrackFilter(options);
+  return (
+    db
+      .prepare(
+        `SELECT COUNT(*) as count FROM tracks t
+         LEFT JOIN artists a ON a.id = t.artist_id
+         LEFT JOIN albums al ON al.id = t.album_id
+         ${where}`,
+      )
+      .get(...params) as { count: number }
+  ).count;
 }
 
-export function listTracks(limit: number, offset: number): TrackSummary[] {
-  return db
-    .prepare(`${TRACK_SUMMARY_SELECT} ORDER BY t.title COLLATE NOCASE LIMIT ? OFFSET ?`)
-    .all(limit, offset) as TrackSummary[];
+export function listTracks(limit: number, offset: number, options: ListTracksOptions = {}): TrackSummary[] {
+  const { where, params } = buildTrackFilter(options);
+  const sortColumn = SORT_COLUMNS[options.sort ?? 'title'];
+  const direction = options.order === 'desc' ? 'DESC' : 'ASC';
+
+  const rows = db
+    .prepare(`${TRACK_SUMMARY_SELECT} ${where} ORDER BY ${sortColumn} ${direction} LIMIT ? OFFSET ?`)
+    .all(...params, limit, offset) as RawTrackSummary[];
+
+  return rows.map(toTrackSummary);
 }
 
 export function getTrackSummaryById(id: number): TrackSummary | undefined {
-  return db.prepare(`${TRACK_SUMMARY_SELECT} WHERE t.id = ?`).get(id) as TrackSummary | undefined;
+  const row = db.prepare(`${TRACK_SUMMARY_SELECT} WHERE t.id = ?`).get(id) as
+    | RawTrackSummary
+    | undefined;
+  return row ? toTrackSummary(row) : undefined;
 }
 
 /** Batch lookup by id — single `IN (...)` query, not N+1. Order is not guaranteed to match `ids`. */
 export function getTrackSummariesByIds(ids: number[]): TrackSummary[] {
   if (ids.length === 0) return [];
   const placeholders = ids.map(() => '?').join(',');
-  return db
+  const rows = db
     .prepare(`${TRACK_SUMMARY_SELECT} WHERE t.id IN (${placeholders})`)
-    .all(...ids) as TrackSummary[];
+    .all(...ids) as RawTrackSummary[];
+  return rows.map(toTrackSummary);
+}
+
+interface RawTrackDetail extends Omit<TrackDetail, 'hidden' | 'notRecommended'> {
+  hidden: number;
+  notRecommended: number;
+}
+
+export function getTrackDetailById(id: number): TrackDetail | undefined {
+  const row = db
+    .prepare(
+      `SELECT
+         t.id as id,
+         t.title as title,
+         a.name as artist,
+         al.title as album,
+         t.duration as duration,
+         t.format as format,
+         t.hidden as hidden,
+         t.not_recommended as notRecommended,
+         t.track_number as trackNumber,
+         t.file_size as fileSize,
+         t.bitrate as bitrate,
+         t.sample_rate as sampleRate,
+         t.play_count as playCount,
+         t.date_added as dateAdded,
+         t.last_played_at as lastPlayedAt,
+         t.last_stream_error as lastStreamError
+       FROM tracks t
+       LEFT JOIN artists a ON a.id = t.artist_id
+       LEFT JOIN albums al ON al.id = t.album_id
+       WHERE t.id = ?`,
+    )
+    .get(id) as RawTrackDetail | undefined;
+
+  if (!row) return undefined;
+  return { ...row, hidden: Boolean(row.hidden), notRecommended: Boolean(row.notRecommended) };
 }
 
 const SEARCH_RESULT_LIMIT = 20;
@@ -195,9 +329,11 @@ export function searchLibrary(query: string): SearchResults {
     )
     .all(pattern, SEARCH_RESULT_LIMIT) as AlbumSummary[];
 
-  const tracks = db
-    .prepare(`${TRACK_SUMMARY_SELECT} WHERE t.title LIKE ? ORDER BY t.title COLLATE NOCASE LIMIT ?`)
-    .all(pattern, SEARCH_RESULT_LIMIT) as TrackSummary[];
+  const tracks = (
+    db
+      .prepare(`${TRACK_SUMMARY_SELECT} WHERE t.title LIKE ? ORDER BY t.title COLLATE NOCASE LIMIT ?`)
+      .all(pattern, SEARCH_RESULT_LIMIT) as RawTrackSummary[]
+  ).map(toTrackSummary);
 
   return { artists, albums, tracks };
 }

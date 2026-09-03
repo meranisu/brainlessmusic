@@ -11,6 +11,8 @@ export interface TrackTags {
   trackNumber: number | null;
   duration: number | null;
   format: string | null;
+  bitrate: number | null;
+  sampleRate: number | null;
 }
 
 /**
@@ -42,5 +44,7 @@ export async function extractTrackTags(
     trackNumber: common.track?.no ?? null,
     duration: format.duration ?? null,
     format: format.codec ?? format.container ?? extname(filePath).slice(1).toUpperCase(),
+    bitrate: format.bitrate ? Math.round(format.bitrate) : null,
+    sampleRate: format.sampleRate ?? null,
   };
 }
