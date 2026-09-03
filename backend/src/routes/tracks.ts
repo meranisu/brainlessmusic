@@ -1,10 +1,16 @@
-import { createReadStream } from 'node:fs';
-import { stat } from 'node:fs/promises';
+import { createReadStream, createWriteStream } from 'node:fs';
+import { mkdir, stat, unlink } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { extname, join } from 'node:path';
+import { pipeline } from 'node:stream/promises';
 import type { FastifyPluginAsync } from 'fastify';
-import { countTracks, listTracks } from '../db/browse.js';
-import { findTrackById } from '../db/library.js';
+import { config } from '../config.js';
+import { countTracks, getTrackSummaryById, listTracks } from '../db/browse.js';
+import { findTrackById, upsertTrack } from '../db/library.js';
 import { countHistoryForTrack, listHistoryForTrack, recordScrobble } from '../db/plays.js';
 import { mimeTypeFor, parseRange, transcodeToLowQuality } from '../services/streaming.js';
+import { fileIntoLibrary } from '../services/trackFiling.js';
+import { AUDIO_EXTENSIONS, extractTrackTags } from '../services/trackTags.js';
 import { parsePagination } from '../utils/pagination.js';
 
 const tracksRoute: FastifyPluginAsync = async (fastify) => {
@@ -17,6 +23,52 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
       return reply.send({ total: countTracks(), limit, offset, tracks });
     },
   );
+
+  fastify.post('/tracks/upload', { preHandler: fastify.authenticate }, async (request, reply) => {
+    const data = await request.file();
+    if (!data) {
+      return reply.code(400).send({ error: 'No file provided' });
+    }
+
+    const ext = extname(data.filename).toLowerCase();
+    if (!AUDIO_EXTENSIONS.has(ext)) {
+      data.file.resume(); // drain the stream so the request can complete
+      return reply.code(400).send({ error: `Unsupported file extension: ${ext || '(none)'}` });
+    }
+
+    // Never trust the client-supplied filename beyond its extension — the
+    // staging filename is generated server-side to avoid path traversal or
+    // collisions.
+    await mkdir(config.uploadStagingPath, { recursive: true });
+    const stagingPath = join(config.uploadStagingPath, `${randomUUID()}${ext}`);
+
+    await pipeline(data.file, createWriteStream(stagingPath));
+
+    if (data.file.truncated) {
+      await unlink(stagingPath).catch(() => {});
+      return reply.code(413).send({ error: 'File exceeds maximum upload size' });
+    }
+
+    let tags;
+    try {
+      tags = await extractTrackTags(stagingPath, data.filename);
+    } catch (err) {
+      await unlink(stagingPath).catch(() => {});
+      const message = err instanceof Error ? err.message : String(err);
+      request.log.warn({ err, filename: data.filename }, 'Uploaded file failed tag extraction');
+      return reply.code(400).send({
+        error: 'Could not read audio tags — file may be corrupt or unsupported',
+        message,
+      });
+    }
+
+    const stats = await stat(stagingPath);
+    const destPath = await fileIntoLibrary(stagingPath, data.filename, tags);
+
+    const track = upsertTrack({ path: destPath, fileSize: stats.size, ...tags });
+
+    return reply.code(201).send({ track: getTrackSummaryById(track.id) });
+  });
 
   fastify.get<{ Params: { id: string }; Querystring: { quality?: string } }>(
     '/tracks/:id/stream',

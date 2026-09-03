@@ -160,6 +160,10 @@ export function listTracks(limit: number, offset: number): TrackSummary[] {
     .all(limit, offset) as TrackSummary[];
 }
 
+export function getTrackSummaryById(id: number): TrackSummary | undefined {
+  return db.prepare(`${TRACK_SUMMARY_SELECT} WHERE t.id = ?`).get(id) as TrackSummary | undefined;
+}
+
 const SEARCH_RESULT_LIMIT = 20;
 
 /**
