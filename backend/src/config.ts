@@ -5,4 +5,5 @@ export const config = {
   dbPath: process.env.DB_PATH ?? './data/brainlessmusic.db',
   jwtSecret: process.env.JWT_SECRET ?? 'change-me',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
+  libraryPath: process.env.LIBRARY_PATH ?? './library',
 };
