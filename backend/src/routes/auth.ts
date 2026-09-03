@@ -48,7 +48,7 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       return reply.code(404).send({ error: 'user not found' });
     }
 
-    return reply.send({ id: user.id, username: user.username });
+    return reply.send({ id: user.id, username: user.username, isAdmin: Boolean(user.is_admin) });
   });
 };
 

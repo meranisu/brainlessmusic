@@ -27,6 +27,11 @@ export interface TrackRow {
   date_added: string;
   play_count: number;
   last_played_at: string | null;
+  hidden: number;
+  not_recommended: number;
+  bitrate: number | null;
+  sample_rate: number | null;
+  last_stream_error: string | null;
 }
 
 export interface TrackInput {
@@ -39,6 +44,17 @@ export interface TrackInput {
   duration: number | null;
   format: string | null;
   fileSize: number;
+  bitrate?: number | null;
+  sampleRate?: number | null;
+}
+
+export interface TrackFieldUpdate {
+  title?: string;
+  artistName?: string | null;
+  albumTitle?: string | null;
+  trackNumber?: number | null;
+  hidden?: boolean;
+  notRecommended?: boolean;
 }
 
 function findOrCreateArtist(name: string): ArtistRow {
@@ -88,8 +104,8 @@ export function upsertTrack(input: TrackInput): TrackRow {
     : null;
 
   db.prepare(
-    `INSERT INTO tracks (path, title, artist_id, album_id, track_number, duration, format, file_size)
-     VALUES (@path, @title, @artistId, @albumId, @trackNumber, @duration, @format, @fileSize)
+    `INSERT INTO tracks (path, title, artist_id, album_id, track_number, duration, format, file_size, bitrate, sample_rate)
+     VALUES (@path, @title, @artistId, @albumId, @trackNumber, @duration, @format, @fileSize, @bitrate, @sampleRate)
      ON CONFLICT (path) DO UPDATE SET
        title = excluded.title,
        artist_id = excluded.artist_id,
@@ -97,7 +113,9 @@ export function upsertTrack(input: TrackInput): TrackRow {
        track_number = excluded.track_number,
        duration = excluded.duration,
        format = excluded.format,
-       file_size = excluded.file_size`,
+       file_size = excluded.file_size,
+       bitrate = excluded.bitrate,
+       sample_rate = excluded.sample_rate`,
   ).run({
     path: input.path,
     title: input.title,
@@ -107,7 +125,80 @@ export function upsertTrack(input: TrackInput): TrackRow {
     duration: input.duration,
     format: input.format,
     fileSize: input.fileSize,
+    bitrate: input.bitrate ?? null,
+    sampleRate: input.sampleRate ?? null,
   });
 
   return findTrackByPath(input.path)!;
+}
+
+/**
+ * Applies a partial tag/visibility edit. Title/artist/album go through the
+ * same find-or-create resolution as upsertTrack so renaming an artist here
+ * behaves consistently with a re-scan.
+ */
+export function updateTrackFields(id: number, update: TrackFieldUpdate): TrackRow | undefined {
+  const existing = findTrackById(id);
+  if (!existing) return undefined;
+
+  const sets: string[] = [];
+  const params: Record<string, unknown> = { id };
+
+  if (update.title !== undefined) {
+    sets.push('title = @title');
+    params.title = update.title;
+  }
+  if (update.artistName !== undefined) {
+    const artist = update.artistName ? findOrCreateArtist(update.artistName) : null;
+    sets.push('artist_id = @artistId');
+    params.artistId = artist?.id ?? null;
+  }
+  if (update.albumTitle !== undefined) {
+    const artistId = update.artistName !== undefined
+      ? (update.artistName ? findOrCreateArtist(update.artistName).id : null)
+      : existing.artist_id;
+    const album = update.albumTitle ? findOrCreateAlbum(update.albumTitle, artistId, null) : null;
+    sets.push('album_id = @albumId');
+    params.albumId = album?.id ?? null;
+  }
+  if (update.trackNumber !== undefined) {
+    sets.push('track_number = @trackNumber');
+    params.trackNumber = update.trackNumber;
+  }
+  if (update.hidden !== undefined) {
+    sets.push('hidden = @hidden');
+    params.hidden = update.hidden ? 1 : 0;
+  }
+  if (update.notRecommended !== undefined) {
+    sets.push('not_recommended = @notRecommended');
+    params.notRecommended = update.notRecommended ? 1 : 0;
+  }
+
+  if (sets.length === 0) return existing;
+
+  db.prepare(`UPDATE tracks SET ${sets.join(', ')} WHERE id = @id`).run(params);
+  return findTrackById(id);
+}
+
+export function setLastStreamError(id: number, message: string | null): void {
+  db.prepare('UPDATE tracks SET last_stream_error = ? WHERE id = ?').run(message, id);
+}
+
+/**
+ * Hard-deletes a track row and every row referencing it (favorites,
+ * playlist entries, play history). better-sqlite3 enforces FK constraints
+ * by default (`PRAGMA foreign_keys = ON` per connection) and none of these
+ * FKs cascade, so dependents must be deleted first in this order or the
+ * final `DELETE FROM tracks` throws a constraint error rather than orphaning
+ * anything. Does NOT touch the file on disk — callers unlink it separately,
+ * since that's an fs concern, not a DB one.
+ */
+export function deleteTrackRow(id: number): void {
+  const cleanup = db.transaction((trackId: number) => {
+    db.prepare('DELETE FROM favorites WHERE track_id = ?').run(trackId);
+    db.prepare('DELETE FROM playlist_tracks WHERE track_id = ?').run(trackId);
+    db.prepare('DELETE FROM play_history WHERE track_id = ?').run(trackId);
+    db.prepare('DELETE FROM tracks WHERE id = ?').run(trackId);
+  });
+  cleanup(id);
 }

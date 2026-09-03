@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "migrate": "tsx src/db/migrate.ts",
+    "set-admin": "tsx src/scripts/set-admin.ts",
     "test": "tsx --test src/**/*.test.ts"
   },
   "dependencies": {

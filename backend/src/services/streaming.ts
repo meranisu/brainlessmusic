@@ -63,7 +63,10 @@ const LOW_QUALITY_BITRATE = '64k';
  * for the data-saver path. Output length is unknown ahead of time, so callers
  * must not attempt byte-range serving against this stream.
  */
-export function transcodeToLowQuality(filePath: string): NodeJS.ReadableStream {
+export function transcodeToLowQuality(
+  filePath: string,
+  onError?: (err: Error) => void,
+): NodeJS.ReadableStream {
   const command = ffmpeg(filePath)
     .noVideo()
     .audioCodec('libopus')
@@ -71,6 +74,7 @@ export function transcodeToLowQuality(filePath: string): NodeJS.ReadableStream {
     .format('ogg')
     .on('error', (err: Error) => {
       console.error(`Transcode failed for ${filePath}: ${err.message}`);
+      onError?.(err);
     });
 
   return command.pipe() as unknown as NodeJS.ReadableStream;
