@@ -6,11 +6,13 @@ import { registerAuthDecorator } from './plugins/auth.js';
 import albumsRoute from './routes/albums.js';
 import artistsRoute from './routes/artists.js';
 import authRoute from './routes/auth.js';
+import favoritesRoute from './routes/favorites.js';
 import healthRoute from './routes/health.js';
 import historyRoute from './routes/history.js';
 import libraryRoute from './routes/library.js';
 import playlistsRoute from './routes/playlists.js';
 import searchRoute from './routes/search.js';
+import shuffleRoute from './routes/shuffle.js';
 import statsRoute from './routes/stats.js';
 import tracksRoute from './routes/tracks.js';
 
@@ -42,6 +44,8 @@ export function buildApp() {
   app.register(playlistsRoute);
   app.register(historyRoute);
   app.register(statsRoute);
+  app.register(favoritesRoute);
+  app.register(shuffleRoute);
 
   return app;
 }

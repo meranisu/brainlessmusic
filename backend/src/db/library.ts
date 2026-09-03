@@ -71,6 +71,13 @@ export function findTrackById(id: number): TrackRow | undefined {
   return db.prepare('SELECT * FROM tracks WHERE id = ?').get(id) as TrackRow | undefined;
 }
 
+/** Batch lookup by id — single `IN (...)` query, not N+1. May return fewer rows than ids given. */
+export function findTracksByIds(ids: number[]): TrackRow[] {
+  if (ids.length === 0) return [];
+  const placeholders = ids.map(() => '?').join(',');
+  return db.prepare(`SELECT * FROM tracks WHERE id IN (${placeholders})`).all(...ids) as TrackRow[];
+}
+
 /**
  * Insert or update (by path) a track, creating its artist/album rows as needed.
  */
