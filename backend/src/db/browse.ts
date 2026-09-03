@@ -164,6 +164,15 @@ export function getTrackSummaryById(id: number): TrackSummary | undefined {
   return db.prepare(`${TRACK_SUMMARY_SELECT} WHERE t.id = ?`).get(id) as TrackSummary | undefined;
 }
 
+/** Batch lookup by id — single `IN (...)` query, not N+1. Order is not guaranteed to match `ids`. */
+export function getTrackSummariesByIds(ids: number[]): TrackSummary[] {
+  if (ids.length === 0) return [];
+  const placeholders = ids.map(() => '?').join(',');
+  return db
+    .prepare(`${TRACK_SUMMARY_SELECT} WHERE t.id IN (${placeholders})`)
+    .all(...ids) as TrackSummary[];
+}
+
 const SEARCH_RESULT_LIMIT = 20;
 
 /**

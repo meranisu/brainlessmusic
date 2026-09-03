@@ -447,6 +447,10 @@
       <div><label>Cover art path (use {id}, optional — leave blank, no endpoint exists yet)</label><input type="text" id="coverPath" value=""></div>
     </div>
     <div class="field-row">
+      <div><label>Upload path</label><input type="text" id="uploadPath" value="/tracks/upload"></div>
+      <div><label>Smart shuffle path</label><input type="text" id="shufflePath" value="/shuffle"></div>
+    </div>
+    <div class="field-row">
       <div><label>Username</label><input type="text" id="username"></div>
       <div><label>Password</label><input type="password" id="password"></div>
     </div>
@@ -458,9 +462,16 @@
 
   <div class="lib-header">
     <h2>Library</h2>
-    <div class="count" id="trackCount">not loaded</div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div class="count" id="trackCount">not loaded</div>
+      <button class="btn ghost" id="shuffleBtn" style="padding:7px 14px; font-size:12px;" title="Reorder the loaded library so the same artist doesn't play back-to-back">🔀 Smart Shuffle</button>
+      <button class="btn" id="uploadBtn" style="padding:7px 14px; font-size:12px;">+ Upload</button>
+    </div>
   </div>
+  <input type="file" id="uploadInput" accept=".flac,.opus,.mp3,.m4a,.ogg,audio/*" style="display:none;">
   <div class="search-wrap">
+    <div class="status-msg" id="uploadStatus" style="margin-bottom:10px;"></div>
+    <div class="status-msg" id="shuffleStatus" style="margin-bottom:10px;"></div>
     <input type="text" id="search" placeholder="Filter by title or artist…">
   </div>
 
@@ -677,6 +688,120 @@ async function loadLibrary(){
     setConnStatus(false, `Network error: ${e.message}`);
   }
 }
+
+/* ===== Upload ===== */
+$('uploadBtn').onclick = () => $('uploadInput').click();
+$('uploadInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = ''; // allow re-selecting the same file right away
+  if(!file) return;
+  await uploadTrack(file);
+});
+
+function setUploadStatus(ok, msg){
+  const el = $('uploadStatus');
+  el.className = 'status-msg show ' + (ok?'ok':'err');
+  el.textContent = msg;
+}
+
+async function uploadTrack(file){
+  if(!token){
+    setUploadStatus(false, 'Log in first before uploading.');
+    return;
+  }
+  $('uploadBtn').disabled = true;
+  setUploadStatus(true, `Uploading "${file.name}"…`);
+  const url = base() + $('uploadPath').value;
+  const form = new FormData();
+  form.append('file', file);
+  log('req', `POST ${url} (multipart, "${file.name}")`);
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: authHeaders(), // no Content-Type — browser sets the multipart boundary itself
+      body: form
+    });
+    const text = await res.text();
+    let data; try{ data = JSON.parse(text); }catch{ data = null; }
+    if(!res.ok){
+      const detail = (data && (data.error || data.message)) || res.statusText;
+      log('err', `${res.status} ${res.statusText} — ${text.slice(0,200)}`);
+      setUploadStatus(false, `Upload failed: ${res.status} ${detail}`);
+      return;
+    }
+    const track = data && data.track;
+    if(!track){
+      log('err', `${res.status} OK but no "track" field found. Raw: ${text.slice(0,300)}`);
+      setUploadStatus(false, 'Uploaded but the response had an unexpected shape — check the log.');
+      return;
+    }
+    log('ok', `Uploaded "${track.title}" (id ${track.id}).`);
+    setUploadStatus(true, `Uploaded "${track.title}" ✓`);
+    library.push(normalizeTrack(track));
+    renderLibrary();
+  } catch(e){
+    log('err', `Network error: ${e.message}`);
+    setUploadStatus(false, `Network error: ${e.message}`);
+  } finally {
+    $('uploadBtn').disabled = false;
+  }
+}
+
+/* ===== Smart shuffle ===== */
+function setShuffleStatus(ok, msg){
+  const el = $('shuffleStatus');
+  el.className = 'status-msg show ' + (ok?'ok':'err');
+  el.textContent = msg;
+}
+
+$('shuffleBtn').onclick = async () => {
+  if(!token){
+    setShuffleStatus(false, 'Log in first before shuffling.');
+    return;
+  }
+  if(!library.length){
+    setShuffleStatus(false, 'Nothing loaded to shuffle yet.');
+    return;
+  }
+  $('shuffleBtn').disabled = true;
+  setShuffleStatus(true, `Shuffling ${library.length} tracks…`);
+  const url = base() + $('shufflePath').value;
+  const trackIds = library.map(t => t.id);
+  const currentId = currentIndex >= 0 ? library[currentIndex].id : null;
+  log('req', `POST ${url} (${trackIds.length} trackIds)`);
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ trackIds })
+    });
+    const text = await res.text();
+    let data; try{ data = JSON.parse(text); }catch{ data = null; }
+    if(!res.ok){
+      const detail = (data && (data.error || data.message)) || res.statusText;
+      log('err', `${res.status} ${res.statusText} — ${text.slice(0,200)}`);
+      setShuffleStatus(false, `Shuffle failed: ${res.status} ${detail}`);
+      return;
+    }
+    const tracks = data && data.tracks;
+    if(!Array.isArray(tracks)){
+      log('err', `${res.status} OK but no "tracks" array found. Raw: ${text.slice(0,300)}`);
+      setShuffleStatus(false, 'Shuffled but the response had an unexpected shape — check the log.');
+      return;
+    }
+    library = tracks.map(normalizeTrack);
+    currentIndex = currentId==null ? -1 : library.findIndex(t => t.id === currentId);
+    log('ok', `Shuffled — new order for ${library.length} tracks.`);
+    setShuffleStatus(true, `Shuffled ${library.length} tracks ✓`);
+    renderLibrary();
+    renderQueue();
+  } catch(e){
+    log('err', `Network error: ${e.message}`);
+    setShuffleStatus(false, `Network error: ${e.message}`);
+  } finally {
+    $('shuffleBtn').disabled = false;
+  }
+};
 
 function normalizeTrack(t){
   // Real backend shape (confirmed): { id, title, artist, album, duration (seconds, float), format }
