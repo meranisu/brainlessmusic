@@ -1,8 +1,20 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useAuth } from '../auth/AuthContext';
+import { ConfirmDeleteDialog } from '../components/ConfirmDeleteDialog';
 import { usePreviewPlayer } from '../components/PreviewPlayerBar';
-import { apiClient } from '../lib/apiClient';
-import type { SortField, SortOrder, TrackListParams, TrackListResponse, VisibilityFilter } from '../types/api';
+import { useToast } from '../components/ToastProvider';
+import { TrackDetailDrawer } from '../components/TrackDetailDrawer';
+import { TrackRowMenu } from '../components/TrackRowMenu';
+import { apiClient, ApiError } from '../lib/apiClient';
+import type {
+  SortField,
+  SortOrder,
+  TrackListParams,
+  TrackListResponse,
+  TrackSummary,
+  VisibilityFilter,
+} from '../types/api';
 
 const PAGE_SIZE = 50;
 
@@ -32,7 +44,15 @@ export function LibraryPage() {
   const [hidden, setHidden] = useState<VisibilityFilter>('exclude');
   const [notRecommended, setNotRecommended] = useState<VisibilityFilter>('all');
   const [page, setPage] = useState(0);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [activeTrack, setActiveTrack] = useState<{ id: number; tab: 'tags' | 'diagnostics' } | null>(null);
+  const [deleteTargets, setDeleteTargets] = useState<TrackSummary[] | null>(null);
+
   const { play } = usePreviewPlayer();
+  const { user } = useAuth();
+  const { showToast } = useToast();
+  const queryClient = useQueryClient();
+  const isAdmin = Boolean(user?.isAdmin);
 
   const params: TrackListParams = { search, sort, order, hidden, notRecommended, offset: page * PAGE_SIZE };
 
@@ -43,6 +63,43 @@ export function LibraryPage() {
   });
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
+
+  function invalidateAfterMutation() {
+    queryClient.invalidateQueries({ queryKey: ['tracks'] });
+  }
+
+  const patchMutation = useMutation({
+    mutationFn: ({ id, patch }: { id: number; patch: Partial<TrackSummary> }) =>
+      apiClient.patch(`/tracks/${id}`, patch),
+    onSuccess: invalidateAfterMutation,
+    onError: (err) => showToast(err instanceof ApiError ? err.message : 'Update failed', 'error'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (ids: number[]) => Promise.all(ids.map((id) => apiClient.delete(`/tracks/${id}`))),
+    onSuccess: (_result, ids) => {
+      invalidateAfterMutation();
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        ids.forEach((id) => next.delete(id));
+        return next;
+      });
+      setDeleteTargets(null);
+      showToast(ids.length === 1 ? 'Track deleted' : `${ids.length} tracks deleted`);
+    },
+    onError: (err) => showToast(err instanceof ApiError ? err.message : 'Delete failed', 'error'),
+  });
+
+  function toggleSelected(id: number) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const selectedTracks = data?.tracks.filter((t) => selectedIds.has(t.id)) ?? [];
 
   return (
     <div>
@@ -97,6 +154,32 @@ export function LibraryPage() {
         </select>
       </div>
 
+      {isAdmin && selectedIds.size > 0 && (
+        <div className="mb-3 flex items-center gap-3 rounded-md border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm">
+          <span className="text-neutral-300">{selectedIds.size} selected</span>
+          <button
+            onClick={() => selectedTracks.forEach((t) => patchMutation.mutate({ id: t.id, patch: { hidden: true } }))}
+            className="text-neutral-400 hover:text-neutral-100"
+          >
+            Hide
+          </button>
+          <button
+            onClick={() =>
+              selectedTracks.forEach((t) => patchMutation.mutate({ id: t.id, patch: { hidden: false } }))
+            }
+            className="text-neutral-400 hover:text-neutral-100"
+          >
+            Un-hide
+          </button>
+          <button onClick={() => setDeleteTargets(selectedTracks)} className="text-red-400 hover:text-red-300">
+            Delete
+          </button>
+          <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-neutral-500 hover:text-neutral-300">
+            Clear
+          </button>
+        </div>
+      )}
+
       {isLoading && <p className="text-sm text-neutral-500">Loading…</p>}
       {isError && <p className="text-sm text-red-400">Failed to load tracks.</p>}
 
@@ -106,6 +189,7 @@ export function LibraryPage() {
             <table className="w-full text-left text-sm">
               <thead className="border-b border-neutral-800 text-neutral-500">
                 <tr>
+                  {isAdmin && <th className="w-8 px-3 py-2"></th>}
                   <th className="px-3 py-2 font-medium"></th>
                   <th className="px-3 py-2 font-medium">Title</th>
                   <th className="px-3 py-2 font-medium">Artist</th>
@@ -113,12 +197,27 @@ export function LibraryPage() {
                   <th className="px-3 py-2 font-medium">Duration</th>
                   <th className="px-3 py-2 font-medium">Format</th>
                   <th className="px-3 py-2 font-medium">Flags</th>
+                  <th className="w-8 px-3 py-2"></th>
                 </tr>
               </thead>
               <tbody>
                 {data.tracks.map((t) => (
-                  <tr key={t.id} className="border-b border-neutral-900 hover:bg-neutral-900/50">
-                    <td className="px-3 py-2">
+                  <tr
+                    key={t.id}
+                    onClick={() => setActiveTrack({ id: t.id, tab: 'tags' })}
+                    className="cursor-pointer border-b border-neutral-900 hover:bg-neutral-900/50"
+                  >
+                    {isAdmin && (
+                      <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(t.id)}
+                          onChange={() => toggleSelected(t.id)}
+                          className="accent-neutral-100"
+                        />
+                      </td>
+                    )}
+                    <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => play(t.id, `${t.title} — ${t.artist ?? 'Unknown Artist'}`)}
                         className="text-neutral-400 hover:text-neutral-100"
@@ -146,11 +245,24 @@ export function LibraryPage() {
                         )}
                       </div>
                     </td>
+                    <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                      <TrackRowMenu
+                        track={t}
+                        isAdmin={isAdmin}
+                        onEdit={() => setActiveTrack({ id: t.id, tab: 'tags' })}
+                        onDiagnostics={() => setActiveTrack({ id: t.id, tab: 'diagnostics' })}
+                        onToggleHidden={() => patchMutation.mutate({ id: t.id, patch: { hidden: !t.hidden } })}
+                        onToggleNotRecommended={() =>
+                          patchMutation.mutate({ id: t.id, patch: { notRecommended: !t.notRecommended } })
+                        }
+                        onDelete={() => setDeleteTargets([t])}
+                      />
+                    </td>
                   </tr>
                 ))}
                 {data.tracks.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-3 py-8 text-center text-neutral-500">
+                    <td colSpan={isAdmin ? 9 : 7} className="px-3 py-8 text-center text-neutral-500">
                       No tracks match these filters.
                     </td>
                   </tr>
@@ -179,6 +291,23 @@ export function LibraryPage() {
             </button>
           </div>
         </>
+      )}
+
+      {activeTrack && (
+        <TrackDetailDrawer
+          trackId={activeTrack.id}
+          initialTab={activeTrack.tab}
+          onClose={() => setActiveTrack(null)}
+        />
+      )}
+
+      {deleteTargets && (
+        <ConfirmDeleteDialog
+          titles={deleteTargets.map((t) => t.title)}
+          isDeleting={deleteMutation.isPending}
+          onCancel={() => setDeleteTargets(null)}
+          onConfirm={() => deleteMutation.mutate(deleteTargets.map((t) => t.id))}
+        />
       )}
     </div>
   );
