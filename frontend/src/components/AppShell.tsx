@@ -31,6 +31,12 @@ export function AppShell() {
             <NavLink to="/" end className={navLinkClass}>
               Library
             </NavLink>
+            <NavLink to="/albums" className={navLinkClass}>
+              Albums
+            </NavLink>
+            <NavLink to="/artists" className={navLinkClass}>
+              Artists
+            </NavLink>
             {user?.isAdmin && (
               <NavLink to="/upload" className={navLinkClass}>
                 Upload

@@ -68,3 +68,55 @@ export interface HealthSnapshot {
   activeStreams: number;
   recentErrors: StreamErrorEntry[];
 }
+
+export interface ArtistSummary {
+  id: number;
+  name: string;
+  trackCount: number;
+  albumCount: number;
+}
+
+export interface AlbumSummary {
+  id: number;
+  title: string;
+  artistId: number | null;
+  artistName: string | null;
+  year: number | null;
+  trackCount: number;
+}
+
+export interface ArtistDetail extends ArtistSummary {
+  albums: AlbumSummary[];
+}
+
+/** Album track rows omit the artist — it's the album's, carried on the parent. */
+export interface AlbumTrack {
+  id: number;
+  title: string;
+  trackNumber: number | null;
+  duration: number | null;
+  format: string | null;
+}
+
+export interface AlbumDetail {
+  id: number;
+  title: string;
+  artistId: number | null;
+  artistName: string | null;
+  year: number | null;
+  tracks: AlbumTrack[];
+}
+
+export interface ArtistListResponse {
+  total: number;
+  limit: number;
+  offset: number;
+  artists: ArtistSummary[];
+}
+
+export interface AlbumListResponse {
+  total: number;
+  limit: number;
+  offset: number;
+  albums: AlbumSummary[];
+}
