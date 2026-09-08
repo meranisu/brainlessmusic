@@ -29,3 +29,9 @@ export function setAdmin(username: string, isAdmin: boolean): UserRow | undefine
   db.prepare('UPDATE users SET is_admin = ? WHERE username = ?').run(isAdmin ? 1 : 0, username);
   return findUserByUsername(username);
 }
+
+/** No self-serve password reset in this UI; run via `npm run set-password -- <username>`. */
+export function setPasswordHash(username: string, passwordHash: string): UserRow | undefined {
+  db.prepare('UPDATE users SET password_hash = ? WHERE username = ?').run(passwordHash, username);
+  return findUserByUsername(username);
+}
