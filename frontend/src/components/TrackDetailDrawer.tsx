@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { apiClient, ApiError } from '../lib/apiClient';
 import type { TrackDetail, TrackPatchInput } from '../types/api';
-import { usePreviewPlayer } from './PreviewPlayerBar';
+import { usePlayer } from './PlayerBar';
 import { useToast } from './ToastProvider';
 
 interface TrackDetailDrawerProps {
@@ -26,7 +26,7 @@ function formatBytes(bytes: number): string {
 export function TrackDetailDrawer({ trackId, initialTab, onClose }: TrackDetailDrawerProps) {
   const [tab, setTab] = useState(initialTab);
   const { user } = useAuth();
-  const { play } = usePreviewPlayer();
+  const { playTrack } = usePlayer();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
 
@@ -78,7 +78,7 @@ export function TrackDetailDrawer({ trackId, initialTab, onClose }: TrackDetailD
         <div className="flex items-center gap-3 border-b border-blue-800 px-4 py-3.5">
           {data && (
             <button
-              onClick={() => play(trackId, `${data.title} — ${data.artist ?? 'Unknown Artist'}`)}
+              onClick={() => playTrack(data)}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-600 text-blue-950 transition-colors hover:bg-orange-500"
               aria-label="Preview"
             >

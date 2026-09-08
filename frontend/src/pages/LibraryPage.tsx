@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { ConfirmDeleteDialog } from '../components/ConfirmDeleteDialog';
-import { usePreviewPlayer } from '../components/PreviewPlayerBar';
+import { usePlayer } from '../components/PlayerBar';
 import { useToast } from '../components/ToastProvider';
 import { TrackDetailDrawer } from '../components/TrackDetailDrawer';
 import { TrackRowMenu } from '../components/TrackRowMenu';
@@ -51,7 +51,7 @@ export function LibraryPage() {
   const [activeTrack, setActiveTrack] = useState<{ id: number; tab: 'tags' | 'diagnostics' } | null>(null);
   const [deleteTargets, setDeleteTargets] = useState<TrackSummary[] | null>(null);
 
-  const { play } = usePreviewPlayer();
+  const { playQueue } = usePlayer();
   const { user } = useAuth();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
@@ -223,7 +223,7 @@ export function LibraryPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-blue-800/60">
-                {data.tracks.map((t) => (
+                {data.tracks.map((t, i) => (
                   <tr
                     key={t.id}
                     onClick={() => setActiveTrack({ id: t.id, tab: 'tags' })}
@@ -241,9 +241,9 @@ export function LibraryPage() {
                     )}
                     <td className="py-2.5" onClick={(e) => e.stopPropagation()}>
                       <button
-                        onClick={() => play(t.id, `${t.title} — ${t.artist ?? 'Unknown Artist'}`)}
+                        onClick={() => playQueue(data?.tracks ?? [t], i)}
                         className="flex h-7 w-7 items-center justify-center rounded-full text-blue-300 opacity-70 transition-all group-hover:opacity-100 hover:bg-orange-600 hover:text-blue-950"
-                        aria-label={`Preview ${t.title}`}
+                        aria-label={`Play ${t.title}`}
                       >
                         ▶
                       </button>
