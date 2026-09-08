@@ -1,7 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { TitleScreenPanel } from '../components/TitleScreenPanel';
 import { ApiError } from '../lib/apiClient';
+
+const lightInput =
+  'w-full rounded-md border border-blue-950/30 bg-white px-3 py-2 text-sm text-blue-950 outline-none transition-colors placeholder:text-blue-950/40 focus:border-orange-600 disabled:opacity-60';
 
 export function LoginPage() {
   const { user, login } = useAuth();
@@ -26,53 +30,70 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-neutral-950 px-4">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-sm rounded-lg border border-neutral-800 bg-neutral-900 p-6"
+    <div className="relative min-h-screen overflow-hidden bg-[#0c1a52]">
+      <TitleScreenPanel />
+
+      {/* Wide horizontal content band, left-anchored — solid white behind the
+          form, fading to transparent so the mosaic/silhouette animation
+          shows through underneath rather than being cut off by a hard edge. */}
+      <div
+        className="absolute left-0 top-[18%] z-10 flex min-h-[64%] w-full items-center py-10"
+        style={{ background: 'linear-gradient(to right, white 0%, white 38%, transparent 78%)' }}
       >
-        <h1 className="mb-1 text-lg font-semibold text-neutral-100">brainlessmusic</h1>
-        <p className="mb-6 text-sm text-neutral-500">Sign in to the control room.</p>
+        <form onSubmit={handleSubmit} className="w-full max-w-sm pl-[6%] pr-6">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-blue-950/60">
+            Sign in to the control room
+          </p>
+          <div className="mb-6 flex items-center gap-3">
+            <span className="font-brand flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-orange-600 text-xl font-bold text-white">
+              b
+            </span>
+            <h1 className="font-brand text-3xl font-bold italic text-blue-950">brainlessmusic</h1>
+          </div>
 
-        <label className="mb-1 block text-sm text-neutral-400" htmlFor="username">
-          Username
-        </label>
-        <input
-          id="username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          autoComplete="username"
-          required
-          className="mb-4 w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 outline-none focus:border-neutral-500"
-        />
+          <label className="mb-1 block text-sm text-blue-950/70" htmlFor="username">
+            Username
+          </label>
+          <input
+            id="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoComplete="username"
+            required
+            className={`${lightInput} mb-4`}
+          />
 
-        <label className="mb-1 block text-sm text-neutral-400" htmlFor="password">
-          Password
-        </label>
-        <input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="current-password"
-          required
-          className="mb-4 w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100 outline-none focus:border-neutral-500"
-        />
+          <label className="mb-1 block text-sm text-blue-950/70" htmlFor="password">
+            Password
+          </label>
+          <input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            required
+            className={`${lightInput} mb-4`}
+          />
 
-        {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
+          {error && (
+            <p className="mb-4 rounded-md border border-red-700 bg-red-700 px-3 py-2 text-sm text-white">{error}</p>
+          )}
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full rounded-md bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-900 disabled:opacity-50"
-        >
-          {isSubmitting ? 'Signing in…' : 'Sign in'}
-        </button>
+          <button type="submit" disabled={isSubmitting} className="btn-primary btn-md w-full">
+            {isSubmitting ? 'Signing in…' : 'Sign in'}
+          </button>
 
-        <p className="mt-4 text-xs text-neutral-600">
-          No account? Ask an admin — accounts aren't self-serve on this server.
-        </p>
-      </form>
+          <p className="mt-5 text-xs text-blue-950/50">
+            No account? Ask an admin — accounts aren't self-serve on this server.
+          </p>
+        </form>
+      </div>
+
+      <div className="absolute inset-x-0 bottom-[14%] z-10 h-px bg-blue-500/30" />
+      <p className="absolute bottom-[9%] left-[5%] z-10 text-sm font-semibold italic text-blue-300">
+        Your library, your rules — hidden, not-recommended, or gone with one click.
+      </p>
     </div>
   );
 }

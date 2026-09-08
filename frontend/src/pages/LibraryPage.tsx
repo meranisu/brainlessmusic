@@ -37,6 +37,9 @@ function buildQuery(params: TrackListParams): string {
   return qs.toString();
 }
 
+const selectClass =
+  'rounded-md border border-blue-700 bg-blue-950 px-2.5 py-2 text-sm text-blue-100 outline-none transition-colors hover:border-blue-400 focus:border-orange-600/60';
+
 export function LibraryPage() {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SortField>('title');
@@ -103,23 +106,32 @@ export function LibraryPage() {
 
   return (
     <div>
-      <h1 className="mb-4 text-lg font-semibold text-neutral-100">Library</h1>
+      <div className="mb-5 flex items-baseline justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-white">Library</h1>
+          <p className="mt-0.5 text-sm text-blue-300">
+            {data ? `${data.total} track${data.total === 1 ? '' : 's'}` : 'Loading your library…'}
+          </p>
+        </div>
+      </div>
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <input
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(0);
-          }}
-          placeholder="Search title, artist, album…"
-          className="w-64 rounded-md border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-sm text-neutral-100 outline-none focus:border-neutral-500"
-        />
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value as SortField)}
-          className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
-        >
+      <div className="card mb-4 flex flex-wrap items-center gap-2 p-3">
+        <div className="relative flex-1 min-w-56">
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-blue-400">
+            ⌕
+          </span>
+          <input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(0);
+            }}
+            placeholder="Search title, artist, album…"
+            className="input pl-8"
+          />
+        </div>
+        <div className="h-6 w-px bg-blue-800" />
+        <select value={sort} onChange={(e) => setSort(e.target.value as SortField)} className={selectClass}>
           <option value="title">Title</option>
           <option value="artist">Artist</option>
           <option value="album">Album</option>
@@ -129,15 +141,17 @@ export function LibraryPage() {
         </select>
         <button
           onClick={() => setOrder(order === 'asc' ? 'desc' : 'asc')}
-          className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-300"
+          className="btn-secondary btn-sm px-2.5!"
           aria-label="Toggle sort order"
+          title={order === 'asc' ? 'Ascending' : 'Descending'}
         >
           {order === 'asc' ? '↑' : '↓'}
         </button>
+        <div className="h-6 w-px bg-blue-800" />
         <select
           value={hidden}
           onChange={(e) => setHidden(e.target.value as VisibilityFilter)}
-          className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
+          className={selectClass}
         >
           <option value="exclude">Visible only</option>
           <option value="all">All (incl. hidden)</option>
@@ -146,7 +160,7 @@ export function LibraryPage() {
         <select
           value={notRecommended}
           onChange={(e) => setNotRecommended(e.target.value as VisibilityFilter)}
-          className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100"
+          className={selectClass}
         >
           <option value="all">All (recommended + not)</option>
           <option value="exclude">Recommended only</option>
@@ -155,97 +169,99 @@ export function LibraryPage() {
       </div>
 
       {isAdmin && selectedIds.size > 0 && (
-        <div className="mb-3 flex items-center gap-3 rounded-md border border-neutral-800 bg-neutral-900 px-3 py-2 text-sm">
-          <span className="text-neutral-300">{selectedIds.size} selected</span>
-          <button
-            onClick={() => selectedTracks.forEach((t) => patchMutation.mutate({ id: t.id, patch: { hidden: true } }))}
-            className="text-neutral-400 hover:text-neutral-100"
-          >
-            Hide
-          </button>
-          <button
-            onClick={() =>
-              selectedTracks.forEach((t) => patchMutation.mutate({ id: t.id, patch: { hidden: false } }))
-            }
-            className="text-neutral-400 hover:text-neutral-100"
-          >
-            Un-hide
-          </button>
-          <button onClick={() => setDeleteTargets(selectedTracks)} className="text-red-400 hover:text-red-300">
-            Delete
-          </button>
-          <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-neutral-500 hover:text-neutral-300">
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-orange-600/30 bg-orange-600/6 px-3 py-2 text-sm">
+          <span className="font-medium text-orange-500">{selectedIds.size} selected</span>
+          <div className="ml-2 flex gap-1.5">
+            <button
+              onClick={() => selectedTracks.forEach((t) => patchMutation.mutate({ id: t.id, patch: { hidden: true } }))}
+              className="btn-ghost btn-sm"
+            >
+              Hide
+            </button>
+            <button
+              onClick={() =>
+                selectedTracks.forEach((t) => patchMutation.mutate({ id: t.id, patch: { hidden: false } }))
+              }
+              className="btn-ghost btn-sm"
+            >
+              Un-hide
+            </button>
+            <button onClick={() => setDeleteTargets(selectedTracks)} className="btn-ghost btn-sm text-red-400!">
+              Delete
+            </button>
+          </div>
+          <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-blue-300 hover:text-blue-100">
             Clear
           </button>
         </div>
       )}
 
-      {isLoading && <p className="text-sm text-neutral-500">Loading…</p>}
-      {isError && <p className="text-sm text-red-400">Failed to load tracks.</p>}
+      {isLoading && (
+        <div className="card flex items-center justify-center py-16 text-sm text-blue-300">Loading…</div>
+      )}
+      {isError && (
+        <div className="card flex items-center justify-center py-16 text-sm text-red-400">
+          Failed to load tracks.
+        </div>
+      )}
 
       {data && (
         <>
-          <div className="overflow-x-auto rounded-lg border border-neutral-800">
+          <div className="card overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-neutral-800 text-neutral-500">
-                <tr>
-                  {isAdmin && <th className="w-8 px-3 py-2"></th>}
-                  <th className="px-3 py-2 font-medium"></th>
-                  <th className="px-3 py-2 font-medium">Title</th>
-                  <th className="px-3 py-2 font-medium">Artist</th>
-                  <th className="px-3 py-2 font-medium">Album</th>
-                  <th className="px-3 py-2 font-medium">Duration</th>
-                  <th className="px-3 py-2 font-medium">Format</th>
-                  <th className="px-3 py-2 font-medium">Flags</th>
-                  <th className="w-8 px-3 py-2"></th>
+              <thead className="border-b border-blue-800">
+                <tr className="text-xs uppercase tracking-wide text-blue-400">
+                  {isAdmin && <th className="w-10 py-2.5 pl-4"></th>}
+                  <th className="w-10 py-2.5"></th>
+                  <th className="py-2.5 font-medium">Title</th>
+                  <th className="py-2.5 font-medium">Artist</th>
+                  <th className="py-2.5 font-medium">Album</th>
+                  <th className="py-2.5 pr-4 text-right font-medium">Duration</th>
+                  <th className="py-2.5 font-medium">Format</th>
+                  <th className="py-2.5 font-medium">Flags</th>
+                  <th className="w-10 py-2.5 pr-4"></th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-blue-800/60">
                 {data.tracks.map((t) => (
                   <tr
                     key={t.id}
                     onClick={() => setActiveTrack({ id: t.id, tab: 'tags' })}
-                    className="cursor-pointer border-b border-neutral-900 hover:bg-neutral-900/50"
+                    className="group cursor-pointer transition-colors hover:bg-blue-800/40"
                   >
                     {isAdmin && (
-                      <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                      <td className="py-2.5 pl-4" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={selectedIds.has(t.id)}
                           onChange={() => toggleSelected(t.id)}
-                          className="accent-neutral-100"
+                          className="accent-orange-600"
                         />
                       </td>
                     )}
-                    <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                    <td className="py-2.5" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => play(t.id, `${t.title} — ${t.artist ?? 'Unknown Artist'}`)}
-                        className="text-neutral-400 hover:text-neutral-100"
+                        className="flex h-7 w-7 items-center justify-center rounded-full text-blue-300 opacity-70 transition-all group-hover:opacity-100 hover:bg-orange-600 hover:text-blue-950"
                         aria-label={`Preview ${t.title}`}
                       >
                         ▶
                       </button>
                     </td>
-                    <td className="px-3 py-2 text-neutral-100">{t.title}</td>
-                    <td className="px-3 py-2 text-neutral-400">{t.artist ?? '—'}</td>
-                    <td className="px-3 py-2 text-neutral-400">{t.album ?? '—'}</td>
-                    <td className="px-3 py-2 text-neutral-400">{formatDuration(t.duration)}</td>
-                    <td className="px-3 py-2 text-neutral-400">{t.format ?? '—'}</td>
-                    <td className="px-3 py-2">
+                    <td className="py-2.5 pr-3 font-medium text-white">{t.title}</td>
+                    <td className="py-2.5 pr-3 text-blue-200">{t.artist ?? '—'}</td>
+                    <td className="py-2.5 pr-3 text-blue-200">{t.album ?? '—'}</td>
+                    <td className="py-2.5 pr-4 text-right tabular-nums text-blue-200">
+                      {formatDuration(t.duration)}
+                    </td>
+                    <td className="py-2.5 pr-3 text-blue-300">{t.format ?? '—'}</td>
+                    <td className="py-2.5 pr-3">
                       <div className="flex gap-1">
-                        {t.hidden && (
-                          <span className="rounded bg-neutral-800 px-1.5 py-0.5 text-xs text-neutral-400">
-                            hidden
-                          </span>
-                        )}
-                        {t.notRecommended && (
-                          <span className="rounded bg-neutral-800 px-1.5 py-0.5 text-xs text-neutral-400">
-                            not recommended
-                          </span>
-                        )}
+                        {t.hidden && <span className="badge-neutral">hidden</span>}
+                        {t.notRecommended && <span className="badge-caution">not recommended</span>}
                       </div>
                     </td>
-                    <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                    <td className="py-2.5 pr-4" onClick={(e) => e.stopPropagation()}>
                       <TrackRowMenu
                         track={t}
                         isAdmin={isAdmin}
@@ -262,7 +278,7 @@ export function LibraryPage() {
                 ))}
                 {data.tracks.length === 0 && (
                   <tr>
-                    <td colSpan={isAdmin ? 9 : 7} className="px-3 py-8 text-center text-neutral-500">
+                    <td colSpan={isAdmin ? 9 : 7} className="px-4 py-12 text-center text-blue-300">
                       No tracks match these filters.
                     </td>
                   </tr>
@@ -271,21 +287,21 @@ export function LibraryPage() {
             </table>
           </div>
 
-          <div className="mt-3 flex items-center gap-3 text-sm text-neutral-500">
+          <div className="mt-3 flex items-center gap-3 text-sm text-blue-300">
             <button
               disabled={page === 0}
               onClick={() => setPage((p) => p - 1)}
-              className="rounded-md border border-neutral-700 px-2 py-1 disabled:opacity-30"
+              className="btn-secondary btn-sm"
             >
               Prev
             </button>
             <span>
-              Page {page + 1} of {totalPages} · {data.total} tracks
+              Page {page + 1} of {totalPages}
             </span>
             <button
               disabled={page + 1 >= totalPages}
               onClick={() => setPage((p) => p + 1)}
-              className="rounded-md border border-neutral-700 px-2 py-1 disabled:opacity-30"
+              className="btn-secondary btn-sm"
             >
               Next
             </button>

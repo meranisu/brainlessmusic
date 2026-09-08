@@ -106,16 +106,24 @@ export function UploadPage() {
 
   return (
     <div>
-      <h1 className="mb-4 text-lg font-semibold text-neutral-100">Upload</h1>
+      <div className="mb-5">
+        <h1 className="text-xl font-semibold text-white">Upload</h1>
+        <p className="mt-0.5 text-sm text-blue-300">
+          Files are tagged, filed into the library, and available immediately.
+        </p>
+      </div>
 
       <div
         onDragOver={(e) => e.preventDefault()}
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
-        className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-neutral-700 bg-neutral-900 px-6 py-12 text-center hover:border-neutral-500"
+        className="card flex cursor-pointer flex-col items-center justify-center border-2 border-dashed border-blue-700 px-6 py-16 text-center transition-colors hover:border-orange-600/50 hover:bg-blue-900/60"
       >
-        <p className="text-sm text-neutral-300">Drop audio files here, or click to browse</p>
-        <p className="mt-1 text-xs text-neutral-600">.flac .opus .mp3 .m4a .ogg</p>
+        <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-blue-800 text-xl text-blue-200">
+          ↑
+        </span>
+        <p className="text-sm font-medium text-blue-100">Drop audio files here, or click to browse</p>
+        <p className="mt-1 text-xs text-blue-400">.flac .opus .mp3 .m4a .ogg</p>
         <input
           ref={inputRef}
           type="file"
@@ -128,33 +136,32 @@ export function UploadPage() {
 
       {queue.length > 0 && (
         <>
-          <p className="mb-2 mt-6 text-sm text-neutral-500">
-            {succeeded} uploaded{failed > 0 ? `, ${failed} failed` : ''} of {queue.length}
-          </p>
-          <div className="divide-y divide-neutral-900 rounded-lg border border-neutral-800">
+          <div className="mb-2 mt-6 flex items-center gap-2 text-sm">
+            <span className="text-blue-100">
+              {succeeded} uploaded{failed > 0 ? `, ${failed} failed` : ''} of {queue.length}
+            </span>
+          </div>
+          <div className="card divide-y divide-blue-800">
             {queue.map((item) => (
               <div key={item.id} className="flex items-center gap-3 px-4 py-3">
-                <span className="w-40 shrink-0 truncate text-sm text-neutral-300">{item.file.name}</span>
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-neutral-800">
+                <span className="w-40 shrink-0 truncate text-sm text-blue-100">{item.file.name}</span>
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-blue-800">
                   <div
                     className={`h-full rounded-full transition-all ${
-                      item.status === 'error' ? 'bg-red-500' : 'bg-neutral-100'
+                      item.status === 'error' ? 'bg-red-500' : 'bg-orange-600'
                     }`}
                     style={{ width: `${item.progress}%` }}
                   />
                 </div>
                 {item.status === 'success' && (
-                  <span className="shrink-0 text-xs text-neutral-500">
+                  <span className="shrink-0 text-xs text-blue-300">
                     {item.result?.title} — {item.result?.artist}
                   </span>
                 )}
                 {item.status === 'error' && (
                   <>
                     <span className="shrink-0 text-xs text-red-400">{item.error}</span>
-                    <button
-                      onClick={() => retry(item)}
-                      className="shrink-0 rounded border border-neutral-700 px-2 py-0.5 text-xs text-neutral-300"
-                    >
+                    <button onClick={() => retry(item)} className="btn-secondary btn-sm shrink-0">
                       Retry
                     </button>
                   </>

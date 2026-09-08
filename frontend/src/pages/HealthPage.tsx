@@ -14,9 +14,18 @@ function formatUptime(seconds: number): string {
 }
 
 const STATUS_STYLES: Record<HealthSnapshot['status'], string> = {
-  ok: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-  degraded: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+  ok: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+  degraded: 'bg-orange-600/10 text-orange-500 border-orange-600/30',
 };
+
+function StatTile({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="card p-4">
+      <p className="text-xs text-blue-300">{label}</p>
+      <p className="mt-1.5 text-2xl font-semibold tabular-nums text-white">{value}</p>
+    </div>
+  );
+}
 
 export function HealthPage() {
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
@@ -27,66 +36,60 @@ export function HealthPage() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-neutral-100">Stream health</h1>
-        <button
-          onClick={() => refetch()}
-          disabled={isFetching}
-          className="rounded-md border border-neutral-700 px-3 py-1.5 text-sm text-neutral-300 disabled:opacity-50"
-        >
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-white">Stream health</h1>
+          <p className="mt-0.5 text-sm text-blue-300">Auto-refreshes every 10s.</p>
+        </div>
+        <button onClick={() => refetch()} disabled={isFetching} className="btn-secondary btn-sm">
           {isFetching ? 'Refreshing…' : 'Refresh now'}
         </button>
       </div>
 
-      {isLoading && <p className="text-sm text-neutral-500">Loading…</p>}
+      {isLoading && (
+        <div className="card flex items-center justify-center py-16 text-sm text-blue-300">Loading…</div>
+      )}
       {isError && (
-        <p className="text-sm text-red-400">
+        <div className="card flex items-center justify-center py-16 text-sm text-red-400">
           Couldn't reach the server — that's a "down" signal in itself.
-        </p>
+        </div>
       )}
 
       {data && (
         <div className="space-y-4">
-          <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm ${STATUS_STYLES[data.status]}`}>
+          <div
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium ${STATUS_STYLES[data.status]}`}
+          >
             <span className="h-1.5 w-1.5 rounded-full bg-current" />
             {data.status === 'ok' ? 'All good' : 'Degraded'}
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
-              <p className="text-xs text-neutral-500">Active streams</p>
-              <p className="mt-1 text-2xl font-semibold text-neutral-100">{data.activeStreams}</p>
-            </div>
-            <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
-              <p className="text-xs text-neutral-500">Uptime</p>
-              <p className="mt-1 text-2xl font-semibold text-neutral-100">{formatUptime(data.uptimeSeconds)}</p>
-            </div>
-            <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
-              <p className="text-xs text-neutral-500">Recent errors</p>
-              <p className="mt-1 text-2xl font-semibold text-neutral-100">{data.recentErrors.length}</p>
-            </div>
+            <StatTile label="Active streams" value={data.activeStreams} />
+            <StatTile label="Uptime" value={formatUptime(data.uptimeSeconds)} />
+            <StatTile label="Recent errors" value={data.recentErrors.length} />
           </div>
 
-          <div className="rounded-lg border border-neutral-800">
+          <div className="card overflow-hidden">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-neutral-800 text-neutral-500">
-                <tr>
-                  <th className="px-3 py-2 font-medium">Time</th>
-                  <th className="px-3 py-2 font-medium">Track</th>
-                  <th className="px-3 py-2 font-medium">Message</th>
+              <thead className="border-b border-blue-800">
+                <tr className="text-xs uppercase tracking-wide text-blue-400">
+                  <th className="px-4 py-2.5 font-medium">Time</th>
+                  <th className="px-4 py-2.5 font-medium">Track</th>
+                  <th className="px-4 py-2.5 font-medium">Message</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-blue-800/60">
                 {data.recentErrors.map((e, i) => (
-                  <tr key={i} className="border-b border-neutral-900">
-                    <td className="px-3 py-2 text-neutral-400">{new Date(e.timestamp).toLocaleString()}</td>
-                    <td className="px-3 py-2 text-neutral-400">#{e.trackId}</td>
-                    <td className="px-3 py-2 text-neutral-300">{e.message}</td>
+                  <tr key={i}>
+                    <td className="px-4 py-2.5 text-blue-200">{new Date(e.timestamp).toLocaleString()}</td>
+                    <td className="px-4 py-2.5 text-blue-200">#{e.trackId}</td>
+                    <td className="px-4 py-2.5 text-blue-100">{e.message}</td>
                   </tr>
                 ))}
                 {data.recentErrors.length === 0 && (
                   <tr>
-                    <td colSpan={3} className="px-3 py-6 text-center text-neutral-500">
+                    <td colSpan={3} className="px-4 py-8 text-center text-blue-300">
                       No errors recently — good sign.
                     </td>
                   </tr>

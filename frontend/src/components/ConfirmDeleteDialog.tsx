@@ -7,36 +7,31 @@ interface ConfirmDeleteDialogProps {
 
 export function ConfirmDeleteDialog({ titles, isDeleting, onConfirm, onCancel }: ConfirmDeleteDialogProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onCancel}>
-      <div
-        className="w-full max-w-sm rounded-lg border border-neutral-800 bg-neutral-900 p-5"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="mb-2 text-sm font-semibold text-neutral-100">
-          Delete {titles.length === 1 ? 'this track' : `${titles.length} tracks`}?
-        </h2>
-        <ul className="mb-4 max-h-32 space-y-0.5 overflow-y-auto text-sm text-neutral-400">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onCancel}>
+      <div className="card w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-3 flex items-center gap-2.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-700 text-white">
+            !
+          </span>
+          <h2 className="text-sm font-semibold text-white">
+            Delete {titles.length === 1 ? 'this track' : `${titles.length} tracks`}?
+          </h2>
+        </div>
+        <ul className="mb-4 max-h-32 space-y-0.5 overflow-y-auto rounded-md border border-blue-800 bg-blue-950/60 px-3 py-2 text-sm text-blue-200">
           {titles.map((t, i) => (
             <li key={i} className="truncate">
               {t}
             </li>
           ))}
         </ul>
-        <p className="mb-4 text-xs text-neutral-600">
+        <p className="mb-4 text-xs text-blue-400">
           This removes the file from disk and the database entry. Permanent — there's no undo.
         </p>
         <div className="flex justify-end gap-2">
-          <button
-            onClick={onCancel}
-            className="rounded-md border border-neutral-700 px-3 py-1.5 text-sm text-neutral-300"
-          >
+          <button onClick={onCancel} className="btn-secondary btn-sm">
             Cancel
           </button>
-          <button
-            onClick={onConfirm}
-            disabled={isDeleting}
-            className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
-          >
+          <button onClick={onConfirm} disabled={isDeleting} className="btn-danger btn-sm">
             {isDeleting ? 'Deleting…' : 'Delete'}
           </button>
         </div>

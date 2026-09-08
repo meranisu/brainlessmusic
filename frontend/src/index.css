@@ -1,1 +1,83 @@
 @import "tailwindcss";
+
+@layer base {
+  body {
+    background-color: var(--color-blue-950);
+  }
+  ::selection {
+    background-color: var(--color-orange-600);
+    color: white;
+  }
+}
+
+@layer components {
+  /* Brand wordmark typeface — Fredoka (Google Fonts), loaded in index.html. */
+  .font-brand {
+    font-family: 'Fredoka', ui-sans-serif, system-ui, sans-serif;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md bg-orange-600 text-sm font-medium text-white transition-colors hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-blue-700 bg-blue-900 text-sm font-medium text-blue-100 transition-colors hover:border-blue-500 hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md bg-red-700 text-sm font-medium text-white transition-colors hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md text-sm font-medium text-blue-300 transition-colors hover:bg-blue-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-md {
+    @apply px-3.5 py-2;
+  }
+  .btn-sm {
+    @apply px-2.5 py-1.5 text-xs;
+  }
+
+  /* Flat by design: solid border swap on focus, no ring/glow. */
+  .input {
+    @apply w-full rounded-md border border-blue-700 bg-blue-950 px-3 py-2 text-sm text-white outline-none transition-colors placeholder:text-blue-400 focus:border-orange-500 disabled:opacity-60;
+  }
+
+  /* Solid border for elevation, no drop-shadow blur. */
+  .card {
+    @apply rounded-xl border border-blue-700 bg-blue-900;
+  }
+
+  .page-shell {
+    @apply mx-auto w-full max-w-6xl;
+  }
+
+  .badge-neutral {
+    @apply inline-flex items-center rounded-full bg-blue-800 px-2 py-0.5 text-xs font-medium text-blue-200;
+  }
+  .badge-caution {
+    @apply inline-flex items-center rounded-full bg-orange-600 px-2 py-0.5 text-xs font-medium text-white;
+  }
+  .badge-admin {
+    @apply inline-flex items-center rounded-full border border-orange-500 bg-orange-600 px-2 py-0.5 text-xs font-medium text-white;
+  }
+}
+
+/* Login title panel — a vertically-scrolling mosaic of flat navy squares
+   plus a halftone dot-matrix silhouette, confined to the right half of the
+   screen, matching the reference's composition technique (side panel of
+   scrolling geometric graphics behind a wide horizontal content band). Own
+   shape (an abstract soundwave silhouette, not the reference's), own
+   colors, own markup — no beatmania/BEMANI/Konami branding, marks, or
+   wordmark reproduced anywhere here. Pure flat color — no blur/glow. */
+@layer utilities {
+  .animate-mosaic-scroll {
+    animation: mosaic-scroll 16s linear infinite;
+  }
+}
+
+@keyframes mosaic-scroll {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-50%);
+  }
+}

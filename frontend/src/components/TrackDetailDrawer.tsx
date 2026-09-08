@@ -70,70 +70,55 @@ export function TrackDetailDrawer({ trackId, initialTab, onClose }: TrackDetailD
   const isAdmin = Boolean(user?.isAdmin);
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/60" onClick={onClose}>
       <div
-        className="flex h-full w-full max-w-md flex-col bg-neutral-900 shadow-xl"
+        className="flex h-full w-full max-w-md flex-col border-l border-blue-800 bg-blue-900"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2 border-b border-neutral-800 px-4 py-3">
+        <div className="flex items-center gap-3 border-b border-blue-800 px-4 py-3.5">
           {data && (
             <button
               onClick={() => play(trackId, `${data.title} — ${data.artist ?? 'Unknown Artist'}`)}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-900"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-600 text-blue-950 transition-colors hover:bg-orange-500"
               aria-label="Preview"
             >
               ▶
             </button>
           )}
-          <h2 className="truncate text-sm font-medium text-neutral-100">{data?.title ?? 'Track'}</h2>
-          <button onClick={onClose} className="ml-auto text-neutral-500 hover:text-neutral-300" aria-label="Close">
+          <h2 className="truncate text-sm font-medium text-white">{data?.title ?? 'Track'}</h2>
+          <button onClick={onClose} className="btn-ghost btn-sm ml-auto px-2!" aria-label="Close">
             ✕
           </button>
         </div>
 
-        <div className="flex border-b border-neutral-800">
+        <div className="flex border-b border-blue-800 px-2">
           <button
             onClick={() => setTab('tags')}
-            className={`px-4 py-2 text-sm ${tab === 'tags' ? 'border-b-2 border-neutral-100 text-neutral-100' : 'text-neutral-500'}`}
+            className={`px-3 py-2.5 text-sm font-medium transition-colors ${tab === 'tags' ? 'border-b-2 border-orange-600 text-white' : 'text-blue-300 hover:text-blue-100'}`}
           >
             Tags
           </button>
           <button
             onClick={() => setTab('diagnostics')}
-            className={`px-4 py-2 text-sm ${tab === 'diagnostics' ? 'border-b-2 border-neutral-100 text-neutral-100' : 'text-neutral-500'}`}
+            className={`px-3 py-2.5 text-sm font-medium transition-colors ${tab === 'diagnostics' ? 'border-b-2 border-orange-600 text-white' : 'text-blue-300 hover:text-blue-100'}`}
           >
             Diagnostics
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-4">
-          {isLoading && <p className="text-sm text-neutral-500">Loading…</p>}
+          {isLoading && <p className="text-sm text-blue-300">Loading…</p>}
 
           {data && tab === 'tags' && (
             <div className="space-y-3">
               <Field label="Title">
-                <input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  disabled={!isAdmin}
-                  className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-1.5 text-sm text-neutral-100 outline-none focus:border-neutral-500 disabled:opacity-60"
-                />
+                <input value={title} onChange={(e) => setTitle(e.target.value)} disabled={!isAdmin} className="input" />
               </Field>
               <Field label="Artist">
-                <input
-                  value={artist}
-                  onChange={(e) => setArtist(e.target.value)}
-                  disabled={!isAdmin}
-                  className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-1.5 text-sm text-neutral-100 outline-none focus:border-neutral-500 disabled:opacity-60"
-                />
+                <input value={artist} onChange={(e) => setArtist(e.target.value)} disabled={!isAdmin} className="input" />
               </Field>
               <Field label="Album">
-                <input
-                  value={album}
-                  onChange={(e) => setAlbum(e.target.value)}
-                  disabled={!isAdmin}
-                  className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-1.5 text-sm text-neutral-100 outline-none focus:border-neutral-500 disabled:opacity-60"
-                />
+                <input value={album} onChange={(e) => setAlbum(e.target.value)} disabled={!isAdmin} className="input" />
               </Field>
               <Field label="Track number">
                 <input
@@ -141,20 +126,16 @@ export function TrackDetailDrawer({ trackId, initialTab, onClose }: TrackDetailD
                   onChange={(e) => setTrackNumber(e.target.value)}
                   disabled={!isAdmin}
                   inputMode="numeric"
-                  className="w-full rounded-md border border-neutral-700 bg-neutral-950 px-3 py-1.5 text-sm text-neutral-100 outline-none focus:border-neutral-500 disabled:opacity-60"
+                  className="input"
                 />
               </Field>
 
               {isAdmin ? (
-                <button
-                  onClick={handleSave}
-                  disabled={saveMutation.isPending}
-                  className="w-full rounded-md bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-900 disabled:opacity-50"
-                >
+                <button onClick={handleSave} disabled={saveMutation.isPending} className="btn-primary btn-md w-full">
                   {saveMutation.isPending ? 'Saving…' : 'Save'}
                 </button>
               ) : (
-                <p className="text-xs text-neutral-600">Sign in as an admin to edit tags.</p>
+                <p className="text-xs text-blue-400">Sign in as an admin to edit tags.</p>
               )}
             </div>
           )}
@@ -188,7 +169,7 @@ export function TrackDetailDrawer({ trackId, initialTab, onClose }: TrackDetailD
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs text-neutral-500">{label}</span>
+      <span className="mb-1 block text-xs text-blue-300">{label}</span>
       {children}
     </label>
   );
@@ -204,9 +185,9 @@ function DiagnosticRow({
   valueClassName?: string;
 }) {
   return (
-    <div className="flex justify-between gap-4 border-b border-neutral-900 py-1.5">
-      <span className="text-neutral-500">{label}</span>
-      <span className={`text-right text-neutral-200 ${valueClassName ?? ''}`}>{value}</span>
+    <div className="flex justify-between gap-4 border-b border-blue-900 py-1.5">
+      <span className="text-blue-300">{label}</span>
+      <span className={`text-right text-blue-100 ${valueClassName ?? ''}`}>{value}</span>
     </div>
   );
 }

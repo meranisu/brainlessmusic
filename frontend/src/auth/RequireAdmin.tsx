@@ -11,9 +11,12 @@ export function RequireAdmin() {
 
   if (!user?.isAdmin) {
     return (
-      <div className="mx-auto mt-16 max-w-md rounded-lg border border-neutral-800 bg-neutral-900 p-6 text-center">
-        <h2 className="text-lg font-semibold text-neutral-100">Admins only</h2>
-        <p className="mt-2 text-sm text-neutral-400">
+      <div className="card mx-auto mt-16 max-w-md p-6 text-center">
+        <span className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-orange-600/10 text-orange-500">
+          !
+        </span>
+        <h2 className="text-lg font-semibold text-white">Admins only</h2>
+        <p className="mt-2 text-sm text-blue-200">
           You're signed in as {user?.username}, but this page needs admin access.
         </p>
       </div>

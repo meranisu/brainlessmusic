@@ -88,22 +88,24 @@ export function PreviewPlayerProvider({ children }: { children: ReactNode }) {
     <PreviewPlayerContext.Provider value={{ nowPlaying, isPlaying, isLoading, play, pause, stop }}>
       {children}
       {nowPlaying && (
-        <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-neutral-800 bg-neutral-900 px-4 py-3">
-          <button
-            onClick={() => (isPlaying ? pause() : play(nowPlaying.trackId, nowPlaying.label))}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-900"
-            aria-label={isPlaying ? 'Pause' : 'Play'}
-          >
-            {isLoading ? '…' : isPlaying ? '❚❚' : '▶'}
-          </button>
-          <span className="truncate text-sm text-neutral-200">{nowPlaying.label}</span>
-          <button
-            onClick={stop}
-            className="ml-auto shrink-0 text-sm text-neutral-500 hover:text-neutral-300"
-            aria-label="Stop preview"
-          >
-            ✕
-          </button>
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-blue-800 bg-blue-900">
+          <div className="page-shell flex items-center gap-3 px-6 py-3">
+            <button
+              onClick={() => (isPlaying ? pause() : play(nowPlaying.trackId, nowPlaying.label))}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-600 text-blue-950 transition-colors hover:bg-orange-500"
+              aria-label={isPlaying ? 'Pause' : 'Play'}
+            >
+              {isLoading ? '…' : isPlaying ? '❚❚' : '▶'}
+            </button>
+            <span className="truncate text-sm text-blue-100">{nowPlaying.label}</span>
+            <button
+              onClick={stop}
+              className="ml-auto shrink-0 text-sm text-blue-300 hover:text-blue-100"
+              aria-label="Stop preview"
+            >
+              ✕
+            </button>
+          </div>
         </div>
       )}
     </PreviewPlayerContext.Provider>
