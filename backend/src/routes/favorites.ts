@@ -1,5 +1,11 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { countFavoritesForUser, listFavoritesForUser, starTrack, unstarTrack } from '../db/favorites.js';
+import {
+  countFavoritesForUser,
+  listFavoriteTrackIdsForUser,
+  listFavoritesForUser,
+  starTrack,
+  unstarTrack,
+} from '../db/favorites.js';
 import { findTrackById } from '../db/library.js';
 import { parsePagination } from '../utils/pagination.js';
 
@@ -31,6 +37,12 @@ const favoritesRoute: FastifyPluginAsync = async (fastify) => {
       return reply.code(204).send();
     },
   );
+
+  // Registered before '/me/favorites' for readability; Fastify routes on the
+  // full path either way.
+  fastify.get('/me/favorites/ids', { preHandler: fastify.authenticate }, async (request, reply) => {
+    return reply.send({ trackIds: listFavoriteTrackIdsForUser(request.user!.id) });
+  });
 
   fastify.get<{ Querystring: { limit?: string; offset?: string } }>(
     '/me/favorites',

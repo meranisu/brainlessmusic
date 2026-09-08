@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { CoverArt } from '../components/CoverArt';
+import { FavoriteButton, useFavoriteIds } from '../components/FavoriteButton';
 import { usePlayer, type QueueTrack } from '../components/PlayerBar';
 import { apiClient } from '../lib/apiClient';
 import type { AlbumDetail } from '../types/api';
@@ -16,6 +17,7 @@ export function AlbumDetailPage() {
   const { id } = useParams<{ id: string }>();
   const albumId = Number(id);
   const { playQueue } = usePlayer();
+  const favoriteIds = useFavoriteIds();
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['album', albumId],
@@ -80,6 +82,7 @@ export function AlbumDetailPage() {
               <th className="py-2.5 pr-3">Title</th>
               <th className="py-2.5 pr-4 text-right">Duration</th>
               <th className="w-32 py-2.5 pr-4">Format</th>
+              <th className="w-10 py-2.5 pr-4"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-blue-800/60">
@@ -98,6 +101,9 @@ export function AlbumDetailPage() {
                   {formatDuration(track.duration)}
                 </td>
                 <td className="py-2.5 pr-4 whitespace-nowrap text-blue-300">{track.format ?? '—'}</td>
+                <td className="py-2.5 pr-4" onClick={(e) => e.stopPropagation()}>
+                  <FavoriteButton trackId={track.id} isFavorited={favoriteIds.has(track.id)} />
+                </td>
               </tr>
             ))}
           </tbody>

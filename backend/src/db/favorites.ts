@@ -18,6 +18,23 @@ export function unstarTrack(userId: number, trackId: number): void {
   db.prepare('DELETE FROM favorites WHERE user_id = ? AND track_id = ?').run(userId, trackId);
 }
 
+/**
+ * Just the ids, for rendering favorite state across views.
+ *
+ * A track list has no way of knowing which of its rows are favorited —
+ * `isFavorited` is deliberately not inlined on the browse endpoints. Rather
+ * than thread a user id through every browse query, the client fetches this
+ * once and treats it as a set. Ids only, so it stays a few KB even for a
+ * library-sized favorites list, and one cache entry serves the library table,
+ * album pages and the player bar alike.
+ */
+export function listFavoriteTrackIdsForUser(userId: number): number[] {
+  return db
+    .prepare('SELECT track_id FROM favorites WHERE user_id = ? ORDER BY track_id')
+    .all(userId)
+    .map((row) => (row as { track_id: number }).track_id);
+}
+
 export function countFavoritesForUser(userId: number): number {
   return (
     db.prepare('SELECT COUNT(*) as count FROM favorites WHERE user_id = ?').get(userId) as {

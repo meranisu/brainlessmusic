@@ -120,3 +120,14 @@ export interface AlbumListResponse {
   offset: number;
   albums: AlbumSummary[];
 }
+
+export interface FavoriteTrack extends TrackSummary {
+  favoritedAt: string;
+}
+
+export interface FavoriteListResponse {
+  total: number;
+  limit: number;
+  offset: number;
+  favorites: FavoriteTrack[];
+}

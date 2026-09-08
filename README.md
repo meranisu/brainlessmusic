@@ -64,7 +64,7 @@ All routes except `/health`, `/auth/register`, `/auth/login` require `Authorizat
 - **Upload** — `POST /tracks/upload` (multipart)
 - **Playlists** — `POST /playlists`, `GET /playlists`, `GET /playlists/:id`, `PATCH /playlists/:id`, `DELETE /playlists/:id`, `POST /playlists/:id/tracks`, `DELETE /playlists/:id/tracks/:trackId`, `PATCH /playlists/:id/tracks/reorder`
 - **Play tracking** — `POST /tracks/:id/scrobble`, `GET /me/history`, `GET /tracks/:id/history`, `GET /stats/top-tracks`
-- **Favorites** — `PUT /tracks/:id/favorite`, `DELETE /tracks/:id/favorite`, `GET /me/favorites`
+- **Favorites** — `PUT /tracks/:id/favorite`, `DELETE /tracks/:id/favorite`, `GET /me/favorites`, `GET /me/favorites/ids`
 - **Shuffle** — `POST /shuffle` (artist-adjacency-avoiding reorder)
 
 Full behavior, edge cases, and verification detail for every endpoint: [.docs/STATUS.md](.docs/STATUS.md).

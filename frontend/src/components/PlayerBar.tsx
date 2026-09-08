@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { apiClient, buildStreamUrl } from '../lib/apiClient';
 import { CoverArt } from './CoverArt';
+import { FavoriteButton, useFavoriteIds } from './FavoriteButton';
 import type { TrackSummary } from '../types/api';
 import { useToast } from './ToastProvider';
 
@@ -60,6 +61,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // leaving the queue permanently scrambled.
   const originalQueueRef = useRef<QueueTrack[] | null>(null);
   const { showToast } = useToast();
+  const favoriteIds = useFavoriteIds();
 
   const current = queue[index] ?? null;
 
@@ -380,6 +382,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             </div>
 
             <div className="flex shrink-0 items-center gap-1">
+              <FavoriteButton
+                trackId={current.id}
+                isFavorited={favoriteIds.has(current.id)}
+                className="mr-1 p-1"
+              />
               <button
                 onClick={toggleShuffle}
                 disabled={queue.length < 2}

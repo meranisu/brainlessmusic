@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { ConfirmDeleteDialog } from '../components/ConfirmDeleteDialog';
 import { CoverArt } from '../components/CoverArt';
+import { FavoriteButton, useFavoriteIds } from '../components/FavoriteButton';
 import { usePlayer } from '../components/PlayerBar';
 import { useToast } from '../components/ToastProvider';
 import { TrackDetailDrawer } from '../components/TrackDetailDrawer';
@@ -53,6 +54,7 @@ export function LibraryPage() {
   const [deleteTargets, setDeleteTargets] = useState<TrackSummary[] | null>(null);
 
   const { playQueue } = usePlayer();
+  const favoriteIds = useFavoriteIds();
   const { user } = useAuth();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
@@ -214,6 +216,7 @@ export function LibraryPage() {
                 <tr className="text-xs uppercase tracking-wide text-blue-400">
                   {isAdmin && <th className="w-10 py-2.5 pl-4"></th>}
                   <th className="w-10 py-2.5"></th>
+                  <th className="w-10 py-2.5"></th>
                   <th className="py-2.5 font-medium">Title</th>
                   <th className="py-2.5 font-medium">Artist</th>
                   <th className="py-2.5 font-medium">Album</th>
@@ -240,6 +243,9 @@ export function LibraryPage() {
                         />
                       </td>
                     )}
+                    <td className="py-2.5" onClick={(e) => e.stopPropagation()}>
+                      <FavoriteButton trackId={t.id} isFavorited={favoriteIds.has(t.id)} />
+                    </td>
                     <td className="py-2.5" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => playQueue(data?.tracks ?? [t], i)}
