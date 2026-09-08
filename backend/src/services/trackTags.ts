@@ -1,5 +1,6 @@
 import { basename, extname } from 'node:path';
 import { parseFile } from 'music-metadata';
+import type { EmbeddedPicture } from './artwork.js';
 
 export const AUDIO_EXTENSIONS = new Set(['.flac', '.opus', '.mp3', '.m4a', '.ogg']);
 
@@ -13,6 +14,9 @@ export interface TrackTags {
   format: string | null;
   bitrate: number | null;
   sampleRate: number | null;
+  /** First embedded cover, if the file has one. Returned here rather than from
+   *  a separate call so a scan parses each file exactly once. */
+  picture: EmbeddedPicture | null;
 }
 
 /**
@@ -46,5 +50,8 @@ export async function extractTrackTags(
     format: format.codec ?? format.container ?? extname(filePath).slice(1).toUpperCase(),
     bitrate: format.bitrate ? Math.round(format.bitrate) : null,
     sampleRate: format.sampleRate ?? null,
+    picture: common.picture?.[0]
+      ? { data: common.picture[0].data, format: common.picture[0].format }
+      : null,
   };
 }

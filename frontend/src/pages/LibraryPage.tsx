@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { ConfirmDeleteDialog } from '../components/ConfirmDeleteDialog';
+import { CoverArt } from '../components/CoverArt';
 import { usePlayer } from '../components/PlayerBar';
 import { useToast } from '../components/ToastProvider';
 import { TrackDetailDrawer } from '../components/TrackDetailDrawer';
@@ -248,7 +249,12 @@ export function LibraryPage() {
                         ▶
                       </button>
                     </td>
-                    <td className="py-2.5 pr-3 font-medium text-white">{t.title}</td>
+                    <td className="py-2.5 pr-3 font-medium text-white">
+                      <div className="flex items-center gap-2.5">
+                        <CoverArt kind="tracks" id={t.id} className="h-9 w-9" />
+                        <span className="truncate">{t.title}</span>
+                      </div>
+                    </td>
                     <td className="py-2.5 pr-3 text-blue-200">{t.artist ?? '—'}</td>
                     <td className="py-2.5 pr-3 text-blue-200">{t.album ?? '—'}</td>
                     <td className="py-2.5 pr-4 text-right tabular-nums text-blue-200">

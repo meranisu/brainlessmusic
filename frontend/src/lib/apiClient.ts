@@ -126,4 +126,19 @@ export async function buildStreamUrl(trackId: number, quality?: 'low'): Promise<
   return `${API_BASE_URL}/tracks/${trackId}/stream?${params.toString()}`;
 }
 
+/**
+ * URL for `<img src>`, on the same media-token scheme as streaming. `thumb`
+ * is a ~256px copy — right for list rows; `full` keeps the original, for the
+ * player bar and detail drawer.
+ */
+export async function buildCoverUrl(
+  kind: 'tracks' | 'albums',
+  id: number,
+  size: 'thumb' | 'full' = 'thumb',
+): Promise<string> {
+  const params = new URLSearchParams({ token: await getMediaToken() });
+  if (size === 'thumb') params.set('size', 'thumb');
+  return `${API_BASE_URL}/${kind}/${id}/cover?${params.toString()}`;
+}
+
 export { API_BASE_URL };

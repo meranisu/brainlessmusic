@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { apiClient, ApiError } from '../lib/apiClient';
 import type { TrackDetail, TrackPatchInput } from '../types/api';
+import { CoverArt } from './CoverArt';
 import { usePlayer } from './PlayerBar';
 import { useToast } from './ToastProvider';
 
@@ -85,6 +86,7 @@ export function TrackDetailDrawer({ trackId, initialTab, onClose }: TrackDetailD
               ▶
             </button>
           )}
+          <CoverArt kind="tracks" id={trackId} size="full" className="h-9 w-9" />
           <h2 className="truncate text-sm font-medium text-white">{data?.title ?? 'Track'}</h2>
           <button onClick={onClose} className="btn-ghost btn-sm ml-auto px-2!" aria-label="Close">
             ✕

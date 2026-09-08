@@ -2,6 +2,7 @@ import { readdir, stat } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 import { config } from '../config.js';
 import { findTrackByPath, upsertTrack } from '../db/library.js';
+import { persistArtwork } from './artworkIngest.js';
 import { AUDIO_EXTENSIONS, extractTrackTags } from './trackTags.js';
 
 export interface ScanFailure {
@@ -39,11 +40,13 @@ async function scanFile(filePath: string): Promise<ScanFileResult> {
 
     const existed = Boolean(findTrackByPath(filePath));
 
-    upsertTrack({
+    const track = upsertTrack({
       path: filePath,
       fileSize: stats.size,
       ...tags,
     });
+
+    await persistArtwork(track.id, track.album_id, tags.picture);
 
     return { status: existed ? 'updated' : 'added' };
   } catch (err) {

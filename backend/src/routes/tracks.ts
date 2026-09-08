@@ -13,10 +13,13 @@ import {
   type SortField,
   type VisibilityFilter,
 } from '../db/browse.js';
+import { findTrackArtworkId } from '../db/artwork.js';
 import { deleteTrackRow, findTrackById, setLastStreamError, updateTrackFields, upsertTrack } from '../db/library.js';
 import { countHistoryForTrack, listHistoryForTrack, recordScrobble } from '../db/plays.js';
 import { mimeTypeFor, parseRange, transcodeToLowQuality } from '../services/streaming.js';
 import { recordStreamError, streamEnded, streamStarted } from '../services/streamMonitor.js';
+import { sendCover } from '../services/artwork.js';
+import { persistArtwork } from '../services/artworkIngest.js';
 import { fileIntoLibrary } from '../services/trackFiling.js';
 import { AUDIO_EXTENSIONS, extractTrackTags } from '../services/trackTags.js';
 import { parsePagination } from '../utils/pagination.js';
@@ -117,6 +120,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
       const destPath = await fileIntoLibrary(stagingPath, data.filename, tags);
 
       const track = upsertTrack({ path: destPath, fileSize: stats.size, ...tags });
+      await persistArtwork(track.id, track.album_id, tags.picture);
 
       return reply.code(201).send({ track: getTrackSummaryById(track.id) });
     },
@@ -262,6 +266,20 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
       reply.header('Content-Range', `bytes ${start}-${end}/${stats.size}`);
       reply.header('Content-Length', end - start + 1);
       return reply.send(createReadStream(track.path, { start, end }));
+    },
+  );
+
+  // Falls back to the album's cover when the track has none of its own.
+  fastify.get<{ Params: { id: string }; Querystring: { size?: string; token?: string } }>(
+    '/tracks/:id/cover',
+    { preHandler: fastify.authenticateMedia },
+    async (request, reply) => {
+      const id = Number(request.params.id);
+      if (!Number.isInteger(id)) {
+        return reply.code(404).send({ error: 'Track not found' });
+      }
+
+      return sendCover(request, reply, findTrackArtworkId(id), request.query.size);
     },
   );
 

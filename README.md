@@ -51,6 +51,7 @@ Other scripts: `npm run build` (typecheck + compile), `npm start` (run compiled 
 | `MEDIA_TOKEN_TTL` | `2h` | lifetime of the scoped tokens that ride in `<audio src>` URLs |
 | `UPLOAD_STAGING_PATH` | `./data/upload-staging` | staging area for `POST /tracks/upload` |
 | `MAX_UPLOAD_SIZE_MB` | `100` | upload size limit |
+| `ARTWORK_PATH` | `./data/artwork` | cached cover art — safe to delete, a re-scan rebuilds it |
 
 ## API overview
 
@@ -59,6 +60,7 @@ All routes except `/health`, `/auth/register`, `/auth/login` require `Authorizat
 - **Auth** — `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `POST /auth/media-token`
 - **Library** — `POST /library/scan`, `GET /artists[/:id]`, `GET /albums[/:id]`, `GET /tracks`, `GET /search?q=`
 - **Streaming** — `GET /tracks/:id/stream` (byte-range support, `?quality=low` for transcoded audio; accepts a bearer header or a `?token=` media token so `<audio src>` can point straight at it)
+- **Cover art** — `GET /tracks/:id/cover`, `GET /albums/:id/cover` (`?size=thumb` for ~256px; bearer header or `?token=` media token, `ETag`/`If-None-Match` supported)
 - **Upload** — `POST /tracks/upload` (multipart)
 - **Playlists** — `POST /playlists`, `GET /playlists`, `GET /playlists/:id`, `PATCH /playlists/:id`, `DELETE /playlists/:id`, `POST /playlists/:id/tracks`, `DELETE /playlists/:id/tracks/:trackId`, `PATCH /playlists/:id/tracks/reorder`
 - **Play tracking** — `POST /tracks/:id/scrobble`, `GET /me/history`, `GET /tracks/:id/history`, `GET /stats/top-tracks`

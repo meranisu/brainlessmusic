@@ -12,5 +12,8 @@ export const config = {
   mediaTokenTtl: process.env.MEDIA_TOKEN_TTL ?? '2h',
   libraryPath: process.env.LIBRARY_PATH ?? './library',
   uploadStagingPath: process.env.UPLOAD_STAGING_PATH ?? './data/upload-staging',
+  // Extracted cover art, content-addressed. Safe to delete wholesale — a
+  // re-scan rebuilds it from the audio files.
+  artworkPath: process.env.ARTWORK_PATH ?? './data/artwork',
   maxUploadSizeMb: Number(process.env.MAX_UPLOAD_SIZE_MB ?? 100),
 };

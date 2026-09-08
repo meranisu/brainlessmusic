@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { apiClient, buildStreamUrl } from '../lib/apiClient';
+import { CoverArt } from './CoverArt';
 import type { TrackSummary } from '../types/api';
 import { useToast } from './ToastProvider';
 
@@ -332,6 +333,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 ⏭
               </button>
             </div>
+
+            <CoverArt kind="tracks" id={current.id} className="h-11 w-11" alt="" />
 
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <div className="flex items-baseline gap-2">

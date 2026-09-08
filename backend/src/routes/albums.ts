@@ -1,5 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
+import { findAlbumArtworkId } from '../db/artwork.js';
 import { countAlbums, getAlbumDetail, listAlbums } from '../db/browse.js';
+import { sendCover } from '../services/artwork.js';
 import { parsePagination } from '../utils/pagination.js';
 
 const albumsRoute: FastifyPluginAsync = async (fastify) => {
@@ -28,6 +30,20 @@ const albumsRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       return reply.send(album);
+    },
+  );
+
+  // `authenticateMedia` so `<img src>` can load it with a scoped `?token=`.
+  fastify.get<{ Params: { id: string }; Querystring: { size?: string; token?: string } }>(
+    '/albums/:id/cover',
+    { preHandler: fastify.authenticateMedia },
+    async (request, reply) => {
+      const id = Number(request.params.id);
+      if (!Number.isInteger(id)) {
+        return reply.code(404).send({ error: 'Album not found' });
+      }
+
+      return sendCover(request, reply, findAlbumArtworkId(id), request.query.size);
     },
   );
 };
