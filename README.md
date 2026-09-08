@@ -9,7 +9,7 @@ Home-made, self-hosted music streaming server — built from scratch as a learni
 | Backend | Node.js + TypeScript · Fastify |
 | Backend libs | `music-metadata` (tags) · `fluent-ffmpeg` (transcoding) · `better-sqlite3` · JWT + bcrypt (auth) |
 | Database | SQLite (WAL mode) |
-| Frontend | React + TypeScript (not yet started) |
+| Frontend | React + TypeScript · Vite · Tailwind · TanStack Query |
 | Mobile | Kotlin + Jetpack Compose (not yet started) |
 | Deployment | Docker (server only, not local dev) |
 
@@ -19,7 +19,7 @@ Full resolved stack + reasoning: [.docs/reference/tech-stack.md](.docs/reference
 
 ```
 backend/    — Fastify API server (Node.js + TypeScript)
-frontend/   — React web app (not yet started)
+frontend/   — React web app (auth, library management, upload, health)
 android/    — Kotlin/Compose app (not yet started)
 .docs/      — planning, status, and reference docs — see below
 *.html      — standalone, no-build-step manual test pages (see Manual test pages)
@@ -68,7 +68,7 @@ Full behavior, edge cases, and verification detail for every endpoint: [.docs/ST
 
 ## Manual test pages
 
-No frontend exists yet, so these standalone HTML files (repo root, no build step — open directly in a browser against a running `npm run dev` backend) are the way to poke at the API by hand:
+Predate the React frontend. These standalone HTML files (repo root, no build step — open directly in a browser against a running `npm run dev` backend) are still handy for poking at the API by hand:
 
 - **`login.html`** — sign in, hands off to `library-player.html` with the token pre-filled.
 - **`library-player.html`** — library browser + player: track list, search, upload, favorites, smart shuffle, mini player.
@@ -78,14 +78,22 @@ No frontend exists yet, so these standalone HTML files (repo root, no build step
 
 Start at [.docs/STATUS.md](.docs/STATUS.md) for current project state and next steps. See [.docs/CLAUDE.md](.docs/CLAUDE.md) for the full docs folder map, conventions, and workflow.
 
+- **[.docs/process/development-roadmap.md](.docs/process/development-roadmap.md) — what to build next: ordered checklist, grouped into three releases**
+- [.docs/reference/capability-map.md](.docs/reference/capability-map.md) — every capability, per-layer status
 - [.docs/CHANGELOG.md](.docs/CHANGELOG.md) — dated log of every backend/frontend change
 - [.docs/FUNCTIONLOG.md](.docs/FUNCTIONLOG.md) — per-function log of what was added/changed and why
-- [.docs/features/](.docs/features/) — per-feature planning docs
+- [.docs/features/](.docs/features/) — per-feature planning docs, plus the unranked idea pool
 - [.docs/process/android-phased-plan.md](.docs/process/android-phased-plan.md) — Android build order
 
 ## Status
 
-Backend: auth, library scan, streaming (with transcoding), browsing/search, playlists, play tracking, upload, favorites, and smart shuffle are all built and manually verified. Frontend and Android app: not yet started. See [.docs/STATUS.md](.docs/STATUS.md) for the full picture.
+Working toward **v0.1 — "it works for me"**: a full evening of listening in the browser, on the LAN, without reaching for a file manager.
+
+- **Backend** — auth, library scan, streaming (with transcoding), browsing/search, playlists, play tracking, upload, favorites, and smart shuffle are built and manually verified. Missing: cover art, FTS5 search, tag write-back.
+- **Frontend** — auth, library management, upload, and a health dashboard work. Playback is a preview-grade blob player; playlists and favorites have no UI yet.
+- **Android** — not started.
+
+See [.docs/STATUS.md](.docs/STATUS.md) for detail, [.docs/reference/capability-map.md](.docs/reference/capability-map.md) for per-layer status, and [.docs/process/development-roadmap.md](.docs/process/development-roadmap.md) for what's next.
 
 ## License
 
