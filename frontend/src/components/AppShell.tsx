@@ -40,6 +40,9 @@ export function AppShell() {
             <NavLink to="/favorites" className={navLinkClass}>
               Favorites
             </NavLink>
+            <NavLink to="/playlists" className={navLinkClass}>
+              Playlists
+            </NavLink>
             {user?.isAdmin && (
               <NavLink to="/upload" className={navLinkClass}>
                 Upload

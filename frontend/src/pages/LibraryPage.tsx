@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { ConfirmDeleteDialog } from '../components/ConfirmDeleteDialog';
+import { AddToPlaylistDialog } from '../components/AddToPlaylistDialog';
 import { CoverArt } from '../components/CoverArt';
 import { FavoriteButton, useFavoriteIds } from '../components/FavoriteButton';
 import { usePlayer } from '../components/PlayerBar';
@@ -52,6 +53,7 @@ export function LibraryPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [activeTrack, setActiveTrack] = useState<{ id: number; tab: 'tags' | 'diagnostics' } | null>(null);
   const [deleteTargets, setDeleteTargets] = useState<TrackSummary[] | null>(null);
+  const [playlistTarget, setPlaylistTarget] = useState<TrackSummary | null>(null);
 
   const { playQueue } = usePlayer();
   const favoriteIds = useFavoriteIds();
@@ -279,6 +281,7 @@ export function LibraryPage() {
                         isAdmin={isAdmin}
                         onEdit={() => setActiveTrack({ id: t.id, tab: 'tags' })}
                         onDiagnostics={() => setActiveTrack({ id: t.id, tab: 'diagnostics' })}
+                        onAddToPlaylist={() => setPlaylistTarget(t)}
                         onToggleHidden={() => patchMutation.mutate({ id: t.id, patch: { hidden: !t.hidden } })}
                         onToggleNotRecommended={() =>
                           patchMutation.mutate({ id: t.id, patch: { notRecommended: !t.notRecommended } })
@@ -326,6 +329,14 @@ export function LibraryPage() {
           trackId={activeTrack.id}
           initialTab={activeTrack.tab}
           onClose={() => setActiveTrack(null)}
+        />
+      )}
+
+      {playlistTarget && (
+        <AddToPlaylistDialog
+          trackId={playlistTarget.id}
+          trackTitle={playlistTarget.title}
+          onClose={() => setPlaylistTarget(null)}
         />
       )}
 

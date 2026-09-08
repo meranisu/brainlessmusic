@@ -6,6 +6,7 @@ interface TrackRowMenuProps {
   isAdmin: boolean;
   onEdit: () => void;
   onDiagnostics: () => void;
+  onAddToPlaylist: () => void;
   onToggleHidden: () => void;
   onToggleNotRecommended: () => void;
   onDelete: () => void;
@@ -16,6 +17,7 @@ export function TrackRowMenu({
   isAdmin,
   onEdit,
   onDiagnostics,
+  onAddToPlaylist,
   onToggleHidden,
   onToggleNotRecommended,
   onDelete,
@@ -54,6 +56,7 @@ export function TrackRowMenu({
       </button>
       {open && (
         <div className="absolute right-0 z-20 mt-1 w-48 rounded-lg border border-blue-700 bg-blue-800 py-1 text-sm">
+          <MenuItem onClick={runAndClose(onAddToPlaylist)}>Add to playlist</MenuItem>
           <MenuItem onClick={runAndClose(onEdit)}>Edit tags</MenuItem>
           <MenuItem onClick={runAndClose(onDiagnostics)}>Diagnostics</MenuItem>
           {isAdmin && (

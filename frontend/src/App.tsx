@@ -10,6 +10,8 @@ import { FavoritesPage } from './pages/FavoritesPage';
 import { HealthPage } from './pages/HealthPage';
 import { LibraryPage } from './pages/LibraryPage';
 import { LoginPage } from './pages/LoginPage';
+import { PlaylistDetailPage } from './pages/PlaylistDetailPage';
+import { PlaylistsPage } from './pages/PlaylistsPage';
 import { UploadPage } from './pages/UploadPage';
 
 export function App() {
@@ -25,6 +27,8 @@ export function App() {
           <Route path="/artists" element={<ArtistsPage />} />
           <Route path="/artists/:id" element={<ArtistDetailPage />} />
           <Route path="/favorites" element={<FavoritesPage />} />
+          <Route path="/playlists" element={<PlaylistsPage />} />
+          <Route path="/playlists/:id" element={<PlaylistDetailPage />} />
           <Route path="/health" element={<HealthPage />} />
           <Route element={<RequireAdmin />}>
             <Route path="/upload" element={<UploadPage />} />

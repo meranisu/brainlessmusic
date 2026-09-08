@@ -131,3 +131,28 @@ export interface FavoriteListResponse {
   offset: number;
   favorites: FavoriteTrack[];
 }
+
+export interface PlaylistSummary {
+  id: number;
+  name: string;
+  trackCount: number;
+  createdAt: string;
+}
+
+export interface PlaylistTrack {
+  id: number;
+  title: string;
+  artist: string | null;
+  album: string | null;
+  duration: number | null;
+  format: string | null;
+  position: number;
+}
+
+export interface PlaylistDetail {
+  id: number;
+  name: string;
+  ownerId: number;
+  createdAt: string;
+  tracks: PlaylistTrack[];
+}
