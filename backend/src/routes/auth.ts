@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { findUserById, findUserByUsername, insertUser } from '../db/users.js';
 import { hashPassword, verifyPassword } from '../services/password.js';
-import { signToken } from '../services/token.js';
+import { signMediaToken, signToken, tokenExpiresAt } from '../services/token.js';
 
 interface Credentials {
   username: string;
@@ -49,6 +49,14 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
     }
 
     return reply.send({ id: user.id, username: user.username, isAdmin: Boolean(user.is_admin) });
+  });
+
+  // Exchanges a session token for a short-lived media token the client can put
+  // in a `<audio src>` / `<img src>` URL. Callers should cache it until
+  // `expiresAt` rather than minting one per track.
+  fastify.post('/auth/media-token', { preHandler: fastify.authenticate }, async (request, reply) => {
+    const token = signMediaToken(request.user!);
+    return reply.send({ token, expiresAt: new Date(tokenExpiresAt(token)).toISOString() });
   });
 };
 

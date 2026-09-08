@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { fetchStreamBlob } from '../lib/apiClient';
+import { buildStreamUrl } from '../lib/apiClient';
 import { useToast } from './ToastProvider';
 
 interface NowPlaying {
@@ -23,7 +23,6 @@ export function PreviewPlayerProvider({ children }: { children: ReactNode }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const objectUrlRef = useRef<string | null>(null);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -32,7 +31,6 @@ export function PreviewPlayerProvider({ children }: { children: ReactNode }) {
     audio.addEventListener('ended', () => setIsPlaying(false));
     return () => {
       audio.pause();
-      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
     };
   }, []);
 
@@ -50,11 +48,10 @@ export function PreviewPlayerProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     setNowPlaying({ trackId, label });
     try {
-      const blob = await fetchStreamBlob(trackId);
-      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-      const url = URL.createObjectURL(blob);
-      objectUrlRef.current = url;
-      audio.src = url;
+      // Points `<audio>` straight at the stream so the browser fetches it
+      // progressively and can seek, instead of waiting on a whole-file
+      // download before the first note.
+      audio.src = await buildStreamUrl(trackId);
       await audio.play();
       setIsPlaying(true);
     } catch (err) {
@@ -75,10 +72,7 @@ export function PreviewPlayerProvider({ children }: { children: ReactNode }) {
     if (audio) {
       audio.pause();
       audio.removeAttribute('src');
-    }
-    if (objectUrlRef.current) {
-      URL.revokeObjectURL(objectUrlRef.current);
-      objectUrlRef.current = null;
+      audio.load(); // drop the in-flight range request rather than buffering on
     }
     setNowPlaying(null);
     setIsPlaying(false);

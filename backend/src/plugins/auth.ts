@@ -1,7 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import jwt from 'jsonwebtoken';
-import { config } from '../config.js';
 import { findUserById } from '../db/users.js';
+import { verifyMediaToken, verifySessionToken } from '../services/token.js';
 
 export interface AuthUser {
   id: number;
@@ -11,6 +10,7 @@ export interface AuthUser {
 declare module 'fastify' {
   interface FastifyInstance {
     authenticate(request: FastifyRequest, reply: FastifyReply): Promise<void>;
+    authenticateMedia(request: FastifyRequest, reply: FastifyReply): Promise<void>;
     requireAdmin(request: FastifyRequest, reply: FastifyReply): Promise<void>;
   }
   interface FastifyRequest {
@@ -18,18 +18,41 @@ declare module 'fastify' {
   }
 }
 
+function bearerFrom(request: FastifyRequest): string | undefined {
+  const header = request.headers.authorization;
+  return header?.startsWith('Bearer ') ? header.slice('Bearer '.length) : undefined;
+}
+
 export function registerAuthDecorator(app: FastifyInstance): void {
   app.decorate('authenticate', async (request: FastifyRequest, reply: FastifyReply) => {
-    const header = request.headers.authorization;
-    const token = header?.startsWith('Bearer ') ? header.slice('Bearer '.length) : undefined;
+    const token = bearerFrom(request);
 
     if (!token) {
       return reply.code(401).send({ error: 'Missing bearer token' });
     }
 
     try {
-      const payload = jwt.verify(token, config.jwtSecret) as jwt.JwtPayload;
-      request.user = { id: Number(payload.sub), username: payload.username as string };
+      request.user = verifySessionToken(token);
+    } catch {
+      return reply.code(401).send({ error: 'Invalid or expired token' });
+    }
+  });
+
+  // For endpoints a browser element loads by URL alone (`<audio src>`, and
+  // cover art later). Accepts a normal bearer header first — that's what the
+  // Android client and curl use — and falls back to a `?token=` media token,
+  // which is the only credential type allowed to travel in a URL.
+  app.decorate('authenticateMedia', async (request: FastifyRequest, reply: FastifyReply) => {
+    const bearer = bearerFrom(request);
+    const query = request.query as { token?: unknown } | undefined;
+    const mediaToken = typeof query?.token === 'string' ? query.token : undefined;
+
+    if (!bearer && !mediaToken) {
+      return reply.code(401).send({ error: 'Missing bearer token or media token' });
+    }
+
+    try {
+      request.user = bearer ? verifySessionToken(bearer) : verifyMediaToken(mediaToken!);
     } catch {
       return reply.code(401).send({ error: 'Invalid or expired token' });
     }

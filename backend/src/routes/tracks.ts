@@ -197,9 +197,11 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
     },
   );
 
-  fastify.get<{ Params: { id: string }; Querystring: { quality?: string } }>(
+  // `authenticateMedia`, not `authenticate` — this is the one route a browser
+  // loads by URL alone, so it also accepts a scoped `?token=` media token.
+  fastify.get<{ Params: { id: string }; Querystring: { quality?: string; token?: string } }>(
     '/tracks/:id/stream',
-    { preHandler: fastify.authenticate },
+    { preHandler: fastify.authenticateMedia },
     async (request, reply) => {
       const id = Number(request.params.id);
       if (!Number.isInteger(id)) {

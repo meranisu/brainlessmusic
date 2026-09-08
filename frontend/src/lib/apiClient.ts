@@ -22,6 +22,9 @@ export function setToken(token: string | null): void {
   } else {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
   }
+  // A media token outlives the session token that minted it, so drop it here
+  // too — otherwise a logged-out tab could still stream.
+  cachedMediaToken = null;
 }
 
 interface RequestOptions {
@@ -77,29 +80,50 @@ export const apiClient = {
     request<T>(path, { method: 'POST', body: formData, isMultipart: true }),
 };
 
-// A plain `<audio src="...">` can't send an Authorization header, and this
-// backend's `authenticate` decorator only reads the header — no `?token=`
-// query-param fallback (confirmed against the backend, and already noted as
-// a known gap in `.docs/STATUS.md`'s manual test harness notes). So preview
-// playback fetches the audio as an authenticated blob instead of pointing
-// `<audio>` straight at the URL. Fine for this app's spot-check use case
-// (short clips, not hours-long listening sessions) — loses native
-// byte-range progressive streaming, but avoids putting a bearer token in a
-// URL (browser history, access logs, screenshots).
-export async function fetchStreamBlob(trackId: number, quality?: 'low'): Promise<Blob> {
-  const token = getToken();
-  const headers: Record<string, string> = {};
-  if (token) headers.Authorization = `Bearer ${token}`;
+// A plain `<audio src>` can't send an Authorization header, so the backend
+// mints a short-lived, media-scoped token that may travel in the URL instead.
+// It is not the session token: the server refuses a media token as a bearer
+// credential, so a stream URL in browser history or an access log can't be
+// replayed against the rest of the API, and it expires within hours anyway.
+interface MediaTokenResponse {
+  token: string;
+  expiresAt: string;
+}
 
-  const qs = quality ? `?quality=${quality}` : '';
-  const res = await fetch(`${API_BASE_URL}/tracks/${trackId}/stream${qs}`, { headers });
+let cachedMediaToken: { token: string; expiresAt: number } | null = null;
+let inFlightMediaToken: Promise<string> | null = null;
 
-  if (!res.ok) {
-    const payload = await res.json().catch(() => ({}));
-    throw new ApiError(res.status, payload.error ?? `Stream request failed with status ${res.status}`);
+// Renew a little early so a token can't lapse between building a URL and the
+// browser actually requesting it.
+const MEDIA_TOKEN_RENEW_MARGIN_MS = 60_000;
+
+async function getMediaToken(): Promise<string> {
+  if (cachedMediaToken && cachedMediaToken.expiresAt - MEDIA_TOKEN_RENEW_MARGIN_MS > Date.now()) {
+    return cachedMediaToken.token;
   }
 
-  return res.blob();
+  // Collapse concurrent callers (a track list rendering many covers, later)
+  // onto one mint request.
+  inFlightMediaToken ??= request<MediaTokenResponse>('/auth/media-token', { method: 'POST' })
+    .then((res) => {
+      cachedMediaToken = { token: res.token, expiresAt: Date.parse(res.expiresAt) };
+      return res.token;
+    })
+    .finally(() => {
+      inFlightMediaToken = null;
+    });
+
+  return inFlightMediaToken;
+}
+
+/**
+ * URL for `<audio src>` — supports native byte-range seeking, unlike the blob
+ * download this replaced.
+ */
+export async function buildStreamUrl(trackId: number, quality?: 'low'): Promise<string> {
+  const params = new URLSearchParams({ token: await getMediaToken() });
+  if (quality) params.set('quality', quality);
+  return `${API_BASE_URL}/tracks/${trackId}/stream?${params.toString()}`;
 }
 
 export { API_BASE_URL };
