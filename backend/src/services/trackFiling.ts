@@ -1,6 +1,5 @@
 import { access, copyFile, mkdir, rename, unlink } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
-import { config } from '../config.js';
 import type { TrackTags } from './trackTags.js';
 
 // Characters invalid in filenames on Linux and/or Windows, plus control chars.
@@ -48,13 +47,19 @@ async function moveFile(src: string, dest: string): Promise<void> {
 }
 
 /**
- * Moves a staged upload into LIBRARY_PATH/<Artist>/<Album>/<filename>,
+ * Moves a staged upload into <libraryRoot>/<Artist>/<Album>/<filename>,
  * sanitizing the artist/album folder names. Prefers the client's original
  * filename (sanitized) so the library tree reads naturally; falls back to
  * the tagged title when that name is empty/unusable. Never overwrites an
  * existing file — collisions get a " (2)", " (3)", ... suffix.
+ *
+ * `libraryRoot` is a parameter rather than a read of `config.libraryPath`
+ * so the destination is always visible at the call site. This function writes
+ * to the filesystem; a caller — a test especially — should never have to infer
+ * where from an environment variable it didn't set.
  */
 export async function fileIntoLibrary(
+  libraryRoot: string,
   stagedPath: string,
   originalFileName: string,
   tags: TrackTags,
@@ -62,7 +67,7 @@ export async function fileIntoLibrary(
   const ext = extname(originalFileName).toLowerCase();
   const artistDir = sanitizePathSegment(tags.artistName, 'Unknown Artist');
   const albumDir = sanitizePathSegment(tags.albumTitle ?? '', 'Unknown Album');
-  const destDir = join(config.libraryPath, artistDir, albumDir);
+  const destDir = join(libraryRoot, artistDir, albumDir);
 
   const originalBase = sanitizePathSegment(basename(originalFileName, extname(originalFileName)), '');
   const baseName = originalBase || sanitizePathSegment(tags.title, 'Untitled');

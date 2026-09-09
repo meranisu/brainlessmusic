@@ -1,6 +1,5 @@
 import { readdir, stat } from 'node:fs/promises';
 import { extname, join } from 'node:path';
-import { config } from '../config.js';
 import { findTrackByPath, upsertTrack } from '../db/library.js';
 import { persistArtwork } from './artworkIngest.js';
 import { AUDIO_EXTENSIONS, extractTrackTags } from './trackTags.js';
@@ -57,15 +56,19 @@ async function scanFile(filePath: string): Promise<ScanFileResult> {
 }
 
 /**
- * Walks config.libraryPath for supported audio files, reads tags via
+ * Walks `libraryRoot` for supported audio files, reads tags via
  * music-metadata, and upserts each into the DB by path. Per-file failures
  * (corrupt/unparseable files) are logged and skipped rather than aborting
  * the whole scan.
+ *
+ * The root is a parameter rather than a read of `config.libraryPath` so the
+ * directory being walked is visible at the call site — see the note on
+ * `fileIntoLibrary`.
  */
-export async function scanLibrary(): Promise<ScanSummary> {
+export async function scanLibrary(libraryRoot: string): Promise<ScanSummary> {
   const start = Date.now();
 
-  const files = await findAudioFiles(config.libraryPath);
+  const files = await findAudioFiles(libraryRoot);
 
   let filesAdded = 0;
   let filesUpdated = 0;

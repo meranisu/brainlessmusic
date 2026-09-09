@@ -10,7 +10,7 @@
     "migrate": "tsx src/db/migrate.ts",
     "set-admin": "tsx src/scripts/set-admin.ts",
     "set-password": "tsx src/scripts/set-password.ts",
-    "test": "NODE_ENV=test tsx --test src/**/*.test.ts"
+    "test": "NODE_ENV=test DB_PATH=./.test-tmp/test.db LIBRARY_PATH=./.test-tmp/library ARTWORK_PATH=./.test-tmp/artwork UPLOAD_STAGING_PATH=./.test-tmp/staging tsx --test --test-concurrency=1 src/**/*.test.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.3.0",

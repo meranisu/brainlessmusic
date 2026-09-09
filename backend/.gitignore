@@ -6,3 +6,6 @@ data/
 *.db-wal
 *.db-shm
 .env
+
+# Throwaway DB/library/artwork used by `npm test` — see the test script.
+.test-tmp/

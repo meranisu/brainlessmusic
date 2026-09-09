@@ -117,7 +117,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       const stats = await stat(stagingPath);
-      const destPath = await fileIntoLibrary(stagingPath, data.filename, tags);
+      const destPath = await fileIntoLibrary(config.libraryPath, stagingPath, data.filename, tags);
 
       const track = upsertTrack({ path: destPath, fileSize: stats.size, ...tags });
       await persistArtwork(track.id, track.album_id, tags.picture);
