@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import { useScrollLock } from '../hooks/useScrollLock';
 import { apiClient, ApiError } from '../lib/apiClient';
 import type { TrackDetail, TrackPatchInput } from '../types/api';
 import { CoverArt } from './CoverArt';
@@ -26,6 +27,8 @@ function formatBytes(bytes: number): string {
 }
 
 export function TrackDetailDrawer({ trackId, initialTab, onClose }: TrackDetailDrawerProps) {
+  useScrollLock();
+
   const [tab, setTab] = useState(initialTab);
   const { user } = useAuth();
   const { playTrack } = usePlayer();

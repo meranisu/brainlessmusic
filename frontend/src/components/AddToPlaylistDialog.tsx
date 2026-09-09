@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useScrollLock } from '../hooks/useScrollLock';
 import { ApiError, apiClient } from '../lib/apiClient';
 import type { PlaylistSummary } from '../types/api';
 import { useToast } from './ToastProvider';
@@ -11,6 +12,8 @@ interface AddToPlaylistDialogProps {
 }
 
 export function AddToPlaylistDialog({ trackId, trackTitle, onClose }: AddToPlaylistDialogProps) {
+  useScrollLock();
+
   const [newName, setNewName] = useState('');
   const queryClient = useQueryClient();
   const { showToast } = useToast();

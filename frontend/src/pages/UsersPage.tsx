@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../components/ToastProvider';
+import { useScrollLock } from '../hooks/useScrollLock';
 import { ApiError, apiClient } from '../lib/apiClient';
 import type { UserSummary } from '../types/api';
 
@@ -24,6 +25,8 @@ export function UsersPage() {
   const [resettingId, setResettingId] = useState<number | null>(null);
   const [resetPassword, setResetPassword] = useState('');
   const [deletingUser, setDeletingUser] = useState<UserSummary | null>(null);
+
+  useScrollLock(deletingUser !== null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: USERS_KEY,

@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import { useIsPhone } from '../hooks/useIsPhone';
 import { apiClient, buildStreamUrl } from '../lib/apiClient';
 import { CoverArt } from './CoverArt';
 import { FavoriteButton, useFavoriteIds } from './FavoriteButton';
@@ -96,6 +97,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [isScrubbing, setIsScrubbing] = useState(false);
   // Phone only: the bar collapses to a strip and this opens the full view.
   const [isExpanded, setIsExpanded] = useState(false);
+  const isPhone = useIsPhone();
+  // Only the phone strip can open the sheet, and only the sheet can close it —
+  // so a window that grows past `md` mid-playback would otherwise strand the
+  // user with a hidden sheet, no strip, and nothing left to press. Deriving the
+  // open state instead of storing it means widening hands the desktop bar back
+  // and narrowing returns them to where they were.
+  const isSheetOpen = isExpanded && isPhone;
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   // The pre-shuffle order, so turning shuffle off restores it rather than
@@ -416,7 +424,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       {/* Phone: a strip that opens the full view. The bar below is the same
           player at a size that only works with a mouse and a wide window. */}
-      {user && current && !isExpanded && (
+      {user && current && !isSheetOpen && (
         <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-blue-800 bg-blue-900 px-4 py-2.5 md:hidden">
           <span
             aria-hidden
@@ -448,7 +456,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         </div>
       )}
 
-      {user && current && isExpanded && (
+      {user && current && isSheetOpen && (
         <NowPlaying player={value} onCollapse={() => setIsExpanded(false)} />
       )}
 

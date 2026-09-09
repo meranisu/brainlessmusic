@@ -14,6 +14,7 @@ import {
   SkipBackIcon,
   SkipForwardIcon,
 } from './icons';
+import { useScrollLock } from '../hooks/useScrollLock';
 import type { PlayerContextValue } from './PlayerBar';
 
 const WAVE_BARS = 44;
@@ -115,6 +116,8 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
     staleTime: Infinity,
     retry: false,
   });
+
+  useScrollLock();
 
   if (!current) return null;
 

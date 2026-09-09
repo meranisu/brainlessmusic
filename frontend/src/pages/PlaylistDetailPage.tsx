@@ -5,6 +5,7 @@ import { CoverArt } from '../components/CoverArt';
 import { FavoriteButton, useFavoriteIds } from '../components/FavoriteButton';
 import { usePlayer, type QueueTrack } from '../components/PlayerBar';
 import { useToast } from '../components/ToastProvider';
+import { useScrollLock } from '../hooks/useScrollLock';
 import { apiClient } from '../lib/apiClient';
 import type { PlaylistDetail } from '../types/api';
 import { PlayIcon } from '../components/icons';
@@ -29,6 +30,8 @@ export function PlaylistDetailPage() {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  useScrollLock(confirmingDelete);
 
   const queryKey = ['playlist', playlistId];
 

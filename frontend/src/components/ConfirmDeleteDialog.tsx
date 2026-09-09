@@ -1,3 +1,5 @@
+import { useScrollLock } from '../hooks/useScrollLock';
+
 interface ConfirmDeleteDialogProps {
   titles: string[];
   isDeleting: boolean;
@@ -6,6 +8,8 @@ interface ConfirmDeleteDialogProps {
 }
 
 export function ConfirmDeleteDialog({ titles, isDeleting, onConfirm, onCancel }: ConfirmDeleteDialogProps) {
+  useScrollLock();
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onCancel}>
       <div className="card w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>

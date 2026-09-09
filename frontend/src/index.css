@@ -8,6 +8,14 @@
     --beat: 0.4s;
   }
 
+  html {
+    /* Reserve the scrollbar's gutter at all times. Opening a modal pins the
+       body (see useScrollLock), which collapses the document height — without
+       a reserved gutter the whole page would jump sideways by the scrollbar's
+       width every time a dialog opened. */
+    scrollbar-gutter: stable;
+  }
+
   body {
     background-color: var(--color-blue-950);
   }
