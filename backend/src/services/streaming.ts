@@ -1,5 +1,6 @@
 import { extname } from 'node:path';
 import ffmpeg from 'fluent-ffmpeg';
+import { config } from '../config.js';
 
 const MIME_TYPES: Record<string, string> = {
   '.flac': 'audio/flac',
@@ -56,26 +57,203 @@ export function parseRange(
   return { start, end: Math.min(end, fileSize - 1) };
 }
 
+// ---------------------------------------------------------------------------
+// Cache validation
+//
+// Audio bytes are the largest thing this server sends and the least likely to
+// change: a track row keeps its path for life, and editing tags rewrites the
+// database, not the file. Without validators every replay of a song was a full
+// re-download — the single biggest avoidable cost on a metered connection.
+// ---------------------------------------------------------------------------
+
+/**
+ * A **strong** entity tag for a file, from its size and mtime — the same pair
+ * nginx uses. Strong on purpose: a weak tag is not allowed to validate an
+ * `If-Range`, so a weak one would silently disable resumable seeking, which is
+ * the exact case this endpoint exists to serve.
+ */
+export function buildETag(fileSize: number, mtimeMs: number): string {
+  return `"${fileSize.toString(16)}-${Math.floor(mtimeMs).toString(16)}"`;
+}
+
+/** HTTP dates carry whole seconds, so mtime has to be compared at that resolution. */
+function mtimeSeconds(mtimeMs: number): number {
+  return Math.floor(mtimeMs / 1000);
+}
+
+function stripWeakPrefix(tag: string): string {
+  return tag.startsWith('W/') ? tag.slice(2) : tag;
+}
+
+/** Splits an `If-None-Match` / `If-Range` list into its individual tags. */
+function parseETagList(header: string): string[] {
+  return header
+    .split(',')
+    .map((tag) => tag.trim())
+    .filter((tag) => tag.length > 0);
+}
+
+/**
+ * Whether the client already holds this exact representation, per RFC 9110's
+ * precedence: `If-None-Match` decides on its own when present, and
+ * `If-Modified-Since` is only consulted in its absence.
+ */
+export function isNotModified(
+  headers: { ifNoneMatch?: string; ifModifiedSince?: string },
+  etag: string,
+  mtimeMs: number,
+): boolean {
+  const { ifNoneMatch, ifModifiedSince } = headers;
+
+  if (ifNoneMatch !== undefined) {
+    if (ifNoneMatch.trim() === '*') return true;
+    // Weak comparison here — an `If-None-Match` match only has to mean
+    // "equivalent enough to reuse", not "byte-identical".
+    const wanted = stripWeakPrefix(etag);
+    return parseETagList(ifNoneMatch).some((tag) => stripWeakPrefix(tag) === wanted);
+  }
+
+  if (ifModifiedSince !== undefined) {
+    const since = Date.parse(ifModifiedSince);
+    if (Number.isNaN(since)) return false;
+    return mtimeSeconds(mtimeMs) <= mtimeSeconds(since);
+  }
+
+  return false;
+}
+
+/**
+ * Whether a `Range` may be honoured given `If-Range`.
+ *
+ * A player that reconnects mid-track sends the range it left off at plus the
+ * validator it had. If the file changed underneath, splicing new bytes into
+ * the old ones hands the decoder a corrupt stream; the correct answer is to
+ * ignore the range and resend the whole thing. No `If-Range` means the client
+ * made no such claim, so the range stands.
+ */
+export function ifRangeAllowsRange(
+  ifRange: string | undefined,
+  etag: string,
+  mtimeMs: number,
+): boolean {
+  if (ifRange === undefined) return true;
+
+  const value = ifRange.trim();
+
+  if (value.startsWith('"') || value.startsWith('W/')) {
+    // Strong comparison is required for If-Range, so a weak tag never matches.
+    return value === etag;
+  }
+
+  const asDate = Date.parse(value);
+  if (Number.isNaN(asDate)) return false;
+  return mtimeSeconds(mtimeMs) === mtimeSeconds(asDate);
+}
+
+// ---------------------------------------------------------------------------
+// Transcoding
+// ---------------------------------------------------------------------------
+
 const LOW_QUALITY_BITRATE = '64k';
 
 /**
- * Transcodes the source file to a lower-bitrate Opus/Ogg stream on the fly
- * for the data-saver path. Output length is unknown ahead of time, so callers
- * must not attempt byte-range serving against this stream.
+ * Transcodes in flight.
+ *
+ * Every data-saver request starts a full-rate decode, so this is the one
+ * endpoint where a handful of clients can saturate the box the rest of the app
+ * runs on. The cap is a guard against runaway, not a routine path — with the
+ * number of people this server has, reaching it means something is wrong.
+ */
+let activeTranscodes = 0;
+
+function acquireTranscodeSlot(): boolean {
+  if (activeTranscodes >= config.maxConcurrentTranscodes) return false;
+  activeTranscodes++;
+  return true;
+}
+
+function releaseTranscodeSlot(): void {
+  activeTranscodes = Math.max(0, activeTranscodes - 1);
+}
+
+export function getActiveTranscodes(): number {
+  return activeTranscodes;
+}
+
+/** A running transcode, and the handle needed to stop it. */
+export interface TranscodeSession {
+  stream: NodeJS.ReadableStream;
+  /**
+   * Kills ffmpeg and releases its concurrency slot. Idempotent, so it is safe
+   * to call from both the error path and the response-closed path.
+   */
+  stop: () => void;
+}
+
+/**
+ * Transcodes to a lower-bitrate Opus/Ogg stream for the data-saver path.
+ * Output length is unknown ahead of time, so callers must not attempt
+ * byte-range serving against this stream.
+ *
+ * Returns `null` when every transcode slot is busy. The caller decides what
+ * that means — this module will not quietly serve something other than what
+ * was asked for, least of all the full-size original to someone who asked for
+ * the small one.
+ *
+ * The returned `stop` must be called when the response ends. ffmpeg writes to
+ * a pipe, so an abandoned transcode does not die on its own: once the consumer
+ * goes away the pipe fills, ffmpeg blocks in `write`, and the process sits
+ * there holding a decoder open until the server restarts. Skipping a track
+ * mid-transcode is the ordinary way to reach that, not an edge case.
  */
 export function transcodeToLowQuality(
   filePath: string,
   onError?: (err: Error) => void,
-): NodeJS.ReadableStream {
+): TranscodeSession | null {
+  if (!acquireTranscodeSlot()) return null;
+
+  let stopped = false;
+
+  // SIGKILL rather than SIGTERM: ffmpeg blocked writing to a full pipe is the
+  // case this exists to clean up, and it does not reliably act on a catchable
+  // signal in that state.
+  function kill(): void {
+    try {
+      command.kill('SIGKILL');
+    } catch {
+      // Already exited. Nothing to kill, and the slot is released either way.
+    }
+  }
+
+  function stop(): void {
+    if (stopped) return;
+    stopped = true;
+    releaseTranscodeSlot();
+    kill();
+  }
+
   const command = ffmpeg(filePath)
     .noVideo()
     .audioCodec('libopus')
     .audioBitrate(LOW_QUALITY_BITRATE)
     .format('ogg')
+    // ffmpeg is spawned asynchronously, so a `stop()` that lands before it
+    // exists has nothing to signal and the process goes on to spawn anyway —
+    // orphaned, unkillable by us, alive for the life of the server. Skipping
+    // straight through a few tracks is exactly how a client reaches this, so
+    // the kill is re-issued once there is something to kill. Verified against
+    // real ffmpeg: without this, an immediate stop leaks the process.
+    .on('start', () => {
+      if (stopped) kill();
+    })
     .on('error', (err: Error) => {
+      // A kill we asked for surfaces here as an error too. It isn't one.
+      if (stopped) return;
       console.error(`Transcode failed for ${filePath}: ${err.message}`);
+      stop();
       onError?.(err);
-    });
+    })
+    .on('end', stop);
 
-  return command.pipe() as unknown as NodeJS.ReadableStream;
+  return { stream: command.pipe() as unknown as NodeJS.ReadableStream, stop };
 }

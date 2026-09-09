@@ -4,6 +4,40 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `transcodeToLowQuality` — `backend/src/services/streaming.ts`
+**Date:** 2026-09-10
+**How added:** bug fix + hardening
+**Purpose:** produce the low-bitrate Opus stream for the data-saver path, and give the caller a way to stop it.
+**Side effects:** spawns ffmpeg; holds one of a fixed number of module-level transcode slots.
+**Before:** returned a bare `NodeJS.ReadableStream` and discarded the ffmpeg command, so nothing could kill it. ffmpeg writes to a pipe, so an abandoned transcode did not die on its own — the pipe filled, ffmpeg blocked in `write`, and the process survived until the server restarted. One skipped track, one stranded process. There was also no ceiling: N clients meant N full-rate decodes on the machine serving the app.
+**After:** returns a `TranscodeSession` (`{ stream, stop }`) or `null` when every slot is busy. `stop()` is idempotent, releases the slot, and SIGKILLs — not SIGTERM, because a process blocked writing to a full pipe is the case this exists to clean up and does not reliably act on a catchable signal there. The kill is re-issued on ffmpeg's `start` event if a stop already landed: spawning is asynchronous, so a stop arriving first has nothing to signal and would otherwise orphan the process that spawns a moment later. Returning `null` rather than falling back to the original file is deliberate — the caller asked for the small copy for a reason.
+
+**Function:** `buildETag` / `isNotModified` / `ifRangeAllowsRange` — `backend/src/services/streaming.ts`
+**Date:** 2026-09-10
+**How added:** new feature
+**Purpose:** let a client revalidate a cached track instead of re-downloading it, and keep a resumed range honest.
+**Side effects:** none — pure functions over headers and `stat` output.
+**Before:** nothing. The stream endpoint sent no validators at all, so every replay of a song was a full re-download.
+**After:** `buildETag` derives a **strong** tag from size + mtime (the nginx pair). Strong matters: a weak tag may not validate an `If-Range`, so a weak one would have quietly disabled resumable seeking. `isNotModified` implements RFC 9110 precedence — `If-None-Match` decides alone when present, weakly compared; `If-Modified-Since` is consulted only in its absence and compared at whole seconds, since HTTP dates carry no sub-second part and a file written 400 ms later must not read as newer. `ifRangeAllowsRange` gates the range: absent means the client claimed nothing and the range stands; a mismatch means the file changed underneath, and splicing new bytes onto old ones would hand the decoder a corrupt stream disguised as a successful `206`.
+
+**Function:** `getHealthSnapshot` / `resetStreamMonitor` — `backend/src/services/streamMonitor.ts`
+**Date:** 2026-09-10
+**How added:** bug fix
+**Purpose:** report whether the streaming path is currently healthy.
+**Side effects:** none; `resetStreamMonitor` clears module state and exists for tests.
+**Before:** `status` was `degraded` whenever the error ring was non-empty, and the ring is only trimmed by length — so a single missing file at boot left the server reporting degraded permanently, which carries the same information as reporting nothing.
+**After:** the verdict expires fifteen minutes after the last error; the errors stay listed, because the history is the useful part of a diagnostics page. Takes an optional `now` so the window is testable without waiting for it. Also reports `activeTranscodes`, so the new concurrency ceiling is observable rather than inferred.
+
+**Function:** `GET /tracks/:id/stream` — `backend/src/routes/tracks.ts`
+**Date:** 2026-09-10
+**How added:** bug fix + hardening
+**Purpose:** serve audio bytes.
+**Side effects:** reads from disk; may spawn ffmpeg; moves the active-stream gauge.
+**Before:** no cache validators, so every play refetched the whole file. Transcodes were started and never stopped. `streamStarted()` fired before the `416` check, so a rejected range counted as a stream.
+**After:** the direct path sends `ETag`, `Last-Modified` and `Cache-Control: private, max-age=86400`, answers `304` to a matching validator, and drops a `Range` whose `If-Range` no longer matches rather than serving a spliced `206`. A day, not a week: long enough for an evening of listening and every seek inside a track, short enough that replacing a file cannot keep serving the old rip — and the media token in the URL rotates every two hours anyway, so a longer window buys little. The data-saver path takes a slot or returns `503` + `Retry-After`, sends `no-store` (its length is unknown until the encode ends, so there is nothing to validate against), and calls `session.stop()` on response close. The stream gauge now moves only for responses that actually carry audio.
+
+---
+
 **Function:** `computePeaks` / `peaksForTrack` / `decodePeaks` — `backend/src/services/waveform.ts`
 **Date:** 2026-09-09
 **How added:** new feature

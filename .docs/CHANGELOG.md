@@ -4,6 +4,44 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-10 — The streaming path: leaked transcodes, and a cache that was never there
+
+Four defects on the audio path, found by reading it end to end rather than by anything failing. Nothing here changes what a track sounds like; it changes what serving one costs.
+
+### An abandoned transcode never died
+
+`transcodeToLowQuality` returned a bare stream and dropped the ffmpeg handle on the floor, so nothing could stop it. ffmpeg writes to a pipe: once the listener skips the track and the response closes, the pipe fills, ffmpeg blocks in `write`, and the process sits there holding a decoder open until the server restarts. Skipping through a few tracks on the data-saver path was enough to strand one process per skip.
+
+It now returns a `TranscodeSession` — the stream plus a `stop()` that SIGKILLs ffmpeg and releases its slot — and the route calls `stop()` on response close.
+
+- **A second, narrower leak turned up while verifying the first.** ffmpeg spawns asynchronously, so a `stop()` arriving before the process exists has nothing to signal, and ffmpeg goes on to spawn anyway — orphaned, and past the point where we hold any handle to it. Skipping straight through tracks is precisely how a client hits that window. The kill is now re-issued on `start` if a stop already landed. Measured against real ffmpeg both ways: without the re-issue, an immediate stop leaks the process; with it, zero survive.
+
+### Nothing capped concurrent transcodes
+
+Every `?quality=low` request span a full-rate decode on the same machine that serves the app, with no ceiling. `MAX_CONCURRENT_TRANSCODES` (default 2) now bounds it, and past the cap the request is refused with `503` + `Retry-After` rather than downgraded to the original file — whoever asked for the small copy asked for a reason, and quietly sending ten times the bytes is the worse answer for the one person on mobile data. The full-quality path is untouched by the cap. `activeTranscodes` joins the health snapshot and the diagnostics page, so the ceiling is visible rather than inferred.
+
+### Health reported "degraded" forever
+
+`status` was `degraded` if the error ring held anything at all, and the ring is only ever trimmed by length — so one missing file at boot pinned the server to degraded for the rest of its life, which conveys exactly as much as reporting nothing. The verdict now expires after fifteen minutes. The errors themselves stay listed: "what went wrong earlier" is the question that page exists to answer.
+
+### Every replay of a track was a full re-download
+
+The stream endpoint sent no `ETag`, no `Last-Modified`, no `Cache-Control` — so a browser had nothing to revalidate against and refetched the whole file every time. Audio is the largest thing this server sends and the least likely to change: a track row keeps its path for life, and editing tags rewrites the database, not the file.
+
+- **A strong ETag** from size + mtime, the pair nginx uses. Strong deliberately: a weak tag may not validate an `If-Range`, so a weak one would have silently disabled resumable seeking — the thing this endpoint exists for.
+- **`If-None-Match` and `If-Modified-Since` answer `304`**, with RFC 9110 precedence (a tag decides alone; the date is consulted only in its absence) and second-granularity date comparison, since HTTP dates carry no sub-second part.
+- **`If-Range` is honoured.** A player reconnecting mid-track sends the offset it stopped at and the validator it holds; if the file changed underneath, splicing new bytes onto old ones hands the decoder a corrupt stream that arrives looking like a successful `206`. A mismatch now resends the whole file.
+- **Cached a day, not a week.** Long enough to cover an evening of listening and every seek back inside a track; short enough that replacing a file on disk cannot keep serving the old rip. Matches the waveform endpoint. The practical ceiling is the media token anyway — it rides in the URL and rotates every two hours, and a new URL is a cold cache.
+- The transcoded path sends `no-store`: its length is unknown until the encode finishes, so there is nothing stable to validate against.
+
+Also: `304` and `416` no longer count as active streams — both previously incremented the gauge on their way to sending no audio.
+
+**Verified** against real ffmpeg and, over real HTTP, against the live library (track 110, 2,481,022 bytes): validators present on a full request; `If-None-Match` and `If-Modified-Since` each answered `304` with a zero-byte body; a stale validator resent all 2.4 MB; `Range: bytes=100-199` returned `206` with `content-range: bytes 100-199/2481022` and bytes identical to the source slice; `If-Range` matching gave `206`, stale gave a full `200`; an unsatisfiable range gave `416` with `bytes */2481022`. Data-saver: served real `OggS` output, then killing the client mid-stream left zero ffmpeg processes three seconds later; two concurrent transcodes held both slots and a third got `503` + `Retry-After: 5` while the full-quality path still served `200`; freeing a slot restored transcoding. 176 backend tests pass (41 new). No user rows were created — media auth is JWT-only, so the tokens were signed in-process.
+
+**Noticed, not fixed:** several track rows still point at `/mnt/wsl/music`, the tmpfs library that was lost; `GET /tracks/136/stream` is a `500` for that reason. Pre-existing data drift, unrelated to this change — those rows need a rescan or a delete.
+
+---
+
 ## 2026-09-09 — A title screen, a mobile player, and real waveforms
 
 ### The login screen, and the app frame behind it

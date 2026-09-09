@@ -17,6 +17,12 @@ export const config = {
   // re-scan rebuilds it from the audio files.
   artworkPath: process.env.ARTWORK_PATH ?? './data/artwork',
   maxUploadSizeMb: Number(process.env.MAX_UPLOAD_SIZE_MB ?? 100),
+  // Data-saver transcodes running at once. Each is a full-rate ffmpeg decode
+  // on the same machine that serves the app, so this is a ceiling, not a
+  // target: past it, `?quality=low` is refused rather than served as the
+  // full-size original, which would blow the data budget of the one person
+  // who explicitly asked not to.
+  maxConcurrentTranscodes: Number(process.env.MAX_CONCURRENT_TRANSCODES ?? 2),
   // Whether anyone who can reach the server may create their own account.
   // Off means registration is admin-only (the first account is always allowed,
   // or there would be no way to bootstrap one). Turning this on is a real

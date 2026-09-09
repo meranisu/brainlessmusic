@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { mimeTypeFor, parseRange } from './streaming.js';
+import { buildETag, ifRangeAllowsRange, isNotModified, mimeTypeFor, parseRange } from './streaming.js';
 
 const SIZE = 1000; // valid byte offsets are 0..999
 
@@ -104,5 +104,132 @@ describe('mimeTypeFor', () => {
 
   it('is not fooled by a dot inside the filename', () => {
     assert.equal(mimeTypeFor('/music/Album 1.5 - Track.mp3'), 'audio/mpeg');
+  });
+});
+
+describe('buildETag', () => {
+  const ETAG = buildETag(1000, 1_700_000_000_000);
+
+  it('is a strong tag', () => {
+    // Weak tags are not allowed to validate an If-Range, so a weak one here
+    // would silently disable resumable seeking.
+    assert.match(ETAG, /^"[^"]+"$/);
+    assert.ok(!ETAG.startsWith('W/'));
+  });
+
+  it('is stable for the same file', () => {
+    assert.equal(buildETag(1000, 1_700_000_000_000), ETAG);
+  });
+
+  it('changes when either the size or the mtime changes', () => {
+    assert.notEqual(buildETag(1001, 1_700_000_000_000), ETAG);
+    assert.notEqual(buildETag(1000, 1_700_000_001_000), ETAG);
+  });
+});
+
+describe('isNotModified', () => {
+  const MTIME = Date.parse('2026-01-15T10:30:00Z');
+  const ETAG = buildETag(SIZE, MTIME);
+
+  it('is false when the client sent no validator', () => {
+    assert.equal(isNotModified({}, ETAG, MTIME), false);
+  });
+
+  it('matches an exact If-None-Match', () => {
+    assert.equal(isNotModified({ ifNoneMatch: ETAG }, ETAG, MTIME), true);
+  });
+
+  it('matches a wildcard If-None-Match', () => {
+    assert.equal(isNotModified({ ifNoneMatch: '*' }, ETAG, MTIME), true);
+  });
+
+  it('finds the tag anywhere in a list', () => {
+    assert.equal(isNotModified({ ifNoneMatch: `"other", ${ETAG}, "third"` }, ETAG, MTIME), true);
+  });
+
+  it('matches weakly, as If-None-Match requires', () => {
+    // The client may downgrade a tag to weak; that still means "I have this".
+    assert.equal(isNotModified({ ifNoneMatch: `W/${ETAG}` }, ETAG, MTIME), true);
+  });
+
+  it('rejects a tag for a different representation', () => {
+    assert.equal(isNotModified({ ifNoneMatch: '"deadbeef-1"' }, ETAG, MTIME), false);
+  });
+
+  it('honours If-Modified-Since when no tag was sent', () => {
+    assert.equal(
+      isNotModified({ ifModifiedSince: new Date(MTIME + 60_000).toUTCString() }, ETAG, MTIME),
+      true,
+    );
+    assert.equal(
+      isNotModified({ ifModifiedSince: new Date(MTIME - 60_000).toUTCString() }, ETAG, MTIME),
+      false,
+    );
+  });
+
+  it('treats an exactly-equal If-Modified-Since as unmodified', () => {
+    assert.equal(isNotModified({ ifModifiedSince: new Date(MTIME).toUTCString() }, ETAG, MTIME), true);
+  });
+
+  it('compares If-Modified-Since at whole seconds', () => {
+    // HTTP dates carry no sub-second part, so a file written 400ms after the
+    // date the client holds must not read as newer than it.
+    const mtime = MTIME + 400;
+    assert.equal(
+      isNotModified({ ifModifiedSince: new Date(MTIME).toUTCString() }, buildETag(SIZE, mtime), mtime),
+      true,
+    );
+  });
+
+  it('ignores an unparseable If-Modified-Since rather than assuming a hit', () => {
+    assert.equal(isNotModified({ ifModifiedSince: 'not a date' }, ETAG, MTIME), false);
+  });
+
+  it('lets If-None-Match decide even when If-Modified-Since disagrees', () => {
+    // RFC 9110: If-Modified-Since is only consulted when there is no tag.
+    assert.equal(
+      isNotModified(
+        { ifNoneMatch: '"stale"', ifModifiedSince: new Date(MTIME + 60_000).toUTCString() },
+        ETAG,
+        MTIME,
+      ),
+      false,
+    );
+  });
+});
+
+describe('ifRangeAllowsRange', () => {
+  const MTIME = Date.parse('2026-01-15T10:30:00Z');
+  const ETAG = buildETag(SIZE, MTIME);
+
+  it('allows the range when the client made no claim', () => {
+    assert.equal(ifRangeAllowsRange(undefined, ETAG, MTIME), true);
+  });
+
+  it('allows the range for a matching tag', () => {
+    assert.equal(ifRangeAllowsRange(ETAG, ETAG, MTIME), true);
+  });
+
+  it('refuses the range when the file changed underneath', () => {
+    // Splicing bytes from a new file onto bytes from an old one hands the
+    // decoder a corrupt stream; the whole file has to be resent instead.
+    assert.equal(ifRangeAllowsRange('"deadbeef-1"', ETAG, MTIME), false);
+  });
+
+  it('refuses a weak tag, which If-Range may not accept', () => {
+    assert.equal(ifRangeAllowsRange(`W/${ETAG}`, ETAG, MTIME), false);
+  });
+
+  it('allows the range for an exactly-matching date', () => {
+    assert.equal(ifRangeAllowsRange(new Date(MTIME).toUTCString(), ETAG, MTIME), true);
+  });
+
+  it('refuses a date that is not the file mtime', () => {
+    assert.equal(ifRangeAllowsRange(new Date(MTIME - 60_000).toUTCString(), ETAG, MTIME), false);
+    assert.equal(ifRangeAllowsRange(new Date(MTIME + 60_000).toUTCString(), ETAG, MTIME), false);
+  });
+
+  it('refuses an unparseable value', () => {
+    assert.equal(ifRangeAllowsRange('garbage', ETAG, MTIME), false);
   });
 });

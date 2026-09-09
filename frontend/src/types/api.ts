@@ -66,6 +66,7 @@ export interface HealthSnapshot {
   status: 'ok' | 'degraded';
   uptimeSeconds: number;
   activeStreams: number;
+  activeTranscodes: number;
   recentErrors: StreamErrorEntry[];
 }
 

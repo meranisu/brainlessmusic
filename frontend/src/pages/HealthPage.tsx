@@ -66,6 +66,7 @@ export function HealthPage() {
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <StatTile label="Active streams" value={data.activeStreams} />
+            <StatTile label="Transcoding" value={data.activeTranscodes} />
             <StatTile label="Uptime" value={formatUptime(data.uptimeSeconds)} />
             <StatTile label="Recent errors" value={data.recentErrors.length} />
           </div>

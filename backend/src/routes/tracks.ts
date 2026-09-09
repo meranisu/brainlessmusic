@@ -17,13 +17,29 @@ import { findTrackArtworkId } from '../db/artwork.js';
 import { peaksForTrack } from '../services/waveform.js';
 import { deleteTrackRow, findTrackById, setLastStreamError, updateTrackFields, upsertTrack } from '../db/library.js';
 import { countHistoryForTrack, listHistoryForTrack, recordScrobble } from '../db/plays.js';
-import { mimeTypeFor, parseRange, transcodeToLowQuality } from '../services/streaming.js';
+import {
+  buildETag,
+  ifRangeAllowsRange,
+  isNotModified,
+  mimeTypeFor,
+  parseRange,
+  transcodeToLowQuality,
+} from '../services/streaming.js';
 import { recordStreamError, streamEnded, streamStarted } from '../services/streamMonitor.js';
 import { sendCover } from '../services/artwork.js';
 import { persistArtwork } from '../services/artworkIngest.js';
 import { fileIntoLibrary } from '../services/trackFiling.js';
 import { AUDIO_EXTENSIONS, extractTrackTags } from '../services/trackTags.js';
 import { parsePagination } from '../utils/pagination.js';
+
+/**
+ * A day, revalidated after. Long enough that a whole evening of listening —
+ * and every seek back inside a track — is served from the browser's cache;
+ * short enough that replacing a file on disk cannot keep serving the old rip
+ * for a week. Matches the waveform endpoint, which caches on the same
+ * reasoning.
+ */
+const CACHE_CONTROL = 'private, max-age=86400';
 
 const SORT_FIELDS = new Set<SortField>(['title', 'artist', 'album', 'duration', 'dateAdded', 'playCount']);
 const VISIBILITY_FILTERS = new Set<VisibilityFilter>(['all', 'only', 'exclude']);
@@ -232,30 +248,88 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
         });
       }
 
-      streamStarted();
-      reply.raw.on('close', streamEnded);
-
       if (request.query.quality === 'low') {
+        const session = transcodeToLowQuality(track.path, (err) => {
+          const message = `Transcode failed: ${err.message}`;
+          setLastStreamError(id, message);
+          recordStreamError(id, message);
+        });
+
+        // Every slot busy. Refused rather than downgraded to the original
+        // file: whoever asked for the small copy asked for a reason, and
+        // quietly sending ten times the bytes is the worse answer.
+        if (!session) {
+          request.log.warn({ trackId: id }, 'Refused a transcode: all slots busy');
+          return reply
+            .code(503)
+            .header('Retry-After', '5')
+            .send({ error: 'Too many transcodes in progress, try again shortly' });
+        }
+
+        streamStarted();
+        // `stop` is what actually kills ffmpeg. Without it a skipped track
+        // leaves the process blocked on a pipe nobody is reading, for the
+        // lifetime of the server.
+        reply.raw.on('close', () => {
+          session.stop();
+          streamEnded();
+        });
+
         reply.header('Content-Type', 'audio/ogg');
         reply.header('Accept-Ranges', 'none');
-        return reply.send(
-          transcodeToLowQuality(track.path, (err) => {
-            const message = `Transcode failed: ${err.message}`;
-            setLastStreamError(id, message);
-            recordStreamError(id, message);
-          }),
-        );
+        // Length is unknown until the encode finishes, so there is nothing
+        // stable to validate a cached copy against.
+        reply.header('Cache-Control', 'no-store');
+        return reply.send(session.stream);
       }
 
-      const range = parseRange(request.headers.range, stats.size);
+      // The file's own bytes are a stable representation, so they get
+      // validators: a replayed track revalidates into a 304 instead of coming
+      // down the wire again.
+      const etag = buildETag(stats.size, stats.mtimeMs);
+      reply.header('ETag', etag);
+      reply.header('Last-Modified', stats.mtime.toUTCString());
+      reply.header('Cache-Control', CACHE_CONTROL);
+      reply.header('Accept-Ranges', 'bytes');
+
+      if (
+        isNotModified(
+          {
+            ifNoneMatch: request.headers['if-none-match'],
+            ifModifiedSince: request.headers['if-modified-since'],
+          },
+          etag,
+          stats.mtimeMs,
+        )
+      ) {
+        return reply.code(304).send();
+      }
+
+      // A reconnecting player sends the offset it stopped at together with the
+      // validator it holds. If the file changed underneath, splicing new bytes
+      // onto old ones hands the decoder a corrupt stream — resend the whole
+      // thing instead.
+      // Node types unrecognised headers as possibly-repeated; `If-Range` is
+      // single-valued, and a client sending it twice has made no claim worth
+      // honouring.
+      const ifRange = request.headers['if-range'];
+      const range = ifRangeAllowsRange(
+        typeof ifRange === 'string' ? ifRange : undefined,
+        etag,
+        stats.mtimeMs,
+      )
+        ? parseRange(request.headers.range, stats.size)
+        : 'none';
 
       if (range === 'invalid') {
         reply.header('Content-Range', `bytes */${stats.size}`);
         return reply.code(416).send({ error: 'Invalid range' });
       }
 
-      reply.header('Accept-Ranges', 'bytes');
       reply.header('Content-Type', mimeTypeFor(track.path));
+
+      streamStarted();
+      reply.raw.on('close', streamEnded);
 
       if (range === 'none') {
         reply.header('Content-Length', stats.size);
