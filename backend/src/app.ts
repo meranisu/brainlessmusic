@@ -16,6 +16,7 @@ import searchRoute from './routes/search.js';
 import shuffleRoute from './routes/shuffle.js';
 import statsRoute from './routes/stats.js';
 import tracksRoute from './routes/tracks.js';
+import usersRoute from './routes/users.js';
 
 export const API_PREFIX = '/api';
 
@@ -65,6 +66,7 @@ export function buildApp() {
       api.register(statsRoute);
       api.register(favoritesRoute);
       api.register(shuffleRoute);
+      api.register(usersRoute);
     },
     { prefix: API_PREFIX },
   );

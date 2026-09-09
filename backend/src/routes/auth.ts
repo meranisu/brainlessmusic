@@ -20,6 +20,16 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
    * `authenticate` succeeded: when it fails it has already sent a 401, and
    * calling `requireAdmin` afterwards would try to send a second reply.
    */
+  /**
+   * Whether an anonymous visitor may still create an account — true only while
+   * the user table is empty. Unauthenticated by design: the signup page has to
+   * ask this before anyone can log in. It leaks one bit ("has this server been
+   * set up yet"), which is not worth protecting.
+   */
+  fastify.get('/auth/registration-status', async (_request, reply) => {
+    return reply.send({ open: countUsers() === 0 });
+  });
+
   fastify.post<{ Body: Credentials }>(
     '/auth/register',
     {

@@ -163,3 +163,10 @@ export interface SearchResults {
   albums: AlbumSummary[];
   tracks: TrackSummary[];
 }
+
+export interface UserSummary {
+  id: number;
+  username: string;
+  isAdmin: boolean;
+  createdAt: string;
+}

@@ -33,6 +33,7 @@ const PROTECTED_ROUTES: Array<[method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url:
   ['GET', '/api/auth/me'],
   ['GET', '/api/me/history'],
   ['GET', '/api/stats/top-tracks'],
+  ['GET', '/api/users'],
   ['POST', '/api/library/scan'],
   ['POST', '/api/shuffle'],
 ];
@@ -42,6 +43,7 @@ const ADMIN_ROUTES: Array<[method: 'POST' | 'PATCH' | 'DELETE', url: string]> = 
   ['POST', '/api/tracks/upload'],
   ['PATCH', '/api/tracks/1'],
   ['DELETE', '/api/tracks/1'],
+  ['PATCH', '/api/users/1'],
 ];
 
 before(async () => {
@@ -323,6 +325,125 @@ describe('registration is admin-only', () => {
       });
       assert.equal(res.statusCode, 400, `payload ${JSON.stringify(payload)} should be rejected`);
     }
+  });
+});
+
+
+describe('user management', () => {
+  it('lists users for an admin', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/users',
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    assert.equal(res.statusCode, 200);
+    const names = res.json().users.map((u: { username: string }) => u.username).sort();
+    assert.deepEqual(names, ['boss', 'listener']);
+    assert.equal(res.json().users[0].password_hash, undefined, 'never expose hashes');
+  });
+
+  it('reports the registration status without a token', async () => {
+    // The signup page has to ask this before anyone can possibly be logged in.
+    const withUsers = await app.inject({ method: 'GET', url: '/api/auth/registration-status' });
+    assert.equal(withUsers.statusCode, 200);
+    assert.equal(withUsers.json().open, false);
+
+    resetDatabase();
+    const empty = await app.inject({ method: 'GET', url: '/api/auth/registration-status' });
+    assert.equal(empty.json().open, true);
+  });
+
+  it('promotes and demotes', async () => {
+    const listenerId = findUserByUsername(listener)!.id;
+
+    const promoted = await app.inject({
+      method: 'PATCH',
+      url: `/api/users/${listenerId}`,
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { isAdmin: true },
+    });
+    assert.equal(promoted.statusCode, 200);
+    assert.equal(promoted.json().isAdmin, true);
+
+    const demoted = await app.inject({
+      method: 'PATCH',
+      url: `/api/users/${listenerId}`,
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { isAdmin: false },
+    });
+    assert.equal(demoted.json().isAdmin, false);
+  });
+
+  it('refuses to remove the last admin', async () => {
+    // Otherwise an admin can lock the whole installation out of user
+    // management from a browser, recoverable only by SSH and the CLI.
+    const adminId = findUserByUsername(admin)!.id;
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/api/users/${adminId}`,
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { isAdmin: false },
+    });
+    assert.equal(res.statusCode, 409);
+    assert.equal(findUserByUsername(admin)?.is_admin, 1, 'the demotion must not have happened');
+  });
+
+  it('refuses to delete the last admin, or yourself', async () => {
+    const adminId = findUserByUsername(admin)!.id;
+    const self = await app.inject({
+      method: 'DELETE',
+      url: `/api/users/${adminId}`,
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    assert.equal(self.statusCode, 409);
+    assert.ok(findUserByUsername(admin), 'the account must still exist');
+  });
+
+  it('resets a password, and the new one works', async () => {
+    const listenerId = findUserByUsername(listener)!.id;
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/api/users/${listenerId}`,
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { password: 'a brand new password' },
+    });
+    assert.equal(res.statusCode, 200);
+
+    const login = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { username: listener, password: 'a brand new password' },
+    });
+    assert.equal(login.statusCode, 200, 'the new password should work');
+
+    const old = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { username: listener, password: 'correct horse battery staple' },
+    });
+    assert.equal(old.statusCode, 401, 'the old password should not');
+  });
+
+  it('rejects a too-short password', async () => {
+    const listenerId = findUserByUsername(listener)!.id;
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/api/users/${listenerId}`,
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { password: 'short' },
+    });
+    assert.equal(res.statusCode, 400);
+  });
+
+  it('deletes an ordinary user', async () => {
+    const listenerId = findUserByUsername(listener)!.id;
+    const res = await app.inject({
+      method: 'DELETE',
+      url: `/api/users/${listenerId}`,
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    assert.equal(res.statusCode, 204);
+    assert.equal(findUserByUsername(listener), undefined);
   });
 });
 

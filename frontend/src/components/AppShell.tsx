@@ -49,15 +49,23 @@ export function AppShell() {
                 Upload
               </NavLink>
             )}
+            {user?.isAdmin && (
+              <NavLink to="/users" className={navLinkClass}>
+                Users
+              </NavLink>
+            )}
             <NavLink to="/health" className={navLinkClass}>
               Health
             </NavLink>
           </nav>
           <GlobalSearch />
-          <div className="flex items-center gap-3 py-3 text-sm">
-            <span className="text-blue-200">{user?.username}</span>
-            {user?.isAdmin && <span className="badge-admin">Admin</span>}
-            <button onClick={logout} className="btn-ghost btn-sm">
+          {/* shrink-0 + nowrap: the nav grew a Users link, and without these the
+              right-hand block is the first thing the flex row squeezes — "Log
+              out" was wrapping onto two lines and stretching the header. */}
+          <div className="flex shrink-0 items-center gap-3 py-3 text-sm">
+            <span className="hidden truncate text-blue-200 lg:inline">{user?.username}</span>
+            {user?.isAdmin && <span className="badge-admin shrink-0">Admin</span>}
+            <button onClick={logout} className="btn-ghost btn-sm shrink-0 whitespace-nowrap">
               Log out
             </button>
           </div>

@@ -13,12 +13,15 @@ import { LoginPage } from './pages/LoginPage';
 import { PlaylistDetailPage } from './pages/PlaylistDetailPage';
 import { PlaylistsPage } from './pages/PlaylistsPage';
 import { SearchPage } from './pages/SearchPage';
+import { SignupPage } from './pages/SignupPage';
 import { UploadPage } from './pages/UploadPage';
+import { UsersPage } from './pages/UsersPage';
 
 export function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
 
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
@@ -34,6 +37,7 @@ export function App() {
           <Route path="/health" element={<HealthPage />} />
           <Route element={<RequireAdmin />}>
             <Route path="/upload" element={<UploadPage />} />
+            <Route path="/users" element={<UsersPage />} />
           </Route>
         </Route>
       </Route>

@@ -1,8 +1,9 @@
+import { useQuery } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { TitleScreenPanel } from '../components/TitleScreenPanel';
-import { ApiError } from '../lib/apiClient';
+import { ApiError, apiClient } from '../lib/apiClient';
 
 const lightInput =
   'w-full rounded-md border border-blue-950/30 bg-white px-3 py-2 text-sm text-blue-950 outline-none transition-colors placeholder:text-blue-950/40 focus:border-orange-600 disabled:opacity-60';
@@ -13,6 +14,13 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Only offer sign-up when the server genuinely has no users — otherwise the
+  // link leads to a page that can only say no.
+  const { data: registration } = useQuery({
+    queryKey: ['registration-status'],
+    queryFn: () => apiClient.get<{ open: boolean }>('/auth/registration-status'),
+  });
 
   if (user) return <Navigate to="/" replace />;
 
@@ -84,9 +92,19 @@ export function LoginPage() {
             {isSubmitting ? 'Signing in…' : 'Sign in'}
           </button>
 
-          <p className="mt-5 text-xs text-blue-950/50">
-            No account? Ask an admin — accounts aren't self-serve on this server.
-          </p>
+          {registration?.open ? (
+            <p className="mt-5 text-xs text-blue-950/50">
+              Nobody has claimed this server yet.{' '}
+              <Link to="/signup" className="font-medium text-blue-950/70 underline">
+                Create the admin account
+              </Link>
+              .
+            </p>
+          ) : (
+            <p className="mt-5 text-xs text-blue-950/50">
+              No account? Ask an admin — accounts aren't self-serve on this server.
+            </p>
+          )}
         </form>
       </div>
 
