@@ -3,6 +3,7 @@ import { after, before, beforeEach, describe, it } from 'node:test';
 import jwt from 'jsonwebtoken';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../app.js';
+import { config } from '../config.js';
 import { findUserByUsername, insertUser, setAdmin } from '../db/users.js';
 import { hashPassword } from '../services/password.js';
 import { signMediaToken, signToken } from '../services/token.js';
@@ -245,6 +246,16 @@ describe('admin gating', () => {
 });
 
 describe('registration is admin-only', () => {
+  // Pinned rather than inherited: the shipped default is open registration,
+  // and a test that silently follows the default stops testing the gate the
+  // day someone changes it.
+  before(() => {
+    config.allowOpenRegistration = false;
+  });
+  after(() => {
+    config.allowOpenRegistration = true;
+  });
+
   it('lets an admin create a user', async () => {
     const res = await app.inject({
       method: 'POST',
@@ -329,6 +340,101 @@ describe('registration is admin-only', () => {
 });
 
 
+describe('open registration', () => {
+  // The other posture: anyone who can reach the server may make themselves an
+  // account. Fine on a LAN, a real exposure once the server is public — so
+  // what it does and does not grant is worth pinning down.
+  before(() => {
+    config.allowOpenRegistration = true;
+  });
+
+  it('lets an anonymous visitor create an account', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: { username: 'walkin', password: 'a long enough password' },
+    });
+    assert.equal(res.statusCode, 201);
+    assert.equal(res.json().username, 'walkin');
+    assert.equal(res.json().password_hash, undefined, 'never expose hashes');
+  });
+
+  it('does not hand out admin to a self-serve account', async () => {
+    // The whole point of the setting is more listeners, not more admins. Only
+    // the bootstrap account is ever auto-promoted.
+    await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: { username: 'nobody-special', password: 'a long enough password' },
+    });
+    assert.equal(findUserByUsername('nobody-special')?.is_admin, 0);
+  });
+
+  it('still refuses a duplicate username', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: { username: listener, password: 'a long enough password' },
+    });
+    assert.equal(res.statusCode, 409);
+  });
+
+  it('enforces the password floor server-side', async () => {
+    // With open registration the browser is not a gate: this endpoint is
+    // reachable by anyone, so validation cannot live only in the form.
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: { username: 'shorty', password: 'sevench' },
+    });
+    assert.equal(res.statusCode, 400);
+    assert.equal(findUserByUsername('shorty'), undefined);
+  });
+
+  it('rejects usernames that are not plausible names', async () => {
+    for (const username of ['x', 'a'.repeat(33), 'has space', 'drop;table', '../../etc']) {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/auth/register',
+        payload: { username, password: 'a long enough password' },
+      });
+      assert.equal(res.statusCode, 400, `${JSON.stringify(username)} should be rejected`);
+      assert.equal(findUserByUsername(username), undefined);
+    }
+  });
+
+  it('reports itself as open, but not as a first account', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/auth/registration-status' });
+    assert.equal(res.json().open, true);
+    assert.equal(res.json().firstAccount, false, 'the signup page must not promise admin here');
+  });
+
+  it('grants no admin powers to the account it created', async () => {
+    // The gate that matters: an open door to *listening* must not become an
+    // open door to deleting the library.
+    await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: { username: 'curious', password: 'a long enough password' },
+    });
+    const login = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { username: 'curious', password: 'a long enough password' },
+    });
+    const token = login.json().token;
+
+    for (const [method, url] of [
+      ['GET', '/api/users'],
+      ['DELETE', '/api/tracks/1'],
+      ['POST', '/api/library/scan'],
+    ] as const) {
+      const res = await app.inject({ method, url, headers: { authorization: `Bearer ${token}` } });
+      assert.equal(res.statusCode, 403, `${method} ${url} must stay admin-only`);
+    }
+  });
+});
+
 describe('user management', () => {
   it('lists users for an admin', async () => {
     const res = await app.inject({
@@ -344,13 +450,17 @@ describe('user management', () => {
 
   it('reports the registration status without a token', async () => {
     // The signup page has to ask this before anyone can possibly be logged in.
+    config.allowOpenRegistration = false;
     const withUsers = await app.inject({ method: 'GET', url: '/api/auth/registration-status' });
     assert.equal(withUsers.statusCode, 200);
     assert.equal(withUsers.json().open, false);
+    assert.equal(withUsers.json().firstAccount, false);
 
     resetDatabase();
     const empty = await app.inject({ method: 'GET', url: '/api/auth/registration-status' });
-    assert.equal(empty.json().open, true);
+    assert.equal(empty.json().open, true, 'an empty server always allows the first account');
+    assert.equal(empty.json().firstAccount, true);
+    config.allowOpenRegistration = true;
   });
 
   it('promotes and demotes', async () => {

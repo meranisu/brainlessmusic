@@ -15,11 +15,12 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Only offer sign-up when the server genuinely has no users — otherwise the
-  // link leads to a page that can only say no.
+  // Only offer sign-up when the server will actually accept one — otherwise
+  // the link leads to a page that can only say no. `firstAccount` separates
+  // "claim this server" from an ordinary sign-up.
   const { data: registration } = useQuery({
     queryKey: ['registration-status'],
-    queryFn: () => apiClient.get<{ open: boolean }>('/auth/registration-status'),
+    queryFn: () => apiClient.get<{ open: boolean; firstAccount: boolean }>('/auth/registration-status'),
   });
 
   if (user) return <Navigate to="/" replace />;
@@ -92,7 +93,11 @@ export function LoginPage() {
             {isSubmitting ? 'Signing in…' : 'Sign in'}
           </button>
 
-          {registration?.open ? (
+          {!registration?.open ? (
+            <p className="mt-5 text-xs text-blue-950/50">
+              No account? Ask an admin — accounts aren't self-serve on this server.
+            </p>
+          ) : registration.firstAccount ? (
             <p className="mt-5 text-xs text-blue-950/50">
               Nobody has claimed this server yet.{' '}
               <Link to="/signup" className="font-medium text-blue-950/70 underline">
@@ -102,7 +107,11 @@ export function LoginPage() {
             </p>
           ) : (
             <p className="mt-5 text-xs text-blue-950/50">
-              No account? Ask an admin — accounts aren't self-serve on this server.
+              No account yet?{' '}
+              <Link to="/signup" className="font-medium text-blue-950/70 underline">
+                Sign up
+              </Link>
+              .
             </p>
           )}
         </form>

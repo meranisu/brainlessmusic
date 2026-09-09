@@ -53,7 +53,17 @@ Other scripts: `npm run build` (typecheck + compile), `npm start` (run compiled 
 | `MAX_UPLOAD_SIZE_MB` | `100` | upload size limit |
 | `ARTWORK_PATH` | `./data/artwork` | cached cover art — safe to delete, a re-scan rebuilds it |
 | `FRONTEND_PATH` | *(unset)* | built web app to serve from the API's own origin. Set in the container; leave unset in dev, where Vite serves it |
+| `ALLOW_OPEN_REGISTRATION` | `true` | anyone who can reach the server may create their own (non-admin) account. Set to `false` for admin-only registration — **do this before the server is reachable from outside** |
 | `NODE_ENV` | *(unset)* | `development` / `test` downgrade the `JWT_SECRET` check to a warning. Anything else — including unset — is treated as a real deployment |
+
+### Who can create an account
+
+Two postures, chosen with `ALLOW_OPEN_REGISTRATION`:
+
+- **Open (the default).** Anyone who can reach the login page can sign up at `/signup`. They get a listener account — self-serve never grants admin. Fine on a LAN; a real exposure on a public server, so the backend prints a warning at every boot while it's on.
+- **Admin-only (`ALLOW_OPEN_REGISTRATION=false`).** `POST /auth/register` requires an admin's token, and accounts are made from the `/users` page.
+
+One exception applies either way: while the user table is empty, the first account is always allowed through and is made an admin. Without it, an admin-only server could never get its first admin.
 
 ### The `JWT_SECRET` check
 

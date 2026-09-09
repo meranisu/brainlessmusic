@@ -16,6 +16,16 @@ if (secretProblem) {
   console.warn(message);
 }
 
+// Open registration is a deliberate posture, not a default to drift into. It
+// is fine on a LAN; on a server reachable from outside it means anyone who
+// finds the login page can help themselves to an account. Say so every boot.
+if (config.allowOpenRegistration) {
+  console.warn(
+    'Open registration is ON — anyone who can reach this server can create an account.\n' +
+      'Set ALLOW_OPEN_REGISTRATION=false in backend/.env to make registration admin-only.',
+  );
+}
+
 const app = buildApp();
 
 app.listen({ port: config.port, host: '0.0.0.0' }, (err, address) => {

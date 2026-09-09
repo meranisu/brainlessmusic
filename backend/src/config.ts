@@ -16,6 +16,12 @@ export const config = {
   // re-scan rebuilds it from the audio files.
   artworkPath: process.env.ARTWORK_PATH ?? './data/artwork',
   maxUploadSizeMb: Number(process.env.MAX_UPLOAD_SIZE_MB ?? 100),
+  // Whether anyone who can reach the server may create their own account.
+  // Off means registration is admin-only (the first account is always allowed,
+  // or there would be no way to bootstrap one). Turning this on is a real
+  // exposure once the server is reachable from outside — index.ts warns at
+  // boot so it can't be on by accident.
+  allowOpenRegistration: process.env.ALLOW_OPEN_REGISTRATION !== 'false',
   // Built frontend to serve alongside the API. Set in the container image so
   // one process serves both; unset in local dev, where Vite serves the SPA on
   // its own port and the API stays API-only.

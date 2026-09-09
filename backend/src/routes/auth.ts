@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
+import { config } from '../config.js';
 import { countUsers, findUserById, findUserByUsername, insertUser, setAdmin } from '../db/users.js';
 import { hashPassword, verifyPassword } from '../services/password.js';
 import { signMediaToken, signToken, tokenExpiresAt } from '../services/token.js';
@@ -8,33 +9,40 @@ interface Credentials {
   password: string;
 }
 
+const USERNAME_PATTERN = /^[A-Za-z0-9._-]{2,32}$/;
+const MIN_PASSWORD_LENGTH = 8;
+
 const authRoute: FastifyPluginAsync = async (fastify) => {
   /**
-   * Registration is admin-only, with one exception: an installation with no
-   * users at all lets the first request through and makes that account an
-   * admin. Without that bootstrap there would be no way to create the first
-   * account — admin-only registration and an empty user table deadlock.
+   * May an anonymous visitor create an account right now? Two ways to be yes:
+   * open registration is configured on, or the user table is empty. The empty
+   * case is not a policy choice but a deadlock break — admin-only registration
+   * plus no admin has no way out.
    *
+   * Unauthenticated by design: the signup page has to ask before anyone can
+   * log in. It leaks one bit ("can I sign up here"), not worth protecting.
+   * `firstAccount` lets the page say what the account will be — the bootstrap
+   * account becomes an admin, later self-serve ones do not.
+   */
+  function isRegistrationOpen(): boolean {
+    return config.allowOpenRegistration || countUsers() === 0;
+  }
+
+  fastify.get('/auth/registration-status', async (_request, reply) => {
+    return reply.send({ open: isRegistrationOpen(), firstAccount: countUsers() === 0 });
+  });
+
+  /**
    * Composed by hand rather than as `preHandler: [authenticate, requireAdmin]`
    * because the gate is conditional. `request.user` is the signal that
    * `authenticate` succeeded: when it fails it has already sent a 401, and
    * calling `requireAdmin` afterwards would try to send a second reply.
    */
-  /**
-   * Whether an anonymous visitor may still create an account — true only while
-   * the user table is empty. Unauthenticated by design: the signup page has to
-   * ask this before anyone can log in. It leaks one bit ("has this server been
-   * set up yet"), which is not worth protecting.
-   */
-  fastify.get('/auth/registration-status', async (_request, reply) => {
-    return reply.send({ open: countUsers() === 0 });
-  });
-
   fastify.post<{ Body: Credentials }>(
     '/auth/register',
     {
       preHandler: async (request, reply) => {
-        if (countUsers() === 0) return;
+        if (isRegistrationOpen()) return;
         await fastify.authenticate(request, reply);
         if (!request.user) return;
         await fastify.requireAdmin(request, reply);
@@ -45,6 +53,20 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
 
       if (!username || !password) {
         return reply.code(400).send({ error: 'username and password are required' });
+      }
+
+      // Validated here, not only in the browser: with open registration this
+      // endpoint is reachable by anyone, so the client is not a gate.
+      if (!USERNAME_PATTERN.test(username)) {
+        return reply.code(400).send({
+          error: 'username must be 2-32 characters: letters, digits, dot, dash or underscore',
+        });
+      }
+
+      if (password.length < MIN_PASSWORD_LENGTH) {
+        return reply
+          .code(400)
+          .send({ error: `password must be at least ${MIN_PASSWORD_LENGTH} characters` });
       }
 
       if (findUserByUsername(username)) {

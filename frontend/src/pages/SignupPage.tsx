@@ -11,13 +11,17 @@ const lightInput =
 const MIN_PASSWORD_LENGTH = 8;
 
 /**
- * The first-run door. Registration is admin-only, with one exception: while
- * the server has no users at all, anyone may create the first account and it
- * becomes an admin. That is the only situation this page can act in — after
- * it, accounts are made from the admin Users page.
+ * Account creation. Two ways this page can act:
  *
- * So the page asks the server which state it is in rather than guessing, and
- * says plainly what to do in the other case.
+ *  - the server has no users at all, so the account created here becomes its
+ *    admin (the bootstrap case — always allowed, or an admin-only server
+ *    could never get its first admin);
+ *  - open registration is switched on, so anyone may create a listener
+ *    account for themselves.
+ *
+ * Otherwise registration is admin-only and this page can only explain that.
+ * It asks the server which case applies rather than guessing, because only
+ * the server knows — and `firstAccount` decides whether we promise admin.
  */
 export function SignupPage() {
   const { user, login } = useAuth();
@@ -29,8 +33,10 @@ export function SignupPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['registration-status'],
-    queryFn: () => apiClient.get<{ open: boolean }>('/auth/registration-status'),
+    queryFn: () => apiClient.get<{ open: boolean; firstAccount: boolean }>('/auth/registration-status'),
   });
+
+  const isFirstAccount = data?.firstAccount ?? false;
 
   if (user) return <Navigate to="/" replace />;
 
@@ -66,14 +72,14 @@ export function SignupPage() {
       <TitleScreenPanel />
 
       <div
-        className="absolute left-0 top-[18%] z-10 flex min-h-[64%] w-full items-center py-10"
+        className="absolute left-0 top-[12%] z-10 flex min-h-[72%] w-full items-center py-6"
         style={{ background: 'linear-gradient(to right, white 0%, white 38%, transparent 78%)' }}
       >
         <div className="w-full max-w-sm pl-[6%] pr-6">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-blue-950/60">
-            {data?.open ? 'Set up this server' : 'Accounts'}
+            {!data?.open ? 'Accounts' : isFirstAccount ? 'Set up this server' : 'Create an account'}
           </p>
-          <div className="mb-6 flex items-center gap-3">
+          <div className="mb-5 flex items-center gap-3">
             <span className="font-brand flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-orange-600 text-xl font-bold text-white">
               b
             </span>
@@ -96,8 +102,10 @@ export function SignupPage() {
 
           {data?.open && (
             <form onSubmit={handleSubmit}>
-              <p className="mb-4 text-sm text-blue-950/70">
-                Nobody has claimed this server yet. The account you create now becomes its admin.
+              <p className="mb-3 text-sm text-blue-950/70">
+                {isFirstAccount
+                  ? 'Nobody has claimed this server yet. The account you create now becomes its admin.'
+                  : 'Pick a name and a password and the library is yours to listen to.'}
               </p>
 
               <label className="mb-1 block text-sm text-blue-950/70" htmlFor="username">
@@ -110,7 +118,7 @@ export function SignupPage() {
                 autoComplete="username"
                 required
                 autoFocus
-                className={`${lightInput} mb-4`}
+                className={`${lightInput} mb-3`}
               />
 
               <label className="mb-1 block text-sm text-blue-950/70" htmlFor="password">
@@ -124,7 +132,7 @@ export function SignupPage() {
                 autoComplete="new-password"
                 required
                 minLength={MIN_PASSWORD_LENGTH}
-                className={`${lightInput} mb-4`}
+                className={`${lightInput} mb-3`}
               />
 
               <label className="mb-1 block text-sm text-blue-950/70" htmlFor="confirm">
@@ -137,7 +145,7 @@ export function SignupPage() {
                 onChange={(e) => setConfirm(e.target.value)}
                 autoComplete="new-password"
                 required
-                className={`${lightInput} mb-4`}
+                className={`${lightInput} mb-3`}
               />
 
               {error && (
@@ -147,10 +155,10 @@ export function SignupPage() {
               )}
 
               <button type="submit" disabled={isSubmitting} className="btn-primary btn-md w-full">
-                {isSubmitting ? 'Creating…' : 'Create admin account'}
+                {isSubmitting ? 'Creating…' : isFirstAccount ? 'Create admin account' : 'Create account'}
               </button>
 
-              <p className="mt-5 text-xs text-blue-950/50">
+              <p className="mt-4 text-xs text-blue-950/50">
                 Already set up?{' '}
                 <Link to="/login" className="font-medium text-blue-950/70 underline">
                   Sign in
