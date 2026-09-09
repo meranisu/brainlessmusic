@@ -14,6 +14,7 @@ import {
   type VisibilityFilter,
 } from '../db/browse.js';
 import { findTrackArtworkId } from '../db/artwork.js';
+import { peaksForTrack } from '../services/waveform.js';
 import { deleteTrackRow, findTrackById, setLastStreamError, updateTrackFields, upsertTrack } from '../db/library.js';
 import { countHistoryForTrack, listHistoryForTrack, recordScrobble } from '../db/plays.js';
 import { mimeTypeFor, parseRange, transcodeToLowQuality } from '../services/streaming.js';
@@ -280,6 +281,29 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       return sendCover(request, reply, findTrackArtworkId(id), request.query.size);
+    },
+  );
+
+  // Peaks for the scrubber. Computed on first request and cached on the row,
+  // so the first open of a track pays for the decode and every later one is a
+  // single column read.
+  fastify.get<{ Params: { id: string } }>(
+    '/tracks/:id/waveform',
+    { preHandler: fastify.authenticate },
+    async (request, reply) => {
+      const id = Number(request.params.id);
+      if (!Number.isInteger(id)) {
+        return reply.code(404).send({ error: 'Track not found' });
+      }
+
+      const peaks = await peaksForTrack(id);
+      if (!peaks) {
+        return reply.code(404).send({ error: 'No waveform available for this track' });
+      }
+
+      // Peaks only change if the file does, and a changed file is a new scan.
+      reply.header('Cache-Control', 'private, max-age=86400');
+      return { peaks };
     },
   );
 
