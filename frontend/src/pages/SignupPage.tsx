@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { BrandLockup } from '../components/BrandLockup';
 import { TitleScreenPanel } from '../components/TitleScreenPanel';
 import { ApiError, apiClient } from '../lib/apiClient';
 
@@ -73,18 +74,16 @@ export function SignupPage() {
 
       <div
         className="absolute left-0 top-[12%] z-10 flex min-h-[72%] w-full items-center py-6"
-        style={{ background: 'linear-gradient(to right, white 0%, white 38%, transparent 78%)' }}
+        style={{ background: 'linear-gradient(to right, white 0%, white 40%, transparent 94%)' }}
       >
-        <div className="w-full max-w-sm pl-[6%] pr-6">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-blue-950/60">
-            {!data?.open ? 'Accounts' : isFirstAccount ? 'Set up this server' : 'Create an account'}
-          </p>
-          <div className="mb-5 flex items-center gap-3">
-            <span className="font-brand flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-orange-600 text-xl font-bold text-white">
-              b
-            </span>
-            <h1 className="font-brand text-3xl font-bold italic text-blue-950">brainlessmusic</h1>
-          </div>
+        {/* Orange accents riding the banner's top and bottom edges. */}
+        <span className="band-sweep band-sweep-top" />
+        <span className="band-sweep band-sweep-bottom" />
+        <div className="w-full max-w-sm pl-[6%] pr-6 md:ml-[8%]">
+          <BrandLockup
+            eyebrow={!data?.open ? 'Accounts' : isFirstAccount ? 'Set up this server' : 'Create an account'}
+            className="mb-5"
+          />
 
           {isLoading && <p className="text-sm text-blue-950/60">Checking this server…</p>}
 
@@ -170,9 +169,6 @@ export function SignupPage() {
       </div>
 
       <div className="absolute inset-x-0 bottom-[14%] z-10 h-px bg-blue-500/30" />
-      <p className="absolute bottom-[9%] left-[5%] z-10 text-sm font-semibold italic text-blue-300">
-        Your library, your rules — hidden, not-recommended, or gone with one click.
-      </p>
     </div>
   );
 }

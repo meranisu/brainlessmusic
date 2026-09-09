@@ -1,6 +1,13 @@
 @import "tailwindcss";
 
 @layer base {
+  /* One tempo for the whole title screen. 0.4s is 150 BPM — the pocket the
+     reference genre sits in, and slow enough to sit behind a form. Every
+     animation on the login screen derives from it, so nothing drifts. */
+  :root {
+    --beat: 0.4s;
+  }
+
   body {
     background-color: var(--color-blue-950);
   }
@@ -68,8 +75,151 @@
    colors, own markup — no beatmania/BEMANI/Konami branding, marks, or
    wordmark reproduced anywhere here. Pure flat color — no blur/glow. */
 @layer utilities {
+  /* Ten bars per pass of the mosaic. Expressed in beats rather than seconds
+     so changing the tempo above moves the scroll with it. */
   .animate-mosaic-scroll {
-    animation: mosaic-scroll 16s linear infinite;
+    animation: mosaic-scroll calc(var(--beat, 0.4s) * 40) linear infinite;
+  }
+
+  /* The wordmark columns climb faster than the mosaic under them — nearer
+     things move more, which is the only thing making two flat planes read as
+     depth. Each column sets its own duration and start offset inline, so the
+     two never line up and the pair reads as endless rather than looping. */
+  .animate-wordmark-scroll {
+    animation-name: mosaic-scroll;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+
+  /* A single orange segment running the length of the content band's top and
+     bottom edges. Masked to die out roughly where the band's own white does,
+     so it reads as part of the banner instead of a stray line adrift in the
+     mosaic. */
+  .band-sweep {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 6px;
+    overflow: hidden;
+    /* Lets the keyframe below ask how wide the rail is, so the travel stays
+       correct no matter what width the segment is given. */
+    container-type: inline-size;
+    pointer-events: none;
+    -webkit-mask-image: linear-gradient(to right, black 62%, transparent 94%);
+    mask-image: linear-gradient(to right, black 62%, transparent 94%);
+  }
+
+  /* The travelling segment is a child moved by `transform`, not a background
+     slid with `background-position`. Background positions are repainted on the
+     main thread and land on whole pixels, which is what made the line stutter
+     as it set off; a transform is composited and moves in sub-pixels. */
+  .band-sweep::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 42%;
+    /* A solid core rather than a soft blip — the ramps only occupy the outer
+       third at each end, so most of the segment reads at full strength. */
+    background-image: linear-gradient(
+      to right,
+      transparent 0%,
+      var(--color-orange-600) 32%,
+      var(--color-orange-500) 50%,
+      var(--color-orange-600) 68%,
+      transparent 100%
+    );
+    will-change: transform;
+    animation-name: band-sweep;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    animation-duration: var(--sweep-duration, 4.8s);
+    animation-direction: var(--sweep-direction, normal);
+  }
+
+  /* Different rates, and opposite directions — two lines at the same pace
+     would read as one line duplicated. */
+  .band-sweep-top {
+    top: 0;
+    --sweep-duration: calc(var(--beat, 0.4s) * 12);
+  }
+
+  .band-sweep-bottom {
+    bottom: 0;
+    --sweep-duration: calc(var(--beat, 0.4s) * 20);
+    --sweep-direction: reverse;
+  }
+
+  /* Each tile carries its own --beat-offset (a negative fraction of a beat,
+     set from its position in the grid), so the same one-bar keyframe reaches
+     each tile a moment later than the last — a wavefront crossing the grid
+     once per beat rather than every tile blinking at once. */
+  .beat-tile {
+    position: relative;
+  }
+
+  .beat-tile::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    animation: tile-ignite calc(var(--beat, 0.4s) * 4) ease-out infinite;
+    animation-delay: calc(var(--beat, 0.4s) * var(--beat-offset, 0));
+  }
+}
+
+/* One bar: the downbeat burns orange, the three beats after it flash blue.
+   Colour only ever changes while the tile is fully transparent, so the two
+   never smear into each other. */
+@keyframes tile-ignite {
+  0% {
+    background-color: var(--color-orange-600);
+    opacity: 0;
+  }
+  4% {
+    opacity: 0.4;
+  }
+  22% {
+    background-color: var(--color-orange-600);
+    opacity: 0;
+  }
+  25% {
+    background-color: var(--color-blue-500);
+    opacity: 0;
+  }
+  29% {
+    opacity: 0.28;
+  }
+  47%,
+  50% {
+    opacity: 0;
+  }
+  54% {
+    opacity: 0.28;
+  }
+  72%,
+  75% {
+    opacity: 0;
+  }
+  79% {
+    opacity: 0.28;
+  }
+  97%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Starts one segment-width off the left edge and finishes a full rail-width
+   past it, so it clears both ends whatever its own width happens to be —
+   `%` measures the segment, `cqw` measures the rail. */
+@keyframes band-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100cqw);
   }
 }
 
@@ -79,5 +229,36 @@
   }
   to {
     transform: translateY(-50%);
+  }
+}
+
+/* The mark's dot breathes — a slow fade out and back, never all the way to
+   invisible so the ring never reads as empty. Paired with the mosaic behind
+   it, the login screen has one calm heartbeat rather than two competing ones. */
+@layer utilities {
+  .animate-brand-pulse {
+    animation: brand-pulse 3s ease-in-out infinite;
+  }
+}
+
+@keyframes brand-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.15;
+  }
+}
+
+/* Someone who has asked their OS for less motion gets a steady dot and a
+   still grid. The mosaic keeps its shading — only the movement stops. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-brand-pulse,
+  .animate-mosaic-scroll,
+  .animate-wordmark-scroll,
+  .band-sweep::after,
+  .beat-tile::after {
+    animation: none;
   }
 }
