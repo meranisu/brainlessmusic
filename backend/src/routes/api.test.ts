@@ -23,25 +23,25 @@ let adminToken: string;
 
 /** Every route that must reject an anonymous caller. */
 const PROTECTED_ROUTES: Array<[method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url: string]> = [
-  ['GET', '/tracks'],
-  ['GET', '/artists'],
-  ['GET', '/albums'],
-  ['GET', '/search?q=anything'],
-  ['GET', '/playlists'],
-  ['GET', '/me/favorites'],
-  ['GET', '/me/favorites/ids'],
-  ['GET', '/auth/me'],
-  ['GET', '/me/history'],
-  ['GET', '/stats/top-tracks'],
-  ['POST', '/library/scan'],
-  ['POST', '/shuffle'],
+  ['GET', '/api/tracks'],
+  ['GET', '/api/artists'],
+  ['GET', '/api/albums'],
+  ['GET', '/api/search?q=anything'],
+  ['GET', '/api/playlists'],
+  ['GET', '/api/me/favorites'],
+  ['GET', '/api/me/favorites/ids'],
+  ['GET', '/api/auth/me'],
+  ['GET', '/api/me/history'],
+  ['GET', '/api/stats/top-tracks'],
+  ['POST', '/api/library/scan'],
+  ['POST', '/api/shuffle'],
 ];
 
 /** Routes that must additionally reject a signed-in non-admin. */
 const ADMIN_ROUTES: Array<[method: 'POST' | 'PATCH' | 'DELETE', url: string]> = [
-  ['POST', '/tracks/upload'],
-  ['PATCH', '/tracks/1'],
-  ['DELETE', '/tracks/1'],
+  ['POST', '/api/tracks/upload'],
+  ['PATCH', '/api/tracks/1'],
+  ['DELETE', '/api/tracks/1'],
 ];
 
 before(async () => {
@@ -69,7 +69,7 @@ beforeEach(async () => {
 
 describe('open routes', () => {
   it('serves /health without a token', async () => {
-    const res = await app.inject({ method: 'GET', url: '/health' });
+    const res = await app.inject({ method: 'GET', url: '/api/health' });
     assert.equal(res.statusCode, 200);
     assert.equal(res.json().status, 'ok');
   });
@@ -101,7 +101,7 @@ describe('authentication', () => {
   it('accepts a valid session token', async () => {
     const res = await app.inject({
       method: 'GET',
-      url: '/auth/me',
+      url: '/api/auth/me',
       headers: { authorization: `Bearer ${listenerToken}` },
     });
     assert.equal(res.statusCode, 200);
@@ -111,7 +111,7 @@ describe('authentication', () => {
 
   it('rejects malformed authorization headers', async () => {
     for (const authorization of ['', 'Bearer', 'Bearer ', 'Basic abc', 'Token abc', listenerToken]) {
-      const res = await app.inject({ method: 'GET', url: '/auth/me', headers: { authorization } });
+      const res = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { authorization } });
       assert.equal(res.statusCode, 401, `header ${JSON.stringify(authorization)} should be rejected`);
     }
   });
@@ -121,7 +121,7 @@ describe('authentication', () => {
     for (const token of ['not.a.jwt', 'aaaa', tampered]) {
       const res = await app.inject({
         method: 'GET',
-        url: '/auth/me',
+        url: '/api/auth/me',
         headers: { authorization: `Bearer ${token}` },
       });
       assert.equal(res.statusCode, 401, `token ${token} should be rejected`);
@@ -133,7 +133,7 @@ describe('authentication', () => {
     const forged = jwt.sign({ sub: 1, username: 'listener' }, 'some-other-secret', { expiresIn: '1h' });
     const res = await app.inject({
       method: 'GET',
-      url: '/auth/me',
+      url: '/api/auth/me',
       headers: { authorization: `Bearer ${forged}` },
     });
     assert.equal(res.statusCode, 401);
@@ -147,7 +147,7 @@ describe('authentication', () => {
     );
     const res = await app.inject({
       method: 'GET',
-      url: '/auth/me',
+      url: '/api/auth/me',
       headers: { authorization: `Bearer ${expired}` },
     });
     assert.equal(res.statusCode, 401);
@@ -162,20 +162,20 @@ describe('token scope separation', () => {
     const mediaToken = signMediaToken({ id: 1, username: listener });
     const res = await app.inject({
       method: 'GET',
-      url: '/tracks',
+      url: '/api/tracks',
       headers: { authorization: `Bearer ${mediaToken}` },
     });
     assert.equal(res.statusCode, 401);
   });
 
   it('refuses a session token in the ?token= media parameter', async () => {
-    const res = await app.inject({ method: 'GET', url: `/tracks/1/cover?token=${listenerToken}` });
+    const res = await app.inject({ method: 'GET', url: `/api/tracks/1/cover?token=${listenerToken}` });
     assert.equal(res.statusCode, 401);
   });
 
   it('accepts a media token in ?token= on a media route', async () => {
     const mediaToken = signMediaToken({ id: 1, username: listener });
-    const res = await app.inject({ method: 'GET', url: `/tracks/999/cover?token=${mediaToken}` });
+    const res = await app.inject({ method: 'GET', url: `/api/tracks/999/cover?token=${mediaToken}` });
     // 404 means the credential was accepted and the track simply doesn't exist;
     // a 401 would mean the media path is broken.
     assert.notEqual(res.statusCode, 401, 'a media token must be accepted on a media route');
@@ -183,7 +183,7 @@ describe('token scope separation', () => {
   });
 
   it('requires some credential on a media route', async () => {
-    const res = await app.inject({ method: 'GET', url: '/tracks/1/cover' });
+    const res = await app.inject({ method: 'GET', url: '/api/tracks/1/cover' });
     assert.equal(res.statusCode, 401);
   });
 });
@@ -214,7 +214,7 @@ describe('admin gating', () => {
   it('lets an admin past the role check', async () => {
     const res = await app.inject({
       method: 'DELETE',
-      url: '/tracks/999',
+      url: '/api/tracks/999',
       headers: { authorization: `Bearer ${adminToken}` },
     });
     // 404 because the track doesn't exist — the point is that it isn't 403.
@@ -226,7 +226,7 @@ describe('admin gating', () => {
     // the JWT payload. This is the test that proves it.
     const before = await app.inject({
       method: 'DELETE',
-      url: '/tracks/999',
+      url: '/api/tracks/999',
       headers: { authorization: `Bearer ${adminToken}` },
     });
     assert.equal(before.statusCode, 404, 'admin should pass the role check to begin with');
@@ -235,7 +235,7 @@ describe('admin gating', () => {
 
     const after = await app.inject({
       method: 'DELETE',
-      url: '/tracks/999',
+      url: '/api/tracks/999',
       headers: { authorization: `Bearer ${adminToken}` },
     });
     assert.equal(after.statusCode, 403, 'the same token must lose admin access immediately');
@@ -246,7 +246,7 @@ describe('register and login', () => {
   it('registers a new user', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: '/auth/register',
+      url: '/api/auth/register',
       payload: { username: 'newcomer', password: 'a long enough password' },
     });
     assert.equal(res.statusCode, 201);
@@ -257,7 +257,7 @@ describe('register and login', () => {
   it('rejects a duplicate username', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: '/auth/register',
+      url: '/api/auth/register',
       payload: { username: listener, password: 'whatever' },
     });
     assert.equal(res.statusCode, 409);
@@ -265,7 +265,7 @@ describe('register and login', () => {
 
   it('rejects missing credentials', async () => {
     for (const payload of [{}, { username: 'x' }, { password: 'y' }, { username: '', password: '' }]) {
-      const res = await app.inject({ method: 'POST', url: '/auth/register', payload });
+      const res = await app.inject({ method: 'POST', url: '/api/auth/register', payload });
       assert.equal(res.statusCode, 400, `payload ${JSON.stringify(payload)} should be rejected`);
     }
   });
@@ -273,7 +273,7 @@ describe('register and login', () => {
   it('logs in with the right password and returns a usable token', async () => {
     const res = await app.inject({
       method: 'POST',
-      url: '/auth/login',
+      url: '/api/auth/login',
       payload: { username: listener, password: 'correct horse battery staple' },
     });
     assert.equal(res.statusCode, 200);
@@ -281,7 +281,7 @@ describe('register and login', () => {
     const { token } = res.json();
     const me = await app.inject({
       method: 'GET',
-      url: '/auth/me',
+      url: '/api/auth/me',
       headers: { authorization: `Bearer ${token}` },
     });
     assert.equal(me.statusCode, 200);
@@ -291,12 +291,12 @@ describe('register and login', () => {
   it('rejects a wrong password and an unknown user identically', async () => {
     const wrongPassword = await app.inject({
       method: 'POST',
-      url: '/auth/login',
+      url: '/api/auth/login',
       payload: { username: listener, password: 'wrong' },
     });
     const unknownUser = await app.inject({
       method: 'POST',
-      url: '/auth/login',
+      url: '/api/auth/login',
       payload: { username: 'nobody', password: 'correct horse battery staple' },
     });
 

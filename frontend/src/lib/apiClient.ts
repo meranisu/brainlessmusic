@@ -1,6 +1,9 @@
-// No .env file required for local dev — override by setting VITE_API_BASE_URL
+// No .env file required for local dev — override by setting VITE_API_BASE_URL.
+// The API lives under /api so it doesn't collide with the app's own routes
+// (/albums, /search, /health are both); the container builds this as "/api",
+// which makes every request same-origin.
 // in a .env file at the frontend/ root if the backend isn't on localhost:3000.
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api';
 
 const TOKEN_STORAGE_KEY = 'brainlessmusic.token';
 

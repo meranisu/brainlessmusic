@@ -1,0 +1,34 @@
+services:
+  brainlessmusic:
+    build: .
+    image: brainlessmusic:local
+    restart: unless-stopped
+
+    ports:
+      # Host:container. Change the host side if 3000 is taken.
+      - "3000:3000"
+
+    environment:
+      # Required. The server refuses to start without a real one, because
+      # anyone who knows it can mint a token for any account. Generate with:
+      #   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+      # Put it in a .env file next to this one as JWT_SECRET=...
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in a .env file beside docker-compose.yml}
+
+      # Optional overrides; the image's defaults are usually right.
+      # JWT_EXPIRES_IN: 7d
+      # MEDIA_TOKEN_TTL: 2h
+      # MAX_UPLOAD_SIZE_MB: 100
+
+    volumes:
+      # Your music. Read-write, not read-only: uploads through the web UI are
+      # filed into this tree.
+      - ${LIBRARY_DIR:-./library}:/library
+
+      # Database, extracted cover art, and upload staging. This is the volume
+      # worth backing up — playlists, favorites and play history live here and
+      # are the only irreplaceable data (step 14).
+      - brainlessmusic-data:/data
+
+volumes:
+  brainlessmusic-data:

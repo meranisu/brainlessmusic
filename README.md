@@ -52,6 +52,7 @@ Other scripts: `npm run build` (typecheck + compile), `npm start` (run compiled 
 | `UPLOAD_STAGING_PATH` | `./data/upload-staging` | staging area for `POST /tracks/upload` |
 | `MAX_UPLOAD_SIZE_MB` | `100` | upload size limit |
 | `ARTWORK_PATH` | `./data/artwork` | cached cover art — safe to delete, a re-scan rebuilds it |
+| `FRONTEND_PATH` | *(unset)* | built web app to serve from the API's own origin. Set in the container; leave unset in dev, where Vite serves it |
 | `NODE_ENV` | *(unset)* | `development` / `test` downgrade the `JWT_SECRET` check to a warning. Anything else — including unset — is treated as a real deployment |
 
 ### The `JWT_SECRET` check
@@ -66,9 +67,38 @@ Put the result in `backend/.env` as `JWT_SECRET`. Changing it invalidates every 
 
 The check runs at server boot, not at config load, so `npm run migrate` and the admin scripts keep working regardless — they never sign a token. `npm run dev` and `npm test` set `NODE_ENV` themselves, so local work is unaffected; you get a warning instead of a refusal.
 
+## Running with Docker
+
+One image serves both the API and the web app, so there is nothing else to host.
+
+```bash
+# 1. A secret. The server refuses to start without a real one.
+echo "JWT_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")" > .env
+
+# 2. Point it at your music (default: ./library).
+echo "LIBRARY_DIR=/path/to/your/music" >> .env
+
+# 3. Go.
+docker compose up -d
+```
+
+Then open `http://<host>:3000`. Migrations run automatically on every start; they're idempotent.
+
+| Path | What it is |
+|---|---|
+| `/library` | your music, bind-mounted read-write (uploads are filed into it) |
+| `/data` | named volume: database, cover-art cache, upload staging — **this is the one to back up** |
+| `/api/health` | what the container healthcheck polls |
+
+The image is Debian-based rather than Alpine on purpose: `better-sqlite3` and `bcrypt` ship prebuilt binaries for glibc, and on musl they'd be compiled from source at install time.
+
 ## API overview
 
-All routes except `/health`, `/auth/register`, `/auth/login` require `Authorization: Bearer <jwt>`.
+**All API routes live under `/api`** — `/api/tracks`, `/api/auth/login`, and so on. The prefix isn't decoration: the web app has its own `/albums`, `/artists`, `/playlists`, `/search` and `/health` routes, so without it the API answers first and a browser navigating to `/albums` gets JSON instead of the page.
+
+All routes except `/api/health`, `/api/auth/register`, `/api/auth/login` require `Authorization: Bearer <jwt>`.
+
+**Paths below are relative to `/api`** — `POST /auth/login` is `POST /api/auth/login`.
 
 - **Auth** — `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `POST /auth/media-token`
 - **Library** — `POST /library/scan`, `GET /artists[/:id]`, `GET /albums[/:id]`, `GET /tracks`, `GET /search?q=`

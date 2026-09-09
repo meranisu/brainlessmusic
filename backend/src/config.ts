@@ -16,4 +16,8 @@ export const config = {
   // re-scan rebuilds it from the audio files.
   artworkPath: process.env.ARTWORK_PATH ?? './data/artwork',
   maxUploadSizeMb: Number(process.env.MAX_UPLOAD_SIZE_MB ?? 100),
+  // Built frontend to serve alongside the API. Set in the container image so
+  // one process serves both; unset in local dev, where Vite serves the SPA on
+  // its own port and the API stays API-only.
+  frontendPath: process.env.FRONTEND_PATH ?? '',
 };

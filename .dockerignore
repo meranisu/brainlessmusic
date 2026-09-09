@@ -1,0 +1,13 @@
+# Keep the build context small and make sure nothing local leaks into the image.
+**/node_modules
+**/dist
+**/.test-tmp
+backend/data
+backend/library
+.git
+.docs
+android
+*.md
+!README.md
+**/.env
+**/.env.*

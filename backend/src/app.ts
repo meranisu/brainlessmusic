@@ -3,6 +3,7 @@ import multipart from '@fastify/multipart';
 import Fastify from 'fastify';
 import { config } from './config.js';
 import { registerAuthDecorator } from './plugins/auth.js';
+import { registerSpa } from './plugins/spa.js';
 import albumsRoute from './routes/albums.js';
 import artistsRoute from './routes/artists.js';
 import authRoute from './routes/auth.js';
@@ -15,6 +16,8 @@ import searchRoute from './routes/search.js';
 import shuffleRoute from './routes/shuffle.js';
 import statsRoute from './routes/stats.js';
 import tracksRoute from './routes/tracks.js';
+
+export const API_PREFIX = '/api';
 
 export function buildApp() {
   const app = Fastify({ logger: true });
@@ -41,18 +44,33 @@ export function buildApp() {
     },
   });
 
-  app.register(healthRoute);
-  app.register(authRoute);
-  app.register(libraryRoute);
-  app.register(tracksRoute);
-  app.register(artistsRoute);
-  app.register(albumsRoute);
-  app.register(searchRoute);
-  app.register(playlistsRoute);
-  app.register(historyRoute);
-  app.register(statsRoute);
-  app.register(favoritesRoute);
-  app.register(shuffleRoute);
+  // Everything the API serves lives under /api.
+  //
+  // Not cosmetic: the web app has its own /albums, /artists, /playlists,
+  // /search and /health routes. Sharing one namespace means the API answers
+  // first and a browser navigating to /albums gets 401 JSON instead of the
+  // page. A prefix is what lets one origin serve both, which is what makes the
+  // container useful on its own and what step 13's TLS termination will front.
+  app.register(
+    async (api) => {
+      api.register(healthRoute);
+      api.register(authRoute);
+      api.register(libraryRoute);
+      api.register(tracksRoute);
+      api.register(artistsRoute);
+      api.register(albumsRoute);
+      api.register(searchRoute);
+      api.register(playlistsRoute);
+      api.register(historyRoute);
+      api.register(statsRoute);
+      api.register(favoritesRoute);
+      api.register(shuffleRoute);
+    },
+    { prefix: API_PREFIX },
+  );
+
+  // Registered last so it only ever sees requests no API route claimed.
+  registerSpa(app, config.frontendPath);
 
   return app;
 }
