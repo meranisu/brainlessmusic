@@ -1,5 +1,14 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import { useAuth } from '../auth/AuthContext';
 import { apiClient, buildStreamUrl } from '../lib/apiClient';
 import { CoverArt } from './CoverArt';
 import { FavoriteButton, useFavoriteIds } from './FavoriteButton';
@@ -92,6 +101,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // on every timeupdate.
   const progressRef = useRef<PlayProgress | null>(null);
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const { showToast } = useToast();
   const favoriteIds = useFavoriteIds();
 
@@ -281,7 +291,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  function stop() {
+  // Stable identity so the sign-out effect below can depend on the session
+  // alone; every value it touches is a setter or a ref.
+  const stop = useCallback(() => {
     const audio = audioRef.current;
     if (audio) {
       audio.pause();
@@ -296,7 +308,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setIsShuffled(false);
     setCurrentTime(0);
     setDuration(0);
-  }
+  }, []);
+
+  // The queue belongs to the session. Logging out — or having a token expire
+  // out from under us — has to take the audio with it, or the bar keeps
+  // playing the previous user's library over the login screen.
+  useEffect(() => {
+    if (!user) stop();
+  }, [user, stop]);
 
   // Re-bound whenever the queue position or repeat mode changes, so the
   // handler always sees current values instead of the ones captured at mount.
@@ -388,7 +407,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     >
       {children}
 
-      {current && (
+      {user && current && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-blue-800 bg-blue-900">
           <div className="page-shell flex items-center gap-4 px-6 py-3">
             <div className="flex shrink-0 items-center gap-1">
