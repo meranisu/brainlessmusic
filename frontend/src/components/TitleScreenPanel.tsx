@@ -1,8 +1,20 @@
 import type { CSSProperties } from 'react';
+import { WordmarkColumn } from './WordmarkColumn';
 
 const COLS = 6;
 const ROWS = 9;
 const SQUARE_COUNT = COLS * ROWS;
+
+/**
+ * Two columns at poster scale, running different laps of the same loop. Their
+ * durations share no common factor worth speaking of and one starts eleven
+ * beats in, so the pair only realigns after about twelve minutes — the panel
+ * reads as an endless scroll rather than something that resets.
+ *
+ * Sized against both axes: the type wants to be enormous, but a column wider
+ * than half the panel leaves no room for the second one.
+ */
+const WORD_SIZE = 'clamp(6rem, 30vh, 23vw)';
 
 function MosaicGrid() {
   return (
@@ -23,56 +35,6 @@ function MosaicGrid() {
         );
       })}
     </div>
-  );
-}
-
-/**
- * Two columns, each one word tall at poster scale, running different laps of
- * the same loop. Their durations share no common factor worth speaking of and
- * one starts eleven beats in, so the pair never realigns — the panel reads as
- * an endless scroll rather than something that resets.
- *
- * Sized against both axes: the type wants to be enormous, but a column wider
- * than half the panel leaves no room for the second one.
- */
-const WORDMARK_COLUMNS = [
-  { left: '18%', beats: 34, offset: 0, hollow: true },
-  { left: '56%', beats: 53, offset: -11, hollow: false },
-];
-
-const WORD_SIZE = 'clamp(6rem, 30vh, 23vw)';
-
-/**
- * One instance of the sideways wordmark. Hollow keeps the mosaic and its beat
- * flashes visible through the letterforms, so the panel keeps its depth
- * instead of being papered over; the solid column echoes the lockup's two
- * tones. Flat color only, no blur or glow.
- */
-function Word({ hollow }: { hollow: boolean }) {
-  return (
-    <p
-      className="whitespace-nowrap leading-none tracking-tighter [writing-mode:vertical-rl]"
-      style={{ fontSize: WORD_SIZE }}
-    >
-      {hollow ? (
-        <span
-          className="text-transparent"
-          style={{
-            // Stroke in em, not px — at this size a fixed hairline would
-            // vanish on a large display.
-            WebkitTextStrokeWidth: '0.012em',
-            WebkitTextStrokeColor: 'rgba(219, 234, 254, 0.42)',
-          }}
-        >
-          brainlessmusic
-        </span>
-      ) : (
-        <>
-          <span className="text-blue-200/15">brainless</span>
-          <span className="text-orange-600/25">music</span>
-        </>
-      )}
-    </p>
   );
 }
 
@@ -109,22 +71,8 @@ export function TitleScreenPanel() {
         <MosaicGrid />
         <MosaicGrid />
       </div>
-      {WORDMARK_COLUMNS.map((col) => (
-        <div key={col.left} className="absolute top-0 bottom-0" style={{ left: col.left }}>
-          {/* Two copies, and the loop shifts by exactly one of them — so the
-              seam lands on an identical frame whatever the type measures. */}
-          <div
-            className="animate-wordmark-scroll"
-            style={{
-              animationDuration: `calc(var(--beat) * ${col.beats})`,
-              animationDelay: `calc(var(--beat) * ${col.offset})`,
-            }}
-          >
-            <Word hollow={col.hollow} />
-            <Word hollow={col.hollow} />
-          </div>
-        </div>
-      ))}
+      <WordmarkColumn className="left-[18%]" size={WORD_SIZE} beats={34} stroke="rgba(219, 234, 254, 0.42)" />
+      <WordmarkColumn className="left-[56%]" size={WORD_SIZE} beats={53} offset={-11} />
     </div>
   );
 }

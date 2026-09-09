@@ -105,8 +105,16 @@
        correct no matter what width the segment is given. */
     container-type: inline-size;
     pointer-events: none;
-    -webkit-mask-image: linear-gradient(to right, black 62%, transparent 94%);
-    mask-image: linear-gradient(to right, black 62%, transparent 94%);
+    -webkit-mask-image: var(--sweep-mask, linear-gradient(to right, black 62%, transparent 94%));
+    mask-image: var(--sweep-mask, linear-gradient(to right, black 62%, transparent 94%));
+  }
+
+  /* The app header's edge. Thinner, and fading at both ends rather than
+     dissolving to the right — there is no mosaic up here for it to dissolve
+     into, so a one-sided fade would just look lopsided. */
+  .band-sweep-rail {
+    height: 3px;
+    --sweep-mask: linear-gradient(to right, transparent 0%, black 14%, black 86%, transparent 100%);
   }
 
   /* The travelling segment is a child moved by `transform`, not a background
