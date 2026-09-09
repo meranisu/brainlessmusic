@@ -46,12 +46,25 @@ Other scripts: `npm run build` (typecheck + compile), `npm start` (run compiled 
 | `PORT` | `3000` | server port |
 | `DB_PATH` | `./data/brainlessmusic.db` | SQLite file location |
 | `LIBRARY_PATH` | `./library` | folder scanned for audio files — **set this to a real path** |
-| `JWT_SECRET` | `change-me` | **set a real value** outside local dev |
+| `JWT_SECRET` | `change-me` | **the server refuses to boot** on the default, an empty value, or anything under 32 characters, unless `NODE_ENV` is `development` or `test` |
 | `JWT_EXPIRES_IN` | `7d` | session token lifetime |
 | `MEDIA_TOKEN_TTL` | `2h` | lifetime of the scoped tokens that ride in `<audio src>` URLs |
 | `UPLOAD_STAGING_PATH` | `./data/upload-staging` | staging area for `POST /tracks/upload` |
 | `MAX_UPLOAD_SIZE_MB` | `100` | upload size limit |
 | `ARTWORK_PATH` | `./data/artwork` | cached cover art — safe to delete, a re-scan rebuilds it |
+| `NODE_ENV` | *(unset)* | `development` / `test` downgrade the `JWT_SECRET` check to a warning. Anything else — including unset — is treated as a real deployment |
+
+### The `JWT_SECRET` check
+
+Anyone who knows the signing secret can mint a valid token for any account, admin included, without a password. So the server refuses to start on a weak one rather than running quietly:
+
+```
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Put the result in `backend/.env` as `JWT_SECRET`. Changing it invalidates every existing session, so everyone signs in once more.
+
+The check runs at server boot, not at config load, so `npm run migrate` and the admin scripts keep working regardless — they never sign a token. `npm run dev` and `npm test` set `NODE_ENV` themselves, so local work is unaffected; you get a warning instead of a refusal.
 
 ## API overview
 
