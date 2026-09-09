@@ -10,6 +10,7 @@ import { useToast } from '../components/ToastProvider';
 import { TrackDetailDrawer } from '../components/TrackDetailDrawer';
 import { TrackRowMenu } from '../components/TrackRowMenu';
 import { apiClient, ApiError } from '../lib/apiClient';
+import { PlayIcon } from '../components/icons';
 import type {
   SortField,
   SortOrder,
@@ -252,10 +253,10 @@ export function LibraryPage() {
                     <td className="py-2.5" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => playQueue(data?.tracks ?? [t], i)}
-                        className="flex h-7 w-7 items-center justify-center rounded-full text-blue-300 opacity-70 transition-all group-hover:opacity-100 hover:bg-orange-600 hover:text-blue-950"
+                        className="flex h-7 w-7 items-center justify-center rounded-full text-blue-300 opacity-70 transition-all group-hover:opacity-100 hover:bg-orange-600 hover:text-white"
                         aria-label={`Play ${t.title}`}
                       >
-                        ▶
+                        <PlayIcon className="h-3 w-3" />
                       </button>
                     </td>
                     <td className="py-2.5 pr-3 font-medium text-white">

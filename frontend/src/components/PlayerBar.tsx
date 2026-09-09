@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import { apiClient, buildStreamUrl } from '../lib/apiClient';
 import { CoverArt } from './CoverArt';
 import { FavoriteButton, useFavoriteIds } from './FavoriteButton';
+import { PauseIcon, PlayIcon, SkipBackIcon, SkipForwardIcon } from './icons';
 import type { TrackSummary } from '../types/api';
 import { useToast } from './ToastProvider';
 
@@ -393,28 +394,34 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             <div className="flex shrink-0 items-center gap-1">
               <button
                 onClick={previous}
-                className="btn-ghost btn-sm h-8 w-8 !px-0"
+                className="btn-ghost btn-sm h-9 w-9 !px-0"
                 aria-label="Previous track"
                 title="Previous (P)"
               >
-                ⏮
+                <SkipBackIcon />
               </button>
               <button
                 onClick={toggle}
                 disabled={isLoading}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-600 text-blue-950 transition-colors hover:bg-orange-500 disabled:opacity-60"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-600 text-white transition-colors hover:bg-orange-500 disabled:opacity-60"
                 aria-label={isPlaying ? 'Pause' : 'Play'}
                 title="Play/pause (Space)"
               >
-                {isLoading ? '…' : isPlaying ? '❚❚' : '▶'}
+                {isLoading ? (
+                  <span className="text-sm leading-none">…</span>
+                ) : isPlaying ? (
+                  <PauseIcon className="h-4.5 w-4.5" />
+                ) : (
+                  <PlayIcon className="h-4.5 w-4.5" />
+                )}
               </button>
               <button
                 onClick={next}
-                className="btn-ghost btn-sm h-8 w-8 !px-0"
+                className="btn-ghost btn-sm h-9 w-9 !px-0"
                 aria-label="Next track"
                 title="Next (N)"
               >
-                ⏭
+                <SkipForwardIcon />
               </button>
             </div>
 

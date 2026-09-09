@@ -5,6 +5,7 @@ import { FavoriteButton, useFavoriteIds } from '../components/FavoriteButton';
 import { usePlayer, type QueueTrack } from '../components/PlayerBar';
 import { apiClient } from '../lib/apiClient';
 import type { AlbumDetail } from '../types/api';
+import { PlayIcon } from '../components/icons';
 
 function formatDuration(seconds: number | null): string {
   if (seconds === null) return '—';
@@ -68,7 +69,7 @@ export function AlbumDetailPage() {
               disabled={queue.length === 0}
               className="btn-primary btn-md"
             >
-              ▶ Play album
+              <PlayIcon className="h-3.5 w-3.5" /> Play album
             </button>
           </div>
         </div>
@@ -94,7 +95,7 @@ export function AlbumDetailPage() {
               >
                 <td className="py-2.5 pl-4 tabular-nums text-blue-400">
                   <span className="group-hover:hidden">{track.trackNumber ?? i + 1}</span>
-                  <span className="hidden text-orange-500 group-hover:inline">▶</span>
+                  <PlayIcon className="hidden h-3 w-3 text-orange-500 group-hover:inline" />
                 </td>
                 <td className="py-2.5 pr-3 font-medium text-white">{track.title}</td>
                 <td className="py-2.5 pr-4 text-right tabular-nums text-blue-200">

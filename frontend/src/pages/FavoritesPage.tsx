@@ -5,6 +5,7 @@ import { FavoriteButton, useFavoriteIds } from '../components/FavoriteButton';
 import { usePlayer, type QueueTrack } from '../components/PlayerBar';
 import { apiClient } from '../lib/apiClient';
 import type { FavoriteListResponse } from '../types/api';
+import { PlayIcon } from '../components/icons';
 
 const PAGE_SIZE = 50;
 
@@ -50,7 +51,7 @@ export function FavoritesPage() {
         </div>
         {queue.length > 0 && (
           <button onClick={() => playQueue(queue, 0)} className="btn-primary btn-md">
-            ▶ Play all
+            <PlayIcon className="h-3.5 w-3.5" /> Play all
           </button>
         )}
       </div>

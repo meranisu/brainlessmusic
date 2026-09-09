@@ -7,6 +7,7 @@ import { usePlayer, type QueueTrack } from '../components/PlayerBar';
 import { useToast } from '../components/ToastProvider';
 import { apiClient } from '../lib/apiClient';
 import type { PlaylistDetail } from '../types/api';
+import { PlayIcon } from '../components/icons';
 
 function formatDuration(seconds: number | null): string {
   if (seconds === null) return '—';
@@ -158,7 +159,7 @@ export function PlaylistDetailPage() {
             disabled={queue.length === 0}
             className="btn-primary btn-md"
           >
-            ▶ Play
+            <PlayIcon className="h-3.5 w-3.5" /> Play
           </button>
           {renaming === null && (
             <button onClick={() => setRenaming(data.name)} className="btn-secondary btn-md">

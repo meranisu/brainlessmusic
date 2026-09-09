@@ -6,6 +6,7 @@ import type { TrackDetail, TrackPatchInput } from '../types/api';
 import { CoverArt } from './CoverArt';
 import { usePlayer } from './PlayerBar';
 import { useToast } from './ToastProvider';
+import { PlayIcon } from './icons';
 
 interface TrackDetailDrawerProps {
   trackId: number;
@@ -80,10 +81,10 @@ export function TrackDetailDrawer({ trackId, initialTab, onClose }: TrackDetailD
           {data && (
             <button
               onClick={() => playTrack(data)}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-600 text-blue-950 transition-colors hover:bg-orange-500"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-600 text-white transition-colors hover:bg-orange-500"
               aria-label="Preview"
             >
-              ▶
+              <PlayIcon />
             </button>
           )}
           <CoverArt kind="tracks" id={trackId} size="full" className="h-9 w-9" />
