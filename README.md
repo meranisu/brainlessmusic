@@ -53,8 +53,30 @@ Other scripts: `npm run build` (typecheck + compile), `npm start` (run compiled 
 | `MAX_UPLOAD_SIZE_MB` | `100` | upload size limit |
 | `ARTWORK_PATH` | `./data/artwork` | cached cover art — safe to delete, a re-scan rebuilds it |
 | `FRONTEND_PATH` | *(unset)* | built web app to serve from the API's own origin. Set in the container; leave unset in dev, where Vite serves it |
+| `BACKUP_ENABLED` | `true` | scheduled database backups; `false` turns them off |
+| `BACKUP_PATH` | *(beside `DB_PATH`)* | where backups are written — defaults to `<db dir>/backups`, so in the container they land in the `/data` volume |
+| `BACKUP_INTERVAL_HOURS` | `24` | how often a backup runs while the server is up |
+| `BACKUP_KEEP` | `14` | how many backups to retain; older ones are deleted |
 | `ALLOW_OPEN_REGISTRATION` | `true` | anyone who can reach the server may create their own (non-admin) account. Set to `false` for admin-only registration — **do this before the server is reachable from outside** |
 | `NODE_ENV` | *(unset)* | `development` / `test` downgrade the `JWT_SECRET` check to a warning. Anything else — including unset — is treated as a real deployment |
+
+### Backups and restoring
+
+Playlists, favorites and play history are the only irreplaceable rows here — tracks, artists, albums and cover art are all derived from your audio files, and a re-scan rebuilds them.
+
+The server backs the database up **when it starts and every 24 hours after**, into `<db dir>/backups/`. Backups use SQLite's online backup API rather than a file copy: the database runs in WAL mode, where `cp` can capture a file whose committed pages are still in the `-wal` sidecar, producing a database that opens fine and is quietly missing recent writes. Each backup is reopened and `PRAGMA integrity_check`-ed before it counts, and is written as a single self-contained file with no sidecars of its own.
+
+To restore, stop the server and put the backup where the database goes:
+
+```bash
+docker compose down                     # or stop `npm start`
+cd backend/data
+rm -f brainlessmusic.db-wal brainlessmusic.db-shm   # stale sidecars corrupt a restored file
+cp backups/brainlessmusic-<timestamp>.db brainlessmusic.db
+docker compose up -d
+```
+
+Deleting the old `-wal`/`-shm` is the step people miss: leaving one from a *different* database next to a restored file is a well-known way to corrupt it.
 
 ### Who can create an account
 

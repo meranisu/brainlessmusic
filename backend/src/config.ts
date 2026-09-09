@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { dirname, join } from 'node:path';
 
 export const config = {
   port: Number(process.env.PORT ?? 3000),
@@ -22,6 +23,16 @@ export const config = {
   // exposure once the server is reachable from outside — index.ts warns at
   // boot so it can't be on by accident.
   allowOpenRegistration: process.env.ALLOW_OPEN_REGISTRATION !== 'false',
+  // Scheduled SQLite backups. The default puts them beside the database, so
+  // they land inside the container's /data volume and survive a rebuild with
+  // no extra configuration. That protects against corruption, a bad migration
+  // and accidental deletion — not against losing the disk itself.
+  backupEnabled: process.env.BACKUP_ENABLED !== 'false',
+  backupPath: process.env.BACKUP_PATH ?? join(dirname(process.env.DB_PATH ?? './data/brainlessmusic.db'), 'backups'),
+  backupIntervalHours: Number(process.env.BACKUP_INTERVAL_HOURS ?? 24),
+  // Roughly two weeks of dailies. Each is the size of the database, which is
+  // dominated by rows rather than audio, so this stays small.
+  backupKeep: Number(process.env.BACKUP_KEEP ?? 14),
   // Built frontend to serve alongside the API. Set in the container image so
   // one process serves both; unset in local dev, where Vite serves the SPA on
   // its own port and the API stays API-only.

@@ -1,5 +1,6 @@
 import { buildApp } from './app.js';
 import { config } from './config.js';
+import { startBackupSchedule } from './services/backup.js';
 import { formatSecretProblem, inspectJwtSecret } from './utils/secretPolicy.js';
 
 // Checked here rather than in `config.ts` so it runs when the *server* boots,
@@ -34,4 +35,11 @@ app.listen({ port: config.port, host: '0.0.0.0' }, (err, address) => {
     process.exit(1);
   }
   app.log.info(`Server listening at ${address}`);
+
+  // Started after listen, not before: a backup is worth taking but never worth
+  // delaying the server for, and this way a failure can't stop it booting.
+  startBackupSchedule({
+    info: (msg) => app.log.info(msg),
+    error: (msg) => app.log.error(msg),
+  });
 });
