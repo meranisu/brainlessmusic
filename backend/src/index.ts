@@ -1,6 +1,7 @@
 import { buildApp } from './app.js';
 import { config } from './config.js';
 import { startBackupSchedule } from './services/backup.js';
+import { startLibrarySyncSchedule } from './services/librarySync.js';
 import { formatSecretProblem, inspectJwtSecret } from './utils/secretPolicy.js';
 
 // Checked here rather than in `config.ts` so it runs when the *server* boots,
@@ -40,6 +41,14 @@ app.listen({ port: config.port, host: '0.0.0.0' }, (err, address) => {
   // delaying the server for, and this way a failure can't stop it booting.
   startBackupSchedule({
     info: (msg) => app.log.info(msg),
+    error: (msg) => app.log.error(msg),
+  });
+
+  // Same reasoning: worth doing, never worth delaying the server for. The boot
+  // pass only stats known paths, so this is cheap even on a large library.
+  startLibrarySyncSchedule({
+    info: (msg) => app.log.info(msg),
+    warn: (msg) => app.log.warn(msg),
     error: (msg) => app.log.error(msg),
   });
 });

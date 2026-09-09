@@ -82,6 +82,11 @@
   .badge-admin {
     @apply inline-flex items-center rounded-full border border-orange-500 bg-orange-600 px-2 py-0.5 text-xs font-medium text-white;
   }
+  /* A fault, not a setting — red, where `hidden` and `not recommended` are
+     choices someone made and get neutral/caution. */
+  .badge-danger {
+    @apply inline-flex items-center rounded-full bg-red-900 px-2 py-0.5 text-xs font-medium text-red-200;
+  }
 }
 
 /* Login title panel — a vertically-scrolling mosaic of flat navy squares

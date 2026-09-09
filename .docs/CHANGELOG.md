@@ -4,6 +4,75 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-10 — Missing tracks leave the browse listings
+
+Flagging a dead row stopped it being invisible; it did not stop it being *offered*. A track whose file is gone still sat in the library table, the album, the artist page and search results, and clicking it was a `500`. Now it doesn't.
+
+Excluded from: `GET /tracks` (and its count), album detail's track list, `GET /search` on both the FTS and the short-query LIKE path, and `GET /stats/top-tracks`. `GET /tracks?missing=only` returns just them and `?missing=all` returns everything — the same `all` / `only` / `exclude` vocabulary the `hidden` and `notRecommended` filters already use, so an admin reaches them in the ordinary UI rather than a separate screen. `missing_since` stores a date rather than a flag, so it needed its own clause builder: "present" is `IS NULL`, not `= 0`.
+
+**Artists and albums disappear once nothing under them can be played.** An album whose every track is gone is worse than a dead row — it is a card in the grid that opens onto an empty page. Counts and lists were changed together, since a total the list can never reach is the pagination bug the track filter already carries a comment about. A detail page reached by direct link still resolves, with an empty album list: tidying a grid is one decision, and 404-ing a URL someone already holds is a different and worse one.
+
+**What is deliberately not filtered**, and why:
+
+- **Playlists.** Two reasons, and the second is decisive: a playlist quietly losing a song is a worse surprise than a song that won't play, and `PATCH /playlists/:id/tracks/reorder` validates that the client sent back *exactly* the playlist's current set. Hiding a row there would have broken drag-to-reorder for any playlist containing one. There is now a test that says so.
+- **Favorites**, on the same "someone chose this by hand" reasoning.
+- **Play history.** It records what happened. Hiding a play that genuinely occurred would be falsifying the log, not tidying it.
+
+### The filter, in the UI
+
+A fourth dropdown joins the library page's filter row — **Playable only** / **All (incl. missing)** / **Missing only** — using the same three-way vocabulary and the same control styling as the `hidden` and `notRecommended` filters beside it, so it reads as one row rather than a bolt-on.
+
+A dropdown you can't interpret is worse than none, so three things came with it:
+
+- **`missing` now rides on the track summary** (and `missingSince` on the detail), because a filtered list you can't tell apart is just a shorter list.
+- **A red `missing` badge** on the row, next to `hidden` and `not recommended`. New `.badge-danger` class: those two are choices someone made and get neutral/caution, while this is a fault.
+- **The play button is disabled on a missing row**, and playing a good row now builds its queue from playable tracks only — otherwise "All" would hand the player a queue that stalls on a `500` partway through.
+
+The track drawer's Diagnostics tab gained a **File on disk** row, showing `Missing since <date>` in red or `Present`.
+
+**Verified** against the live library, where 11 of 30 rows are genuinely dead: `GET /tracks` returns 19, `?missing=only` returns 11, `?missing=all` returns 30; the artists list is down to まぐまぐソフト alone and the albums list to `Piano de Kanon` alone, both reporting 19 tracks; searching `CLANNAD`, which matches all 11 dead tracks, now returns zero artists, zero albums and zero tracks. The UI was driven in real headless Chromium against that library: the filter defaults to `exclude` and shows 19 rows with no badges, `Missing only` shows 11 rows with 11 red badges and all 11 play buttons disabled and none enabled, `All` shows 30 rows with 11 badges, and no page errors in any state. 200 backend tests pass (12 new).
+
+### Also: `LIBRARY_PATH` fixed
+
+`backend/.env` pointed at `/mnt/wsl/music`, the tmpfs root that was lost; the real library is the 19 files at `/home/abcde/music`. Corrected (previous file kept as `.env.bak-2026-09-10`), and on the next boot the sweep flagged all 11 dead rows cleanly — 37% missing, under the 50% guard, with the 19 good tracks untouched. Nothing in `playlist_tracks`, `favorites` or `play_history` references any of the 11, so deleting those rows would cost nothing; that call is still the owner's.
+
+---
+
+## 2026-09-10 — The database and the disk, kept in agreement
+
+A track row pointing at a file that is not there is invisible until someone presses play and gets a `500`. Eleven of the thirty rows in the real database were in that state, all pointing at `/mnt/wsl/music` — the tmpfs library root that was lost. Nothing was watching for it.
+
+### A scheduled sync, split in two
+
+Migration `0010` adds `tracks.missing_since`. The server now reconciles the database against the filesystem on a timer, and the two halves run on deliberately different schedules:
+
+- **Reconciliation stats the paths already in the database** — one syscall per track, 46 ms for thirty of them. It runs at boot and before every scheduled scan, because it is the half that catches rot.
+- **A full scan walks the library and re-reads every tag.** That is the expensive half and the only one that finds *new* music, so it runs on `LIBRARY_SCAN_INTERVAL_HOURS` (default 12) and never at startup: `tsx watch` restarts on every file save in development, and a full library walk per keystroke helps nobody.
+
+Both go through one guarded entry point, so a scheduled run landing on top of an admin's manual one is turned away rather than queued — `POST /api/library/scan` answers `409` while a sync is in flight. Its response keeps the old `ScanSummary` shape at the top level, with reconciliation alongside under `reconcile`, so existing callers are unaffected.
+
+### It flags, it never deletes
+
+`missing_since` records when a file was first seen absent and is *not* re-stamped by later sweeps — it answers "since when", and re-stamping would make a months-old absence look like this morning's. It clears the moment the file returns, along with `last_stream_error`, so a library on a mount that comes and goes heals instead of accumulating damage.
+
+Deleting would have been easier and is wrong here. Those eleven rows carry favorites and playlist entries, for files that may still be in a backup or on another disk. Removal stays a per-track decision through the `DELETE /api/tracks/:id` that already exists. `GET /api/library/missing` (admin) is the worklist; `GET /api/admin/health` carries the count, alongside `librarySyncRunning`.
+
+### The guard is the feature
+
+A library root that has not mounted yet is indistinguishable from one that was deleted, and this project has already destroyed its music once by acting on that ambiguity. So the sweep refuses, and says why, when either the root is unreadable, or more than `LIBRARY_MISSING_ABORT_RATIO` (default 0.5) of the library newly vanishes at once. Only *newly* missing rows count toward the ratio — otherwise a library that legitimately lost half its files once could never record the next single deletion.
+
+The ratio needed an absolute floor too, which the tests found rather than the design: at least three tracks must be involved before it applies. A pure ratio protects small libraries into uselessness — one deleted file out of two is 50% — and the cost of being wrong below the floor is small, because the flag is reversible and self-healing.
+
+**This found a real bug on its first boot.** `backend/.env` still has `LIBRARY_PATH=/mnt/wsl/music`, a path that does not exist; the actual library is the 19 files at `/home/abcde/music`. The guard tripped on the unreadable root and marked nothing, which is exactly right — but it also means uploads and manual scans are currently pointed at a dead directory. Not changed here, since whether that tmpfs is meant to be re-mounted is the owner's call.
+
+**Verified** against an isolated copy of the live database, never the live one: pointed at the real library root, the sweep flagged exactly the 11 dead rows, all correctly counted as stranded outside the root, leaving the 19 good tracks alone. Booted against that copy, the startup pass logged the count and the warning, `GET /api/admin/health` reported `missingTracks: 11`, `GET /api/library/missing` returned all 11 oldest-absence-first and `403`'d a non-admin, a full scan found 19 files and updated 19, and a second scan fired 150 ms into the first got `409`. 188 backend tests pass (12 new, covering flag/clear/no-re-stamp/stranded plus all four guard behaviours). Recovery is covered by tests rather than live: demonstrating it would have meant renaming files in the owner's music library, which is not a thing to do to a library that has already been lost once.
+
+### Also: a stale claim corrected
+
+`.docs/STATUS.md` said there is no column for bitrate or sample rate in `tracks`. There is — `tracks.bitrate` and `tracks.sample_rate` have existed since migration `0006`, are populated by both the scanner and the upload path, and are already returned on the track detail endpoint. Only the `library-player.html` harness never read them. It matters for the transcoding work: those two columns answer "is this source already at or below the target bitrate?", and re-encoding a 64k file to 64k is pure loss.
+
+---
+
 ## 2026-09-10 — The streaming path: leaked transcodes, and a cache that was never there
 
 Four defects on the audio path, found by reading it end to end rather than by anything failing. Nothing here changes what a track sounds like; it changes what serving one costs.

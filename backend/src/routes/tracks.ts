@@ -62,6 +62,7 @@ interface TracksQuery {
   order?: string;
   hidden?: string;
   notRecommended?: string;
+  missing?: string;
 }
 
 interface TrackPatchBody {
@@ -85,6 +86,9 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
         order: request.query.order === 'desc' ? ('desc' as const) : ('asc' as const),
         hidden: parseVisibility(request.query.hidden),
         notRecommended: parseVisibility(request.query.notRecommended),
+        // Defaults to excluding them (see `ListTracksOptions`); `?missing=only`
+        // is how an admin reaches them without a separate screen.
+        missing: parseVisibility(request.query.missing),
       };
 
       const tracks = listTracks(limit, offset, options);

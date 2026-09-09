@@ -57,8 +57,28 @@ Other scripts: `npm run build` (typecheck + compile), `npm start` (run compiled 
 | `BACKUP_PATH` | *(beside `DB_PATH`)* | where backups are written — defaults to `<db dir>/backups`, so in the container they land in the `/data` volume |
 | `BACKUP_INTERVAL_HOURS` | `24` | how often a backup runs while the server is up |
 | `BACKUP_KEEP` | `14` | how many backups to retain; older ones are deleted |
+| `LIBRARY_SCAN_ENABLED` | `true` | scheduled library sync; `false` turns it off |
+| `LIBRARY_SCAN_INTERVAL_HOURS` | `12` | how often a full scan runs while the server is up. A cheap presence check also runs at boot |
+| `LIBRARY_MISSING_ABORT_RATIO` | `0.5` | if more than this share of the library vanishes in one sweep, nothing is flagged — an unmounted library looks exactly like a deleted one |
+| `MAX_CONCURRENT_TRANSCODES` | `2` | simultaneous `?quality=low` transcodes; past the cap the request gets `503`, never the full-size original |
 | `ALLOW_OPEN_REGISTRATION` | `true` | anyone who can reach the server may create their own (non-admin) account. Set to `false` for admin-only registration — **do this before the server is reachable from outside** |
 | `NODE_ENV` | *(unset)* | `development` / `test` downgrade the `JWT_SECRET` check to a warning. Anything else — including unset — is treated as a real deployment |
+
+### Keeping the library in sync
+
+The database and the disk drift apart: files get moved, a library root changes, an external drive doesn't mount. A track row pointing at a file that isn't there is invisible until someone presses play and gets a `500`.
+
+So the server checks. **At boot it stats every known track path** — cheap, one syscall per track — and **every `LIBRARY_SCAN_INTERVAL_HOURS` it also walks the library off disk** for new and changed files. The full walk is deliberately not run at startup: in development the server restarts on every file save, and a full library scan per keystroke helps nobody.
+
+Files that have gone are **flagged, never deleted**. `missing_since` records when a file was first observed absent, and it clears itself the moment the file comes back, so a library on a mount that comes and goes heals rather than accumulating damage. Deleting the row would take favorites and playlist entries with it, for a file that may still be in a backup or on another disk — that stays a per-track decision through `DELETE /api/tracks/:id`.
+
+Flagged tracks also **drop out of the browse listings** — the library table, album and artist pages, search, and the most-played chart — along with any artist or album left with nothing playable under it. Nothing offers you a track that can't play. `GET /api/tracks?missing=only` (or `?missing=all`) brings them back into view.
+
+Playlists, favorites and play history are deliberately *not* filtered: a list you curated by hand quietly losing a song is a worse surprise than one that won't play, and history is a record of what actually happened.
+
+`GET /api/library/missing` (admin) is the worklist, and `GET /api/admin/health` carries the count.
+
+**The guard matters more than the sweep.** A library root that hasn't mounted yet is indistinguishable from one that was deleted, and this project has already lost its music once to that ambiguity. So if the root is unreadable, or if more than `LIBRARY_MISSING_ABORT_RATIO` of the library newly vanishes at once (and at least three tracks are involved — otherwise a two-track library could never record a single deletion), the sweep marks nothing and says why. The next sweep, once the disk is back, is a no-op.
 
 ### Backups and restoring
 

@@ -13,6 +13,8 @@ export interface TrackSummary {
   format: string | null;
   hidden: boolean;
   notRecommended: boolean;
+  /** The file is gone from disk — nothing can play this until it comes back. */
+  missing: boolean;
   playCount: number;
 }
 
@@ -24,6 +26,8 @@ export interface TrackDetail extends TrackSummary {
   dateAdded: string;
   lastPlayedAt: string | null;
   lastStreamError: string | null;
+  /** When the file was first observed absent, or `null` while it is present. */
+  missingSince: string | null;
 }
 
 export interface TrackListResponse {
@@ -43,6 +47,7 @@ export interface TrackListParams {
   order?: SortOrder;
   hidden?: VisibilityFilter;
   notRecommended?: VisibilityFilter;
+  missing?: VisibilityFilter;
   limit?: number;
   offset?: number;
 }

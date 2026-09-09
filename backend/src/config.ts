@@ -39,6 +39,18 @@ export const config = {
   // Roughly two weeks of dailies. Each is the size of the database, which is
   // dominated by rows rather than audio, so this stays small.
   backupKeep: Number(process.env.BACKUP_KEEP ?? 14),
+  // Keeping the database honest about what is actually on disk. The boot pass
+  // only stats known paths (cheap); the interval does the full tag-reading
+  // walk, which is why it isn't run at startup — `tsx watch` restarts on every
+  // save in development.
+  libraryScanEnabled: process.env.LIBRARY_SCAN_ENABLED !== 'false',
+  libraryScanIntervalHours: Number(process.env.LIBRARY_SCAN_INTERVAL_HOURS ?? 12),
+  // Above this share of the library newly vanishing in a single sweep, the
+  // sweep refuses to mark anything. A library root that has not mounted yet is
+  // indistinguishable from one that was deleted, and this project has already
+  // lost its music once to that ambiguity — so the ambiguous case does nothing
+  // and says so, rather than guessing.
+  libraryMissingAbortRatio: Number(process.env.LIBRARY_MISSING_ABORT_RATIO ?? 0.5),
   // Built frontend to serve alongside the API. Set in the container image so
   // one process serves both; unset in local dev, where Vite serves the SPA on
   // its own port and the API stays API-only.

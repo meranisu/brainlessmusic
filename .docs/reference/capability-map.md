@@ -22,8 +22,8 @@ _Last checked against the code: 2026-09-09._
 
 | Layer | Status | Detail |
 |---|---|---|
-| Backend | 🟡 | Folder scan with tag extraction (5 formats, filename fallbacks, idempotent upsert) ✅; multipart upload ✅; cover art extracted into a content-addressed cache ✅. Tag edits are still **DB-side only** — no write-back to files; no dedupe, no "Various Artists" handling |
-| Web | 🟡 | Upload page ✅, per-track edit drawer ✅. No way to trigger a scan from the UI |
+| Backend | 🟡 | Folder scan with tag extraction (5 formats, filename fallbacks, idempotent upsert) ✅; multipart upload ✅; cover art extracted into a content-addressed cache ✅; **scheduled sync** — presence check at boot, full scan every 12h, missing files flagged not deleted, with a guard that refuses when a root is unreadable or too much vanishes at once ✅. Tag edits are still **DB-side only** — no write-back to files; no dedupe, no "Various Artists" handling |
+| Web | 🟡 | Upload page ✅, per-track edit drawer ✅ (with a "File on disk" diagnostic), library filter for missing tracks ✅. No way to trigger a scan from the UI |
 | Mobile | — | Not a mobile concern |
 
 ## 3. Catalog — finding what's in the library

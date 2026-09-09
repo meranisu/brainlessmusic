@@ -47,6 +47,8 @@ export interface TrackSummary {
   format: string | null;
   hidden: boolean;
   notRecommended: boolean;
+  /** The file is gone from disk. Nothing can play it until it comes back. */
+  missing: boolean;
   playCount: number;
 }
 
@@ -58,6 +60,8 @@ export interface TrackDetail extends TrackSummary {
   dateAdded: string;
   lastPlayedAt: string | null;
   lastStreamError: string | null;
+  /** When the file was first observed absent, or `null` while it is present. */
+  missingSince: string | null;
 }
 
 export type VisibilityFilter = 'all' | 'only' | 'exclude';
@@ -69,6 +73,12 @@ export interface ListTracksOptions {
   sort?: SortField;
   order?: SortOrder;
   hidden?: VisibilityFilter;
+  /**
+   * Tracks whose file is gone. Excluded by default — a row nobody can play is
+   * noise in a library listing, and clicking it is a `500`. `only` is how an
+   * admin finds them in the same UI as everything else.
+   */
+  missing?: VisibilityFilter;
   notRecommended?: VisibilityFilter;
 }
 
@@ -85,7 +95,7 @@ const ARTIST_SUMMARY_SELECT = `
     COUNT(DISTINCT t.id) as trackCount,
     COUNT(DISTINCT al.id) as albumCount
   FROM artists a
-  LEFT JOIN tracks t ON t.artist_id = a.id
+  LEFT JOIN tracks t ON t.artist_id = a.id AND t.missing_since IS NULL
   LEFT JOIN albums al ON al.artist_id = a.id
 `;
 
@@ -99,7 +109,7 @@ const ALBUM_SUMMARY_SELECT = `
     COUNT(t.id) as trackCount
   FROM albums al
   LEFT JOIN artists a ON a.id = al.artist_id
-  LEFT JOIN tracks t ON t.album_id = al.id
+  LEFT JOIN tracks t ON t.album_id = al.id AND t.missing_since IS NULL
 `;
 
 const TRACK_SUMMARY_SELECT = `
@@ -112,19 +122,26 @@ const TRACK_SUMMARY_SELECT = `
     t.format as format,
     t.hidden as hidden,
     t.not_recommended as notRecommended,
+    (t.missing_since IS NOT NULL) as missing,
     t.play_count as playCount
   FROM tracks t
   LEFT JOIN artists a ON a.id = t.artist_id
   LEFT JOIN albums al ON al.id = t.album_id
 `;
 
-interface RawTrackSummary extends Omit<TrackSummary, 'hidden' | 'notRecommended'> {
+interface RawTrackSummary extends Omit<TrackSummary, 'hidden' | 'notRecommended' | 'missing'> {
   hidden: number;
   notRecommended: number;
+  missing: number;
 }
 
 function toTrackSummary(row: RawTrackSummary): TrackSummary {
-  return { ...row, hidden: Boolean(row.hidden), notRecommended: Boolean(row.notRecommended) };
+  return {
+    ...row,
+    hidden: Boolean(row.hidden),
+    notRecommended: Boolean(row.notRecommended),
+    missing: Boolean(row.missing),
+  };
 }
 
 const SORT_COLUMNS: Record<SortField, string> = {
@@ -139,6 +156,16 @@ const SORT_COLUMNS: Record<SortField, string> = {
 function visibilityClause(column: string, filter: VisibilityFilter | undefined): string | null {
   if (filter === 'only') return `${column} = 1`;
   if (filter === 'exclude') return `${column} = 0`;
+  return null; // 'all' or unset — no filter
+}
+
+/**
+ * `missing_since` records a date rather than a flag, so it needs its own
+ * clause builder — "present" is `IS NULL`, not `= 0`.
+ */
+function nullabilityClause(column: string, filter: VisibilityFilter | undefined): string | null {
+  if (filter === 'only') return `${column} IS NOT NULL`;
+  if (filter === 'exclude') return `${column} IS NULL`;
   return null; // 'all' or unset — no filter
 }
 
@@ -173,19 +200,42 @@ function buildTrackFilter(options: ListTracksOptions): { where: string; params: 
   const notRecommendedClause = visibilityClause('t.not_recommended', options.notRecommended ?? 'all');
   if (notRecommendedClause) clauses.push(notRecommendedClause);
 
+  const missingClause = nullabilityClause('t.missing_since', options.missing ?? 'exclude');
+  if (missingClause) clauses.push(missingClause);
+
   return {
     where: clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '',
     params,
   };
 }
 
+/**
+ * Artists and albums are only worth listing while something under them can
+ * actually be played. When a library root goes away its artists and albums
+ * would otherwise sit in the grid forever, opening onto nothing.
+ *
+ * The count and the list have to agree, or pagination reports a total it can
+ * never reach — the same trap `buildTrackFilter` exists to avoid.
+ */
+const HAS_PLAYABLE_TRACKS = 'HAVING COUNT(DISTINCT t.id) > 0';
+
 export function countArtists(): number {
-  return (db.prepare('SELECT COUNT(*) as count FROM artists').get() as { count: number }).count;
+  return (
+    db
+      .prepare(
+        `SELECT COUNT(*) as count FROM artists a
+         WHERE EXISTS (SELECT 1 FROM tracks t WHERE t.artist_id = a.id AND t.missing_since IS NULL)`,
+      )
+      .get() as { count: number }
+  ).count;
 }
 
 export function listArtists(limit: number, offset: number): ArtistSummary[] {
   return db
-    .prepare(`${ARTIST_SUMMARY_SELECT} GROUP BY a.id ORDER BY a.name COLLATE NOCASE LIMIT ? OFFSET ?`)
+    .prepare(
+      `${ARTIST_SUMMARY_SELECT} GROUP BY a.id ${HAS_PLAYABLE_TRACKS}
+       ORDER BY a.name COLLATE NOCASE LIMIT ? OFFSET ?`,
+    )
     .all(limit, offset) as ArtistSummary[];
 }
 
@@ -196,19 +246,32 @@ export function getArtistDetail(id: number): ArtistDetail | undefined {
   if (!artist) return undefined;
 
   const albums = db
-    .prepare(`${ALBUM_SUMMARY_SELECT} WHERE al.artist_id = ? GROUP BY al.id ORDER BY al.title COLLATE NOCASE`)
+    .prepare(
+      `${ALBUM_SUMMARY_SELECT} WHERE al.artist_id = ? GROUP BY al.id ${HAS_PLAYABLE_TRACKS}
+       ORDER BY al.title COLLATE NOCASE`,
+    )
     .all(id) as AlbumSummary[];
 
   return { ...artist, albums };
 }
 
 export function countAlbums(): number {
-  return (db.prepare('SELECT COUNT(*) as count FROM albums').get() as { count: number }).count;
+  return (
+    db
+      .prepare(
+        `SELECT COUNT(*) as count FROM albums al
+         WHERE EXISTS (SELECT 1 FROM tracks t WHERE t.album_id = al.id AND t.missing_since IS NULL)`,
+      )
+      .get() as { count: number }
+  ).count;
 }
 
 export function listAlbums(limit: number, offset: number): AlbumSummary[] {
   return db
-    .prepare(`${ALBUM_SUMMARY_SELECT} GROUP BY al.id ORDER BY al.title COLLATE NOCASE LIMIT ? OFFSET ?`)
+    .prepare(
+      `${ALBUM_SUMMARY_SELECT} GROUP BY al.id ${HAS_PLAYABLE_TRACKS}
+       ORDER BY al.title COLLATE NOCASE LIMIT ? OFFSET ?`,
+    )
     .all(limit, offset) as AlbumSummary[];
 }
 
@@ -232,7 +295,7 @@ export function getAlbumDetail(id: number): AlbumDetail | undefined {
     .prepare(
       `SELECT id, title, track_number as trackNumber, duration, format
        FROM tracks
-       WHERE album_id = ?
+       WHERE album_id = ? AND missing_since IS NULL
        ORDER BY track_number IS NULL, track_number ASC`,
     )
     .all(id) as AlbumTrack[];
@@ -283,9 +346,10 @@ export function getTrackSummariesByIds(ids: number[]): TrackSummary[] {
   return rows.map(toTrackSummary);
 }
 
-interface RawTrackDetail extends Omit<TrackDetail, 'hidden' | 'notRecommended'> {
+interface RawTrackDetail extends Omit<TrackDetail, 'hidden' | 'notRecommended' | 'missing'> {
   hidden: number;
   notRecommended: number;
+  missing: number;
 }
 
 export function getTrackDetailById(id: number): TrackDetail | undefined {
@@ -300,6 +364,8 @@ export function getTrackDetailById(id: number): TrackDetail | undefined {
          t.format as format,
          t.hidden as hidden,
          t.not_recommended as notRecommended,
+         (t.missing_since IS NOT NULL) as missing,
+         t.missing_since as missingSince,
          t.track_number as trackNumber,
          t.file_size as fileSize,
          t.bitrate as bitrate,
@@ -316,7 +382,12 @@ export function getTrackDetailById(id: number): TrackDetail | undefined {
     .get(id) as RawTrackDetail | undefined;
 
   if (!row) return undefined;
-  return { ...row, hidden: Boolean(row.hidden), notRecommended: Boolean(row.notRecommended) };
+  return {
+    ...row,
+    hidden: Boolean(row.hidden),
+    notRecommended: Boolean(row.notRecommended),
+    missing: Boolean(row.missing),
+  };
 }
 
 const SEARCH_RESULT_LIMIT = 20;
@@ -347,7 +418,7 @@ function searchWithFts(match: string): SearchResults {
     .prepare(
       `${ARTIST_SUMMARY_SELECT}
        WHERE a.id IN (SELECT rowid FROM artists_fts WHERE artists_fts MATCH ?)
-       GROUP BY a.id ORDER BY a.name COLLATE NOCASE LIMIT ?`,
+       GROUP BY a.id ${HAS_PLAYABLE_TRACKS} ORDER BY a.name COLLATE NOCASE LIMIT ?`,
     )
     .all(match, SEARCH_RESULT_LIMIT) as ArtistSummary[];
 
@@ -355,7 +426,7 @@ function searchWithFts(match: string): SearchResults {
     .prepare(
       `${ALBUM_SUMMARY_SELECT}
        WHERE al.id IN (SELECT rowid FROM albums_fts WHERE albums_fts MATCH ?)
-       GROUP BY al.id ORDER BY al.title COLLATE NOCASE LIMIT ?`,
+       GROUP BY al.id ${HAS_PLAYABLE_TRACKS} ORDER BY al.title COLLATE NOCASE LIMIT ?`,
     )
     .all(match, SEARCH_RESULT_LIMIT) as AlbumSummary[];
 
@@ -366,7 +437,7 @@ function searchWithFts(match: string): SearchResults {
       .prepare(
         `${TRACK_SUMMARY_SELECT}
          JOIN tracks_fts ON tracks_fts.rowid = t.id
-         WHERE tracks_fts MATCH ?
+         WHERE tracks_fts MATCH ? AND t.missing_since IS NULL
          ORDER BY bm25(tracks_fts, ${TRACK_BM25_WEIGHTS})
          LIMIT ?`,
       )
@@ -382,13 +453,15 @@ function searchWithLike(query: string): SearchResults {
 
   const artists = db
     .prepare(
-      `${ARTIST_SUMMARY_SELECT} WHERE a.name LIKE ? GROUP BY a.id ORDER BY a.name COLLATE NOCASE LIMIT ?`,
+      `${ARTIST_SUMMARY_SELECT} WHERE a.name LIKE ? GROUP BY a.id ${HAS_PLAYABLE_TRACKS}
+       ORDER BY a.name COLLATE NOCASE LIMIT ?`,
     )
     .all(pattern, SEARCH_RESULT_LIMIT) as ArtistSummary[];
 
   const albums = db
     .prepare(
-      `${ALBUM_SUMMARY_SELECT} WHERE al.title LIKE ? GROUP BY al.id ORDER BY al.title COLLATE NOCASE LIMIT ?`,
+      `${ALBUM_SUMMARY_SELECT} WHERE al.title LIKE ? GROUP BY al.id ${HAS_PLAYABLE_TRACKS}
+       ORDER BY al.title COLLATE NOCASE LIMIT ?`,
     )
     .all(pattern, SEARCH_RESULT_LIMIT) as AlbumSummary[];
 
@@ -400,7 +473,8 @@ function searchWithLike(query: string): SearchResults {
     db
       .prepare(
         `${TRACK_SUMMARY_SELECT}
-         WHERE t.title LIKE ? OR a.name LIKE ? OR al.title LIKE ?
+         WHERE (t.title LIKE ? OR a.name LIKE ? OR al.title LIKE ?)
+           AND t.missing_since IS NULL
          ORDER BY t.title COLLATE NOCASE LIMIT ?`,
       )
       .all(pattern, pattern, pattern, SEARCH_RESULT_LIMIT) as RawTrackSummary[]

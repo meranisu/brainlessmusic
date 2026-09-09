@@ -165,10 +165,11 @@ erDiagram
 | `sample_rate` | INTEGER | nullable | — | added in `0006`, same backfill caveat as `bitrate` |
 | `last_stream_error` | TEXT | nullable | — | added in `0006`, written by the stream route on failure (missing file, transcode error) |
 | `waveform` | TEXT | nullable | — | added in `0009`. Base64 of one unsigned byte per bucket (128 buckets), each the peak amplitude of that slice of the track. Computed from the file on the first `GET /tracks/:id/waveform` and cached here. `NULL` means "not yet asked for", never "cannot be drawn" — failures are deliberately not recorded, because the usual cause is a file mid-copy or moved and both fix themselves. Base64 rather than a JSON array: ~9MB across 50k tracks against ~35MB |
+| `missing_since` | TEXT | nullable | — | added in `0010`. ISO timestamp of when the file at `path` was first observed absent by the reconciliation sweep; `NULL` means present. Set once and not re-stamped on later sweeps — it answers "since when", so re-stamping would make a months-old absence look like this morning's. Cleared (along with `last_stream_error`) the moment the file comes back, so a library on a mount that comes and goes heals itself. **A flag, never a deletion** — removing the row would take `favorites` and `playlist_tracks` entries with it, for a file that may still exist elsewhere |
 | `artwork_id` | TEXT | nullable | — | added in `0007`. Filename of the cached cover embedded in *this* file: `<sha256>.<jpg\|png\|webp\|gif>` under `ARTWORK_PATH`. Same backfill caveat as `bitrate` — existing rows stay `NULL` until re-scanned. `GET /tracks/:id/cover` falls back to `albums.artwork_id` when this is `NULL` |
 
 **FKs:** `artist_id → artists.id`, `album_id → albums.id` (both `NO ACTION` / `NO ACTION`).
-**Indexes:** `idx_tracks_artist_id`, `idx_tracks_album_id`, `idx_tracks_title`, `idx_tracks_hidden`, `idx_tracks_not_recommended`; unique index on `path` (auto).
+**Indexes:** `idx_tracks_artist_id`, `idx_tracks_album_id`, `idx_tracks_title`, `idx_tracks_hidden`, `idx_tracks_not_recommended`, `idx_tracks_missing_since`; unique index on `path` (auto).
 **Referenced by:** `playlist_tracks.track_id`, `play_history.track_id`, `favorites.track_id`.
 **No `updated_at`** — see [Discrepancy 6](#6-no-updated_at-anywhere).
 
@@ -340,11 +341,13 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | `0007_add_artwork.sql` | `tracks.artwork_id`, `albums.artwork_id` — content-addressed cover art filenames |
 | `0008_create_search_index.sql` | `tracks_fts`, `artists_fts`, `albums_fts` + nine sync triggers — see [Search index](#search-index) |
 | `0009_add_waveform.sql` | `tracks.waveform` — cached scrubber peaks |
+| `0010_add_track_missing_tracking.sql` | `tracks.missing_since` + index — when a track's file was first seen absent from disk |
 
 ## Change log
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-09-10 | Migration `0010_add_track_missing_tracking.sql` — `tracks.missing_since` + `idx_tracks_missing_since`; `tracks` column table and index list updated | Scheduled reconciliation between the database and the disk. Applied to the live database against a `pre-0010` backup, which also picked up `0009`, still unapplied there. The first sweep flagged 11 of 30 rows, all pointing at `/mnt/wsl/music` — the tmpfs library root that was lost — and it flags rather than deletes precisely because those rows carry favorites and playlist entries for files that may still exist in a backup |
 | 2026-09-03 | File created — full live-introspected schema map, ERD, per-table breakdown, relationship summary, 7 flagged discrepancies | Requested: a maintained database structure reference, checked against the real DB rather than just migration files |
 | 2026-09-09 | Migration `0009_add_waveform.sql` — `tracks.waveform`; `tracks` entity and column table updated. Also backfilled `0008` into the migration list above, which it had been missing | Real waveforms in the player's scrubber. Cached on the row rather than recomputed, and computed lazily rather than during a scan: decoding a whole library to draw pictures would turn a minute-long scan into an hour, and most tracks are never played |
 | 2026-09-09 | Migration `0008_create_search_index.sql` — `tracks_fts`, `artists_fts`, `albums_fts` plus nine sync triggers; new [Search index](#search-index) section, Discrepancy 7 resolved | Full-text search (roadmap step 9). Trigram tokenizer rather than the default, so mid-word and CJK substring queries keep working — `unicode61` would have been a regression from the `LIKE` scan it replaces |

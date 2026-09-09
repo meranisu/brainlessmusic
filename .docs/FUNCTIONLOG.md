@@ -4,6 +4,76 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `LibraryPage` / `buildQuery` — `frontend/src/pages/LibraryPage.tsx`
+**Date:** 2026-09-10
+**How added:** new feature
+**Purpose:** let someone see, and act on, tracks whose file is gone.
+**Side effects:** none beyond the query it issues.
+**Before:** the backend filter existed but nothing reached it — the 11 dead rows on the real library were unreachable except by hand-editing a URL.
+**After:** a fourth select in the existing filter row (**Playable only** / **All (incl. missing)** / **Missing only**), same three-way vocabulary and same control class as the `hidden` and `notRecommended` filters beside it, defaulting to `exclude` to match the server. Changing it resets to page 1, as the search box does. A red `badge-danger` marks a missing row — `hidden` and `not recommended` are choices someone made and stay neutral/caution, while this is a fault. The row's play button is disabled with an explaining `title`, and playing a good row builds its queue from playable tracks only: without that, "All (incl. missing)" would hand the player a queue that stalls on a `500` partway through. Verified in real headless Chromium against the live library — 19 / 11 / 30 rows across the three settings, 11 badges, 11 disabled play buttons and none enabled under "Missing only", no page errors.
+
+**Function:** `TrackDetailDrawer` diagnostics — `frontend/src/components/TrackDetailDrawer.tsx`
+**Date:** 2026-09-10
+**How added:** new feature
+**Purpose:** say whether a track's file is actually there.
+**Side effects:** none.
+**Before:** the drawer showed `Last stream error`, which only fills in after someone has already tried to play a dead track.
+**After:** a **File on disk** row reading `Missing since <date>` in red, or `Present`. Backed by `missingSince` on the track detail shape. It is the proactive counterpart to the error row: one says "this failed once", the other says "this will fail".
+
+---
+
+**Function:** `nullabilityClause` / `buildTrackFilter` / `countArtists` / `listArtists` / `countAlbums` / `listAlbums` / `getAlbumDetail` / `getArtistDetail` / `searchWithFts` / `searchWithLike` — `backend/src/db/browse.ts`
+**Date:** 2026-09-10
+**How added:** change
+**Purpose:** keep tracks whose file is gone out of every listing that offers something to play.
+**Side effects:** none — read paths only.
+**Before:** a flagged track still appeared in the library table, its album, its artist page and search results, and clicking it was a `500`. Albums and artists with nothing playable left still occupied the grid.
+**After:** `nullabilityClause` is the counterpart to `visibilityClause` for a column that stores a date rather than a flag — "present" is `IS NULL`, not `= 0`. `buildTrackFilter` excludes missing tracks by default and honours `missing: 'only' | 'all'`, matching the vocabulary `hidden` and `notRecommended` already use, so an admin finds them in the ordinary listing rather than a separate screen. The artist and album summary selects now join tracks with the missing filter applied, so their counts describe what a listener can actually play, and the list/search call sites add `HAVING COUNT(DISTINCT t.id) > 0` so an emptied artist or album drops out entirely. Counts changed alongside their lists — a total the list can never reach is exactly the pagination bug `buildTrackFilter`'s own comment warns about. `getArtistDetail` and `getAlbumDetail` still resolve by id and simply come back empty: filtering a grid is one decision, 404-ing a URL someone already holds is a worse one. Playlists, favorites and play history are untouched on purpose — see the changelog entry.
+
+**Function:** `listTopTracks` / `countTopTracks` — `backend/src/db/plays.ts`
+**Date:** 2026-09-10
+**How added:** change
+**Purpose:** rank the most-played tracks.
+**Side effects:** none.
+**Before:** a track that was played a lot and then lost its file stayed at the top of the chart, unplayable.
+**After:** both exclude `missing_since IS NOT NULL`, together, so the count and the list agree. `listHistoryForUser` / `listHistoryForTrack` were deliberately left alone: history records what happened, and hiding a play that genuinely occurred would be falsifying the log rather than tidying it.
+
+---
+
+**Function:** `reconcileMissingTracks` / `pathIsMissing` — `backend/src/services/scanner.ts`
+**Date:** 2026-09-10
+**How added:** new feature
+**Purpose:** reconcile the database against the filesystem — flag tracks whose file has gone, clear ones that came back.
+**Side effects:** stats every track path (32 at a time); writes `tracks.missing_since`.
+**Before:** nothing watched for drift. A row pointing at a missing file was invisible until someone pressed play and got a `500`; eleven of the thirty rows in the real database were in that state.
+**After:** marks, never deletes — those rows carry favorites and playlist entries for files that may still exist in a backup. `pathIsMissing` treats **only** `ENOENT` as missing: a permissions or I/O error means the file may well be there and we simply cannot see it, and marking on that would turn a mount hiccup into a library of false gravestones. The guard is the substance of the function: a library root that has not mounted looks exactly like a deleted library, so the sweep refuses and changes nothing when the root is unreadable, or when a single sweep would newly condemn both more than `abortRatio` of the library and at least three tracks. The floor exists because a pure ratio protects small libraries into uselessness — one file out of two is 50% — and being wrong below it is cheap, since the flag is reversible. Only newly-missing rows count toward the ratio, or a library that once lost half its files could never record the next deletion.
+
+**Function:** `syncLibrary` / `startLibrarySyncSchedule` / `describe` / `isLibrarySyncRunning` — `backend/src/services/librarySync.ts`
+**Date:** 2026-09-10
+**How added:** new feature
+**Purpose:** run scan and reconciliation on a timer, and keep two of them from running at once.
+**Side effects:** spawns nothing, but drives the scanner, which writes a row per file; holds a module-level in-progress flag.
+**Before:** nothing — scanning happened only when an admin pressed the button.
+**After:** reconciliation at boot (cheap: one stat per track) and a full scan every `libraryScanIntervalHours`. The full walk is deliberately not run at startup, because `tsx watch` restarts on every save in development. A second caller while a sync is in flight is turned away rather than queued — the run already going is about to answer the same question, and two of them upserting the same paths is worse than waiting. Failures are logged and the schedule continues, on the same reasoning as backups: a server that stops serving music because it could not walk a directory has traded a small problem for a large one.
+
+**Function:** `listTrackPaths` / `markTracksMissing` / `clearTracksMissing` / `countMissingTracks` / `listMissingTracks` — `backend/src/db/library.ts`
+**Date:** 2026-09-10
+**How added:** new feature
+**Purpose:** read and write the `missing_since` flag added by migration `0010`.
+**Side effects:** `markTracksMissing` / `clearTracksMissing` write, each in one transaction.
+**Before:** nothing — the column did not exist.
+**After:** `markTracksMissing` stamps only rows where `missing_since IS NULL`, so re-running a sweep cannot push the date forward and make a months-old absence look like today's. `clearTracksMissing` also clears `last_stream_error`, since a file that has come back should not keep showing the error from when it was gone. `listMissingTracks` orders oldest-absence-first — it is a worklist, not a log.
+
+**Function:** `POST /library/scan` / `GET /library/missing` — `backend/src/routes/library.ts`
+**Date:** 2026-09-10
+**How added:** new endpoint + change
+**Purpose:** run a sync on demand, and list the rows whose files are gone.
+**Side effects:** the scan writes a row per file and reconciles.
+**Before:** `POST /library/scan` called `scanLibrary` directly, with no reconciliation and nothing stopping two from overlapping.
+**After:** both go through `syncLibrary`, so a scan arriving while one is running gets `409` instead of racing it. The response keeps the old `ScanSummary` shape at the top level with `reconcile` alongside, so existing callers are unaffected. `GET /library/missing` is admin-only and returns the flagged rows plus the current `libraryPath` — without it the list is hard to read, since the interesting case is rows pointing at a root the server no longer uses.
+
+---
+
 **Function:** `transcodeToLowQuality` — `backend/src/services/streaming.ts`
 **Date:** 2026-09-10
 **How added:** bug fix + hardening

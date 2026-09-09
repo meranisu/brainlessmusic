@@ -36,6 +36,7 @@ function buildQuery(params: TrackListParams): string {
   if (params.order) qs.set('order', params.order);
   if (params.hidden) qs.set('hidden', params.hidden);
   if (params.notRecommended) qs.set('notRecommended', params.notRecommended);
+  if (params.missing) qs.set('missing', params.missing);
   qs.set('limit', String(params.limit ?? PAGE_SIZE));
   qs.set('offset', String(params.offset ?? 0));
   return qs.toString();
@@ -50,6 +51,9 @@ export function LibraryPage() {
   const [order, setOrder] = useState<SortOrder>('asc');
   const [hidden, setHidden] = useState<VisibilityFilter>('exclude');
   const [notRecommended, setNotRecommended] = useState<VisibilityFilter>('all');
+  // Matches the server's own default: a track nobody can play is not part of
+  // the library you browse.
+  const [missing, setMissing] = useState<VisibilityFilter>('exclude');
   const [page, setPage] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [activeTrack, setActiveTrack] = useState<{ id: number; tab: 'tags' | 'diagnostics' } | null>(null);
@@ -63,7 +67,15 @@ export function LibraryPage() {
   const queryClient = useQueryClient();
   const isAdmin = Boolean(user?.isAdmin);
 
-  const params: TrackListParams = { search, sort, order, hidden, notRecommended, offset: page * PAGE_SIZE };
+  const params: TrackListParams = {
+    search,
+    sort,
+    order,
+    hidden,
+    notRecommended,
+    missing,
+    offset: page * PAGE_SIZE,
+  };
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['tracks', params],
@@ -172,6 +184,18 @@ export function LibraryPage() {
           <option value="exclude">Recommended only</option>
           <option value="only">Not-recommended only</option>
         </select>
+        <select
+          value={missing}
+          onChange={(e) => {
+            setMissing(e.target.value as VisibilityFilter);
+            setPage(0);
+          }}
+          className={selectClass}
+        >
+          <option value="exclude">Playable only</option>
+          <option value="all">All (incl. missing)</option>
+          <option value="only">Missing only</option>
+        </select>
       </div>
 
       {isAdmin && selectedIds.size > 0 && (
@@ -231,7 +255,7 @@ export function LibraryPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-blue-800/60">
-                {data.tracks.map((t, i) => (
+                {data.tracks.map((t) => (
                   <tr
                     key={t.id}
                     onClick={() => setActiveTrack({ id: t.id, tab: 'tags' })}
@@ -252,9 +276,17 @@ export function LibraryPage() {
                     </td>
                     <td className="py-2.5" onClick={(e) => e.stopPropagation()}>
                       <button
-                        onClick={() => playQueue(data?.tracks ?? [t], i)}
-                        className="flex h-7 w-7 items-center justify-center rounded-full text-blue-300 opacity-70 transition-all group-hover:opacity-100 hover:bg-orange-600 hover:text-white"
-                        aria-label={`Play ${t.title}`}
+                        onClick={() => {
+                          // Never queue a track whose file is gone — it would
+                          // stall the queue on a `500` partway through.
+                          const playable = (data?.tracks ?? [t]).filter((track) => !track.missing);
+                          const start = playable.findIndex((track) => track.id === t.id);
+                          playQueue(playable, Math.max(0, start));
+                        }}
+                        disabled={t.missing}
+                        className="flex h-7 w-7 items-center justify-center rounded-full text-blue-300 opacity-70 transition-all group-hover:opacity-100 hover:bg-orange-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-25 disabled:hover:bg-transparent disabled:hover:text-blue-300"
+                        aria-label={t.missing ? `${t.title} is missing from disk` : `Play ${t.title}`}
+                        title={t.missing ? 'The file for this track is missing from disk' : undefined}
                       >
                         <PlayIcon className="h-3 w-3" />
                       </button>
@@ -276,6 +308,7 @@ export function LibraryPage() {
                     <td className="py-2.5 pr-3 text-blue-300">{t.format ?? '—'}</td>
                     <td className="py-2.5 pr-3">
                       <div className="flex gap-1">
+                        {t.missing && <span className="badge-danger">missing</span>}
                         {t.hidden && <span className="badge-neutral">hidden</span>}
                         {t.notRecommended && <span className="badge-caution">not recommended</span>}
                       </div>

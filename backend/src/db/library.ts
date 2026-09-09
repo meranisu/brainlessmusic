@@ -32,6 +32,7 @@ export interface TrackRow {
   bitrate: number | null;
   sample_rate: number | null;
   last_stream_error: string | null;
+  missing_since: string | null;
 }
 
 export interface TrackInput {
@@ -182,6 +183,75 @@ export function updateTrackFields(id: number, update: TrackFieldUpdate): TrackRo
 
 export function setLastStreamError(id: number, message: string | null): void {
   db.prepare('UPDATE tracks SET last_stream_error = ? WHERE id = ?').run(message, id);
+}
+
+/** Every track row and its path, for the sweep that checks them against disk. */
+export function listTrackPaths(): { id: number; path: string; missing_since: string | null }[] {
+  return db
+    .prepare('SELECT id, path, missing_since FROM tracks ORDER BY id')
+    .all() as { id: number; path: string; missing_since: string | null }[];
+}
+
+/**
+ * Stamps a track as missing, leaving an existing stamp alone — `missing_since`
+ * answers "since when", so re-running the sweep must not keep pushing the date
+ * forward and make a months-old absence look like today's.
+ */
+export function markTracksMissing(ids: number[], at: string): void {
+  if (ids.length === 0) return;
+  const statement = db.prepare(
+    'UPDATE tracks SET missing_since = ? WHERE id = ? AND missing_since IS NULL',
+  );
+  db.transaction(() => {
+    for (const id of ids) statement.run(at, id);
+  })();
+}
+
+/** Clears the missing flag for files that have come back. */
+export function clearTracksMissing(ids: number[]): void {
+  if (ids.length === 0) return;
+  const statement = db.prepare(
+    'UPDATE tracks SET missing_since = NULL, last_stream_error = NULL WHERE id = ?',
+  );
+  db.transaction(() => {
+    for (const id of ids) statement.run(id);
+  })();
+}
+
+export function countMissingTracks(): number {
+  return (
+    db.prepare('SELECT COUNT(*) as count FROM tracks WHERE missing_since IS NOT NULL').get() as {
+      count: number;
+    }
+  ).count;
+}
+
+export interface MissingTrack {
+  id: number;
+  title: string;
+  artist: string | null;
+  path: string;
+  missingSince: string;
+  lastStreamError: string | null;
+}
+
+/** The dead rows, oldest absence first — a worklist for the owner to act on. */
+export function listMissingTracks(): MissingTrack[] {
+  return db
+    .prepare(
+      `SELECT
+         t.id as id,
+         t.title as title,
+         a.name as artist,
+         t.path as path,
+         t.missing_since as missingSince,
+         t.last_stream_error as lastStreamError
+       FROM tracks t
+       LEFT JOIN artists a ON a.id = t.artist_id
+       WHERE t.missing_since IS NOT NULL
+       ORDER BY t.missing_since ASC, t.id ASC`,
+    )
+    .all() as MissingTrack[];
 }
 
 /**

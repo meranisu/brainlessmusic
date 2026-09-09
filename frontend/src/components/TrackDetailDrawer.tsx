@@ -164,6 +164,15 @@ export function TrackDetailDrawer({ trackId, initialTab, onClose }: TrackDetailD
                 value={data.lastStreamError ?? 'None'}
                 valueClassName={data.lastStreamError ? 'text-red-400' : undefined}
               />
+              <DiagnosticRow
+                label="File on disk"
+                value={
+                  data.missingSince
+                    ? `Missing since ${new Date(data.missingSince).toLocaleString()}`
+                    : 'Present'
+                }
+                valueClassName={data.missingSince ? 'text-red-400' : undefined}
+              />
             </div>
           )}
         </div>
