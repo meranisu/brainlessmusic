@@ -1,0 +1,23 @@
+# Lost library manifest — 20 tracks, 70.9 MB
+# All paths were under /mnt/wsl/music (tmpfs).
+
+/mnt/wsl/music/01. 風を待った日.opus  |  まぐまぐソフト  |  Piano de Kanon  |  266s  |  3.81MB
+/mnt/wsl/music/02. 朝影 (1).opus  |  まぐまぐソフト  |  Piano de Kanon  |  422s  |  6.03MB
+/mnt/wsl/music/03. Last regrets (1).opus  |  まぐまぐソフト  |  Piano de Kanon  |  392s  |  5.57MB
+/mnt/wsl/music/04. 2 steps toward.opus  |  まぐまぐソフト  |  Piano de Kanon  |  172s  |  2.37MB
+/mnt/wsl/music/05. 木々の声と日々のざわめき.opus  |  まぐまぐソフト  |  Piano de Kanon  |  102s  |  1.54MB
+/mnt/wsl/music/06.  彼女たちの見解.opus  |  まぐまぐソフト  |  Piano de Kanon  |  94s  |  1.35MB
+/mnt/wsl/music/07. 日溜まりの町.opus  |  まぐまぐソフト  |  Piano de Kanon  |  178s  |  2.62MB
+/mnt/wsl/music/08. 雪の少女.opus  |  まぐまぐソフト  |  Piano de Kanon  |  271s  |  3.97MB
+/mnt/wsl/music/09. the fox and the grapes.opus  |  まぐまぐソフト  |  Piano de Kanon  |  187s  |  2.71MB
+/mnt/wsl/music/10. 笑顔の向こう側に.opus  |  まぐまぐソフト  |  Piano de Kanon  |  432s  |  6.17MB
+/mnt/wsl/music/11. 少女の檻.opus  |  まぐまぐソフト  |  Piano de Kanon  |  164s  |  2.42MB
+/mnt/wsl/music/12. 約束.opus  |  まぐまぐソフト  |  Piano de Kanon  |  291s  |  4.21MB
+/mnt/wsl/music/13. pure snows.opus  |  まぐまぐソフト  |  Piano de Kanon  |  251s  |  3.72MB
+/mnt/wsl/music/14. 冬の花火.opus  |  まぐまぐソフト  |  Piano de Kanon  |  172s  |  2.61MB
+/mnt/wsl/music/15. 霧海.opus  |  まぐまぐソフト  |  Piano de Kanon  |  258s  |  3.72MB
+/mnt/wsl/music/16. 凍土高原.opus  |  まぐまぐソフト  |  Piano de Kanon  |  288s  |  4.15MB
+/mnt/wsl/music/17. 夢の跡.opus  |  まぐまぐソフト  |  Piano de Kanon  |  201s  |  2.91MB
+/mnt/wsl/music/18. 生まれたての風.opus  |  まぐまぐソフト  |  Piano de Kanon  |  265s  |  3.95MB
+/mnt/wsl/music/19. Little fragments.opus  |  まぐまぐソフト  |  Piano de Kanon  |  213s  |  3.08MB
+/mnt/wsl/music/yanaginagi; 麻枝准/Love Song from the Water/01. Before I Rise.opus  |  yanaginagi; 麻枝准  |  Love Song from the Water  |  319s  |  3.94MB

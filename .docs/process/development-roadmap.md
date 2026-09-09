@@ -1,0 +1,127 @@
+# Development Roadmap
+
+**What this is:** the ordered list of what to build next, and the definition of "finished" for each stage. Work top to bottom. When you don't know what to do, do the first unticked box.
+
+- What *could* exist, by capability, with current status → `.docs/reference/capability-map.md`
+- Unranked idea pool → `.docs/features/feature-brainstorm.md`
+- Current state of the code → `.docs/STATUS.md`
+
+_Created 2026-09-08. Supersedes the earlier layer-split draft of this file._
+
+---
+
+## The three releases
+
+Each release has a **done-when** you can check by using the app, not by reading code. Nothing outside the current release gets built, however tempting.
+
+| | Release | Done when |
+|---|---|---|
+| **v0.1** | *It works for me* | You spend a whole evening listening to your own library in the browser, on your LAN, and never once reach for a file manager or `library-player.html` |
+| **v0.2** | *It works away from home* | You play music from your own server, on your phone, on a bike ride |
+| **v0.3** | *It works with friends* | Two people in different places hear the same song at the same time, and either can skip it |
+
+Everything else — Android Auto, EQ, lyrics, smart mixes, year-in-review, voice control, Wear OS — is **backlog**. It stays in the brainstorm pool and is not scheduled.
+
+---
+
+## v0.1 — It works for me (web, on the LAN)
+
+The theme is **surfacing what the backend already does**. Most of these are UI tasks against endpoints that are built and tested. Two backend items come first only because they unblock everything else.
+
+- [x] **1. Land the in-flight work.** ~17 modified files plus an untracked `TitleScreenPanel.tsx` are sitting uncommitted. Commit or revert before starting anything new.
+  *Done when:* `git status` is clean. — **done 2026-09-08**, three commits on branch `land-in-flight-work`: the `set-password` CLI, the navy/orange design-system migration, and the README refresh. Frontend and backend both build; backend tests pass 7/7.
+
+- [x] **2. Signed stream URLs** (backend). — **done 2026-09-08.** Add short-lived, single-purpose signed URLs for `/tracks/:id/stream` (a `?token=` the server mints from the session JWT, minutes-long expiry) so a plain `<audio src>` can play a track without a bearer header. Today [apiClient.ts:89](../../frontend/src/lib/apiClient.ts#L89) downloads whole files as blobs to work around this — which is why there's no seeking.
+  *Done when:* an `<audio>` element pointed straight at a stream URL plays and seeks, and an expired URL is rejected. — verified: 200 on a plain `?token=` GET with byte-identical output, 206 with a correct `Content-Range` on a range request, and 401 for expired / session-token-in-URL / media-token-as-bearer / missing / malformed credentials.
+
+- [x] **3. Real web player** (web). — **done 2026-09-08**, verified 20/20 in headless Chromium. Rebuild `PreviewPlayerBar` on top of step 2: a queue, a working seek bar, next/previous, shuffle via `POST /shuffle`, repeat, and keyboard shortcuts (space, arrows).
+  *Done when:* you can queue an album and it plays through unattended.
+
+- [x] **4. Cover art** (backend, then web). — **done 2026-09-08**, verified 10 backend + 10 browser checks. Extract embedded artwork during scan and upload, cache it to disk, serve `GET /albums/:id/cover` and `/tracks/:id/cover` with `ETag`/`Cache-Control` — using the same signed-URL scheme from step 2 so `<img src>` works. Then show it in the track list, the player bar, and the detail drawer, with a placeholder fallback.
+  *Done when:* your library looks like a music app instead of a spreadsheet. Also unblocks the Android client later.
+
+- [x] **5. Browse by album and artist** (web). — **done 2026-09-08**, verified 13/13 in headless Chromium. `/artists`, `/artists/:id`, `/albums`, `/albums/:id` are all built, tested, and called by nothing. Add an album grid and an artist page.
+  *Done when:* you can get from an artist to one of their albums to its tracks without using search.
+
+- [x] **6. Favorites in the UI** (web). — **done 2026-09-08**, verified 14/14 in headless Chromium. A heart on every row plus a favorites view. Backend is done.
+  *Done when:* you can favorite a track while it plays and find it again later.
+
+- [x] **7. Playlists in the UI** (web). — **done 2026-09-08**, verified 13/13 in headless Chromium. Create, rename, delete, add/remove tracks, drag to reorder. Full CRUD exists server-side already.
+  *Done when:* you build a real playlist and play it start to finish.
+
+- [x] **8. Scrobble from the web** (web). — **done 2026-09-09**, verified 19/19 in headless Chromium. Call `POST /tracks/:id/scrobble` when a track passes a play threshold. Nothing currently increments play counts, so the stats the backend collects are all zeros.
+  *Done when:* play counts climb as you listen.
+
+- [x] **9. Search that scales** (backend). — **done 2026-09-09**, verified 24 + 13 backend and 20/20 in headless Chromium. Replace the `LIKE '%x%'` scan in [browse.ts:313](../../backend/src/db/browse.ts#L313) with the FTS5 tables + triggers the project conventions already assume, and wire a search box in the web UI.
+  *Done when:* search is instant on the full library and matches mid-word.
+
+- [x] **10. Stop it booting insecurely** (backend). — **done 2026-09-09**, verified across seven real boot configurations plus 12 unit tests. `JWT_SECRET` falls back to `change-me`; refuse to start outside dev while it's still the default, so a real deployment can't quietly run on a guessable secret. (`backend/.env` is correctly gitignored — verified 2026-09-08.)
+  *Done when:* a production-mode boot with a default secret fails loudly.
+
+- [x] **11. A safety net** (backend). — **done 2026-09-09**, 103 checks across 10 test files. Tests for `scanner`, `trackFiling`, `streaming` byte-range math, and `token`, plus Fastify `.inject()` smoke tests for auth and admin gating. There is one test file in the repo today.
+  *Done when:* `npm test` would catch you breaking streaming or the scanner.
+
+---
+
+## v0.2 — It works away from home (hosting + Android)
+
+Hosting comes before the app, so there's a real server to point the phone at.
+
+- [x] **12. Docker image** (ops). — **done 2026-09-09**, verified by 16 HTTP + 12 browser checks against the production build; the `docker build` itself is unverified (sandbox networking) — run `docker compose up --build` to confirm. Required moving the API under `/api`, since the web app has its own `/albums`, `/search` and `/health` routes. Dockerfile + compose, ffmpeg in the image, volumes for the library and the DB, healthcheck wired to `/health`.
+  *Done when:* `docker compose up` on the home server serves your library.
+
+- [ ] **13. Reach it from outside** (ops). Resolve the open CGNAT question in `.docs/ops/infrastructure.md` first — it decides everything downstream — then pick VPN / tunnel / port-forward, and add TLS.
+  **Blocking prerequisite, re-opened 2026-09-09:** `POST /auth/register` is open to anyone again. It was closed earlier the same day, then deliberately re-opened at the owner's request so `/signup` works — `ALLOW_OPEN_REGISTRATION` now defaults to `true`. That is fine on the LAN and *not* fine the moment this step lands. Set `ALLOW_OPEN_REGISTRATION=false` in `backend/.env` before exposing the server; the backend prints a warning at every boot while it's on. Self-serve accounts are never admins and `/library/scan` is admin-gated, but a stranger with a listener account can still stream the whole library.
+  *Done when:* you load the web app on mobile data and it plays — **and an anonymous visitor cannot create an account.*
+
+- [x] **14. Back up the database** (ops). — **done 2026-09-09**, 9 new tests (135 total) plus a restore performed against the real database. Backups run at server start and every 24h into `<db dir>/backups/` (inside the container's `/data` volume), keeping 14. Uses SQLite's online backup API, not a file copy — in WAL mode `cp` can capture a database that opens fine and is silently missing recent writes. Each backup is reopened, switched to `journal_mode = delete` so it is one self-contained file, and `PRAGMA integrity_check`-ed before it counts.
+  *Done when:* you have restored from a backup at least one time. — **verified 2026-09-09**: a server booted against nothing but a restored backup file served 20 tracks, 5 play-history rows and a working login, with search intact. Done as an isolated copy rather than by overwriting the live database, so the drill risked nothing.
+
+- [ ] **15. Android Phase 0 — connect.** Scaffold Kotlin/Compose + Hilt + Retrofit, server-config screen, login, JWT in encrypted DataStore, distinct errors for unreachable host / 401 / TLS / bad URL. Verify the emulator reaches WSL2 on `http://10.0.2.2:3000`.
+  *Done when:* the app confirms a connection and stays logged in across restarts.
+
+- [ ] **16. Android Phase 1 — browse.** Artists → albums → tracks, search, cover art via Coil (needs step 4), loading and empty states, pull-to-refresh.
+  *Done when:* you can find any track in your library from the phone.
+
+- [ ] **17. Android Phase 2 — play.** Media3/ExoPlayer against the stream endpoint, byte-range seeking, queue, Now Playing screen, scrobble on play.
+  *Done when:* you tap a track on the phone and hear it.
+
+- [ ] **18. Android Phase 3 — background.** MediaSession, foreground service, lock-screen and notification controls, audio focus, auto-pause on headphone/Bluetooth disconnect.
+  *Done when:* playback survives locking the phone and is controllable from the lock screen.
+
+- [ ] **19. Offline downloads** (mobile). Download at original quality, manage the download queue, fall back to cache when the signal drops, data-saver mode via `?quality=low`. **[spec first]**
+  *Done when:* you play a downloaded album in airplane mode.
+
+---
+
+## v0.3 — It works with friends (room sync)
+
+The centerpiece. It lands here — not earlier — because syncing playback is only testable once two clients can actually play music.
+
+- [x] **20. User management UI** (web). — **done 2026-09-09**, pulled forward from v0.3 because gating registration removed the only non-CLI way to make an account; verified 20/20 in headless Chromium. Admins add users and reset passwords from the browser instead of SSH + a CLI script. Needed the moment a second person is involved.
+  *Done when:* you onboard a friend without touching a terminal.
+
+- [ ] **21. Room sync spec** **[spec first]**. Data model, drift tolerance, clock sync, reconnect/rejoin, who may skip. Write it into `.docs/specs/` before any code — this is the one part of the project with no reference implementation to copy from.
+  *Done when:* the spec answers "what happens when someone's phone loses signal for 30 seconds" without hand-waving.
+
+- [ ] **22. Room sync backend.** WebSocket transport authed with the existing JWT, in-memory room registry, presence, playback broadcast, join-mid-session catch-up, shared queue mutations.
+  *Done when:* two browser tabs stay in sync.
+
+- [ ] **23. Room sync clients.** Web room view + monitor, then the Android client side.
+  *Done when:* the v0.3 done-when above is true.
+
+---
+
+## Rules for adding new work
+
+The point of these rules is that the project stopped feeling shapeless the moment the list stopped growing faster than the code.
+
+1. **A new idea goes to the brainstorm pool, not the roadmap.** It gets scheduled only when it's part of the current release's done-when.
+2. **If it doesn't extend one of the nine capabilities** in `.docs/reference/capability-map.md`, it isn't fundamental. Park it.
+3. **Prefer surfacing over building.** If the backend already does something the UI doesn't show, that work beats a new endpoint almost every time.
+4. **Finish the release before starting the next one.** Half of v0.1 plus half of v0.2 is worth less than all of v0.1.
+5. **Tick the box here and update `.docs/STATUS.md` in the same change** — same rule as the changelog.
+
+## Deliberately not doing
+
+Recorded so these stay decided instead of getting re-litigated: Subsonic API compatibility, multi-tenancy, external auth providers, sharing links, jukebox mode, transcoding profiles per client, a plugin system, and anything that treats this as a product for strangers. It is a personal server for a handful of known people.

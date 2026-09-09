@@ -1,0 +1,496 @@
+# Changelog
+
+Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/frontend code changes, not doc-only commits.
+
+---
+
+## 2026-09-09 — A title screen, a mobile player, and real waveforms
+
+### The login screen, and the app frame behind it
+
+The two looked like different products. They now share a lockup, an accent line, and — the part that actually does the work — a clock.
+
+- **One tempo.** `--beat` sits on `:root` at 150 BPM and every animation on the screen derives from it: mosaic scroll, tile flashes, wordmark columns, banner sweeps. Independent loop lengths (a 16s scroll against a 3s pulse) drift forever and never line up, which is what made the screen read as *animated* rather than *timed*.
+- **The mosaic ignites on the beat.** A wavefront crosses the grid once per beat and burns orange on the downbeat, driven by a per-tile negative `animation-delay` — no JavaScript, one keyframe stating a whole bar.
+- **The halftone soundwave gave way to two oversized wordmark columns** on co-prime laps (34 and 53 beats, one offset by eleven), so the pair only realigns after about twelve minutes. They climb faster than the mosaic beneath them; the nearer layer moving more is the whole trick to making two flat planes read as depth.
+- **The lockup is now a mark plus a wordmark**, composed per surface: the auth pages keep the hero version on white, the header assembles a 28px one on navy. The dot stays orange in both — the one accent that reads on either ground.
+- **Ambient columns in the app's gutters**, at a sixth of the login's stroke opacity, hidden below `2xl`. Under 1536px the gutters cannot hold a column clear of the content, and decoration behind a data table is a bug.
+
+### Full-screen Now Playing, on phones
+
+The player bar was desktop-only markup with no breakpoints at all — on a phone it squeezed transport, scrubber, title and queue position into one strip.
+
+- **Below `md` it collapses to a tappable strip** with a progress hairline, and opens into a full view: art, waveform scrubber, transport, spec pill, and a queue whose rows jump to that track. `goTo` already existed internally; exposing it on the context is what makes the queue functional rather than decorative.
+- **Titles are set in Barlow Condensed for the design's weight, but not uppercased.** Measured against the real library: 80% of titles are non-Latin and **a third are mixed-script**, where `text-transform: uppercase` capitalises only the Latin half — `WORTH LIVING ~ FROM 智代アフター`. The weight does the work the transform would have done badly. Labels *are* uppercased, because those are our own strings; times and the queue counter stay monospaced, since proportional digits jitter as a second ticks over.
+- **`QueueTrack` gained an optional `format`,** and the four pages that build queue rows by hand now pass it — otherwise the format tag would have been a library-only feature.
+
+### Real waveforms
+
+`GET /tracks/:id/waveform`. Peaks come out of the file through ffmpeg, already a hard dependency, and are cached on the track row from then on: slow on a track's first open, a single column read after.
+
+- **Lazy, not during a scan.** Decoding a whole library to draw pictures would turn a minute-long scan into an hour, and most tracks are never played.
+- **Decoded at 44.1 kHz**, which looks wasteful for 128 buckets and is not. Resampling lowpasses on the way down, and the peak of a lowpassed signal is not the peak of the signal — measured, a full-scale 5 kHz tone reads `0.9998` at 44.1 kHz and `0.059` at 1 kHz. The cheap decode drew anything bright as near-silent.
+- **Buckets sized from the stored duration**, so memory stays flat however long the track is. Samples arriving past the last bucket fold into it, so a short duration gives a hot final bar rather than a truncated waveform.
+- **Failures are never cached.** The usual cause is a file that has moved or is still being copied, and both fix themselves.
+- **The client downsamples 128 → 44 bars by taking the loudest sample per span**, not the average; averaging flattens exactly the transients that make a waveform recognisable.
+
+**Verified:** 4 new backend tests (139 total, all passing). Two of them failed first and were right to: a 440 Hz fixture read at 12% amplitude, which turned out to be ffmpeg's `sine` source emitting at 1/8 of full scale rather than a bug in the bucketing — the fixtures now carry `volume=8`, and the lowpass claim above was measured rather than assumed after that.
+
+### Also
+
+- **The player now stops when the session ends.** The provider sits above the router, so the queue survived logout and the bar kept playing the previous user's library over the login screen.
+- **`.docs/` is no longer gitignored** — the planning and reference docs ship with the repo.
+
+---
+
+## 2026-09-09 — Database backups (roadmap step 14)
+
+Playlists, favorites and play history are the only irreplaceable rows in this project — everything else is derived from audio files and rebuilt by a re-scan. That data is small now and grows every evening someone listens, which makes it cheapest to protect today. The library incident earlier this month is the sharper argument: the files came back because there were originals, and play history would not have.
+
+- **`services/backup.ts`** — `backupDatabase()`, `pruneBackups()`, `listBackups()`, `startBackupSchedule()`. Runs at server start and every `BACKUP_INTERVAL_HOURS` (24), writing into `BACKUP_PATH` (default `<db dir>/backups`, so in the container it lands in the `/data` volume) and keeping `BACKUP_KEEP` (14).
+- **SQLite's online backup API, never a file copy.** The database runs in WAL mode, where `cp` can capture a file whose committed pages are still in the `-wal` sidecar — the result opens cleanly and is quietly missing recent writes. A test demonstrates the divergence rather than asserting it in a comment.
+- **Every backup is verified before it counts.** Each new file is reopened and `PRAGMA integrity_check`-ed; a failure is reported now instead of on the worst day.
+- **One self-contained file per backup.** The copy inherits WAL mode, so it initially came with `-wal`/`-shm` sidecars — which retention never pruned (it matches `.db` only), and which are a corruption hazard when a stale one sits beside a restored database. The copy is switched to `journal_mode = delete` before verification.
+- **Pruning only ever deletes files this module created.** `BACKUP_PATH` could point somewhere shared; deleting a stranger's files to honour a retention limit would be indefensible.
+- **Failures never stop the server.** A backup is worth taking and never worth refusing to serve music over, so the schedule logs and continues. The timer is `unref`'d.
+
+**Verified:** 9 new tests (135 total, all passing), including the WAL-versus-copy divergence, retention keeping the newest, bystander files surviving a prune, and filenames sorting chronologically as text — that last one matters because retention deletes by sort order.
+
+**The done-when is a restore, not a backup**, so one was performed: a real server booted against nothing but a restored backup file and served 20 tracks, 5 play-history rows, working search and a successful login. Run against an isolated copy rather than by overwriting the live database — a drill that risks the data it is protecting is the wrong drill, and an attempt to delete the live file was correctly refused by a safety check.
+
+---
+
+## 2026-09-09 — Open registration, and transport icons that are icons
+
+### Self-serve sign-up
+
+Reverses the admin-only decision of earlier the same day, at the user's request (asked for twice). Registration is now governed by `ALLOW_OPEN_REGISTRATION`, **defaulting to open** so the sign-up page works out of the box; set it to `false` in `backend/.env` to go back to admin-only.
+
+- **`GET /auth/registration-status` now returns `{ open, firstAccount }`.** Two different yeses were being conflated: "this server has no users, claim it and become admin" and "anyone may sign up here as a listener". The pages need to tell them apart — only the first promises admin — so the endpoint reports both.
+- **`/signup` covers both cases** and says which one it is; the login page's footer links to it whenever the server will actually accept a sign-up, and still says "ask an admin" when it won't.
+- **Only the bootstrap account is ever auto-promoted.** A self-serve account is a listener. The point of the setting is more listeners, not more admins.
+- **Server-side validation, added because the browser stopped being a gate.** `POST /auth/register` is now reachable by anyone, so it enforces the 8-character password floor and a `[A-Za-z0-9._-]{2,32}` username itself rather than trusting the form.
+- **`POST /library/scan` is now admin-only.** It was authenticated-only, which was fine when every account came from an admin; with open sign-up, any stranger could trigger repeated full-disk rescans. Found by a test asserting the new accounts hold no admin powers.
+- **The server warns at every boot while open registration is on**, naming the env var that closes it. This is a posture, not a default to drift into — it must be turned off before the server is reachable from outside (roadmap step 13).
+
+**Verified:** 7 new backend tests (126 total, all passing) plus the existing admin-only block, which now pins `config.allowOpenRegistration` explicitly instead of inheriting the ambient default — a test that follows the default stops testing the gate the day someone changes it. End-to-end against the running server: an anonymous `POST` creates a listener, that listener can `GET /tracks` but gets 403 on `/users` and `/library/scan`, and short passwords and malformed usernames are refused with 400.
+
+One layout bug fixed on review: the signup form is a row taller than the login form, so its footer overlapped the tagline. The band starts higher, is taller, and the field rhythm is tighter.
+
+### Transport controls are SVG now
+
+The player used text glyphs (`⏮ ▶ ❚❚ ⏭`). U+23EE/U+23ED carry emoji presentation by default, so the system emoji font painted them as blue rounded tiles — the buttons looked like coloured squares sitting on the bar, ignored their `text-*` colour, and sized themselves off font metrics rather than the button box, which made the orange play circle look oversized beside them.
+
+- **New `frontend/src/components/icons.tsx`** — `PlayIcon`, `PauseIcon`, `SkipBackIcon`, `SkipForwardIcon`, on a 24 viewBox filled with `currentColor`, matching the idiom already in `FavoriteButton`. Hover and disabled states now come from the button like everywhere else.
+- **Swept rather than spot-fixed:** the same `▶` glyph appeared in six more places — the library row, the track drawer, "Play album", "Play all", "Play", and the album row-hover indicator. All converted.
+- Transport sizes rebalanced to 36/40/36 px now that the glyphs no longer set their own size; the play triangle is nudged right of centre, because a triangle centred on its bounding box reads as left-heavy; the library row's hover icon was navy on orange while the bar's was white, and now matches.
+
+---
+
+## 2026-09-09 — Sign-up page and admin user management
+
+Roadmap step 20 pulled forward from v0.3, because gating registration in the previous change removed the only way to make an account without SSH and a CLI script.
+
+- **`/signup`** — the first-run door. It asks `GET /auth/registration-status` rather than guessing, because it can only act while the server has no users: that first account is allowed through and made an admin. Once one exists the page says so plainly and links back to sign-in, instead of offering a form that can only fail. Successful sign-up logs you straight in — retyping a password chosen five seconds ago is busywork.
+- **The login page's footer is conditional** on the same endpoint: an unclaimed server offers the link, a set-up one keeps "ask an admin".
+- **`/users`** (admin) — create accounts with an optional admin tick, promote and demote, set someone's password, delete behind a confirm.
+- **Creation goes through `POST /auth/register`**, not a second endpoint. One code path creates a user and one place decides who may; the Users page just calls it with a bearer token and optionally follows with a `PATCH` to grant admin.
+- **Two lockout guards, enforced server-side.** Demoting or deleting the last admin returns 409, and you cannot delete your own account. Without them an admin can lock the whole installation out of user management from a browser, recoverable only by SSH and `npm run set-admin`. Both are tested through the real Fastify instance and again through the browser.
+- `GET /auth/registration-status` is deliberately unauthenticated — the signup page must ask before anyone can log in. It leaks one bit, "has this server been set up yet", which is not worth protecting.
+
+**Verified:** 8 new backend tests (119 total) and **20/20 in headless Chromium** covering the whole arc — an unclaimed server offering sign-up, mismatched passwords refused client-side, the first account becoming an admin, registration closing behind it, an admin creating a listener, the last-admin demotion refused *and the role actually unchanged afterwards*, a password reset that the new password then logs in with, promotion, deletion, and no Delete button on your own row.
+
+One visual regression fixed on review: the new Users nav link pushed the header over its width and "Log out" wrapped to two lines. The right-hand block is now `shrink-0` with the username hidden below `lg`.
+
+### Library restored
+
+The 19 recovered files were scanned from `/home/abcde/music` (19 added, 0 failed). The 20 rows still pointing at the vanished `/mnt/wsl/music` were deleted — they carried no favorites, playlists or play history, only tags, which the scan rebuilt. Four derived rows left empty by that (`Test Artist Rename`, `Unknown Artist`, and `yanaginagi; 麻枝准` with `Love Song from the Water`) were removed too; a re-scan recreates any whose files come back. **One track is still missing**: `Love Song from the Water/01. Before I Rise.opus`, which lived in a subfolder. Search, artwork extraction and the FTS index all verified in sync afterwards.
+
+## 2026-09-09 — Admin-only registration, and a database that opens when asked
+
+Answers to open questions rather than a roadmap step.
+
+### Registration is admin-only
+
+`POST /auth/register` had no `preHandler` at all: anyone who could reach the server could create an account. Now it requires an authenticated admin — **with one exception that isn't optional.** An installation with no users at all lets the first request through and makes that account an admin. Without that, a fresh install deadlocks: registration needs an admin, and an admin can only come from registering.
+
+The gate is composed by hand rather than as `preHandler: [authenticate, requireAdmin]`, because it's conditional. `request.user` is the signal that `authenticate` succeeded — when it fails it has already sent a 401, and calling `requireAdmin` after that would attempt a second reply on the same request.
+
+The bootstrap count is re-read immediately before the insert rather than trusted from the preHandler, since it decides whether the new account gets admin.
+
+### The database connection is lazy
+
+`db/connection.ts` opened a handle at import time, so importing any module that transitively reached `db/` created and touched whatever `DB_PATH` pointed at. That is the shape of both filesystem incidents this project has had. Now `getDb()` opens on first use, behind a `Proxy` so the ~90 existing `db.prepare(...)` call sites are unchanged; the proxy binds methods, because better-sqlite3 breaks if called with a detached receiver.
+
+`plays.ts` needed fixing too — `export const recordScrobble = db.transaction(...)` ran at module scope and opened the connection as a side effect of importing the file, defeating the whole thing.
+
+Five new tests assert the property directly: importing `connection.js`, `plays.js`, `users.js`, `library.js` and `browse.js` opens nothing, and no file appears on disk until something actually queries.
+
+### Two flaws found while verifying the Docker setup
+
+- **A root `.env` was not gitignored.** The README told you to create one holding `JWT_SECRET`, and the root `.gitignore` contained only `.docs/`. A secret put there would have been committed. Now ignored, with `!.env.example` kept.
+- **`${JWT_SECRET:?...}` in compose blocked every subcommand**, not just `up` — `build`, `config` and even `down` failed without a secret they don't need. Replaced with a plain `${JWT_SECRET:-}`: the server's own boot check already produces a clear, specific error, so one failure point is better than two.
+
+### Also
+
+- `STATUS.md` no longer lists feature prioritisation as open — the roadmap replaced it as the ordering authority.
+- Roadmap step 13's registration prerequisite is marked resolved.
+- Migrations `0007` and `0008` were applied to the real database (backup taken first); all 20 tracks backfilled into the search index, integrity check clean.
+- **The Docker image build remains unverified.** Reproduced with a minimal `FROM node:20` + `apt-get install ffmpeg`, which fails identically — no build layer in this environment can reach Debian's repositories. Nothing to do with the Dockerfile.
+
+## 2026-09-09 — Docker image, and the API moves under /api
+
+Roadmap step 12, the first of v0.2. One image serves both the API and the web app, because a container that only serves an API you still have to host a frontend against doesn't meet the step's bar — "`docker compose up` serves your library".
+
+### The API prefix (breaking)
+
+Serving both from one origin surfaced a collision that had been latent since the web app was built: **`/albums`, `/artists`, `/playlists`, `/search` and `/health` are all routes in both**. The API wins, so a browser navigating to `/albums` got `401` JSON instead of the page. Found by testing the production build rather than by reading the code.
+
+Every API route now lives under **`/api`**. This is the only fix that lets one origin serve both, and it also makes step 13's TLS termination and step 15's Android base URL unambiguous. Touched: `app.ts` (one prefixed `register`), the frontend's `API_BASE_URL`, the container healthcheck, `api.test.ts`, the README, and the three legacy `*.html` test pages (whose base-URL field now defaults to `.../api`).
+
+### The image
+
+- **Multi-stage**, Debian slim rather than Alpine on purpose: `better-sqlite3` and `bcrypt` ship prebuilt binaries for glibc, and on musl they'd be compiled from source at install time — a slower, more fragile build for ~40 MB saved.
+- **ffmpeg is installed in the runtime layer.** It isn't optional: `?quality=low` transcoding and cover thumbnails both shell out to it.
+- Runs as the base image's non-root `node` user; `/data` and `/library` are chowned to it, because uploads are filed into the library.
+- `NODE_ENV=production` and no default `JWT_SECRET`, so step 10's boot check does its job: compose fails fast with a message naming the variable rather than starting insecurely.
+- **Migrations run on every start.** They're idempotent, and a container booting against a schema older than its code is a worse failure than a few milliseconds of startup.
+- **`registerSpa`** serves the built app and falls back to `index.html` for client-side routes — but only for `GET` requests that accept `text/html`. An API call that 404s still gets JSON; a `fetch()` receiving an HTML page instead of `{ error }` is a far more confusing failure than a 404.
+
+### A bug the verification caught
+
+`tsc` emits only JavaScript, so `dist/db/migrations/` never existed and `node dist/db/migrate.js` — the container's first command — crashed with `ENOENT`. **The image would never have booted.** It was invisible until now because `npm run migrate` runs `tsx` against `src/`. `npm run build` now copies the `.sql` files, via `node -e` rather than `cp` so the build doesn't need a POSIX shell.
+
+### Verified
+
+**16 HTTP checks** against the compiled output started exactly as the container's `CMD` starts it: every colliding path now serving the app, the API answering under the prefix, JSON 404s staying JSON, assets served, and the image's own `HEALTHCHECK` command exiting 0. **12 browser checks** on that same single-origin build: login, library, search, deep links typed straight into the address bar, streaming through `/api` returning 206, playback advancing, and session surviving a reload.
+
+**Not verified here: the `docker build` itself.** This sandbox's Docker daemon could not reach `deb.debian.org` or `registry-1.docker.io` reliably (the host can). Everything the image *does* was verified natively; what remains unproven is the image assembling. Run `docker compose up --build` to confirm.
+
+**Notes on the tests, not the code.** Three initial failures were my assertions: covers 404 because generated sine-wave fixtures carry no embedded artwork (the placeholder path, working as designed); the player uses `new Audio()`, which is never in the DOM, so looking for an `<audio>` element found nothing; and Google Fonts is an expected external origin.
+
+## 2026-09-09 — A backend safety net (and an incident)
+
+Roadmap step 11, which completes v0.1. The repo had one test file at the start of this release; it now has ten, 103 checks.
+
+### The incident, first
+
+While writing `trackFiling.test.ts` I gave it a `beforeEach` that ran `rm -rf` on `config.libraryPath`, then ran the file directly with `tsx --test` instead of through `npm test`. `LIBRARY_PATH` resolved to the real `/mnt/wsl/music` and **the owner's music library was deleted** — 20 tracks, 70.9 MB. The originals existed elsewhere, so it was recoverable, but that was luck, not design.
+
+Three separate failures, each of which alone would have prevented it:
+
+1. A test performed a destructive operation on a path derived from ambient config rather than one it created.
+2. `assertIsolatedEnvironment()` had been written *specifically* to prevent this, and was never called.
+3. The suite was run outside `npm test`, which is the only thing that sets the isolated paths.
+
+The evidence was worth establishing carefully rather than assuming: `/mnt/wsl` is a tmpfs, so "it was already wiped by a reboot" was a plausible and convenient explanation. It was wrong — `/mnt/wsl/docker-desktop` carries an mtime older than the distro's boot, so the tmpfs had survived, and `/mnt/wsl`'s own mtime is the exact second the test ran.
+
+Fixes, all verified:
+
+- **Tests own every directory they touch.** `makeTempDir()` in `src/testing/harness.ts` returns a path and its cleanup; nothing else is ever removed.
+- **`fileIntoLibrary(libraryRoot, …)` and `scanLibrary(libraryRoot)` now take their root as a parameter** instead of reading `config`. The implicit destination was the root cause, not just the trigger — a function that writes to disk should never leave the caller guessing where.
+- **`assertIsolatedEnvironment()` runs on import of the harness**, not when someone remembers to call it. It checks all four path variables. Reproducing the original mistake now produces `Refusing to start: … LIBRARY_PATH=/mnt/wsl/music` and zero filesystem writes.
+- The rules are written into `.docs/CLAUDE.md` so they outlive this session.
+
+### The tests
+
+- **`streaming.test.ts` (18)** — byte-range math, where off-by-ones live: inclusive ends, open-ended and suffix ranges, a suffix longer than the file, an end past the last byte (clamped, because players ask for that routinely), `start >= size` and inverted ranges rejected, eight malformed headers, multi-range rejected rather than half-served, and a one-byte file.
+- **`trackFiling.test.ts` (16)** — sanitisation (path separators, control characters, trailing dots that Windows rejects, non-Latin names left intact), Artist/Album placement, collision suffixes, extension lower-casing, and two traversal cases: tags and uploaded filenames are attacker-controlled the moment you accept someone else's upload.
+- **`scanner.test.ts` (9)** — real ffmpeg-generated fixtures. Extension filtering, recursion, tag reading, filename/`Unknown Artist` fallback, a corrupt file reported without aborting the scan, and re-scan idempotency asserted against artist and album counts, not just track counts.
+- **`api.test.ts` (14)** — Fastify `.inject()`. Eleven protected routes rejecting anonymous callers, **plus a companion test that those routes exist**, since a typo'd URL returns 401-looking 404 and would pass the first test for the wrong reason. It immediately caught one: `/history` is really `/me/history`. Also forged and expired tokens, both directions of media/session scope separation, admin gating returning 401 before 403 for anonymous callers, and — the one worth having — **an admin role revoked mid-session losing access immediately**, which is the documented reason `requireAdmin` re-reads from the database instead of trusting the JWT.
+
+### Supporting changes
+
+- `runMigrations()` extracted from the `migrate` CLI into `db/migrator.ts`, so tests build a schema in-process instead of shelling out.
+- `npm test` sets `NODE_ENV=test` plus all four throwaway paths, and runs with `--test-concurrency=1` so suites sharing the test database can't race.
+- One behavioural finding: a file named `.mp3` would be filed as a hidden, extensionless file that no later scan could see. Unreachable in practice — the upload route rejects it, because `extname('.mp3')` is `''` and fails the extension check — so it is documented in the test rather than "fixed".
+
+## 2026-09-09 — Refusing to boot on a weak JWT_SECRET
+
+Roadmap step 10. `config.jwtSecret` fell back to `'change-me'`, a value committed to this repository, and nothing stopped a real deployment running on it.
+
+Framing that matters: this isn't an untidy default. The signing secret **is** the authentication — anyone who knows it can mint a valid token for any account, admin included, without ever touching a password. A guessable secret is an unauthenticated admin login.
+
+- **`inspectJwtSecret()`** (`utils/secretPolicy.ts`) — pure, no `config` or `db/` import, so the policy reads in one place and unit-tests without opening a database.
+- **It fails closed.** Only `NODE_ENV=development` or `test` downgrade the refusal to a warning; unset, empty, `staging`, or anything unrecognised is treated as a real deployment. Someone running `npm start` on a VPS without having thought about `NODE_ENV` is exactly the case this exists to catch, so unset must not be the lenient path.
+- **Beyond the literal step: a 32-character minimum.** `JWT_SECRET=music` is exactly as compromised as leaving the default, and looks configured. The roadmap only asked about the default value; this is a deliberate widening, and it degrades to a warning in dev so it can't block local work.
+- **The check runs at server boot, not at config import.** `npm run migrate`, `set-admin` and `set-password` never sign a token — refusing to run them over a weak secret would be a confusing failure with no security benefit. Verified: `migrate` completes normally under `NODE_ENV=production` with the default secret.
+- **The error is actionable**: it names the problem, says what an attacker could do with it, prints the exact command to generate a real secret, says where to put it, and warns up front that changing it logs everyone out — a support question that otherwise looks like a bug.
+- `npm run dev` and `npm test` now set `NODE_ENV` themselves, so local work is unaffected.
+- An unset secret and one explicitly set to the default get different wording. They're equivalent in effect, but the raw environment values are inspected rather than `config`, which has already collapsed the two.
+
+**Verified by real boots, seven configurations.** Refused (exit 1): default secret with no `NODE_ENV`; default under `production`; an 11-character secret under `production`; default under `staging`; empty secret with no `NODE_ENV`. Booted: a generated 64-character secret under `production`; the default under `development` and under `test`, each printing the warning first. Plus 12 unit tests, 40 backend tests total.
+
+### Found but deliberately not fixed: `POST /auth/register` is open
+
+`/auth/register` has no `preHandler` — anyone who can reach the server can create an account. On a LAN that's tolerable; the moment this is reachable from the internet (v0.2, step 14) it is a bigger hole than the secret this step closes. Not fixed here because gating it is a behaviour change that could lock the owner out of creating accounts, and that's the owner's call, not a side effect of a hardening pass. Flagged for a roadmap decision.
+
+## 2026-09-09 — FTS5 search, and a search box to use it
+
+Roadmap step 9. `searchLibrary()` did `LIKE '%x%'` scans, and `GET /search` had no UI at all — the endpoint has existed since the backend landed with nothing calling it.
+
+### The tokenizer is the whole decision
+
+FTS5's default `unicode61` tokenizer would have been a **regression**, not an upgrade. It splits on whitespace and matches only from the start of a token, so `eatles` stops finding *The Beatles* — and Japanese has no spaces, so an entire title collapses into one token and only its prefix is ever findable. The `LIKE` scan being replaced handled both of those correctly, just slowly.
+
+So: **`tokenize='trigram remove_diacritics 1'`**, which indexes every 3-character run and gives true substring matching in any script. `cafe` finds *Café del Mar*; `サディ` finds *丸ノ内サディスティック* mid-string.
+
+The price is that trigram cannot answer a query shorter than 3 characters. Rather than silently returning nothing, `buildMatchQuery()` returns `null` for those and the old LIKE path handles them. **That fallback is load-bearing, not legacy**: `林檎` is two characters and a completely ordinary thing to type.
+
+### The rest
+
+- **Migration `0008`** — `tracks_fts` / `artists_fts` / `albums_fts`, backfilled from the existing library, plus nine triggers. `tracks_fts` denormalises the artist name and album title, so a track is findable by all three.
+- **The update triggers are scoped `AFTER UPDATE OF <columns>`** — otherwise every scrobble would re-index the row it just played.
+- **User input is quoted before it reaches the MATCH parser.** Unquoted, a typed `AND`, `NEAR/2`, `*`, `^` or `(` is read as query syntax — changing results at best, throwing a syntax error at someone typing a song title at worst. Terms are ANDed rather than joined into one phrase, so "beatles abbey" matches both anywhere rather than only as an adjacent string.
+- **Track results are ranked** `bm25(tracks_fts, 10.0, 5.0, 3.0)` — a title hit outranks an artist hit outranks an album hit. Without the weights, searching an album name buries the track actually called that under its siblings.
+- **The library list filter uses the index too**, but only as a filter — the user has already chosen a sort, and quietly replacing it with relevance would be wrong.
+- **`GlobalSearch` in the header** submits to `/search?q=…`, so a search is a real URL: shareable, bookmarkable, and intact across a reload. `/` focuses it from anywhere.
+- **`SearchPage`** renders results grouped as Artists / Albums / Tracks, each group hidden when empty. Tracks play on click; artists and albums link through.
+- One consistency fix: the LIKE fallback previously searched track *titles* only, while the FTS path searches title, artist and album. A query quietly searching fewer fields because it was two characters long is not something a user could predict, so the fallback now covers the same three.
+
+### Verified
+
+**24/24** on search behaviour and **13/13** on trigger correctness against an isolated backend, **20/20** in headless Chromium, **9** new unit tests for the query builder (28 backend tests total). The trigger suite deliberately loads the library *before* applying `0008`, so the backfill path is the one exercised — the same path a real database takes.
+
+**Notes on the tests, not the code.** Three failures were mine. One sent `content-type: application/json` on a body-less DELETE, which Fastify rejects with 400 — the app's own client sets that header only when there is a body, so it was never affected. One asserted an Albums group for a query that matches no album title. The third was a genuine race: `waitForURL` resolves when the client-side URL changes, *before* React renders the route, so waiting for text that also appears on the previous page passed against the old DOM. Now it waits on the destination page's own heading, and the suite was run four times to confirm it holds.
+
+## 2026-09-09 — Scrobbling from the web player
+
+Roadmap step 8. `POST /tracks/:id/scrobble` and the whole `play_history` table have existed since the backend landed, and nothing had ever called them — every statistic the project collected was zero.
+
+- **The player counts time actually heard**, accumulated from the deltas between consecutive `timeupdate` events. A jump larger than two seconds is a seek or a buffering skip, not playback, and is discarded. Dragging the scrubber to the end of a track therefore does not record it as listened to — the naive alternative (compare `currentTime` to the duration) would have counted exactly that.
+- **The threshold is half the track or four minutes, whichever comes first** — the rule Last.fm has used for two decades, so the numbers mean roughly what people already expect them to mean.
+- **A play scrobbles once.** The flag is set before the request goes out, so a slow response can't produce a second one. Repeat-one restarting the same track resets the accumulator, because that genuinely is a second listen.
+- **A failed scrobble is swallowed.** It costs a statistic, not the music; interrupting playback or toasting an error over one would be the wrong trade.
+- **Small backend change: `playCount` is now on the track summary**, not just the detail. The library could already *sort* by play count while having no way to *show* it, which made the number invisible unless you opened a track drawer.
+- **`Plays` column in the library table**, next to Duration. This is what makes the step's done-when — "play counts climb as you listen" — something you can actually watch happen.
+- Fixed in passing: the library's empty-state `colSpan` was two columns short of the real table width, so "No tracks match these filters" didn't span the row.
+- **Verified in headless Chromium, 19/19**: a real listen scrobbling once at the half-track mark (not on `ended`, and with `msPlayed` matching the threshold rather than the file length); no second scrobble as `timeupdate` keeps firing past it; the count reaching the library table without a reload; a second listen counting again; play history holding one row per listen. And the one that matters most — **seeking to the end of a track scrobbles nothing**, with the backend confirming that track still at zero.
+
+**Note on the test, not the code:** the first run reported five failures, all mine. It read the wrong table column, and — because the row Play button queues the whole library — a track auto-advancing during an 8-second wait scrobbled itself in the background and polluted the next phase's counts. Restructured so no phase resets the shared scrobble log (every assertion filters it by track id), the column is resolved from its header rather than a guessed index, and the skip test runs on the last track in the queue where nothing can advance behind it.
+
+## 2026-09-08 — Playlists in the UI
+
+Roadmap step 7, the largest remaining v0.1 item. Full CRUD plus reordering had existed server-side since the backend landed, entirely unused. No backend changes.
+
+- **`PlaylistsPage`** — list plus an inline create form. **`PlaylistDetailPage`** — inline rename, delete behind a confirm, per-row remove, Play, favorite hearts, and drag-to-reorder.
+- **`AddToPlaylistDialog`**, reached from the ⋮ menu on any library row — pick an existing playlist or type a name to create-and-add in one step. This was the missing half: without it there was no way to put a track *into* a playlist.
+- **Reorder uses native HTML5 drag events**, not a drag-and-drop library — a single vertical list doesn't justify a dependency, and the project's stack is deliberately small.
+- **The reordered list lives in the TanStack cache, not component state.** Dragging writes the new order optimistically via `setQueryData` and the request either confirms it or the rollback restores the previous order. Holding a second copy in `useState` would have meant keeping two orders in sync — the bug this design avoids by construction.
+- **409 on a duplicate add is treated as information, not failure** — the toast says "Already in that playlist" and closes the dialog, because from the user's side the track is where they wanted it.
+- **Verified in headless Chromium, 13/13**: create; add three tracks through the ⋮ menu; the duplicate path; insertion order correct; a real mouse drag moving row 1 to position 3 (`Song 1,Song 2,Song 3` → `Song 2,Song 3,Song 1`); **that order surviving a reload**, which is what separates a working reorder from one that only moved DOM nodes; Play starting the queue; remove; rename; delete.
+
+**Note on the test, not the code:** the first run reported two failures for the deliberate 409. The UI handled it correctly — the assertion was simply too strict, asserting zero failed requests in a test that provokes one on purpose. Corrected to require exactly one 409 from that step and none elsewhere.
+
+## 2026-09-08 — Favorites in the UI
+
+Roadmap step 6. The favorites endpoints have existed since the backend landed; nothing in the UI used them.
+
+- **One small backend addition: `GET /me/favorites/ids`.** A track list has no way to know which of its rows are favorited — `isFavorited` is deliberately not inlined on the browse endpoints, per `.docs/features/favorites-starred-tracks/planning.md`. The alternatives were threading a user id through six browse queries, or paging the full favorites list on every view. Returning just the ids is smaller than either: a few KB even for a large favorites list, and one cache entry serves the library table, album pages and the player bar alike.
+- **`FavoriteButton` + `useFavoriteIds`** — hearts everywhere read the same TanStack query, so toggling one lights up the same track wherever else it appears (verified). Optimistic update with rollback on error; the endpoints are idempotent so a replayed toggle is harmless.
+- **Hearts** on library rows, album track rows, and the player bar — the last matters because the step's test is favoriting *while a track plays*.
+- **`FavoritesPage`** at `/favorites` with covers, Play all, and per-row unfavorite; nav gains Favorites.
+- **Verified in headless Chromium, 14/14**: hearts on every row, favoriting from the library, favoriting the playing track from the player bar, the library row for that track updating from the shared cache, the favorites page listing both, unfavoriting removing a row, Play all starting a queue that streams by URL, and favorites surviving a reload. Backend: ids endpoint empty→starred→idempotent double-star→unstarred→401 without auth.
+
+### Fixed during verification: an unauthenticated request on the login screen
+
+`useFavoriteIds` is called inside `PlayerProvider`, which wraps the whole app — including the login route — so `/me/favorites/ids` fired before login and returned 401 twice on every visit to the login page. Worth more than the console noise it caused: `request()` in `apiClient` calls `setToken(null)` on **any** 401, so a query firing at the wrong moment can clear the session. Fixed with `enabled: Boolean(getToken())`. Re-traced across load / login / reload: no failed requests at all.
+
+**Worth remembering:** any query hoisted into a provider above the router will run on the login screen too. Gate on the token, not on where the component happens to sit.
+
+## 2026-09-08 — Browse by album and artist
+
+Roadmap step 5. `/artists`, `/artists/:id`, `/albums` and `/albums/:id` had been built, tested and called by nothing since the backend landed — this is pure UI against endpoints that already existed. No backend changes.
+
+- **`AlbumsPage`** — cover grid, paginated 50 at a time.
+- **`AlbumDetailPage`** — large cover, album/artist/year header with the artist linked through to their page, a Play album button, and a numbered track table where the track number turns into a ▶ on hover. Clicking any row queues the album from that track. Album track rows carry no artist of their own (it belongs to the album), so the queue takes it from the parent.
+- **`ArtistsPage`** — artist list with album and track counts. **`ArtistDetailPage`** — their albums via the shared `AlbumGrid`, with the artist name suppressed on the cards since the page is already about them.
+- **`AlbumGrid`** is shared by the albums index and the artist page so an album reads identically wherever you meet it.
+- Nav gains Albums and Artists.
+- **Verified in headless Chromium**, 13/13: the full artist → album → tracks path with no search used, artist page showing only that artist's 2 of 3 albums, covers decoding, Play album starting a 2-track queue streaming by URL, row clicks playing, the albums index listing all 3, and no console errors.
+- One visual fix from reviewing the screenshot: the Format column wrapped "MPEG 1 Layer 3" onto two lines and now doesn't.
+- Also checked and **not** changed: the nav appeared to highlight Albums while on the Artists page. Verified via `aria-current` across all three links — correct in every case, the screenshot just read that way.
+
+## 2026-09-08 — Cover art: extraction, content-addressed cache, thumbnails
+
+Roadmap step 4. The library had no artwork anywhere — not extracted, not stored, not served.
+
+- **Migration `0007`** adds `artwork_id` to `tracks` and `albums`. Images are stored on disk under `ARTWORK_PATH`, named `<sha256-of-bytes>.<ext>`, so the column holds a filename rather than a blob. Content-addressing means the cover embedded in all twelve tracks of an album is stored **once**, and a re-scan is a no-op rather than a rewrite. Verified: four tracks, three carrying art, two files on disk.
+- **Extraction** happens inside the existing `extractTrackTags` parse (`common.picture[0]`) rather than a second `parseFile`, so a scan still reads each file exactly once. Shared by the scanner and the upload route via `persistArtwork`.
+- **`GET /tracks/:id/cover` and `GET /albums/:id/cover`**, both on `authenticateMedia` so `<img src>` works with a `?token=`. A track with no art of its own falls back to its album's. `?size=thumb` returns a ~256px JPEG generated on first request by ffmpeg (already a dependency — no image library added) and cached beside the original; if ffmpeg fails it degrades to the full-size image rather than a broken one.
+- **The artwork id is the ETag**, which is exactly right for content-addressed data: matching `If-None-Match` returns 304 without touching the disk. Ids are regex-validated before being joined into a path — they come from the database, but they end up on the filesystem.
+- **Frontend `CoverArt`** with a drawn-record placeholder that occupies the same box, so rows don't reflow as covers arrive or turn out to be missing. Wired into library rows (thumb), the player bar, and the detail drawer.
+- **Verified:** 10 backend checks (types preserved per format, 304 on matching ETag, 404 for art-less and unknown tracks, 401 without a credential and for a session token in `?token=`, thumb 2390B → 608B at exactly 256×256) and 10 browser checks in headless Chromium (covers decode at 256×256, the art-less track shows the placeholder, the list requests only `size=thumb`, the player bar swaps to the placeholder when advancing to an art-less track, no console errors).
+
+### Fixed along the way: `npm test` was opening the real database
+
+The first version of `artwork.test.ts` imported `services/artwork.ts`, which imported `db/artwork.ts`, which imports `db/connection.ts` — and that module **opens the configured SQLite file as an import side effect**. Running the suite therefore opened `data/brainlessmusic.db`, and closing it checkpointed the WAL away (changed mtime, `-wal`/`-shm` removed). No data was harmed — integrity check clean, all 20 tracks present, `schema_migrations` still at `0006` — but a test run must not touch production data.
+
+Fixed by moving `persistArtwork` into `services/artworkIngest.ts`, leaving `services/artwork.ts` as pure filesystem and validation logic its tests can import safely. Confirmed by comparing the database's mtime across a full `npm test` run: unchanged.
+
+**Worth remembering:** any future test that imports a module in the `db/` chain will do the same thing. The import-time `new Database(...)` in `connection.ts` is the root cause; a lazier connection would remove the trap for good.
+
+## 2026-09-08 — Real web player: queue, seek, transport, shuffle, repeat
+
+Roadmap step 3. `PreviewPlayerBar` became `PlayerBar` — the "preview" framing no longer fits now that step 2 made real streaming possible.
+
+- **Queue.** Clicking ▶ on a library row now enqueues the whole visible (filtered/sorted) list starting from that row, so a list plays through unattended instead of stopping after one track. `TrackDetailDrawer` uses `playTrack()` for a single track, since it has no surrounding list context.
+- **Seek bar** bound to `timeupdate`, with a scrubbing state so dragging doesn't fight the playhead. Duration falls back to the scanner's recorded value — some Ogg/Opus streams don't report a usable `duration` until fully buffered.
+- **Transport:** play/pause, next, previous (restarts the current track if more than 3s in, the usual convention), auto-advance on `ended`.
+- **Repeat** cycles off → all → one. **Shuffle** calls `POST /shuffle` (server-side smart shuffle — a client can't avoid same-artist adjacency without the artist ids) and keeps the current track playing by moving it to the head of the reordered queue; turning it off restores the pre-shuffle order via `originalQueueRef`.
+- **Keyboard:** Space play/pause, ←/→ seek 5s, N next, P previous — ignored while focus is in an input, textarea, select, or contenteditable, so the search box and tag editor keep working.
+- **Verified end-to-end in headless Chromium** against an isolated backend (throwaway DB, four generated 3-second Opus tracks with distinct artists; the real library and DB were untouched). 20/20 checks: audio plays from a `?token=` URL rather than a blob, auto-advanced 1/4 → 2/4 with no interaction, next/previous/pause/Space/ArrowLeft all behaved, shuffle left the current track playing and reported `aria-pressed`, repeat cycled correctly, typing in search did not hijack the spacebar, and no console errors. Toggle colors confirmed via computed style (blue → orange), not just by eye.
+- **Deliberately not included:** volume/mute — not in the step's scope. Scrobbling is step 8.
+
+## 2026-09-08 — Signed media tokens: `<audio>` streams and seeks straight from a URL
+
+Roadmap step 2 (`.docs/process/development-roadmap.md`). The web player previously downloaded each track as a whole blob before playing a note, because `/tracks/:id/stream` only accepted an `Authorization` header and an `<audio src>` cannot send one. That cost native byte-range streaming (no seeking) and would have blocked `<img src>` cover art the same way, on both web and Android.
+
+- **New scoped media token** (`services/token.ts`). A second JWT type carrying `scope: 'media'`, signed with the same secret but a much shorter TTL (`MEDIA_TOKEN_TTL`, default `2h`). The scope is enforced in *both* directions: `verifySessionToken` refuses anything carrying a scope claim, and `verifyMediaToken` refuses a session token. So a stream URL that leaks the way URLs do — history, access logs, a screenshot — cannot be replayed against the rest of the API, and stops working within hours regardless.
+- **`POST /auth/media-token`** — exchanges a session token for a media token plus its `expiresAt`. Clients cache it rather than minting per track.
+- **`fastify.authenticateMedia`** (`plugins/auth.ts`) — used only by the stream route. Accepts a normal bearer header first (unchanged path for Android/curl), falling back to `?token=`. `fastify.authenticate` is otherwise untouched, so no other endpoint gained a URL-credential path.
+- **Frontend** — `buildStreamUrl()` replaces `fetchStreamBlob()`; the media token is cached until a minute before expiry, and concurrent callers collapse onto a single mint request (matters once a track list renders many covers). `setToken(null)` clears it, so a logged-out tab cannot keep streaming. `PreviewPlayerBar` now assigns the URL directly to `<audio src>`.
+- **Verified** end-to-end against an isolated server (throwaway DB + a generated 20s Opus file — the real library and DB were never touched): a plain `?token=` GET returned 200 and bytes identical to the source file; a `Range: bytes=50000-59999` request returned 206 with a correct `Content-Range` and bytes `cmp`-identical to that slice of the file on disk, which is seeking working. Rejections all returned 401: expired media token, session token used in `?token=`, media token used as an API bearer (on both `/tracks` and `/auth/me`), no credential, and a malformed token. Session bearer still streams (200) and still works on normal API routes (200); `?quality=low` transcoding works through a media token (200).
+- **Tests** — new `services/token.test.ts` covers the scope separation in both directions, wrong-secret forgery, expiry, and that media tokens outlive nothing longer than session tokens. Backend suite now 14 passing.
+- **Note:** `MEDIA_TOKEN_TTL` still needs adding to `backend/.env.example` by hand — that file is outside what this session could edit. It is optional (defaults to `2h`).
+
+## 2026-09-03 — Login band: solid-to-transparent gradient instead of a hard edge
+
+- `LoginPage`'s content band widened to full width and switched from a solid `bg-white` rectangle (cut off at `60%`) to `linear-gradient(to right, white 0%, white 38%, transparent 78%)` — solid behind the form, fading out so the `TitleScreenPanel`'s scrolling mosaic/silhouette shows through naturally underneath instead of stopping at a hard vertical line. Simplified the layering in the process: no z-index trick needed anymore since a transparent gradient reveals what's beneath on its own.
+- Verified via screenshot and the same login/library regression check with the real account. `npm run build` clean.
+
+## 2026-09-03 — Login page rebuilt to actually match the reference composition
+
+The previous pass ("move the card to the side") missed the mark — user's feedback was direct: it didn't look like what they'd specified. Went back to their reference screenshots and their own HTML/CSS recreation and rebuilt the login page structurally, not just cosmetically.
+
+- **New `TitleScreenPanel`** (`frontend/src/components/TitleScreenPanel.tsx`) — replaces the deleted `AnimatedHeroBackground`. A decorative panel confined to the right half of the screen: a vertically auto-scrolling mosaic of flat navy squares (`animate-mosaic-scroll`, new keyframe in `index.css`, replacing the old grid-drift/eq-bar/orbit/sweep set which no longer fit this composition) plus a halftone dot-matrix silhouette — same dot-radial-gradient-on-a-clip-path technique as the reference, but the shape itself is an original abstract soundwave/EQ silhouette, not their bird/wing.
+- **`LoginPage` restructured around a wide horizontal white content band** (not a small centered/side-anchored card) — `w-[60%]` from the left edge, positioned at `top-[18%]`, with the `TitleScreenPanel` layered above it (`z-10` vs the panel's base layer) so the mosaic/silhouette visibly bleeds over the band's right edge — the same layered read as the reference. The login form (wordmark, inputs, button) lives inside the band, styled with dark text on the white surface via a new local `lightInput` class (the shared `.input` class assumes a dark surface and wasn't reusable here). A thin divider line + italic tagline sit below the band, echoing the reference's bottom strip, with our own copy instead of their footer content.
+- Verified via headless Chromium: screenshotted the new composition, confirmed zero console errors, and re-ran the login/library regression check with the real `imran` account. `npm run build` clean.
+
+## 2026-09-03 — Login layout moved off-center, brand wordmark gets its own typeface
+
+User shared their own original HTML/CSS recreation of the reference title screen (Google Fonts + CSS shapes — not Konami's actual assets) and asked for two specific, legitimate pieces of it: the same asymmetric off-center composition, and the same typeface family for "the title of the system" — i.e. this app's own "brainlessmusic" wordmark, not a reproduction of the reference's text/logo.
+
+- **`frontend/index.html`** — added a Google Fonts `<link>` for Fredoka (500/600/700). Standard for a real web app (no CSP/sandbox restriction here, unlike an Artifact).
+- **New `.font-brand` utility** (`index.css`) — `font-family: 'Fredoka', ui-sans-serif, system-ui, sans-serif`. Applied to the "brainlessmusic" wordmark in both `LoginPage` (bold italic, bumped to `text-2xl`) and `AppShell`'s nav wordmark, for consistency across the app rather than just the one screen asked about.
+- **`LoginPage` layout**: container changed from centered (`items-center justify-center`) to left-anchored (`items-center`, horizontal padding only) — the card now sits in the left portion of the screen with `AnimatedHeroBackground` filling the rest, echoing the reference's content-left/graphics-right asymmetry without copying its specific proportions or any of its text content.
+- Verified via headless Chromium: confirmed the computed `font-family` on the title element actually resolves to `Fredoka` (not just class-name-present), screenshotted the new layout, and re-ran a login/library-load regression check with the real `imran` account to confirm nothing else broke. `npm run build` clean, zero console errors.
+
+## 2026-09-03 — Frontend re-theme: flat navy blue + orange-red, no blur/glow
+
+User pointed out the app "uses a combination of amber and grey" and asked for a color theme matching the same reference screenshots from the earlier animated-background request — this time explicitly the *palette and flat rendering style*, not the logo (already declined reproducing that). Requirements were explicit: match the blue/white/orange-red feel, keep the layout "similar in feel" without copying it, and go pure flat color — no glow, no blur, bright and saturated.
+
+- **Color tokens swapped app-wide**: `neutral-*` (gray) → `blue-*` (navy) across every background/border/text class, `amber-*` → `orange-*` for the accent (buttons, badges, active nav, checkboxes, play buttons). Bulk-applied via `sed` across every `.tsx` file for the mechanical part, then hand-verified — no leftover `neutral-`/`amber-` tokens remain (`grep` confirmed clean).
+- **Every blur/glow/soft-shadow effect removed**, replaced with solid flat surfaces + borders: `blur-3xl` radial glow on the login page (removed entirely), `backdrop-blur`/`backdrop-blur-sm` on the header, preview player bar, and both modal overlays (drawer, delete dialog) — all now plain solid/semi-transparent flat backgrounds, no content-behind blurring. `shadow-2xl`/`shadow-xl` soft drop-shadows on cards, the drawer, the kebab menu, and toasts — all removed; elevation now comes from a solid 1px border only (`.card` in `index.css`). The `.input` focus state changed from a soft `ring` glow to a plain solid border-color change.
+- **`AnimatedHeroBackground` flattened**: the orbiting accent went from a large blurred glow orb (`blur-3xl`, translucent) to a small solid-color dot; the periodic sweep went from a soft gradient fade (`from-transparent via-orange-400/25 to-transparent`) to a solid flat-color diagonal bar — closer to the reference's actual solid stripe anyway. Grid and EQ-bar layers were already flat, just recolored and brought up to full opacity for a brighter, punchier read.
+- New favicon (`frontend/public/favicon.svg`) recolored to match: navy background, orange-red mark.
+- Verified via headless Chromium against every screen with a disposable admin account (removed after): login, library (table, bulk-select, kebab menu), detail drawer (both tabs), delete confirm dialog, upload page, and health page (which happened to show a real "Degraded" state again — same known missing-library-mount issue from the previous pass, not new). Zero console errors beyond that one expected/pre-existing 500. `npm run build` clean.
+
+## 2026-09-03 — Password-change CLI utility, plus a password change
+
+No self-serve or admin-UI password reset exists yet (matches the "small fixed user list" auth model — same reasoning as `set-admin`). Added the CLI equivalent for passwords and used it once.
+
+- New `setPasswordHash()` (`db/users.ts`) + `npm run set-password -- <username> <new-password>` (`scripts/set-password.ts`, mirrors `scripts/set-admin.ts`) — hashes via the existing `hashPassword()` (`services/password.ts`, bcrypt/12 rounds, same as registration) and updates the row directly.
+- Verified end-to-end against the real running backend, not just the DB: confirmed the stated old password matched the account's hash via `bcrypt.compare` before changing anything, ran the script, then confirmed via the actual `POST /auth/login` endpoint that the new password authenticates and the old one now returns `401`.
+
+## 2026-09-03 — Animated hero background on the login page
+
+User shared 45 reference screenshots of a game's animated title-screen background and asked to replicate it as closely as possible, including its logo/font. Declined the logo/wordmark reproduction — those were a third party's trademarked branding (visible `© KONAMI` watermark in the screenshots), unrelated to this project and not something to copy into it. Built an original alternative instead: same *technique* (layered parallax motion, geometric grid, a soft glowing accent, a periodic sweep highlight), reinterpreted with this app's own amber accent and no borrowed branding.
+
+- New `frontend/src/components/AnimatedHeroBackground.tsx` — four independently-animated CSS layers: a slowly drifting amber grid (`animate-grid-drift`, 50s), a 14-bar equalizer motif with staggered per-bar animation delays (`animate-eq-bar`, 2.4s each) — a music-relevant reinterpretation of the reference's abstract shape, not a copy of it — an orbiting soft glow (`animate-orbit-glow`, 14s), and a periodic diagonal sweep highlight (`animate-sweep`, 7s, visible for ~14% of its cycle). All pure CSS `@keyframes` (new in `index.css`) — no canvas/JS animation loop needed for motion this simple. `aria-hidden` + `pointer-events-none`, purely decorative.
+- Wired into `LoginPage` behind the existing sign-in card, alongside (not replacing) the radial glow from the earlier polish pass.
+- Verified via headless Chromium: confirmed all four layers actually running (not just present) via `getComputedStyle` — correct `animationName`/`duration`/`iterationCount: infinite`/`playState: running` for each; separately confirmed the EQ bars visibly change height across screenshots taken seconds apart. Full regression pass on the rest of the app (library table, detail drawer, health page) with a disposable test account (removed after) confirmed no side effects from the login-page change. `npm run build` clean.
+
+## 2026-09-03 — Frontend visual/UX polish pass
+
+Refines the dark/neutral baseline from the scaffolding pass rather than pivoting direction — the amber accent established there (Admin badge, play buttons) is now used consistently as the app's single accent color throughout, not just in those two spots. No functional changes; JSX structure and Tailwind classes only.
+
+- New shared class layer (`frontend/src/index.css`, `@layer components`) — `.btn-primary`/`.btn-secondary`/`.btn-danger`/`.btn-ghost` (+ `.btn-md`/`.btn-sm` sizing), `.input`, `.card`, `.page-shell`, `.badge-neutral`/`.badge-caution`/`.badge-admin` — replacing one-off utility strings that had drifted slightly inconsistent across components. Tailwind v4 note: `@apply` can't reference a custom class defined by another `@apply` rule in the same layer (unlike v3) — each button variant spells out its full utility list rather than composing through a shared `.btn` base; hit this as a build failure on the first pass, fixed before it shipped.
+- **`AppShell`** — nav switched from a background-fill active state to an amber underline (`after:` pseudo-element), sticky header with backdrop blur, a small amber "b" wordmark tile.
+- **`LoginPage`** — added a subtle amber radial-gradient glow behind the card and a matching wordmark tile, so the page isn't just a form floating in a void.
+- **`LibraryPage`** — toolbar grouped into a single bordered/card strip (was floating loose on the page background) with a search icon and divider lines between control groups; table header now uppercase/tracked/muted, duration column right-aligned with tabular numbers, row hover strengthened, preview-play button reveals more strongly on hover (kept at partial opacity at rest, not fully hidden — full-hide would've made it invisible on touch devices with no hover state); bulk-action bar restyled as an amber-tinted panel with real button chips instead of bare text links.
+- **`TrackDetailDrawer`** / **`ConfirmDeleteDialog`** / **`TrackRowMenu`** / **`PreviewPlayerBar`** / **`ToastProvider`** / **`RequireAdmin`**'s message — all switched to the shared `.input`/`.btn-*`/`.card` classes; drawer tabs and dialog got the same amber accent treatment as the rest of the app.
+- New favicon (`frontend/public/favicon.svg`, replacing the unused default Vite/React one) and page `<title>` set to "brainlessmusic" (was the Vite default "frontend").
+- Verified via headless-Chromium against both live dev servers (which needed restarting — the environment had reset since the previous pass, wiping the scratchpad and killing both dev servers; the WSL library mount also wasn't available in the restarted environment, so track file paths under `/mnt/wsl/music/` weren't reachable this run) with a disposable admin account (removed after): every screen re-screenshotted and compared against the prior baseline, all interactive flows (drawer tabs, kebab menu, delete confirm/cancel, bulk select) re-confirmed still working after the restyle. Incidentally exercised the error-tracking pipeline built in the previous pass against a **real** failure (not simulated) — the missing library mount meant an actual stream 500, and the Health page correctly showed "Degraded" with the real "Track file is missing from disk" error for the affected track, toast included. `npm run build` verified clean.
+
+## 2026-09-03 — Track detail drawer: tag editing, hide/not-recommended, delete, bulk actions — plus a real CORS bug fix
+
+Completes the `LibraryPage` interactivity that the previous scaffolding pass deferred. Also fixes a backend bug that blocked every non-GET/POST request from any real browser.
+
+- **`backend/src/app.ts` — CORS `methods` fixed.** `@fastify/cors` v11's actual default `methods` is `'GET,HEAD,POST'` (confirmed in `node_modules/@fastify/cors/index.js`), not the full REST set. Every `PATCH`/`PUT`/`DELETE` route in this API — favorites, playlists, and the new track-management endpoints — was silently blocked by the browser's CORS preflight the whole time. Curl-based verification (used throughout every prior backend testing pass) never caught this, since CORS is a browser-enforced mechanism only; it took an actual headless-Chromium `PATCH /tracks/:id` call failing with `Access to fetch ... blocked by CORS policy: Method PATCH is not allowed` to surface it. Fixed by listing `methods: ['GET','HEAD','POST','PUT','PATCH','DELETE']` explicitly.
+- **`TrackDetailDrawer`** (`frontend/src/components/TrackDetailDrawer.tsx`) — slide-over with Tags (title/artist/album/track number, admin-editable via `PATCH /tracks/:id`, read-only display otherwise) and Diagnostics (format/bitrate/sample rate/duration/file size/play count/dates/last stream error, read-only for everyone) tabs. Preview-play button in the header reuses the existing `PreviewPlayerBar`.
+- **`TrackRowMenu`** (`frontend/src/components/TrackRowMenu.tsx`) — per-row kebab menu: Edit tags / Diagnostics (everyone), Hide-Unhide / mark not-recommended / Delete (admin-only, hidden entirely for non-admins rather than shown-disabled).
+- **`ConfirmDeleteDialog`** (`frontend/src/components/ConfirmDeleteDialog.tsx`) — lists the target title(s), states the delete is permanent (file + DB row), used for both single-row and bulk delete.
+- **`LibraryPage`** gained: an admin-only checkbox column + bulk-action bar (hide/un-hide/delete selected), row click opens the drawer (Tags tab), kebab-menu Diagnostics opens it on that tab instead, and three new TanStack `useMutation`s (tag/flag patch, delete) that invalidate the `['tracks']` list query — and, for the drawer's own save, the `['track', id]` detail query too — on success.
+- Verified end-to-end via headless-Chromium against both live dev servers, with disposable admin and non-admin accounts (removed after) and a disposable uploaded test track (deleted as part of the test, not left behind): tag edit saved and reflected in both the drawer and the table; Diagnostics tab showed real bitrate/sample rate from a freshly-uploaded file; hide toggle round-tripped through the "Hidden only" filter and back; bulk-select checkbox correctly surfaced the bulk-action bar; delete confirm dialog's Cancel left the track untouched, then a real confirm actually deleted it (disk file + DB row) and it disappeared from the table. Separately confirmed for the non-admin account: no checkbox column, tag fields render disabled with no Save button, and the kebab menu shows only Edit/Diagnostics — no Hide/Delete. Zero browser console errors across the full run. `npm run build` (both frontend and backend) and backend `tsc --noEmit` all verified clean after the CORS fix. Real library confirmed back at its 20-track baseline afterward.
+
+## 2026-09-03 — Frontend scaffold: Vite/React/TS/Tailwind/TanStack Query, working login, library browse, upload, health pages
+
+First code in `frontend/` (was empty besides `.gitkeep`). Scaffolds the app shell and builds out Login/Library/Upload/Health per `.docs/features/library-management-interface/planning.md`'s Interior phase — `TrackDetailDrawer` (tag editing, hide/not-recommended toggles, delete) is **not** built yet, tracked as the next slice.
+
+- **Tooling:** Vite + React 19 + TypeScript, Tailwind v4 via `@tailwindcss/vite` (no separate PostCSS config needed), `@tanstack/react-query`, `react-router-dom`. No `.env` required for local dev — `apiClient.ts` defaults `VITE_API_BASE_URL` to `http://localhost:3000`; override via a local `.env` if needed (`.env` is gitignored, matching the backend's pattern).
+- **Found and fixed before it shipped, not after:** the Interior-phase plan assumed a plain `<audio src="/tracks/:id/stream">` for preview playback. It can't work — this backend's `authenticate` decorator only reads the `Authorization` header, and `<audio>` can't send custom headers; `.docs/STATUS.md`'s old test-harness notes had already flagged the missing query-param fallback but the frontend plan hadn't accounted for it. Fixed by having `fetchStreamBlob()` (`lib/apiClient.ts`) fetch the audio as an authenticated blob and hand `PreviewPlayerBar` an object URL instead. Trade-off: loses native HTTP range-request progressive streaming (whole file downloads before playback starts) — acceptable for this app's spot-check use case, not for long listening sessions (that's what the Android client is for).
+- **Auth:** `AuthProvider`/`useAuth()` (`auth/AuthContext.tsx`) — token in `localStorage`, hydrates `user` (including `isAdmin`) from `GET /auth/me` on load. `RequireAuth` redirects unauthenticated visitors to `/login`; `RequireAdmin` renders an inline "Admins only" message instead of redirecting (matches the Interior spec's explicit choice). No self-serve register form — matches the project's "small fixed user list" auth model.
+- **`AppShell`** — nav (Library/Health always, Upload only for admins), username + admin badge, logout. **`PreviewPlayerBar`** — one shared `<audio>` element via context, so clicking a second track's preview redirects the existing player rather than spawning a second one; object URLs are revoked on track change/unmount to avoid leaking memory.
+- **`LibraryPage`** — real `GET /tracks` integration: search (debounced via React state), sort (title/artist/album/duration/dateAdded/playCount), order toggle, hidden/not-recommended filters, pagination, per-row preview play. Tag editing, hide/delete/not-recommended controls, and the detail drawer are deferred to the next pass.
+- **`UploadPage`** (admin-gated) — drag-and-drop + click-to-browse, client-side extension filter matching the backend's `AUDIO_EXTENSIONS`, concurrent upload queue (max 3 in flight) via `XMLHttpRequest` (not `fetch` — needed for per-file upload-progress events), retry on failure, invalidates the tracks query on success.
+- **`HealthPage`** — polls `GET /admin/health` every 10s via TanStack Query's `refetchInterval`, manual refresh button, status banner, active-stream/uptime/error-count tiles, recent-errors table.
+- Verified end-to-end with a real headless-Chromium (Playwright) run against both live dev servers (backend on `:3000`, frontend defaulted to `:5174` — `:5173` was already in use by an unrelated project on this machine) using disposable admin and non-admin test accounts (both removed after): login → real 20-track library rendered → search filtered correctly (1 result for "regret") → preview play button actually fetched and played real audio through the blob-based player → Health page showed live `activeStreams`/`uptimeSeconds` → Upload page loaded and gated correctly. Separately confirmed for the non-admin account: no "Upload" nav link rendered, and direct navigation to `/upload` showed the "Admins only" message rather than a silent redirect. Zero browser console errors across the whole run. `npm run build` (tsc + vite build) also verified clean.
+
+## 2026-09-03 — Admin role, track hide/not-recommended/delete, tag editing, and stream diagnostics (backend for the library management web frontend)
+
+Backend slice for `.docs/features/library-management-interface/planning.md` — schema + endpoints only, frontend not started yet.
+
+- **Admin role:** new migration `0006_add_admin_and_track_management_fields.sql` — `users.is_admin` (default 0), `tracks.hidden`/`tracks.not_recommended` (default 0, indexed), `tracks.bitrate`/`tracks.sample_rate`/`tracks.last_stream_error` (nullable). No UI path to grant admin — matches the project's "small fixed user list" auth model (`.docs/reference/tech-stack.md`). New `requireAdmin` decorator (`plugins/auth.ts`) re-reads `is_admin` from the DB on every request (not the JWT payload) so a revoked role takes effect immediately, not at token expiry. New `npm run set-admin -- <username> [false]` script (`scripts/set-admin.ts`) is the only way to grant/revoke it. `GET /auth/me` now returns `isAdmin`.
+- **Track management, admin-gated:** `PATCH /tracks/:id` (new — title/artist/album/trackNumber edits reuse the same find-or-create artist/album resolution as `upsertTrack`, plus `hidden`/`notRecommended` toggles) and `DELETE /tracks/:id` (new — hard delete: unlinks the file from disk first, and only removes the DB row if that succeeds or the file was already gone; also deletes now-dangling `favorites`/`playlist_tracks`/`play_history` rows in one transaction, in that order — `better-sqlite3` enforces FK constraints by default and none of these FKs cascade, so dependents must go first or the delete throws. Corrected 2026-09-03: this entry originally said FKs "aren't enforced" — they are, by `better-sqlite3`'s per-connection default; see `.docs/reference/database-schema.md`). `POST /tracks/upload` gained the same `requireAdmin` gate.
+- **Library browsing:** `GET /tracks` gained real `search`/`sort`/`order`/`hidden`/`notRecommended` query params (`db/browse.ts`) — it was pagination-only before this, despite being planned as "already covered." `hidden` defaults to excluding hidden tracks from normal browsing; `notRecommended` defaults to showing them (only excluded from radio/shuffle logic, which doesn't exist yet). Sort columns are allowlisted (`SORT_COLUMNS`), not interpolated from the raw query param. New `GET /tracks/:id` (didn't exist before — the Structure-phase doc had assumed it did) returns the full diagnostic set: bitrate, sample rate, file size, play count, last played, last stream error.
+- **Stream health:** new `services/streamMonitor.ts` — in-memory active-stream counter (incremented on `/tracks/:id/stream`, decremented via `reply.raw.on('close', ...)`) and a ring buffer of the last 20 stream errors. New `GET /admin/health` (`routes/health.ts`, any authenticated user — not admin-gated, since it's operational data, not identity/destructive-action territory) returns `{ status, uptimeSeconds, activeStreams, recentErrors }`. Both the "file missing on disk" and ffmpeg transcode-failure paths in the stream route now call `recordStreamError()` and persist the message onto `tracks.last_stream_error`.
+- `extractTrackTags()` (`services/trackTags.ts`) now also captures `bitrate`/`sampleRate` from `music-metadata`'s `format` block; `upsertTrack()` persists them. Existing rows stay `null` until re-scanned or re-uploaded — not backfilled.
+- Verified manually end-to-end against the real library (20 tracks) with two temporary accounts (one granted admin via `set-admin`, one left as a plain user, both removed after): `GET /auth/me` reflects `isAdmin` correctly; hide/unhide round-tripped through `PATCH` and confirmed via `hidden=only`/default-excluded filtering (`total` count matched in both states); search+sort+desc-order returned correct results; a real ffmpeg-generated MP3 uploaded, correctly captured `bitrate: 64000`/`sampleRate: 44100`, then hard-deleted — confirmed `404` after and the DB row gone; `PATCH`/`DELETE`/`POST /tracks/upload` all returned `403` for the non-admin account while `GET /tracks` stayed `200`; a byte-range stream request succeeded and `activeStreams` correctly returned to `0` afterward. All test accounts and the uploaded test track cleaned up; real library back at its original 20-track baseline.
+
+## 2026-09-03 — Favorites, starred tracks, and smart shuffle (`cea7c8f`)
+
+- **Favorites:** new migration `0005_create_favorites.sql` — `favorites` (user_id FK → users, track_id FK → tracks, created_at), composite PK on `(user_id, track_id)` so a track can't be double-favorited, mirroring `playlist_tracks`. `PUT`/`DELETE /tracks/:id/favorite` (`routes/favorites.ts`, both require auth) are both idempotent — starring an already-starred track or unstarring a non-favorited one both return `204` with no error, a deliberate toggle-style choice rather than playlists' stricter duplicate-rejection. `GET /me/favorites` is paginated, most-recently-favorited-first, caller's own favorites only.
+- `isFavorited` inline on `GET /tracks`/`/albums/:id`/etc. deliberately **not** built in this pass — deferred until a client actually needs it, since adding the join later is additive, not a redesign. See `.docs/features/favorites-starred-tracks/planning.md`.
+- **Smart shuffle:** new `smartShuffle()` (`services/shuffle.ts`) — pure function, greedily interleaves tracks by artist to guarantee zero adjacent same-artist pairs unless one artist exceeds half the set, in which case it hits the mathematical minimum rather than leaving it to chance. `POST /shuffle` (`routes/shuffle.ts`, requires auth) takes `{ trackIds: number[] }`, returns the reordered lean track list via new batch lookups (`getTrackSummariesByIds()`/`findTracksByIds()`, both single `IN (...)` queries, not N+1).
+- New unit test suite `services/shuffle.test.ts` (Node's built-in test runner, `npm test`) — first test infra in this repo. Covers balanced/skewed/single-artist/null-artist/empty-input cases and the exact-minimum-violation math, since some of these (e.g. a controlled 10-vs-2 artist split) aren't practical to construct from the real library alone.
+- `library-player.html` gained a Smart Shuffle button (lib header, next to Upload) wired to the new endpoint — replaces `library` with the reordered response and re-locates the currently-playing track by id (not index) so playback isn't interrupted and the active-row highlight follows it.
+- Verified manually against the real library (20 tracks: 19 from one artist + 1 uploaded-test-data track from a different artist) with a temp registered/logged-in user (removed after): shuffling the full library correctly isolated the single minority track as the one adjacency break, hitting the exact theoretical minimum (17 forced same-artist pairs); a single-artist-only subset returned a valid randomized order without erroring; three repeated identical requests each returned a different ordering; empty `trackIds`/missing body → `400`, unknown track id → `404` listing it, no bearer token → `401`. Favorites verified separately: starred 3 tracks including a re-star (idempotent, no duplicate row), pagination slice confirmed correct (`limit=2&offset=1`), unstarred twice in a row (both `204`), full per-user isolation confirmed with a second user, unknown/non-numeric track id → `404`, all three endpoints → `401` with no token, and a rescan afterward left favorites completely untouched. All test data cleaned up afterward. See `.docs/features/smart-shuffle/planning.md`.
+
+## 2026-09-03 — File upload with multipart support and shared track tagging (`6f7ae2e`)
+
+- `POST /tracks/upload` (`routes/tracks.ts`, requires auth) — `multipart/form-data`, single `file` field via `@fastify/multipart` (new dep, registered in `app.ts` with `limits.fileSize` from `MAX_UPLOAD_SIZE_MB`, default 100, and `limits.files: 1`).
+- Extension allow-list shared with the scanner via a new `AUDIO_EXTENSIONS` constant (`services/trackTags.ts`) — unsupported extensions get `400` before anything is written to disk. Client-supplied filename never trusted beyond its extension: streamed to `UPLOAD_STAGING_PATH` under a server-generated `crypto.randomUUID()` name. Oversized uploads are caught via `file.truncated` after streaming completes, the partial staged file deleted, response `413`.
+- Tag extraction pulled out of `services/scanner.ts` into a shared `extractTrackTags()` (new `services/trackTags.ts`) so scan and upload apply identical fallback rules — the upload path passes the *original* client filename for the fallback, not the random staging name. Corrupt/unparseable files rejected `400`, staged file deleted.
+- New `services/trackFiling.ts` computes `LIBRARY_PATH/<Artist>/<Album>/<filename>` — folder names sanitized (invalid filesystem characters replaced, trailing dots stripped, empty names fall back to "Unknown Artist"/"Unknown Album"). Never overwrites an existing file — collisions get a `(2)`, `(3)`, ... suffix. Staged file moved via `fs.rename`, with an `EXDEV` (cross-filesystem) fallback to copy+delete.
+- Reuses the existing `upsertTrack()` (`db/library.ts`) unchanged for the DB insert — a rescan afterward updates the same row rather than duplicating it. Response `201 { track }` via new `getTrackSummaryById()` (`db/browse.ts`).
+- Verified manually against the real library/DB with a temp user (removed after): uploaded a tagged MP3, an untagged Opus (confirmed filename/"Unknown Artist" fallback), and a tagged FLAC — all landed at the correct path and were correctly tagged in the DB; a corrupt FLAC and a `.txt` file were both rejected `400` with no file left in staging or the library; unauthenticated request got `401`; a path-traversal-style filename (`../../../../etc/passwd_style../../file.mp3`) sanitized down to `file.mp3` and stayed inside the intended folder; an oversized upload against a temporary low-limit instance got `413` with the partial file cleaned up; re-running `POST /library/scan` afterward reported all uploaded files as updates, not additions, confirming no duplication. All test tracks, orphaned rows, filed test files, and the temp user cleaned up — real library ended back at its original 19-track baseline.
+
+## 2026-09-03 — Remove `player.html` and associated metadata (`f4285e8`)
+
+- Deleted `player.html` (superseded by `library-player.html`, the fuller library-browser + player harness) and its Windows `Zone.Identifier` sidecar file. Pure cleanup, no functional change to any remaining page.
+
+## 2026-09-03 — Add login/player HTML test harnesses; scaffold library browsing, playlists, scrobble/history, and streaming (`05100c8`)
+
+This is the bulk of the initial backend build beyond bare auth — library scan/browse/search, playlists, play tracking, and audio streaming all landed in this one commit, alongside the first manual browser-based test pages.
+
+- **Library scanner:** new schema (`0002_create_library.sql`: `artists`/`albums`/`tracks`, indexed on all FKs plus `tracks.title`). `scanLibrary()` (`services/scanner.ts`) walks `LIBRARY_PATH` via `fs.readdir(..., { recursive: true })`, reads tags via `music-metadata` (FLAC/Opus/MP3/M4A/OGG), falls back to filename/"Unknown Artist" for missing tags, catches and logs per-file parse failures without aborting the scan. `POST /library/scan` (auth-gated) returns `{ filesFound, filesAdded, filesUpdated, filesFailed, durationMs, failures }`. Upsert-by-path (`upsertTrack()`, `db/library.ts`) makes rescans idempotent.
+- **Audio streaming:** `GET /tracks/:id/stream` (`routes/tracks.ts`) — byte-range support (`206`/`416`, via new `parseRange()`), format-based `Content-Type` (`mimeTypeFor()`), and on-the-fly transcode via `?quality=low` (new `transcodeToLowQuality()`, `fluent-ffmpeg` → `libopus`/ogg; `.noVideo()` required, otherwise ffmpeg transcodes embedded cover-art into a spurious Theora video track). New dep `fluent-ffmpeg`, requires system `ffmpeg`/`ffprobe` on `PATH`.
+- **Library browsing/search:** `GET /artists`/`/albums`/`/tracks` (paginated, new `utils/pagination.ts` — default limit 50, max 200) and their `:id` detail variants with nested children, all backed by new `db/browse.ts`. `GET /search?q=` does a `LIKE`-based search across artist/album/track names, grouped by type and capped at 20 per group (FTS5 is the planned upgrade once the library outgrows this).
+- **Playlists:** new schema (`0003_create_playlists.sql`: `playlists`, `playlist_tracks` with composite PK). Full CRUD (`routes/playlists.ts`, `db/playlists.ts`) gated by a shared `loadOwnedPlaylist` helper on every playlist-id route (`404` unknown, `403` not owner). Add/remove/reorder tracks, with reorder taking the full ordered `trackIds` list and rejecting anything that isn't an exact permutation of the current set.
+- **Scrobble/play tracking:** new schema (`0004_create_play_history.sql`: `play_history`), plus denormalized `tracks.play_count`/`last_played_at`. `POST /tracks/:id/scrobble` inserts a history row and updates the denormalized columns atomically via `db.transaction` (`recordScrobble`, `db/plays.ts`) so they never drift apart. `GET /me/history` (caller's own plays), `GET /tracks/:id/history` (shared across users, with attribution — deliberate, unlike playlists), `GET /stats/top-tracks` (sorted by denormalized `play_count`).
+- **Test harnesses added:** `login.html` (standalone sign-in page, posts to `/auth/login`, hands off to `library-player.html?base=&token=`), `test-player.html` (minimal login+stream+log page, no build step), `library-player.html` (fuller library-browser + player UI — track list, search filter, mini player).
+- Verified manually against a real 19-track library (via `ffmpeg`-generated test files for the scanner, then the real library for everything downstream) — full detail per feature in `.docs/STATUS.md`: scan idempotency and per-file failure handling; streaming byte-range correctness confirmed via `cmp` against source-file byte slices, transcoded output confirmed smaller and cleanly decoding; browsing pagination (default/clamp/invalid-fallback) and nested-detail correctness; search verified with both English and Japanese partial-match queries; playlist CRUD, add/remove/reorder, and full cross-user ownership isolation (`403` on every route for a non-owner); scrobble counts and per-user history isolation confirmed with two real users. All test users/data cleaned up afterward.
+- `AGENTS.md` added at repo root alongside this commit.
+
+## 2026-09-03 — Initialize backend: Fastify, SQLite, and JWT authentication (`1b61cb6`)
+
+- Backend skeleton scaffolded — `npm install` clean, `npm run dev` starts on port 3000, `GET /health` responds `200`. SQLite via `better-sqlite3` with WAL mode, first migration (`0001_create_users.sql`) applied via `npm run migrate`. `npm run build` (tsc) verified.
+- **Auth (JWT + bcrypt):** `POST /auth/register` (`hashPassword()`, 12 bcrypt rounds, `409` on duplicate username, `400` on missing fields), `POST /auth/login` (`verifyPassword()` + `signToken()`, `401` on bad credentials), `GET /auth/me` (protected via the new `fastify.authenticate` decorator, `registerAuthDecorator()` in `plugins/auth.ts`). JWT secret from `.env`'s `JWT_SECRET` (falls back to `'change-me'` if unset), expiry from `JWT_EXPIRES_IN` (default `7d`).
+- New deps: `bcrypt`, `jsonwebtoken` (+ `@types/*`). Note: `bcrypt`'s build-time dependency `@mapbox/node-pre-gyp` pulls a vulnerable `tar` version (`npm audit`: 1 high, 1 critical) — install-time only, not part of the runtime request path, but worth a look before deploying to a shared/CI environment.
+- Verified manually via curl: register → duplicate/missing-field rejection → login success/failure (wrong password, unknown user) → `/auth/me` with no token, malformed header, garbage token, and a valid token. All returned expected status codes; test user removed afterward.
+- Repo scaffolding: `backend/`, `frontend/`, `android/` top-level folders created (only `backend/` populated in this commit).
+
+## 2026-09-03 — Initial commit (`6c4e538`)
+
+- `LICENSE` and `README.md` only. No code.

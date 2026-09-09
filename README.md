@@ -21,7 +21,7 @@ Full resolved stack + reasoning: [.docs/reference/tech-stack.md](.docs/reference
 backend/    — Fastify API server (Node.js + TypeScript)
 frontend/   — React web app (auth, library management, upload, health)
 android/    — Kotlin/Compose app (not yet started)
-.docs/      — planning, status, and reference docs — see below
+.docs/      — planning, status, and reference docs (tracked in the repo) — see below
 *.html      — standalone, no-build-step manual test pages (see Manual test pages)
 ```
 
@@ -139,6 +139,7 @@ All routes except `/api/health` and `/api/auth/login` require `Authorization: Be
 - **Auth** — `POST /auth/register` (admin-only; open only while no users exist), `POST /auth/login`, `GET /auth/me`, `POST /auth/media-token`
 - **Library** — `POST /library/scan`, `GET /artists[/:id]`, `GET /albums[/:id]`, `GET /tracks`, `GET /search?q=`
 - **Streaming** — `GET /tracks/:id/stream` (byte-range support, `?quality=low` for transcoded audio; accepts a bearer header or a `?token=` media token so `<audio src>` can point straight at it)
+- **Waveform** — `GET /tracks/:id/waveform` (peak amplitudes for the player's scrubber; decoded from the file on first request and cached on the row)
 - **Cover art** — `GET /tracks/:id/cover`, `GET /albums/:id/cover` (`?size=thumb` for ~256px; bearer header or `?token=` media token, `ETag`/`If-None-Match` supported)
 - **Upload** — `POST /tracks/upload` (multipart)
 - **Playlists** — `POST /playlists`, `GET /playlists`, `GET /playlists/:id`, `PATCH /playlists/:id`, `DELETE /playlists/:id`, `POST /playlists/:id/tracks`, `DELETE /playlists/:id/tracks/:trackId`, `PATCH /playlists/:id/tracks/reorder`
@@ -171,8 +172,10 @@ Start at [.docs/STATUS.md](.docs/STATUS.md) for current project state and next s
 
 Working toward **v0.1 — "it works for me"**: a full evening of listening in the browser, on the LAN, without reaching for a file manager.
 
-- **Backend** — auth, library scan, streaming (with transcoding), browsing/search, playlists, play tracking, upload, favorites, and smart shuffle are built and manually verified. Missing: cover art, FTS5 search, tag write-back.
-- **Frontend** — auth, library management, upload, and a health dashboard work. Playback is a preview-grade blob player; playlists and favorites have no UI yet.
+**v0.1 is complete.** Working toward v0.2 — "it works away from home".
+
+- **Backend** — auth, library scan, streaming (byte-range + transcoding + media tokens), FTS5 search, browsing, playlists, play tracking, upload, favorites, smart shuffle, cover art, waveform peaks, and scheduled verified backups are built and tested (139 tests). Missing: tag write-back to files, dedupe/"Various Artists" handling.
+- **Frontend** — a real player with a queue, seeking, transport, shuffle, repeat and keyboard control, plus album/artist browsing, playlists, favorites, search, upload, user management and a health dashboard. On a phone the bar opens a full-screen Now Playing view with a waveform scrubber. Missing: gapless, listening history and top-tracks pages.
 - **Android** — not started.
 
 See [.docs/STATUS.md](.docs/STATUS.md) for detail, [.docs/reference/capability-map.md](.docs/reference/capability-map.md) for per-layer status, and [.docs/process/development-roadmap.md](.docs/process/development-roadmap.md) for what's next.
