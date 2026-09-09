@@ -156,3 +156,10 @@ export interface PlaylistDetail {
   createdAt: string;
   tracks: PlaylistTrack[];
 }
+
+/** `GET /search?q=` — results grouped by kind, each list capped server-side. */
+export interface SearchResults {
+  artists: ArtistSummary[];
+  albums: AlbumSummary[];
+  tracks: TrackSummary[];
+}

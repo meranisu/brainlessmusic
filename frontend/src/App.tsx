@@ -12,6 +12,7 @@ import { LibraryPage } from './pages/LibraryPage';
 import { LoginPage } from './pages/LoginPage';
 import { PlaylistDetailPage } from './pages/PlaylistDetailPage';
 import { PlaylistsPage } from './pages/PlaylistsPage';
+import { SearchPage } from './pages/SearchPage';
 import { UploadPage } from './pages/UploadPage';
 
 export function App() {
@@ -29,6 +30,7 @@ export function App() {
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/playlists" element={<PlaylistsPage />} />
           <Route path="/playlists/:id" element={<PlaylistDetailPage />} />
+          <Route path="/search" element={<SearchPage />} />
           <Route path="/health" element={<HealthPage />} />
           <Route element={<RequireAdmin />}>
             <Route path="/upload" element={<UploadPage />} />

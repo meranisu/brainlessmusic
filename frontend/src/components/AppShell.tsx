@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { GlobalSearch } from './GlobalSearch';
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `relative px-3 py-4 text-sm font-medium transition-colors after:absolute after:inset-x-3 after:-bottom-px after:h-0.5 after:rounded-full after:transition-colors ${
@@ -52,7 +53,8 @@ export function AppShell() {
               Health
             </NavLink>
           </nav>
-          <div className="ml-auto flex items-center gap-3 py-3 text-sm">
+          <GlobalSearch />
+          <div className="flex items-center gap-3 py-3 text-sm">
             <span className="text-blue-200">{user?.username}</span>
             {user?.isAdmin && <span className="badge-admin">Admin</span>}
             <button onClick={logout} className="btn-ghost btn-sm">

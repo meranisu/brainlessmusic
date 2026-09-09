@@ -1,4 +1,5 @@
 import { db } from './connection.js';
+import { buildMatchQuery } from '../utils/ftsQuery.js';
 
 export interface ArtistSummary {
   id: number;
@@ -151,9 +152,19 @@ function buildTrackFilter(options: ListTracksOptions): { where: string; params: 
   const params: unknown[] = [];
 
   if (options.search?.trim()) {
-    clauses.push('(t.title LIKE ? OR a.name LIKE ? OR al.title LIKE ?)');
-    const pattern = `%${options.search.trim()}%`;
-    params.push(pattern, pattern, pattern);
+    const match = buildMatchQuery(options.search);
+    if (match) {
+      // Used as a filter only, never as an ordering: the caller has already
+      // chosen a sort, and quietly replacing it with relevance would be wrong.
+      clauses.push('t.id IN (SELECT rowid FROM tracks_fts WHERE tracks_fts MATCH ?)');
+      params.push(match);
+    } else {
+      // Below the trigram floor — no index can answer a 1-2 character
+      // substring, so scan. Bounded by library size and rare in practice.
+      clauses.push('(t.title LIKE ? OR a.name LIKE ? OR al.title LIKE ?)');
+      const pattern = `%${options.search.trim()}%`;
+      params.push(pattern, pattern, pattern);
+    }
   }
 
   const hiddenClause = visibilityClause('t.hidden', options.hidden ?? 'exclude');
@@ -311,12 +322,63 @@ export function getTrackDetailById(id: number): TrackDetail | undefined {
 const SEARCH_RESULT_LIMIT = 20;
 
 /**
- * Simple LIKE-based search across artist/album/track names. FTS5 is the
- * planned upgrade once the library is large enough to need it (see
- * .docs/reference/tech-stack.md) — not needed at this scale yet.
+ * Column weights for track relevance: a hit in the title outranks one in the
+ * artist, which outranks one in the album. Without this, searching an album
+ * name buries the track actually called that under its twelve siblings.
+ */
+const TRACK_BM25_WEIGHTS = '10.0, 5.0, 3.0';
+
+/**
+ * Search across artists, albums and tracks, backed by the FTS5 trigram index
+ * (migration 0008).
+ *
+ * Queries the index cannot answer — anything with a term under three
+ * characters — fall back to the LIKE scan this replaced. That path is not
+ * vestigial: a two-character CJK query is an ordinary thing to type, and
+ * returning nothing for it would be a regression, not a limitation.
  */
 export function searchLibrary(query: string): SearchResults {
-  const pattern = `%${query}%`;
+  const match = buildMatchQuery(query);
+  return match === null ? searchWithLike(query) : searchWithFts(match);
+}
+
+function searchWithFts(match: string): SearchResults {
+  const artists = db
+    .prepare(
+      `${ARTIST_SUMMARY_SELECT}
+       WHERE a.id IN (SELECT rowid FROM artists_fts WHERE artists_fts MATCH ?)
+       GROUP BY a.id ORDER BY a.name COLLATE NOCASE LIMIT ?`,
+    )
+    .all(match, SEARCH_RESULT_LIMIT) as ArtistSummary[];
+
+  const albums = db
+    .prepare(
+      `${ALBUM_SUMMARY_SELECT}
+       WHERE al.id IN (SELECT rowid FROM albums_fts WHERE albums_fts MATCH ?)
+       GROUP BY al.id ORDER BY al.title COLLATE NOCASE LIMIT ?`,
+    )
+    .all(match, SEARCH_RESULT_LIMIT) as AlbumSummary[];
+
+  // Tracks join the index directly rather than using an `IN (...)` subquery,
+  // because ranking needs bm25() over the matched rows.
+  const tracks = (
+    db
+      .prepare(
+        `${TRACK_SUMMARY_SELECT}
+         JOIN tracks_fts ON tracks_fts.rowid = t.id
+         WHERE tracks_fts MATCH ?
+         ORDER BY bm25(tracks_fts, ${TRACK_BM25_WEIGHTS})
+         LIMIT ?`,
+      )
+      .all(match, SEARCH_RESULT_LIMIT) as RawTrackSummary[]
+  ).map(toTrackSummary);
+
+  return { artists, albums, tracks };
+}
+
+/** The pre-FTS path, still reached by queries shorter than a trigram. */
+function searchWithLike(query: string): SearchResults {
+  const pattern = `%${query.trim()}%`;
 
   const artists = db
     .prepare(
@@ -330,10 +392,18 @@ export function searchLibrary(query: string): SearchResults {
     )
     .all(pattern, SEARCH_RESULT_LIMIT) as AlbumSummary[];
 
+  // Matches title, artist and album, the same three fields the FTS index
+  // covers. Before FTS this path searched titles alone; leaving it that way
+  // would mean a two-character query quietly searched fewer fields than a
+  // three-character one, which is not something a user could predict.
   const tracks = (
     db
-      .prepare(`${TRACK_SUMMARY_SELECT} WHERE t.title LIKE ? ORDER BY t.title COLLATE NOCASE LIMIT ?`)
-      .all(pattern, SEARCH_RESULT_LIMIT) as RawTrackSummary[]
+      .prepare(
+        `${TRACK_SUMMARY_SELECT}
+         WHERE t.title LIKE ? OR a.name LIKE ? OR al.title LIKE ?
+         ORDER BY t.title COLLATE NOCASE LIMIT ?`,
+      )
+      .all(pattern, pattern, pattern, SEARCH_RESULT_LIMIT) as RawTrackSummary[]
   ).map(toTrackSummary);
 
   return { artists, albums, tracks };
