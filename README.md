@@ -96,11 +96,13 @@ The image is Debian-based rather than Alpine on purpose: `better-sqlite3` and `b
 
 **All API routes live under `/api`** — `/api/tracks`, `/api/auth/login`, and so on. The prefix isn't decoration: the web app has its own `/albums`, `/artists`, `/playlists`, `/search` and `/health` routes, so without it the API answers first and a browser navigating to `/albums` gets JSON instead of the page.
 
-All routes except `/api/health`, `/api/auth/register`, `/api/auth/login` require `Authorization: Bearer <jwt>`.
+All routes except `/api/health` and `/api/auth/login` require `Authorization: Bearer <jwt>`.
+
+**`POST /api/auth/register` is admin-only.** The one exception is a brand-new installation: while the user table is empty the endpoint is open, and the account it creates is made an admin. That bootstrap is what stops a fresh install deadlocking — admin-only registration and an empty user table would otherwise leave no way in. Once that first account exists, anonymous registration returns 401 and a signed-in non-admin gets 403.
 
 **Paths below are relative to `/api`** — `POST /auth/login` is `POST /api/auth/login`.
 
-- **Auth** — `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `POST /auth/media-token`
+- **Auth** — `POST /auth/register` (admin-only; open only while no users exist), `POST /auth/login`, `GET /auth/me`, `POST /auth/media-token`
 - **Library** — `POST /library/scan`, `GET /artists[/:id]`, `GET /albums[/:id]`, `GET /tracks`, `GET /search?q=`
 - **Streaming** — `GET /tracks/:id/stream` (byte-range support, `?quality=low` for transcoded audio; accepts a bearer header or a `?token=` media token so `<audio src>` can point straight at it)
 - **Cover art** — `GET /tracks/:id/cover`, `GET /albums/:id/cover` (`?size=thumb` for ~256px; bearer header or `?token=` media token, `ETag`/`If-None-Match` supported)

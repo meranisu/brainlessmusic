@@ -35,3 +35,8 @@ export function setPasswordHash(username: string, passwordHash: string): UserRow
   db.prepare('UPDATE users SET password_hash = ? WHERE username = ?').run(passwordHash, username);
   return findUserByUsername(username);
 }
+
+/** Used to decide whether registration is still in its bootstrap state. */
+export function countUsers(): number {
+  return (db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number }).count;
+}

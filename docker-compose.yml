@@ -9,11 +9,15 @@ services:
       - "3000:3000"
 
     environment:
-      # Required. The server refuses to start without a real one, because
-      # anyone who knows it can mint a token for any account. Generate with:
+      # Required, and enforced by the server itself: it refuses to start on a
+      # missing, default, or under-32-character secret and says so plainly.
+      # Deliberately not `${JWT_SECRET:?...}` — compose interpolates that on
+      # every subcommand, so `build`, `config` and even `down` would fail
+      # without a secret they don't need. One clear failure, at boot.
+      # Generate with:
       #   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
       # Put it in a .env file next to this one as JWT_SECRET=...
-      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in a .env file beside docker-compose.yml}
+      JWT_SECRET: ${JWT_SECRET:-}
 
       # Optional overrides; the image's defaults are usually right.
       # JWT_EXPIRES_IN: 7d

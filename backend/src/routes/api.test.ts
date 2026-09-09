@@ -3,7 +3,7 @@ import { after, before, beforeEach, describe, it } from 'node:test';
 import jwt from 'jsonwebtoken';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../app.js';
-import { insertUser, setAdmin } from '../db/users.js';
+import { findUserByUsername, insertUser, setAdmin } from '../db/users.js';
 import { hashPassword } from '../services/password.js';
 import { signMediaToken, signToken } from '../services/token.js';
 import { resetDatabase } from '../testing/harness.js';
@@ -242,22 +242,72 @@ describe('admin gating', () => {
   });
 });
 
-describe('register and login', () => {
-  it('registers a new user', async () => {
+describe('registration is admin-only', () => {
+  it('lets an admin create a user', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/auth/register',
+      headers: { authorization: `Bearer ${adminToken}` },
       payload: { username: 'newcomer', password: 'a long enough password' },
     });
     assert.equal(res.statusCode, 201);
     assert.equal(res.json().username, 'newcomer');
     assert.equal(res.json().password_hash, undefined);
+    assert.equal(res.json().isAdmin, false, 'only the bootstrap account is auto-admin');
+  });
+
+  it('refuses an anonymous caller once any user exists', async () => {
+    // The hole this closes: before, anyone who could reach the server could
+    // create an account, which only mattered once it left the LAN.
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: { username: 'intruder', password: 'a long enough password' },
+    });
+    assert.equal(res.statusCode, 401);
+    assert.equal(findUserByUsername('intruder'), undefined, 'no account should have been created');
+  });
+
+  it('refuses a signed-in non-admin', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      headers: { authorization: `Bearer ${listenerToken}` },
+      payload: { username: 'sneaky', password: 'a long enough password' },
+    });
+    assert.equal(res.statusCode, 403);
+    assert.equal(findUserByUsername('sneaky'), undefined);
+  });
+
+  it('opens registration when there are no users at all, and makes that one an admin', async () => {
+    // Otherwise a fresh install deadlocks: registration needs an admin, and
+    // an admin can only exist by registering.
+    resetDatabase();
+
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: { username: 'founder', password: 'a long enough password' },
+    });
+    assert.equal(first.statusCode, 201);
+    assert.equal(first.json().isAdmin, true);
+    assert.equal(findUserByUsername('founder')?.is_admin, 1);
+
+    // And the door closes behind them.
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: { username: 'second', password: 'a long enough password' },
+    });
+    assert.equal(second.statusCode, 401);
+    assert.equal(findUserByUsername('second'), undefined);
   });
 
   it('rejects a duplicate username', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/auth/register',
+      headers: { authorization: `Bearer ${adminToken}` },
       payload: { username: listener, password: 'whatever' },
     });
     assert.equal(res.statusCode, 409);
@@ -265,11 +315,18 @@ describe('register and login', () => {
 
   it('rejects missing credentials', async () => {
     for (const payload of [{}, { username: 'x' }, { password: 'y' }, { username: '', password: '' }]) {
-      const res = await app.inject({ method: 'POST', url: '/api/auth/register', payload });
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/auth/register',
+        headers: { authorization: `Bearer ${adminToken}` },
+        payload,
+      });
       assert.equal(res.statusCode, 400, `payload ${JSON.stringify(payload)} should be rejected`);
     }
   });
+});
 
+describe('login', () => {
   it('logs in with the right password and returns a usable token', async () => {
     const res = await app.inject({
       method: 'POST',

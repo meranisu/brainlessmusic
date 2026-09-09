@@ -34,9 +34,20 @@ export interface TopTrack {
 /**
  * Records a play and updates the track's denormalized play_count/last_played_at
  * in one transaction, so the two never drift out of sync.
+ *
+ * The transaction is built on first call rather than at module scope:
+ * `db.transaction()` opens the connection, which would defeat the lazy
+ * handle in `connection.ts` for anything that imports this file.
  */
-export const recordScrobble = db.transaction(
-  (userId: number, trackId: number, msPlayed: number | null): void => {
+let scrobbleTransaction: ((userId: number, trackId: number, msPlayed: number | null) => void) | null = null;
+
+export function recordScrobble(userId: number, trackId: number, msPlayed: number | null): void {
+  scrobbleTransaction ??= buildScrobbleTransaction();
+  scrobbleTransaction(userId, trackId, msPlayed);
+}
+
+function buildScrobbleTransaction() {
+  return db.transaction((userId: number, trackId: number, msPlayed: number | null): void => {
     db.prepare(
       'INSERT INTO play_history (user_id, track_id, ms_played) VALUES (?, ?, ?)',
     ).run(userId, trackId, msPlayed);
@@ -46,8 +57,8 @@ export const recordScrobble = db.transaction(
        SET play_count = play_count + 1, last_played_at = datetime('now')
        WHERE id = ?`,
     ).run(trackId);
-  },
-);
+  });
+}
 
 export function countHistoryForUser(userId: number): number {
   return (

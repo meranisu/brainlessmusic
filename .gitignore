@@ -1,1 +1,6 @@
 .docs/
+
+# Compose reads this for JWT_SECRET and LIBRARY_DIR. Never commit it.
+.env
+.env.*
+!.env.example
