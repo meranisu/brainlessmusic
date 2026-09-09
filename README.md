@@ -94,10 +94,12 @@ docker compose up -d
 
 Then open `http://<host>:3000`. Migrations run automatically on every start; they're idempotent.
 
+One container, `brainless-app`: Fastify serves the built web app from its own origin, so there's no separate frontend service, no reverse proxy and no CORS. The compose file sets an explicit project `name`, so everything it creates is prefixed `brainlessmusic` and can't be caught by another project's `docker compose down`.
+
 | Path | What it is |
 |---|---|
 | `/library` | your music, bind-mounted read-write (uploads are filed into it) |
-| `/data` | named volume: database, cover-art cache, upload staging — **this is the one to back up** |
+| `/data` | named volume `brainlessmusic_brainless-data`: database, cover-art cache, upload staging — **this is the one to back up** |
 | `/api/health` | what the container healthcheck polls |
 
 The image is Debian-based rather than Alpine on purpose: `better-sqlite3` and `bcrypt` ship prebuilt binaries for glibc, and on musl they'd be compiled from source at install time.
