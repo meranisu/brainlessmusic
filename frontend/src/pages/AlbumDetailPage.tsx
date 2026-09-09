@@ -34,6 +34,7 @@ export function AlbumDetailPage() {
       title: t.title,
       artist: data.artistName,
       duration: t.duration,
+      format: t.format,
     })) ?? [];
 
   if (isLoading) return <p className="text-sm text-blue-300">Loading album…</p>;

@@ -13,10 +13,12 @@ import { apiClient, buildStreamUrl } from '../lib/apiClient';
 import { CoverArt } from './CoverArt';
 import { FavoriteButton, useFavoriteIds } from './FavoriteButton';
 import { PauseIcon, PlayIcon, SkipBackIcon, SkipForwardIcon } from './icons';
+import { NowPlaying } from './NowPlaying';
 import type { TrackSummary } from '../types/api';
 import { useToast } from './ToastProvider';
 
-export type QueueTrack = Pick<TrackSummary, 'id' | 'title' | 'artist' | 'duration'>;
+export type QueueTrack = Pick<TrackSummary, 'id' | 'title' | 'artist' | 'duration'> &
+  Partial<Pick<TrackSummary, 'format'>>;
 
 export type RepeatMode = 'off' | 'all' | 'one';
 
@@ -51,7 +53,7 @@ function scrobbleThresholdMs(durationSeconds: number): number {
   return Math.min(durationSeconds / 2, SCROBBLE_CAP_SECONDS) * 1000;
 }
 
-interface PlayerContextValue {
+export interface PlayerContextValue {
   queue: QueueTrack[];
   index: number;
   current: QueueTrack | null;
@@ -66,6 +68,7 @@ interface PlayerContextValue {
   toggle: () => void;
   next: () => void;
   previous: () => void;
+  goTo: (index: number) => void;
   seek: (seconds: number) => void;
   cycleRepeat: () => void;
   toggleShuffle: () => void;
@@ -91,6 +94,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [repeat, setRepeat] = useState<RepeatMode>('off');
   const [isShuffled, setIsShuffled] = useState(false);
   const [isScrubbing, setIsScrubbing] = useState(false);
+  // Phone only: the bar collapses to a strip and this opens the full view.
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   // The pre-shuffle order, so turning shuffle off restores it rather than
@@ -308,6 +313,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setIsShuffled(false);
     setCurrentTime(0);
     setDuration(0);
+    setIsExpanded(false);
   }, []);
 
   // The queue belongs to the session. Logging out — or having a token expire
@@ -382,33 +388,72 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const effectiveDuration = duration || current?.duration || 0;
 
+  const value: PlayerContextValue = {
+    queue,
+    index,
+    current,
+    isPlaying,
+    isLoading,
+    currentTime,
+    duration: effectiveDuration,
+    repeat,
+    isShuffled,
+    playQueue,
+    playTrack,
+    toggle,
+    next,
+    previous,
+    goTo,
+    seek,
+    cycleRepeat,
+    toggleShuffle,
+    stop,
+  };
+
   return (
-    <PlayerContext.Provider
-      value={{
-        queue,
-        index,
-        current,
-        isPlaying,
-        isLoading,
-        currentTime,
-        duration: effectiveDuration,
-        repeat,
-        isShuffled,
-        playQueue,
-        playTrack,
-        toggle,
-        next,
-        previous,
-        seek,
-        cycleRepeat,
-        toggleShuffle,
-        stop,
-      }}
-    >
+    <PlayerContext.Provider value={value}>
       {children}
 
+      {/* Phone: a strip that opens the full view. The bar below is the same
+          player at a size that only works with a mouse and a wide window. */}
+      {user && current && !isExpanded && (
+        <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-blue-800 bg-blue-900 px-4 py-2.5 md:hidden">
+          <span
+            aria-hidden
+            className="absolute inset-x-0 top-0 h-0.5 origin-left bg-orange-600"
+            style={{ transform: `scaleX(${effectiveDuration ? currentTime / effectiveDuration : 0})` }}
+          />
+          {/* Two sibling buttons rather than one nested in the other: a control
+              inside a control is invalid, and screen readers announce only the
+              outer one. */}
+          <button
+            onClick={() => setIsExpanded(true)}
+            className="flex min-w-0 flex-1 items-center gap-3 text-left"
+            aria-label={`Now playing: ${current.title}. Open the player.`}
+          >
+            <CoverArt kind="tracks" id={current.id} className="h-10 w-10 shrink-0 rounded-md" alt="" />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium text-white">{current.title}</span>
+              <span className="block truncate text-xs text-blue-300">{current.artist ?? 'Unknown Artist'}</span>
+            </span>
+          </button>
+          <button
+            onClick={toggle}
+            disabled={isLoading}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-600 text-white disabled:opacity-60"
+            aria-label={isPlaying ? 'Pause' : 'Play'}
+          >
+            {isPlaying ? <PauseIcon className="h-4 w-4" /> : <PlayIcon className="h-4 w-4" />}
+          </button>
+        </div>
+      )}
+
+      {user && current && isExpanded && (
+        <NowPlaying player={value} onCollapse={() => setIsExpanded(false)} />
+      )}
+
       {user && current && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-blue-800 bg-blue-900">
+        <div className="fixed inset-x-0 bottom-0 z-40 hidden border-t border-blue-800 bg-blue-900 md:block">
           <div className="page-shell flex items-center gap-4 px-6 py-3">
             <div className="flex shrink-0 items-center gap-1">
               <button

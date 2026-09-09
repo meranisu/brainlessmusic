@@ -36,6 +36,7 @@ export function FavoritesPage() {
       title: t.title,
       artist: t.artist,
       duration: t.duration,
+      format: t.format,
     })) ?? [];
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;

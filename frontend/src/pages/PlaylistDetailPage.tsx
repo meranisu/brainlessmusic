@@ -103,6 +103,7 @@ export function PlaylistDetailPage() {
     title: t.title,
     artist: t.artist,
     duration: t.duration,
+    format: t.format,
   }));
 
   function handleDrop(targetIndex: number) {

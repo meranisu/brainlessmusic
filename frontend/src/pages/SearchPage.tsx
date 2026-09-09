@@ -44,6 +44,7 @@ export function SearchPage() {
     title: t.title,
     artist: t.artist,
     duration: t.duration,
+    format: t.format,
   }));
 
   const total = data ? data.artists.length + data.albums.length + data.tracks.length : 0;

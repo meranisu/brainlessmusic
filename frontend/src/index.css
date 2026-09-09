@@ -23,6 +23,15 @@
     font-family: 'Fredoka', ui-sans-serif, system-ui, sans-serif;
   }
 
+  /* Display face for a track title at size — Barlow Condensed (Google Fonts).
+     Narrow and heavy, which is what carries the player's title without
+     shouting it: a third of this library has mixed-script titles, and
+     uppercasing those capitalises only their Latin half. The weight does the
+     work that `text-transform` would have done badly. */
+  .font-display {
+    font-family: 'Barlow Condensed', ui-sans-serif, system-ui, sans-serif;
+  }
+
   .btn-primary {
     @apply inline-flex items-center justify-center gap-1.5 rounded-md bg-orange-600 text-sm font-medium text-white transition-colors hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-50;
   }
