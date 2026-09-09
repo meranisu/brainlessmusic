@@ -13,6 +13,7 @@ export interface TrackSummary {
   format: string | null;
   hidden: boolean;
   notRecommended: boolean;
+  playCount: number;
 }
 
 export interface TrackDetail extends TrackSummary {
@@ -20,7 +21,6 @@ export interface TrackDetail extends TrackSummary {
   fileSize: number;
   bitrate: number | null;
   sampleRate: number | null;
-  playCount: number;
   dateAdded: string;
   lastPlayedAt: string | null;
   lastStreamError: string | null;

@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { apiClient, buildStreamUrl } from '../lib/apiClient';
 import { CoverArt } from './CoverArt';
@@ -14,6 +15,31 @@ export type RepeatMode = 'off' | 'all' | 'one';
 const RESTART_THRESHOLD_SECONDS = 3;
 
 const SEEK_STEP_SECONDS = 5;
+
+/** A play counts once you've heard half the track, or four minutes of it —
+ *  whichever comes first. Same rule Last.fm has used for two decades, so the
+ *  numbers mean roughly what people already expect them to mean. */
+const SCROBBLE_CAP_SECONDS = 240;
+
+/** Only count time actually heard. A jump larger than this is a seek (or a
+ *  buffering skip), not playback — dragging the scrubber to the end of a
+ *  track shouldn't record it as listened to. */
+const MAX_PLAYBACK_DELTA_SECONDS = 2;
+
+interface PlayProgress {
+  trackId: number;
+  listenedMs: number;
+  lastTime: number;
+  thresholdMs: number;
+  scrobbled: boolean;
+}
+
+function scrobbleThresholdMs(durationSeconds: number): number {
+  // No usable duration yet — fall back to the cap, and let `loadedmetadata`
+  // tighten it once the browser knows how long the track really is.
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return SCROBBLE_CAP_SECONDS * 1000;
+  return Math.min(durationSeconds / 2, SCROBBLE_CAP_SECONDS) * 1000;
+}
 
 interface PlayerContextValue {
   queue: QueueTrack[];
@@ -60,6 +86,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // The pre-shuffle order, so turning shuffle off restores it rather than
   // leaving the queue permanently scrambled.
   const originalQueueRef = useRef<QueueTrack[] | null>(null);
+  // Listening progress for the current play, kept in a ref so the audio
+  // element's long-lived listeners always see live values without re-binding
+  // on every timeupdate.
+  const progressRef = useRef<PlayProgress | null>(null);
+  const queryClient = useQueryClient();
   const { showToast } = useToast();
   const favoriteIds = useFavoriteIds();
 
@@ -69,8 +100,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const audio = new Audio();
     audioRef.current = audio;
 
-    const onTime = () => setCurrentTime(audio.currentTime);
-    const onMeta = () => setDuration(Number.isFinite(audio.duration) ? audio.duration : 0);
+    const onTime = () => {
+      setCurrentTime(audio.currentTime);
+      recordListenedTime(audio.currentTime);
+    };
+    const onMeta = () => {
+      const known = Number.isFinite(audio.duration) ? audio.duration : 0;
+      setDuration(known);
+      // The scanner's duration can be missing or wrong; once the browser has
+      // decoded the header it knows better, so re-derive the threshold.
+      if (progressRef.current && known > 0) {
+        progressRef.current.thresholdMs = scrobbleThresholdMs(known);
+      }
+    };
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
 
@@ -88,7 +130,37 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       audio.removeEventListener('play', onPlay);
       audio.removeEventListener('pause', onPause);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function scrobble(trackId: number, msPlayed: number) {
+    try {
+      await apiClient.post(`/tracks/${trackId}/scrobble`, { msPlayed });
+      // Play counts show up in the library table and the track drawer, so let
+      // whatever is on screen pick up the new number.
+      void queryClient.invalidateQueries({ queryKey: ['tracks'] });
+      void queryClient.invalidateQueries({ queryKey: ['track', trackId] });
+    } catch {
+      // A missed scrobble costs a statistic, not the music. Never interrupt
+      // playback — or nag the listener — over one.
+    }
+  }
+
+  function recordListenedTime(positionSeconds: number) {
+    const progress = progressRef.current;
+    if (!progress) return;
+
+    const delta = positionSeconds - progress.lastTime;
+    progress.lastTime = positionSeconds;
+    if (delta > 0 && delta <= MAX_PLAYBACK_DELTA_SECONDS) {
+      progress.listenedMs += delta * 1000;
+    }
+
+    if (!progress.scrobbled && progress.listenedMs >= progress.thresholdMs) {
+      progress.scrobbled = true; // set before the request, so a slow response can't double-count
+      void scrobble(progress.trackId, Math.round(progress.listenedMs));
+    }
+  }
 
   async function load(tracks: QueueTrack[], at: number, autoplay = true) {
     const audio = audioRef.current;
@@ -97,6 +169,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     setIsLoading(true);
     setCurrentTime(0);
+    // A fresh play — including repeat-one starting the same track again, which
+    // is a second listen and should scrobble a second time.
+    progressRef.current = {
+      trackId: track.id,
+      listenedMs: 0,
+      lastTime: 0,
+      thresholdMs: scrobbleThresholdMs(track.duration ?? 0),
+      scrobbled: false,
+    };
     // Fall back to the duration the scanner recorded — some Ogg/Opus streams
     // don't report a usable duration until fully buffered.
     setDuration(track.duration ?? 0);
@@ -207,6 +288,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       audio.load(); // drop the in-flight range request rather than buffering on
     }
     originalQueueRef.current = null;
+    progressRef.current = null;
     setQueue([]);
     setIndex(0);
     setIsPlaying(false);

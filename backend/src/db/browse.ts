@@ -46,6 +46,7 @@ export interface TrackSummary {
   format: string | null;
   hidden: boolean;
   notRecommended: boolean;
+  playCount: number;
 }
 
 export interface TrackDetail extends TrackSummary {
@@ -53,7 +54,6 @@ export interface TrackDetail extends TrackSummary {
   fileSize: number;
   bitrate: number | null;
   sampleRate: number | null;
-  playCount: number;
   dateAdded: string;
   lastPlayedAt: string | null;
   lastStreamError: string | null;
@@ -110,7 +110,8 @@ const TRACK_SUMMARY_SELECT = `
     t.duration as duration,
     t.format as format,
     t.hidden as hidden,
-    t.not_recommended as notRecommended
+    t.not_recommended as notRecommended,
+    t.play_count as playCount
   FROM tracks t
   LEFT JOIN artists a ON a.id = t.artist_id
   LEFT JOIN albums al ON al.id = t.album_id

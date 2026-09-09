@@ -222,7 +222,8 @@ export function LibraryPage() {
                   <th className="py-2.5 font-medium">Title</th>
                   <th className="py-2.5 font-medium">Artist</th>
                   <th className="py-2.5 font-medium">Album</th>
-                  <th className="py-2.5 pr-4 text-right font-medium">Duration</th>
+                  <th className="py-2.5 pr-3 text-right font-medium">Duration</th>
+                  <th className="py-2.5 pr-3 text-right font-medium">Plays</th>
                   <th className="py-2.5 font-medium">Format</th>
                   <th className="py-2.5 font-medium">Flags</th>
                   <th className="w-10 py-2.5 pr-4"></th>
@@ -265,8 +266,11 @@ export function LibraryPage() {
                     </td>
                     <td className="py-2.5 pr-3 text-blue-200">{t.artist ?? '—'}</td>
                     <td className="py-2.5 pr-3 text-blue-200">{t.album ?? '—'}</td>
-                    <td className="py-2.5 pr-4 text-right tabular-nums text-blue-200">
+                    <td className="py-2.5 pr-3 text-right tabular-nums text-blue-200">
                       {formatDuration(t.duration)}
+                    </td>
+                    <td className="py-2.5 pr-3 text-right tabular-nums text-blue-300">
+                      {t.playCount > 0 ? t.playCount : '—'}
                     </td>
                     <td className="py-2.5 pr-3 text-blue-300">{t.format ?? '—'}</td>
                     <td className="py-2.5 pr-3">
@@ -293,7 +297,7 @@ export function LibraryPage() {
                 ))}
                 {data.tracks.length === 0 && (
                   <tr>
-                    <td colSpan={isAdmin ? 9 : 7} className="px-4 py-12 text-center text-blue-300">
+                    <td colSpan={isAdmin ? 11 : 10} className="px-4 py-12 text-center text-blue-300">
                       No tracks match these filters.
                     </td>
                   </tr>
