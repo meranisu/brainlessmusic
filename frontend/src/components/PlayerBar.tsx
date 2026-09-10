@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { useIsPhone } from '../hooks/useIsPhone';
-import { apiClient, buildStreamUrl } from '../lib/apiClient';
+import { apiClient, buildCoverUrl, buildStreamUrl } from '../lib/apiClient';
 import { CoverArt } from './CoverArt';
 import { FavoriteButton, useFavoriteIds } from './FavoriteButton';
 import { PauseIcon, PlayIcon, SkipBackIcon, SkipForwardIcon } from './icons';
@@ -357,6 +357,117 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return () => audio.removeEventListener('ended', onEnded);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queue, index, repeat]);
+
+  // Lock-screen and notification transport. Without this the OS only knows
+  // that "a tab is playing audio": no title, no artwork, no skip buttons —
+  // on a phone that is most of the difference between a browser tab and
+  // something that behaves like a music player.
+  //
+  // The API is secure-context only, so `navigator.mediaSession` is simply
+  // absent over plain http:// on a LAN address. The guard keeps that a missing
+  // nicety rather than a crash; reach the app over https to see any of it.
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    const session = navigator.mediaSession;
+
+    if (!current) {
+      session.metadata = null;
+      return;
+    }
+
+    // Artwork needs a media token, so it can only arrive a beat later. Set the
+    // text straight away so the notification is never blank, then replace the
+    // whole MediaMetadata once the cover resolves — `artwork` is read at
+    // assignment, so mutating the object already handed over would not take.
+    const base = { title: current.title, artist: current.artist ?? '' };
+    session.metadata = new MediaMetadata(base);
+
+    let cancelled = false;
+    void buildCoverUrl('tracks', current.id, 'full')
+      .then((src) => {
+        if (cancelled) return;
+        session.metadata = new MediaMetadata({ ...base, artwork: [{ src, sizes: '512x512' }] });
+      })
+      .catch(() => {
+        // A missing cover is not worth losing the title and artist over.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [current]);
+
+  // Kept apart from the metadata above because these close over the transport:
+  // they have to re-bind whenever the queue position or repeat mode changes,
+  // where the metadata only ever depends on the track itself.
+  useEffect(() => {
+    if (!('mediaSession' in navigator) || !current) return;
+    const session = navigator.mediaSession;
+
+    // Which actions exist varies by platform, and browsers throw on the ones
+    // they don't implement. One unsupported action must not take the rest of
+    // the transport down with it.
+    const set = (action: MediaSessionAction, handler: MediaSessionActionHandler | null) => {
+      try {
+        session.setActionHandler(action, handler);
+      } catch {
+        // Not supported here; the others still bind.
+      }
+    };
+
+    // Driven off the element rather than `toggle()`, so an OS button always
+    // means what it says even if our own state has drifted out of sync.
+    set('play', () => void audioRef.current?.play());
+    set('pause', () => audioRef.current?.pause());
+    set('previoustrack', () => previous());
+    set('nexttrack', () => next());
+    set('seekbackward', (d) => seek(currentTime - (d.seekOffset ?? SEEK_STEP_SECONDS)));
+    set('seekforward', (d) => seek(currentTime + (d.seekOffset ?? SEEK_STEP_SECONDS)));
+    set('seekto', (d) => {
+      if (typeof d.seekTime === 'number') seek(d.seekTime);
+    });
+    set('stop', () => stop());
+
+    return () => {
+      const actions: MediaSessionAction[] = [
+        'play',
+        'pause',
+        'previoustrack',
+        'nexttrack',
+        'seekbackward',
+        'seekforward',
+        'seekto',
+        'stop',
+      ];
+      for (const action of actions) set(action, null);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current, currentTime, queue, index, repeat, duration]);
+
+  // Drives the lock screen's play/pause icon and its scrubber position.
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    const session = navigator.mediaSession;
+    session.playbackState = current ? (isPlaying ? 'playing' : 'paused') : 'none';
+
+    const total = duration || current?.duration || 0;
+    try {
+      if (!current || !Number.isFinite(total) || total <= 0) {
+        session.setPositionState();
+      } else {
+        session.setPositionState({
+          duration: total,
+          // Clamped deliberately: a track that has just ended briefly reports a
+          // position past its own duration, which the API rejects outright.
+          position: Math.min(Math.max(currentTime, 0), total),
+          playbackRate: 1,
+        });
+      }
+    } catch {
+      // Older browsers expose no position state at all — the play/pause icon
+      // above still works, only the scrubber is missing.
+    }
+  }, [current, isPlaying, currentTime, duration]);
 
   // Keyboard transport. Ignored while typing, so the library search box and
   // the tag editor keep working normally.

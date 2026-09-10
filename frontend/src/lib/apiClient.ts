@@ -1,9 +1,13 @@
-// No .env file required for local dev — override by setting VITE_API_BASE_URL.
+// No .env file required for local dev — override by setting VITE_API_BASE_URL
+// in a .env file at the frontend/ root if the backend isn't where dev expects.
 // The API lives under /api so it doesn't collide with the app's own routes
 // (/albums, /search, /health are both); the container builds this as "/api",
 // which makes every request same-origin.
-// in a .env file at the frontend/ root if the backend isn't on localhost:3000.
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api';
+//
+// The default is relative for that same reason: Vite proxies /api to the
+// backend in dev, so the app works from any device that can reach the dev
+// server. An absolute localhost default would send a phone to its own machine.
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
 const TOKEN_STORAGE_KEY = 'brainlessmusic.token';
 

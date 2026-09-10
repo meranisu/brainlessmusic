@@ -8,10 +8,11 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
  * is useful on its own: `docker compose up` gives you something to open,
  * rather than an API you still have to point a separately-hosted frontend at.
  *
- * Same-origin also means the frontend is built with an empty
- * `VITE_API_BASE_URL`, so its requests are relative and CORS never enters into
- * it. No-op when `FRONTEND_PATH` is unset or missing, which is the local-dev
- * case where Vite serves the SPA itself.
+ * Same-origin also means the frontend is built with a relative
+ * `VITE_API_BASE_URL` of `/api` — matching API_PREFIX — so its requests never
+ * leave this origin and CORS never enters into it. No-op when `FRONTEND_PATH`
+ * is unset or missing, which is the local-dev case where Vite serves the SPA
+ * itself and proxies /api across to this server.
  */
 export function registerSpa(app: FastifyInstance, frontendPath: string): boolean {
   if (!frontendPath || !existsSync(join(frontendPath, 'index.html'))) return false;

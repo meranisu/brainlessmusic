@@ -41,6 +41,13 @@ function placeholderHeights(trackId: number): number[] {
 }
 
 /**
+ * The shortest a track's loudest bar is allowed to be, as a fraction of the
+ * scrubber's height. A track quiet enough to hit this still reads as quiet,
+ * which is the whole point of not normalising all the way.
+ */
+const QUIET_TRACK_CEILING = 0.55;
+
+/**
  * Reduces the server's peaks to the bars this scrubber draws, taking the
  * loudest sample in each span rather than the average — averaging pulls
  * everything toward the middle and flattens exactly the transients that make a
@@ -48,14 +55,33 @@ function placeholderHeights(trackId: number): number[] {
  *
  * The server stores more buckets than any client draws, so this only ever
  * downsamples.
+ *
+ * Peaks arrive as absolute amplitude, 0-255, where 255 is a full-scale sample.
+ * Drawing them against that scale directly is honest and looks wrong: this
+ * library is quietly-mastered piano that peaks around 80, so every waveform
+ * would sit in the bottom third of the scrubber — flatter than the random
+ * placeholder it replaces, which is the wrong way round.
+ *
+ * So each track is scaled to its own loudest bar, but only up to a ceiling that
+ * rises with how loud the track actually is: a full-scale track may fill the
+ * height, a near-silent one may not climb past QUIET_TRACK_CEILING. Shape stays
+ * readable on everything without pretending a whisper is a wall of noise.
  */
 function barsFromPeaks(peaks: number[]): number[] {
   const span = peaks.length / WAVE_BARS;
-  return Array.from({ length: WAVE_BARS }, (_, i) => {
+  const bars = Array.from({ length: WAVE_BARS }, (_, i) => {
     const slice = peaks.slice(Math.floor(i * span), Math.max(Math.floor((i + 1) * span), Math.floor(i * span) + 1));
-    // Floor at 0.06 so silence is still a visible line, not a gap in the bar.
-    return Math.max(0.06, Math.max(...slice) / 255);
+    return Math.max(...slice) / 255;
   });
+
+  const loudest = Math.max(...bars);
+  // An all-silent track has nothing to scale against; leave it as the flat line
+  // the floor below draws rather than dividing by zero.
+  const ceiling = QUIET_TRACK_CEILING + (1 - QUIET_TRACK_CEILING) * loudest;
+  const scale = loudest > 0 ? ceiling / loudest : 0;
+
+  // Floor at 0.06 so silence is still a visible line, not a gap in the bar.
+  return bars.map((bar) => Math.max(0.06, bar * scale));
 }
 
 function totalQueueSeconds(durations: (number | null | undefined)[]): number {

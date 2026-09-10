@@ -93,6 +93,31 @@ On 2026-09-09 a test that did `rm -rf` on `config.libraryPath` was run directly 
 
 When starting a non-trivial new feature, create `.docs/features/<feature-name>/planning.md` using the phase-plan template at `.docs/phase-plan-example.md` — a phase table (Plan → Structure → Interior → Walkthrough) plus a change log for anything that shifts mid-build. Keep `.docs/STATUS.md` in sync whenever a feature's phase or status changes — it's the one file to check for an at-a-glance project state.
 
+## Open questions (QUESTIONS.md)
+
+`.docs/QUESTIONS.md` is the single ledger for anything waiting on an owner
+decision. It exists because questions asked at the end of a turn were getting
+lost: the owner would answer the newest one, and the three before it would
+quietly vanish.
+
+The rule, in both directions:
+
+- **Before ending a turn with a question, write it into `QUESTIONS.md` first.**
+  Give it the next free `Q<n>` — IDs are permanent and never reused — then ask
+  it in the reply by ID. A question that was worth asking is worth surviving the
+  turn it was asked in.
+- **When the owner answers, move the entry to `## Answered` in the same piece of
+  work**, with the decision, the date, and where it landed (commit or doc).
+  Don't batch it for later; that is the exact failure this file exists to stop.
+- **Read the Answered section before asking anything.** It is the
+  anti-re-litigation record — if it is decided there, don't re-open it without
+  the owner explicitly saying so.
+- **Non-blocking questions carry the assumption they're being built on.** State
+  it in the entry so that if the answer contradicts it, what was built on the
+  wrong assumption is visible rather than archaeological.
+- **Never restate a question's content somewhere else.** Other docs link to the
+  ID. Two copies of a question is the fragmentation this replaces.
+
 ## Change tracking (CHANGELOG.md / FUNCTIONLOG.md)
 
 Every backend/frontend code change (not doc-only commits) gets logged in both, newest entry first:
@@ -126,12 +151,14 @@ Update both files as part of the same piece of work that makes the change — do
 ├── templates/    — spec/ADR/phase-plan templates
 ├── CHANGELOG.md  — dated log of every backend/frontend change (see Change tracking below)
 ├── FUNCTIONLOG.md — per-function log of what was added/changed and why (see Change tracking below)
+├── QUESTIONS.md  — the open-questions ledger; every owner decision waited on, by ID
 └── STATUS.md     — one-page current-state snapshot, entry point
 ```
 
 ## Where to look first
 
 - Current project state: `.docs/STATUS.md`
+- **Anything waiting on an owner decision: `.docs/QUESTIONS.md`** — check it before asking, and before assuming something is undecided
 - Why the backend ended up as a custom Node/TS build (not Navidrome): `.docs/history/backend-decision-history.md`
 - Full resolved stack + MVP scope: `.docs/reference/tech-stack.md`
 - Database schema — every table, PK/FK, index, and flagged discrepancy, checked against the live DB not just migration files: `.docs/reference/database-schema.md`. Update it (table section + change log) in the same change whenever a migration is added.

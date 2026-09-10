@@ -15,9 +15,13 @@ COPY frontend/package*.json ./
 RUN npm ci
 
 COPY frontend/ ./
-# Empty base URL => the app calls the API on its own origin, which is exactly
-# what it gets when served by the backend below.
-ENV VITE_API_BASE_URL=""
+# Relative base URL => the app calls the API on its own origin, which is exactly
+# what it gets when served by the backend below. It has to carry the /api
+# prefix: the backend mounts its routes under API_PREFIX so they don't collide
+# with the SPA's own paths (/albums, /search and /health are both a page and an
+# endpoint), so an empty value here would send every request to the SPA
+# fallback instead of the API.
+ENV VITE_API_BASE_URL="/api"
 RUN npm run build
 
 # ---------- build the server ----------
