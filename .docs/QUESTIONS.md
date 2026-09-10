@@ -35,7 +35,6 @@ is never asked twice.
 | [Q5](#q5--tag-editing-scope) | Tag-editing scope | 2026-09-09 | No |
 | [Q7](#q7--should-the-track-title-be-uppercased) | Should the track title be uppercased? | 2026-09-09 | No |
 | [Q8](#q8--should-the-play-fab-keep-overlapping-the-scrubber) | Should the play FAB keep overlapping the scrubber? | 2026-09-09 | No |
-| [Q9](#q9--resume-position--cross-device-playback-state) | Resume position / cross-device playback state | 2026-09-10 | No — box 25 |
 | [Q10](#q10--gapless-playback) | Gapless playback | 2026-09-10 | No |
 | [Q12](#q12--does-the-first-play-wait-need-a-live-fallback-for-very-long-tracks) | Does the first-play wait need a live fallback for very long tracks? | 2026-09-10 | No |
 | [Q13](#q13--should-the-64k-opus-recipe-switch-to-constrained-vbr) | Should the 64k Opus recipe switch to constrained VBR? | 2026-09-10 | No |
@@ -97,53 +96,13 @@ As the mockup has it, the FAB sits over the scrubber's centre. Dragging through
 the middle still seeks, but a tap at dead centre hits play instead of seeking
 there. The alternative is moving the FAB down into the transport row.
 
-### Q9 — Resume position / cross-device playback state
-**Asked:** 2026-09-10 · **Blocking:** no — this is roadmap box 25
-
-Needs a `playback_state` table. Ranked and listed during the 2026-09-10 backend
-playback review but left undecided, unlike the items in [Answered](#answered)
-from the same review.
-
-**Expanded 2026-09-10** with the four decisions the table's shape actually turns
-on. Each has a recommended default, so this can be built without an answer if
-you would rather just see it work.
-
-1. **What is saved — position only, or the queue too?**
-   *Recommended: the queue too.* Track + position alone means the phone
-   resumes the song but forgets what was meant to come after it, which is
-   half a feature. The queue is a list of ids; it costs a JSON column.
-
-2. **How often does the client write?**
-   *Recommended: every 10 s while playing, plus on pause, track change and
-   page hide.* A write per second is wasteful and a write only on unload
-   loses everything to a crash or a killed tab. `visibilitychange` is the
-   event that actually fires on a phone; `beforeunload` does not fire
-   reliably on mobile Safari or when Android kills a backgrounded tab.
-
-3. **Two devices playing at once — who wins?**
-   *Recommended: last write wins, one row per user.* This is a three-person
-   server. Per-device state would mean the desktop never learns where the
-   phone got to, which is the entire point of the box. The failure mode is
-   mild and self-correcting: whichever device you touched last is right.
-
-4. **On opening the app, does it start playing?**
-   *Recommended: no — restore the queue and the position, paused.* Browsers
-   block autoplay without a user gesture, so "resume and play" is not
-   something the web client can honestly deliver; it would silently do
-   nothing on the phone, which is exactly where it matters. Restore the
-   state, show it in the bar, let the play button do the rest. **This is the
-   one worth disagreeing with if you want the Android client to behave
-   differently** — a native app has no such restriction, and box 25 is
-   backend-then-clients.
-
-**Assumption being built on:** the four defaults above, if this is started
-before an answer arrives.
-
 ### Q10 — Gapless playback
 **Asked:** 2026-09-10 · **Blocking:** no
 
-Opus pre-skip / LAME delay-padding handling. Same review as Q9, same status:
-raised, not decided.
+Opus pre-skip / LAME delay-padding handling. Raised in the 2026-09-10 backend
+playback review and still undecided — the only item from that review's
+"undecided" pair that has not since been built ([A9](#a9--resume-position--cross-device-playback-state)
+took the other).
 
 ---
 
@@ -199,6 +158,33 @@ overshoot, so this can be taken at any time; it costs one constant and one id.
 ## Answered
 
 Decided. Do not re-open without an explicit ask.
+
+### A9 — Resume position / cross-device playback state *(was Q9)*
+**Answered:** 2026-09-10 · **By default, not by decision** — see the caveat below
+
+Roadmap box 25, built 2026-09-10. The four decisions Q9 was expanded into were
+each taken at their recommended default, because the box was picked to be built
+before the question came back:
+
+1. **Queue as well as position** — position alone means the phone resumes the
+   song and forgets what was meant to follow it.
+2. **Write every 10 s while playing, on pause, on track change, and on
+   `visibilitychange`** — not `beforeunload`, which does not fire reliably on a
+   phone, the one place a backgrounded tab actually gets killed.
+3. **One row per user, last write wins** — enforced by making `user_id` the
+   primary key rather than by remembering a rule.
+4. **Restores paused, does not auto-play** — browsers block autoplay without a
+   user gesture, so resume-and-play would silently do nothing on a phone.
+
+**Still genuinely open, and cheap to change:** number 4 on **Android**. A native
+client has no autoplay restriction, so it *can* resume playing, and whether it
+should is a taste question this decision does not settle. Numbers 1–3 are in the
+schema and would cost a migration to revisit; number 4 is a client-side choice
+with no stored state behind it.
+
+Landed: `0011_create_playback_state.sql`, `backend/src/db/playbackState.ts`,
+`backend/src/routes/playbackState.ts`, and the save/restore effects in
+`frontend/src/components/PlayerBar.tsx`.
 
 ### A1 — Is iOS/Safari a target?
 **Answered:** 2026-09-10 · **No.** Chrome, Android and desktop only. This is why

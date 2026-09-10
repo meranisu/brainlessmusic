@@ -22,7 +22,7 @@ import { CoverArt } from './CoverArt';
 import { FavoriteButton, useFavoriteIds } from './FavoriteButton';
 import { PauseIcon, PlayIcon, SkipBackIcon, SkipForwardIcon } from './icons';
 import { NowPlaying } from './NowPlaying';
-import type { TrackSummary } from '../types/api';
+import type { PlaybackState, TrackSummary } from '../types/api';
 import { useToast } from './ToastProvider';
 
 export type QueueTrack = Pick<TrackSummary, 'id' | 'title' | 'artist' | 'duration'> &
@@ -45,6 +45,9 @@ const SCROBBLE_CAP_SECONDS = 240;
  *  buffering skip), not playback — dragging the scrubber to the end of a
  *  track shouldn't record it as listened to. */
 const MAX_PLAYBACK_DELTA_SECONDS = 2;
+
+/** How often the position is pushed while playing. */
+const SAVE_INTERVAL_MS = 10_000;
 
 interface PlayProgress {
   trackId: number;
@@ -223,7 +226,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function load(tracks: QueueTrack[], at: number, autoplay = true) {
+  async function load(tracks: QueueTrack[], at: number, autoplay = true, resumeAt = 0) {
     const audio = audioRef.current;
     const track = tracks[at];
     if (!audio || !track) return;
@@ -245,6 +248,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     try {
       audio.src = await buildStreamUrl(track.id, dataSaver ? 'low' : undefined);
+      if (resumeAt > 0) {
+        // Nothing can be seeked until the browser knows how long the track is.
+        await waitForMetadata(audio);
+        audio.currentTime = resumeAt;
+        // Restoring is not listening. Anchoring here stops the jump up from 0
+        // being counted as time heard, which would scrobble a track nobody
+        // has played yet.
+        if (progressRef.current) progressRef.current.lastTime = resumeAt;
+        setCurrentTime(resumeAt);
+      }
       if (autoplay) await audio.play();
     } catch (err) {
       showToast(err instanceof Error ? err.message : `Could not play ${track.title}`, 'error');
@@ -398,12 +411,112 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setIsExpanded(false);
   }, []);
 
+  /**
+   * Closing the player is a deliberate "I am done", so it erases the saved
+   * position too — otherwise the next tab resumes a queue already dismissed.
+   *
+   * Kept apart from `stop` because logging out must NOT erase it. Both used to
+   * be the same call, and sharing it would mean a token expiring quietly threw
+   * away the position the feature exists to keep.
+   */
+  const stopAndForget = useCallback(() => {
+    stop();
+    void apiClient.delete('/me/playback-state').catch(() => {
+      // The queue is already gone locally; a stale row will be overwritten by
+      // the next thing played.
+    });
+  }, [stop]);
+
   // The queue belongs to the session. Logging out — or having a token expire
   // out from under us — has to take the audio with it, or the bar keeps
-  // playing the previous user's library over the login screen.
+  // playing the previous user's library over the login screen. This is `stop`,
+  // not `stopAndForget`: the position should be waiting when you come back.
   useEffect(() => {
     if (!user) stop();
   }, [user, stop]);
+
+  // Newest values, reachable from long-lived listeners without re-binding them.
+  const stateRef = useRef({ queue, index });
+  stateRef.current = { queue, index };
+
+  const persistState = useCallback(() => {
+    const audio = audioRef.current;
+    const { queue: tracks, index: at } = stateRef.current;
+    if (!audio || !tracks[at]) return;
+
+    void apiClient
+      .put('/me/playback-state', {
+        queue: tracks.map((t) => t.id),
+        queueIndex: at,
+        positionSeconds: audio.currentTime,
+      })
+      .catch(() => {
+        // Losing a position costs the resume, not the music.
+      });
+  }, []);
+
+  // Three moments, because none of them covers the others: a tick while
+  // playing (a crash or a killed tab loses at most one interval), the moment
+  // playback stops or moves to another track, and the page being hidden.
+  useEffect(() => {
+    if (!isPlaying) return;
+    const timer = window.setInterval(persistState, SAVE_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+  }, [isPlaying, persistState]);
+
+  const currentId = current?.id;
+  useEffect(() => {
+    persistState();
+  }, [currentId, isPlaying, persistState]);
+
+  useEffect(() => {
+    // `visibilitychange` rather than `beforeunload`: the latter does not fire
+    // reliably on a phone, which is exactly where a tab gets killed in the
+    // background.
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') persistState();
+    };
+    document.addEventListener('visibilitychange', onHide);
+    return () => document.removeEventListener('visibilitychange', onHide);
+  }, [persistState]);
+
+  // Restore once per session, and never over something already playing.
+  const restoredRef = useRef(false);
+
+  useEffect(() => {
+    if (!user) {
+      // A later sign-in is a new session and deserves its own restore.
+      restoredRef.current = false;
+      return;
+    }
+    if (restoredRef.current) return;
+    restoredRef.current = true; // set before awaiting, so a re-run cannot double-load
+
+    // Deliberately no `cancelled` flag. StrictMode invokes this twice: a
+    // cleanup that cancelled the first call would throw away the only fetch
+    // that ran, because the second call bails on the ref above. The guard
+    // that actually matters is `audio.src` below — if anything is loaded by
+    // the time this resolves, the listener got there first and wins.
+    void apiClient
+      .get<{ state: PlaybackState | null }>('/me/playback-state')
+      .then(async ({ state }) => {
+        const audio = audioRef.current;
+        if (!state || state.queue.length === 0 || !audio || audio.src) return;
+
+        originalQueueRef.current = state.queue;
+        setQueue(state.queue);
+        setIndex(state.queueIndex);
+        // Paused, deliberately. Browsers block autoplay without a gesture, so
+        // "resume and play" would silently do nothing on a phone — the one
+        // place it would matter most. Restore the state; let the play button
+        // do the rest.
+        await load(state.queue, state.queueIndex, false, state.positionSeconds);
+      })
+      .catch(() => {
+        // No resume is a worse start than a resume, but not a broken one.
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   // Re-bound whenever the queue position or repeat mode changes, so the
   // handler always sees current values instead of the ones captured at mount.
@@ -628,7 +741,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     cycleRepeat,
     toggleShuffle,
     setDataSaver,
-    stop,
+    stop: stopAndForget,
   };
 
   return (
@@ -795,7 +908,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               >
                 Data saver
               </button>
-              <button onClick={stop} className="btn-ghost btn-sm" aria-label="Close player">
+              <button onClick={stopAndForget} className="btn-ghost btn-sm" aria-label="Close player">
                 ✕
               </button>
             </div>

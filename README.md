@@ -81,6 +81,28 @@ One conversion happens whether you ask for it or not. A raw `.aac` file has no c
 
 The cache directory is disposable. Delete it and each track re-converts on next request.
 
+### Picking up where you left off
+
+The queue and the position are saved to the server, so closing a tab and opening
+the app somewhere else carries on mid-song. One saved queue per account, not per
+device — whichever screen you touched last is the one that is right, which is the
+whole point when the screens are a desktop and a phone.
+
+It comes back **paused**. Browsers refuse to start audio without a click, so a
+player that promised to resume-and-play would simply sit there silently on a
+phone; better to restore the queue, show it, and let the play button work. The
+position is written every ten seconds while playing, when you pause, when the
+track changes, and when the page is hidden.
+
+A queue saved today may not all be playable tomorrow. Tracks that have been
+deleted or that have gone missing from disk are dropped when the state is read
+back, and the place in the queue is worked out again around the survivors — if
+the track you were on is the one that vanished, you land on the next one rather
+than back at the start.
+
+Pressing **✕** on the player clears the saved position; it means "I'm done".
+Logging out does not — that position is waiting for you next time.
+
 ### Keeping the library in sync
 
 The database and the disk drift apart: files get moved, a library root changes, an external drive doesn't mount. A track row pointing at a file that isn't there is invisible until someone presses play and gets a `500`.

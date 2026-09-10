@@ -8,6 +8,7 @@ import albumsRoute from './routes/albums.js';
 import artistsRoute from './routes/artists.js';
 import authRoute from './routes/auth.js';
 import favoritesRoute from './routes/favorites.js';
+import playbackStateRoute from './routes/playbackState.js';
 import healthRoute from './routes/health.js';
 import historyRoute from './routes/history.js';
 import libraryRoute from './routes/library.js';
@@ -65,6 +66,7 @@ export function buildApp() {
       api.register(historyRoute);
       api.register(statsRoute);
       api.register(favoritesRoute);
+      api.register(playbackStateRoute);
       api.register(shuffleRoute);
       api.register(usersRoute);
     },

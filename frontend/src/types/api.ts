@@ -18,6 +18,16 @@ export interface TrackSummary {
   playCount: number;
 }
 
+export interface PlaybackState {
+  /** Already filtered server-side — anything unplayable is gone from this. */
+  queue: TrackSummary[];
+  queueIndex: number;
+  positionSeconds: number;
+  updatedAt: string;
+  /** Tracks were dropped while loading, so this queue is shorter than the saved one. */
+  queueRepaired: boolean;
+}
+
 export interface TrackDetail extends TrackSummary {
   trackNumber: number | null;
   fileSize: number;

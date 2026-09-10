@@ -23,7 +23,7 @@ let admin: string;
 let adminToken: string;
 
 /** Every route that must reject an anonymous caller. */
-const PROTECTED_ROUTES: Array<[method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url: string]> = [
+const PROTECTED_ROUTES: Array<[method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', url: string]> = [
   ['GET', '/api/tracks'],
   ['GET', '/api/artists'],
   ['GET', '/api/albums'],
@@ -31,6 +31,9 @@ const PROTECTED_ROUTES: Array<[method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url:
   ['GET', '/api/playlists'],
   ['GET', '/api/me/favorites'],
   ['GET', '/api/me/favorites/ids'],
+  ['GET', '/api/me/playback-state'],
+  ['PUT', '/api/me/playback-state'],
+  ['DELETE', '/api/me/playback-state'],
   ['GET', '/api/auth/me'],
   ['GET', '/api/me/history'],
   ['GET', '/api/stats/top-tracks'],
@@ -95,7 +98,7 @@ describe('authentication', () => {
         method,
         url,
         headers: { authorization: `Bearer ${listenerToken}` },
-        payload: method === 'POST' ? {} : undefined,
+        payload: method === 'POST' || method === 'PUT' ? {} : undefined,
       });
       assert.notEqual(res.statusCode, 404, `${method} ${url} does not exist`);
     }

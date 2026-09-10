@@ -4,6 +4,26 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `savePlaybackState()` / `loadPlaybackState()` / `clearPlaybackState()` — `backend/src/db/playbackState.ts`
+**Date:** 2026-09-10
+**How added:** new feature
+**Purpose:** remember where each listener was, and hand it back only if it can still be played.
+**Side effects:** one upsert or delete on `playback_state`; `loadPlaybackState` reads `tracks`.
+**Before:** nothing. Closing a tab lost the queue and the position.
+**After:** saving is an upsert keyed on `user_id`, which is the primary key — one row per user, so last-write-wins is enforced by the schema. Loading is the part with judgement in it. A queue is stored as ids and read back later, by which time tracks may have been deleted or flagged missing, so both are filtered out on read against the same `missing_since IS NULL` rule the browse queries use — a track hidden from the library table must not reappear through a resumed queue. Filtering means the stored index cannot be reused, so it is re-derived from the survivors. When the played track itself is gone the resume moves *forward* to the next survivor rather than back to the queue's start, and drops the position, which belonged to a track nobody is playing now. Returns `null` when nothing playable is left, since a resume into an empty queue is worse than no resume.
+
+---
+
+**Function:** `persistState()` / `stopAndForget()` — `frontend/src/components/PlayerBar.tsx`
+**Date:** 2026-09-10
+**How added:** new feature
+**Purpose:** push the position often enough to be useful, and know the difference between quitting and being logged out.
+**Side effects:** `PUT` / `DELETE` on `/me/playback-state`; holds an interval while playing.
+**Before:** `stop()` did both jobs, and nothing was ever written.
+**After:** `persistState` reads the live queue from a ref, so the interval and the `visibilitychange` listener never re-bind. It runs at three moments because none covers the others: every 10 s while playing (a killed tab loses one interval at most), whenever playback pauses or changes track, and on `visibilitychange` — chosen over `beforeunload`, which does not fire reliably on a phone, the one place a backgrounded tab actually gets killed. `stopAndForget` exists because the ✕ and a logout must not mean the same thing: the ✕ is a deliberate "I am done" and erases the saved position, while a token expiring must leave it exactly where it was. Only `stopAndForget` is exposed on the context; the logout effect calls the raw `stop`.
+
+---
+
 **Function:** `loadDataSaverPreference()` / `saveDataSaverPreference()` / `probeServedStream()` / `describeServed()` — `frontend/src/lib/streamQuality.ts`
 **Date:** 2026-09-10
 **How added:** new feature

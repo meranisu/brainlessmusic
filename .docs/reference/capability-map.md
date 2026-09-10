@@ -39,7 +39,7 @@ _Last checked against the code: 2026-09-09._
 | Layer | Status | Detail |
 |---|---|---|
 | Backend | ✅ | Byte-range streaming (206/416, verified byte-identical), `?quality=low` served from a content-addressed disk cache so the converted copy range-serves and revalidates like any other file (raw `.aac` remuxed to `.m4a` regardless, since ADTS has no reliable duration), short-lived media-scoped `?token=` so an `<audio>`/`<img>` element can point straight at a URL, and waveform peaks decoded once and cached on the row |
-| Web | ✅ | Real queue, native seeking, transport, repeat, shuffle and keyboard control. Below `md` the bar opens a full-screen Now Playing view with a waveform scrubber and a jump-to-track queue. A per-device data-saver toggle on both surfaces swaps quality on the playing track without losing the position or the scrobble, and reports what was *served* rather than what was requested. No gapless |
+| Web | ✅ | Real queue, native seeking, transport, repeat, shuffle and keyboard control. Below `md` the bar opens a full-screen Now Playing view with a waveform scrubber and a jump-to-track queue. A per-device data-saver toggle on both surfaces swaps quality on the playing track without losing the position or the scrobble, and reports what was *served* rather than what was requested. Queue and position are saved server-side and restored (paused) in a new tab. No gapless |
 | Mobile | ⬜ | |
 
 ## 5. Curation — organizing what you listen to

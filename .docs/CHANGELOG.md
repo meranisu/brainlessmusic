@@ -4,6 +4,59 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-10 — Close the tab, open the phone, carry on
+
+Roadmap box 25. A `playback_state` table, one row per user — `user_id` is the
+primary key, so "last write wins" is a property of the schema rather than
+something application code has to keep remembering. Per-device state was
+considered and rejected: the desktop would never learn where the phone got to,
+which is the entire point of the box.
+
+**The current track is deliberately not a column.** It is `queue[queue_index]`,
+and storing it as well would create two places to be right about one fact.
+
+**Loading is where the work is.** A queue is saved as ids and read back days
+later, by which time tracks in it may have been deleted or gone missing from
+disk. Both are dropped on read, which means the saved index cannot be reused —
+it is re-derived from the surviving rows. If the track being played is itself
+gone, the resume moves *forward* to the next survivor rather than back to the
+start of the queue, and its position does not carry over to a track nobody was
+playing. Restoring someone into a track that cannot play is worse than not
+restoring them, because it looks like the feature worked.
+
+**The client writes at three moments**, because none covers the others: a tick
+every 10 s while playing, so a crash loses at most one interval; the moment
+playback pauses or moves to another track; and `visibilitychange`, not
+`beforeunload` — the latter does not fire reliably on a phone, which is exactly
+where a backgrounded tab gets killed.
+
+**It restores paused, on purpose.** Browsers block autoplay without a user
+gesture, so "resume and play" would silently do nothing on a phone. The state
+comes back, the play button does the rest. Native Android has no such
+restriction and can decide differently — that is why Q9 asks.
+
+**Closing the player forgets; logging out does not.** These used to be one
+call. Sharing it would mean a token quietly expiring threw away the very
+position the feature exists to keep, so `stop` (session teardown) and
+`stopAndForget` (the ✕, a deliberate "I am done") are now separate.
+
+Two bugs found by the browser tests rather than by reading:
+
+- **Restore never fired.** StrictMode invokes effects twice; the first run's
+  cleanup cancelled the only fetch that ran, because the second bailed on the
+  already-set ref. The guard that actually matters is whether audio is loaded
+  by the time the fetch resolves — if it is, the listener got there first.
+- **The desktop ✕ bypassed the split.** It called the local `stop` directly
+  rather than the context's, so closing the player on desktop left the saved
+  position behind. Only the phone sheet, which goes through the context, was
+  doing the right thing.
+
+19 new backend tests (257 total, up from 238) and 11 browser checks across two
+tabs: a new tab restores the right track at the saved position, paused; pressing
+play continues from there; ✕ clears the server state; logging out keeps it.
+
+---
+
 ## 2026-09-10 — Data saver becomes something you can actually press
 
 The backend half of roadmap box 24 had been finished and verified for a day, and

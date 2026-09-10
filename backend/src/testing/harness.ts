@@ -20,6 +20,7 @@ import { runMigrations } from '../db/migrator.js';
 const TABLES_IN_DELETION_ORDER = [
   'play_history',
   'favorites',
+  'playback_state',
   'playlist_tracks',
   'playlists',
   'tracks',
