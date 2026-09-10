@@ -104,6 +104,41 @@ Needs a `playback_state` table. Ranked and listed during the 2026-09-10 backend
 playback review but left undecided, unlike the items in [Answered](#answered)
 from the same review.
 
+**Expanded 2026-09-10** with the four decisions the table's shape actually turns
+on. Each has a recommended default, so this can be built without an answer if
+you would rather just see it work.
+
+1. **What is saved — position only, or the queue too?**
+   *Recommended: the queue too.* Track + position alone means the phone
+   resumes the song but forgets what was meant to come after it, which is
+   half a feature. The queue is a list of ids; it costs a JSON column.
+
+2. **How often does the client write?**
+   *Recommended: every 10 s while playing, plus on pause, track change and
+   page hide.* A write per second is wasteful and a write only on unload
+   loses everything to a crash or a killed tab. `visibilitychange` is the
+   event that actually fires on a phone; `beforeunload` does not fire
+   reliably on mobile Safari or when Android kills a backgrounded tab.
+
+3. **Two devices playing at once — who wins?**
+   *Recommended: last write wins, one row per user.* This is a three-person
+   server. Per-device state would mean the desktop never learns where the
+   phone got to, which is the entire point of the box. The failure mode is
+   mild and self-correcting: whichever device you touched last is right.
+
+4. **On opening the app, does it start playing?**
+   *Recommended: no — restore the queue and the position, paused.* Browsers
+   block autoplay without a user gesture, so "resume and play" is not
+   something the web client can honestly deliver; it would silently do
+   nothing on the phone, which is exactly where it matters. Restore the
+   state, show it in the bar, let the play button do the rest. **This is the
+   one worth disagreeing with if you want the Android client to behave
+   differently** — a native app has no such restriction, and box 25 is
+   backend-then-clients.
+
+**Assumption being built on:** the four defaults above, if this is started
+before an answer arrives.
+
 ### Q10 — Gapless playback
 **Asked:** 2026-09-10 · **Blocking:** no
 
