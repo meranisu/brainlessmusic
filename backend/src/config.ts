@@ -48,6 +48,20 @@ export const config = {
   // Roughly two weeks of dailies. Each is the size of the database, which is
   // dominated by rows rather than audio, so this stays small.
   backupKeep: Number(process.env.BACKUP_KEEP ?? 14),
+  // Converted copies of tracks, content-addressed. Safe to delete wholesale —
+  // each missing entry costs one re-encode, the same bargain as the artwork
+  // cache. Sits beside it so both land in the container's /data volume.
+  transcodePath: process.env.TRANSCODE_PATH ?? './data/transcodes',
+  // Measured 0.57 MB per minute of audio at the data-saver setting, so a
+  // 1,000-track library is roughly 2.3 GB fully converted. Eviction is
+  // least-recently-used and runs after a write, which is the only moment the
+  // cache can grow. 0 disables the cap entirely.
+  transcodeCacheMaxMb: Number(process.env.TRANSCODE_CACHE_MAX_MB ?? 2048),
+  // Below this multiple of the target bitrate, converting cannot pay for
+  // itself and the original is served instead. A strict "at or below target"
+  // test would still re-encode a 121 kbps Opus source down to 64k for a
+  // measured 36% saving, paying a second lossy generation for it.
+  transcodeMinSourceBitrateRatio: Number(process.env.TRANSCODE_MIN_SOURCE_BITRATE_RATIO ?? 1.5),
   // Keeping the database honest about what is actually on disk. The boot pass
   // only stats known paths (cheap); the interval does the full tag-reading
   // walk, which is why it isn't run at startup — `tsx watch` restarts on every

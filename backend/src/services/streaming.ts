@@ -159,7 +159,9 @@ export function ifRangeAllowsRange(
 // Transcoding
 // ---------------------------------------------------------------------------
 
-const LOW_QUALITY_BITRATE = '64k';
+/** The data-saver target, in bits per second, and as ffmpeg spells it. */
+export const LOW_QUALITY_BITRATE_BPS = 64_000;
+const LOW_QUALITY_BITRATE = `${LOW_QUALITY_BITRATE_BPS / 1000}k`;
 
 /**
  * Transcodes in flight.
@@ -185,118 +187,82 @@ export function getActiveTranscodes(): number {
   return activeTranscodes;
 }
 
-/**
- * Where to start a transcode, parsed from `?t=`.
- *
- * The transcoded stream has no length and no byte ranges, so a client cannot
- * seek it the way it seeks a file — the only way back into the middle of a
- * track is to ask for a new stream that begins there. `'invalid'` is a bad
- * request rather than a clamp: silently starting somewhere the caller didn't
- * ask for is how a scrubber ends up lying about where playback is.
- */
-export function parseStreamOffset(
-  raw: string | undefined,
-  durationSeconds: number | null,
-): number | 'invalid' {
-  if (raw === undefined || raw === '') return 0;
+// ---------------------------------------------------------------------------
+// Encoding to a file
+//
+// The cache path, as opposed to the live-stream path above. Everything here
+// produces a complete file on disk, which is what lets the stream route serve
+// a transcode with byte ranges, an ETag and a 304 — exactly as it serves an
+// original.
+// ---------------------------------------------------------------------------
 
-  const seconds = Number(raw);
-  if (!Number.isFinite(seconds) || seconds < 0) return 'invalid';
-  // A duration we don't have is not a reason to reject; the scanner leaves it
-  // null on files it could not measure, and ffmpeg will simply produce nothing.
-  if (durationSeconds !== null && seconds >= durationSeconds) return 'invalid';
-
-  return seconds;
+/** One thing the cache can hold for a track: a re-encode, or a re-containering. */
+export interface Variant {
+  /** Stable, and part of the cache key — changing it invalidates every entry. */
+  id: string;
+  extension: string;
+  mimeType: string;
+  configure: (command: ffmpeg.FfmpegCommand) => ffmpeg.FfmpegCommand;
 }
 
-export interface TranscodeOptions {
-  /**
-   * Start this many seconds in. Passed as an *input* seek, before `-i`, so
-   * ffmpeg jumps to the nearest packet instead of decoding and discarding
-   * everything before it — the difference between instant and minutes on a
-   * long track.
-   */
-  offsetSeconds?: number;
-  onError?: (err: Error) => void;
-}
-
-/** A running transcode, and the handle needed to stop it. */
-export interface TranscodeSession {
-  stream: NodeJS.ReadableStream;
-  /**
-   * Kills ffmpeg and releases its concurrency slot. Idempotent, so it is safe
-   * to call from both the error path and the response-closed path.
-   */
-  stop: () => void;
-}
+/** The data-saver copy. */
+export const LOW_QUALITY_VARIANT: Variant = {
+  id: 'opus64',
+  extension: '.ogg',
+  mimeType: 'audio/ogg',
+  configure: (c) => c.noVideo().audioCodec('libopus').audioBitrate(LOW_QUALITY_BITRATE).format('ogg'),
+};
 
 /**
- * Transcodes to a lower-bitrate Opus/Ogg stream for the data-saver path.
- * Output length is unknown ahead of time, so callers must not attempt
- * byte-range serving against this stream.
+ * Raw ADTS, put into a real container.
  *
- * Returns `null` when every transcode slot is busy. The caller decides what
- * that means — this module will not quietly serve something other than what
- * was asked for, least of all the full-size original to someone who asked for
- * the small one.
- *
- * The returned `stop` must be called when the response ends. ffmpeg writes to
- * a pipe, so an abandoned transcode does not die on its own: once the consumer
- * goes away the pipe fills, ffmpeg blocks in `write`, and the process sits
- * there holding a decoder open until the server restarts. Skipping a track
- * mid-transcode is the ordinary way to reach that, not an edge case.
+ * `copy` rather than a re-encode: the AAC frames are kept byte for byte, so
+ * this costs no quality and runs at I/O speed. It exists because raw ADTS
+ * carries no duration — measured 2026-09-10, a 25.0s file reports 37.9s to
+ * both ffprobe and Chrome, which scales the seek bar by 50% and makes valid
+ * `?t=` offsets look out of range. An MP4 container carries the real one.
+ * `+faststart` moves the index to the front so playback can begin before the
+ * whole file has arrived.
  */
-export function transcodeToLowQuality(
-  filePath: string,
-  options: TranscodeOptions = {},
-): TranscodeSession | null {
-  if (!acquireTranscodeSlot()) return null;
+export const REMUX_M4A_VARIANT: Variant = {
+  id: 'm4a',
+  extension: '.m4a',
+  mimeType: 'audio/mp4',
+  configure: (c) => c.noVideo().audioCodec('copy').outputOptions('-movflags', '+faststart').format('mp4'),
+};
 
-  const { offsetSeconds = 0, onError } = options;
-
-  let stopped = false;
-
-  // SIGKILL rather than SIGTERM: ffmpeg blocked writing to a full pipe is the
-  // case this exists to clean up, and it does not reliably act on a catchable
-  // signal in that state.
-  function kill(): void {
-    try {
-      command.kill('SIGKILL');
-    } catch {
-      // Already exited. Nothing to kill, and the slot is released either way.
-    }
+/** Thrown when every transcode slot is busy, so callers can answer 503 rather than 500. */
+export class NoTranscodeSlotError extends Error {
+  constructor() {
+    super('No transcode slot available');
+    this.name = 'NoTranscodeSlotError';
   }
+}
 
-  function stop(): void {
-    if (stopped) return;
-    stopped = true;
+/**
+ * Encodes `sourcePath` to `destPath` and resolves when the file is complete.
+ *
+ * Holds a transcode slot for the whole encode, so the same ceiling that bounds
+ * live transcodes bounds cache fills. A failure deletes whatever ffmpeg left
+ * behind: a half-written file that nobody cleans up is worse than no file,
+ * because the next reader cannot tell the difference.
+ */
+export async function encodeToFile(
+  sourcePath: string,
+  destPath: string,
+  variant: Variant,
+): Promise<void> {
+  if (!acquireTranscodeSlot()) throw new NoTranscodeSlotError();
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      variant
+        .configure(ffmpeg(sourcePath))
+        .on('error', (err: Error) => reject(err))
+        .on('end', () => resolve())
+        .save(destPath);
+    });
+  } finally {
     releaseTranscodeSlot();
-    kill();
   }
-
-  const command = ffmpeg(filePath)
-    .seekInput(offsetSeconds)
-    .noVideo()
-    .audioCodec('libopus')
-    .audioBitrate(LOW_QUALITY_BITRATE)
-    .format('ogg')
-    // ffmpeg is spawned asynchronously, so a `stop()` that lands before it
-    // exists has nothing to signal and the process goes on to spawn anyway —
-    // orphaned, unkillable by us, alive for the life of the server. Skipping
-    // straight through a few tracks is exactly how a client reaches this, so
-    // the kill is re-issued once there is something to kill. Verified against
-    // real ffmpeg: without this, an immediate stop leaks the process.
-    .on('start', () => {
-      if (stopped) kill();
-    })
-    .on('error', (err: Error) => {
-      // A kill we asked for surfaces here as an error too. It isn't one.
-      if (stopped) return;
-      console.error(`Transcode failed for ${filePath}: ${err.message}`);
-      stop();
-      onError?.(err);
-    })
-    .on('end', stop);
-
-  return { stream: command.pipe() as unknown as NodeJS.ReadableStream, stop };
 }

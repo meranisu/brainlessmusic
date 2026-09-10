@@ -4,6 +4,42 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `barsFromPeaks()` / `QUIET_TRACK_CEILING` — `frontend/src/components/NowPlaying.tsx`
+**Date:** 2026-09-10
+**How added:** change
+**Purpose:** turn the server's stored peaks into the bar heights the phone scrubber draws.
+**Side effects:** none — pure, called during render.
+**Before:** divided each bar by 255, the magnitude of a full-scale sample. Honest and unreadable: this library peaks around 80, so every waveform drew in the bottom third of the scrubber — flatter than the random `placeholderHeights` fallback it replaces, which is the wrong way round.
+**After:** scales each track to its own loudest bar, capped by a ceiling that rises with the track's actual loudness (`QUIET_TRACK_CEILING + (1 - QUIET_TRACK_CEILING) * loudest`, floor 0.55). A full-scale track may fill the height; a near-silent one may not pass 0.55, so quiet still reads as quiet. Guards `loudest === 0` so an all-silent track draws the existing 0.06 line instead of dividing by zero. Stored peaks stay absolute — the decision is about drawing, not about data, so no migration or re-decode. Measured track: 31% → 69% of height.
+
+---
+
+**Function:** `getOrCreate` / `cacheEntryName` / `evictIfOversized` / `cacheSizeBytes` — `backend/src/services/transcodeCache.ts`
+**Date:** 2026-09-10
+**How added:** new feature
+**Purpose:** keep converted copies of tracks on disk so a converted track is an ordinary file.
+**Side effects:** writes and deletes under `TRANSCODE_PATH`; holds a module-level in-flight map; drives ffmpeg through `encodeToFile`.
+**Before:** nothing. `?quality=low` was a live encode with no length, so it could not be range-served, revalidated or seeked, and it re-encoded on every single play.
+**After:** `cacheEntryName` names an entry from source size + mtime + variant id — the same pair the `ETag` trusts to mean "different file", so a replaced source misses and the stale entry ages out with no invalidation step to forget. `getOrCreate` returns a hit or produces one, deduping concurrent cold requests through an in-flight map (`waveform.ts` solves the identical race identically) and committing via temp-then-`rename`, which is atomic within a directory: a reader finds a whole file or none, never a truncated one that looks finished. That guard matters more here than usual, since transcodes are SIGKILLed on client disconnect by design. `evictIfOversized` drops least-recently-used entries after a write — the only moment the cache grows, so no timer is needed — reading mtime, which `getOrCreate` touches on every hit so it means "last used". It only ever considers names matching this module's own pattern, so pointing `TRANSCODE_PATH` at a shared directory cannot cost a stranger their files.
+
+**Function:** `encodeToFile` / `LOW_QUALITY_VARIANT` / `REMUX_M4A_VARIANT` / `NoTranscodeSlotError` — `backend/src/services/streaming.ts`
+**Date:** 2026-09-10
+**How added:** new feature (replacing `transcodeToLowQuality`)
+**Purpose:** produce a complete converted file, and describe the two conversions worth keeping.
+**Side effects:** spawns ffmpeg; holds a transcode slot for the whole encode.
+**Before:** `transcodeToLowQuality` returned a live stream that had to be killed by hand and could never be range-served.
+**After:** `encodeToFile` resolves when the file is complete, holding a slot throughout so the same ceiling bounds cache fills as bounded live transcodes, and deleting whatever ffmpeg left behind on failure. `LOW_QUALITY_VARIANT` is the 64k Opus data-saver copy. `REMUX_M4A_VARIANT` uses `-c:a copy`, so it is a container change and not a re-encode — it exists because raw ADTS reports a duration ~50% long to both ffprobe and Chrome, which makes the seek bar lie. `NoTranscodeSlotError` is a distinct type so the route can answer 503 rather than failing obscurely. The live-stream path and its `?t=` offset parser were removed as unreachable.
+
+**Function:** `variantFor` — `backend/src/routes/tracks.ts`
+**Date:** 2026-09-10
+**How added:** new feature
+**Purpose:** decide whether a request should be served a converted copy, and which.
+**Side effects:** none — a pure decision over the track row and the query.
+**Before:** the route branched on `quality === 'low'` alone, so it converted unconditionally and never remuxed anything.
+**After:** two independent reasons to convert. Data saver only when the source is far enough above the target to pay for a second lossy generation — a strict "above 64k" test would re-encode a 121 kbps Opus file for a measured 36% saving, so the floor is 1.5x target and an unknown bitrate converts rather than guesses. And raw `.aac` always, regardless of quality, because it has no reliable duration until it is in a real container.
+
+---
+
 **Function:** `config.maxUploadSizeMb` — `backend/src/config.ts`
 **Date:** 2026-09-10
 **How added:** change

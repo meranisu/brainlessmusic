@@ -21,11 +21,15 @@ import {
   buildETag,
   ifRangeAllowsRange,
   isNotModified,
-  parseStreamOffset,
   mimeTypeFor,
   parseRange,
-  transcodeToLowQuality,
+  LOW_QUALITY_BITRATE_BPS,
+  LOW_QUALITY_VARIANT,
+  NoTranscodeSlotError,
+  REMUX_M4A_VARIANT,
+  type Variant,
 } from '../services/streaming.js';
+import { getOrCreate } from '../services/transcodeCache.js';
 import { recordStreamError, streamEnded, streamStarted } from '../services/streamMonitor.js';
 import { sendCover } from '../services/artwork.js';
 import { persistArtwork } from '../services/artworkIngest.js';
@@ -41,6 +45,31 @@ import { parsePagination } from '../utils/pagination.js';
  * reasoning.
  */
 const CACHE_CONTROL = 'private, max-age=86400';
+
+/**
+ * Whether this request should be served a converted copy, and which one.
+ *
+ * Two independent reasons to convert:
+ *
+ *  - **Data saver.** Only worth it when the source is far enough above the
+ *    target to pay for a second lossy generation. A strict "above 64k" test
+ *    would re-encode a 121 kbps Opus file for a measured 36% saving; lossless
+ *    sources, which is what this feature is for, clear the bar easily. An
+ *    unknown bitrate converts, since the alternative is guessing.
+ *  - **Raw ADTS, always.** A `.aac` file carries no container and therefore no
+ *    duration: measured 2026-09-10, a 25.0s file reports 37.9s to both ffprobe
+ *    and Chrome, which scales the seek bar by half again. Remuxing to `.m4a`
+ *    copies the frames untouched into a container that states the real length.
+ */
+function variantFor(track: { path: string; bitrate: number | null }, wantsLowQuality: boolean): Variant | null {
+  if (wantsLowQuality) {
+    const floor = LOW_QUALITY_BITRATE_BPS * config.transcodeMinSourceBitrateRatio;
+    if (track.bitrate !== null && track.bitrate < floor) return null;
+    return LOW_QUALITY_VARIANT;
+  }
+
+  return extname(track.path).toLowerCase() === '.aac' ? REMUX_M4A_VARIANT : null;
+}
 
 const SORT_FIELDS = new Set<SortField>(['title', 'artist', 'album', 'duration', 'dateAdded', 'playCount']);
 const VISIBILITY_FILTERS = new Set<VisibilityFilter>(['all', 'only', 'exclude']);
@@ -225,7 +254,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
 
   // `authenticateMedia`, not `authenticate` — this is the one route a browser
   // loads by URL alone, so it also accepts a scoped `?token=` media token.
-  fastify.get<{ Params: { id: string }; Querystring: { quality?: string; token?: string; t?: string } }>(
+  fastify.get<{ Params: { id: string }; Querystring: { quality?: string; token?: string } }>(
     '/tracks/:id/stream',
     { preHandler: fastify.authenticateMedia },
     async (request, reply) => {
@@ -253,58 +282,50 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
         });
       }
 
-      if (request.query.quality === 'low') {
-        // The transcoded stream has no length and no byte ranges, so `?t=` is
-        // the only way back into the middle of a track on this path: the
-        // client asks for a new stream that starts where it wants to be.
-        const offsetSeconds = parseStreamOffset(request.query.t, track.duration);
-        if (offsetSeconds === 'invalid') {
-          return reply.code(400).send({ error: 'Invalid t= offset' });
+      // Which bytes to serve: the file itself, or a converted copy of it.
+      //
+      // Everything past this point treats all three cases identically, because
+      // a cache entry *is* a file — which is the entire reason the cache
+      // exists. Ranges, `ETag`, `304` and a working scrubber come free.
+      const variant = variantFor(track, request.query.quality === 'low');
+
+      let servePath = track.path;
+      let serveStats = stats;
+      let contentType = mimeTypeFor(track.path);
+
+      if (variant) {
+        try {
+          const entry = await getOrCreate(track.path, stats, variant);
+          servePath = entry.path;
+          serveStats = await stat(entry.path);
+          contentType = variant.mimeType;
+        } catch (err) {
+          // Refused rather than downgraded to the original: whoever asked for
+          // the small copy asked for a reason, and quietly sending ten times
+          // the bytes is the worse answer.
+          if (err instanceof NoTranscodeSlotError) {
+            request.log.warn({ trackId: id }, 'Refused a transcode: all slots busy');
+            return reply
+              .code(503)
+              .header('Retry-After', '5')
+              .send({ error: 'Too many transcodes in progress, try again shortly' });
+          }
+
+          const message = `Transcode failed: ${err instanceof Error ? err.message : String(err)}`;
+          request.log.error({ err, trackId: id }, message);
+          setLastStreamError(id, message);
+          recordStreamError(id, message);
+          return reply.code(500).send({ error: message, trackId: id });
         }
-
-        const session = transcodeToLowQuality(track.path, {
-          offsetSeconds,
-          onError: (err) => {
-            const message = `Transcode failed: ${err.message}`;
-            setLastStreamError(id, message);
-            recordStreamError(id, message);
-          },
-        });
-
-        // Every slot busy. Refused rather than downgraded to the original
-        // file: whoever asked for the small copy asked for a reason, and
-        // quietly sending ten times the bytes is the worse answer.
-        if (!session) {
-          request.log.warn({ trackId: id }, 'Refused a transcode: all slots busy');
-          return reply
-            .code(503)
-            .header('Retry-After', '5')
-            .send({ error: 'Too many transcodes in progress, try again shortly' });
-        }
-
-        streamStarted();
-        // `stop` is what actually kills ffmpeg. Without it a skipped track
-        // leaves the process blocked on a pipe nobody is reading, for the
-        // lifetime of the server.
-        reply.raw.on('close', () => {
-          session.stop();
-          streamEnded();
-        });
-
-        reply.header('Content-Type', 'audio/ogg');
-        reply.header('Accept-Ranges', 'none');
-        // Length is unknown until the encode finishes, so there is nothing
-        // stable to validate a cached copy against.
-        reply.header('Cache-Control', 'no-store');
-        return reply.send(session.stream);
       }
 
-      // The file's own bytes are a stable representation, so they get
-      // validators: a replayed track revalidates into a 304 instead of coming
-      // down the wire again.
-      const etag = buildETag(stats.size, stats.mtimeMs);
+      // The bytes are a stable representation, so they get validators: a
+      // replayed track revalidates into a 304 instead of coming down the wire
+      // again. A cache entry's mtime moves when it is touched on read, which
+      // only ever invalidates a client copy early — never serves a stale one.
+      const etag = buildETag(serveStats.size, serveStats.mtimeMs);
       reply.header('ETag', etag);
-      reply.header('Last-Modified', stats.mtime.toUTCString());
+      reply.header('Last-Modified', serveStats.mtime.toUTCString());
       reply.header('Cache-Control', CACHE_CONTROL);
       reply.header('Accept-Ranges', 'bytes');
 
@@ -315,7 +336,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
             ifModifiedSince: request.headers['if-modified-since'],
           },
           etag,
-          stats.mtimeMs,
+          serveStats.mtimeMs,
         )
       ) {
         return reply.code(304).send();
@@ -332,31 +353,31 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
       const range = ifRangeAllowsRange(
         typeof ifRange === 'string' ? ifRange : undefined,
         etag,
-        stats.mtimeMs,
+        serveStats.mtimeMs,
       )
-        ? parseRange(request.headers.range, stats.size)
+        ? parseRange(request.headers.range, serveStats.size)
         : 'none';
 
       if (range === 'invalid') {
-        reply.header('Content-Range', `bytes */${stats.size}`);
+        reply.header('Content-Range', `bytes */${serveStats.size}`);
         return reply.code(416).send({ error: 'Invalid range' });
       }
 
-      reply.header('Content-Type', mimeTypeFor(track.path));
+      reply.header('Content-Type', contentType);
 
       streamStarted();
       reply.raw.on('close', streamEnded);
 
       if (range === 'none') {
-        reply.header('Content-Length', stats.size);
-        return reply.send(createReadStream(track.path));
+        reply.header('Content-Length', serveStats.size);
+        return reply.send(createReadStream(servePath));
       }
 
       const { start, end } = range;
       reply.code(206);
-      reply.header('Content-Range', `bytes ${start}-${end}/${stats.size}`);
+      reply.header('Content-Range', `bytes ${start}-${end}/${serveStats.size}`);
       reply.header('Content-Length', end - start + 1);
-      return reply.send(createReadStream(track.path, { start, end }));
+      return reply.send(createReadStream(servePath, { start, end }));
     },
   );
 

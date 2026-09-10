@@ -1,14 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { AUDIO_EXTENSIONS } from './trackTags.js';
-import {
-  buildETag,
-  ifRangeAllowsRange,
-  isNotModified,
-  mimeTypeFor,
-  parseRange,
-  parseStreamOffset,
-} from './streaming.js';
+import { buildETag, ifRangeAllowsRange, isNotModified, mimeTypeFor, parseRange } from './streaming.js';
 
 const SIZE = 1000; // valid byte offsets are 0..999
 
@@ -253,39 +246,5 @@ describe('ifRangeAllowsRange', () => {
 
   it('refuses an unparseable value', () => {
     assert.equal(ifRangeAllowsRange('garbage', ETAG, MTIME), false);
-  });
-});
-
-describe('parseStreamOffset', () => {
-  const DURATION = 180;
-
-  it('defaults to the start when no offset is given', () => {
-    assert.equal(parseStreamOffset(undefined, DURATION), 0);
-    assert.equal(parseStreamOffset('', DURATION), 0);
-  });
-
-  it('accepts an offset inside the track', () => {
-    assert.equal(parseStreamOffset('0', DURATION), 0);
-    assert.equal(parseStreamOffset('90', DURATION), 90);
-    assert.equal(parseStreamOffset('179.5', DURATION), 179.5);
-  });
-
-  it('rejects an offset at or past the end', () => {
-    // Not clamped: silently starting somewhere the caller did not ask for is
-    // how a scrubber ends up lying about where playback is.
-    assert.equal(parseStreamOffset('180', DURATION), 'invalid');
-    assert.equal(parseStreamOffset('999', DURATION), 'invalid');
-  });
-
-  it('rejects nonsense rather than treating it as zero', () => {
-    for (const raw of ['-1', 'abc', 'NaN', 'Infinity', '1e400']) {
-      assert.equal(parseStreamOffset(raw, DURATION), 'invalid', `expected "${raw}" to be invalid`);
-    }
-  });
-
-  it('accepts any non-negative offset when the duration is unknown', () => {
-    // The scanner leaves duration null on files it could not measure. That is
-    // not a reason to refuse a seek — ffmpeg simply produces nothing.
-    assert.equal(parseStreamOffset('9999', null), 9999);
   });
 });

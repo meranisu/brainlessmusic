@@ -60,9 +60,24 @@ Other scripts: `npm run build` (typecheck + compile), `npm start` (run compiled 
 | `LIBRARY_SCAN_ENABLED` | `true` | scheduled library sync; `false` turns it off |
 | `LIBRARY_SCAN_INTERVAL_HOURS` | `12` | how often a full scan runs while the server is up. A cheap presence check also runs at boot |
 | `LIBRARY_MISSING_ABORT_RATIO` | `0.5` | if more than this share of the library vanishes in one sweep, nothing is flagged — an unmounted library looks exactly like a deleted one |
+| `TRANSCODE_PATH` | `./data/transcodes` | converted copies of tracks — safe to delete, each missing entry costs one re-encode |
+| `TRANSCODE_CACHE_MAX_MB` | `2048` | cache ceiling. Least-recently-used entries are dropped after a write, the only moment the cache grows. `0` disables the cap |
+| `TRANSCODE_MIN_SOURCE_BITRATE_RATIO` | `1.5` | below this multiple of the 64k target, the original is served instead — converting a 121 kbps file to 64k costs a second lossy generation to save about a third |
 | `MAX_CONCURRENT_TRANSCODES` | `2` | simultaneous `?quality=low` transcodes; past the cap the request gets `503`, never the full-size original |
 | `ALLOW_OPEN_REGISTRATION` | `true` | anyone who can reach the server may create their own (non-admin) account. Set to `false` for admin-only registration — **do this before the server is reachable from outside** |
 | `NODE_ENV` | *(unset)* | `development` / `test` downgrade the `JWT_SECRET` check to a warning. Anything else — including unset — is treated as a real deployment |
+
+### Data saver, and why converted copies are kept
+
+`?quality=low` converts a track to 64 kbps Opus. The conversion is **written to disk and served from there**, not streamed as it encodes — which is what makes the difference: a finished file has a length, so it gets byte ranges, an `ETag`, a `304` on revalidation, and a scrubber that works. A stream being encoded has none of those.
+
+The cost is a wait on the *first* play of a track, and it is small: measured here, a 7:12 FLAC converts in 4.5 seconds, roughly 96x faster than playing it. Every play after that is served from the cache in milliseconds.
+
+Converting is skipped when it cannot pay. A source already below `TRANSCODE_MIN_SOURCE_BITRATE_RATIO` x 64k is served as-is, because re-encoding an already-small file spends a second lossy generation to save very little. Lossless sources are where this earns its place: a FLAC here went from 3.32 MB to 0.24 MB, a 93% saving.
+
+One conversion happens whether you ask for it or not. A raw `.aac` file has no container and therefore no reliable duration — measured here, a 25.0-second file reports 37.9 s to both ffprobe and Chrome, which scales the seek bar by half again. Those are remuxed into `.m4a`, copying the audio frames untouched into a container that states the real length.
+
+The cache directory is disposable. Delete it and each track re-converts on next request.
 
 ### Keeping the library in sync
 

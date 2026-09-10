@@ -4,6 +4,73 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-10 — The real waveform stops looking worse than the fake one
+
+Checking whether the Now Playing waveform was still decorative turned up that it
+is not — `GET /tracks/:id/waveform` has decoded real peaks since `0009`, and the
+hash-based bars are only a fallback. Two things fell out of looking.
+
+**The feature had never once run.** `waveform` was populated on 0 of 19 tracks,
+and on 0 of 30 before the missing-track cleanup, so no track has ever been
+analysed. `NowPlaying` mounts only when the phone sheet is open and is
+`md:hidden`, so no desktop session has ever fired the query. Nothing is broken;
+the trigger has simply never been pulled. It will populate on first open on a
+phone.
+
+**And when it does, it would have looked flat.** Peaks are absolute amplitude,
+0-255, drawn against 255 as full height. Decoding a real library track outside
+the app the same way `computePeaks` does, the loudest bucket measured **80** —
+this is quietly-mastered piano — so the waveform would have sat in the bottom
+third of the scrubber, *flatter than the random placeholder it replaces*. The
+honest scale looked like the broken one.
+
+`barsFromPeaks` now scales each track to its own loudest bar, but only up to a
+ceiling that rises with how loud the track actually is: full-scale may fill the
+height, near-silent may not climb past `QUIET_TRACK_CEILING` (0.55). The
+measured track goes from 31% to 69% of the height; a track a quarter that loud
+reaches 58%, so it still reads as the quieter one. An all-silent track divides
+by nothing and stays the flat 0.06 line rather than `NaN`. Stored peaks are
+untouched and stay absolute — this is a presentation choice, so it lives at the
+point of drawing, and needs no migration or re-decode.
+
+Chosen by the owner over leaving it absolute (mostly a thin strip) and over
+normalising fully (a whisper and a wall of noise draw identically). Verified by
+running the new scaling over the real measured peaks: 0.06-0.691 on the real
+track, 1.0 flat on a full-scale signal, 0.06 flat on silence, and the track's
+fade to nothing at the end preserved (0.25 → 0.22 → 0.17 → 0.06). `tsc --noEmit`
+clean.
+
+---
+
+## 2026-09-10 — Converted copies are kept, so the data-saver path became ordinary
+
+The cache half of roadmap box 24. `?quality=low` used to be a live encode: no length, no byte ranges, no scrubber, and a second lossy generation every single play. It now writes the conversion to disk and serves *that*, which changes what kind of thing it is. A finished file has a length, so it gets `Content-Length`, `Accept-Ranges: bytes`, an `ETag`, a `304` on revalidation and working seeks — every one of them for free, because the route already knew how to serve a file and now simply points at a different one.
+
+**Convert first, then serve** — decided against streaming-while-encoding on a measurement rather than a preference. At ~96x realtime the wait is small enough that the whole class of problem disappears: no output tee, no partial file that looks complete, one ffmpeg run. Measured end to end on a 25-second FLAC: **0.88 s cold, 0.027 s warm** — a 33x difference — and 3.32 MB down to 0.24 MB, a **93% saving**. That is the number that justifies the feature; the 36% measured against an Opus source is what argued against building it at all.
+
+**Four things that fail quietly, and what was done about each:**
+
+- **A key that misses a changed source.** Entries are named from source size + mtime + variant — the same pair the `ETag` already trusts to mean "different file". A replaced source simply misses and the stale entry ages out. There is no invalidation step to forget to call.
+- **A partial file that looks complete.** Encode to a temporary name, `rename` on success. A rename within a directory is atomic, so a reader finds either a whole file or none. This matters more here than usual, because transcodes are SIGKILLed on client disconnect by design.
+- **Two requests racing to write one path.** An in-flight map keyed by entry name, the same shape `waveform.ts` uses for the same reason. Tested with two concurrent cold requests: one file results.
+- **Eviction deleting someone else's files.** Only names matching this module's own pattern are ever considered, the rule `pruneBackups` already follows. Tested with a bystander file that survives an eviction that clears everything else.
+
+Eviction is least-recently-used, runs after a write — the only moment the cache can grow — and reads mtime, which is touched on every cache *hit* so it means "last used" rather than "created". Deleting an entry another request is streaming is safe: the reader holds it open and the bytes outlive the name.
+
+**Converting is skipped when it cannot pay.** Below `TRANSCODE_MIN_SOURCE_BITRATE_RATIO` (1.5) x the 64k target, the original is served. Verified live: a 42 kbps Opus file served as `audio/opus` on both paths and wrote nothing to the cache.
+
+### Raw `.aac` is remuxed, always
+
+Not a quality decision — a correctness one, and it rides the same machinery. A raw ADTS file has no container and no reliable duration: measured, a 25.0 s file reports **37.9 s** to both ffprobe and Chrome. Remuxing copies the AAC frames untouched (`-c:a copy`, so no quality cost) into an MP4 that states the real length. Verified: the same track that read 37.9 s on disk now serves at **25.0 s**, matching the frame-scanned value in the database.
+
+### Removed: the live-transcode path
+
+`?t=`, `parseStreamOffset` and `transcodeToLowQuality` shipped earlier the same day so the data-saver path could be seeked at all. Serving a finished file supersedes them — seeking is now a byte range — so they were deleted rather than left as unreachable branches. 116 lines. The history keeps them if the first-play wait ever needs a live fallback for very long tracks.
+
+**Verified** in real headless Chromium against an isolated library: a FLAC and a WAV at `?quality=low`, and the remuxed AAC, each reported a 25.0 s duration, **seeked to 15 s exactly**, and kept playing past it. That is roadmap box 24's done-when. 238 backend tests pass (11 new for the cache, 5 removed with the live path).
+
+---
+
 ## 2026-09-10 — The upload ceiling fits the formats now
 
 `MAX_UPLOAD_SIZE_MB` defaulted to 100, which is under a *single* hi-res FLAC — the owner confirms they run to hundreds of megabytes. Adding `.wav` and `.aac` without moving this would have meant a library that accepts seven formats and an upload route that rejects two of them. Raised to **1024**.

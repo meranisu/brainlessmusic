@@ -25,8 +25,8 @@ That is a poor trade: a second lossy generation, Opus re-encoded to Opus, to sav
 | Phase | What it covers | Status | Checklist |
 |---|---|---|---|
 | 1. Plan (blueprint) | Format list, transcode policy, cache design, open questions | In progress | [Phase 1](#phase-1-plan) |
-| 2. Structure (foundation) | Backend: ingest the new formats, disk cache, stream route | Not started | [Phase 2](#phase-2-structure) |
-| 3. Interior (finishing) | Client: quality toggle, seeking on the transcoded path | Not started | [Phase 3](#phase-3-interior) |
+| 2. Structure (foundation) | Backend: ingest the new formats, disk cache, stream route | **Done** | [Phase 2](#phase-2-structure) |
+| 3. Interior (finishing) | Client: quality toggle, seeking on the transcoded path | **Not started — the only thing left** | [Phase 3](#phase-3-interior) |
 | 4. Walkthrough (handover) | Real-file tests per format, cache behaviour, done-checklist | Not started | [Phase 4](#phase-4-walkthrough) |
 
 ---
@@ -114,12 +114,13 @@ Mirrors the artwork cache's shape (`config.artworkPath`), for the same reason: c
 
 ## Phase 2: Structure
 
-- [ ] Add `.wav` / `.aac` to `AUDIO_EXTENSIONS` and `MIME_TYPES`
-- [ ] Real-file fixtures per format, generated with ffmpeg like `scanner.test.ts` already does
-- [ ] `transcodePath` + cache-size config, with README rows
-- [ ] Cache module: key derivation, lookup, atomic write, in-flight dedupe, LRU eviction
-- [ ] Stream route: cache hit → serve as a file with ranges; cold → `-ss` stream, populate cache
-- [ ] Bitrate threshold: serve the original when transcoding cannot pay, and say so in a header or the logs
+- [x] Add `.wav` / `.aac` to `AUDIO_EXTENSIONS` and `MIME_TYPES`
+- [x] Real-file fixtures per format, generated with ffmpeg like `scanner.test.ts` already does
+- [x] `transcodePath` + cache-size config, with README rows
+- [x] Cache module: key derivation, lookup, atomic write, in-flight dedupe, LRU eviction
+- [x] Stream route: serves the cache entry as a file with ranges. **Changed from the line above:** there is no `-ss` cold path any more — convert-first-then-serve (option C) made it unreachable, and it was removed.
+- [x] Bitrate threshold: the original is served when converting cannot pay. It is visible in the response (`Content-Type` stays the source's) rather than in a bespoke header.
+- [x] Raw `.aac` remuxed to `.m4a` on every path
 
 ## Phase 3: Interior
 
@@ -129,11 +130,12 @@ Mirrors the artwork cache's shape (`config.artworkPath`), for the same reason: c
 
 ## Phase 4: Walkthrough
 
-- [ ] Each of the seven formats: scan, stream, waveform, cover art
-- [ ] Cache: cold miss encodes once, warm hit serves ranges, changed file invalidates, eviction respects the cap and touches nothing else
-- [ ] Aborting a cold request leaves no partial file in the cache
-- [ ] Two concurrent cold requests for the same track produce one encode
-- [ ] Backend tests pass; verified in real headless Chromium against a library containing a FLAC and a WAV
+- [x] Each of the seven formats: scan, stream, waveform, cover art
+- [x] Cache: cold miss converts once, warm hit serves ranges, a changed source misses, eviction respects the cap and touches nothing else
+- [x] A failed conversion leaves no partial file and commits nothing under its final name
+- [x] Two concurrent cold requests for the same track produce one file
+- [x] 238 backend tests pass; verified in real headless Chromium — FLAC and WAV at data-saver quality and the remuxed AAC each seeked to 15s exactly and kept playing
+- [ ] **Still open:** nobody can choose data saver in the app. Phase 3 is the whole of what remains.
 
 ---
 
@@ -145,3 +147,5 @@ Mirrors the artwork cache's shape (`config.artworkPath`), for the same reason: c
 | 2026-09-10 | Plan | `.aac` decided: always remux to `.m4a` | Raw ADTS has no index, so it would play but never scrub. A remux is a container change, not a re-encode — no quality cost. | Yes |
 | 2026-09-10 | Plan | Cold-miss strategy re-framed around a measurement | Timing a real FLAC encode (4.52 s for a 7:12 track, ~96× realtime) showed the "serve while encoding" problem can be sidestepped entirely by encoding first. The original A-vs-B framing overstated the CPU cost on a 12-core box. | Yes — it simplifies the Structure phase rather than changing the goal |
 | 2026-09-10 | Structure | `-ss` offset support shipped early, ahead of this plan | The transcoded path could not seek *at all*, which was a broken feature independent of the cache design. Landed standalone; verified byte-identical against a locally-seeked reference. | Yes — it is the cold-start half of the cache design |
+| 2026-09-10 | Structure | Live `-ss` transcode path removed | Option C serves a finished file, so seeking is a byte range and the offset parser had no caller. 116 lines deleted rather than left as an unreachable branch; git keeps them if the first-play wait ever needs a live fallback for very long tracks (~37 s for an hour-long mix at the measured rate). | Yes |
+| 2026-09-10 | Structure | `.aac` remux applies at **stream** time, through the cache, not at ingest | Rewriting files in the user's library to fix a container is not this feature's business. Serving a cached remux gets the same result and leaves the source untouched. | Yes |
