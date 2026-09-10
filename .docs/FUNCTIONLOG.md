@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `AUDIO_EXTENSIONS` / `MIME_TYPES` — `backend/src/services/trackTags.ts`, `backend/src/services/streaming.ts`
+**Date:** 2026-09-10
+**How added:** new feature
+**Purpose:** decide what the library will ingest, and what content type it is served as.
+**Side effects:** none — both are constants, but they gate the scanner, the upload route and the stream route.
+**Before:** five extensions: `.flac`, `.opus`, `.mp3`, `.m4a`, `.ogg`. A `.wav` or `.aac` in the library was walked past in silence, and `mimeTypeFor` answered `application/octet-stream` for both.
+**After:** seven, adding `.wav` and `.aac`. Nothing else needed changing — `music-metadata` and ffmpeg both handle the new pair — but that was verified against real fixtures rather than assumed, and the verification found the thing that matters: raw ADTS reports its duration as 37.9 s where frame-scanning gives 25.0 s, so the two must not be served raw once the transcode cache exists. The two constants also gained a test that walks `AUDIO_EXTENSIONS` and fails when an accepted extension has no MIME type, because the sets drift apart silently and the symptom is a format the scanner ingests but the browser downloads instead of playing.
+
+---
+
 **Function:** `parseStreamOffset` / `transcodeToLowQuality` — `backend/src/services/streaming.ts`
 **Date:** 2026-09-10
 **How added:** new feature

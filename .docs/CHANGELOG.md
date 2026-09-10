@@ -4,6 +4,28 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-10 — Seven formats, verified with real decoders
+
+The library accepted five extensions. It now accepts seven: `.wav` and `.aac` join `.flac`, `.opus`, `.mp3`, `.m4a` and `.ogg` — the set the two of us actually use. This is the ingest half of roadmap box 24; the transcode cache is separate work.
+
+The change itself is two lines — one set, one MIME map. The value is in checking rather than assuming, because the per-format differences are exactly the kind that fail silently:
+
+- **Every one of the seven reports a usable duration**, raw ADTS and WAV included. That mattered more than it sounds: waveform buckets are sized from that number, so a format that parses but reports `null` would draw an empty scrubber. Confirmed by decoding real ffmpeg fixtures, not by reading documentation.
+- **WAV carries tags fine.** It is real-world WAVs that tend to have none, not the format.
+- **Raw `.aac` carries no tags and no cover at all**, so it leans entirely on the filename fallback — which is what that fallback is for.
+
+`mimeTypeFor` grew a test that walks `AUDIO_EXTENSIONS` and fails if any accepted extension has no MIME type. The two sets drift apart silently otherwise, and the symptom — a format the scanner ingests but the stream route serves as a download — is not one you would guess from the diff.
+
+### The raw-ADTS finding, which decides how `.aac` gets served
+
+A 25-second ADTS fixture reports its length three different ways. `music-metadata` scans frames and gets **25.0 s**, which is what lands in the database and what the waveform is bucketed from. **ffprobe and Chrome both estimate 37.9 s**, because raw ADTS has no container to ask and they extrapolate from bitrate and file size.
+
+So serving `.aac` raw is worse than "cannot scrub": the seek bar is scaled 50% too long and lies, and a browser that believes the track is 37.9 s can request a `?t=` offset the server correctly rejects as past the end — a `400` that looks like a server bug. Remuxing to `.m4a` writes a real container with a real duration and all three numbers agree. That is now recorded as a decision with its evidence in the planning doc.
+
+**Verified** end to end against an isolated library — never the real one — holding a FLAC, a WAV and a raw AAC cut from actual music: all three scanned with correct formats and durations, and all three **played in real headless Chromium**, decoding with `currentTime` advancing past 2.6 s and no decode error. The player builds its element with `new Audio()`, so it never enters the DOM; the check wraps the constructor before the app loads rather than querying for an element that was never there. 229 backend tests pass (24 new).
+
+---
+
 ## 2026-09-10 — The data-saver path can be seeked
 
 `?quality=low` answered `Accept-Ranges: none` and had no length, so there was no way back into the middle of a track on that path: the scrubber was dead and any reconnect restarted the song. A live encode genuinely cannot serve byte ranges — but it can be told where to *begin*.

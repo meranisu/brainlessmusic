@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { AUDIO_EXTENSIONS } from './trackTags.js';
 import {
   buildETag,
   ifRangeAllowsRange,
@@ -97,6 +98,20 @@ describe('mimeTypeFor', () => {
     assert.equal(mimeTypeFor('/music/a.mp3'), 'audio/mpeg');
     assert.equal(mimeTypeFor('/music/a.m4a'), 'audio/mp4');
     assert.equal(mimeTypeFor('/music/a.ogg'), 'audio/ogg');
+    assert.equal(mimeTypeFor('/music/a.wav'), 'audio/wav');
+    assert.equal(mimeTypeFor('/music/a.aac'), 'audio/aac');
+  });
+
+  it('covers exactly what the library accepts, with nothing missing', () => {
+    // The two sets drift apart silently otherwise: a format the scanner will
+    // ingest but the stream route cannot type gets served as a download.
+    for (const ext of AUDIO_EXTENSIONS) {
+      assert.notEqual(
+        mimeTypeFor(`/music/a${ext}`),
+        'application/octet-stream',
+        `${ext} is accepted by the scanner but has no MIME type`,
+      );
+    }
   });
 
   it('is case-insensitive about the extension', () => {
@@ -105,7 +120,7 @@ describe('mimeTypeFor', () => {
   });
 
   it('falls back to a generic type rather than guessing', () => {
-    assert.equal(mimeTypeFor('/music/a.wav'), 'application/octet-stream');
+    assert.equal(mimeTypeFor('/music/a.aiff'), 'application/octet-stream');
     assert.equal(mimeTypeFor('/music/noextension'), 'application/octet-stream');
   });
 

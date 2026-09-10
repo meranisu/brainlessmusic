@@ -2,7 +2,18 @@ import { basename, extname } from 'node:path';
 import { parseFile } from 'music-metadata';
 import type { EmbeddedPicture } from './artwork.js';
 
-export const AUDIO_EXTENSIONS = new Set(['.flac', '.opus', '.mp3', '.m4a', '.ogg']);
+/**
+ * What the library accepts. Every one of these is decoded by `music-metadata`
+ * for tags and by ffmpeg for waveforms, and plays natively in Chrome on
+ * desktop and Android — the only targets (iOS/Safari is out of scope, decided
+ * 2026-09-10).
+ *
+ * `.wav` and `.aac` joined on 2026-09-10. Two things about them are worth
+ * knowing at the call sites: WAV runs about 10 MB per minute, and raw ADTS
+ * `.aac` usually carries no tags and no cover at all, so it leans entirely on
+ * the filename fallback below.
+ */
+export const AUDIO_EXTENSIONS = new Set(['.flac', '.opus', '.mp3', '.m4a', '.ogg', '.wav', '.aac']);
 
 export interface TrackTags {
   title: string;

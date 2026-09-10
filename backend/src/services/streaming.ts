@@ -8,6 +8,11 @@ const MIME_TYPES: Record<string, string> = {
   '.mp3': 'audio/mpeg',
   '.m4a': 'audio/mp4',
   '.ogg': 'audio/ogg',
+  '.wav': 'audio/wav',
+  // Raw ADTS. It plays, but it carries no index, so byte-offset seeks land
+  // mid-frame — roadmap box 24 remuxes these to `.m4a` through the transcode
+  // cache, which is where scrubbing them becomes reliable.
+  '.aac': 'audio/aac',
 };
 
 export function mimeTypeFor(filePath: string): string {

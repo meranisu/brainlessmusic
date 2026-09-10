@@ -44,8 +44,14 @@ Today `AUDIO_EXTENSIONS` (`services/trackTags.ts`) and `MIME_TYPES` (`services/s
 
 All seven decode in Chrome on desktop and Android, which is the whole target — iOS/Safari is explicitly out of scope (decided 2026-09-10).
 
-- [x] **`.aac` is always remuxed to `.m4a`** (decided 2026-09-10). Raw ADTS has no index, so byte-offset seeks land mid-frame — serving it raw would mean a format that plays but cannot be scrubbed. Remuxing is a container change, not a re-encode: no quality loss, and fast.
-- [ ] Confirm `music-metadata` returns a usable `duration` for WAV and raw ADTS (the waveform buckets are sized from it — see `waveform.ts`)
+- [x] **`.aac` is always remuxed to `.m4a`** (decided 2026-09-10, then confirmed by measurement). Raw ADTS has no index, so byte-offset seeks land mid-frame. Remuxing is a container change, not a re-encode: no quality loss, and fast.
+
+  **Measured 2026-09-10, and it is worse than "cannot scrub".** A 25-second ADTS fixture reports its length three different ways: `music-metadata` scans frames and gets **25.0 s** (this is what lands in the database and what the waveform is bucketed from), while **ffprobe and Chrome both estimate 37.9 s** from bitrate and file size, because there is no container to ask. Two consequences follow, and neither is cosmetic:
+  - The player's seek bar is scaled to a length that is 50% too long. The scrubber simply lies.
+  - `parseStreamOffset` validates `?t=` against the *stored* duration, so a browser that believes the track is 37.9 s can ask for an offset the server correctly rejects as past the end. A `400` that looks like a server bug.
+
+  Remuxing to `.m4a` writes a real container with a real duration, and all three numbers agree again.
+- [x] **Confirmed 2026-09-10: every one of the seven returns a usable duration**, raw ADTS and WAV included, so waveform bucketing is safe across the set. Verified by decoding real ffmpeg-generated fixtures rather than by reading documentation — see `services/formats.test.ts`. WAV also carries tags perfectly well when something writes them; it is real-world WAVs that tend to have none, not the format.
 
 ### Transcode policy
 
@@ -77,7 +83,7 @@ Mirrors the artwork cache's shape (`config.artworkPath`), for the same reason: c
 - **Dedupe in flight** — two requests for the same cold track must not both encode. `waveform.ts` already solves exactly this with an in-flight `Map` keyed by track id; reuse the pattern.
 - **Eviction** — LRU by access time against `TRANSCODE_CACHE_MAX_MB`. Only ever delete files matching this module's own naming pattern, the rule `pruneBackups` already follows.
 
-**Cold-miss strategy — recommended, pending confirmation.** Three ways to serve a track that has never been converted:
+**Cold-miss strategy — DECIDED 2026-09-10: option C.** Three ways to serve a track that has never been converted:
 
 | | How | Cost |
 |---|---|---|
@@ -85,18 +91,18 @@ Mirrors the artwork cache's shape (`config.artworkPath`), for the same reason: c
 | B | One run, output teed to both the response and the file | Half the CPU; an aborted request must not commit a partial file |
 | C | **Encode to the cache first, then serve the finished file** | ~2–5 s wait on first play only; one run; no partial-file failure mode at all; full seeking immediately after |
 
-**C is the recommendation.** At 96× realtime a typical four-minute track is ready in about 2.5 seconds, once, and every play afterwards is an ordinary cached file with byte ranges and a working scrubber. It is simpler than A and B together, and it deletes the partial-file trap rather than guarding against it. The CPU argument against A was overstated for a 12-core machine, but simplicity still favours C.
+**C it is.** At 96× realtime a typical four-minute track is ready in about 2.5 seconds, once, and every play afterwards is an ordinary cached file with byte ranges and a working scrubber. It is simpler than A and B together, and it deletes the partial-file trap rather than guarding against it. The CPU argument against A was overstated for a 12-core machine, but simplicity still favours C.
 
 **Consequence to accept:** C makes the `?t=` / `-ss` support shipped on 2026-09-10 largely redundant — cached playback seeks by byte range instead. It stays useful only when the cache is disabled or an entry has been evicted. Worth stating plainly rather than leaving it looking load-bearing.
 
-**Cache sizing — recommended, pending confirmation.** Measured output is 0.57 MB per minute of audio, so a 1,000-track library is roughly 2.3 GB fully cached.
+**Cache sizing — DECIDED 2026-09-10.** Measured output is 0.57 MB per minute of audio, so a 1,000-track library is roughly 2.3 GB fully cached.
 
 - Cap **2 GB** (`TRANSCODE_CACHE_MAX_MB`, default 2048)
 - **Evict on write, not on a timer** — the cache only grows when something is written, so that is exactly when to check. No second scheduler, no background thread. Least-recently-used first.
 - The directory is disposable: deleting it costs one re-encode per track, same as the artwork cache.
 
-- [ ] Confirm cold-miss strategy C
-- [ ] Confirm the 2 GB cap and evict-on-write
+- [x] Cold-miss strategy C confirmed
+- [x] 2 GB cap and evict-on-write confirmed
 
 ### Known consequences to accept or handle
 
