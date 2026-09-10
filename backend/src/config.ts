@@ -16,7 +16,16 @@ export const config = {
   // Extracted cover art, content-addressed. Safe to delete wholesale — a
   // re-scan rebuilds it from the audio files.
   artworkPath: process.env.ARTWORK_PATH ?? './data/artwork',
-  maxUploadSizeMb: Number(process.env.MAX_UPLOAD_SIZE_MB ?? 100),
+  // Per file, not per request. Raised from 100 to 1024 on 2026-09-10, when the
+  // library gained FLAC and WAV: 100 MB is under a single hi-res track, so the
+  // old ceiling would have rejected legitimate files. The number is a guard
+  // against a slip — a whole album dragged in as one file, a wrong folder —
+  // rather than against an attacker, because `POST /tracks/upload` is
+  // admin-only. The web client uploads 3 at a time, so the real worst case is
+  // roughly three times this in staging at once; `UPLOAD_STAGING_PATH` needs
+  // to have the room, and a reverse proxy in front of this (step 13) will have
+  // its own body limit that must be raised to match or it rejects first.
+  maxUploadSizeMb: Number(process.env.MAX_UPLOAD_SIZE_MB ?? 1024),
   // Data-saver transcodes running at once. Each is a full-rate ffmpeg decode
   // on the same machine that serves the app, so this is a ceiling, not a
   // target: past it, `?quality=low` is refused rather than served as the

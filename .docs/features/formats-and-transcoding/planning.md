@@ -106,7 +106,7 @@ Mirrors the artwork cache's shape (`config.artworkPath`), for the same reason: c
 
 ### Known consequences to accept or handle
 
-- **`MAX_UPLOAD_SIZE_MB` defaults to 100.** A six-minute WAV is ~60 MB and a FLAC album can exceed the cap per file. Upload will start rejecting real files.
+- ~~**`MAX_UPLOAD_SIZE_MB` defaults to 100.**~~ **Resolved 2026-09-10:** raised to 1024. The owner confirms hi-res FLAC runs to hundreds of megabytes, so 100 was under a single track. Admin-only route, so the ceiling guards a slip rather than an attacker. Staging needs ~3× headroom (the client uploads 3 at a time) and a reverse proxy will need its own limit raised to match.
 - **Backups stay small** — the database holds rows, not audio — but the library volume and the transcode cache both grow a lot.
 - **`?quality=low` currently answers `503` when transcode slots are busy.** With a cache, most requests stop needing a slot at all, so the cap becomes far less visible.
 

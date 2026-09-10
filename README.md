@@ -50,7 +50,7 @@ Other scripts: `npm run build` (typecheck + compile), `npm start` (run compiled 
 | `JWT_EXPIRES_IN` | `7d` | session token lifetime |
 | `MEDIA_TOKEN_TTL` | `2h` | lifetime of the scoped tokens that ride in `<audio src>` URLs |
 | `UPLOAD_STAGING_PATH` | `./data/upload-staging` | staging area for `POST /tracks/upload` |
-| `MAX_UPLOAD_SIZE_MB` | `100` | upload size limit |
+| `MAX_UPLOAD_SIZE_MB` | `1024` | per-file upload limit. Raised from 100 for hi-res FLAC and WAV, which exceed that on their own. The web client uploads 3 at a time, so `UPLOAD_STAGING_PATH` should have room for roughly 3× this; a reverse proxy in front will have its own body limit that must be raised to match |
 | `ARTWORK_PATH` | `./data/artwork` | cached cover art — safe to delete, a re-scan rebuilds it |
 | `FRONTEND_PATH` | *(unset)* | built web app to serve from the API's own origin. Set in the container; leave unset in dev, where Vite serves it |
 | `BACKUP_ENABLED` | `true` | scheduled database backups; `false` turns them off |
@@ -118,6 +118,56 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 Put the result in `backend/.env` as `JWT_SECRET`. Changing it invalidates every existing session, so everyone signs in once more.
 
 The check runs at server boot, not at config load, so `npm run migrate` and the admin scripts keep working regardless — they never sign a token. `npm run dev` and `npm test` set `NODE_ENV` themselves, so local work is unaffected; you get a warning instead of a refusal.
+
+## Getting started (frontend)
+
+```bash
+cd frontend
+npm install
+npm run dev             # starts on :5180, bound to every interface
+```
+
+The port is pinned (`strictPort`) rather than left to Vite's fallback, so the URL
+stays put between restarts. The dev server proxies `/api` to the backend on
+`:3000`, which keeps both halves on one origin — `VITE_API_BASE_URL` only needs
+setting if the backend lives somewhere other than `:3000`.
+
+### Testing on a phone
+
+The dev server binds every interface, but under WSL2 that alone isn't enough:
+WSL sits behind a NAT, so the `172.x` address Vite prints means nothing to
+another device. The Windows host has to hand the port over. Two ways:
+
+**Mirrored networking — permanent, needs a restart.** Windows 11 22H2+. Create
+`%USERPROFILE%\.wslconfig`:
+
+```ini
+[wsl2]
+networkingMode=mirrored
+```
+
+Then `wsl --shutdown` and reopen. WSL now shares the Windows network stack, so
+`http://<windows-lan-ip>:5180` reaches it directly. This is machine-wide: every
+distro gets it, and a Windows process on `:5180` will now genuinely collide with
+the dev server rather than quietly coexisting.
+
+**Port forwarding — per-port, takes effect immediately.** From an elevated
+PowerShell:
+
+```powershell
+netsh interface portproxy add v4tov4 listenport=5180 listenaddress=0.0.0.0 `
+  connectport=5180 connectaddress=$((wsl hostname -I).Trim().Split()[0])
+New-NetFirewallRule -DisplayName "WSL dev 5180" -Direction Inbound `
+  -LocalPort 5180 -Protocol TCP -Action Allow
+```
+
+WSL's IP changes whenever it restarts, so the `portproxy` line has to be re-run
+after each `wsl --shutdown` (the firewall rule persists).
+
+Find the address to type on the phone with `ipconfig` on the Windows side — the
+Wi-Fi adapter's IPv4, not WSL's. If neither approach works, suspect the network
+before the config: guest and corporate Wi-Fi often enable client isolation,
+which blocks phone-to-laptop traffic no matter how the host is set up.
 
 ## Running with Docker
 

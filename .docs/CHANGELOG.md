@@ -4,6 +4,18 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-10 — The upload ceiling fits the formats now
+
+`MAX_UPLOAD_SIZE_MB` defaulted to 100, which is under a *single* hi-res FLAC — the owner confirms they run to hundreds of megabytes. Adding `.wav` and `.aac` without moving this would have meant a library that accepts seven formats and an upload route that rejects two of them. Raised to **1024**.
+
+The number is a guard against a slip — a whole album dragged in as one file, a wrong folder — not against an attacker: `POST /tracks/upload` is admin-only, which is what makes a ceiling this high reasonable. Two consequences are written down beside it, because neither is visible from the constant: the web client uploads **3 at a time**, so the real worst case is roughly 3 GB in staging at once and `UPLOAD_STAGING_PATH` needs the room; and a reverse proxy in front of this (roadmap box 13) will have its own body limit that must be raised to match, or it rejects first and the app never sees the request.
+
+**The rejection path had no test at all**, which was fine while the number was one nobody touched and not fine now that it is tunable. Three added, against an app built with a 1 MB ceiling so they run in milliseconds rather than moving a gigabyte: an oversized file gets a clean `413` rather than a `500`, **nothing is left behind in staging** when it refuses — a rejected gigabyte that kept its partial file would fill the disk one failure at a time — and an unsupported extension is still rejected before size is ever considered. All three pass, so `@fastify/multipart`'s `truncated` flag does behave the way the route already assumed.
+
+232 backend tests pass.
+
+---
+
 ## 2026-09-10 — Seven formats, verified with real decoders
 
 The library accepted five extensions. It now accepts seven: `.wav` and `.aac` join `.flac`, `.opus`, `.mp3`, `.m4a` and `.ogg` — the set the two of us actually use. This is the ingest half of roadmap box 24; the transcode cache is separate work.

@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `config.maxUploadSizeMb` — `backend/src/config.ts`
+**Date:** 2026-09-10
+**How added:** change
+**Purpose:** cap the size of a single uploaded file.
+**Side effects:** read once when `@fastify/multipart` is registered, so it takes effect at app build, not per request.
+**Before:** 100 MB, which predates the library accepting FLAC and WAV. A single hi-res FLAC exceeds it, so the upload route would have rejected two of the seven formats the scanner had just been taught to accept.
+**After:** 1024 MB. Reasonable only because `POST /tracks/upload` is admin-only — the ceiling guards against a slip, not an attacker. Two non-obvious consequences are documented at the constant: the web client uploads 3 concurrently, so staging can hold ~3× this at once, and any reverse proxy in front has its own body limit that must be raised to match or it rejects first. The rejection path gained its first tests (`routes/upload.test.ts`), built against a 1 MB ceiling so they cost milliseconds instead of a gigabyte of I/O.
+
+---
+
 **Function:** `AUDIO_EXTENSIONS` / `MIME_TYPES` — `backend/src/services/trackTags.ts`, `backend/src/services/streaming.ts`
 **Date:** 2026-09-10
 **How added:** new feature
