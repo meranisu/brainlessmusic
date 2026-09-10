@@ -26,8 +26,8 @@ That is a poor trade: a second lossy generation, Opus re-encoded to Opus, to sav
 |---|---|---|---|
 | 1. Plan (blueprint) | Format list, transcode policy, cache design, open questions | In progress | [Phase 1](#phase-1-plan) |
 | 2. Structure (foundation) | Backend: ingest the new formats, disk cache, stream route | **Done** | [Phase 2](#phase-2-structure) |
-| 3. Interior (finishing) | Client: quality toggle, seeking on the transcoded path | **Not started — the only thing left** | [Phase 3](#phase-3-interior) |
-| 4. Walkthrough (handover) | Real-file tests per format, cache behaviour, done-checklist | Not started | [Phase 4](#phase-4-walkthrough) |
+| 3. Interior (finishing) | Client: quality toggle, served-quality readout | **Done** | [Phase 3](#phase-3-interior) |
+| 4. Walkthrough (handover) | Real-file tests per format, cache behaviour, done-checklist | **Done** | [Phase 4](#phase-4-walkthrough) |
 
 ---
 
@@ -124,9 +124,10 @@ Mirrors the artwork cache's shape (`config.artworkPath`), for the same reason: c
 
 ## Phase 3: Interior
 
-- [ ] A data-saver toggle in the web player (there is no UI for `?quality=low` at all today)
-- [ ] Seeking on the transcoded path — the client must track the `?t=` offset and add it to `audio.currentTime`, since a live encode reports its own zero
-- [ ] Show the served format/bitrate in the player, so it is obvious when you are hearing the low-quality copy
+- [x] A data-saver toggle in the web player — a pill in the phone sheet beside shuffle and repeat, a button on the desktop bar. It applies to the track already playing, carrying position, play/pause state and the in-progress scrobble across the swap, because a control that does nothing for the rest of the track reads as broken.
+- [x] ~~Seeking on the transcoded path — the client must track the `?t=` offset~~ — **dropped, not deferred.** Phase 2 made the converted copy a finished file, so seeking it is an ordinary byte range and there is no offset for the client to track. `?t=` was removed in `216aaf7`; see [A2/A5](../../QUESTIONS.md).
+- [x] Show the served format/bitrate in the player — measured from the bytes actually on the wire, via one `Range: bytes=0-0` probe, because asking for the small copy is not the same as getting one and an `<audio>` element exposes no response headers. On the phone the badge is shown only when it disagrees with the source specs beside it.
+- [x] The preference is per-device (`localStorage`), not per-account: the phone on mobile data and the desktop on the LAN share a login and want different answers.
 
 ## Phase 4: Walkthrough
 
@@ -135,7 +136,9 @@ Mirrors the artwork cache's shape (`config.artworkPath`), for the same reason: c
 - [x] A failed conversion leaves no partial file and commits nothing under its final name
 - [x] Two concurrent cold requests for the same track produce one file
 - [x] 238 backend tests pass; verified in real headless Chromium — FLAC and WAV at data-saver quality and the remuxed AAC each seeked to 15s exactly and kept playing
-- [ ] **Still open:** nobody can choose data saver in the app. Phase 3 is the whole of what remains.
+- [x] The toggle, in real headless Chromium at both widths — 12 checks: full quality first, the toggle switches variants, position survives the swap, playback continues, the readout changes, toggling back restores full quality, the preference persists across a reload, and at 390px five pills fit with no horizontal overflow
+- [x] **Nothing open.** Box 24 is complete and ticked on the roadmap.
+- [ ] **Carried out, not part of this box:** the 64k Opus target measures 74.3 kbps — libopus default VBR overshoots by 16%, and `-vbr constrained` hits 64.9 kbps on the same source. Filed as **Q13**; the cache key does not include the recipe, so changing it needs a variant-id bump or the old encodes keep serving.
 
 ---
 

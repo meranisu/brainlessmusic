@@ -4,6 +4,26 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `loadDataSaverPreference()` / `saveDataSaverPreference()` / `probeServedStream()` / `describeServed()` — `frontend/src/lib/streamQuality.ts`
+**Date:** 2026-09-10
+**How added:** new feature
+**Purpose:** hold the data-saver preference, and find out what the server actually sent.
+**Side effects:** reads/writes `localStorage`; `probeServedStream` issues one `Range: bytes=0-0` request.
+**Before:** nothing. `buildStreamUrl` had taken a `quality` argument since `f3bd28d` and no caller ever passed one, so `?quality=low` was reachable only by hand-editing a URL.
+**After:** the preference is per-device rather than per-account — the phone on mobile data wants it and the desktop on the LAN does not, and they share a login — so it lives in `localStorage`, wrapped in try/catch because storage can be blocked outright and a missing preference must not cost playback. `probeServedStream` exists because asking for the small copy is not the same as getting one: `variantFor` declines the downgrade when a source is already at or below the target, and an `<audio>` element exposes no response headers, so the fact is unreachable without a second request. A 206 carries both halves — `Content-Type` is the variant that was chosen, and `Content-Range` ends in the total size. It is nearly free on a cold cache, since the audio element is fetching the same variant at the same moment and the backend's in-flight map collapses the two into one transcode. `describeServed` measures the bitrate from the bytes on the wire rather than reading a tag, which keeps it honest for remuxed and re-encoded copies whose source numbers no longer apply.
+
+---
+
+**Function:** `setDataSaver()` / `waitForMetadata()` — `frontend/src/components/PlayerBar.tsx`
+**Date:** 2026-09-10
+**How added:** new feature
+**Purpose:** flip quality on the track that is playing, not just on the next one.
+**Side effects:** reassigns `audio.src`; writes the preference; leaves `progressRef` deliberately untouched.
+**Before:** no data-saver control existed in either player surface.
+**After:** the swap applies immediately, because a toggle that appears to do nothing for the rest of a four-minute track reads as broken. That is only possible because of the disk cache — the small copy is a complete file with a length, so it can be seeked back to the spot the listener was already at. Three things survive the swap: the position, the play/pause state, and the scrobble. The scrobble is the subtle one — this is the same listen, so `progressRef` is not reset, and `lastTime` is re-anchored to the resume point so the jump back up from 0 is not counted as time heard. `waitForMetadata` rejects on the element's `error` event rather than only resolving on `loadedmetadata`, so a swap that cannot happen surfaces as a toast instead of pinning the player on "loading" forever.
+
+---
+
 **Function:** `barsFromPeaks()` / `QUIET_TRACK_CEILING` — `frontend/src/components/NowPlaying.tsx`
 **Date:** 2026-09-10
 **How added:** change

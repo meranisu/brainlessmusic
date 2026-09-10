@@ -11,6 +11,13 @@ import {
 import { useAuth } from '../auth/AuthContext';
 import { useIsPhone } from '../hooks/useIsPhone';
 import { apiClient, buildCoverUrl, buildStreamUrl } from '../lib/apiClient';
+import {
+  describeServed,
+  loadDataSaverPreference,
+  probeServedStream,
+  saveDataSaverPreference,
+  type ServedStream,
+} from '../lib/streamQuality';
 import { CoverArt } from './CoverArt';
 import { FavoriteButton, useFavoriteIds } from './FavoriteButton';
 import { PauseIcon, PlayIcon, SkipBackIcon, SkipForwardIcon } from './icons';
@@ -47,6 +54,30 @@ interface PlayProgress {
   scrobbled: boolean;
 }
 
+/**
+ * Resolves once the element knows enough about a newly-assigned source to be
+ * seeked into. Rejects on a load failure rather than hanging, so a swap that
+ * cannot happen surfaces instead of leaving the player stuck on "loading".
+ */
+function waitForMetadata(audio: HTMLAudioElement): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      audio.removeEventListener('loadedmetadata', onReady);
+      audio.removeEventListener('error', onFailed);
+    };
+    const onReady = () => {
+      cleanup();
+      resolve();
+    };
+    const onFailed = () => {
+      cleanup();
+      reject(new Error('The stream could not be loaded'));
+    };
+    audio.addEventListener('loadedmetadata', onReady);
+    audio.addEventListener('error', onFailed);
+  });
+}
+
 function scrobbleThresholdMs(durationSeconds: number): number {
   // No usable duration yet — fall back to the cap, and let `loadedmetadata`
   // tighten it once the browser knows how long the track really is.
@@ -64,6 +95,9 @@ export interface PlayerContextValue {
   duration: number;
   repeat: RepeatMode;
   isShuffled: boolean;
+  dataSaver: boolean;
+  /** What the server actually sent, e.g. `OPUS · 64k`. Null until probed. */
+  servedLabel: string | null;
   playQueue: (tracks: QueueTrack[], startIndex: number) => void;
   playTrack: (track: QueueTrack) => void;
   toggle: () => void;
@@ -73,6 +107,7 @@ export interface PlayerContextValue {
   seek: (seconds: number) => void;
   cycleRepeat: () => void;
   toggleShuffle: () => void;
+  setDataSaver: (enabled: boolean) => void;
   stop: () => void;
 }
 
@@ -94,6 +129,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [duration, setDuration] = useState(0);
   const [repeat, setRepeat] = useState<RepeatMode>('off');
   const [isShuffled, setIsShuffled] = useState(false);
+  const [dataSaver, setDataSaverState] = useState(loadDataSaverPreference);
+  const [served, setServed] = useState<ServedStream | null>(null);
   const [isScrubbing, setIsScrubbing] = useState(false);
   // Phone only: the bar collapses to a strip and this opens the full view.
   const [isExpanded, setIsExpanded] = useState(false);
@@ -207,10 +244,47 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setDuration(track.duration ?? 0);
 
     try {
-      audio.src = await buildStreamUrl(track.id);
+      audio.src = await buildStreamUrl(track.id, dataSaver ? 'low' : undefined);
       if (autoplay) await audio.play();
     } catch (err) {
       showToast(err instanceof Error ? err.message : `Could not play ${track.title}`, 'error');
+      setIsPlaying(false);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  /**
+   * Flipping the toggle applies to what is playing right now, not just to the
+   * next track — a control that appears to do nothing for the next four
+   * minutes reads as broken. Swapping mid-track is only possible because the
+   * small copy is a complete file on disk: it has a length, so it can be
+   * seeked back to the spot the listener was already at.
+   */
+  async function setDataSaver(enabled: boolean) {
+    setDataSaverState(enabled);
+    saveDataSaverPreference(enabled);
+
+    const audio = audioRef.current;
+    const track = current;
+    if (!audio || !track || !audio.src) return;
+
+    const resumeAt = audio.currentTime;
+    const wasPlaying = !audio.paused;
+
+    setIsLoading(true);
+    try {
+      audio.src = await buildStreamUrl(track.id, enabled ? 'low' : undefined);
+      await waitForMetadata(audio);
+      audio.currentTime = resumeAt;
+      // The same listen continues across the swap, so `progressRef` is left
+      // alone and this is not a second scrobble. Re-anchoring `lastTime` stops
+      // the jump back up to `resumeAt` from being counted as time heard.
+      if (progressRef.current) progressRef.current.lastTime = resumeAt;
+      setCurrentTime(resumeAt);
+      if (wasPlaying) await audio.play();
+    } catch {
+      showToast('Could not reload the track at the new quality', 'error');
       setIsPlaying(false);
     } finally {
       setIsLoading(false);
@@ -356,7 +430,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     audio.addEventListener('ended', onEnded);
     return () => audio.removeEventListener('ended', onEnded);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queue, index, repeat]);
+  }, [queue, index, repeat, dataSaver]);
 
   // Lock-screen and notification transport. Without this the OS only knows
   // that "a tab is playing audio": no title, no artwork, no skip buttons —
@@ -469,6 +543,30 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   }, [current, isPlaying, currentTime, duration]);
 
+  // What the server actually sent, which is not always what was asked for:
+  // the backend refuses to downgrade a source that is already at or below the
+  // target bitrate. Kept in its own request because an `<audio>` element
+  // exposes no response headers at all; on a cache miss it costs nothing extra,
+  // since the element is fetching the same variant and the backend's in-flight
+  // map collapses the two into one transcode.
+  useEffect(() => {
+    setServed(null);
+    if (!current) return;
+
+    const controller = new AbortController();
+    void buildStreamUrl(current.id, dataSaver ? 'low' : undefined)
+      .then((url) => probeServedStream(url, controller.signal))
+      .then((info) => {
+        if (!controller.signal.aborted) setServed(info);
+      })
+      .catch(() => {
+        // Cosmetic. A missing readout must never disturb playback.
+      });
+
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current?.id, dataSaver]);
+
   // Keyboard transport. Ignored while typing, so the library search box and
   // the tag editor keep working normally.
   useEffect(() => {
@@ -506,6 +604,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [current, currentTime, queue, index, repeat, duration]);
 
   const effectiveDuration = duration || current?.duration || 0;
+  const servedLabel = served ? describeServed(served, effectiveDuration) : null;
 
   const value: PlayerContextValue = {
     queue,
@@ -517,6 +616,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     duration: effectiveDuration,
     repeat,
     isShuffled,
+    dataSaver,
+    servedLabel,
     playQueue,
     playTrack,
     toggle,
@@ -526,6 +627,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     seek,
     cycleRepeat,
     toggleShuffle,
+    setDataSaver,
     stop,
   };
 
@@ -614,11 +716,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               <div className="flex items-baseline gap-2">
                 <span className="truncate text-sm font-medium text-white">{current.title}</span>
                 <span className="truncate text-xs text-blue-300">{current.artist ?? 'Unknown Artist'}</span>
-                {queue.length > 1 && (
-                  <span className="ml-auto shrink-0 font-mono text-xs text-blue-400">
-                    {index + 1}/{queue.length}
-                  </span>
-                )}
+                <span className="ml-auto flex shrink-0 items-center gap-2 font-mono text-xs">
+                  {servedLabel && (
+                    <span
+                      className={dataSaver ? 'text-orange-400' : 'text-blue-400'}
+                      title="The format and bitrate actually being served"
+                    >
+                      {servedLabel}
+                    </span>
+                  )}
+                  {queue.length > 1 && (
+                    <span className="text-blue-400">
+                      {index + 1}/{queue.length}
+                    </span>
+                  )}
+                </span>
               </div>
 
               <div className="flex items-center gap-2">
@@ -674,6 +786,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 title={`Repeat: ${repeat}`}
               >
                 {repeat === 'one' ? 'Repeat 1' : 'Repeat'}
+              </button>
+              <button
+                onClick={() => void setDataSaver(!dataSaver)}
+                className={`btn-ghost btn-sm ${dataSaver ? 'text-orange-500' : ''}`}
+                aria-pressed={dataSaver}
+                title="Data saver — stream a smaller copy, re-encoded once and kept"
+              >
+                Data saver
               </button>
               <button onClick={stop} className="btn-ghost btn-sm" aria-label="Close player">
                 ✕

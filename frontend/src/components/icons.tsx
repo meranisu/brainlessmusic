@@ -89,6 +89,17 @@ export function RepeatOneIcon({ className = 'h-4 w-4' }: IconProps) {
   );
 }
 
+/** Data saver: two arrows squeezing toward a line — "make this smaller". */
+export function DataSaverIcon({ className = 'h-4 w-4' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3v6m0 0 3-3m-3 3L9 6" />
+      <path d="M4 12h16" />
+      <path d="M12 21v-6m0 0 3 3m-3-3-3 3" />
+    </svg>
+  );
+}
+
 export function CloseIcon({ className = 'h-4 w-4' }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">

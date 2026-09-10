@@ -38,6 +38,7 @@ is never asked twice.
 | [Q9](#q9--resume-position--cross-device-playback-state) | Resume position / cross-device playback state | 2026-09-10 | No — box 25 |
 | [Q10](#q10--gapless-playback) | Gapless playback | 2026-09-10 | No |
 | [Q12](#q12--does-the-first-play-wait-need-a-live-fallback-for-very-long-tracks) | Does the first-play wait need a live fallback for very long tracks? | 2026-09-10 | No |
+| [Q13](#q13--should-the-64k-opus-recipe-switch-to-constrained-vbr) | Should the 64k Opus recipe switch to constrained VBR? | 2026-09-10 | No |
 
 ### Q1 — Is the home network behind CGNAT?
 **Asked:** 2026-09-09 · **Blocking:** yes · **Owner action, not a code question**
@@ -127,6 +128,36 @@ it is. If that bites, the fix is to reinstate the removed live `-ss` path for
 tracks over a threshold — they would start instantly and give up byte-range
 seeking, which is the right trade for a mix nobody scrubs precisely. The code
 is in `216aaf7^`.
+
+### Q13 — Should the 64k Opus recipe switch to constrained VBR?
+**Asked:** 2026-09-10 · **Blocking:** no
+
+`LOW_QUALITY_VARIANT` asks ffmpeg for `-b:a 64k` and gets 74.3 kbps. libopus
+treats that as a VBR target and runs 16% over it. Measured 2026-09-10 on
+`04. 2 steps toward.opus` (115 kbps source, 172.1 s):
+
+| Recipe | Bytes | Effective |
+|---|---|---|
+| `-b:a 64k` (today) | 1,597,894 | 74.3 kbps |
+| `-b:a 64k -vbr constrained` | 1,395,366 | 64.9 kbps |
+
+A further **13% off the wire**, and it makes the configured number mean what it
+says — `TRANSCODE_MIN_SOURCE_BITRATE_RATIO` is reasoned about in terms of the
+64k target, and today that target is fiction.
+
+Two reasons it is not just done:
+
+1. **It changes the audio.** Constrained VBR is what streaming services use, but
+   it is a real quality decision on your music, not a bug fix.
+2. **The cache key does not include the recipe.** `cacheEntryName` hashes
+   `variant.id` + source size + mtime, so changing `configure` alone would leave
+   every existing entry serving the old encode forever, with no way to tell them
+   apart. Doing this means bumping the variant id (`opus64` → `opus64c`), which
+   re-converts on next play and lets the old entries age out through normal LRU
+   eviction.
+
+**Assumption being built on:** the recipe stays as it is. Nothing depends on the
+overshoot, so this can be taken at any time; it costs one constant and one id.
 
 ---
 

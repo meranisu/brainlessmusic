@@ -6,6 +6,7 @@ import { FavoriteButton, useFavoriteIds } from './FavoriteButton';
 import {
   ChevronDownIcon,
   CloseIcon,
+  DataSaverIcon,
   PauseIcon,
   PlayIcon,
   RepeatIcon,
@@ -110,6 +111,8 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
     duration,
     repeat,
     isShuffled,
+    dataSaver,
+    servedLabel,
     toggle,
     next,
     previous,
@@ -117,6 +120,7 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
     goTo,
     cycleRepeat,
     toggleShuffle,
+    setDataSaver,
     stop,
   } = player;
 
@@ -156,6 +160,14 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
     detail?.bitrate ? `${Math.round(detail.bitrate / 1000)} kbps` : null,
     current.format ?? detail?.format ?? null,
   ].filter(Boolean);
+
+  // The specs above already describe the file in the library. A second badge
+  // earns its place only when what is on the wire differs from it — data saver
+  // re-encoding, or a container swap like raw ADTS served as m4a. Serving the
+  // file as-is would just print the same numbers twice.
+  const servedFormat = servedLabel?.split(' · ')[0] ?? null;
+  const sourceFormat = (current.format ?? detail?.format ?? '').toUpperCase();
+  const showServed = servedLabel != null && (dataSaver || servedFormat !== sourceFormat);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-blue-950 text-white md:hidden">
@@ -211,6 +223,14 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
           aria-label={`Repeat: ${repeat}`}
         >
           {repeat === 'one' ? <RepeatOneIcon className="h-4.5 w-4.5" /> : <RepeatIcon className="h-4.5 w-4.5" />}
+        </button>
+        <button
+          onClick={() => void setDataSaver(!dataSaver)}
+          className={pill(dataSaver)}
+          aria-pressed={dataSaver}
+          aria-label="Data saver"
+        >
+          <DataSaverIcon className="h-4.5 w-4.5" />
         </button>
         <button onClick={stop} className={pill(false)} aria-label="Stop and clear the queue">
           <CloseIcon className="h-4.5 w-4.5" />
@@ -272,11 +292,22 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
         </button>
       </div>
 
-      {specs.length > 0 && (
-        <div className="px-5 pt-4 text-center">
-          <span className="font-display rounded-full bg-blue-900 px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-[0.16em] text-blue-400">
-            {specs.join(' · ')}
-          </span>
+      {(specs.length > 0 || showServed) && (
+        <div className="flex flex-wrap items-center justify-center gap-2 px-5 pt-4 text-center">
+          {specs.length > 0 && (
+            <span className="font-display rounded-full bg-blue-900 px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-[0.16em] text-blue-400">
+              {specs.join(' · ')}
+            </span>
+          )}
+          {showServed && (
+            <span
+              className={`font-display rounded-full px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-[0.16em] ${
+                dataSaver ? 'bg-orange-600 text-white' : 'bg-blue-900 text-blue-400'
+              }`}
+            >
+              {dataSaver ? `Streaming ${servedLabel}` : servedLabel}
+            </span>
+          )}
         </div>
       )}
 

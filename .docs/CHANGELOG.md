@@ -4,6 +4,63 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-10 — Data saver becomes something you can actually press
+
+The backend half of roadmap box 24 had been finished and verified for a day, and
+nobody could reach any of it: `buildStreamUrl` had accepted a `quality` argument
+since `f3bd28d` and no caller ever passed one, so `?quality=low` existed only for
+whoever was willing to hand-edit a URL. This is the half that surfaces it.
+
+**The toggle applies to the track that is playing.** Not to the next one — a
+control that appears to do nothing for the remaining four minutes reads as
+broken, and the listener who just turned it on is the one person actively
+watching for an effect. Swapping mid-track is only possible because of the cache
+that landed in `216aaf7`: the small copy is a complete file with a length, so it
+can be seeked straight back to where the listener already was. Position,
+play/pause state and the in-progress scrobble all survive the swap. The scrobble
+is the one worth naming — it is the same listen, so the progress record is left
+alone and `lastTime` is re-anchored to the resume point, which stops the jump
+back up from 0 being counted as time heard.
+
+**The readout reports what was served, not what was asked for.** These come
+apart on exactly the files the feature exists to protect: `variantFor` refuses to
+downgrade a source already at or below the target, so a 42 kbps Opus file is sent
+untouched no matter what the URL says. Printing the request as though it were the
+result would be a readout that lies precisely where it matters. An `<audio>`
+element exposes no response headers at all, so the truth costs one extra
+`Range: bytes=0-0` request — nearly free on a cold cache, since the element is
+fetching the same variant at that moment and the backend's in-flight map
+collapses the two into one transcode. The bitrate is measured from the bytes on
+the wire rather than read off a tag, which keeps it honest for remuxed and
+re-encoded copies whose source numbers no longer describe them.
+
+Both player surfaces get it: a pill in the phone sheet beside shuffle and repeat,
+a button on the desktop bar beside them. The phone's served badge appears **only
+when it disagrees with the specs badge above it** — data saver re-encoding, or a
+container swap like raw ADTS served as m4a. Serving a file as-is would otherwise
+print `44.1 kHz · 115 kbps · Opus` directly above `OPUS · 115k`, which is noise
+dressed as information.
+
+**Measured on the real library** (19 Opus tracks, ~120 kbps): a 115 kbps source
+serves at 74 kbps with data saver on, a 36% saving. That is the honest number for
+*this* library, and it is the same 36% that argued against building the feature
+at all before FLAC was in the picture — where the same path measured 93%.
+
+Verified in headless Chromium at both widths, 12 checks: plays at full quality
+first, the toggle switches variants, position survives the swap, playback
+continues, the readout changes, toggling back restores full quality, the
+preference persists across a reload, and on a 390px viewport five pills fit with
+no horizontal overflow. 238 backend tests pass; both projects typecheck and build
+clean.
+
+**Found while measuring, not fixed here:** the 64k Opus target lands at 74.3
+kbps. `-b:a 64k` with libopus's default VBR overshoots by 16%; `-vbr constrained`
+hits 64.9 kbps on the same source, a further 13% off the wire. Filed as Q13,
+because changing the recipe changes the audio and the cache key does not include
+it — existing entries would keep serving the old encode.
+
+---
+
 ## 2026-09-10 — The real waveform stops looking worse than the fake one
 
 Checking whether the Now Playing waveform was still decorative turned up that it

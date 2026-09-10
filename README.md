@@ -69,7 +69,9 @@ Other scripts: `npm run build` (typecheck + compile), `npm start` (run compiled 
 
 ### Data saver, and why converted copies are kept
 
-`?quality=low` converts a track to 64 kbps Opus. The conversion is **written to disk and served from there**, not streamed as it encodes — which is what makes the difference: a finished file has a length, so it gets byte ranges, an `ETag`, a `304` on revalidation, and a scrubber that works. A stream being encoded has none of those.
+In the player it is the **Data saver** button on the desktop bar, and the pill beside shuffle and repeat in the phone view. It takes effect on the track already playing — the position, the play/pause state and the part-finished scrobble all carry across the swap — and the readout on the bar reports what the server actually sent, which is not always what was asked for. The choice is remembered per device, not per account: the phone on mobile data and the desktop on the LAN share a login and rarely want the same answer.
+
+`?quality=low` converts a track to Opus at a 64 kbps target. (In practice libopus overshoots that by about 16% — see Q13 in `.docs/QUESTIONS.md`.) The conversion is **written to disk and served from there**, not streamed as it encodes — which is what makes the difference: a finished file has a length, so it gets byte ranges, an `ETag`, a `304` on revalidation, and a scrubber that works. A stream being encoded has none of those.
 
 The cost is a wait on the *first* play of a track, and it is small: measured here, a 7:12 FLAC converts in 4.5 seconds, roughly 96x faster than playing it. Every play after that is served from the cache in milliseconds.
 
