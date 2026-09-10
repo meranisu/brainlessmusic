@@ -33,11 +33,12 @@ is never asked twice.
 | [Q3](#q3--which-os-for-the-server) | Which OS for the server? | 2026-09-09 | No |
 | [Q4](#q4--room-sync-design-details) | Room-sync design details | 2026-09-09 | Not yet — v0.3 |
 | [Q5](#q5--tag-editing-scope) | Tag-editing scope | 2026-09-09 | No |
-| [Q7](#q7--should-the-track-title-be-uppercased) | Should the track title be uppercased? | 2026-09-09 | No |
-| [Q8](#q8--should-the-play-fab-keep-overlapping-the-scrubber) | Should the play FAB keep overlapping the scrubber? | 2026-09-09 | No |
 | [Q10](#q10--gapless-playback) | Gapless playback | 2026-09-10 | No |
 | [Q12](#q12--does-the-first-play-wait-need-a-live-fallback-for-very-long-tracks) | Does the first-play wait need a live fallback for very long tracks? | 2026-09-10 | No |
-| [Q13](#q13--should-the-64k-opus-recipe-switch-to-constrained-vbr) | Should the 64k Opus recipe switch to constrained VBR? | 2026-09-10 | No |
+| [Q14](#q14--one-guest-identity-per-device-or-one-shared-house-identity) | One guest identity per device, or one shared house identity? | 2026-09-10 | **Yes** — decides the schema for guest access |
+| [Q15](#q15--how-does-the-owner-keep-admin-access-once-the-login-screen-is-gone) | How does the owner keep admin access once the login screen is gone? | 2026-09-10 | **Yes** — upload and scan are admin-gated |
+| [Q16](#q16--does-the-entry-code-ship-now-or-with-box-13) | Does the entry code ship now, or with box 13? | 2026-09-10 | No |
+| [Q17](#q17--delete-signup-and-close-open-registration) | Delete `/signup` and close open registration? | 2026-09-10 | No |
 
 ### Q1 — Is the home network behind CGNAT?
 **Asked:** 2026-09-09 · **Blocking:** yes · **Owner action, not a code question**
@@ -67,6 +68,11 @@ and flipping it is part of that box rather than a separate task.
 Arch-based is leaning but not locked in. Only matters when the deploy is real;
 Docker keeps the app itself indifferent.
 
+**Deliberately deferred 2026-09-10**, when it was put and answered "leave it
+open". Deciding it now would only be a guess written down as a decision. Kept
+open rather than answered because it does have to be settled eventually — ask
+again when box 13 turns into a real deploy, not before.
+
 ### Q4 — Room-sync design details
 **Asked:** 2026-09-09 · **Blocking:** not yet — v0.3 work
 
@@ -79,22 +85,6 @@ centerpiece feature, so it deserves its own turn, not a paragraph here.
 
 Which fields are editable, whether batch-edit exists, and what undo/backup
 behaviour looks like when the edit writes back to the file on disk.
-
-### Q7 — Should the track title be uppercased?
-**Asked:** 2026-09-09 · **Blocking:** no
-
-The source mockup specified Barlow Condensed 900 uppercase. That was
-deliberately dropped: much of this library is Japanese, where `text-transform`
-does nothing to the CJK half and flattens the Latin titles beside it
-(`WORTH LIVING ~ FROM 智代アフター`). Revisit only if you want the mockup
-followed exactly.
-
-### Q8 — Should the play FAB keep overlapping the scrubber?
-**Asked:** 2026-09-09 · **Blocking:** no
-
-As the mockup has it, the FAB sits over the scrubber's centre. Dragging through
-the middle still seeks, but a tap at dead centre hits play instead of seeking
-there. The alternative is moving the FAB down into the transport row.
 
 ### Q10 — Gapless playback
 **Asked:** 2026-09-10 · **Blocking:** no
@@ -123,41 +113,63 @@ tracks over a threshold — they would start instantly and give up byte-range
 seeking, which is the right trade for a mix nobody scrubs precisely. The code
 is in `216aaf7^`.
 
-### Q13 — Should the 64k Opus recipe switch to constrained VBR?
-**Asked:** 2026-09-10 · **Blocking:** no
-
-`LOW_QUALITY_VARIANT` asks ffmpeg for `-b:a 64k` and gets 74.3 kbps. libopus
-treats that as a VBR target and runs 16% over it. Measured 2026-09-10 on
-`04. 2 steps toward.opus` (115 kbps source, 172.1 s):
-
-| Recipe | Bytes | Effective |
-|---|---|---|
-| `-b:a 64k` (today) | 1,597,894 | 74.3 kbps |
-| `-b:a 64k -vbr constrained` | 1,395,366 | 64.9 kbps |
-
-A further **13% off the wire**, and it makes the configured number mean what it
-says — `TRANSCODE_MIN_SOURCE_BITRATE_RATIO` is reasoned about in terms of the
-64k target, and today that target is fiction.
-
-Two reasons it is not just done:
-
-1. **It changes the audio.** Constrained VBR is what streaming services use, but
-   it is a real quality decision on your music, not a bug fix.
-2. **The cache key does not include the recipe.** `cacheEntryName` hashes
-   `variant.id` + source size + mtime, so changing `configure` alone would leave
-   every existing entry serving the old encode forever, with no way to tell them
-   apart. Doing this means bumping the variant id (`opus64` → `opus64c`), which
-   re-converts on next play and lets the old entries age out through normal LRU
-   eviction.
-
-**Assumption being built on:** the recipe stays as it is. Nothing depends on the
-overshoot, so this can be taken at any time; it costs one constant and one id.
-
 ---
 
 ## Answered
 
 Decided. Do not re-open without an explicit ask.
+
+### A10 — Should the track title be uppercased? *(was Q7)*
+**Answered:** 2026-09-10 · **No — leave the casing alone**
+
+The source mockup specified Barlow Condensed 900 uppercase. It stays dropped.
+`text-transform` does nothing to CJK and would flatten only the Latin half of a
+mixed-script title — `WORTH LIVING ~ FROM 智代アフター` — so following the
+mockup would make a third of this library look inconsistent rather than styled.
+No code change; this confirms what already ships.
+
+---
+
+### A11 — Should the play FAB keep overlapping the scrubber? *(was Q8)*
+**Answered:** 2026-09-10 · **Move it into the transport row — and it already is**
+
+The decision is to keep the scrubber clear. Checking before changing anything
+found the question had outlived its premise: the phone view was rebuilt in
+`b8ca47b` and the FAB moved into the transport row then, but this ledger was
+never updated. Verified rather than assumed, 2026-09-10 at 390x844: the seek
+control ends at y=623 and the play button starts at y=663, a **40px gap**, and a
+tap at the scrubber's dead centre seeks to 87.2s of a 172s track — the exact
+behaviour the question worried was being swallowed.
+
+No code change. The lesson is about the ledger, not the UI: a question can go
+stale because the code moved under it, so re-check the premise before acting on
+an answer to an old one.
+
+---
+
+### A12 — Should the 64k Opus recipe switch to constrained VBR? *(was Q13)*
+**Answered:** 2026-09-10 · **Yes — done**
+
+libopus read `-b:a 64k` as a VBR target and ran 16% over it. `-vbr constrained`
+holds the number. Measured through `encodeToFile`, the app's own path, on the
+same source: **1,597,894 bytes / 74.3 kbps → 1,395,366 bytes / 64.9 kbps**, a
+12.7% saving on top of data saver's own. The player's readout now says
+`OPUS · 65k` where it said `OPUS · 74k`.
+
+The variant id went `opus64` → `opus64c` in the same change, because the id *is*
+the cache key: leaving it alone would have left every existing entry serving the
+old encode with nothing to distinguish them. Old `opus64-*` files are never
+requested again and age out through ordinary LRU eviction.
+
+**What this exposed:** with every entry suddenly cold, the mid-track quality
+swap turned out to spend **5.7 s in silence** waiting for the encode — the old
+copy was still playing and perfectly good the whole time. Fixed in the same
+commit by warming the converted copy before touching the audio element, which
+takes the silence to ~0.3 s (a single `<audio>` element cannot swap sources
+gaplessly). Not a regression from this change; a pre-existing defect it made
+visible.
+
+---
 
 ### A9 — Resume position / cross-device playback state *(was Q9)*
 **Answered:** 2026-09-10 · **By default, not by decision** — see the caveat below

@@ -24,7 +24,7 @@ import { encodeToFile, type Variant } from './streaming.js';
  * per track, the same bargain as the artwork cache.
  */
 
-/** `opus64-<32 hex>.ogg`. Only files matching this are ever deleted. */
+/** `opus64c-<32 hex>.ogg`. Only files matching this are ever deleted. */
 const ENTRY_PATTERN = /^[a-z0-9]+-[0-9a-f]{32}\.[a-z0-9]+$/;
 
 /**

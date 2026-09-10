@@ -4,6 +4,48 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-10 — The 64k target starts telling the truth, and the toggle stops going quiet
+
+Answering [A12](QUESTIONS.md) turned into three fixes, only the first of which
+was the question.
+
+**libopus was ignoring the number it was given.** `-b:a 64k` is a VBR *target*
+to it, and it ran 16% over. `-vbr constrained` holds it: measured through
+`encodeToFile`, the app's own path, **1,597,894 bytes / 74.3 kbps → 1,395,366 /
+64.9 kbps** on the same source. The readout now says `OPUS · 65k`. The variant
+id went `opus64` → `opus64c` in the same change because the id *is* the cache
+key — leaving it would have kept serving old encodes with nothing to tell them
+apart. Old files are never requested again and age out through LRU.
+
+**Which made every entry cold, and revealed that the toggle went silent.**
+Measured 5.71 s of nothing for a 172-second track, because the swap replaced
+`audio.src` and *then* waited for the encode — while the copy already playing
+was perfectly good the whole time. Now the converted copy is warmed first and
+the element is only touched once the file exists. The audio element no longer
+emits a `pause` at all across the swap. Not a regression from the encoder
+change; a pre-existing hole that always-warm testing had hidden.
+
+**And the scrubber flicked back to zero.** Reassigning `src` resets the
+element's clock, and the `timeupdate` handler faithfully painted that. Suppressed
+for the duration of the swap: largest backwards jump measured 0.000 s, down from
+-8.9 s.
+
+Two more caught by the tests rather than by reading, both mine:
+
+- **A cached probe looked like a failure.** The readout asks for one byte and
+  read the total out of `Content-Range`, which only a 206 carries — but Chrome
+  can answer a repeat request from its own cache with a 200. The probe returned
+  null, the swap treated that as "could not prepare", and it *reverted the
+  listener's preference*. It now reads `Content-Length` when there is no range.
+  The same bug would have made the bitrate readout silently disappear.
+- **An aborted request is not a refusal.** Reverting the toggle on any failure
+  meant a page navigating away mid-request quietly undid a choice that had been
+  made. Aborts now return without touching the preference.
+
+28 browser checks across six suites and 257 backend tests.
+
+---
+
 ## 2026-09-10 — Close the tab, open the phone, carry on
 
 Roadmap box 25. A `playback_state` table, one row per user — `user_id` is the

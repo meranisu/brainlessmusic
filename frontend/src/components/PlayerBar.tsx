@@ -153,6 +153,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // element's long-lived listeners always see live values without re-binding
   // on every timeupdate.
   const progressRef = useRef<PlayProgress | null>(null);
+  // True while a quality swap is reassigning `src`. Reassigning resets the
+  // element's clock to 0, and painting that would flick the scrubber back to
+  // the start for the ~300 ms until the seek lands.
+  const swappingRef = useRef(false);
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -165,6 +169,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     audioRef.current = audio;
 
     const onTime = () => {
+      // Mid-swap the clock is briefly 0 and means nothing: not a position to
+      // show, and not time anybody listened to.
+      if (swappingRef.current) return;
       setCurrentTime(audio.currentTime);
       recordListenedTime(audio.currentTime);
     };
@@ -270,10 +277,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   /**
    * Flipping the toggle applies to what is playing right now, not just to the
    * next track — a control that appears to do nothing for the next four
-   * minutes reads as broken. Swapping mid-track is only possible because the
-   * small copy is a complete file on disk: it has a length, so it can be
-   * seeked back to the spot the listener was already at.
+   * minutes reads as broken.
+   *
+   * The converted copy is warmed *before* the element is touched. Making one
+   * takes seconds on a cold cache (measured 2026-09-10: 5.7 s for a 172 s
+   * track), and the copy already playing stays perfectly good throughout, so
+   * swapping first would spend that entire wait in silence — the loudest
+   * possible way to answer a button press. Waiting first means the music never
+   * stops and the swap itself is instant.
    */
+  const swapRef = useRef<{ token: number; abort: AbortController | null }>({ token: 0, abort: null });
+
   async function setDataSaver(enabled: boolean) {
     setDataSaverState(enabled);
     saveDataSaverPreference(enabled);
@@ -282,12 +296,29 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const track = current;
     if (!audio || !track || !audio.src) return;
 
-    const resumeAt = audio.currentTime;
-    const wasPlaying = !audio.paused;
+    // A second press supersedes the first: abort its warm-up and ignore it.
+    swapRef.current.abort?.abort();
+    const controller = new AbortController();
+    const token = swapRef.current.token + 1;
+    swapRef.current = { token, abort: controller };
 
     setIsLoading(true);
     try {
-      audio.src = await buildStreamUrl(track.id, enabled ? 'low' : undefined);
+      const url = await buildStreamUrl(track.id, enabled ? 'low' : undefined);
+
+      // Doubles as the readout probe and as the "is it ready yet" wait: the
+      // response does not arrive until the file exists.
+      const served = await probeServedStream(url, controller.signal);
+      if (token !== swapRef.current.token) return;
+      if (!served) throw new Error('The converted copy could not be prepared');
+
+      // Read the position *after* the wait, not before it — the track kept
+      // playing, so the spot to land on has moved.
+      const resumeAt = audio.currentTime;
+      const wasPlaying = !audio.paused;
+
+      swappingRef.current = true;
+      audio.src = url;
       await waitForMetadata(audio);
       audio.currentTime = resumeAt;
       // The same listen continues across the swap, so `progressRef` is left
@@ -295,12 +326,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       // the jump back up to `resumeAt` from being counted as time heard.
       if (progressRef.current) progressRef.current.lastTime = resumeAt;
       setCurrentTime(resumeAt);
+      swappingRef.current = false;
       if (wasPlaying) await audio.play();
-    } catch {
-      showToast('Could not reload the track at the new quality', 'error');
-      setIsPlaying(false);
+    } catch (err) {
+      swappingRef.current = false;
+      if (token !== swapRef.current.token) return; // superseded, not failed
+      // An abort is not a refusal. It means either a second press took over,
+      // or the page is going away mid-request — reverting the preference on
+      // the way out would quietly undo a choice the listener did make.
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      // Otherwise put the toggle back rather than leaving it claiming a
+      // quality that is not being served: the readout is built from this flag,
+      // so a stale one would make the player misreport itself.
+      setDataSaverState(!enabled);
+      saveDataSaverPreference(!enabled);
+      showToast('Could not switch quality — still playing the original', 'error');
     } finally {
-      setIsLoading(false);
+      if (token === swapRef.current.token) setIsLoading(false);
     }
   }
 

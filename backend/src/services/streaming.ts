@@ -207,10 +207,27 @@ export interface Variant {
 
 /** The data-saver copy. */
 export const LOW_QUALITY_VARIANT: Variant = {
-  id: 'opus64',
+  // The trailing `c` is for constrained VBR, and the id had to change with the
+  // recipe: it is the cache key, so entries encoded the old way would otherwise
+  // keep being served with nothing to tell them apart. Old `opus64-*` files are
+  // simply never requested again and age out through the usual LRU eviction.
+  id: 'opus64c',
   extension: '.ogg',
   mimeType: 'audio/ogg',
-  configure: (c) => c.noVideo().audioCodec('libopus').audioBitrate(LOW_QUALITY_BITRATE).format('ogg'),
+  configure: (c) =>
+    c
+      .noVideo()
+      .audioCodec('libopus')
+      .audioBitrate(LOW_QUALITY_BITRATE)
+      // libopus reads `-b:a` as a VBR *target* and runs well over it: measured
+      // 2026-09-10, asking for 64k produced 74.3 kbps. Constrained VBR holds
+      // the number — 64.9 kbps on the same source. Worth 13% off the wire, and
+      // worth more than that for making the configured target mean what it
+      // says: `TRANSCODE_MIN_SOURCE_BITRATE_RATIO` is reasoned about in terms
+      // of 64k, and until this it was reasoning about a figure that never
+      // appeared.
+      .outputOptions(['-vbr', 'constrained'])
+      .format('ogg'),
 };
 
 /**

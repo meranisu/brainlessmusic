@@ -4,6 +4,26 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `setDataSaver()` — `frontend/src/components/PlayerBar.tsx`
+**Date:** 2026-09-10
+**How added:** change
+**Purpose:** switch quality on the playing track without a gap in the music.
+**Side effects:** one warm-up request, then reassigns `audio.src`; writes the preference.
+**Before:** assigned `audio.src` immediately and then waited for the file. On a cold cache that was **5.71 s of silence** for a 172-second track, with a perfectly good copy playing the whole time — the loudest possible answer to a button press. It was invisible while every test ran warm.
+**After:** the converted copy is warmed first (the readout probe doubles as the wait — its response does not arrive until the file exists), and the element is touched only once the file is there. The resume point is read *after* the wait, since the track kept playing. A `swappingRef` suppresses `timeupdate` for the duration, because reassigning `src` resets the element's clock to 0 and painting that flicked the scrubber back by 8.9 s. Overlapping presses are resolved by a token plus an `AbortController`. Failure puts the toggle back rather than leaving it claiming a quality that is not being served — but an `AbortError` is exempt, since a page navigating away mid-request is not a refusal and reverting there quietly undid a choice the listener had made.
+
+---
+
+**Function:** `probeServedStream()` — `frontend/src/lib/streamQuality.ts`
+**Date:** 2026-09-10
+**How added:** change
+**Purpose:** report what the server actually sent, and double as the "is the copy ready" wait.
+**Side effects:** one `Range: bytes=0-0` request.
+**Before:** read the total only out of `Content-Range`, which only a 206 carries. Chrome can answer a repeat request from its own HTTP cache with a 200, so a cache hit returned `null` — which the caller read as "could not prepare the copy", showed an error toast for, and reverted the preference over. The readout would also have silently vanished on those responses.
+**After:** prefers `Content-Range` and falls back to `Content-Length`, so both a fresh 206 and a cached 200 are understood. A 206's `Content-Length` is 1, which is why the range is still tried first.
+
+---
+
 **Function:** `savePlaybackState()` / `loadPlaybackState()` / `clearPlaybackState()` — `backend/src/db/playbackState.ts`
 **Date:** 2026-09-10
 **How added:** new feature

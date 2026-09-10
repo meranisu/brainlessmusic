@@ -73,8 +73,13 @@ export async function probeServedStream(
   if (!res.ok) return null;
 
   const mimeType = (res.headers.get('Content-Type') ?? '').split(';')[0].trim();
-  // "bytes 0-0/3487232" — the part after the slash is what we're here for.
-  const total = Number(res.headers.get('Content-Range')?.split('/')[1]);
+  // A 206 states the total after the slash of "bytes 0-0/3487232". A 200 does
+  // not, and a 200 is a real answer here: the response can come from the
+  // browser's own cache, which need not honour the range on a repeat request.
+  // Reading only Content-Range meant a cache hit looked like a failure.
+  const fromRange = Number(res.headers.get('Content-Range')?.split('/')[1]);
+  const fromLength = Number(res.headers.get('Content-Length'));
+  const total = Number.isFinite(fromRange) && fromRange > 0 ? fromRange : fromLength;
   if (!mimeType || !Number.isFinite(total) || total <= 0) return null;
 
   return { mimeType, bytes: total };
