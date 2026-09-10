@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `parseStreamOffset` / `transcodeToLowQuality` — `backend/src/services/streaming.ts`
+**Date:** 2026-09-10
+**How added:** new feature
+**Purpose:** start a data-saver stream partway into a track.
+**Side effects:** `transcodeToLowQuality` spawns ffmpeg; `parseStreamOffset` is pure.
+**Before:** the transcoded path had no length and no byte ranges, so there was no way back into the middle of a track — the scrubber was dead and a reconnect restarted the song.
+**After:** `transcodeToLowQuality` takes an options object (`{ offsetSeconds, onError }`) and applies the offset with `.seekInput()`, which puts `-ss` *before* `-i` so ffmpeg jumps to the nearest packet rather than decoding and discarding everything ahead of it. `parseStreamOffset` validates `?t=`: absent is 0, negative and non-numeric and at-or-past-the-end are `'invalid'` — rejected rather than clamped, because silently starting somewhere the caller did not ask for makes the scrubber lie about where playback is. A null duration does not reject, since the scanner leaves it empty on files it could not measure. Verified byte-identical against a locally-seeked reference.
+
+---
+
 **Function:** `LibraryPage` / `buildQuery` — `frontend/src/pages/LibraryPage.tsx`
 **Date:** 2026-09-10
 **How added:** new feature

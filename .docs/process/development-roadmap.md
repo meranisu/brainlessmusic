@@ -67,15 +67,38 @@ The theme is **surfacing what the backend already does**. Most of these are UI t
 
 Hosting comes before the app, so there's a real server to point the phone at.
 
-- [x] **12. Docker image** (ops). — **done 2026-09-09**, verified by 16 HTTP + 12 browser checks against the production build; the `docker build` itself is unverified (sandbox networking) — run `docker compose up --build` to confirm. Required moving the API under `/api`, since the web app has its own `/albums`, `/search` and `/health` routes. Dockerfile + compose, ffmpeg in the image, volumes for the library and the DB, healthcheck wired to `/health`.
-  *Done when:* `docker compose up` on the home server serves your library.
+> **Numbers are stable IDs, not positions.** A box keeps its number for life, so
+> the references scattered through `STATUS.md` and `CHANGELOG.md` never rot.
+> Read the **groups** top to bottom, and the boxes inside a group top to bottom —
+> that ordering, not the numbering, is what says what to do next.
+>
+> Regrouped by layer on 2026-09-10 at the owner's request, so the backend work
+> can be seen and finished as one block instead of being interleaved with ops and
+> Android. Boxes **24** and **25** were added the same day by owner decision,
+> knowingly overriding Rule 1 below: the honest note is that they serve the
+> bike-ride done-when only partly, and were scheduled anyway.
 
-- [ ] **13. Reach it from outside** (ops). Resolve the open CGNAT question in `.docs/ops/infrastructure.md` first — it decides everything downstream — then pick VPN / tunnel / port-forward, and add TLS.
+### Backend — the API both clients will talk to
+
+- [ ] **24. Formats, and transcoding worth using** (backend). **[spec first]** Every format the two of you actually use, end to end: `ogg`, `opus`, `mp3`, `m4a`, `aac`, `wav`, `flac` — scan and upload, correct MIME on stream, waveform, cover art. Then make `?quality=low` earn its keep. Measured 2026-09-10 against the real library: it re-encodes Opus to Opus for a 36% saving (2,481,022 → 1,597,894 bytes), and until that day it could not seek at all. Once FLAC is in the library that trade changes completely, and transcoding is worth real architecture — a content-addressed disk cache so the second play is an ordinary file with byte ranges, `-ss` streaming for the first, and skipping the transcode entirely when the source is already at or below the target bitrate (`tracks.bitrate` already records it). Plan: `.docs/features/formats-and-transcoding/planning.md`.
+  *Done when:* a FLAC and a WAV both play in the browser, and a data-saver stream of each can be seeked.
+
+- [ ] **25. Resume where you left off** (backend, then clients). Server-side playback state per user — track, position, queue — so closing the tab and opening the phone picks up mid-song instead of at the top of the library.
+  *Done when:* you pause on the desktop, open the phone, and it resumes the same track at the same second.
+
+### Ops — somewhere to run it, reachable
+
+- [ ] **13. Reach it from outside** (ops). **← the real critical path for this release:** nothing else in v0.2 gets music onto a phone away from home, and it is blocked on an owner action. Resolve the open CGNAT question in `.docs/ops/infrastructure.md` first — it decides everything downstream — then pick VPN / tunnel / port-forward, and add TLS.
   **Blocking prerequisite, re-opened 2026-09-09:** `POST /auth/register` is open to anyone again. It was closed earlier the same day, then deliberately re-opened at the owner's request so `/signup` works — `ALLOW_OPEN_REGISTRATION` now defaults to `true`. That is fine on the LAN and *not* fine the moment this step lands. Set `ALLOW_OPEN_REGISTRATION=false` in `backend/.env` before exposing the server; the backend prints a warning at every boot while it's on. Self-serve accounts are never admins and `/library/scan` is admin-gated, but a stranger with a listener account can still stream the whole library.
   *Done when:* you load the web app on mobile data and it plays — **and an anonymous visitor cannot create an account.*
 
+- [x] **12. Docker image** (ops). — **done 2026-09-09**, verified by 16 HTTP + 12 browser checks against the production build; the `docker build` itself is unverified (sandbox networking) — run `docker compose up --build` to confirm. Required moving the API under `/api`, since the web app has its own `/albums`, `/search` and `/health` routes. Dockerfile + compose, ffmpeg in the image, volumes for the library and the DB, healthcheck wired to `/health`.
+  *Done when:* `docker compose up` on the home server serves your library.
+
 - [x] **14. Back up the database** (ops). — **done 2026-09-09**, 9 new tests (135 total) plus a restore performed against the real database. Backups run at server start and every 24h into `<db dir>/backups/` (inside the container's `/data` volume), keeping 14. Uses SQLite's online backup API, not a file copy — in WAL mode `cp` can capture a database that opens fine and is silently missing recent writes. Each backup is reopened, switched to `journal_mode = delete` so it is one self-contained file, and `PRAGMA integrity_check`-ed before it counts.
   *Done when:* you have restored from a backup at least one time. — **verified 2026-09-09**: a server booted against nothing but a restored backup file served 20 tracks, 5 play-history rows and a working login, with search intact. Done as an isolated copy rather than by overwriting the live database, so the drill risked nothing.
+
+### Android — the listening client
 
 - [ ] **15. Android Phase 0 — connect.** Scaffold Kotlin/Compose + Hilt + Retrofit, server-config screen, login, JWT in encrypted DataStore, distinct errors for unreachable host / 401 / TLS / bad URL. Verify the emulator reaches WSL2 on `http://10.0.2.2:3000`.
   *Done when:* the app confirms a connection and stays logged in across restarts.

@@ -180,6 +180,41 @@ export function getActiveTranscodes(): number {
   return activeTranscodes;
 }
 
+/**
+ * Where to start a transcode, parsed from `?t=`.
+ *
+ * The transcoded stream has no length and no byte ranges, so a client cannot
+ * seek it the way it seeks a file — the only way back into the middle of a
+ * track is to ask for a new stream that begins there. `'invalid'` is a bad
+ * request rather than a clamp: silently starting somewhere the caller didn't
+ * ask for is how a scrubber ends up lying about where playback is.
+ */
+export function parseStreamOffset(
+  raw: string | undefined,
+  durationSeconds: number | null,
+): number | 'invalid' {
+  if (raw === undefined || raw === '') return 0;
+
+  const seconds = Number(raw);
+  if (!Number.isFinite(seconds) || seconds < 0) return 'invalid';
+  // A duration we don't have is not a reason to reject; the scanner leaves it
+  // null on files it could not measure, and ffmpeg will simply produce nothing.
+  if (durationSeconds !== null && seconds >= durationSeconds) return 'invalid';
+
+  return seconds;
+}
+
+export interface TranscodeOptions {
+  /**
+   * Start this many seconds in. Passed as an *input* seek, before `-i`, so
+   * ffmpeg jumps to the nearest packet instead of decoding and discarding
+   * everything before it — the difference between instant and minutes on a
+   * long track.
+   */
+  offsetSeconds?: number;
+  onError?: (err: Error) => void;
+}
+
 /** A running transcode, and the handle needed to stop it. */
 export interface TranscodeSession {
   stream: NodeJS.ReadableStream;
@@ -208,9 +243,11 @@ export interface TranscodeSession {
  */
 export function transcodeToLowQuality(
   filePath: string,
-  onError?: (err: Error) => void,
+  options: TranscodeOptions = {},
 ): TranscodeSession | null {
   if (!acquireTranscodeSlot()) return null;
+
+  const { offsetSeconds = 0, onError } = options;
 
   let stopped = false;
 
@@ -233,6 +270,7 @@ export function transcodeToLowQuality(
   }
 
   const command = ffmpeg(filePath)
+    .seekInput(offsetSeconds)
     .noVideo()
     .audioCodec('libopus')
     .audioBitrate(LOW_QUALITY_BITRATE)

@@ -21,6 +21,7 @@ import {
   buildETag,
   ifRangeAllowsRange,
   isNotModified,
+  parseStreamOffset,
   mimeTypeFor,
   parseRange,
   transcodeToLowQuality,
@@ -224,7 +225,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
 
   // `authenticateMedia`, not `authenticate` — this is the one route a browser
   // loads by URL alone, so it also accepts a scoped `?token=` media token.
-  fastify.get<{ Params: { id: string }; Querystring: { quality?: string; token?: string } }>(
+  fastify.get<{ Params: { id: string }; Querystring: { quality?: string; token?: string; t?: string } }>(
     '/tracks/:id/stream',
     { preHandler: fastify.authenticateMedia },
     async (request, reply) => {
@@ -253,10 +254,21 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       if (request.query.quality === 'low') {
-        const session = transcodeToLowQuality(track.path, (err) => {
-          const message = `Transcode failed: ${err.message}`;
-          setLastStreamError(id, message);
-          recordStreamError(id, message);
+        // The transcoded stream has no length and no byte ranges, so `?t=` is
+        // the only way back into the middle of a track on this path: the
+        // client asks for a new stream that starts where it wants to be.
+        const offsetSeconds = parseStreamOffset(request.query.t, track.duration);
+        if (offsetSeconds === 'invalid') {
+          return reply.code(400).send({ error: 'Invalid t= offset' });
+        }
+
+        const session = transcodeToLowQuality(track.path, {
+          offsetSeconds,
+          onError: (err) => {
+            const message = `Transcode failed: ${err.message}`;
+            setLastStreamError(id, message);
+            recordStreamError(id, message);
+          },
         });
 
         // Every slot busy. Refused rather than downgraded to the original

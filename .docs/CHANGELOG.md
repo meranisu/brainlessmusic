@@ -4,6 +4,20 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-10 — The data-saver path can be seeked
+
+`?quality=low` answered `Accept-Ranges: none` and had no length, so there was no way back into the middle of a track on that path: the scrubber was dead and any reconnect restarted the song. A live encode genuinely cannot serve byte ranges — but it can be told where to *begin*.
+
+`?t=<seconds>` now starts the transcode at an offset, passed to ffmpeg as an **input** seek (before `-i`), so it jumps to the nearest packet instead of decoding and discarding everything before it. On a long track that is the difference between instant and minutes.
+
+A bad offset is a `400`, not a clamp. Silently starting somewhere the caller did not ask for is how a scrubber ends up lying about where playback is. Negative, non-numeric and past-the-end all reject; an offset is allowed past a *null* duration, since the scanner leaves that empty on files it could not measure and ffmpeg will simply produce nothing.
+
+**Verified** against the live library: `t=0` returned 172.089s of audio, `t=60` returned 112.089s — exactly sixty seconds shorter — and the first eight seconds of the `t=60` stream were **byte-identical** to a locally-seeked reference encoded with the same settings (correlation 1.0000 over 128,000 samples), so it starts where it claims rather than merely being shorter. `t=-5`, `t=abc` and `t=9999` each returned `400`. 205 backend tests pass (5 new).
+
+**Not yet reachable from the UI.** There is no data-saver toggle in the web player at all, and using `?t=` needs the client to add the offset to `audio.currentTime`, since a live encode reports its own zero. Both are Phase 3 of `.docs/features/formats-and-transcoding/planning.md`. This landed standalone because the seek gap was a broken feature independent of the cache design.
+
+---
+
 ## 2026-09-10 — Missing tracks leave the browse listings
 
 Flagging a dead row stopped it being invisible; it did not stop it being *offered*. A track whose file is gone still sat in the library table, the album, the artist page and search results, and clicking it was a `500`. Now it doesn't.
