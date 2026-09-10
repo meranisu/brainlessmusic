@@ -44,7 +44,7 @@ Today `AUDIO_EXTENSIONS` (`services/trackTags.ts`) and `MIME_TYPES` (`services/s
 
 All seven decode in Chrome on desktop and Android, which is the whole target — iOS/Safari is explicitly out of scope (decided 2026-09-10).
 
-- [ ] Decide whether `.aac` is served raw or always remuxed to `.m4a` for seekability
+- [x] **`.aac` is always remuxed to `.m4a`** (decided 2026-09-10). Raw ADTS has no index, so byte-offset seeks land mid-frame — serving it raw would mean a format that plays but cannot be scrubbed. Remuxing is a container change, not a re-encode: no quality loss, and fast.
 - [ ] Confirm `music-metadata` returns a usable `duration` for WAV and raw ADTS (the waveform buckets are sized from it — see `waveform.ts`)
 
 ### Transcode policy
@@ -52,6 +52,19 @@ All seven decode in Chrome on desktop and Android, which is the whole target —
 - **Target stays 64 kbps Opus in Ogg.** Right codec at that bitrate, and both targets decode it.
 - **Skip the transcode when it cannot pay** — `tracks.bitrate` is already populated by scan and upload. Serving the original is better than a pointless second generation. The threshold is a real decision, not a formality: a strict `bitrate <= 64k` test would still transcode today's 121 kbps Opus for a 36% saving. Proposed: skip when `bitrate < 1.5 × target`, i.e. under ~96 kbps.
 - **Lossless always transcodes.** FLAC and WAV report huge bitrates and are first-generation sources, so this is where the feature earns its place.
+
+### Measured on this hardware, 2026-09-10
+
+The numbers that decide the cold-start design. Source: the library's longest track, 7:12, converted to FLAC to stand in for the library that is coming.
+
+| | |
+|---|---|
+| FLAC input | 53.9 MB, 432 s |
+| Encode to 64k Opus | **4.52 s wall**, ~96× realtime, 117% of one core |
+| Output | 4.1 MB — a **92% saving** |
+| Cores available | 12 |
+
+Two things follow. First, FLAC is where this feature earns its place: 92% against the 36% measured on Opus. Second, a cold encode is fast enough that the whole "serve while encoding" problem can be sidestepped — see below.
 
 ### The cache
 
@@ -64,8 +77,26 @@ Mirrors the artwork cache's shape (`config.artworkPath`), for the same reason: c
 - **Dedupe in flight** — two requests for the same cold track must not both encode. `waveform.ts` already solves exactly this with an in-flight `Map` keyed by track id; reuse the pattern.
 - **Eviction** — LRU by access time against `TRANSCODE_CACHE_MAX_MB`. Only ever delete files matching this module's own naming pattern, the rule `pruneBackups` already follows.
 
-- [ ] Decide: on a cold miss, stream with `-ss` *and* encode to cache separately (two ffmpeg runs, simple, doubles CPU), or tee one encode to both (one run, but the response and the cache file have different lifetimes and an abort must not commit)
-- [ ] Decide the cache size cap, and whether eviction runs on a timer or on write
+**Cold-miss strategy — recommended, pending confirmation.** Three ways to serve a track that has never been converted:
+
+| | How | Cost |
+|---|---|---|
+| A | Two ffmpeg runs: one streams with `-ss`, one writes the cache | Instant start; two encodes of the same track at once |
+| B | One run, output teed to both the response and the file | Half the CPU; an aborted request must not commit a partial file |
+| C | **Encode to the cache first, then serve the finished file** | ~2–5 s wait on first play only; one run; no partial-file failure mode at all; full seeking immediately after |
+
+**C is the recommendation.** At 96× realtime a typical four-minute track is ready in about 2.5 seconds, once, and every play afterwards is an ordinary cached file with byte ranges and a working scrubber. It is simpler than A and B together, and it deletes the partial-file trap rather than guarding against it. The CPU argument against A was overstated for a 12-core machine, but simplicity still favours C.
+
+**Consequence to accept:** C makes the `?t=` / `-ss` support shipped on 2026-09-10 largely redundant — cached playback seeks by byte range instead. It stays useful only when the cache is disabled or an entry has been evicted. Worth stating plainly rather than leaving it looking load-bearing.
+
+**Cache sizing — recommended, pending confirmation.** Measured output is 0.57 MB per minute of audio, so a 1,000-track library is roughly 2.3 GB fully cached.
+
+- Cap **2 GB** (`TRANSCODE_CACHE_MAX_MB`, default 2048)
+- **Evict on write, not on a timer** — the cache only grows when something is written, so that is exactly when to check. No second scheduler, no background thread. Least-recently-used first.
+- The directory is disposable: deleting it costs one re-encode per track, same as the artwork cache.
+
+- [ ] Confirm cold-miss strategy C
+- [ ] Confirm the 2 GB cap and evict-on-write
 
 ### Known consequences to accept or handle
 
@@ -105,4 +136,6 @@ Mirrors the artwork cache's shape (`config.artworkPath`), for the same reason: c
 | Date | Phase affected | What changed | Why | Still fits the Plan phase? |
 |---|---|---|---|---|
 | 2026-09-10 | Plan | Box created, overriding roadmap order | Owner decision. The measured numbers argued against building this; FLAC and WAV arriving reverses that, and the owner scheduled it knowing box 13 is still the release's critical path. | Yes — the plan is written against the incoming library, not the current one |
+| 2026-09-10 | Plan | `.aac` decided: always remux to `.m4a` | Raw ADTS has no index, so it would play but never scrub. A remux is a container change, not a re-encode — no quality cost. | Yes |
+| 2026-09-10 | Plan | Cold-miss strategy re-framed around a measurement | Timing a real FLAC encode (4.52 s for a 7:12 track, ~96× realtime) showed the "serve while encoding" problem can be sidestepped entirely by encoding first. The original A-vs-B framing overstated the CPU cost on a 12-core box. | Yes — it simplifies the Structure phase rather than changing the goal |
 | 2026-09-10 | Structure | `-ss` offset support shipped early, ahead of this plan | The transcoded path could not seek *at all*, which was a broken feature independent of the cache design. Landed standalone; verified byte-identical against a locally-seeked reference. | Yes — it is the cold-start half of the cache design |
