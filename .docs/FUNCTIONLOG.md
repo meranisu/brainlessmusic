@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `SpinRing()`, `FloatingMotes()` — `frontend/src/components/BackdropDepth.tsx`; `ShellBackdrop()` — `frontend/src/components/AppShell.tsx`
+**Date:** 2026-09-11
+**How added:** new feature
+**Purpose:** give the backdrop depth with things that are not type.
+**Side effects:** none.
+**Before:** five wordmark columns and two crawling bands — all the same kind of element, so the field read as one busy plane.
+**After:** `SpinRing` puts four tilted, counter-turning orange bands behind everything; `FloatingMotes` drifts circles on two axes where the columns only move on one. `ShellBackdrop` grew a third type tier. The ring's position is measured rather than chosen: centred at x≈1148 on a 1440px window it sat inside the mask's protected reading band, so the brightest part of it was the part being hidden — `right: -22%` puts the arc in the gutter instead. `MOTES` is a fixed table because `Math.random()` in a component body re-rolls every render and twice under StrictMode. Presence was bought by darkening the page ground (`.app-ground`) rather than raising layer opacity, which is free where text sits and is why the behind-text cost is 8/255 while the gutters reached 56–65.
+
+---
+
 **Function:** `leaveThrough()`, `onTabClick()`, `navItemsFor()` — `frontend/src/components/AppShell.tsx`; `ArcadeInterstitial()` — `frontend/src/components/ArcadeInterstitial.tsx`; `interstitialDuration()`, `interstitialTotal()` — `frontend/src/lib/interstitial.ts`; `NavOverflow()` — `frontend/src/components/NavOverflow.tsx`; `OptionsPage()` — `frontend/src/pages/OptionsPage.tsx`
 **Date:** 2026-09-11
 **How added:** new feature

@@ -4,6 +4,65 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-11 — Three layers behind the app, and an orange ring turning
+
+The backdrop had gone quiet next to the rest of the arcade furniture. It is now
+three *kinds* of thing rather than three densities of one, which is what
+actually reads as depth.
+
+**A spinning orange ring, on the right, behind everything.** Four bands, each a
+circle tilted back on X inside an assembly that turns on Y — real 3D rather than
+a rotated image. That distinction is the whole effect: a circle rotated only in
+the plane of the screen just spins and reads as a loading indicator; tilted, its
+near edge passes visibly closer than its far edge. The bands turn at co-prime
+beat counts (340/289/233/181) so the ring never resolves into one rigid plate.
+
+Orange, and the only orange back there. It is the app's accent — the underline,
+the boot frame, the enter button — so putting it at the very back ties the
+moving field to the furniture in front of it rather than leaving two unrelated
+colour schemes on screen.
+
+It had to move to be seen. At `right: -12%` on a 1440px window the ring centred
+at x≈1148, inside the 144–1296 band the mask dims to protect reading, so its
+brightest part was also the part being hidden. At `-22%` the arc sweeps through
+the gutter at full mask strength and most of the circle is off-screen, which is
+what the reference does with its geometry anyway.
+
+**Floating circles.** The columns' parallax is one-dimensional — everything
+travels the same axis at different rates, which reads as sliding blinds however
+many are added. These drift on two axes, and the sideways component is what
+makes the field a field. Their positions are a fixed table, not `Math.random()`:
+a random call in a component body is re-rolled on every render and twice over
+under StrictMode, so the field would reshuffle whenever anything above it
+re-rendered.
+
+**Three tiers of type instead of two**, at 2.5/3.5/5.5rem and separate speeds.
+
+**The ground went darker rather than the layers brighter** — `#080e28` against
+`blue-950`'s `#172554`. This is the load-bearing decision of the whole change:
+contrast against the floor costs nothing where text sits, while raising the
+layers' own opacity costs legibility everywhere they pass behind reading. The
+cards, the bar and the type all carry their own colours and are untouched.
+
+**Measured, and the numbers are the point:**
+
+| | before | now |
+|---|---|---|
+| behind the page heading | 5/255 | **8/255** |
+| left gutter | 20/255 | **56/255** |
+| right gutter (the ring) | — | **65/255** |
+
+Nearly three times as present where there is nothing to read, for three units
+behind the reading. `--backdrop-dim` is the dial for the middle and it took
+three passes: 0.30 gave 23/255 behind text, 0.14 gave 10/255, and 0.10 lands at
+8. The earlier "keep it subtle" note is superseded — the constraint was always
+legibility behind text, and it still holds.
+
+**Verified:** 17/17 on the backdrop, and 87/87 + 11/11 + 9/9 on the bar, the
+arrival and the hover work, all unchanged.
+
+---
+
 ## 2026-09-11 — One speed, and a page that arrives instead of appearing
 
 Two pieces of feedback on the screen-change cards.

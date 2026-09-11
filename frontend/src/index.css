@@ -679,8 +679,107 @@
 
    The vertical ramp does the same for the sticky header and the player bar,
    the two places a moving letterform behind small text is most obvious. */
+/* ── The backdrop's depth layers ──────────────────────────────────────────
+   The ring sits behind everything, the motes drift among the type, and the
+   columns and bands run in front. Three kinds of thing rather than three
+   densities of one, which is what actually reads as depth. */
+
+/* A darker ground than `blue-950`, so the moving layers stand out by contrast
+   rather than by being turned up. That distinction matters: raising their own
+   opacity costs legibility everywhere they pass behind text, and dropping the
+   floor costs nothing — the type, the cards and the bar all sit on their own
+   colours and are unaffected. */
+.app-ground {
+  background-color: #080e28;
+}
+
+/* Pushed far enough right that its *centre* clears the content column.
+   Measured: at `right: -12%` on a 1440px window the ring centred at x≈1148,
+   inside the 144–1296 band the mask dims to protect reading — so the brightest
+   part of it was also the part being hidden. Out here the arc sweeps through
+   the gutter, where the mask is at full strength and it can actually be seen,
+   and most of the circle is off-screen, which is what the reference does with
+   its geometry anyway. */
+.spin-ring-stage {
+  position: absolute;
+  top: 50%;
+  right: -30%;
+  width: min(58rem, 125vw);
+  height: min(58rem, 125vw);
+  transform: translateY(-50%);
+  perspective: 1100px;
+  pointer-events: none;
+}
+
+@media (min-width: 1024px) {
+  .spin-ring-stage {
+    right: -22%;
+    width: min(64rem, 90vw);
+    height: min(64rem, 90vw);
+  }
+}
+
+.spin-ring {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+/* Tilted back on X and turning on Y — the combination is the whole effect. A
+   circle rotated only in the plane of the screen just spins, and reads as a
+   loading indicator; tilted, its near edge passes closer than its far edge and
+   the eye takes it for a ring in space. */
+.spin-ring-band {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgb(234 88 12 / var(--band-alpha, 0.2));
+  transform-style: preserve-3d;
+  animation-name: ring-turn;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes ring-turn {
+  from {
+    transform: rotateX(var(--band-tilt, 70deg)) rotateZ(0deg);
+  }
+  to {
+    transform: rotateX(var(--band-tilt, 70deg)) rotateZ(360deg);
+  }
+}
+
+.mote {
+  position: absolute;
+  bottom: -14rem;
+  border-radius: 50%;
+  border: 1px solid rgb(147 197 253 / var(--mote-alpha, 0.12));
+  animation-name: mote-drift;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* Two axes. The columns all travel one, which reads as sliding blinds however
+   many are added; the sideways component is what makes this a field rather
+   than a set of lanes. */
+@keyframes mote-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  to {
+    transform: translate3d(var(--mote-drift, 2rem), calc(-100vh - 28rem), 0);
+    opacity: 0;
+  }
+}
+
 .shell-backdrop {
-  --backdrop-dim: rgba(0, 0, 0, 0.18);
+  --backdrop-dim: rgba(0, 0, 0, 0.1);
   --backdrop-full: rgba(0, 0, 0, 1);
   -webkit-mask-image:
     linear-gradient(
@@ -1100,6 +1199,8 @@
   .animate-mosaic-scroll,
   .animate-wordmark-scroll,
   .animate-wordmark-crawl,
+  .spin-ring-band,
+  .mote,
   .band-sweep::after,
   .beat-tile::after,
   .title-sheen-text,

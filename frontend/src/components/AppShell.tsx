@@ -7,6 +7,7 @@ import { BrandMark, Wordmark } from './BrandLockup';
 import { GlobalSearch } from './GlobalSearch';
 import { HandoffDialog } from './HandoffDialog';
 import { ArcadeInterstitial, ArrivalVeil } from './ArcadeInterstitial';
+import { FloatingMotes, SpinRing } from './BackdropDepth';
 import { ExitIcon, GearIcon } from './icons';
 import { NavOverflow, type NavItem } from './NavOverflow';
 import { WordmarkBand, WordmarkColumn } from './WordmarkColumn';
@@ -72,11 +73,18 @@ function activeIndex(items: NavItem[], pathname: string): number {
  * visibly loops. Every duration is in beats rather than seconds, so this keeps
  * time with the title screen and the player.
  */
-const FAR_SIZE = 'clamp(3rem, 11vh, 7vw)';
-const NEAR_SIZE = 'clamp(4.5rem, 17vh, 11vw)';
+/* Three sizes rather than two. With only a far and a near tier the field reads
+   as two planes; a middle one turns it into a gradient of distance, and it is
+   the cheapest way to make the same number of elements look like more depth. */
+const FAR_SIZE = 'clamp(2.5rem, 8vh, 5vw)';
+const MID_SIZE = 'clamp(3.5rem, 12.5vh, 8vw)';
+const NEAR_SIZE = 'clamp(5.5rem, 20vh, 13vw)';
 
-const FAR_STROKE = 'rgba(59, 130, 246, 0.13)';
-const NEAR_STROKE = 'rgba(59, 130, 246, 0.2)';
+/* Brighter than they were, because the ground beneath them went darker — the
+   measured contrast against the page is what matters, not the alpha. */
+const FAR_STROKE = 'rgba(59, 130, 246, 0.15)';
+const MID_STROKE = 'rgba(96, 165, 250, 0.17)';
+const NEAR_STROKE = 'rgba(59, 130, 246, 0.26)';
 
 /**
  * The crawling bands. Sized between the two column tiers so they belong to the
@@ -85,7 +93,7 @@ const NEAR_STROKE = 'rgba(59, 130, 246, 0.2)';
  * it, so they are the layer that can least afford to be loud.
  */
 const BAND_SIZE = 'clamp(3.5rem, 13vh, 8vw)';
-const BAND_STROKE = 'rgba(59, 130, 246, 0.14)';
+const BAND_STROKE = 'rgba(59, 130, 246, 0.17)';
 
 /**
  * The app's moving backdrop. Full-bleed since 2026-09-11; it used to be two
@@ -114,6 +122,9 @@ const BOOT_MS = 1500;
 function ShellBackdrop() {
   return (
     <div aria-hidden className="shell-backdrop pointer-events-none fixed inset-0 z-0 overflow-hidden">
+      {/* Deepest. Behind every piece of type, and the only orange back here. */}
+      <SpinRing />
+
       {/* Far tier — small, faint, slow, climbing. */}
       <WordmarkColumn className="left-[-3%]" size={FAR_SIZE} beats={128} stroke={FAR_STROKE} />
       <WordmarkColumn
@@ -124,6 +135,27 @@ function ShellBackdrop() {
         stroke={FAR_STROKE}
       />
       <WordmarkColumn className="right-[-3%]" size={FAR_SIZE} beats={113} offset={-17} stroke={FAR_STROKE} />
+
+      {/* Middle tier — the one that turns two planes into a sense of distance. */}
+      <WordmarkColumn
+        className="left-[9%] hidden xl:block"
+        size={MID_SIZE}
+        beats={83}
+        offset={-53}
+        stroke={MID_STROKE}
+        reverse
+      />
+      <WordmarkColumn
+        className="left-[57%] hidden xl:block"
+        size={MID_SIZE}
+        beats={103}
+        offset={-11}
+        stroke={MID_STROKE}
+      />
+
+      {/* Motes drift through the type rather than behind it, so they cross in
+          front of some columns and behind others. */}
+      <FloatingMotes />
 
       {/* Near tier — larger, brighter, quicker, and falling against the rest. */}
       <WordmarkColumn
@@ -148,10 +180,10 @@ function ShellBackdrop() {
           at all. Something travelling the full width is what it follows.
 
           Placed high and low on purpose — off the vertical middle, where the
-          table body sits and where a line crossing the reading would be a bug
-          rather than decoration. Beat counts stay co-prime with the columns'
-          (128/97/113/67/53), so nothing in the backdrop ever comes back into
-          step with anything else. */}
+          content sits and where a line crossing the reading would be a bug
+          rather than decoration. Every beat count in this backdrop is co-prime
+          with every other (128/97/113/83/103/67/53/149/181, and the ring's
+          340/289/233/181), so nothing ever comes back into step. */}
       <WordmarkBand
         className="top-[14%]"
         size={BAND_SIZE}
@@ -344,7 +376,7 @@ export function AppShell() {
   const boot = (stage: string) => (isBooting ? `boot-stage ${stage}` : '');
 
   return (
-    <div className="relative min-h-screen bg-blue-950 pb-20 text-white">
+    <div className="app-ground relative min-h-screen pb-20 text-white">
       <ShellBackdrop />
 
       {/*
