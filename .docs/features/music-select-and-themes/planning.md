@@ -67,7 +67,7 @@ Also recorded: the `md` breakpoint was tried and measured at 785px inside a
 721px bar, which moved the overflow rather than removing it. `lg` is not a
 preference, it is the measurement.
 
-## Phase 2 — Themes
+## Phase 2 — Themes — **Done** (2026-09-11)
 
 - Palette as CSS custom properties on `:root`. Today's colours are written
   directly into components as Tailwind classes (`bg-blue-950`, `text-orange-600`
@@ -83,6 +83,18 @@ preference, it is the measurement.
 
 **Done when:** switching theme in Options repaints the whole app with no reload,
 survives a refresh, and the arcade furniture changes with it.
+
+**Done, and far cheaper than this plan assumed.** The plan budgeted the phase
+for "a mechanical lift of hard-coded classes into tokens… the bulk of the work".
+That work turned out to be unnecessary: Tailwind 4 compiles `bg-blue-900` to
+`background-color: var(--color-blue-900)`, so redefining those variables under
+`[data-theme]` repaints every component without touching one of them. **Not**
+doing the sweep is worth more than doing it well would have been — a diff across
+twenty-five components is twenty-five chances to change something that was not a
+colour.
+
+Three themes shipped rather than two (blue, crimson, void): two look like a
+choice between two moods, three looks like a setting. 34/34 checks.
 
 ## Phase 3 — The music select view, with a mouse
 

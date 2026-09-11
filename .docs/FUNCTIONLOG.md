@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `loadTheme()`, `applyTheme()` — `frontend/src/lib/theme.ts`; `OptionsPage()` — `frontend/src/pages/OptionsPage.tsx`
+**Date:** 2026-09-11
+**How added:** new feature
+**Purpose:** three themes, chosen per device.
+**Side effects:** writes `brainlessmusic.theme` to `localStorage`; sets `data-theme` on the document element.
+**Before:** colours were Tailwind classes resolving to fixed palette values, plus literal `rgb()`/hex in the backdrop and bar.
+**After:** a theme is a block of `--color-*` overrides under `[data-theme]`, which works because Tailwind 4 compiles utilities to `var(--color-*)` — no component was changed. `loadTheme` validates against the known ids and falls back rather than trusting storage; both functions wrap storage access, which throws outright when a browser blocks site data. `applyTheme` writes `data-theme="blue"` for the default rather than removing the attribute, so no selector or check has to distinguish "default" from "never applied". The pre-paint application is an inline script in `index.html`, not this module — by the time React runs it is already too late to avoid a flash.
+
+---
+
 **Function:** `SpinRing()`, `FloatingMotes()` — `frontend/src/components/BackdropDepth.tsx`; `ShellBackdrop()` — `frontend/src/components/AppShell.tsx`
 **Date:** 2026-09-11
 **How added:** new feature

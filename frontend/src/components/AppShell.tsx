@@ -80,11 +80,13 @@ const FAR_SIZE = 'clamp(2.5rem, 8vh, 5vw)';
 const MID_SIZE = 'clamp(3.5rem, 12.5vh, 8vw)';
 const NEAR_SIZE = 'clamp(5.5rem, 20vh, 13vw)';
 
-/* Brighter than they were, because the ground beneath them went darker — the
-   measured contrast against the page is what matters, not the alpha. */
-const FAR_STROKE = 'rgba(59, 130, 246, 0.15)';
-const MID_STROKE = 'rgba(96, 165, 250, 0.17)';
-const NEAR_STROKE = 'rgba(59, 130, 246, 0.26)';
+/* Named in CSS rather than written here, so a theme can reach them. A colour
+   inlined in a component is a colour no `[data-theme]` selector can override,
+   which is precisely how a red theme ends up with a blue backdrop. The values
+   and the reasoning for them live on `:root` in `index.css`. */
+const FAR_STROKE = 'var(--backdrop-far)';
+const MID_STROKE = 'var(--backdrop-mid)';
+const NEAR_STROKE = 'var(--backdrop-near)';
 
 /**
  * The crawling bands. Sized between the two column tiers so they belong to the
@@ -93,7 +95,7 @@ const NEAR_STROKE = 'rgba(59, 130, 246, 0.26)';
  * it, so they are the layer that can least afford to be loud.
  */
 const BAND_SIZE = 'clamp(3.5rem, 13vh, 8vw)';
-const BAND_STROKE = 'rgba(59, 130, 246, 0.17)';
+const BAND_STROKE = 'var(--backdrop-band)';
 
 /**
  * The app's moving backdrop. Full-bleed since 2026-09-11; it used to be two

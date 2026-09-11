@@ -4,6 +4,77 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-11 — Themes, for the price of a variable block
+
+Phase 2 of `.docs/features/music-select-and-themes/planning.md`. Three themes:
+**Deep blue** (the original), **Crimson** (after the IIDX RED reference) and
+**Void** (near-black, accent only).
+
+**The phase was planned wrong, and finding that out was the work.** The plan
+said the bulk of it would be lifting hard-coded Tailwind classes into tokens
+across the app. It isn't needed: Tailwind 4 compiles `bg-blue-900` to
+`background-color: var(--color-blue-900)`, so redefining those variables under
+`[data-theme='red']` repaints every component without any of them knowing a
+theme exists. **Zero components changed.** Not doing that sweep is worth more
+than doing it well would have been — a diff across twenty-five files is
+twenty-five chances to change something that was not a colour.
+
+What *did* need doing was the opposite: finding every colour written somewhere a
+`[data-theme]` selector cannot reach. The backdrop's wordmark strokes were
+inline styles in `AppShell`; the ring and motes had literal `rgb()` in their
+borders; the bar's inner sheen, the band sweep's orange and the tooltip's
+borders were all raw values. Each is now a named token with its default on
+`:root`. That is the actual rule this phase establishes: **a colour written
+straight into a rule is a colour no theme can reach**, and it is exactly how a
+red theme ends up with blue furniture.
+
+**Three decisions worth keeping:**
+
+- **The scale names stop describing hues.** In Crimson, `--color-blue-900` is a
+  dark wine. They are positional now — `blue-950` is the deepest ground,
+  `orange-600` is the accent. The alternative was renaming every colour class in
+  the app, which is the sweep this approach exists to avoid.
+- **Danger moves out of the theme's hue.** In Crimson, `--color-red-*` becomes
+  magenta. A destructive button in crimson on crimson is indistinguishable from
+  an ordinary one, and that is the one place a theme must not be allowed to
+  reach.
+- **The theme is applied by an inline script in `<head>`**, before React runs.
+  Doing it in a component means one frame of the wrong palette, and a whole-page
+  colour change is the most visible kind of flash there is. Verified by reading
+  the attribute at `domcontentloaded` rather than trusting that it arrives
+  eventually.
+
+Stored in `localStorage`, per A-note Q20: a theme belongs to the screen you are
+looking at rather than to who you are.
+
+**A check that lied, caught by a number that could not be true.** The contrast
+check reported **1.06:1** for the *shipped* blue theme — which would mean
+invisible text. It parsed computed colours with a digit regex, so
+`oklch(0.282 0.091 267.935)` was read as `rgb(0.282, 0.091, 267.935)`. It would
+have failed three themes over a fault in the ruler. Rewritten to paint each
+colour into a canvas and read sRGB back, because the browser is the only thing
+that knows how to resolve every colour syntax it accepts. Real numbers:
+
+| | heading | table text | muted text | backdrop behind text |
+|---|---|---|---|---|
+| Blue | 19.0:1 | 10.4:1 | 10.5:1 | 8/255 |
+| Crimson | 19.7:1 | 16.3:1 | 10.3:1 | 7/255 |
+| Void | 20.3:1 | 17.8:1 | 10.1:1 | 5/255 |
+
+**The picker is a radiogroup, not three toggles.** It was `aria-pressed`, which
+says "this control is on" — true of a switch, false of a choice. It would have
+announced three independent on/off states for one mutually exclusive setting.
+The bug surfaced because a positional selector in another check grabbed a swatch
+instead of the Data saver toggle and reported "true → true" for a control it
+never touched.
+
+**Verified:** 34/34 on themes — the ring, motes, bar and danger colour all
+moving with the theme, an unknown stored value falling back to the default, the
+title screen themed as well as the shell — plus 17/17, 87/87, 11/11 and 9/9 on
+the existing suites.
+
+---
+
 ## 2026-09-11 — Three layers behind the app, and an orange ring turning
 
 The backdrop had gone quiet next to the rest of the arcade furniture. It is now

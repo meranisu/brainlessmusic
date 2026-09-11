@@ -8,6 +8,24 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@800&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet" />
     <title>brainlessmusic</title>
+    <!--
+      Applies the saved theme before the first paint.
+
+      Inline and blocking on purpose. Doing it in React means one frame of the
+      default palette before the real one arrives, and a whole-page colour
+      change on load is the most visible kind of flash there is. Kept to a few
+      bytes and wrapped, because storage access throws outright in a browser
+      set to block site data, and a theme is never worth a blank page.
+    -->
+    <script>
+      try {
+        var t = localStorage.getItem('brainlessmusic.theme');
+        document.documentElement.dataset.theme =
+          t === 'red' || t === 'void' || t === 'blue' ? t : 'blue';
+      } catch (e) {
+        document.documentElement.dataset.theme = 'blue';
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
