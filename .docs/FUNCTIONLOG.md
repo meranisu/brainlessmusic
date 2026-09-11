@@ -4,6 +4,26 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `handleExit()` — `frontend/src/components/AppShell.tsx`; `markAtTitle()`, `isAtTitle()`, `clearAtTitle()` — `frontend/src/lib/boot.ts`
+**Date:** 2026-09-11
+**How added:** new feature
+**Purpose:** leave the app for the title screen without ending the session.
+**Side effects:** writes `brainlessmusic.atTitle` in `sessionStorage`; navigates.
+**Before:** nothing in the header went back to the title screen, and typing `/enter` while signed in redirected straight back into the app.
+**After:** `handleExit` sets the flag and navigates; `TitleScreenPage` exempts its own redirect when the flag is set, which is the whole mechanism — the redirect is right in every other case and wrong only for someone who meant to come here. `clearAtTitle` runs on the way back in, so a later reload lands in the app. Not a logout, and that is load-bearing for a guest: there is no password to return with, so dropping the token would abandon the row and everything attached to it. The flag is read once into state rather than live, because clearing it happens while the exit animation is still playing and a live read would flip the gate mid-animation.
+
+---
+
+**Function:** `WordmarkBand()`, `WordRun()`, `Lettering()` — `frontend/src/components/WordmarkColumn.tsx`
+**Date:** 2026-09-11
+**How added:** new feature
+**Purpose:** the wordmark crawling sideways across the backdrop.
+**Side effects:** none.
+**Before:** the backdrop was five vertical columns; `Word` inlined its own lettering.
+**After:** `Lettering` is split out so the vertical `Word` and the horizontal `WordRun` share one definition of what the lockup looks like. `WordRun` repeats it `REPEATS` (8) times: the loop shifts by exactly one run, so a run narrower than the window shows as a gap crossing the screen. Eight is enough at any window shape without measuring, because the type is sized in `vw` — a wider screen gets proportionally wider letters, so the count needed to cross stays put. Verified at 6747px per run against a 1425px window.
+
+---
+
 **Function:** `onTabClick()`, `rememberDirection()`, `navItemsFor()`, `activeIndex()` — `frontend/src/components/AppShell.tsx`
 **Date:** 2026-09-11
 **How added:** new feature

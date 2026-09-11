@@ -2,11 +2,11 @@ import { useEffect, useState, type MouseEvent } from 'react';
 import { flushSync } from 'react-dom';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import { consumeJustEntered } from '../lib/boot';
+import { consumeJustEntered, markAtTitle } from '../lib/boot';
 import { BrandMark, Wordmark } from './BrandLockup';
 import { GlobalSearch } from './GlobalSearch';
 import { HandoffDialog } from './HandoffDialog';
-import { WordmarkColumn } from './WordmarkColumn';
+import { WordmarkBand, WordmarkColumn } from './WordmarkColumn';
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `relative px-3 py-4 text-sm font-medium transition-colors ${
@@ -68,6 +68,15 @@ const FAR_STROKE = 'rgba(59, 130, 246, 0.13)';
 const NEAR_STROKE = 'rgba(59, 130, 246, 0.2)';
 
 /**
+ * The crawling bands. Sized between the two column tiers so they belong to the
+ * same field rather than sitting in front of it, and stroked at the far tier's
+ * weight — they cross the whole screen, including the part with the reading on
+ * it, so they are the layer that can least afford to be loud.
+ */
+const BAND_SIZE = 'clamp(3.5rem, 13vh, 8vw)';
+const BAND_STROKE = 'rgba(59, 130, 246, 0.14)';
+
+/**
  * The app's moving backdrop. Full-bleed since 2026-09-11; it used to be two
  * columns confined to the gutters and hidden below `2xl`, for the good reason
  * that decoration behind a data table is a bug rather than a feature.
@@ -119,6 +128,31 @@ function ShellBackdrop() {
         beats={53}
         offset={-23}
         stroke={NEAR_STROKE}
+        reverse
+      />
+
+      {/* Two bands crossing the columns, in opposite directions and at
+          different heights. The columns give the field a grain; a grain has no
+          direction, and after a few seconds the eye stops reading it as motion
+          at all. Something travelling the full width is what it follows.
+
+          Placed high and low on purpose — off the vertical middle, where the
+          table body sits and where a line crossing the reading would be a bug
+          rather than decoration. Beat counts stay co-prime with the columns'
+          (128/97/113/67/53), so nothing in the backdrop ever comes back into
+          step with anything else. */}
+      <WordmarkBand
+        className="top-[14%]"
+        size={BAND_SIZE}
+        beats={149}
+        stroke={BAND_STROKE}
+      />
+      <WordmarkBand
+        className="bottom-[16%]"
+        size={BAND_SIZE}
+        beats={181}
+        offset={-41}
+        stroke={BAND_STROKE}
         reverse
       />
     </div>
@@ -216,6 +250,24 @@ export function AppShell() {
   }
 
   /**
+   * Back to the title screen, still signed in.
+   *
+   * The flag is the whole mechanism: the title screen redirects a signed-in
+   * visitor into the app, and without something to say "this one meant it" the
+   * Exit button would bounce straight back off it. Set before navigating, since
+   * the title screen reads it on its first render.
+   *
+   * Not a log out, and deliberately so for a guest — the token stays in this
+   * browser, so pressing enter again returns to the same listening history
+   * rather than minting a stranger. Discarding the identity is a different,
+   * heavier action and it stays behind the warning in "This device".
+   */
+  function handleExit() {
+    markAtTitle();
+    navigate('/enter');
+  }
+
+  /**
    * The sequence gets a deadline, and this is not belt-and-braces — it is the
    * fix for a real bug. The staged classes hide content that has *already
    * loaded*, so anything that disturbs the animation leaves the app blank:
@@ -281,14 +333,17 @@ export function AppShell() {
           {/* shrink-0 + nowrap: the nav grew a Users link, and without these the
               right-hand block is the first thing the flex row squeezes — "Log
               out" was wrapping onto two lines and stretching the header. */}
-          <div className={`flex shrink-0 items-center gap-3 py-3 text-sm ${boot('boot-account')}`}>
-            {/* A guest's row name is `guest-a83f2c`. That is a database
-                identifier, not a name anybody chose, and showing it invites the
-                question "who is that?" — the honest answer is "this browser". */}
-            <span className="hidden truncate text-blue-200 lg:inline">
-              {user?.isGuest ? 'Guest' : user?.username}
-            </span>
-            {user?.isAdmin && <span className="badge-admin shrink-0">Admin</span>}
+          <div className={`flex shrink-0 items-center gap-2 py-3 text-sm ${boot('boot-account')}`}>
+            {/* No name for a guest. The row is called `guest-a83f2c` — a
+                database identifier, not a name anybody chose — and the word
+                "Guest" standing in its place named nothing the listener did not
+                already know, while taking up the width the header can least
+                afford. An account still shows its username, which answers a
+                question a shared machine can genuinely raise. */}
+            {user && !user.isGuest && (
+              <span className="mr-1 hidden truncate text-blue-200 lg:inline">{user.username}</span>
+            )}
+            {user?.isAdmin && <span className="badge-admin mr-1 shrink-0">Admin</span>}
             {user?.isGuest ? (
               // No "Log out" for a guest. There is nothing to log back in
               // with: clearing the token abandons the row and everything on it,
@@ -306,6 +361,20 @@ export function AppShell() {
                 Log out
               </button>
             )}
+            {/* Back to the attract screen, session intact — the arcade sense of
+                exit, not the account sense. Orange, which in this app is the
+                accent nothing else in the header uses: the tab underline, the
+                boot frame and the title screen's enter button are all orange,
+                so a control that returns you to that screen wearing that colour
+                is consistent rather than merely loud. It also stops it reading
+                as a second, milder "Log out" sitting beside the real one. */}
+            <button
+              onClick={handleExit}
+              className="btn-primary btn-sm shrink-0 whitespace-nowrap"
+              title="Back to the title screen. You stay signed in."
+            >
+              Exit
+            </button>
           </div>
         </div>
         {/* The sign-in banner's accent line, on the edge that plays the same

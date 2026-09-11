@@ -7,7 +7,7 @@ import { BrandMark } from '../components/BrandLockup';
 import { TitleScreenPanel } from '../components/TitleScreenPanel';
 import { useSecretTaps } from '../hooks/useSecretTaps';
 import { ApiError, apiClient } from '../lib/apiClient';
-import { markJustEntered } from '../lib/boot';
+import { clearAtTitle, isAtTitle, markJustEntered } from '../lib/boot';
 
 /**
  * How long the shut-off runs. Must match `--exit` in `index.css`; it lives in
@@ -95,6 +95,10 @@ export function TitleScreenPage() {
   // Read during the first render rather than in an effect, so the screen never
   // paints the ordinary enter button for a frame before switching.
   const [handoff, setHandoff] = useState<string | null>(tokenFromHash);
+  // Whether the header's Exit sent us here on purpose. Read once and held,
+  // not re-read: `clearAtTitle` runs while this screen is still animating
+  // away, and a live read would flip the gate below mid-exit and cut it.
+  const [heldAtTitle] = useState(isAtTitle);
 
   // Stripped from the address bar immediately — a token in a URL is a
   // credential in a URL, and it should not survive a screenshot, the back
@@ -120,7 +124,16 @@ export function TitleScreenPage() {
   // Held while leaving. `enterAsGuest` sets `user`, and without this gate the
   // redirect would fire on the animation's first frame and cut it — the
   // navigation is done by hand below, once the picture has actually gone.
-  if (user && !isLeaving) return <Navigate to="/" replace />;
+  //
+  // `heldAtTitle` is the other exemption: the redirect is here so a signed-in
+  // tab cannot land on the attract screen by accident, which makes arriving
+  // deliberately the one case it gets wrong. Exit sets the flag, and this is
+  // where it is honoured.
+  if (user && !isLeaving && !heldAtTitle) return <Navigate to="/" replace />;
+
+  // Someone who exited and is on their way back in. They already have a token,
+  // so there is nothing to mint — only the animation to play.
+  const isReturning = Boolean(user);
 
   async function handleEnter(event?: FormEvent) {
     event?.preventDefault();
@@ -135,7 +148,11 @@ export function TitleScreenPage() {
       // cover. Run together, the slower of the two decides when the app
       // appears — on a LAN that is always the animation, so the timing is
       // predictable rather than network-dependent.
-      await Promise.all([enterAsGuest(needsCode ? code : undefined), delay(exitDuration())]);
+      await Promise.all([
+        isReturning ? Promise.resolve() : enterAsGuest(needsCode ? code : undefined),
+        delay(exitDuration()),
+      ]);
+      clearAtTitle();
       markJustEntered();
       navigate('/', { replace: true });
     } catch (err) {
@@ -167,6 +184,7 @@ export function TitleScreenPage() {
 
     try {
       await Promise.all([adoptToken(handoff), delay(exitDuration())]);
+      clearAtTitle();
       markJustEntered();
       navigate('/', { replace: true });
     } catch {
@@ -279,7 +297,7 @@ export function TitleScreenPage() {
                   disabled={isEntering}
                   className="btn-primary btn-md enter-blink min-h-14 w-full text-base font-semibold uppercase tracking-[0.15em] sm:w-auto sm:px-10"
                 >
-                  {isEntering ? 'Entering…' : 'Click here to enter'}
+                  {isEntering ? 'Entering…' : isReturning ? 'Click here to resume' : 'Click here to enter'}
                 </button>
               </form>
             )}
@@ -288,8 +306,13 @@ export function TitleScreenPage() {
               <p className="mt-3 rounded-md bg-red-700 px-3 py-2 text-sm text-white">{error}</p>
             )}
 
+            {/* Exit keeps the token, so the returning line has to say so —
+                otherwise the attract screen reads as a sign-out and the honest
+                worry is "have I just lost my playlists?". */}
             <p className="mt-4 text-xs text-blue-950/45">
-              No account needed. This device gets its own listening history.
+              {isReturning
+                ? 'Still signed in on this device. Your library is where you left it.'
+                : 'No account needed. This device gets its own listening history.'}
             </p>
           </div>
         </div>

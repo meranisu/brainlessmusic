@@ -113,6 +113,16 @@
     animation-iteration-count: infinite;
   }
 
+  /* Bands that cross the screen rather than climb it. The columns give the
+     backdrop its vertical grain; these give it a direction the eye can follow
+     all the way from one edge to the other, which is what actually reads as
+     "alive" behind a static table. */
+  .animate-wordmark-crawl {
+    animation-name: wordmark-crawl;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+
   /* A single orange segment running the length of the content band's top and
      bottom edges. Masked to die out roughly where the band's own white does,
      so it reads as part of the banner instead of a stray line adrift in the
@@ -259,6 +269,19 @@
   }
   to {
     transform: translateY(-50%);
+  }
+}
+
+/* The horizontal counterpart, for the bands that cross the app behind the
+   content. Same -50% trick: two identical copies sit side by side and the pair
+   shifts by exactly one of them, so the seam always lands on a frame identical
+   to the one before it and the loop has no visible join. */
+@keyframes wordmark-crawl {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
   }
 }
 
@@ -843,6 +866,7 @@
   .animate-brand-pulse,
   .animate-mosaic-scroll,
   .animate-wordmark-scroll,
+  .animate-wordmark-crawl,
   .band-sweep::after,
   .beat-tile::after,
   .title-sheen-text,

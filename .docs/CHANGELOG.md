@@ -4,6 +4,75 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-11 — A way back out, and a backdrop that goes somewhere
+
+Two pieces of owner feedback.
+
+**There was no way out of the app.** The header had "Log out" for an account and
+"This device" for a guest, and neither is an exit — one ends the session, the
+other opens a dialog about abandoning the identity. Nothing took you back to the
+title screen. There is now an **Exit** button, in orange, which is the accent
+the rest of the arcade furniture already uses (the tab underline, the boot
+frame, the enter button), so the control that returns you to that screen wears
+its colour.
+
+Exit is deliberately **not** a log out. The token stays in the browser, so
+pressing enter again comes back as the same listener with the same history —
+for a guest that distinction is everything, because there is no password to
+return with and dropping the token would be a deletion rather than a sign-out.
+The title screen reads the difference from a `sessionStorage` flag: its redirect
+exists so a signed-in tab cannot land on the attract screen by accident, which
+makes arriving there deliberately the one case it gets wrong. On the way back
+the button reads **Click here to resume** and the copy says the library is still
+there, because an attract screen that appears after you press "Exit" otherwise
+raises exactly the wrong question.
+
+**The guest name is gone from the header.** A guest's row is called
+`guest-a83f2c` — a database identifier, not a name anybody chose — and "Guest"
+standing in its place named nothing the listener did not already know, while
+occupying width the header can least afford. An account still shows its
+username, which answers a question a shared machine can genuinely raise.
+
+**The backdrop crosses the screen now, as well as climbing it.** Two bands of
+the wordmark crawl sideways, in opposite directions, at co-prime beat counts
+(149 and 181) that are also co-prime with the columns' — so nothing in the field
+ever comes back into step with anything else. The columns gave the backdrop a
+grain, and a grain has no direction: after a few seconds the eye stops reading
+it as motion at all. A band travelling the full width is something it can
+follow.
+
+Each band renders eight copies of the lockup per run, because the seamless loop
+shifts by exactly one run and a run narrower than the window shows as a gap
+crossing the screen. Eight holds at any window shape without measuring
+anything, since the type is sized in `vw`.
+
+**Measured, same method as before** — the page heading, which sits on the page
+background, *and* a gutter as a control, because a region clipped to an opaque
+card reports zero however loud the backdrop gets:
+
+| | before the bands | with them |
+|---|---|---|
+| behind the page heading | 5/255 | **5/255** |
+| in the gutter | 20/255 | **38/255** |
+
+So the field is nearly twice as present where there is nothing to read, and
+costs the reading exactly nothing. That is the shape the approved-subtlety note
+asks for.
+
+**Verified:** 29/29 checks in headless Chromium — Exit present and painting
+`oklch(0.646 0.222 41.116)` (asserted at the pixel, not the class name), no
+"Guest" anywhere in the header, Exit landing on the title screen rather than
+being bounced off it, the token byte-identical across the round trip, a reload
+holding position, resuming returning `guest-6ef52b#11` rather than a new row, a
+tab that never exited still opening into the app, both bands moving in opposite
+directions with runs wider than the window, reduced motion holding everything
+still, and Exit reachable on a phone.
+
+**The phone header got worse, and that is worth saying plainly.** It already
+overflowed — six tabs measured 933px at a 390px viewport — and Exit takes it to
+**981px**. The button was asked for and it is the only way back, so it stays;
+but the header's narrow-screen layout is now overdue rather than merely known.
+
 ## 2026-09-11 — Tabs change like a menu, not like a page
 
 Phase 5 of `.docs/features/arcade-transitions/planning.md`, which completes the
