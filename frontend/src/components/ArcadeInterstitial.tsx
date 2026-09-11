@@ -11,18 +11,14 @@
  * completes.
  */
 
-import type { InterstitialSpeed } from '../lib/interstitial';
-
 interface ArcadeInterstitialProps {
   /** The line itself. Short — this is a plate, not a paragraph. */
   text: string;
   /** A quieter second line, for when the first needs a gloss. */
   detail?: string;
-  /** `full` for leaving the app, `brief` for changing tabs. */
-  speed?: InterstitialSpeed;
 }
 
-export function ArcadeInterstitial({ text, detail, speed = 'full' }: ArcadeInterstitialProps) {
+export function ArcadeInterstitial({ text, detail }: ArcadeInterstitialProps) {
   return (
     <div
       /* Black, not the app's blue. The card is the moment the cabinet is
@@ -30,9 +26,7 @@ export function ArcadeInterstitial({ text, detail, speed = 'full' }: ArcadeInter
          it in the app's own background made it read as a page that had lost its
          contents rather than as a deliberate gap. Black also means the blackout
          layer has nothing to fight on its way in. */
-      className={`interstitial fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black px-6 text-center ${
-        speed === 'brief' ? 'is-brief' : ''
-      }`}
+      className="interstitial fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black px-6 text-center"
       role="status"
       aria-live="polite"
     >
@@ -49,4 +43,22 @@ export function ArcadeInterstitial({ text, detail, speed = 'full' }: ArcadeInter
       <span aria-hidden className="interstitial-blackout pointer-events-none absolute inset-0 bg-black" />
     </div>
   );
+}
+
+/**
+ * The black lifting off the page you have just arrived on.
+ *
+ * Mounted *after* the navigation, not before, which is the whole point: the
+ * card's blackout ends opaque, this begins opaque, and between them the route
+ * changes under cover. Without it the card faded to black and then vanished in
+ * the same frame as the navigation, so the new page cut in at full opacity —
+ * a hard edge at the end of a sequence built to feel unhurried, and the last
+ * thing you saw.
+ *
+ * `pointer-events-none` because the page underneath is live and interactive
+ * from the first frame; the veil is only in front of it visually, and half a
+ * second of swallowed clicks is a real cost for a decoration.
+ */
+export function ArrivalVeil() {
+  return <span aria-hidden className="arrival-veil pointer-events-none fixed inset-0 z-[60] bg-black" />;
 }

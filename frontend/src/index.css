@@ -495,21 +495,43 @@
   animation: interstitial-blackout 320ms ease-in 1100ms both;
 }
 
-/* The tab-change speed. Same choreography, compressed — the card happens on
-   every navigation, and at the full length it would stop being a flourish by
-   the third press. */
-.interstitial.is-brief .interstitial-text {
-  animation-duration: 420ms;
+/* The page arriving, under the veil that is lifting off it.
+   Runs the same length as the veil so the two finish together — content that
+   settles before the black is gone looks like it was waiting, and content still
+   moving afterwards looks like it was late.
+
+   The transform is dropped to `none` at the end (`both` keeps the final
+   keyframe), so `main` does not leave a containing block behind that would
+   reparent any `position: fixed` dialog rendered inside it. */
+.page-enter {
+  animation: page-enter 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.interstitial.is-brief .interstitial-detail {
-  animation-duration: 420ms;
-  animation-delay: 40ms;
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
-.interstitial.is-brief .interstitial-blackout {
-  animation-duration: 200ms;
-  animation-delay: 420ms;
+/* The other half: black lifting off the page you arrived on. Eased out rather
+   than linear, so it thins fastest at the start and the page is legible well
+   before the veil is technically gone. */
+.arrival-veil {
+  animation: arrival-veil 520ms ease-out both;
+}
+
+@keyframes arrival-veil {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 @keyframes interstitial-ground {
@@ -1116,6 +1138,20 @@
   .interstitial-text,
   .interstitial-detail,
   .interstitial-blackout {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Never mounted under reduced motion — `arrivalDuration()` returns 0 — but
+     if it ever is, it must not sit there as an opaque black sheet. */
+  .arrival-veil {
+    animation: none;
+    opacity: 0;
+  }
+
+  /* Arrives in place, with no rise. */
+  .page-enter {
     animation: none;
     opacity: 1;
     transform: none;

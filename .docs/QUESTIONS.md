@@ -215,11 +215,12 @@ checkbox multi-select with bulk hide / recommend / delete. The arcade layout has
 nowhere to put those, and they are not features that can wait in a drawer
 somewhere unnamed.
 
-**Assumption I will build on:** when the arcade view takes over `/`, the table
-moves to an admin-only management page rather than being deleted. That preserves
-every capability at the cost of one route, changes no behaviour, and leaves the
-later session free to design the real answer instead of first having to rebuild
-what was thrown away. Say the word if you would rather it simply go.
+**Confirmed 2026-09-11:** the table stays, on the admin page; `/` shows the
+arcade selection UI. So no capability is lost — sort, filter, the flags and the
+bulk actions all keep working where an admin already is, and the listening
+surface is free to be as sparse as the reference. The later session designs what
+the arcade view needs of its own rather than first rebuilding what was thrown
+away.
 
 Decided. Do not re-open without an explicit ask.
 

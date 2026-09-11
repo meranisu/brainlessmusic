@@ -2,11 +2,11 @@ import { useEffect, useState, type MouseEvent } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { consumeJustEntered, markAtTitle } from '../lib/boot';
-import { interstitialDuration, type InterstitialSpeed } from '../lib/interstitial';
+import { arrivalDuration, interstitialDuration } from '../lib/interstitial';
 import { BrandMark, Wordmark } from './BrandLockup';
 import { GlobalSearch } from './GlobalSearch';
 import { HandoffDialog } from './HandoffDialog';
-import { ArcadeInterstitial } from './ArcadeInterstitial';
+import { ArcadeInterstitial, ArrivalVeil } from './ArcadeInterstitial';
 import { ExitIcon, GearIcon } from './icons';
 import { NavOverflow, type NavItem } from './NavOverflow';
 import { WordmarkBand, WordmarkColumn } from './WordmarkColumn';
@@ -201,9 +201,9 @@ export function AppShell() {
   const [showHandoff, setShowHandoff] = useState(false);
   const [showMore, setShowMore] = useState(false);
   /** The card playing over everything, if any. Null the rest of the time. */
-  const [leaving, setLeaving] = useState<
-    { text: string; detail?: string; speed: InterstitialSpeed } | null
-  >(null);
+  const [leaving, setLeaving] = useState<{ text: string; detail?: string } | null>(null);
+  /** Black still covering the page just arrived on, lifting off it. */
+  const [arriving, setArriving] = useState(false);
 
   // Read during the first render after an entry, not in an effect: the classes
   // have to be on the very first paint or the elements flash at full opacity
@@ -224,21 +224,25 @@ export function AppShell() {
    * simply still be there. Guarded against a second press, because two cards
    * racing each other is two timers racing each other.
    */
-  function leaveThrough(
-    card: { text: string; detail?: string },
-    to: string,
-    speed: InterstitialSpeed = 'full',
-  ) {
+  function leaveThrough(card: { text: string; detail?: string }, to: string) {
     if (leaving) return;
-    const wait = interstitialDuration(speed);
+    const wait = interstitialDuration();
     if (wait === 0) {
       navigate(to);
       return;
     }
-    setLeaving({ ...card, speed });
+    setLeaving(card);
     setTimeout(() => {
+      // Order matters. The card's blackout has just finished opaque and the
+      // veil begins opaque, so swapping one for the other in the same commit
+      // means the route changes under cover and nothing is ever seen to cut.
       navigate(to);
       setLeaving(null);
+
+      const reveal = arrivalDuration();
+      if (reveal === 0) return;
+      setArriving(true);
+      setTimeout(() => setArriving(false), reveal);
     }, wait);
   }
 
@@ -279,6 +283,12 @@ export function AppShell() {
    * still there, so restoring the slide is a matter of putting four lines back
    * rather than rebuilding it.
    *
+   * It runs at the **same length as Exit and Options** — 1,420ms. It briefly
+   * ran at 620ms on my reasoning that a card on every navigation would start to
+   * feel like a toll; the owner compared the two and the short one read as
+   * hurried beside the long one. A transition inconsistent with itself is worse
+   * than one that is merely unhurried.
+   *
    * Everything about a plain link is preserved on the paths that matter — a
    * modified click (new tab, new window, download) and anything that is not a
    * primary button fall through to the browser untouched.
@@ -292,7 +302,7 @@ export function AppShell() {
 
     rememberDirection(index);
     event.preventDefault();
-    leaveThrough({ text: item.label }, item.to, 'brief');
+    leaveThrough({ text: item.label }, item.to);
   }
 
   /**
@@ -490,7 +500,15 @@ export function AppShell() {
 
       {/* Named, so it is lifted out of the root snapshot and animates on its
           own while the header — identical between tabs — simply swaps. */}
-      <main className={`view-page page-shell relative z-10 px-6 py-6 ${boot('boot-content')}`}>
+      {/* `page-enter` while the veil lifts: the content rises into place rather
+          than being uncovered already settled. A reveal alone is the curtain
+          moving; this is the thing behind it arriving, which is the difference
+          between a transition and a wipe. */}
+      <main
+        className={`view-page page-shell relative z-10 px-6 py-6 ${boot('boot-content')} ${
+          arriving ? 'page-enter' : ''
+        }`}
+      >
         <Outlet />
       </main>
 
@@ -500,9 +518,8 @@ export function AppShell() {
 
       {/* Over everything, including the player bar — this is the cabinet
           changing screens, not a dialog inside one. */}
-      {leaving && (
-        <ArcadeInterstitial text={leaving.text} detail={leaving.detail} speed={leaving.speed} />
-      )}
+      {leaving && <ArcadeInterstitial text={leaving.text} detail={leaving.detail} />}
+      {arriving && <ArrivalVeil />}
     </div>
   );
 }

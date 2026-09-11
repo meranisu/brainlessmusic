@@ -4,6 +4,54 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-11 — One speed, and a page that arrives instead of appearing
+
+Two pieces of feedback on the screen-change cards.
+
+**One speed for everything.** Tab changes ran at 620ms against 1,420ms for Exit
+and Options, on my reasoning that a card on every navigation would start to feel
+like a toll. Seen side by side the short one read as hurried, and a transition
+inconsistent with itself is worse than one that is merely unhurried. The
+two-speed machinery is gone rather than set to equal values — a dead
+abstraction is worse than no abstraction.
+
+**The arrival was a hard cut, and that was a real fault.** The card faded *to*
+black and then unmounted in the same frame as the navigation, so the new page
+appeared at full opacity with nothing fading it in. Going out smoothly and
+arriving abruptly is worse than not animating at all, because the abruptness is
+the last thing you see.
+
+The black now survives the navigation. `ArrivalVeil` begins opaque exactly where
+the card's blackout ended, so the route changes under cover, and it lifts over
+520ms while the page *rises into place* underneath it — both finishing together,
+since content that settles early looks like it was waiting and content still
+moving afterwards looks like it was late.
+
+`/enter` needed its own, and the reason is structural: it lives outside
+`AppShell`, so the shell unmounts on the way there and takes its veil with it.
+The veil belongs to whoever is arriving, and the title screen reads the same
+`atTitle` flag its redirect does — so it plays after an Exit and never on a cold
+load.
+
+**Measured across the handover**, sampling every 90ms:
+
+| | path | card blackout | veil | page |
+|---|---|---|---|---|
+| 1332ms | `/` | 0.52 | — | 1 |
+| 1424ms | `/albums` | — | **1.00** | **0** |
+| 1517ms | `/albums` | — | 0.75 | 0.67 |
+| 1609ms | `/albums` | — | 0.53 | 0.89 |
+
+The route changes at 1424ms under a fully opaque veil, and from there the veil
+and the page move together. There is no frame where the screen is uncovered and
+the page is already whole.
+
+**Verified:** 11/11 on the arrival, 87/87 on the bar, 9/9 on the hover work —
+including a cold load at `/enter` showing no veil, and reduced motion arriving in
+38ms with nothing veiled or moved.
+
+---
+
 ## 2026-09-11 — The top bar fits, floats, and the cabinet changes screens
 
 Phase 1 of `.docs/features/music-select-and-themes/planning.md`, plus the

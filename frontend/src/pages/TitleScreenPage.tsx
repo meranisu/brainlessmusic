@@ -8,6 +8,8 @@ import { TitleScreenPanel } from '../components/TitleScreenPanel';
 import { useSecretTaps } from '../hooks/useSecretTaps';
 import { ApiError, apiClient } from '../lib/apiClient';
 import { clearAtTitle, isAtTitle, markJustEntered } from '../lib/boot';
+import { arrivalDuration } from '../lib/interstitial';
+import { ArrivalVeil } from '../components/ArcadeInterstitial';
 
 /**
  * How long the shut-off runs. Must match `--exit` in `index.css`; it lives in
@@ -99,6 +101,26 @@ export function TitleScreenPage() {
   // not re-read: `clearAtTitle` runs while this screen is still animating
   // away, and a live read would flip the gate below mid-exit and cut it.
   const [heldAtTitle] = useState(isAtTitle);
+
+  /**
+   * The black lifting off this screen after an Exit.
+   *
+   * `AppShell` renders its own veil for navigations *within* the app, but
+   * `/enter` lives outside the shell — so the shell unmounts on the way here
+   * and takes its veil with it, and the title screen was the one destination
+   * that still cut in hard at the end of the sequence. The veil belongs to
+   * whoever is arriving, and here that is this page.
+   *
+   * Read from the same flag the redirect above uses, so it plays exactly when
+   * an Exit brought you here and never on a cold load.
+   */
+  const [arriving, setArriving] = useState(() => isAtTitle() && arrivalDuration() > 0);
+
+  useEffect(() => {
+    if (!arriving) return;
+    const done = setTimeout(() => setArriving(false), arrivalDuration());
+    return () => clearTimeout(done);
+  }, [arriving]);
 
   // Stripped from the address bar immediately — a token in a URL is a
   // credential in a URL, and it should not survive a screenshot, the back
@@ -362,6 +384,8 @@ export function TitleScreenPage() {
           onDismiss={() => setShowNumpad(false)}
         />
       )}
+
+      {arriving && <ArrivalVeil />}
     </div>
   );
 }
