@@ -35,6 +35,12 @@ is never asked twice.
 | [Q5](#q5--tag-editing-scope) | Tag-editing scope | 2026-09-09 | No |
 | [Q10](#q10--gapless-playback) | Gapless playback | 2026-09-10 | No |
 | [Q12](#q12--does-the-first-play-wait-need-a-live-fallback-for-very-long-tracks) | Does the first-play wait need a live fallback for very long tracks? | 2026-09-10 | No |
+| [Q18](#q18--how-should-the-top-bar-behave-on-a-narrow-screen) | How should the top bar behave on a narrow screen? | 2026-09-11 | **Yes** — blocks the Options button and the phone layout |
+| [Q19](#q19--what-does-a-theme-control) | What does a theme control? | 2026-09-11 | Yes, at phase 2 |
+| [Q20](#q20--where-does-the-theme-choice-live) | Where does the theme choice live? | 2026-09-11 | No — assumption stated |
+| [Q21](#q21--does-the-arcade-select-replace-the-table-or-join-it) | Does the arcade select replace the table, or join it? | 2026-09-11 | **Yes** — blocks phase 3 |
+| [Q22](#q22--what-does-the-arcade-select-do-on-a-phone) | What does the arcade select do on a phone? | 2026-09-11 | Yes, at phase 3 |
+| [Q23](#q23--should-selecting-a-track-preview-it) | Should selecting a track preview it? | 2026-09-11 | No — assumption stated |
 
 ### Q1 — Is the home network behind CGNAT?
 **Asked:** 2026-09-09 · **Blocking:** yes · **Owner action, not a code question**
@@ -116,6 +122,110 @@ it is. If that bites, the fix is to reinstate the removed live `-ss` path for
 tracks over a threshold — they would start instantly and give up byte-range
 seeking, which is the right trade for a mix nobody scrubs precisely. The code
 is in `216aaf7^`.
+
+---
+
+### Q18 — How should the top bar behave on a narrow screen?
+**Asked:** 2026-09-11 · **Blocking:** yes — the Options button waits on it
+
+The bar does not fit and has not for a while. Six tabs measure **933px at a
+390px viewport**; Exit took it to **981px**. Every page in the app scrolls
+sideways on a phone right now. Options would add another 70-80px to a row that
+is already two and a half times too wide, so this gets decided before that
+button lands rather than after.
+
+**The options, and what each costs:**
+
+- **A scrolling tab rail.** Everything stays reachable and nothing is hidden,
+  but off-screen tabs are invisible until someone thinks to swipe, and the
+  active-tab underline has to survive being scrolled.
+- **An overflow "More" menu.** The bar always fits. Costs a tap for whatever
+  lands in the menu, and someone has to decide the order — Health and Users are
+  the obvious candidates to demote, Library and Albums obviously stay.
+- **Icon-only below a breakpoint.** Compact and everything stays visible, but
+  six icons with no labels is a guessing game, and this app has no icon set for
+  its sections yet.
+- **A bottom bar on mobile.** The phone-native answer and the easiest to reach
+  one-handed, but it collides with the player bar, which already lives there.
+
+**My recommendation: the overflow menu**, with Library / Albums / Artists /
+Favorites / Playlists on the bar and Health, Upload and Users behind "More".
+It is the only one of the four that guarantees the bar fits at any width, and
+the demoted items are exactly the ones a listener on a phone does not want.
+
+### Q19 — What does a theme control?
+**Asked:** 2026-09-11 · **Blocking:** at phase 2
+
+Narrow (**colour only** — palette swaps, same layout and type) or wide (colour
+*and* typography, border weights, corner radii, maybe the backdrop's pattern).
+
+Colour-only is a day's work and mechanical: lift today's hard-coded Tailwind
+colours into custom properties, then a theme is a list of values. Wide themes
+are a different project — every component grows a set of knobs, and each new
+theme is then a design exercise rather than a palette.
+
+**Recommendation: colour only for now**, with the token layer built so type and
+metrics *can* join later without re-touching every component.
+
+### Q20 — Where does the theme choice live?
+**Asked:** 2026-09-11 · **Blocking:** no
+
+`localStorage` (this browser only) or on the server against the user row (so it
+follows the identity, including across a handoff QR).
+
+**Assumption I will build on unless you say otherwise: `localStorage`.** A theme
+is a property of the screen you are looking at, not of who you are — a phone in
+a dark room and a desktop by a window can reasonably disagree. It also needs no
+migration, no endpoint and no round trip before the first paint, which matters
+because a theme that arrives late is a visible flash of the wrong colours.
+
+### Q21 — Does the arcade select replace the table, or join it?
+**Asked:** 2026-09-11 · **Blocking:** yes — phase 3 cannot start without it
+
+The reference layout has room for one song's details and a list of names. The
+current table carries sorting, four filters, a search box, per-row favorite,
+format, play count, flags, and — for an admin — checkbox multi-select with bulk
+hide / recommend / delete. Those do not fit in the arcade layout, and inventing
+places for them would produce something that is neither.
+
+**Recommendation: a view toggle, both on `/`.** Arcade for listening, table for
+managing, remembered per device. It keeps the admin surface intact instead of
+rebuilding it in a shape that fights it, and it means the arcade view can be
+exactly as sparse as the reference is.
+
+The alternative worth considering: arcade becomes the library, and everything
+administrative moves to a separate page. Cleaner conceptually, more work, and it
+makes tag-fixing a trip rather than a click.
+
+### Q22 — What does the arcade select do on a phone?
+**Asked:** 2026-09-11 · **Blocking:** at phase 3
+
+Two panels side by side is a desktop shape. At 390px the choices are: stack the
+detail panel above a short list, make the detail a sheet that slides up when
+something is selected, or serve the table on phones and the arcade view only on
+wide screens.
+
+**Recommendation: the sheet.** The strip keeps the full height, which is what
+makes scrolling through a library feel like anything, and the detail arrives
+when it is relevant. Depends on Q21 — if the arcade view is a *toggle*, the
+narrow-screen answer can honestly be "the toggle defaults to the table on a
+phone", which is much less work.
+
+### Q23 — Should selecting a track preview it?
+**Asked:** 2026-09-11 · **Blocking:** no
+
+In the reference, moving the selection starts the song's preview clip. It is a
+large part of why that screen feels alive.
+
+Against it here: no preview clips exist, so it would mean streaming the real
+track from its start on every arrow-key press — expensive over the network the
+roadmap is about to expose, and startling if someone is already listening to
+something else.
+
+**Assumption I will build on: no preview.** Selection is silent; `Enter` plays.
+If you want it later, the honest version is a debounce plus a decode of the
+first ~15 seconds, cached like the transcodes already are — worth its own box
+rather than a phase here.
 
 ---
 
