@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `playFrom()` — `frontend/src/pages/LibraryPage.tsx`
+**Date:** 2026-09-11
+**How added:** change
+**Purpose:** play a track with the rest of the visible page queued behind it.
+**Side effects:** replaces the player queue.
+**Before:** the queue-building logic was inline in the row's ▸ button; the row itself opened the tag editor.
+**After:** extracted and called by both the row and the button, so the two cannot drift apart. The row click changing from "edit tags" to "play" is the point of the change: on a phone there is one gesture per row and no hover, and it was being spent on the rarest action rather than the only one that matters. Favorites and playlists already behaved this way, so this makes the library consistent rather than novel. Guards `missing` up front, where the old inline version relied on the button's `disabled` — a guard on the button does nothing for a click on the row.
+
+---
+
 **Function:** `handleExit()` — `frontend/src/components/AppShell.tsx`; `markAtTitle()`, `isAtTitle()`, `clearAtTitle()` — `frontend/src/lib/boot.ts`
 **Date:** 2026-09-11
 **How added:** new feature

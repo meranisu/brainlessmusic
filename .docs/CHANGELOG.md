@@ -4,6 +4,31 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-11 — Clicking a track plays it
+
+The library's rows opened the tag editor on click. Favorites and playlists
+already played on click, so the library was the odd one out — and it was odd in
+the expensive direction: a phone has one gesture per row and no hover to reveal
+an alternative, so the most valuable interaction in the app was spent on the
+rarest thing anybody does to a track.
+
+The editor lost nothing. It was already in the row's ⋮ menu, alongside
+diagnostics, hide, and delete, which is where an occasional admin action
+belongs. Both the row and its ▸ button now call one `playFrom` helper, because
+two controls that do the same thing must not be able to drift into doing it
+slightly differently. The ▸ button stays: it is the affordance that says the row
+is playable at all, which a bare click target does not.
+
+Missing tracks are filtered out of the queue rather than skipped at playback —
+queueing one stalls the queue on a 500 partway through, and the listener is left
+staring at a player that stopped for no visible reason. Their rows no longer
+take the pointer cursor either, since they no longer do anything.
+
+**Verified:** 7/7 in headless Chromium — the click playing rather than opening
+the editor, the ⋮ menu still reaching it, and the same tap working at 390px.
+
+---
+
 ## 2026-09-11 — A way back out, and a backdrop that goes somewhere
 
 Two pieces of owner feedback.

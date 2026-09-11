@@ -85,6 +85,23 @@ export function LibraryPage() {
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
 
+  /**
+   * Play this track, with the rest of what is on screen queued behind it.
+   *
+   * Shared by the row and its play button, which is the point: two controls
+   * that do the same thing must not be able to drift into doing it slightly
+   * differently. Tracks whose file is gone are filtered out rather than skipped
+   * at playback — queueing one stalls the queue on a 500 partway through, and
+   * the listener is left staring at a player that stopped for no visible
+   * reason.
+   */
+  function playFrom(track: TrackSummary) {
+    if (track.missing) return;
+    const playable = (data?.tracks ?? [track]).filter((candidate) => !candidate.missing);
+    const start = playable.findIndex((candidate) => candidate.id === track.id);
+    playQueue(playable, Math.max(0, start));
+  }
+
   function invalidateAfterMutation() {
     queryClient.invalidateQueries({ queryKey: ['tracks'] });
   }
@@ -258,8 +275,16 @@ export function LibraryPage() {
                 {data.tracks.map((t) => (
                   <tr
                     key={t.id}
-                    onClick={() => setActiveTrack({ id: t.id, tab: 'tags' })}
-                    className="group cursor-pointer transition-colors hover:bg-blue-800/40"
+                    /* Clicking a row plays it. It used to open the tag editor,
+                       which spent the one gesture a phone has on the rarest
+                       thing anybody does to a track — and on a touch screen
+                       there is no hover to reveal an alternative. The editor
+                       lost nothing: it was already in the row's ⋮ menu, which
+                       is where an occasional admin action belongs. */
+                    onClick={() => playFrom(t)}
+                    className={`group transition-colors hover:bg-blue-800/40 ${
+                      t.missing ? 'cursor-default' : 'cursor-pointer'
+                    }`}
                   >
                     {isAdmin && (
                       <td className="py-2.5 pl-4" onClick={(e) => e.stopPropagation()}>
@@ -276,13 +301,7 @@ export function LibraryPage() {
                     </td>
                     <td className="py-2.5" onClick={(e) => e.stopPropagation()}>
                       <button
-                        onClick={() => {
-                          // Never queue a track whose file is gone — it would
-                          // stall the queue on a `500` partway through.
-                          const playable = (data?.tracks ?? [t]).filter((track) => !track.missing);
-                          const start = playable.findIndex((track) => track.id === t.id);
-                          playQueue(playable, Math.max(0, start));
-                        }}
+                        onClick={() => playFrom(t)}
                         disabled={t.missing}
                         className="flex h-7 w-7 items-center justify-center rounded-full text-blue-300 opacity-70 transition-all group-hover:opacity-100 hover:bg-orange-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-25 disabled:hover:bg-transparent disabled:hover:text-blue-300"
                         aria-label={t.missing ? `${t.title} is missing from disk` : `Play ${t.title}`}
