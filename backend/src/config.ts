@@ -11,6 +11,38 @@ export const config = {
   // breaks a later seek, never audio already streaming), short enough that a
   // leaked URL stops working the same afternoon.
   mediaTokenTtl: process.env.MEDIA_TOKEN_TTL ?? '2h',
+  // How long the browser holds proof that the admin numpad was answered
+  // correctly. Long enough to type a password into the form it reveals, short
+  // enough that an unattended machine is not a standing invitation.
+  unlockTicketTtl: process.env.UNLOCK_TICKET_TTL ?? '5m',
+  // Shared code required to press "enter" on the title screen. **Unset is the
+  // default and the LAN posture**: the guest door is simply open, because
+  // reaching this server already means someone let you onto the network. Set
+  // it and every new device must type it once, after which its token persists
+  // and it is never asked again. This is the backstop for a genuinely public
+  // URL — not a substitute for the network-edge gate roadmap box 13 builds.
+  entryCode: process.env.ENTRY_CODE ?? '',
+  // The numpad code behind the title screen's hidden admin entrance. Unset and
+  // `/auth/login` behaves exactly as it always has. Set and a correct username
+  // and password are no longer enough on their own — the request must also
+  // carry an unlock ticket minted by `POST /auth/unlock`, over curl as much as
+  // in the browser. A short numeric code is weak by itself, which is why it
+  // gates a password rather than replacing one.
+  adminEntryCode: process.env.ADMIN_ENTRY_CODE ?? '',
+  // Guest rows anyone can mint. The ceiling is not an attacker defence — it is
+  // a bound on how far a loop, or a curious friend, can grow the table before
+  // the door closes. Past it the server prunes idle guests and only then
+  // refuses.
+  maxGuests: Number(process.env.MAX_GUESTS ?? 50),
+  // A guest untouched for this long is eligible to be pruned when the cap is
+  // reached — with its favorites, playlists, history and resume position,
+  // since nothing can ever log back into that row to claim them.
+  guestIdleDays: Number(process.env.GUEST_IDLE_DAYS ?? 90),
+  // New guests one IP may mint per hour, and answers it may give the numpad
+  // per minute. Both are generous for the handful of real devices here and
+  // ruinous for enumeration, which is the only shape that matters.
+  guestMintsPerHour: Number(process.env.GUEST_MINTS_PER_HOUR ?? 10),
+  unlockAttemptsPerMinute: Number(process.env.UNLOCK_ATTEMPTS_PER_MINUTE ?? 5),
   libraryPath: process.env.LIBRARY_PATH ?? './library',
   uploadStagingPath: process.env.UPLOAD_STAGING_PATH ?? './data/upload-staging',
   // Extracted cover art, content-addressed. Safe to delete wholesale — a
@@ -37,7 +69,13 @@ export const config = {
   // or there would be no way to bootstrap one). Turning this on is a real
   // exposure once the server is reachable from outside — index.ts warns at
   // boot so it can't be on by accident.
-  allowOpenRegistration: process.env.ALLOW_OPEN_REGISTRATION !== 'false',
+  //
+  // **Default flipped to false on 2026-09-11** (A16). It defaulted on so the
+  // `/signup` page would work; guest entry deleted that page's reason to
+  // exist, so the flag has no caller left and admin-only is the honest
+  // default. Note the deadlock break counts *accounts*, not guests — a server
+  // full of guests and no admin must still be claimable.
+  allowOpenRegistration: process.env.ALLOW_OPEN_REGISTRATION === 'true',
   // Scheduled SQLite backups. The default puts them beside the database, so
   // they land inside the container's /data volume and survive a rebuild with
   // no extra configuration. That protects against corruption, a bad migration

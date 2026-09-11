@@ -28,6 +28,22 @@ if (config.allowOpenRegistration) {
   );
 }
 
+// The entry posture, said out loud every boot for the same reason as the line
+// above: it is a decision, and a decision nobody is reminded of is one that
+// gets drifted into. Since guest entry landed, this — not registration — is
+// how someone actually gets to the music.
+console.info(
+  config.entryCode === ''
+    ? 'Guest entry: OPEN. Anyone who can reach this server can press "enter" and listen.\n' +
+        '  Correct on a LAN. Before exposing it (roadmap box 13), put a gate at the network\n' +
+        '  edge, or set ENTRY_CODE in backend/.env as a backstop.'
+    : 'Guest entry: requires ENTRY_CODE.',
+);
+
+if (config.adminEntryCode === '') {
+  console.info('Admin sign-in: /login, no entry code. Set ADMIN_ENTRY_CODE to require the numpad.');
+}
+
 const app = buildApp();
 
 app.listen({ port: config.port, host: '0.0.0.0' }, (err, address) => {

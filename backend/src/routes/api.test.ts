@@ -79,6 +79,25 @@ describe('open routes', () => {
     assert.equal(res.statusCode, 200);
     assert.equal(res.json().status, 'ok');
   });
+
+  it('leaves exactly the doors open that are meant to be', async () => {
+    // Unauthenticated by necessity — these are how someone gets in at all, so
+    // they can never appear in PROTECTED_ROUTES. Listed here so that an
+    // accidentally-open route is visible as a deliberate one, and so the count
+    // is something a reader can check rather than infer.
+    // Full behaviour lives in guestAuth.test.ts.
+    for (const url of ['/api/auth/guest', '/api/auth/unlock']) {
+      const res = await app.inject({ method: 'POST', url, payload: {} });
+      assert.notEqual(res.statusCode, 404, `${url} must exist`);
+      assert.notEqual(res.statusCode, 403, `${url} must not be behind the admin gate`);
+    }
+
+    // The guest door specifically must not want a bearer token — it is what
+    // *issues* them. (`/auth/unlock` legitimately answers 401 here: it checks a
+    // code, and no code is configured in the test environment.)
+    const guest = await app.inject({ method: 'POST', url: '/api/auth/guest', payload: {} });
+    assert.notEqual(guest.statusCode, 401, 'the guest door cannot require a credential');
+  });
 });
 
 describe('authentication', () => {
