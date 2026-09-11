@@ -4,6 +4,77 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-11 — The top bar fits, floats, and the cabinet changes screens
+
+Phase 1 of `.docs/features/music-select-and-themes/planning.md`, plus the
+feedback that arrived while it was being built. Answers A17.
+
+**The bar fits now.** Six tabs measured 933px at a 390px viewport and Exit had
+taken it to 981px, so every page in the app scrolled sideways on a phone. The
+collapse is staged rather than single-step, because a five-tab bar does not fit
+390px either — five tabs alone are ~375px before the wordmark, the search or a
+single button. Below `lg` every tab goes into **More** and the brand shrinks to
+its mark; at `lg` the tabs return with Upload / Users / Health staying behind the
+menu.
+
+`md` was tried first and measured: at exactly 768px the tabs plus the brand and
+buttons came to 785px inside a 721px bar, which moved the fault rather than
+removing it. The breakpoint matrix in the check now includes 767, 768, 1023 and
+1024 for that reason.
+
+**The right-hand side got smaller, not larger.** "This device", "Log out" and
+Data saver all moved into Options, which is how a bar that already overflowed
+found room for a new control. Data saver gained by the move: it lived in the
+player bar, which only renders while something is playing, so the one setting
+that decides how much of someone's data a track costs was unreachable at exactly
+the moment anybody would want it — before pressing play.
+
+**The bar floats.** Detached, rounded, 72px tall, with the moving backdrop
+running behind and around it instead of stopping at a hard edge. The gradient
+above it is load-bearing: with a detached bar, content scrolls through the gap,
+and a hard cut there looks like a rendering fault.
+
+**Both buttons are icons** — a gear and a door — with an instant tooltip.
+Deliberately not the native `title` attribute, which waits about a second before
+appearing: long enough that an icon-only control reads as unlabelled in exactly
+the moment someone is wondering what it is. `aria-label` carries the same text.
+
+**The cabinet changes screens.** Exit plays "Thank you for using this system",
+Options plays "Options", and every tab names its section — a line of type at
+size, a held beat, then a fade to black before the next screen. Grounded in
+black rather than the app's blue: blue is the colour of *being* on a screen, and
+using it made the card read as a page that had lost its contents rather than as
+a deliberate gap.
+
+Two speeds, and the difference is the argument. Leaving runs 1,420ms and is
+worth announcing. **Changing tabs runs 620ms**, because the same card on every
+navigation would stop being a flourish by the third press and start being a
+toll. Clicking the tab you are already on plays nothing at all.
+
+**This replaced the directional view transition rather than joining it.** The
+card is opaque and full-screen, so a page sliding underneath it is a snapshot
+nobody can see and a composite nobody asked for. What is lost is worth naming:
+the old transition slid the outgoing page left or right depending on which way
+you moved along the bar. `rememberDirection` and the `data-nav-dir` CSS are kept
+deliberately, so restoring the slide is four lines rather than a rebuild.
+
+**The navigation row reads as one strip.** The tabs were `px-3 py-4 text-sm` and
+More was a `btn-sm` at `text-xs` with half the padding — two different kinds of
+thing standing side by side. Everything in the row now shares one `.nav-tab`
+shape, and hovering grows the *same* orange mark the active tab wears, from the
+middle out, so a hover reads as "this is what you are about to pick" rather than
+as an unrelated highlight. A divider separates the brand from the controls.
+
+**Verified:** 87/87 in headless Chromium plus 9/9 on the hover work — nine
+viewport widths from 360 to 1920 with no sideways scroll anywhere, every section
+reachable from More on a phone, the card appearing on black and clearing itself
+away, the blackout arriving *after* the line rather than with it, the session
+token byte-identical across Exit, mashing the buttons yielding exactly one card,
+reduced motion skipping the card entirely (39ms, against 1,420ms), and every item
+in the nav row measuring the same height, size, weight and padding.
+
+---
+
 ## 2026-09-11 — Clicking a track plays it
 
 The library's rows opened the tag editor on click. Favorites and playlists

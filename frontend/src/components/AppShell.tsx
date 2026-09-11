@@ -1,45 +1,56 @@
 import { useEffect, useState, type MouseEvent } from 'react';
-import { flushSync } from 'react-dom';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { consumeJustEntered, markAtTitle } from '../lib/boot';
+import { interstitialDuration, type InterstitialSpeed } from '../lib/interstitial';
 import { BrandMark, Wordmark } from './BrandLockup';
 import { GlobalSearch } from './GlobalSearch';
 import { HandoffDialog } from './HandoffDialog';
+import { ArcadeInterstitial } from './ArcadeInterstitial';
+import { ExitIcon, GearIcon } from './icons';
+import { NavOverflow, type NavItem } from './NavOverflow';
 import { WordmarkBand, WordmarkColumn } from './WordmarkColumn';
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
-  `relative px-3 py-4 text-sm font-medium transition-colors ${
-    isActive ? 'text-white' : 'text-blue-300 hover:text-blue-100'
-  }`;
-
-interface NavItem {
-  to: string;
-  label: string;
-  end?: boolean;
-}
+  `nav-tab ${isActive ? 'nav-tab-active' : ''}`;
 
 /**
- * The bar's order, as data rather than as markup, because two things now need
- * to know it: which tab is active, and whether the one being clicked is to the
- * left or the right of it. A view transition slides the page the way the eye
- * expects only if it knows which way along the bar you went.
+ * The bar's order, as data rather than as markup, because three things need to
+ * know it: which tab is active, whether the one being clicked is to the left or
+ * the right of it, and which of them fit.
+ *
+ * Split in two because the bar does not fit and never did. Six tabs measured
+ * **933px at a 390px viewport** — every page scrolled sideways on a phone — and
+ * five would still measure ~375px before the wordmark, the search box or a
+ * single button. So `primary` is what earns a place on the bar at `lg` and up,
+ * and `overflow` is what lives behind **More** at every width: Upload and Users
+ * are administrative, and Health is a thing you visit when something is wrong.
+ * Below `lg` the primary tabs join them there.
+ *
+ * The breakpoint is `lg` and not `md` because `md` was measured and found
+ * wanting: at exactly 768px the five tabs plus the brand, More, Options and
+ * Exit came to 785px inside a 721px bar, and the page scrolled sideways again —
+ * the very fault this split exists to fix, moved rather than removed.
  */
-function navItemsFor(isAdmin: boolean): NavItem[] {
-  return [
-    { to: '/', label: 'Library', end: true },
-    { to: '/albums', label: 'Albums' },
-    { to: '/artists', label: 'Artists' },
-    { to: '/favorites', label: 'Favorites' },
-    { to: '/playlists', label: 'Playlists' },
-    ...(isAdmin
-      ? [
-          { to: '/upload', label: 'Upload' },
-          { to: '/users', label: 'Users' },
-        ]
-      : []),
-    { to: '/health', label: 'Health' },
-  ];
+function navItemsFor(isAdmin: boolean): { primary: NavItem[]; overflow: NavItem[] } {
+  return {
+    primary: [
+      { to: '/', label: 'Library', end: true },
+      { to: '/albums', label: 'Albums' },
+      { to: '/artists', label: 'Artists' },
+      { to: '/favorites', label: 'Favorites' },
+      { to: '/playlists', label: 'Playlists' },
+    ],
+    overflow: [
+      ...(isAdmin
+        ? [
+            { to: '/upload', label: 'Upload' },
+            { to: '/users', label: 'Users' },
+          ]
+        : []),
+      { to: '/health', label: 'Health' },
+    ],
+  };
 }
 
 /** Which tab the current URL belongs to, or -1 for a page that has no tab. */
@@ -186,8 +197,13 @@ function BootFrame() {
 }
 
 export function AppShell() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [showHandoff, setShowHandoff] = useState(false);
+  const [showMore, setShowMore] = useState(false);
+  /** The card playing over everything, if any. Null the rest of the time. */
+  const [leaving, setLeaving] = useState<
+    { text: string; detail?: string; speed: InterstitialSpeed } | null
+  >(null);
 
   // Read during the first render after an entry, not in an effect: the classes
   // have to be on the very first paint or the elements flash at full opacity
@@ -196,8 +212,35 @@ export function AppShell() {
 
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const navItems = navItemsFor(Boolean(user?.isAdmin));
-  const current = activeIndex(navItems, pathname);
+  const { primary, overflow } = navItemsFor(Boolean(user?.isAdmin));
+  const current = activeIndex(primary, pathname);
+
+  /**
+   * Leaves through a card: a line of type at size, a held beat, a fade to
+   * black, and only then the navigation.
+   *
+   * The overlay is opaque and the app stays mounted underneath it, so nothing
+   * is torn down to play this — if the navigation never happened the app would
+   * simply still be there. Guarded against a second press, because two cards
+   * racing each other is two timers racing each other.
+   */
+  function leaveThrough(
+    card: { text: string; detail?: string },
+    to: string,
+    speed: InterstitialSpeed = 'full',
+  ) {
+    if (leaving) return;
+    const wait = interstitialDuration(speed);
+    if (wait === 0) {
+      navigate(to);
+      return;
+    }
+    setLeaving({ ...card, speed });
+    setTimeout(() => {
+      navigate(to);
+      setLeaving(null);
+    }, wait);
+  }
 
   /**
    * Records which way along the bar this click is going, for the CSS to read.
@@ -220,33 +263,36 @@ export function AppShell() {
   }
 
   /**
-   * Runs the tab change inside a view transition.
+   * Changes tabs through the same card the rest of the bar leaves through.
    *
-   * **React Router's own `viewTransition` prop does nothing here**, which cost
-   * a check to discover: it is a data-router API, and this app is mounted
-   * under `<BrowserRouter>`, so the prop is accepted and silently ignored —
-   * the page swapped instantly while the CSS sat unused. Calling
-   * `document.startViewTransition` directly works under either router and is
-   * four lines. `flushSync` is required: the callback must leave the DOM in
-   * its new state before it returns, and React would otherwise batch the
-   * update until after the snapshot had been taken.
+   * **This replaced the directional view transition**, and the replacement is
+   * total rather than additive: the card is opaque and covers the whole
+   * viewport, so a page sliding in underneath it is a snapshot nobody can see
+   * and a composite nobody asked for. Running both would be paying twice for
+   * one effect and showing neither properly.
+   *
+   * What was lost is worth naming, in case it is wanted back: the old
+   * transition slid the outgoing page left or right depending on which way you
+   * moved along the bar, which gave the tabs a sense of position. The card
+   * trades that for the section announcing itself, which is the arcade idiom.
+   * `rememberDirection` is kept because the CSS that reads `data-nav-dir` is
+   * still there, so restoring the slide is a matter of putting four lines back
+   * rather than rebuilding it.
    *
    * Everything about a plain link is preserved on the paths that matter — a
    * modified click (new tab, new window, download) and anything that is not a
    * primary button fall through to the browser untouched.
    */
-  function onTabClick(event: MouseEvent<HTMLAnchorElement>, to: string, index: number) {
+  function onTabClick(event: MouseEvent<HTMLAnchorElement>, item: NavItem, index: number) {
     if (event.defaultPrevented || event.button !== 0) return;
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    // Already here. A card for a navigation that changes nothing is a wait for
+    // no reason.
+    if (index === current) return;
 
     rememberDirection(index);
-
-    if (!document.startViewTransition) return;
-
     event.preventDefault();
-    document.startViewTransition(() => {
-      flushSync(() => navigate(to));
-    });
+    leaveThrough({ text: item.label }, item.to, 'brief');
   }
 
   /**
@@ -264,7 +310,7 @@ export function AppShell() {
    */
   function handleExit() {
     markAtTitle();
-    navigate('/enter');
+    leaveThrough({ text: 'Thank you for using this system', detail: 'See you again' }, '/enter');
   }
 
   /**
@@ -291,25 +337,50 @@ export function AppShell() {
     <div className="relative min-h-screen bg-blue-950 pb-20 text-white">
       <ShellBackdrop />
 
-      <header className="sticky top-0 z-30 border-b border-blue-800 bg-blue-950">
-        <div className="page-shell flex items-center gap-6 px-6">
+      {/*
+        Floating, and taller than it was. The bar used to be a full-width band
+        welded to the top of the page; it is now a panel with air around it,
+        which is what an arcade frame looks like and — more usefully — lets the
+        moving backdrop run behind and around it instead of stopping at a hard
+        edge.
+
+        `sticky` rather than `fixed`, so the bar keeps its place in the document
+        and the page below needs no compensating padding that would have to be
+        kept in sync with the bar's height by hand.
+
+        The gradient on the wrapper is doing real work: with a detached bar,
+        content scrolls through the gap above it, and a hard cut there looks
+        like a rendering fault. Fading the page out behind that strip makes the
+        bar read as floating over the content rather than punched through it.
+      */}
+      <header className="sticky top-0 z-30 bg-gradient-to-b from-blue-950 via-blue-950/90 to-transparent px-3 pb-4 pt-3 sm:px-4">
+        <div className="shell-bar page-shell relative flex items-center gap-3 rounded-xl border border-blue-700 bg-blue-950/92 px-3 backdrop-blur-md sm:gap-5 sm:px-5">
           <div className={`flex shrink-0 items-center gap-2.5 ${boot('boot-wordmark')}`}>
-            <BrandMark className="h-7 w-7 border-2 border-blue-200" />
-            <Wordmark className="text-base text-white" />
+            <BrandMark className="h-8 w-8 border-2 border-blue-200" />
+            {/* The word goes below `sm`; the mark alone still identifies the
+                app, and those ~140px are the difference between a bar that
+                fits a phone and one that does not. */}
+            <Wordmark className="hidden text-base text-white sm:block" />
           </div>
+
+          {/* Divides the brand from the navigation. The bar is one continuous
+              strip of unrelated things otherwise — a logo, some tabs, a search
+              box, some buttons — and a rule here says which of them is the
+              name of the thing and which is the controls, the way a game's
+              frame separates its title plate from its menu. Shorter than the
+              bar so it reads as a seam rather than a wall. */}
+          <span aria-hidden className="h-7 w-px shrink-0 bg-blue-700/80" />
+
           {/* `boot-nav` staggers its children individually rather than fading
               the row in as a block — a machine naming its parts, not a
               container appearing. */}
-          {/* `boot-nav` staggers its children individually rather than fading
-              the row in as a block — a machine naming its parts, not a
-              container appearing. */}
-          <nav className={`flex items-center gap-1 ${isBooting ? 'boot-nav' : ''}`}>
-            {navItems.map((item, i) => (
+          <nav className={`hidden items-center gap-1 lg:flex ${isBooting ? 'boot-nav' : ''}`}>
+            {primary.map((item, i) => (
               <NavLink
                 key={item.to}
                 to={item.to}
                 end={item.end}
-                onClick={(event) => onTabClick(event, item.to, i)}
+                onClick={(event) => onTabClick(event, item, i)}
                 className={navLinkClass}
               >
                 {({ isActive }) => (
@@ -320,66 +391,101 @@ export function AppShell() {
                         which is what lets it carry a `view-transition-name`
                         and slide between tabs instead of cross-fading. It was
                         an `::after` before, and a pseudo-element cannot be
-                        named. */}
+                        named.
+
+                        The overflow menu repeats these links below `lg` and
+                        deliberately gives them no underline: a second element
+                        carrying the same name does not merely look wrong, it
+                        disables the transition for the whole page. Below `lg`
+                        this whole nav is `display: none`, so nothing here is
+                        rendered to collide with it. */}
                     {isActive && <span className="nav-underline" />}
                   </>
                 )}
               </NavLink>
             ))}
           </nav>
-          <div className={boot('boot-search')}>
+
+          <NavOverflow
+            className={boot('boot-more')}
+            primary={primary}
+            overflow={overflow}
+            isOpen={showMore}
+            onToggle={() => setShowMore((open) => !open)}
+            onClose={() => setShowMore(false)}
+          />
+
+          {/* A plain spacer takes the slack, and search keeps its natural width
+              beside the buttons.
+
+              Stretching the search wrapper itself was the obvious thing and it
+              was wrong: `GlobalSearch` is a `relative` box with a fixed-width
+              input and its `/` hint pinned to `right-2`, so a wrapper that grew
+              left the badge stranded 100px away from the field it belongs to. */}
+          {/* `flex` with `justify-end`, not `block`. The wrapper needs to take
+              the bar's slack (so the two ends stay put as the window changes)
+              while the box inside it keeps its own width — `GlobalSearch` is a
+              `relative` container with its `/` hint pinned to `right-2`, so a
+              wrapper that stretched it left the badge stranded 100px from the
+              field it labels. A flex child sizes to its content on the main
+              axis; a block child fills. */}
+          <div className={`hidden min-w-0 flex-1 justify-end lg:flex ${boot('boot-search')}`}>
             <GlobalSearch />
           </div>
-          {/* shrink-0 + nowrap: the nav grew a Users link, and without these the
-              right-hand block is the first thing the flex row squeezes — "Log
-              out" was wrapping onto two lines and stretching the header. */}
-          <div className={`flex shrink-0 items-center gap-2 py-3 text-sm ${boot('boot-account')}`}>
-            {/* No name for a guest. The row is called `guest-a83f2c` — a
-                database identifier, not a name anybody chose — and the word
-                "Guest" standing in its place named nothing the listener did not
-                already know, while taking up the width the header can least
-                afford. An account still shows its username, which answers a
-                question a shared machine can genuinely raise. */}
-            {user && !user.isGuest && (
-              <span className="mr-1 hidden truncate text-blue-200 lg:inline">{user.username}</span>
-            )}
-            {user?.isAdmin && <span className="badge-admin mr-1 shrink-0">Admin</span>}
-            {user?.isGuest ? (
-              // No "Log out" for a guest. There is nothing to log back in
-              // with: clearing the token abandons the row and everything on it,
-              // so that action belongs behind a warning, not in the header
-              // beside everything else. The dialog carries both it and the
-              // handoff that makes a second device the same listener.
-              <button
-                onClick={() => setShowHandoff(true)}
-                className="btn-ghost btn-sm shrink-0 whitespace-nowrap"
-              >
-                This device
-              </button>
-            ) : (
-              <button onClick={logout} className="btn-ghost btn-sm shrink-0 whitespace-nowrap">
-                Log out
-              </button>
-            )}
+          <div className="flex-1 lg:hidden" />
+
+          <div className={`relative flex shrink-0 items-center gap-2 py-3 text-sm ${boot('boot-account')}`}>
+            {user?.isAdmin && <span className="badge-admin mr-1 hidden shrink-0 xl:inline">Admin</span>}
+
+            {/* Icons, not words. Two labelled buttons were the widest thing on
+                the right of a bar that had no room to spare, and these two are
+                the only controls here that have a universally understood
+                picture — a gear and a door. The tooltip is `.tip` rather than
+                the native `title` attribute, which waits about a second before
+                appearing: long enough that an icon-only control reads as
+                unlabelled in exactly the moment someone is wondering what it
+                is. `aria-label` carries the same text for anyone not hovering. */}
+            <button
+              onClick={() =>
+                leaveThrough({ text: 'Options', detail: 'Settings for this device' }, '/options')
+              }
+              aria-label="Options"
+              data-tip="Options"
+              className="tip btn-ghost btn-sm shrink-0 px-2"
+            >
+              <GearIcon className="h-5 w-5" />
+            </button>
+
             {/* Back to the attract screen, session intact — the arcade sense of
                 exit, not the account sense. Orange, which in this app is the
-                accent nothing else in the header uses: the tab underline, the
-                boot frame and the title screen's enter button are all orange,
-                so a control that returns you to that screen wearing that colour
-                is consistent rather than merely loud. It also stops it reading
-                as a second, milder "Log out" sitting beside the real one. */}
+                accent nothing else in the bar uses: the tab underline, the boot
+                frame and the title screen's enter button are all orange, so the
+                control that returns you to that screen wears its colour. */}
             <button
               onClick={handleExit}
-              className="btn-primary btn-sm shrink-0 whitespace-nowrap"
-              title="Back to the title screen. You stay signed in."
+              aria-label="Exit to the title screen"
+              data-tip="Exit — you stay signed in"
+              className="tip btn-primary btn-sm shrink-0 px-2"
             >
-              Exit
+              <ExitIcon className="h-5 w-5" />
             </button>
           </div>
+
+          {/* The sign-in banner's accent line. It used to run along the
+              header's full-width bottom edge; with the bar detached it belongs
+              to the bar and has to be clipped to its rounded corners.
+
+              Its own layer, rather than `overflow-hidden` on the bar itself —
+              the bar is the positioning context for two dropdowns that hang
+              *below* it, and clipping there would have swallowed both menus
+              whole. Same clock as the title screen, so both pulse together. */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 overflow-hidden rounded-xl"
+          >
+            <span className="band-sweep band-sweep-rail band-sweep-bottom" />
+          </span>
         </div>
-        {/* The sign-in banner's accent line, on the edge that plays the same
-            role here. Same clock, so both screens pulse together. */}
-        <span className="band-sweep band-sweep-rail band-sweep-bottom" />
       </header>
 
       {/* Named, so it is lifted out of the root snapshot and animates on its
@@ -391,6 +497,12 @@ export function AppShell() {
       {isBooting && <BootFrame />}
 
       {showHandoff && <HandoffDialog onClose={() => setShowHandoff(false)} />}
+
+      {/* Over everything, including the player bar — this is the cabinet
+          changing screens, not a dialog inside one. */}
+      {leaving && (
+        <ArcadeInterstitial text={leaving.text} detail={leaving.detail} speed={leaving.speed} />
+      )}
     </div>
   );
 }

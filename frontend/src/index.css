@@ -433,6 +433,155 @@
    In and out. The panel arrives with the ground it sits on rather than after
    it, and leaves the same way — a dialog that vanishes while its backdrop
    fades reads as a crash. */
+/* The floating top bar.
+   Taller than the old welded band — an arcade frame is a thing with presence,
+   not a hairline — and given a minimum height rather than padding alone so the
+   bar does not change height between a page with a search box and one without.
+   The inner shadow is what sells "panel" over "rectangle": a single light edge
+   along the top, the way a bevelled frame catches a light above it. */
+.shell-bar {
+  min-height: 4rem;
+  box-shadow:
+    inset 0 1px 0 rgba(147, 197, 253, 0.14),
+    0 10px 30px -12px rgba(2, 6, 23, 0.9);
+}
+
+@media (min-width: 640px) {
+  .shell-bar {
+    min-height: 4.5rem;
+  }
+}
+
+/* The menus that hang off the bar — More, and Options. Same arrival as the
+   numpad's, because they are the same gesture: a surface that was not there a
+   moment ago, appearing under the thing you pressed. */
+.options-panel {
+  animation: numpad-panel-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  /* Centred by default, for the More menu, which is centred under its button.
+     The Options panel hangs off the bar's right edge and overrides it below, so
+     each grows out of the control that opened it rather than from thin air. */
+  transform-origin: top center;
+}
+
+.options-panel[role='dialog'] {
+  transform-origin: top right;
+}
+
+.options-panel.is-closing {
+  animation: numpad-panel-in 160ms ease-in reverse both;
+}
+
+/* ── The card between screens ─────────────────────────────────────────────
+   Exit and Options both leave through one of these: a line of type at size,
+   held, then a fade to black. The screen underneath is still mounted behind it
+   — the overlay is opaque, so nothing has to be torn down to play this, and if
+   the navigation fails the app is simply still there. */
+.interstitial {
+  animation: interstitial-ground 200ms ease-out both;
+}
+
+.interstitial-text {
+  animation: interstitial-line 1100ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Trails the headline by a beat, the way a subtitle does. */
+.interstitial-detail {
+  animation: interstitial-line 1100ms cubic-bezier(0.16, 1, 0.3, 1) 90ms both;
+}
+
+/* Starts only once the line has had its moment. Its own layer, so its delay is
+   independent of the text's timing rather than wired into it. */
+.interstitial-blackout {
+  animation: interstitial-blackout 320ms ease-in 1100ms both;
+}
+
+/* The tab-change speed. Same choreography, compressed — the card happens on
+   every navigation, and at the full length it would stop being a flourish by
+   the third press. */
+.interstitial.is-brief .interstitial-text {
+  animation-duration: 420ms;
+}
+
+.interstitial.is-brief .interstitial-detail {
+  animation-duration: 420ms;
+  animation-delay: 40ms;
+}
+
+.interstitial.is-brief .interstitial-blackout {
+  animation-duration: 200ms;
+  animation-delay: 420ms;
+}
+
+@keyframes interstitial-ground {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* In, held, out — one keyframe rather than two animations, so the hold is a
+   property of the curve and cannot drift out of step with the fade. */
+@keyframes interstitial-line {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+  22% {
+    opacity: 1;
+    transform: none;
+  }
+  70% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-10px) scale(1.03);
+  }
+}
+
+@keyframes interstitial-blackout {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* A tooltip that does not wait. The native `title` attribute takes about a
+   second to appear, which is long enough that an icon-only control reads as
+   unlabelled — and icon-only is exactly what these two became. */
+.tip {
+  position: relative;
+}
+
+.tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 0.55rem);
+  right: 0;
+  z-index: 50;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--color-blue-700, #1d4ed8);
+  background: var(--color-blue-950, #172554);
+  color: var(--color-blue-100, #dbeafe);
+  font-size: 0.7rem;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease-out;
+}
+
+.tip:hover::after,
+.tip:focus-visible::after {
+  opacity: 1;
+}
+
 .numpad-scrim {
   animation: numpad-scrim-in 180ms ease-out both;
 }
@@ -693,6 +842,9 @@
 .boot-nav > *:nth-child(8) { animation-delay: 435ms; }
 
 .boot-wordmark { animation-delay: 40ms; }
+/* After the last tab (300ms) and before the search box, which is where it sits
+   on the bar. The staircase reads as left-to-right or it reads as nothing. */
+.boot-more { animation-delay: 355ms; }
 .boot-search { animation-delay: 420ms; }
 .boot-account { animation-delay: 460ms; }
 .boot-content { animation-delay: 480ms; }
@@ -759,11 +911,70 @@
    `view-transition-name` imposes, and the reason this had to stop being an
    `::after`: a pseudo-element cannot be named, and a name that appears twice
    disables the transition for everything. */
+/* One shape for everything standing in the bar's navigation row.
+   The tabs were `px-3 py-4 text-sm` and "More" was a `btn-sm` at `text-xs` with
+   half the padding, which put two different kinds of thing side by side in a
+   row that is meant to read as one strip of controls. Same height, same type,
+   same padding, same hover — the only difference left between them is that one
+   opens a menu. */
+.nav-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  height: 2.5rem;
+  padding-inline: 0.9rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--color-blue-300);
+  transition:
+    color 140ms ease-out,
+    background-color 140ms ease-out;
+}
+
+.nav-tab:hover,
+.nav-tab[aria-expanded='true'] {
+  color: var(--color-orange-300);
+  background-color: color-mix(in oklab, var(--color-orange-500) 12%, transparent);
+}
+
+/* The orange on hover is the *same* mark the active tab wears, drawn from the
+   middle out — so hovering reads as "this is what you are about to pick"
+   rather than as an unrelated highlight. Suppressed on the active tab, which
+   already has the real one and does not want two stacked. */
+.nav-tab::after {
+  content: '';
+  position: absolute;
+  left: 0.9rem;
+  right: 0.9rem;
+  bottom: 0.3rem;
+  height: 2px;
+  border-radius: 9999px;
+  background-color: var(--color-orange-500);
+  transform: scaleX(0);
+  transition: transform 170ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.nav-tab:hover::after,
+.nav-tab[aria-expanded='true']::after {
+  transform: scaleX(1);
+}
+
+.nav-tab-active {
+  color: #fff;
+}
+
+.nav-tab-active::after {
+  display: none;
+}
+
 .nav-underline {
   position: absolute;
-  left: 0.75rem;
-  right: 0.75rem;
-  bottom: -1px;
+  left: 0.9rem;
+  right: 0.9rem;
+  bottom: 0.3rem;
   height: 2px;
   border-radius: 9999px;
   background-color: var(--color-orange-600);
@@ -883,13 +1094,41 @@
   .numpad-scrim,
   .numpad-panel,
   .numpad-scrim.is-closing,
-  .numpad-panel.is-closing {
+  .numpad-panel.is-closing,
+  .options-panel,
+  .options-panel.is-closing {
     animation-duration: 90ms;
     animation-timing-function: linear;
   }
 
-  .numpad-panel {
+  /* Opacity only — `numpad-scrim-in` is the fade with no movement in it. */
+  .numpad-panel,
+  .options-panel,
+  .options-panel.is-closing {
     animation-name: numpad-scrim-in;
+  }
+
+  /* The interstitial is skipped outright rather than shortened: `interstitialDuration()`
+     returns 0, so the navigation happens immediately and this overlay is never
+     on screen long enough to animate. These rules exist for the frame or two it
+     may still be mounted — no movement, no hold, nothing to wait through. */
+  .interstitial,
+  .interstitial-text,
+  .interstitial-detail,
+  .interstitial-blackout {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .tip::after {
+    transition: none;
+  }
+
+  /* The hover mark appears rather than grows. */
+  .nav-tab,
+  .nav-tab::after {
+    transition: none;
   }
 
   /* React Router calls `startViewTransition` regardless, so the transition

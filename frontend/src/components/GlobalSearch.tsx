@@ -50,7 +50,7 @@ export function GlobalSearch() {
         onChange={(e) => setValue(e.target.value)}
         placeholder="Search…"
         aria-label="Search the library"
-        className="input w-44 py-1.5 pr-8 text-sm lg:w-56"
+        className="input w-40 py-1.5 pr-8 text-sm xl:w-56"
       />
       {/* The shortcut hint, hidden once there's text so it never sits on top
           of what someone is typing. */}

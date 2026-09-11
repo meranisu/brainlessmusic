@@ -34,7 +34,7 @@ bar that can hold it. See [Q18](../../QUESTIONS.md#q18).
 
 ---
 
-## Phase 1 — A top bar that survives a phone, with Options on it
+## Phase 1 — A top bar that survives a phone, with Options on it — **Done** (2026-09-11)
 
 **Why first:** it is the precondition for ask 3 and it is a live bug.
 
@@ -51,6 +51,21 @@ bar that can hold it. See [Q18](../../QUESTIONS.md#q18).
 **Done when:** `document.documentElement.scrollWidth === 390` at a 390px
 viewport on every page, Options opens, and the tab transition still starts (the
 instrumented count, not the appearance).
+
+**Done.** 87/87 checks across nine viewport widths (360→1920), plus 9/9 on the
+navigation row's cohesion and hover. Two things changed shape along the way:
+
+- **Options became a page, not a dropdown**, at the owner's request — a
+  cabinet's option screen is somewhere you go, announced by a plate. `/options`
+  now holds Data saver and the identity controls.
+- **The tab transition became the card, replacing the directional slide.** They
+  cannot coexist: the card is opaque and full-screen, so the slide underneath is
+  a snapshot nobody sees. `rememberDirection` and the `data-nav-dir` CSS are
+  kept so restoring the slide is four lines rather than a rebuild.
+
+Also recorded: the `md` breakpoint was tried and measured at 785px inside a
+721px bar, which moved the overflow rather than removing it. `lg` is not a
+preference, it is the measurement.
 
 ## Phase 2 — Themes
 

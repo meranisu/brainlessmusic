@@ -35,10 +35,8 @@ is never asked twice.
 | [Q5](#q5--tag-editing-scope) | Tag-editing scope | 2026-09-09 | No |
 | [Q10](#q10--gapless-playback) | Gapless playback | 2026-09-10 | No |
 | [Q12](#q12--does-the-first-play-wait-need-a-live-fallback-for-very-long-tracks) | Does the first-play wait need a live fallback for very long tracks? | 2026-09-10 | No |
-| [Q18](#q18--how-should-the-top-bar-behave-on-a-narrow-screen) | How should the top bar behave on a narrow screen? | 2026-09-11 | **Yes** — blocks the Options button and the phone layout |
 | [Q19](#q19--what-does-a-theme-control) | What does a theme control? | 2026-09-11 | Yes, at phase 2 |
 | [Q20](#q20--where-does-the-theme-choice-live) | Where does the theme choice live? | 2026-09-11 | No — assumption stated |
-| [Q21](#q21--does-the-arcade-select-replace-the-table-or-join-it) | Does the arcade select replace the table, or join it? | 2026-09-11 | **Yes** — blocks phase 3 |
 | [Q22](#q22--what-does-the-arcade-select-do-on-a-phone) | What does the arcade select do on a phone? | 2026-09-11 | Yes, at phase 3 |
 | [Q23](#q23--should-selecting-a-track-preview-it) | Should selecting a track preview it? | 2026-09-11 | No — assumption stated |
 
@@ -125,34 +123,6 @@ is in `216aaf7^`.
 
 ---
 
-### Q18 — How should the top bar behave on a narrow screen?
-**Asked:** 2026-09-11 · **Blocking:** yes — the Options button waits on it
-
-The bar does not fit and has not for a while. Six tabs measure **933px at a
-390px viewport**; Exit took it to **981px**. Every page in the app scrolls
-sideways on a phone right now. Options would add another 70-80px to a row that
-is already two and a half times too wide, so this gets decided before that
-button lands rather than after.
-
-**The options, and what each costs:**
-
-- **A scrolling tab rail.** Everything stays reachable and nothing is hidden,
-  but off-screen tabs are invisible until someone thinks to swipe, and the
-  active-tab underline has to survive being scrolled.
-- **An overflow "More" menu.** The bar always fits. Costs a tap for whatever
-  lands in the menu, and someone has to decide the order — Health and Users are
-  the obvious candidates to demote, Library and Albums obviously stay.
-- **Icon-only below a breakpoint.** Compact and everything stays visible, but
-  six icons with no labels is a guessing game, and this app has no icon set for
-  its sections yet.
-- **A bottom bar on mobile.** The phone-native answer and the easiest to reach
-  one-handed, but it collides with the player bar, which already lives there.
-
-**My recommendation: the overflow menu**, with Library / Albums / Artists /
-Favorites / Playlists on the bar and Health, Upload and Users behind "More".
-It is the only one of the four that guarantees the bar fits at any width, and
-the demoted items are exactly the ones a listener on a phone does not want.
-
 ### Q19 — What does a theme control?
 **Asked:** 2026-09-11 · **Blocking:** at phase 2
 
@@ -178,24 +148,6 @@ is a property of the screen you are looking at, not of who you are — a phone i
 a dark room and a desktop by a window can reasonably disagree. It also needs no
 migration, no endpoint and no round trip before the first paint, which matters
 because a theme that arrives late is a visible flash of the wrong colours.
-
-### Q21 — Does the arcade select replace the table, or join it?
-**Asked:** 2026-09-11 · **Blocking:** yes — phase 3 cannot start without it
-
-The reference layout has room for one song's details and a list of names. The
-current table carries sorting, four filters, a search box, per-row favorite,
-format, play count, flags, and — for an admin — checkbox multi-select with bulk
-hide / recommend / delete. Those do not fit in the arcade layout, and inventing
-places for them would produce something that is neither.
-
-**Recommendation: a view toggle, both on `/`.** Arcade for listening, table for
-managing, remembered per device. It keeps the admin surface intact instead of
-rebuilding it in a shape that fights it, and it means the arcade view can be
-exactly as sparse as the reference is.
-
-The alternative worth considering: arcade becomes the library, and everything
-administrative moves to a separate page. Cleaner conceptually, more work, and it
-makes tag-fixing a trip rather than a click.
 
 ### Q22 — What does the arcade select do on a phone?
 **Asked:** 2026-09-11 · **Blocking:** at phase 3
@@ -230,6 +182,44 @@ rather than a phase here.
 ---
 
 ## Answered
+
+### A17 — The top bar overflows, and floats *(was Q18)*
+**Answered:** 2026-09-11 · **Overflow menu.** Owner's choice, over a scrolling
+rail, icon-only tabs and a bottom bar.
+
+Asked in the same breath: **make the bar floating and slightly bigger, like a
+game UI bar.** Both land together, because they are the same row and doing them
+separately would mean laying it out twice.
+
+What the overflow actually had to be, once measured: a five-tab bar does not fit
+390px either — five tabs alone are ~375px before the wordmark, the search and
+any buttons. So the collapse is staged rather than single-step. Below `md` every
+tab goes into the menu and the brand shrinks to its mark; at `md` the primary
+tabs come back with Upload / Users / Health staying behind **More**; at `lg` the
+search input and the account name return.
+
+The right-hand side got smaller rather than larger: **This device**, **Log out**
+and **Data saver** all moved *into* Options, leaving only Options and Exit on the
+bar. Data saver gained something in the move — it lived in the player bar, which
+only renders while something is playing, so the control was unreachable exactly
+when you wanted to set it before pressing play.
+
+### A18 — The arcade select replaces the table *(was Q21)*
+**Answered:** 2026-09-11 · **Replace it.** Owner's choice, over my
+recommendation of a view toggle. Sorting, filtering and the rest are to be
+planned in a later session.
+
+**The consequence, recorded so it is not discovered later:** the table carries
+sort, four filters, the search box, per-row flags, and — for an admin —
+checkbox multi-select with bulk hide / recommend / delete. The arcade layout has
+nowhere to put those, and they are not features that can wait in a drawer
+somewhere unnamed.
+
+**Assumption I will build on:** when the arcade view takes over `/`, the table
+moves to an admin-only management page rather than being deleted. That preserves
+every capability at the cost of one route, changes no behaviour, and leaves the
+later session free to design the real answer instead of first having to rebuild
+what was thrown away. Say the word if you would rather it simply go.
 
 Decided. Do not re-open without an explicit ask.
 

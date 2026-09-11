@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `leaveThrough()`, `onTabClick()`, `navItemsFor()` — `frontend/src/components/AppShell.tsx`; `ArcadeInterstitial()` — `frontend/src/components/ArcadeInterstitial.tsx`; `interstitialDuration()`, `interstitialTotal()` — `frontend/src/lib/interstitial.ts`; `NavOverflow()` — `frontend/src/components/NavOverflow.tsx`; `OptionsPage()` — `frontend/src/pages/OptionsPage.tsx`
+**Date:** 2026-09-11
+**How added:** new feature
+**Purpose:** a top bar that fits a phone, and screen changes that announce themselves.
+**Side effects:** one timer per navigation; navigates.
+**Before:** `navItemsFor` returned one flat list; `onTabClick` ran a directional view transition; Options was a dropdown panel; Data saver lived in the player bar.
+**After:** `navItemsFor` returns `{ primary, overflow }` because the bar collapses in stages — below `lg` every tab is in the menu. `leaveThrough` guards on its own state, since two presses would otherwise start two timers racing to navigate. `interstitialDuration` returns **0** under reduced motion rather than a shorter time, so the navigation is immediate: shortening the animation while keeping the timer is a mistake made once already on the title screen's exit, where the screen simply sat still for the full duration. `onTabClick` no longer calls `startViewTransition` — the card is opaque and covers the viewport, so the slide underneath was invisible; `rememberDirection` and its CSS are kept so restoring it is four lines. Returns early when the clicked tab is the current one.
+
+---
+
 **Function:** `playFrom()` — `frontend/src/pages/LibraryPage.tsx`
 **Date:** 2026-09-11
 **How added:** change
