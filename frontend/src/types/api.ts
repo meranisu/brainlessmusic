@@ -2,6 +2,12 @@ export interface User {
   id: number;
   username: string;
   isAdmin: boolean;
+  /**
+   * Minted by the title screen's enter button rather than signed into. Has no
+   * password and cannot be logged back into once its token is gone — which is
+   * why the header offers a guest a handoff rather than a "log out".
+   */
+  isGuest: boolean;
 }
 
 export interface TrackSummary {

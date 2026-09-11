@@ -53,11 +53,14 @@ function MosaicGrid() {
  *
  * `aria-hidden` + `pointer-events-none` — decoration only.
  */
-export function TitleScreenPanel() {
+export function TitleScreenPanel({ className = '' }: { className?: string }) {
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute inset-y-0 right-0 w-1/2 overflow-hidden"
+      // `w-1/2` is the resting width; the exit animation overrides it to open
+      // the panel out to the full screen, so the last thing visible before
+      // black is the background rather than the furniture in front of it.
+      className={`pointer-events-none absolute inset-y-0 right-0 w-1/2 overflow-hidden ${className}`}
       style={{
         // Feather the inner edge so the mosaic dissolves toward the sign-in
         // side instead of stopping dead on the half-way line. Above and below

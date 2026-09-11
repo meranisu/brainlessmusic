@@ -262,6 +262,562 @@
   }
 }
 
+/* ── Title screen: the logo, and the one instruction ──────────────────────
+   The reference is an arcade attract screen: type at poster scale, a band of
+   information, and a single thing to press. These three animations are all
+   the screen does beyond the mosaic panel already behind it — deliberately,
+   because a title screen that never settles is a title screen nobody can read.
+*/
+
+/* Arrives once and stops. A permanent loop on something this large demands
+   attention forever; an entrance hands it over and then gets out of the way.
+   Transform and opacity only, so it composites instead of relaying out type
+   that may be eight rem tall. */
+.title-entrance {
+  animation: title-entrance calc(var(--beat, 0.4s) * 3) cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes title-entrance {
+  from {
+    opacity: 0;
+    transform: translateY(0.35em) scale(0.965);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* A highlight crossing the letterforms every eight bars. Drawn as a second
+   copy of the type clipped to the glyphs, so it lights the letters themselves
+   rather than sweeping a bar across the banner they sit on. White, because the
+   wordmark is near-black on a white band — the sheen has to be lighter than
+   the type, not lighter than the ground. */
+.title-sheen-host {
+  position: relative;
+  display: inline-block;
+}
+
+.title-sheen-text {
+  position: relative;
+  background-image: linear-gradient(
+    100deg,
+    transparent 42%,
+    rgba(255, 255, 255, 0.92) 50%,
+    transparent 58%
+  );
+  background-size: 260% 100%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: title-sheen calc(var(--beat, 0.4s) * 32) linear infinite;
+}
+
+/* Only the pass itself is visible; the rest of the cycle parks the gradient
+   off the end of the text, which is what turns a continuous sweep into an
+   occasional glint. */
+@keyframes title-sheen {
+  0% {
+    background-position: 180% 0;
+  }
+  22%,
+  100% {
+    background-position: -80% 0;
+  }
+}
+
+/* The content band. On a phone the white has to run almost the full width:
+   the panel behind is decoration, and decoration underneath a wordmark that is
+   already touching both margins reads as a rendering fault, not as depth.
+   Only from `md` up, where the type has room to end well short of the panel,
+   does the dissolve become the effect it is meant to be. */
+.title-band {
+  background: linear-gradient(to right, white 0%, white 88%, transparent 100%);
+}
+
+@media (min-width: 768px) {
+  .title-band {
+    background: linear-gradient(to right, white 0%, white 58%, transparent 96%);
+  }
+}
+
+/* Feedback for the tap gesture: the wordmark lights up and a bright line runs
+   across it, once per tap.
+
+   Worth being explicit about the trade, because this cuts against the
+   gesture's whole point: the admin door is meant to be invisible, and a logo
+   that reacts to being touched is a logo that invites being touched again.
+   What it does *not* do is put anything in the DOM at rest — there is still no
+   cursor change, no title, no hint for a guest who never touches it — so what
+   leaks is "this responds", not "there is a door here". Deliberate: a
+   seven-tap gesture with no feedback at all is one nobody can tell they are
+   halfway through.
+
+   The line is a second copy of the type laid over the first and clipped to the
+   glyphs. It has to be a separate element: the resting sheen already owns
+   `background-image` on the text itself, and two animations cannot drive one
+   background-position. */
+.title-tap-line {
+  position: absolute;
+  left: 0;
+  top: 0;
+  white-space: nowrap;
+  pointer-events: none;
+  color: transparent;
+  background-image: linear-gradient(
+    100deg,
+    transparent 46%,
+    rgba(255, 255, 255, 0.98) 50%,
+    transparent 54%
+  );
+  background-size: 320% 100%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: tap-line 520ms cubic-bezier(0.3, 0, 0.2, 1) 1 both;
+}
+
+@keyframes tap-line {
+  from {
+    background-position: 165% 0;
+  }
+  to {
+    background-position: -65% 0;
+  }
+}
+
+/* The glow rides on the container rather than the line, because `text-shadow`
+   needs actual painted glyphs and the line's own colour is transparent. Orange
+   rather than white: the band behind this is white, so a white halo round navy
+   type is invisible. */
+.title-tapped {
+  animation: tap-glow 520ms ease-out 1 both;
+}
+
+@keyframes tap-glow {
+  0% {
+    text-shadow: 0 0 0 rgba(234, 88, 12, 0);
+  }
+  25% {
+    text-shadow: 0 0 0.22em rgba(234, 88, 12, 0.85);
+  }
+  100% {
+    text-shadow: 0 0 0 rgba(234, 88, 12, 0);
+  }
+}
+
+/* ── The admin numpad ─────────────────────────────────────────────────────
+   In and out. The panel arrives with the ground it sits on rather than after
+   it, and leaves the same way — a dialog that vanishes while its backdrop
+   fades reads as a crash. */
+.numpad-scrim {
+  animation: numpad-scrim-in 180ms ease-out both;
+}
+
+.numpad-panel {
+  animation: numpad-panel-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.numpad-scrim.is-closing {
+  animation: numpad-scrim-in 160ms ease-in reverse both;
+}
+
+.numpad-panel.is-closing {
+  animation: numpad-panel-in 160ms ease-in reverse both;
+}
+
+@keyframes numpad-scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes numpad-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.965);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The enter button, pulsing the way PRESS START blinks — but in colour rather
+   than opacity. Fading the button fades its label with it, and a control whose
+   text drops below readable contrast every two seconds is a worse button than
+   one that does not blink at all. Swapping between two oranges keeps white
+   text at full strength on every frame. */
+.enter-blink {
+  animation: enter-blink calc(var(--beat, 0.4s) * 4) ease-in-out infinite;
+}
+
+@keyframes enter-blink {
+  0%,
+  100% {
+    background-color: var(--color-orange-600);
+  }
+  50% {
+    background-color: var(--color-orange-500);
+  }
+}
+
+/* The app's backdrop is full-bleed, which means it passes behind the content
+   column as well as through the gutters. A breakpoint used to keep it away
+   from the text; a mask does the same job without hiding it on the screens
+   most people actually use.
+
+   Alpha in a mask multiplies what is drawn, so this is not "hide the middle" —
+   it is "hold the middle at a fifth". Motion stays visible across the whole
+   width and is loudest where there is nothing to read.
+
+   **The stops are `calc(50% ± 36rem)`, not percentages.** 36rem is half of
+   `page-shell`'s 72rem cap, so the dim band is exactly the content column at
+   every viewport width — which percentages cannot be, because the gutters are
+   5% of a 1280px window and 20% of a 1920px one. The first version used 26%
+   and measured 12/255 behind the page heading on a 1440px screen, where the
+   heading sits at 11% and was still inside the bright end of the ramp. Below
+   72rem the calc goes negative and clamps to 0, so a phone — which has no
+   gutters — is dim throughout, which is the right answer there.
+
+   The vertical ramp does the same for the sticky header and the player bar,
+   the two places a moving letterform behind small text is most obvious. */
+.shell-backdrop {
+  --backdrop-dim: rgba(0, 0, 0, 0.18);
+  --backdrop-full: rgba(0, 0, 0, 1);
+  -webkit-mask-image:
+    linear-gradient(
+      to right,
+      var(--backdrop-full) 0,
+      var(--backdrop-dim) calc(50% - 36rem),
+      var(--backdrop-dim) calc(50% + 36rem),
+      var(--backdrop-full) 100%
+    ),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.3) 0%, var(--backdrop-full) 12%, var(--backdrop-full) 88%, rgba(0, 0, 0, 0.3) 100%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(
+      to right,
+      var(--backdrop-full) 0,
+      var(--backdrop-dim) calc(50% - 36rem),
+      var(--backdrop-dim) calc(50% + 36rem),
+      var(--backdrop-full) 100%
+    ),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.3) 0%, var(--backdrop-full) 12%, var(--backdrop-full) 88%, rgba(0, 0, 0, 0.3) 100%);
+  mask-composite: intersect;
+}
+
+/* ── Leaving the title screen ─────────────────────────────────────────────
+   820ms, and three things happening at once on three different planes: the
+   band collapses the way a CRT loses its picture, the logo comes at the
+   camera, and the panel behind them both opens out to fill what they leave.
+   One number drives all of it. */
+:root {
+  --exit: 820ms;
+}
+
+/* The band. Squashes to a bright line, holds for a frame, then goes — the
+   order a CRT actually does it in. `scaleY` on a fixed-height element, so
+   nothing around it reflows while it happens. */
+.title-exit-band {
+  transform-origin: center;
+  animation: crt-off var(--exit) cubic-bezier(0.5, 0, 0.75, 0) forwards;
+}
+
+@keyframes crt-off {
+  0% {
+    transform: scaleY(1);
+    filter: brightness(1);
+  }
+  38% {
+    transform: scaleY(0.012);
+    filter: brightness(2.4);
+  }
+  /* The line lingers a moment at full brightness. Collapsing straight through
+     to nothing loses the effect entirely — the pause is the effect. */
+  58% {
+    transform: scaleY(0.012) scaleX(1);
+    filter: brightness(2.4);
+  }
+  82% {
+    transform: scaleY(0.012) scaleX(0);
+    filter: brightness(3);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleY(0.012) scaleX(0);
+    opacity: 0;
+  }
+}
+
+/* The logo does not collapse with the band. It keeps going forward and past
+   the camera, which is the whole reason the two read as separate planes
+   rather than as one picture being switched off. */
+.title-exit-logo {
+  animation: logo-approach var(--exit) cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+/* The colour change is not decoration. The wordmark is near-black because it
+   was drawn to sit on a white band — and the band is collapsing out from under
+   it. Left alone it spends the second half of the zoom as dark type on a dark
+   mosaic. It lightens as the band goes, timed to cross over while the band is
+   still bright enough to hide the transition: white before the band has left
+   would be white on white. The accent half stays orange, which reads on both
+   grounds, which is why it is the accent. */
+@keyframes logo-approach {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+    color: var(--color-blue-950);
+  }
+  32% {
+    color: var(--color-blue-950);
+  }
+  55% {
+    opacity: 0.85;
+    color: #ffffff;
+  }
+  100% {
+    transform: scale(4.2);
+    opacity: 0;
+    color: #ffffff;
+  }
+}
+
+/* What the other two leave behind. The panel is half the screen at rest; it
+   opens to all of it, so the last frame before black is the background rather
+   than the furniture that was standing in front of it. */
+.title-exit-panel {
+  animation: panel-open var(--exit) cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes panel-open {
+  0% {
+    width: 50%;
+    opacity: 1;
+  }
+  70% {
+    width: 100%;
+    opacity: 1;
+  }
+  100% {
+    width: 100%;
+    opacity: 0;
+  }
+}
+
+/* Everything ends on black, and stays there until the next screen paints —
+   without this the app would flash through whatever the body colour is. */
+.title-exit-blackout {
+  animation: blackout var(--exit) ease-in forwards;
+}
+
+@keyframes blackout {
+  0%,
+  55% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* ── Arriving in the app ──────────────────────────────────────────────────
+   1,150ms of assembly, played once per entry and never on a reload. Every
+   stage is a delay off this one base, so the running order is legible here
+   instead of being scattered across the components. */
+:root {
+  --boot: 1150ms;
+}
+
+.boot-stage {
+  animation: boot-rise 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes boot-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Each nav button arrives on its own beat rather than the row arriving as a
+   block. That difference — a machine naming its parts, versus a container
+   fading in — is the entire point of the sequence. */
+.boot-nav > * {
+  animation: boot-rise 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Tightened on 2026-09-11, from a tail that reached 780ms. These delays hide
+   content that has already loaded, so every millisecond of them is a
+   millisecond the app is blank for no reason — and the last stage is the one
+   holding the track list. The staircase still reads; it just stops being
+   something you wait through. `AppShell`'s BOOT_MS is the backstop. */
+.boot-nav > *:nth-child(1) { animation-delay: 120ms; }
+.boot-nav > *:nth-child(2) { animation-delay: 165ms; }
+.boot-nav > *:nth-child(3) { animation-delay: 210ms; }
+.boot-nav > *:nth-child(4) { animation-delay: 255ms; }
+.boot-nav > *:nth-child(5) { animation-delay: 300ms; }
+.boot-nav > *:nth-child(6) { animation-delay: 345ms; }
+.boot-nav > *:nth-child(7) { animation-delay: 390ms; }
+.boot-nav > *:nth-child(8) { animation-delay: 435ms; }
+
+.boot-wordmark { animation-delay: 40ms; }
+.boot-search { animation-delay: 420ms; }
+.boot-account { animation-delay: 460ms; }
+.boot-content { animation-delay: 480ms; }
+
+/* One lap of the frame, then gone. An SVG rect with `pathLength: 1` means the
+   dash maths is in units of "the whole perimeter" rather than in pixels, so it
+   holds at any window size without being measured — and unlike four absolutely
+   positioned divs it follows the corner radius for free. */
+.boot-frame {
+  position: fixed;
+  inset: 0;
+  /* `inset: 0` is not enough on an `<svg>`. Unlike a div, it has intrinsic
+     sizing from its viewBox, so with no explicit width/height it lays itself
+     out square — 1265x1265 in a 1280x800 window, with three quarters of the
+     lap happening off the bottom of the screen. Measured, not guessed: the
+     first version of this was invisible for exactly that reason. */
+  width: 100%;
+  height: 100%;
+  z-index: 40;
+  pointer-events: none;
+}
+
+.boot-frame rect {
+  /* Geometry in CSS rather than as attributes, so the percentages resolve
+     against the element box and the inset can be expressed in pixels. Inset by
+     1px because a stroke straddles its edge — at x=0 half of it would be
+     clipped away by the viewport. */
+  x: 1px;
+  y: 1px;
+  width: calc(100% - 2px);
+  height: calc(100% - 2px);
+  fill: none;
+  stroke: var(--color-orange-600);
+  stroke-width: 2;
+  stroke-dasharray: 0.34 0.66;
+  animation: frame-lap var(--boot) cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes frame-lap {
+  0% {
+    stroke-dashoffset: 0.34;
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: -1;
+    opacity: 0;
+  }
+}
+
+/* ── Changing tabs ────────────────────────────────────────────────────────
+   Built on `document.startViewTransition`, reached through React Router's
+   `viewTransition` prop. Available because Chrome and Android are the only
+   targets (A1), and it is the reason this whole effect is stylesheet and not a
+   state machine holding two pages in the DOM at once. */
+
+/* The underline that travels. Only the active tab renders one, so exactly one
+   element carries this name at a time — which is the rule
+   `view-transition-name` imposes, and the reason this had to stop being an
+   `::after`: a pseudo-element cannot be named, and a name that appears twice
+   disables the transition for everything. */
+.nav-underline {
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 9999px;
+  background-color: var(--color-orange-600);
+  view-transition-name: nav-underline;
+}
+
+/* The old and new underline are the same element as far as the transition is
+   concerned, so the browser tweens position and width between the two tabs
+   for nothing — which is the single cheapest thing that reads as "menu". */
+::view-transition-group(nav-underline) {
+  animation-duration: 260ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.view-page {
+  view-transition-name: page;
+}
+
+/* Direction comes from `data-nav-dir` on the root, set on the click that
+   started the navigation: rightward along the bar sends the old page out to
+   the left and brings the new one in from the right, and leftward reverses it.
+   A uniform transition reads as a fade; a directional one reads as a place you
+   moved to. */
+::view-transition-old(page) {
+  animation: 180ms cubic-bezier(0.4, 0, 1, 1) both page-out-forward;
+}
+
+::view-transition-new(page) {
+  animation: 280ms cubic-bezier(0.16, 1, 0.3, 1) both page-in-forward;
+}
+
+:root[data-nav-dir='back']::view-transition-old(page) {
+  animation-name: page-out-back;
+}
+
+:root[data-nav-dir='back']::view-transition-new(page) {
+  animation-name: page-in-back;
+}
+
+@keyframes page-out-forward {
+  to {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+}
+
+@keyframes page-in-forward {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+
+@keyframes page-out-back {
+  to {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+}
+
+@keyframes page-in-back {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+}
+
+/* Everything that is not `page` or `nav-underline` belongs to `root`, and
+   between two tabs that is the header, the player bar and the backdrop — all
+   identical across the change. Cross-fading identical pixels costs a
+   composite and can make the moving backdrop stutter for the duration, so
+   root simply swaps. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
 /* The mark's dot breathes — a slow fade out and back, never all the way to
    invisible so the ring never reads as empty. Paired with the mosaic behind
    it, the login screen has one calm heartbeat rather than two competing ones. */
@@ -288,7 +844,75 @@
   .animate-mosaic-scroll,
   .animate-wordmark-scroll,
   .band-sweep::after,
-  .beat-tile::after {
+  .beat-tile::after,
+  .title-sheen-text,
+  .enter-blink,
+  .boot-frame rect,
+  .title-tap-line,
+  .title-tapped {
     animation: none;
+  }
+
+  /* The numpad still needs to arrive and leave — it is a dialog, and one that
+     appears with no transition at all is jarring in a different way. Reduced
+     to a plain opacity step with no movement. */
+  .numpad-scrim,
+  .numpad-panel,
+  .numpad-scrim.is-closing,
+  .numpad-panel.is-closing {
+    animation-duration: 90ms;
+    animation-timing-function: linear;
+  }
+
+  .numpad-panel {
+    animation-name: numpad-scrim-in;
+  }
+
+  /* React Router calls `startViewTransition` regardless, so the transition
+     still happens — it just has nothing to animate, and the new page is
+     simply there. `!important` because the pseudo-element rules above set
+     `animation` as a shorthand, and a longhand cannot override a shorthand
+     from a later-but-lower-specificity rule otherwise. */
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+
+  /* These animate *in* from invisible, and cancelling them outright is exactly
+     right: the hidden state lives only inside the keyframes, never in a base
+     rule, so an element with no animation renders at its ordinary full
+     opacity. (`animation-duration: 1ms` would also work and was what this did
+     first — but it leaves the delays in place, and a nav button that appears
+     600ms late is still a nav button that is missing when someone reaches for
+     it.)
+
+     `:nth-child(n)` is not decoration. The staggered delays above are
+     `.boot-nav > *:nth-child(N)`, and a plain `.boot-nav > *` here loses to
+     them on specificity — which is precisely the bug this replaced, where half
+     the top bar stayed invisible under reduced motion. Matching their
+     specificity and coming later in the file is what makes this win. */
+  .boot-stage,
+  .boot-nav > *:nth-child(n),
+  .title-entrance {
+    animation: none;
+  }
+
+  /* The exit keeps a token duration rather than being cancelled: its `forwards`
+     fill is what lands the screen on black, and the sequence still has to end,
+     just immediately. */
+
+  .title-exit-band,
+  .title-exit-logo,
+  .title-exit-panel,
+  .title-exit-blackout {
+    animation-duration: 1ms;
+  }
+
+  /* The entrance is the one exception to "animation: none": cancelling it
+     outright would leave the element at the keyframe's `from` — faded out and
+     offset — so it is collapsed to its finished state instead. */
+  .title-entrance {
+    animation-duration: 1ms;
   }
 }

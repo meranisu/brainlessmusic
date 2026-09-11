@@ -10,18 +10,21 @@ import { FavoritesPage } from './pages/FavoritesPage';
 import { HealthPage } from './pages/HealthPage';
 import { LibraryPage } from './pages/LibraryPage';
 import { LoginPage } from './pages/LoginPage';
+import { TitleScreenPage } from './pages/TitleScreenPage';
 import { PlaylistDetailPage } from './pages/PlaylistDetailPage';
 import { PlaylistsPage } from './pages/PlaylistsPage';
 import { SearchPage } from './pages/SearchPage';
-import { SignupPage } from './pages/SignupPage';
 import { UploadPage } from './pages/UploadPage';
 import { UsersPage } from './pages/UsersPage';
 
 export function App() {
   return (
     <Routes>
+      {/* The way in. `/login` still exists and still works typed directly —
+          hiding a route in a bundle hides nothing — but it is unlinked, and
+          the server is what refuses when ADMIN_ENTRY_CODE is set. */}
+      <Route path="/enter" element={<TitleScreenPage />} />
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignupPage />} />
 
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>

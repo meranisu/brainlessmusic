@@ -9,6 +9,12 @@ interface WordmarkColumnProps {
   stroke?: string;
   /** Where the column sits — `left-[18%]`, `right-[2%]`, and so on. */
   className?: string;
+  /**
+   * Climb downward instead of up. Counter-scrolling neighbours are what make a
+   * flat field of type read as two planes passing each other rather than as
+   * one sheet sliding.
+   */
+  reverse?: boolean;
 }
 
 /**
@@ -54,7 +60,14 @@ function Word({ size, stroke }: { size: string; stroke?: string }) {
  * beat counts and an offset — matching laps read as a loop, mismatched ones
  * read as endless.
  */
-export function WordmarkColumn({ size, beats, offset = 0, stroke, className = '' }: WordmarkColumnProps) {
+export function WordmarkColumn({
+  size,
+  beats,
+  offset = 0,
+  stroke,
+  className = '',
+  reverse = false,
+}: WordmarkColumnProps) {
   return (
     <div className={`absolute top-0 bottom-0 ${className}`}>
       {/* Two copies, and the loop shifts by exactly one of them — so the seam
@@ -64,6 +77,7 @@ export function WordmarkColumn({ size, beats, offset = 0, stroke, className = ''
         style={{
           animationDuration: `calc(var(--beat) * ${beats})`,
           animationDelay: `calc(var(--beat) * ${offset})`,
+          animationDirection: reverse ? 'reverse' : undefined,
         }}
       >
         <Word size={size} stroke={stroke} />

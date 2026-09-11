@@ -1,10 +1,16 @@
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import pkg from './package.json' with { type: 'json' }
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // The title screen shows a version in its corner. Read from package.json so
+  // it cannot drift from the thing it claims to describe.
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   server: {
     // Bind every interface, not just loopback, so a phone on the same Wi-Fi can
     // reach the dev server. On its own this is not enough under WSL2 — see

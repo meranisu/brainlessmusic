@@ -11,6 +11,12 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
 const TOKEN_STORAGE_KEY = 'brainlessmusic.token';
 
+// Proof that this browser answered the admin numpad. `sessionStorage`, not
+// `localStorage`: closing the tab should close the door. It is not a
+// credential — it identifies nobody and the server refuses it as one — so the
+// only thing losing it costs is another trip through the numpad.
+const UNLOCK_STORAGE_KEY = 'brainlessmusic.unlockTicket';
+
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -34,16 +40,42 @@ export function setToken(token: string | null): void {
   cachedMediaToken = null;
 }
 
+export function getUnlockTicket(): string | null {
+  try {
+    return sessionStorage.getItem(UNLOCK_STORAGE_KEY);
+  } catch {
+    // Private modes and blocked site data throw on access rather than
+    // returning null. Losing the ticket only means answering the numpad again.
+    return null;
+  }
+}
+
+export function setUnlockTicket(ticket: string | null): void {
+  try {
+    if (ticket) sessionStorage.setItem(UNLOCK_STORAGE_KEY, ticket);
+    else sessionStorage.removeItem(UNLOCK_STORAGE_KEY);
+  } catch {
+    /* see getUnlockTicket */
+  }
+}
+
 interface RequestOptions {
   method?: string;
   body?: unknown;
   isMultipart?: boolean;
+  /** Attach the stored unlock ticket. Only `/auth/login` needs it. */
+  withUnlockTicket?: boolean;
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
+
+  if (options.withUnlockTicket) {
+    const ticket = getUnlockTicket();
+    if (ticket) headers['x-unlock-ticket'] = ticket;
+  }
 
   let body: BodyInit | undefined;
   if (options.body !== undefined) {
@@ -81,6 +113,9 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 export const apiClient = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body }),
+  /** `POST` carrying the unlock ticket — the admin sign-in, and nothing else. */
+  postUnlocked: <T>(path: string, body?: unknown) =>
+    request<T>(path, { method: 'POST', body, withUnlockTicket: true }),
   put: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PUT', body }),
   patch: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PATCH', body }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
