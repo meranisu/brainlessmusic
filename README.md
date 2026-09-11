@@ -49,6 +49,13 @@ Other scripts: `npm run build` (typecheck + compile), `npm start` (run compiled 
 | `JWT_SECRET` | `change-me` | **the server refuses to boot** on the default, an empty value, or anything under 32 characters, unless `NODE_ENV` is `development` or `test` |
 | `JWT_EXPIRES_IN` | `7d` | session token lifetime |
 | `MEDIA_TOKEN_TTL` | `2h` | lifetime of the scoped tokens that ride in `<audio src>` URLs |
+| `UNLOCK_TICKET_TTL` | `5m` | how long a browser holds proof that it answered the admin numpad |
+| `ENTRY_CODE` | *(unset)* | shared code required to press "enter" on the title screen. **Unset means the guest door is open to anyone who can reach the server** — correct on a LAN, and the backstop to set before exposing it |
+| `ADMIN_ENTRY_CODE` | *(unset)* | numpad code behind the title screen's hidden admin entrance. While it is set, `POST /auth/login` refuses any request without an unlock ticket — including `curl` |
+| `MAX_GUESTS` | `50` | ceiling on passwordless guest rows. At the cap the server prunes idle guests, then refuses |
+| `GUEST_IDLE_DAYS` | `90` | how stale a guest must be before the cap may collect it — with its favorites, playlists, history and resume position |
+| `GUEST_MINTS_PER_HOUR` | `10` | new guest sessions one IP address may mint per hour |
+| `UNLOCK_ATTEMPTS_PER_MINUTE` | `5` | answers one IP address may give the admin numpad per minute |
 | `UPLOAD_STAGING_PATH` | `./data/upload-staging` | staging area for `POST /tracks/upload` |
 | `MAX_UPLOAD_SIZE_MB` | `1024` | per-file upload limit. Raised from 100 for hi-res FLAC and WAV, which exceed that on their own. The web client uploads 3 at a time, so `UPLOAD_STAGING_PATH` should have room for roughly 3× this; a reverse proxy in front will have its own body limit that must be raised to match |
 | `ARTWORK_PATH` | `./data/artwork` | cached cover art — safe to delete, a re-scan rebuilds it |
@@ -64,7 +71,7 @@ Other scripts: `npm run build` (typecheck + compile), `npm start` (run compiled 
 | `TRANSCODE_CACHE_MAX_MB` | `2048` | cache ceiling. Least-recently-used entries are dropped after a write, the only moment the cache grows. `0` disables the cap |
 | `TRANSCODE_MIN_SOURCE_BITRATE_RATIO` | `1.5` | below this multiple of the 64k target, the original is served instead — converting a 121 kbps file to 64k costs a second lossy generation to save about a third |
 | `MAX_CONCURRENT_TRANSCODES` | `2` | simultaneous `?quality=low` transcodes; past the cap the request gets `503`, never the full-size original |
-| `ALLOW_OPEN_REGISTRATION` | `true` | anyone who can reach the server may create their own (non-admin) account. Set to `false` for admin-only registration — **do this before the server is reachable from outside** |
+| `ALLOW_OPEN_REGISTRATION` | `false` | anyone who can reach the server may create their own (non-admin) account. Defaulted off on 2026-09-11, when guest entry removed the sign-up page that needed it |
 | `NODE_ENV` | *(unset)* | `development` / `test` downgrade the `JWT_SECRET` check to a warning. Anything else — including unset — is treated as a real deployment |
 
 ### Data saver, and why converted copies are kept
@@ -137,14 +144,17 @@ docker compose up -d
 
 Deleting the old `-wal`/`-shm` is the step people miss: leaving one from a *different* database next to a restored file is a well-known way to corrupt it.
 
-### Who can create an account
+### How anyone gets in
 
-Two postures, chosen with `ALLOW_OPEN_REGISTRATION`:
+There are two doors, and they are not the same door.
 
-- **Open (the default).** Anyone who can reach the login page can sign up at `/signup`. They get a listener account — self-serve never grants admin. Fine on a LAN; a real exposure on a public server, so the backend prints a warning at every boot while it's on.
-- **Admin-only (`ALLOW_OPEN_REGISTRATION=false`).** `POST /auth/register` requires an admin's token, and accounts are made from the `/users` page.
+**The guest door — `POST /auth/guest`.** No account, no password, no form: it mints a passwordless `users` row (`kind = 'guest'`) and returns the ordinary session token. One identity per device, deliberately, so nobody shares a queue, a favorites list or a resume position with anybody else. Losing the token — clearing site data — loses that row's listening history for good, because nothing can ever authenticate as it again.
 
-One exception applies either way: while the user table is empty, the first account is always allowed through and is made an admin. Without it, an admin-only server could never get its first admin.
+Say the consequence out loud: **anyone who can reach this server can press the button and listen.** That is correct on a LAN and is the whole reason the LAN is the boundary. Before the server is reachable from outside, put a gate at the network edge (roadmap box 13); `ENTRY_CODE` is the backstop for a genuinely public URL, not a replacement for that.
+
+**The admin door — `POST /auth/login`.** A username and password, as before. The web app stops linking to it, but that is tidiness only: a single-page app ships its route table to everyone, so the route is not what refuses. Setting `ADMIN_ENTRY_CODE` is what refuses — while it is set, a login must also carry an unlock ticket from `POST /auth/unlock`, so the right username and the right password without the code get the same `401` as a wrong password. A wrong code and an unset one answer identically, so the endpoint never confirms whether this server has an admin door at all.
+
+Accounts themselves are made by an admin from the `/users` page, or by `POST /auth/register` with an admin's token. One exception: while there are **no accounts** (guests do not count — the first visitor to a fresh server mints one), the first account is allowed through and is made an admin. Without that, an admin-only server could never get its first admin.
 
 ### The `JWT_SECRET` check
 

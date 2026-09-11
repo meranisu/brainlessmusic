@@ -89,22 +89,56 @@ Everything after step 13 in v0.2 waits on this.
 
 ---
 
-## 6. Accounts — no longer needs a terminal
+## 6. Getting in — no longer needs a terminal, or a password
 
-- **`/signup`** — self-serve sign-up, **open by default** as of 2026-09-09. Anyone who can reach the server can create a listener account. Linked from the login page.
-- **`/users`** (admin nav) creates accounts, promotes/demotes, resets passwords and deletes.
+**Rewritten 2026-09-11**, when guest entry replaced the login form. The old
+version of this section described `/signup` and how to close it; both are gone.
 
-Your existing `imran` account is already an admin.
+- **The title screen (`/enter`)** is what anyone lands on. One button, no
+  account, no password: pressing it mints a passwordless listener for *that
+  device*. Two devices are two listeners, on purpose.
+- **Moving to a second device** — sign in on the first, then `This device` in
+  the header shows a QR and a link. Open it on the phone and it becomes the same
+  listener, so the resume position follows. It replaces whatever that phone was,
+  and the dialog says so before it does it.
+- **`/users`** (admin nav) still creates accounts, promotes/demotes, resets
+  passwords and deletes. Guests show up there labelled as guests.
 
-### Close registration before §5
+Your existing `imran` account is untouched and still an admin.
 
-Open sign-up is fine while this is LAN-only. The moment the server is reachable from outside — which is exactly what roadmap step 13 does — anyone who finds the login page can help themselves to an account. Add this to `backend/.env` before then:
+### Getting to the admin sign-in
+
+`/login` is no longer linked from anywhere. Two ways in:
+
+1. **Tap the wordmark on the title screen seven times**, in rhythm — each tap
+   within about a second and a half of the last. A numpad appears; the code is
+   `ADMIN_ENTRY_CODE` from `backend/.env`.
+2. **Type `/login`** in the address bar. Still works, deliberately.
+
+If `ADMIN_ENTRY_CODE` is unset — which it is until you set it — the numpad lets
+anything through and `/login` behaves exactly as it always has. Nothing about
+admin access has got weaker; it is the same password it was.
+
+### Two settings to make before §5
+
+Open sign-up has already been closed for you: `ALLOW_OPEN_REGISTRATION` now
+defaults to `false`, and the page that needed it is deleted. But the exposure
+it stood for got **wider**, not narrower — reaching the server is now the same
+thing as being allowed to listen. Before roadmap step 13 puts this on the open
+internet, both of these want setting in `backend/.env`:
 
 ```dotenv
-ALLOW_OPEN_REGISTRATION=false
+# Anyone pressing "enter" must type this once per device.
+ENTRY_CODE=something-you-and-your-friend-know
+
+# Required on top of the password to reach the admin sign-in at all.
+ADMIN_ENTRY_CODE=246810
 ```
 
-The backend prints a warning at every boot while it's on, so you won't lose track of it. Self-serve accounts are never admins, and `/library/scan` moved behind an admin check for the same reason — but a stranger with a listener account can still stream your whole library.
+Neither is the real gate. The real gate is at the network edge — Tailscale, or
+a tunnel with its own auth — and that is what step 13 is for. These two are the
+backstop for the day the URL is genuinely public, and the server prints its
+entry posture at every boot so you cannot drift into the wrong one.
 
 ---
 

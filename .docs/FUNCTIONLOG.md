@@ -4,6 +4,176 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `onTabClick()`, `rememberDirection()`, `navItemsFor()`, `activeIndex()` — `frontend/src/components/AppShell.tsx`
+**Date:** 2026-09-11
+**How added:** new feature
+**Purpose:** change tabs inside a view transition, in the direction you moved along the bar.
+**Side effects:** sets `data-nav-dir` on the document element; navigates.
+**Before:** `NavLink`s rendered straight from JSX and navigated instantly.
+**After:** the bar is data (`navItemsFor`) because two things need its order — which tab is active, and whether the clicked one is left or right of it. `onTabClick` calls `document.startViewTransition` **directly**: React Router's own `viewTransition` prop is a data-router API and this app runs under `<BrowserRouter>`, so the prop is accepted and silently ignored — counted at the API, it started zero transitions. `flushSync` is required so the DOM is in its new state before the callback returns; React would otherwise batch the update past the snapshot. Modified clicks and non-primary buttons return early, so opening a tab in a new window still works.
+
+---
+
+**Function:** `AppShell()` — `frontend/src/components/AppShell.tsx`
+**Date:** 2026-09-11
+**How added:** bug fix
+**Purpose:** stop the opening sequence from being able to hide the app.
+**Side effects:** one timer.
+**Before:** `isBooting` was read once and never cleared; the staged classes came off only when the component unmounted.
+**After:** cleared after `BOOT_MS` (1,500) whatever the animations did. The owner reported the library not appearing after pressing enter: React StrictMode remounts components in development, which recreates the staged elements and restarts their animations *and their delays*, leaving the track list invisible a second and a half in. The trigger was StrictMode; the fault was gating already-loaded content on an animation with no deadline. Worst case is now a sequence that ends abruptly rather than an app that never appears.
+
+---
+
+**Function:** `ShellBackdrop()` — `frontend/src/components/AppShell.tsx`
+**Date:** 2026-09-11
+**How added:** change
+**Purpose:** the app's moving backdrop.
+**Side effects:** none.
+**Before:** two wordmark columns parked in the gutters, `hidden` below `2xl` — because decoration behind a data table is a bug, and a breakpoint was the blunt way to guarantee it never got there.
+**After:** five columns, full-bleed, in two tiers moving against each other — far (small, faint, slow, climbing) and near (large, brighter, quick, falling). The constraint the breakpoint enforced is now enforced by a mask instead, which keeps the motion visible on the screens most people use rather than only above 1536px. Beat counts are co-prime (128/97/113 against 67/53) so the field never visibly loops. Below `md` the inner three drop out: a phone has no gutters, so every column there is behind the text and three of them is clutter rather than depth. Measured cost behind the page heading: 5/255 worst pixel, against 20/255 in the gutter where it is supposed to be doing its job.
+
+---
+
+**Function:** `WordmarkColumn()` — `frontend/src/components/WordmarkColumn.tsx`
+**Date:** 2026-09-11
+**How added:** change
+**Purpose:** one column of sideways wordmark, now able to fall as well as climb.
+**Side effects:** none.
+**Before:** every column climbed. Siblings differed only in speed and phase.
+**After:** a `reverse` prop sets `animation-direction`, reusing the same keyframes rather than adding a mirrored copy of them. Counter-scrolling is what separates two planes passing each other from one sheet sliding — speed alone does not do it, because the eye reads a slower neighbour as the same surface.
+
+---
+
+**Function:** `markJustEntered()`, `consumeJustEntered()` — `frontend/src/lib/boot.ts`
+**Date:** 2026-09-11
+**How added:** new feature
+**Purpose:** make the opening sequence a one-shot instead of a mount effect.
+**Side effects:** writes and clears one `sessionStorage` key.
+**Before:** nothing — new module.
+**After:** `AppShell` mounts on every reload and stays mounted across route changes, so "animate on mount" would replay a 1.2-second assembly every time the tab is refreshed. `sessionStorage` rather than router state, which is lost on a reload but *kept* on a back-navigation — exactly backwards from what is wanted; and rather than `localStorage`, which would replay the boot in a new tab that never saw the title screen. Both calls are wrapped, because blocked site data throws on access and the app is identical without the animation.
+
+---
+
+**Function:** `handleEnter()`, `acceptHandoff()`, `exitDuration()` — `frontend/src/pages/TitleScreenPage.tsx`
+**Date:** 2026-09-11
+**How added:** change
+**Purpose:** play the shut-off while the session is being minted, and come back if it fails.
+**Side effects:** as before, plus the boot flag and a manual navigation.
+**Before:** awaited the mint, then let the `<Navigate>` at the top of the component fire on the next render.
+**After:** `Promise.all` on the mint and a timer, so the two run together — awaiting the mint first left the button on "Entering…" for a whole round trip before anything moved. The `<Navigate>` is now gated on `isLeaving`, because `enterAsGuest` sets `user` and the redirect would otherwise cut the animation on its first frame; the navigation is done by hand when the picture has gone. A failure clears `isLeaving`, which reverses the whole sequence rather than stranding the caller on black. `exitDuration()` exists because the stylesheet can stop the picture moving but only this side decides how long the route change waits — without it, reduced motion was slower than the animation it was meant to skip.
+
+---
+
+**Function:** `BootFrame()` — `frontend/src/components/AppShell.tsx`
+**Date:** 2026-09-11
+**How added:** new feature
+**Purpose:** run one orange lap of the window's border as the app assembles.
+**Side effects:** none.
+**Before:** nothing — new component.
+**After:** an SVG rect with `pathLength="1"`, so the dash is expressed in units of "the whole perimeter" and stays correct at any window size with nothing measured and no resize observer. **No `viewBox`**, which is the part worth remembering: a viewBox with `preserveAspectRatio="none"` is the obvious way to fill a box and it breaks this twice over — the non-uniform scale turns a 2-unit stroke into a 25px slab down one side, and `vector-effect: non-scaling-stroke` then fixes the thickness while moving dash measurement into screen space, drawing ten stubby segments instead of one line. Without a viewBox, user units are CSS pixels and neither problem exists. Geometry lives in CSS so percentages resolve against the element box.
+
+---
+
+**Function:** `useSecretTaps()` — `frontend/src/hooks/useSecretTaps.ts`
+**Date:** 2026-09-11
+**How added:** new feature
+**Purpose:** turn repeated taps on the wordmark into the admin entrance.
+**Side effects:** none.
+**Before:** nothing — new hook.
+**After:** counts taps that each land within `gapMs` of the one before. The gap is what makes it a gesture rather than a trap — a child mashing the logo never produces seven evenly-spaced taps and then stops. A lapsed streak resets to **one**, not zero: the tap that broke the streak is still a tap, and starting the count from nothing would make a fumbled attempt need eight.
+
+---
+
+**Function:** `TitleScreenPage()`, `TitleHud()`, `tokenFromHash()` — `frontend/src/pages/TitleScreenPage.tsx`
+**Date:** 2026-09-11
+**How added:** new feature
+**Purpose:** the front door — enter as a guest, adopt a handoff, or reach the hidden admin door.
+**Side effects:** mints a guest (`POST /auth/guest`); rewrites the address bar via `replaceState`.
+**Before:** `LoginPage` was the unauthenticated destination, and asked for a username and password.
+**After:** one button, and three things it has to handle. The **entry code** is learned by trying: the first press without one returns 401, which reveals the code field — the server never advertises whether it wants a code, and does not need to. The **handoff token** is read during the first render rather than in an effect, so the ordinary enter button never paints for a frame first, and the hash is stripped immediately because a token in a URL survives screenshots and the back button. `TITLE_SIZE` is clamped against `vh` as well as `vw`, since a landscape phone has width and no height, and its `vw` ceiling is derived from what must fit (the wordmark measures ~6.6x the font size) rather than chosen by eye.
+
+---
+
+**Function:** `AdminNumpad()` — `frontend/src/components/AdminNumpad.tsx`
+**Date:** 2026-09-11
+**How added:** new feature
+**Purpose:** collect the admin entry code and exchange it for an unlock ticket.
+**Side effects:** `POST /auth/unlock`; writes the ticket to `sessionStorage`.
+**Before:** nothing — new component.
+**After:** a keypad rather than an `<input>`, because a numeric input summons a keyboard that covers half the screen it is standing on. The code is never echoed — dots, not digits — since a keypad held at arm's length in a room with other people is the normal case. A 429 says something different from a 401: "try again" is useless advice when the answer is "not for a minute". It never checks the code itself; that happens on the server, or the secret would ship in the bundle.
+
+---
+
+**Function:** `HandoffDialog()` — `frontend/src/components/HandoffDialog.tsx`
+**Date:** 2026-09-11
+**How added:** new feature
+**Purpose:** make a second device the same listener, and hold the one destructive action a guest has.
+**Side effects:** none — draws a QR from the token already in `localStorage`.
+**Before:** nothing — new component. The plan had specified a `GET /auth/handoff` endpoint behind this.
+**After:** no endpoint was built: the client already holds the token, so asking the server to repeat it back would be a round trip to learn something it had just used. The link is presented as `select-all` text beside the QR because `navigator.clipboard` needs a secure context and this app runs on plain HTTP over a LAN — the copy button is the convenience, not the mechanism. "Forget this device" lives here behind a two-step confirmation rather than in the header, because for a guest it is not a log-out: it is the permanent loss of a row nothing can ever authenticate as again.
+
+---
+
+**Function:** `enterAsGuest()`, `adoptToken()`, `signInWith()` — `frontend/src/auth/AuthContext.tsx`
+**Date:** 2026-09-11
+**How added:** new feature
+**Purpose:** the two passwordless ways to become somebody.
+**Side effects:** store a token; `GET /auth/me`.
+**Before:** `login()` was the only way in, and inlined its own store-then-fetch.
+**After:** all three paths funnel through `signInWith`, so "what it means to be signed in" is defined once. `login()` now sends the unlock ticket when one is held — the server ignores it unless `ADMIN_ENTRY_CODE` is set, so this is inert on a LAN. `adoptToken` deliberately **replaces** rather than merges: there is no way to merge two listening histories that does not invent a policy for conflicting queues, and the screen that calls it says so first.
+
+---
+
+**Function:** `insertGuest()`, `countGuests()`, `countAccounts()`, `touchLastSeen()` — `backend/src/db/users.ts`
+**Date:** 2026-09-11
+**How added:** new feature
+**Purpose:** mint and account for passwordless guest rows.
+**Side effects:** `insertGuest` and `touchLastSeen` write to `users`.
+**Before:** nothing — every row in `users` had a password.
+**After:** `insertGuest` writes `kind = 'guest'` with an empty hash and a `guest-<6 hex>` name, retrying on the vanishingly unlikely name collision rather than letting a public endpoint return a 409 nobody could act on. `countAccounts` exists because `countUsers` became the wrong question: it decides whether a fresh server is still claimable, and a guest minted by the first visitor must not close that window. `touchLastSeen` is called from `/auth/me` only — from the auth decorator it would be a write per streamed byte range, and the only reader measures in days.
+
+---
+
+**Function:** `pruneIdleGuests()` — `backend/src/db/users.ts`
+**Date:** 2026-09-11
+**How added:** new feature
+**Purpose:** make room at the guest ceiling by collecting rows nothing can ever log back into.
+**Side effects:** deletes from `playlist_tracks`, `playlists`, `favorites`, `play_history`, `playback_state` and `users`, in one transaction.
+**Before:** nothing — new function.
+**After:** the only code in the project that deletes user data without a person pressing something, so its bounds are structural rather than remembered: it can only match `kind = 'guest'`, it is called only from `POST /auth/guest` at the cap (never on a timer), and staleness falls back to `created_at` when `last_seen_at` is still null. Deletes are explicit because none of this project's foreign keys cascade, matching `deletePlaylist`. `tracks.play_count` is deliberately not decremented — it counts what was played, and the plays happened.
+
+---
+
+**Function:** `createRateLimiter()` — `backend/src/services/rateLimit.ts`
+**Date:** 2026-09-11
+**How added:** new feature
+**Purpose:** fixed-window per-key counting for the two endpoints anyone can call.
+**Side effects:** none — in-process memory only.
+**Before:** nothing — new module. No endpoint was reachable without a credential, so nothing needed counting.
+**After:** limits are passed at `check` time rather than at construction, so a config value changed at runtime takes effect on the next request instead of being frozen in when the route was registered — which is also what makes it testable. Expired windows are swept when a request arrives, since that is the only moment the map can have grown. `resetAllRateLimiters()` exists for tests, where module-level singletons would otherwise leak state between cases in one process.
+
+---
+
+**Function:** `signUnlockTicket()`, `verifyUnlockTicket()` — `backend/src/services/token.ts`
+**Date:** 2026-09-11
+**How added:** new feature
+**Purpose:** prove a browser answered the admin numpad, so `/auth/login` can require it.
+**Side effects:** none.
+**Before:** nothing — new functions.
+**After:** a third token type joins the session and media tokens. It carries **no `sub`** and stands for a fact about a device rather than a person, so holding one proves only that someone got past the numpad. The existing scope rules needed no edit to stay safe: `verifySessionToken` already rejects *any* scoped token and `verifyMediaToken` demands `media` specifically, so the new ticket was refused as a credential and in a media URL before either function knew it existed. There are tests asserting exactly that.
+
+---
+
+**Function:** `POST /auth/guest`, `POST /auth/unlock`, `unlockedForLogin()`, `secretMatches()` — `backend/src/routes/auth.ts`
+**Date:** 2026-09-11
+**How added:** new feature
+**Purpose:** the passwordless front door, and the server-side gate in front of the password one.
+**Side effects:** `/auth/guest` inserts a `users` row and may prune others; both endpoints consume a rate-limit budget.
+**Before:** the only way in was `POST /auth/login` with a username and password.
+**After:** `/auth/guest` mints a row and signs the ordinary session token, so no client path downstream needs a new branch. `/auth/unlock` checks `ADMIN_ENTRY_CODE` **on the server** — a code compared in React would be shipped to everyone it hides from — and a wrong code and an unconfigured one return byte-identical replies, so the numpad cannot be used to detect whether a server even has an admin door. `unlockedForLogin` is transparent when no code is set, so this is inert on a LAN. A refused login says `invalid username or password` whether the password or the ticket was the problem, because a distinct "you need the code" would confirm the account exists. `secretMatches` is `timingSafeEqual` with a length short-circuit — that leaks the configured code's length and nothing else, which is worth far less than the timing signal it removes.
+
+---
+
 **Function:** `setDataSaver()` — `frontend/src/components/PlayerBar.tsx`
 **Date:** 2026-09-10
 **How added:** change

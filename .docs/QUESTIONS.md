@@ -35,10 +35,6 @@ is never asked twice.
 | [Q5](#q5--tag-editing-scope) | Tag-editing scope | 2026-09-09 | No |
 | [Q10](#q10--gapless-playback) | Gapless playback | 2026-09-10 | No |
 | [Q12](#q12--does-the-first-play-wait-need-a-live-fallback-for-very-long-tracks) | Does the first-play wait need a live fallback for very long tracks? | 2026-09-10 | No |
-| [Q14](#q14--one-guest-identity-per-device-or-one-shared-house-identity) | One guest identity per device, or one shared house identity? | 2026-09-10 | **Yes** — decides the schema for guest access |
-| [Q15](#q15--how-does-the-owner-keep-admin-access-once-the-login-screen-is-gone) | How does the owner keep admin access once the login screen is gone? | 2026-09-10 | **Yes** — upload and scan are admin-gated |
-| [Q16](#q16--does-the-entry-code-ship-now-or-with-box-13) | Does the entry code ship now, or with box 13? | 2026-09-10 | No |
-| [Q17](#q17--delete-signup-and-close-open-registration) | Delete `/signup` and close open registration? | 2026-09-10 | No |
 
 ### Q1 — Is the home network behind CGNAT?
 **Asked:** 2026-09-09 · **Blocking:** yes · **Owner action, not a code question**
@@ -59,8 +55,16 @@ is `100.64.x.x`–`100.127.x.x`) → CGNAT.
 re-opened at your request. It must be `false` before the server is reachable
 from outside. The backend warns at every boot while it's on.
 
-**Assumption I'm working under:** it stays on until box 13 is actually built,
-and flipping it is part of that box rather than a separate task.
+**Superseded in part on 2026-09-11 by [A16](#a16--signup-goes-and-open-registration-closes).**
+The flag is being flipped to default `false` as part of guest access, well ahead
+of box 13, because deleting `/signup` leaves it with no caller. So the narrow
+question this entry asks — *when does the flag go off* — is answered: now.
+
+**What keeps this open:** the flag was never the real concern. A stranger who
+reaches the server can now press a button and listen without minting an account
+at all, so the exposure Q2 was standing in for moves to
+[A15](#a15--the-entry-code-hook-ships-now-unset) and to box 13's gate. This
+entry stays open until that gate exists and is running.
 
 ### Q3 — Which OS for the server?
 **Asked:** 2026-09-09 · **Blocking:** no
@@ -118,6 +122,104 @@ is in `216aaf7^`.
 ## Answered
 
 Decided. Do not re-open without an explicit ask.
+
+### A13 — One guest identity per device, not a shared house account *(was Q14)*
+**Answered:** 2026-09-11 · **Per device.** Owner's words: *"instead of sharing
+account, something similar like an anonymous user with a different session
+token."*
+
+Each browser mints its own `users` row (`kind = 'guest'`) and its own token. Two
+people never share a favorites list, a queue, or a resume position — the thing a
+shared house account would have broken the moment both of you pressed play.
+
+**The cost, stated plainly:** `playback_state` is one row per user
+([A9](#a9--resume-position--cross-device-playback-state)), so your phone is a
+different listener from your desktop and will not resume what the desktop
+paused. Box 25's done-when stops being true on the day this ships.
+
+**The fix that comes with it, and the assumption being built on:** a **handoff
+link** — a QR/link on the title screen that hands *this* device's token to
+another one, which then adopts it via `/enter#t=<token>`. One endpoint, one
+URL-fragment branch. It was part of the recommendation this answer accepted, so
+it ships in the same work rather than being deferred; say so if you would rather
+let cross-device resume lapse and save the hour.
+
+### A14 — The admin login stays, unadvertised *(was Q15)*
+**Answered:** 2026-09-11 · **Keep the login page, hidden.**
+
+`/login` keeps working exactly as it does today and simply stops being linked
+from anywhere. `imran` (id 13) keeps its password, its admin flag, its five
+plays and its resume row. `/tracks/upload`, `/library/scan`, `/users` and track
+deletion stay behind the same `requireAdmin` gate they are behind now.
+
+**One thing to be honest about:** the hidden *path* is not the protection — the
+password is. Someone who guesses `/login` still cannot get in. Treat the
+hiddenness as tidiness (guests never see a door they cannot open), not as a
+security control.
+
+**Mechanism settled 2026-09-11, at the owner's suggestion:** tap the logo
+repeatedly and a **numpad** appears; the code typed into it is checked by the
+server, not by the browser.
+
+That last clause is the whole design. The obvious version — a code compared in
+React — ships the secret to every guest's browser inside the JS bundle, and
+hiding a route in a single-page app hides nothing at all: the route table is in
+that same bundle, and `POST /auth/login` is a public HTTP endpoint that a
+`curl` reaches whatever the UI does or does not draw.
+
+So the code is a **server-side gate on logging in**, not a client-side reveal:
+
+- `POST /auth/unlock` takes the numpad code and returns a short-lived ticket —
+  a JWT with `scope: 'unlock'`. No ticket is ever minted in the browser.
+- `/login` renders the form only when a ticket is held; typed directly without
+  one, it bounces to the title screen. This part *is* only tidiness, and is
+  labelled as such.
+- **`POST /auth/login` refuses without the ticket** whenever `ADMIN_ENTRY_CODE`
+  is set. This is the part with teeth: the right username and the right password
+  and no code is a `401`, over `curl` as much as in the browser.
+- The existing scope rules need no change to stay safe — `verifySessionToken`
+  rejects *any* scoped token and `verifyMediaToken` demands `media`, so an
+  unlock ticket already cannot buy API access or stream a file.
+
+**Costs, stated rather than discovered later:** a second secret you must not
+lose (it lives in `backend/.env` beside `JWT_SECRET`, and unsetting it degrades
+to exactly today's behaviour, so it is recoverable); a numeric code is weak on
+its own, which is why it gates a password rather than replacing one, and why
+`/auth/unlock` shares the guest endpoint's rate limit; and **the Android client
+will need a code field** on its login screen once this is set, since the rule is
+server-side and does not care which client is asking (roadmap box 15).
+
+### A15 — The entry-code hook ships now, unset *(was Q16)*
+**Answered:** 2026-09-11 · **The recommended option.**
+
+`ENTRY_CODE` is read at boot. **Unset — the default, and what the LAN runs —
+the guest door is simply open.** Set to anything, and `POST /auth/guest`
+requires that code in its body; the title screen asks for it once per device and
+never again, because the minted token persists.
+
+This is not the real gate. The real gate for box 13 is at the network edge
+(Tailscale/WireGuard, or a tunnel with its own auth), and the two compose. The
+code exists so that exposing the server is a config change rather than a
+redesign of the front door.
+
+**Box 13's done-when has been rewritten** in
+`.docs/process/development-roadmap.md` — it read *"an anonymous visitor cannot
+create an account"*, which this feature deliberately contradicts. It now names
+the gate instead of the mechanism. Accepted context for the whole decision:
+only people the owner has actually let onto the network reach this server.
+
+### A16 — `/signup` goes, and open registration closes *(was Q17)*
+**Answered:** 2026-09-11 · **Yes.** `SignupPage`, the `/signup` route and the
+`registration-status` query are deleted; `ALLOW_OPEN_REGISTRATION` defaults to
+`false`, so `POST /auth/register` is admin-only again (still allowed when the
+users table is empty, or there is no way to make a first admin).
+
+**This does not close [Q2](#q2--when-does-open-registration-get-turned-off).**
+It closes the half Q2 was literally about — the boot warning goes quiet, and no
+stranger can mint an *account*. The half Q2 actually cared about, a stranger
+reaching the library at all, moves to
+[A15](#a15--the-entry-code-hook-ships-now-unset) and to box 13. Q2 stays open
+until box 13 names its gate and that gate is running.
 
 ### A10 — Should the track title be uppercased? *(was Q7)*
 **Answered:** 2026-09-10 · **No — leave the casing alone**

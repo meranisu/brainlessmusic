@@ -38,6 +38,8 @@ erDiagram
         TEXT password_hash
         INTEGER is_admin
         TEXT created_at
+        TEXT kind
+        TEXT last_seen_at
     }
     artists {
         INTEGER id PK
@@ -108,12 +110,21 @@ erDiagram
 | `id` | INTEGER | — | — | **PK**, autoincrement |
 | `username` | TEXT | NOT NULL | — | **UNIQUE** (case-sensitive — see [Discrepancy 3](#3-case-sensitive-uniqueness-vs-case-insensitive-display-sort)) |
 | `password_hash` | TEXT | NOT NULL | — | bcrypt, 12 rounds |
-| `is_admin` | INTEGER | NOT NULL | `0` | boolean-as-int (see [Discrepancy 5](#5-booleans-are-stored-as-integer)). No UI/endpoint sets this — `npm run set-admin -- <username>` only |
+| `is_admin` | INTEGER | NOT NULL | `0` | boolean-as-int (see [Discrepancy 5](#5-booleans-are-stored-as-integer)). Set from the admin Users page, or `npm run set-admin -- <username>` for recovery |
 | `created_at` | TEXT | NOT NULL | `datetime('now')` | |
+| `kind` | TEXT | NOT NULL | `'account'` | `'account'` (has a password, can log in) or `'guest'` (minted by the title screen's enter button, `password_hash` is `''` and `/auth/login` refuses it before reaching bcrypt). Added `0012` |
+| `last_seen_at` | TEXT | — | — | Last `GET /auth/me` by this row; NULL until the first one. Only read by `pruneIdleGuests`, which falls back to `created_at`. Added `0012` |
 
 **FKs:** none (root entity).
-**Indexes:** unique index on `username` (auto, from the `UNIQUE` constraint).
-**Referenced by:** `playlists.owner_id`, `play_history.user_id`, `favorites.user_id`.
+**Indexes:** unique index on `username` (auto, from the `UNIQUE` constraint); `idx_users_kind_last_seen` on `(kind, last_seen_at)` — both guest queries filter on kind and order by staleness.
+**Referenced by:** `playlists.owner_id`, `play_history.user_id`, `favorites.user_id`, `playback_state.user_id`.
+
+**Guests are deletable and accounts are not.** `pruneIdleGuests` removes
+`kind = 'guest'` rows idle past `GUEST_IDLE_DAYS` along with their `favorites`,
+`playlists`/`playlist_tracks`, `play_history` and `playback_state` rows — nothing
+can ever authenticate as a guest row again once its token is lost, so those rows
+have no other way to be reclaimed. It runs only when `POST /auth/guest` hits
+`MAX_GUESTS`, never on a timer, and cannot match an account at any age.
 
 ### `artists`
 
@@ -342,11 +353,14 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | `0008_create_search_index.sql` | `tracks_fts`, `artists_fts`, `albums_fts` + nine sync triggers — see [Search index](#search-index) |
 | `0009_add_waveform.sql` | `tracks.waveform` — cached scrubber peaks |
 | `0010_add_track_missing_tracking.sql` | `tracks.missing_since` + index — when a track's file was first seen absent from disk |
+| `0011_create_playback_state.sql` | `playback_state` (one row per user — `user_id` is the PK) — resume position, queue and index |
+| `0012_add_user_kind.sql` | `users.kind`, `users.last_seen_at` + `idx_users_kind_last_seen` — passwordless guest rows |
 
 ## Change log
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-09-11 | Migration `0012_add_user_kind.sql` — `users.kind`, `users.last_seen_at`, `idx_users_kind_last_seen`; `users` section, ERD and relationship notes updated. Also **backfilled `0011` into the migration list**, which had been missing since it landed on 2026-09-10 | Passwordless guest entry. A `kind` column rather than a sentinel `password_hash`: `''` is a value `bcrypt.compare` will happily be asked about, so "this row cannot log in" would have lived in whoever remembered to check it — a column lets `/auth/login` refuse before it reaches a hash at all. Applied to the live database against `data/brainlessmusic.pre-0012-backup-2026-09-11T00-42-55.db`; `imran` (id 13) came through as `kind = 'account'` and `integrity_check` returned ok |
 | 2026-09-10 | Migration `0010_add_track_missing_tracking.sql` — `tracks.missing_since` + `idx_tracks_missing_since`; `tracks` column table and index list updated | Scheduled reconciliation between the database and the disk. Applied to the live database against a `pre-0010` backup, which also picked up `0009`, still unapplied there. The first sweep flagged 11 of 30 rows, all pointing at `/mnt/wsl/music` — the tmpfs library root that was lost — and it flags rather than deletes precisely because those rows carry favorites and playlist entries for files that may still exist in a backup |
 | 2026-09-03 | File created — full live-introspected schema map, ERD, per-table breakdown, relationship summary, 7 flagged discrepancies | Requested: a maintained database structure reference, checked against the real DB rather than just migration files |
 | 2026-09-09 | Migration `0009_add_waveform.sql` — `tracks.waveform`; `tracks` entity and column table updated. Also backfilled `0008` into the migration list above, which it had been missing | Real waveforms in the player's scrubber. Cached on the row rather than recomputed, and computed lazily rather than during a scan: decoding a whole library to draw pictures would turn a minute-long scan into an hour, and most tracks are never played |

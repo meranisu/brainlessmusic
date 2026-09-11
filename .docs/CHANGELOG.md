@@ -4,6 +4,376 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-11 — Tabs change like a menu, not like a page
+
+Phase 5 of `.docs/features/arcade-transitions/planning.md`, which completes the
+feature.
+
+**The underline travels.** It used to be an `::after` on the active tab, which
+cross-faded from one tab to the next. It is now a real element rendered only
+inside the active link — so exactly one of them exists at any moment, which is
+what lets it carry `view-transition-name: nav-underline` and have the browser
+tween its position and width between tabs for free. A pseudo-element cannot be
+named, and a name that appears twice disables the transition for the whole
+page, so "only the active tab renders one" is a correctness requirement rather
+than a tidiness one. There is a check for it.
+
+**The page slides in the direction you moved.** `data-nav-dir` on the root
+records whether the clicked tab is left or right of the current one, set on the
+click itself because that is the only moment both are known. Rightward sends the
+old page out to the left and brings the new one in from the right; leftward
+reverses it. A uniform transition reads as a fade; a directional one reads as a
+place you moved to.
+
+**React Router's `viewTransition` prop does nothing in this app**, and finding
+that out is what the instrumented check was for. It is a data-router API, and
+this app is mounted under `<BrowserRouter>` — so the prop is accepted, silently
+ignored, and the page swaps instantly while the CSS sits unused. Every
+observable symptom looked fine: the underline was in the right place afterwards,
+the direction attribute was set, animations were running (the backdrop's).
+Patching `document.startViewTransition` and counting the calls returned **0**.
+Calling it directly works under either router and is four lines, with
+`flushSync` so the DOM is in its new state before the callback returns.
+Modified clicks — new tab, new window, a middle button — fall through to the
+browser untouched.
+
+`::view-transition-old(root)` and `(root)` are set to `animation: none`: between
+two tabs the header, player bar and backdrop are identical, and cross-fading
+identical pixels costs a composite and can stutter the moving backdrop.
+
+**Verified:** 20/20 checks in headless Chromium — the transition actually
+starting (counted at the API, not inferred), one underline at a time with the
+right name, the underline moving 255px → 553px → 326px as tabs change, forward
+and back both recorded, all six tabs settling fully visible and un-offset,
+reduced motion arriving immediately with nothing left mid-animation, and a
+phone adding no width of its own.
+
+**A pre-existing fault found while checking the phone, not caused by this:** the
+top bar's six tabs measure **933px at a 390px viewport**, so every page in the
+app scrolls sideways on a phone. It is there on a direct page load with no
+transition involved. Not fixed here — which tabs survive on a narrow screen, and
+whether the answer is a scrolling bar or an overflow menu, is a design decision
+rather than a patch.
+
+## 2026-09-11 — The library was blank for a second and a half, and the logo answers back
+
+Three things: a bug fix the owner reported, and two pieces of feedback on the
+title screen. **Phase 5 (tab transitions) is not started.**
+
+**The bug: pressing enter did not show the library.** Reproduced on the dev
+server — the track list was still at `opacity: 0` a second and a half after
+entering, and only appeared near three seconds. It did not reproduce in the
+production build, which is why it had not been caught: **React StrictMode
+remounts every component in development**, which recreates the staged elements
+and restarts their CSS animations, 780ms delay and all, from the second mount.
+
+The StrictMode behaviour is the trigger, but the fault is the design. The boot
+classes hide content that has *already loaded*, so anything that disturbs the
+animation — a remount, a stylesheet that arrives late, a browser quirk — leaves
+the app blank with no way back. Two changes:
+
+1. **The sequence has a deadline.** `AppShell` clears `isBooting` after 1,500ms
+   regardless of what the animations did. With a deadline the worst case is a
+   sequence that ends abruptly; with only CSS, the worst case is an app that
+   never appears.
+2. **The staircase is compressed** — the tail went from 780ms to 480ms. Every
+   millisecond of that delay is a millisecond the app is blank for no reason,
+   and the last stage is the one holding the track list.
+
+Measured on the dev server after the fix: the library is fully visible **1,726ms
+after the click**, and that figure includes the 820ms shut-off animation.
+
+**Tapping the logo now answers.** A bright line runs across the wordmark and an
+orange glow rises and falls, once per tap. Worth stating the trade, because it
+cuts against the gesture's point: a logo that reacts is a logo that invites
+being touched again. What it does not do is put anything in the DOM at rest —
+no cursor change, no title, no hint for a guest who never touches it — so what
+leaks is "this responds", not "there is a door here". Against that: a seven-tap
+gesture with no feedback is one nobody can tell they are halfway through. The
+line has to be a second copy of the type clipped to the same glyphs, because the
+resting sheen already drives `background-position` on the text itself.
+
+**The numpad fades in and out.** Its exit plays *before* the parent unmounts it,
+since the unmount is what removes it from the DOM and there is nothing left to
+animate after that. Panel and backdrop leave together — a dialog that vanishes
+while its ground fades reads as a crash rather than a close.
+
+**Verified** on the dev server (StrictMode — the path the bug was reported on):
+tap flash and glow both running, numpad animating in, `is-closing` reversing the
+same keyframes on the way out, unmounting cleanly afterwards, and no page
+errors. `tsc` clean.
+
+## 2026-09-11 — The backdrop goes full-bleed, and is measured rather than eyeballed
+
+Phase 4 of `.docs/features/arcade-transitions/planning.md`.
+
+![The backdrop](screenshots/backdrop-parallax.png)
+
+**Two tiers, opposite directions.** The backdrop was two wordmark columns
+confined to the gutters and hidden below `2xl`. It is now five, full-bleed, in
+two tiers: a far tier (smaller, fainter, slow, climbing) and a near tier
+(larger, brighter, quicker, falling). A single sheet of scrolling type reads as
+a sheet of scrolling type; two passing each other at different rates reads as
+depth, and costs nothing extra. Beat counts are co-prime — 128/97/113 against
+67/53 — so no two columns ever line up and the field never visibly loops.
+
+**The `2xl` breakpoint is gone, and its reason is not.** That rule existed
+because decoration behind a data table is a bug, and going full-bleed had to
+answer it rather than ignore it. A mask does: the middle of the screen is held
+at 18% of the strength it has in the gutters, so motion is visible everywhere
+and loudest where there is nothing to read.
+
+**The mask's stops are `calc(50% ± 36rem)`, not percentages**, and that is the
+part that took a measurement to get right. 36rem is half of `page-shell`'s 72rem
+cap, so the dim band *is* the content column at every window width — which a
+percentage cannot be, since the gutters are 5% of a 1280px window and 20% of a
+1920px one. The first version used 26% and measured **12/255** behind the page
+heading at 1440px, where the heading sits at 11% and was still inside the bright
+end of the ramp. Tied to the column it measures **5/255**.
+
+**The first version of the check was worthless, which is worth recording.** It
+clipped to the track table and reported a difference of exactly zero — proving
+nothing, because the table sits on an opaque `.card`, so it would have passed
+with a screaming backdrop behind it. The rewritten check measures the page
+heading, which really does sit on the page background, **and** a gutter as a
+control: if the backdrop is not clearly visible there, the first reading means
+nothing. Final numbers, worst pixel and mean over the region:
+
+| Region | Worst pixel | Mean |
+|---|---|---|
+| Behind the page heading | 5/255 | 0.15 |
+| In the gutter (the control) | 20/255 | 0.44 |
+
+**Below `md` the inner columns drop out.** A phone has no gutters, so every
+column there is behind the text; the `calc` also goes negative and clamps, so a
+narrow screen is dim throughout. Both are the right answer for a screen with no
+room beside the content.
+
+**Verified:** 12/12 checks in headless Chromium against a seeded 20-track
+library — backdrop spanning the viewport, both directions running, five distinct
+speeds, every layer still moving after a full lap, the two tiers moving against
+each other (-8.0 against +29.9 over the same 700ms), the pixel measurements
+above, two columns on a phone rather than five, and reduced motion holding every
+layer completely still. `tsc` and `oxlint` clean.
+
+## 2026-09-11 — The machine switches off, and the next one boots
+
+Phases 2 and 3 of `.docs/features/arcade-transitions/planning.md`. Presentation
+only: nothing here changes what the app does, and with motion turned off the
+whole thing is invisible and the app is immediately present.
+
+![The shut-off](screenshots/transition-exit-crt.png)
+
+**Leaving.** 820 ms, three planes at once. The white band collapses the way a
+CRT loses its picture — squashed to a bright line, held there for a beat,
+then gone sideways; the pause is the effect, and collapsing straight through
+loses it entirely. The logo does not collapse with it: it keeps coming toward
+the camera to 4.2x and past it. The mosaic panel opens from half the screen to
+all of it underneath, so the last thing visible before black is the background
+rather than the furniture that was standing in front of it.
+
+**The logo has to change colour partway through**, which was not in the plan. It
+is near-black because it was drawn to sit on a white band — and the band is
+collapsing out from under it, so it spent the second half of the zoom as dark
+type on a dark mosaic. It now lightens between 32% and 55%, while the band is
+still bright enough to hide the crossover. Earlier and it would be white on
+white.
+
+**The request rides along with the animation, not behind it.** `Promise.all` on
+the mint and an 820 ms timer: awaiting the mint first left the button reading
+"Entering…" for a round trip before anything moved, which is a hang on exactly
+the slow connection the animation exists to cover. A refusal reverses the whole
+thing and puts the error back on the title screen — animating away and *then*
+finding out the server said no is the one outcome this must not produce, and
+there is a check that drives it with an intercepted 503.
+
+**Arriving.** 1,150 ms of assembly, played once per entry and never on a
+reload: the title screen leaves a one-shot flag in `sessionStorage` and the
+shell consumes it. Wordmark, then each nav button on its own 60 ms beat, then
+search, then the page content. The buttons arriving **individually** rather
+than the row arriving as a block is the whole difference between a machine
+naming its parts and a container fading in. An orange hairline runs the
+perimeter once behind all of it and leaves.
+
+**Three bugs found by looking, not by tests passing.** The border lap was the
+worst of them and took three goes:
+
+1. `position: fixed; inset: 0` on an `<svg>` does **not** fill the viewport —
+   unlike a div it has intrinsic sizing, so it laid out square at 1265x1265 in
+   a 1280x800 window with three quarters of the lap below the fold. Invisible,
+   and every assertion about it passed.
+2. Given explicit dimensions, `viewBox="0 0 100 100"` with
+   `preserveAspectRatio="none"` scaled the *stroke* non-uniformly too — a
+   2-unit line became a 25px slab down one side and 16px along the top.
+3. `vector-effect: non-scaling-stroke` fixed the thickness and broke the dash:
+   it moves dash measurement into screen space while the length still comes
+   from user space, drawing ten stubby segments round the border instead of one
+   line running it.
+
+The answer was to stop fighting the viewBox and remove it. With no viewBox,
+user units are CSS pixels, the scale is uniform, and none of the three problems
+exist; the rect's geometry comes from CSS, where percentages resolve against
+the element box.
+
+**And a reduced-motion bug that mattered more than any of them.** The staggered
+delays are `.boot-nav > *:nth-child(N)`, and the reduced-motion override was a
+plain `.boot-nav > *` — which loses on specificity. Half the top bar stayed
+invisible for up to 600 ms for exactly the people who had asked for no motion.
+The JS had the same shape of fault: the stylesheet stopped the picture moving
+but the route change still waited 820 ms, so reduced motion was *slower* than
+the animation it was meant to skip. Measured after the fix: **58 ms against
+829 ms**.
+
+**Verified:** 29/29 checks in headless Chromium, sampling the animation
+mid-flight at fixed offsets from the click — band scaleY 0.69 at 280 ms and
+0.012 at 600 ms, logo 1.4x then 2.7x, panel past 1,028px of 1,280, the six nav
+delays distinct and ordered, the frame covering the full viewport height, the
+boot flag consumed, a reload not replaying it, every staged element ending at
+full opacity and un-offset, and nothing left mid-animation under reduced
+motion. `tsc` and `oxlint` clean.
+
+**Not built yet, and next:** the full-bleed counter-scrolling parallax (Phase 4)
+and per-tab transitions on the top bar (Phase 5).
+
+## 2026-09-11 — The title screen, and a numpad nobody can see
+
+Phase 3 of `.docs/features/guest-access-and-title-screen/planning.md`. The
+login form is gone from the app's front door; what is there instead is an
+arcade title screen with one thing to press.
+
+![The title screen](screenshots/title-screen-desktop.png)
+
+**`/enter` is the new front door.** The wordmark runs at **70% of the viewport
+width** on a desktop — this is the logo at poster scale the reference screens
+use, not a header. `RequireAuth` sends you here, `/signup` is deleted, and
+`SignupPage` with it.
+
+**Three animations, and no more than three.** An entrance that *settles* rather
+than looping — a title screen that never stops moving is one nobody can read —
+a highlight crossing the letterforms every eight bars, and the enter button
+pulsing the way `PRESS START` blinks. All three run off the existing `--beat`
+clock, so they agree with the mosaic panel that was already there. The button
+pulses in **colour, not opacity**: fading a button fades its label with it, and
+a control that drops below readable contrast every two seconds is worse than
+one that does not blink at all.
+
+**The hidden admin entrance.** Seven taps on the wordmark, each within ~1.5s of
+the last, opens a numpad. There is nothing in the DOM to find — no title
+attribute, no aria-label, no pointer cursor, and the string "login" appears
+nowhere on the page; a browser check asserts all of that. The code goes to
+`POST /auth/unlock`, never to a comparison in React.
+
+**One reversal from Phase 2, made deliberately.** `/auth/unlock` used to refuse
+a wrong code and an unconfigured one identically, so the numpad could not be
+used to detect whether a server had an admin door. That would have **locked the
+owner out** of the door the UI had just hidden: with `ADMIN_ENTRY_CODE` unset —
+the default — no code could ever satisfy it, and the numpad was the only route
+there. It now hands out a ticket freely when no code is configured, which grants
+nothing, because `/auth/login` does not ask for one in that configuration. The
+cost is one bit that a single login attempt reveals anyway.
+
+**Handoff.** Guest identities are per-device by design, which is right and which
+costs box 25 its cross-device resume. `This device` in the header shows a QR and
+a link (`/enter#t=…`); the other device adopts the identity and the resume
+position follows. **The planned `GET /auth/handoff` was not built** — the client
+already holds the token it would have returned, so the endpoint had nothing to
+do. The token is stripped from the address bar on arrival, and the screen says
+plainly that adopting *replaces* rather than merges.
+
+**A guest is not shown their row id.** The header says `Guest`, not
+`guest-a83f2c`, and offers no `Log out` — clearing the token abandons the row
+and everything on it for good, so that lives behind a warning inside the dialog
+instead of sitting in the header next to everything else.
+
+**Two layout faults found by looking at the screenshots, not by a test
+passing.** On a 390px phone the wordmark ran to within 11px of the right edge
+with the decorative panel showing through behind it — it read as a rendering
+fault. The band's white now runs to 88% below `md` and the type is sized from
+what actually has to fit (`brainlessmusic` plus the mark measures ~6.6x the
+font size), so 11.5vw is the ceiling, not a number chosen by eye. The bounding-box
+check had passed on the broken version; the screenshot is what caught it.
+
+**Verified:** 42/42 checks in real headless Chromium at 1280x800, 390x844 and
+844x390 (landscape), each "device" in its own browser context so localStorage
+could not leak between them. Covered: logo scale, tap-target size, the HUD
+reading `VER 0.1.0 / SERVER OK`, guest entry end-to-end, two browsers getting
+two identities, handoff adopted and the hash stripped, six taps doing nothing
+and the seventh opening the numpad, a wrong code refused by the server, the
+right one reaching `/login`, the ticket in `sessionStorage` and not
+`localStorage`, the code never echoed, `/signup` gone, no sideways scroll, and
+reduced motion leaving the logo at full opacity and un-offset. 281 backend tests
+pass. `tsc` and `oxlint` clean.
+
+**Operational note, pre-existing and not introduced here:** `@fastify/static`
+resolves the built assets at registration, so rebuilding the frontend while the
+API is running serves 404s for the new hashed filenames until the server is
+restarted. Irrelevant in the container, where `dist` is baked into the image.
+
+## 2026-09-11 — A door with no password, and a numpad in front of the one that has one
+
+Phase 2 of `.docs/features/guest-access-and-title-screen/planning.md`. Backend
+only: nothing on screen changes yet, and `/login` still works the way it did
+this morning.
+
+**Guest entry.** `POST /auth/guest` mints a passwordless `users` row
+(`kind = 'guest'`) and signs **the same session token `/auth/login` signs**.
+That sameness is the whole reason this was half a day rather than a week: every
+user-scoped route reads `request.user.id` and nothing else, so favorites,
+playlists, history, scrobbles, `playback_state` and the media-token exchange
+all work for a guest without one line changing in any of them.
+
+Migration `0012` adds `kind` and `last_seen_at`. A sentinel `password_hash` was
+considered and rejected — `''` is a value `bcrypt.compare` will happily be asked
+about, which leaves "this row cannot log in" living in whoever remembers to
+check it. `/auth/login` now refuses on `kind` *before* it reaches a hash.
+
+**One identity per device** ([A13](QUESTIONS.md)), so nobody shares a queue or a
+resume position with anybody. The cost is honest and recorded: the phone is a
+different listener from the desktop until the handoff link ships in Phase 3, and
+until then box 25's cross-device resume does not hold.
+
+**The numpad is not decoration.** The title screen will hide `/login` behind a
+tap gesture, but hiding a route in a single-page app hides nothing — the bundle
+carries the route table, and the endpoint answers `curl` regardless. So the code
+is checked by the server: `POST /auth/unlock` mints a `scope: 'unlock'` ticket,
+and while `ADMIN_ENTRY_CODE` is set `POST /auth/login` **refuses without it**.
+Verified over real HTTP, which is the check that says this is real: the correct
+username and the correct password with no ticket returns
+`401 invalid username or password` — the same words a wrong password gets, so
+the endpoint never confirms that a code exists. The ticket carries no `sub`,
+identifies nobody, and the existing scope rules refused it as a bearer
+credential and as a media token without needing to be told it exists.
+
+**Limits, because unauthenticated row creation is new.** A per-IP window on both
+new endpoints (10 mints/hour, 5 numpad answers/minute, `Retry-After` on the
+refusal), and a ceiling of 50 guests. At the ceiling the server prunes guests
+idle for 90 days — with their favorites, playlists, history and resume position,
+since nothing can ever log back in to claim them — and only refuses if that
+frees nothing. Pruning runs *only* under cap pressure, never on a timer, and can
+never touch an account at any age.
+
+**`ALLOW_OPEN_REGISTRATION` now defaults to `false`** ([A16](QUESTIONS.md)) —
+`/signup` loses its reason to exist in Phase 3. The bootstrap window that lets a
+fresh server be claimed now counts **accounts, not rows**: the first visitor to a
+new server presses "enter" and mints a guest, and counting that would have
+slammed the window shut on a server with no admin, with no way back but the CLI.
+There is a test for exactly that.
+
+**Verified:** 280 backend tests pass (23 new), `tsc --noEmit` clean, and the
+whole flow exercised over HTTP against a scratch database on :3099 — entry code
+refused/accepted, guest token reaching `/api/tracks` and `/auth/media-token`,
+guest refused by `/users` and `/library/scan` (403), bootstrap register still
+open with a guest present, login refused without a ticket and accepted with one,
+ticket refused as a credential, and the rate limit returning `429` with
+`retry-after: 3580` on the eleventh mint. Migration applied to the live database
+behind `data/brainlessmusic.pre-0012-backup-2026-09-11T00-42-55.db`;
+`imran` (id 13) came through as `kind = 'account'`, `integrity_check` ok.
+
+**Not done here, and not hidden:** `backend/.env.example` is not writable from
+this environment, so the five new variables (`ENTRY_CODE`, `ADMIN_ENTRY_CODE`,
+`UNLOCK_TICKET_TTL`, `MAX_GUESTS`, `GUEST_IDLE_DAYS`, plus the two rate knobs)
+are documented in `README.md` but have to be copied into that file by hand.
+
 ## 2026-09-10 — The 64k target starts telling the truth, and the toggle stops going quiet
 
 Answering [A12](QUESTIONS.md) turned into three fixes, only the first of which
