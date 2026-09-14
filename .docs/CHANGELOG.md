@@ -4,6 +4,47 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-14 — A confirm flash, a drag you can grab, and a real drag bug
+
+Phase 5 of `.docs/features/music-select-and-themes/planning.md`.
+
+**Per-theme skins for the arcade select already existed** — every colour it
+uses is one of the tokens Phase 2 made theme-aware, so nothing needed
+building. Verified rather than assumed: read the live cursor band's computed
+colour under all three themes, confirming blue and void intentionally share
+the same orange accent (void only darkens the ground) while red retunes to
+gold.
+
+**A confirm flash on playback:** a one-shot orange pulse on the cursor band
+when a track actually starts — Enter, the Play button, or clicking the
+already-selected row. Selecting stays silent (Q23's stated assumption
+holds); the flash exists specifically so "play" reads as a distinct,
+decisive action rather than the same gesture as moving the cursor one more
+row.
+
+**Drag-to-scroll, added mid-phase on request:** the rail can be grabbed with
+a mouse or a finger and dragged directly, one Pointer Events implementation
+covering both. It follows the pointer continuously while held — free motion,
+unlike the wheel/keyboard's committed one-notch-per-step — and snaps to the
+nearest row only on release, the way a turntable platter or an iOS picker
+wheel does. A 6px movement threshold tells a drag apart from a tap, so an
+unsteady click still reaches the row underneath.
+
+**A real bug, caught by the test asserting the actual outcome rather than an
+intermediate signal:** the boundary clamp had its `min`/`max` bounds swapped,
+so dragging up from row 0 — the only direction with anywhere to go — always
+snapped straight back to zero. `dragDeltaPx` visibly changed mid-drag (so a
+shallower test would have passed), but the release-time clamp silently
+discarded it. Fixed alongside a second issue in the same code path: the
+release handler read the drag's final offset from React state, which raced
+the last `pointermove`'s render against the `pointerup` event; now it reads
+`clientY` straight off its own event, same as `pointermove` already does.
+
+**Verified:** 37/37 across three Puppeteer suites (19 launch-flash/theme, 12
+drag, 6 Phase 3/4 regression). tsc clean; two real lint findings (a ref read
+during render, a ternary used as a statement) fixed properly rather than
+suppressed.
+
 ## 2026-09-14 — The music select works without a mouse
 
 Phase 4 of `.docs/features/music-select-and-themes/planning.md`.

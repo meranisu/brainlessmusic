@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type PointerEvent,
   type WheelEvent,
 } from 'react';
 import { CoverArt } from './CoverArt';
@@ -22,6 +23,11 @@ import type { TrackSummary } from '../types/api';
  * one pixel taller on one platform would slowly drift the cursor off centre.
  */
 export const ROW_HEIGHT = 68;
+
+/** How far a pointer has to move before a press counts as a drag rather than
+ *  a tap — small enough to feel immediate, large enough that a slightly
+ *  unsteady tap still reaches the row's click handler instead of the rail. */
+const DRAG_THRESHOLD_PX = 6;
 
 /** How long a run of typed letters counts as one word before it resets —
  *  long enough to type a few characters without pausing, short enough that
@@ -85,6 +91,21 @@ export function ArcadeSelect({
 
   const current = tracks[selected];
 
+  // A one-shot confirm flash on the cursor band when a track actually starts
+  // playing — distinct from selecting, which is silent (Q23). `null` until
+  // the first play, so the flash never plays itself on mount; incrementing
+  // rather than toggling a boolean means two plays in a row (skip back onto
+  // the same track) each get their own flash via the `key` remount below,
+  // the same replay-on-change trick `.arcade-detail-inner` already uses.
+  const [launchToken, setLaunchToken] = useState<number | null>(null);
+  const play = useCallback(
+    (index: number) => {
+      setLaunchToken((t) => (t ?? 0) + 1);
+      onPlay(index);
+    },
+    [onPlay],
+  );
+
   // Buffered rather than per-keystroke, so typing "st" narrows past whatever
   // "s" alone would have matched — a ref because the buffer must survive
   // across renders without itself triggering one.
@@ -136,7 +157,7 @@ export function ArcadeSelect({
           return;
         case 'Enter':
           event.preventDefault();
-          onPlay(selected);
+          play(selected);
           return;
         default:
           // Plain single characters only — leaves browser/OS shortcuts
@@ -153,7 +174,7 @@ export function ArcadeSelect({
           }
       }
     },
-    [tracks, selected, onSelect, onPlay, jumpToLetters],
+    [tracks, selected, onSelect, play, jumpToLetters],
   );
 
   /**
@@ -174,8 +195,116 @@ export function ArcadeSelect({
     [selected, tracks.length, onSelect],
   );
 
-  // Where the list has to sit for the selected row to land in the middle.
-  const offset = stripHeight / 2 - ROW_HEIGHT / 2 - selected * ROW_HEIGHT;
+  /**
+   * Dragging the rail with a mouse or a finger — the one gesture the wheel and
+   * the keyboard can't offer, since both are already committed to the "one
+   * notch, one row" dial behaviour. A drag is the exception on purpose: the
+   * rail follows the pointer continuously while a finger is down, the way a
+   * real turntable's platter does, and only snaps to the nearest row on
+   * release. Free continuous motion mid-gesture and a discrete, dial-like
+   * result are not a contradiction here — they are two different moments of
+   * the same interaction.
+   *
+   * State lives in a ref rather than triggering it through `onSelect`, so a
+   * drag in progress does not spam the caller (and everything downstream of
+   * `selected`, like near-end pagination) with an index for every pixel of
+   * finger travel. Only the release commits a real selection change.
+   */
+  const dragRef = useRef<{
+    pointerId: number;
+    startY: number;
+    startSelected: number;
+    dragging: boolean;
+  } | null>(null);
+  const [dragDeltaPx, setDragDeltaPx] = useState(0);
+  // Mirrors `dragRef.current.dragging` into render-visible state — the ref
+  // itself is the source of truth for event handlers (it must be readable
+  // synchronously mid-gesture), but a ref cannot be read during render.
+  const [isDragging, setIsDragging] = useState(false);
+  // Set the instant a drag crosses the threshold, cleared on the next frame
+  // after release — long enough to outlive the synthetic `click` a pointerup
+  // generates, which would otherwise re-fire select/play on top of the drag's
+  // own result.
+  const wasDragging = useRef(false);
+
+  const onPointerDown = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      if (!event.isPrimary || tracks.length === 0) return;
+      dragRef.current = {
+        pointerId: event.pointerId,
+        startY: event.clientY,
+        startSelected: selected,
+        dragging: false,
+      };
+    },
+    [selected, tracks.length],
+  );
+
+  // Clamped so the rail cannot be dragged past either end — without this a
+  // long drag on a short list would carry a delta that snaps to an
+  // out-of-range row the instant the finger lifts. Delta and row move in
+  // opposite directions (dragging up — negative delta — reveals *later* rows),
+  // so the bound on how far *up* you can drag is set by the rows *left*, and
+  // the bound on how far *down* is set by the rows *behind* the start.
+  const clampDelta = useCallback(
+    (startSelected: number, delta: number) => {
+      const minDelta = -(tracks.length - 1 - startSelected) * ROW_HEIGHT;
+      const maxDelta = startSelected * ROW_HEIGHT;
+      return Math.min(Math.max(delta, minDelta), maxDelta);
+    },
+    [tracks.length],
+  );
+
+  const onPointerMove = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      const drag = dragRef.current;
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      const delta = event.clientY - drag.startY;
+      if (!drag.dragging) {
+        if (Math.abs(delta) < DRAG_THRESHOLD_PX) return;
+        drag.dragging = true;
+        wasDragging.current = true;
+        setIsDragging(true);
+        event.currentTarget.setPointerCapture(drag.pointerId);
+      }
+      event.preventDefault();
+      setDragDeltaPx(clampDelta(drag.startSelected, delta));
+    },
+    [clampDelta],
+  );
+
+  const endDrag = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      const drag = dragRef.current;
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      if (drag.dragging) {
+        // Read straight from the event rather than the `dragDeltaPx` state:
+        // this handler is recreated on every drag-state change (its deps
+        // include callbacks that close over `selected`), and trusting state
+        // here would mean trusting that the final `pointermove`'s render had
+        // already committed and re-bound this very listener before the
+        // browser dispatched `pointerup` — true most of the time, but a race,
+        // not a guarantee. The event's own `clientY` has no such race.
+        const delta = clampDelta(drag.startSelected, event.clientY - drag.startY);
+        // Dragging down reveals earlier rows — the same direction a touch
+        // scroll moves content — so the sign flips going from pixels to rows.
+        const rows = Math.round(-delta / ROW_HEIGHT);
+        const next = Math.min(Math.max(drag.startSelected + rows, 0), tracks.length - 1);
+        if (next !== selected) onSelect(next);
+        requestAnimationFrame(() => {
+          wasDragging.current = false;
+        });
+      }
+      dragRef.current = null;
+      setDragDeltaPx(0);
+      setIsDragging(false);
+    },
+    [clampDelta, selected, tracks.length, onSelect],
+  );
+
+  // Where the list has to sit for the selected row to land in the middle,
+  // plus whatever a drag in progress has pulled it away from that by.
+  const offset = stripHeight / 2 - ROW_HEIGHT / 2 - selected * ROW_HEIGHT + dragDeltaPx;
 
   return (
     <div className="arcade-select grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
@@ -206,7 +335,7 @@ export function ArcadeSelect({
 
             <div className="mt-6 flex items-center gap-3">
               <button
-                onClick={() => onPlay(selected)}
+                onClick={() => play(selected)}
                 disabled={current.missing}
                 className="btn-primary btn-md min-h-12 gap-2 px-6 text-base font-semibold uppercase tracking-[0.12em]"
               >
@@ -228,6 +357,10 @@ export function ArcadeSelect({
           className="arcade-strip"
           onWheel={onWheel}
           onKeyDown={onKeyDown}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
           tabIndex={0}
           role="listbox"
           aria-label="Tracks"
@@ -237,10 +370,12 @@ export function ArcadeSelect({
               highlight that moves — which is the whole point of the layout, and
               the reason it is a sibling of the list instead of a class on a
               row. */}
-          <div aria-hidden className="arcade-cursor" style={{ height: ROW_HEIGHT }} />
+          <div aria-hidden className="arcade-cursor" style={{ height: ROW_HEIGHT }}>
+            {launchToken !== null && <span key={launchToken} className="arcade-launch-flash" />}
+          </div>
 
           <div
-            className="arcade-rail"
+            className={`arcade-rail ${isDragging ? 'is-dragging' : ''}`}
             style={{ transform: `translateY(${offset}px)` }}
           >
             {tracks.map((track, i) => (
@@ -255,7 +390,11 @@ export function ArcadeSelect({
                 // does confirm. Not individually focusable — the listbox holds
                 // focus and reports position via aria-activedescendant, so a
                 // screen reader user doesn't have to tab through every row.
-                onClick={() => (i === selected ? onPlay(i) : onSelect(i))}
+                onClick={() => {
+                  if (wasDragging.current) return;
+                  if (i === selected) play(i);
+                  else onSelect(i);
+                }}
                 style={{ height: ROW_HEIGHT }}
                 className={`arcade-row ${i === selected ? 'is-selected' : ''} ${
                   track.missing ? 'is-missing' : ''

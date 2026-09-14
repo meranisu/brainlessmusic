@@ -686,6 +686,15 @@
   border-radius: 0.75rem;
   border: 1px solid var(--color-blue-800);
   background-color: color-mix(in oklab, var(--color-blue-900) 55%, transparent);
+  /* Vertical panning is the strip's own gesture (drag the rail), not the
+     page's — without this a touch drag on the strip fights the browser's own
+     scroll handling instead of reaching the pointer handlers cleanly. */
+  touch-action: none;
+  cursor: grab;
+}
+
+.arcade-strip:active {
+  cursor: grabbing;
   /* Fades the ends so entries arrive and leave rather than being clipped by a
      hard edge — which is what makes a bounded list feel like a long one. */
   -webkit-mask-image: linear-gradient(
@@ -717,11 +726,48 @@
   pointer-events: none;
 }
 
+/* A one-shot confirm flash on the cursor band when a track actually starts
+   playing — selecting is silent (Q23), so this is the only visual acknowledgment
+   that the button press landed, and it is what makes "play" read as a distinct,
+   decisive action rather than the same gesture as moving the cursor one more row. */
+.arcade-launch-flash {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to right,
+    color-mix(in oklab, var(--color-orange-500) 55%, transparent),
+    transparent 70%
+  );
+  animation: arcade-launch var(--beat, 0.4s) cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes arcade-launch {
+  0% {
+    opacity: 0;
+    transform: scaleX(0.85);
+  }
+  35% {
+    opacity: 1;
+    transform: scaleX(1.02);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(1);
+  }
+}
+
 .arcade-rail {
   /* Springy rather than linear: the list should settle into place like a dial
      finding a detent, not slide like a scrollbar. */
   transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform;
+}
+
+/* No transition while a drag is live — the rail must track the pointer
+   exactly, not ease toward it a frame behind. The 260ms settle above comes
+   back the instant the drag ends and this class is removed. */
+.arcade-rail.is-dragging {
+  transition: none;
 }
 
 .arcade-row {
@@ -1547,6 +1593,14 @@
     animation: none;
     opacity: 1;
     transform: none;
+  }
+
+  /* No flash to play under reduced motion, and no residual sheet left behind
+     either — the play action already has a non-visual confirm (the player bar
+     mounts/updates), so this cue is pure motion with nothing to fall back to. */
+  .arcade-launch-flash {
+    animation: none;
+    opacity: 0;
   }
 
   .tip::after {

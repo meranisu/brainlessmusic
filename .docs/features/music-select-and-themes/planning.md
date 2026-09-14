@@ -182,11 +182,67 @@ full Phase 3 mouse/wheel/pagination/reduced-motion regression suite
 non-admin test fixture, unrelated to this phase). tsc clean, no new lint
 warnings.
 
-## Phase 5 — Polish
+## Phase 5 — Polish — **Done** (2026-09-14)
 
 - Per-theme skins for the select screen.
 - Transition when the selection changes; transition into playback.
 - Whether selecting a track **previews** it is [Q23](../../QUESTIONS.md#q23).
+- (Added mid-phase, on request): the strip should be **draggable** with a
+  mouse or a finger, not just wheel/keyboard.
+
+**Done.** Three findings, in order:
+
+1. **Per-theme skins turned out to already exist.** Every colour the arcade
+   select uses (`--color-blue-*`, `--color-orange-*`) is one of the tokens
+   Phase 2 already made theme-aware, so the strip, cursor and detail panel
+   repaint correctly under all three themes with zero new code — the same
+   "far cheaper than assumed" result Phase 2 itself reported. Verified per
+   theme rather than assumed: blue's and void's accent are intentionally the
+   *same* orange (void only retunes the ground to near-black), red's is gold
+   — confirmed by reading `getComputedStyle` on the live cursor band in all
+   three, not just eyeballing screenshots.
+2. **Transition into playback:** a one-shot orange flash on the cursor band
+   when a track actually starts (`.arcade-launch-flash`, replayed via the
+   same key-remount trick `.arcade-detail-inner` already used). Selecting
+   alone stays silent, matching Q23's stated assumption — the flash is
+   specifically the acknowledgment that a *different*, decisive gesture
+   (Enter, the Play button, or clicking the already-selected row) just fired.
+   Transition when the selection changes was already covered by Phase 3/4
+   (the rail's glide, the row's colour/padding transition, the detail panel's
+   re-key animation) — nothing new needed there.
+3. **Drag-to-scroll**, added mid-phase: one Pointer Events implementation
+   covers mouse and touch. The rail follows the pointer continuously while
+   held — unlike the wheel and keyboard, which are committed to "one notch,
+   one row" — and only snaps to the nearest row on release, the same feel as
+   a real turntable platter or an iOS-style picker wheel. A drag is
+   distinguished from a tap by a 6px movement threshold, so an unsteady click
+   still reaches the row underneath rather than being swallowed by the drag
+   handler.
+
+**A real bug caught by the browser test, not by reading the code:** the
+clamp that keeps a drag from being pulled past either end of the list had
+its `min`/`max` bounds swapped. Dragging up from row 0 (the only direction
+with anywhere to go) clamped straight back to zero every time, because the
+lower bound was wrongly keyed off "rows behind the start" (0, at the first
+row) rather than "rows left" — the two are the *opposite* ends of the valid
+range once the delta-to-row sign flip is accounted for. Caught because the
+Puppeteer test asserted the actual resulting selection, not just that
+`dragDeltaPx` changed mid-gesture (which it did — the bug was purely in the
+release-time snap). A second, smaller issue was found and fixed alongside
+it: reading the drag's final offset from React state at release time raced
+the last `pointermove`'s render commit against the `pointerup` event; fixed
+by having the release handler read `clientY` straight off its own event
+instead, the same way `pointermove` already does.
+
+**Verified:** 37/37 across three Puppeteer suites — 19 for the launch flash
+(silent-select vs. flash-on-play, Enter parity, reduced-motion suppression,
+all three themes) and 12 for drag (mouse and CDP-emulated touch, correct
+direction in both, boundary clamping, a plain click still working
+unaffected, `is-dragging` toggling the rail's transition off mid-drag and
+back on after), plus a 6-check regression pass confirming Phase 3/4 behaviour
+(click-to-select vs. click-to-play, Home/End) survived. tsc clean, two real
+lint findings from the new code (a ref read during render, a ternary used as
+a statement) fixed rather than suppressed.
 
 ---
 

@@ -4,6 +4,28 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `play()` (in `ArcadeSelect`) — `frontend/src/components/ArcadeSelect.tsx`
+**Date:** 2026-09-14
+**How added:** new feature (Phase 5)
+**Purpose:** the one path every "actually play this" gesture (Enter, the Play button, clicking the already-selected row) now goes through — calls the caller's `onPlay` and bumps `launchToken` to trigger the confirm flash.
+**Side effects:** calls `onPlay`; sets `launchToken` state.
+**Before:** each of the three call sites called `onPlay` directly.
+**After:** `launchToken` starts `null` (not `0`/`false`) specifically so the flash element is never mounted on first render — a toggled boolean would have replayed the animation on mount too, since CSS can't distinguish "mounted for the first time" from "mounted because the state flipped back to its initial value."
+
+---
+
+**Function:** `onPointerDown()` / `onPointerMove()` / `endDrag()` / `clampDelta()` (in `ArcadeSelect`) — `frontend/src/components/ArcadeSelect.tsx`
+**Date:** 2026-09-14
+**How added:** new feature (Phase 5, added mid-phase on request)
+**Purpose:** drag-to-scroll the strip with a mouse or a finger — one Pointer Events implementation for both. The rail tracks the pointer continuously while held (`dragDeltaPx` state, read into the rail's `translateY`) and only commits a real selection change, via `onSelect`, on release. `clampDelta` bounds how far the drag can pull the rail so release can never resolve to an out-of-range row.
+**Side effects:** `setPointerCapture` on the strip once a drag crosses the 6px threshold; calls `onSelect` on release if the resolved row differs from the current selection.
+**Before:** nothing — the strip had no pointer/touch handling at all, only wheel and keyboard.
+**After:** two bugs found and fixed while writing the Puppeteer drag test, not while reading the code:
+1. **`clampDelta`'s `min`/`max` bounds were swapped.** Delta (pixels) and row index move in *opposite* directions — dragging up (negative delta) reveals *later* rows — so the bound on how far up you can drag is set by how many rows are *left*, and the bound on how far down is set by how many rows are *behind* the start; the first version had these backwards, which meant dragging up from row 0 (the only direction with anywhere to go there) always clamped the delta straight back to 0. Visible mid-drag transform changes masked it, since the *live* value during the gesture only ever gets smaller in magnitude near a boundary — the bug only showed up in the value actually committed at release.
+2. **`endDrag` originally read `dragDeltaPx` from React state**, which is set by the same handler dependency chain that recreates `endDrag` itself on every drag-state change — trusting it at release time means trusting that the final `pointermove`'s render had already committed and rebound the `pointerup` listener before the browser dispatched that event, which is usually but not provably true. Fixed by having `endDrag` compute the delta straight from its own event's `clientY`, exactly as `onPointerMove` already does, removing the race entirely rather than papering over it with a longer wait.
+
+---
+
 **Function:** `onKeyDown()` (in `ArcadeSelect`) — `frontend/src/components/ArcadeSelect.tsx`
 **Date:** 2026-09-14
 **How added:** new feature (Phase 4)
