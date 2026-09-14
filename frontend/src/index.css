@@ -672,6 +672,136 @@
   }
 }
 
+/* ── The music select ─────────────────────────────────────────────────────
+   List on the right, the chosen one written large on the left. */
+
+.arcade-strip {
+  position: relative;
+  /* Tall enough that the list reads as continuous rather than as a short box
+     with a few rows in it, and bounded so the page itself never scrolls — the
+     strip is the thing that moves. `svh` rather than `vh` so a phone's
+     collapsing address bar does not leave the bottom rows under the player. */
+  height: min(34rem, calc(100svh - 19rem));
+  overflow: hidden;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-blue-800);
+  background-color: color-mix(in oklab, var(--color-blue-900) 55%, transparent);
+  /* Fades the ends so entries arrive and leave rather than being clipped by a
+     hard edge — which is what makes a bounded list feel like a long one. */
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 14%,
+    #000 86%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(to bottom, transparent 0, #000 14%, #000 86%, transparent 100%);
+}
+
+/* The cursor is a fixed band; the list travels under it. That inversion is the
+   whole layout — a highlight that moves down a static list is a file browser. */
+.arcade-cursor {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  z-index: 1;
+  transform: translateY(-50%);
+  border-top: 1px solid var(--color-orange-600);
+  border-bottom: 1px solid var(--color-orange-600);
+  background: linear-gradient(
+    to right,
+    color-mix(in oklab, var(--color-orange-600) 22%, transparent),
+    transparent 78%
+  );
+  pointer-events: none;
+}
+
+.arcade-rail {
+  /* Springy rather than linear: the list should settle into place like a dial
+     finding a detent, not slide like a scrollbar. */
+  transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+.arcade-row {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.15rem;
+  padding-inline: 1rem;
+  text-align: left;
+  color: var(--color-blue-300);
+  transition:
+    color 160ms ease-out,
+    padding-inline 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.arcade-row:hover {
+  color: var(--color-blue-100);
+}
+
+/* The selected row steps forward — brighter, and pushed in from the edge, so
+   the cursor band reads as holding something rather than framing empty space. */
+.arcade-row.is-selected {
+  padding-inline-start: 1.6rem;
+  color: #fff;
+}
+
+.arcade-row.is-missing {
+  opacity: 0.45;
+}
+
+.arcade-row-title {
+  overflow: hidden;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arcade-row.is-selected .arcade-row-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.arcade-row-meta {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.7rem;
+  color: var(--color-blue-400);
+}
+
+.arcade-row-format {
+  flex-shrink: 0;
+  border-radius: 9999px;
+  border: 1px solid var(--color-blue-700);
+  padding: 0.05rem 0.4rem;
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* The detail panel re-keys on the selected track, so this replays per change —
+   the panel answering the strip rather than quietly swapping its contents. */
+.arcade-detail-inner {
+  animation: arcade-detail-in 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes arcade-detail-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* Each swatch paints itself from the palette it represents, rather than from a
    hand-picked preview colour — a second source of truth is wrong the moment a
    palette is tuned. The three stripes are ground, accent and muted text, which
@@ -1390,6 +1520,20 @@
 
   /* Arrives in place, with no rise. */
   .page-enter {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  /* The strip jumps to the selection instead of gliding, and the detail panel
+     swaps rather than rising. The selection still moves — this is about how it
+     gets there, not whether it does. */
+  .arcade-rail,
+  .arcade-row {
+    transition: none;
+  }
+
+  .arcade-detail-inner {
     animation: none;
     opacity: 1;
     transform: none;

@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { formatDuration } from '../lib/format';
 import { Link, useParams } from 'react-router-dom';
 import { CoverArt } from '../components/CoverArt';
 import { FavoriteButton, useFavoriteIds } from '../components/FavoriteButton';
@@ -6,13 +7,6 @@ import { usePlayer, type QueueTrack } from '../components/PlayerBar';
 import { apiClient } from '../lib/apiClient';
 import type { AlbumDetail } from '../types/api';
 import { PlayIcon } from '../components/icons';
-
-function formatDuration(seconds: number | null): string {
-  if (seconds === null) return '—';
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-}
 
 export function AlbumDetailPage() {
   const { id } = useParams<{ id: string }>();

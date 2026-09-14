@@ -45,6 +45,7 @@ function navItemsFor(isAdmin: boolean): { primary: NavItem[]; overflow: NavItem[
     overflow: [
       ...(isAdmin
         ? [
+            { to: '/manage', label: 'Manage' },
             { to: '/upload', label: 'Upload' },
             { to: '/users', label: 'Users' },
           ]

@@ -4,6 +4,46 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `ArcadeSelect()` — `frontend/src/components/ArcadeSelect.tsx`
+**Date:** 2026-09-14
+**How added:** new feature
+**Purpose:** the music-select strip and detail panel — fixed centred cursor, the list travelling under it.
+**Side effects:** none directly; calls `onSelect`/`onPlay`/`onNearEnd` callbacks the caller supplies.
+**Before:** nothing — new component.
+**After:** `ROW_HEIGHT` is a fixed constant rather than measured, because the strip's whole geometry (the centring offset, how far the rail travels) is arithmetic on it — measuring would mean a layout read on every selection change. The rail's offset is `stripHeight / 2 - ROW_HEIGHT / 2 - selected * ROW_HEIGHT`, observed via `ResizeObserver` so a rotated phone keeps the cursor centred without waiting for an unrelated re-render. The wheel handler changes the selection by one row per notch rather than scrolling the strip natively — free scrolling would let the list and the fixed cursor disagree about what is "selected," and a subsequent click could then pick something the cursor was not sitting on. A click on the already-selected row plays; a click on any other row selects — two gestures on one control, distinguished by prior selection state.
+
+---
+
+**Function:** `LibraryPage()` — `frontend/src/pages/LibraryPage.tsx`
+**Date:** 2026-09-14
+**How added:** new feature (rewrite; the old file of this name became `ManageTracksPage.tsx`)
+**Purpose:** fetch tracks a page at a time and feed them to `ArcadeSelect`.
+**Side effects:** GET `/tracks`, paginated; queues playback via `usePlayer`.
+**Before:** `LibraryPage` rendered the sortable/filterable table (moved to `ManageTracksPage`, unchanged).
+**After:** `useInfiniteQuery` requests 200 rows per page — the server's own cap (`MAX_LIMIT` in `backend/src/utils/pagination.ts`), so this is the fewest round trips the server will allow. `loadMore` is guarded on both `hasNextPage` and `isFetchingNextPage`; the strip calls it on every selection change while near the loaded tail, and without the second guard a single flick of the wheel fires several identical requests before the first returns. `getNextPageParam` returns `undefined` (React Query's "no more pages" signal) once the loaded count reaches the server-reported total, rather than a past-the-end offset that would fetch an empty page forever. `play()` filters missing tracks out of the queue before it is built, matching the guard the old table's row click already had, since queueing a missing file stalls the queue on a mid-playback 500.
+
+---
+
+**Function:** `formatDuration()` — `frontend/src/lib/format.ts`
+**Date:** 2026-09-14
+**How added:** bug fix (consolidation of three divergent copies)
+**Purpose:** one definition of how a duration is written, shared by every screen that shows one.
+**Side effects:** none.
+**Before:** defined separately in `ManageTracksPage.tsx`, `TrackDetailDrawer.tsx` and `AlbumDetailPage.tsx`. Two of the three rounded the seconds (`Math.round(seconds % 60)`); the third floored them. Rounding is wrong on its own: `Math.floor(59.7 / 60)` is 0 minutes and `Math.round(59.7)` is 60 seconds, so a 59.7-second track printed `0:60` — any duration within half a second of a minute boundary hit it.
+**After:** one flooring implementation, imported by all three call sites plus the new `ArcadeSelect`. Flooring matches the convention a player already uses for elapsed time: a track reads "3:59" until it is actually 4:00.
+
+---
+
+**Function:** `ManageTracksPage()` — `frontend/src/pages/ManageTracksPage.tsx` (renamed from `LibraryPage`)
+**Date:** 2026-09-14
+**How added:** refactor (rename + relocation, per A18)
+**Purpose:** the sortable, filterable track table with admin bulk actions, now separated from the listening surface.
+**Side effects:** unchanged — same queries, same mutations.
+**Before:** rendered at `/`, titled "Library", the only way to browse tracks.
+**After:** rendered at `/manage`, behind `RequireAdmin`, titled "Manage tracks". No behavioural change beyond the route and heading — sort, the four filters, search, per-row flags, favouriting and the checkbox multi-select with bulk hide/recommend/delete are byte-for-byte the same code. Reachable from the top bar's overflow menu, added to `navItemsFor`'s admin branch in `AppShell.tsx`.
+
+---
+
 **Function:** `loadTheme()`, `applyTheme()` — `frontend/src/lib/theme.ts`; `OptionsPage()` — `frontend/src/pages/OptionsPage.tsx`
 **Date:** 2026-09-11
 **How added:** new feature

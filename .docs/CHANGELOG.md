@@ -4,6 +4,89 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-14 — The library is a music select now, and the table moved to /manage
+
+Phase 3 of `.docs/features/music-select-and-themes/planning.md`. Answers A18
+(execution) and A19.
+
+**The layout, after the beatmania IIDX reference:** a vertical strip of track
+names on the right, the selected track written large on the left — cover art,
+title, artist, album, length, format, plays, status, a Play button. The detail
+that actually makes it read as the reference rather than as a generic split
+view: **the cursor is fixed and the list moves under it.** The selected row is
+pinned to the middle of the strip; everything else slides past. A highlight
+that walks down a static list is a file browser. A list that travels under a
+fixed cursor is a machine offering you things.
+
+**Clicking is two gestures on one control**, distinguished by where the cursor
+already is: click an unselected row to select it, click the selected row (or
+the Play button) to play it. That is how the reference's single button does
+both "browse" and "confirm" with a turntable and a keyboard, and it is also
+forced by the fixed-cursor design — free scrolling would let the list and the
+selection disagree about what is in the middle, and a click could then select
+something the cursor was not sitting on. The mouse wheel changes the selection
+one row per notch rather than scrolling the strip, for the same reason: it is
+a dial, not a scrollbar.
+
+**The table did not shrink into this — it moved.** `/` now shows the arcade
+select; the old table lives at `/manage`, admin-only, reachable from the top
+bar's overflow menu. Every filter, the search box, sort, per-row flags and the
+admin bulk actions (hide / recommend / delete) are untouched — this was the
+consequence flagged in [A18](../QUESTIONS.md#a18--the-arcade-select-replaces-the-table-was-q21)
+when the owner chose full replacement over a toggle: the reference layout has
+room for one song's details and a list of names, and the management surface has
+nowhere to put a checkbox column, so it needed a page of its own rather than
+losing capability.
+
+**Pagination is real, and proven with a real second page.** The server caps a
+page at 200 rows (`MAX_LIMIT` in `backend/src/utils/pagination.ts`); the strip
+asks for exactly that per page via `useInfiniteQuery`, and pages in
+automatically once the selection comes within 8 rows of what is loaded.
+Verified by seeding 231 tracks and counting the actual `/api/tracks` requests
+a browser made: **one** request for the first 200, **exactly one more** once the
+selection reached the tail (not several — the near-end trigger fires on every
+selection change while close to it, so a fetch already in flight has to be
+guarded against, not just requested), and **zero** further requests once all
+231 rows were loaded and the tail was hit again.
+
+**A bug found while wiring the detail panel's duration field.**
+`formatDuration` existed three times in the codebase, and two of the three
+disagreed with the third: they rounded the seconds, the third floored them.
+Rounding is wrong — `Math.floor(59.7 / 60)` is 0 minutes and `Math.round(59.7)`
+is 60 seconds, so a 59.7-second track printed **`0:60`**. Any duration within
+half a second of a minute boundary hit it. Consolidated into one
+`lib/format.ts`, flooring, which is also the convention a player already uses
+for elapsed time — a track reads "3:59" until it is actually 4:00.
+
+**Missing tracks are shown, not hidden**, dimmed and marked, with the Play
+button disabled and the status line saying so plainly — consistent with how
+the rest of the app treats a track whose file is gone from disk rather than
+pretending it does not exist.
+
+**Verified:** 50/50 across four headless-Chromium suites. The cursor staying
+put while the list moves and the selected row landing exactly under it; select
+vs. play as two gestures on one control; wheel selection clamping at both ends
+without breaking; a missing track dimmed, marked, Play disabled, and a second
+click on it while already selected starting nothing; the phone layout (strip
+stacked above the detail panel, no sideways scroll); reduced motion turning off
+the rail's glide and the detail panel's rise; `/manage` still fully functional
+for an admin (table, search, per-row checkboxes all present); and — after the
+shell's nav array changed to add the `/manage` entry — theme switching and the
+arcade select still working together, with the selection cursor's border colour
+confirmed to repaint under the Crimson theme with no code in this phase writing
+a theme-aware colour by hand. `tsc --noEmit` clean, no new lint warnings (6
+pre-existing, unchanged), production build clean, and 281/281 backend tests
+(untouched this phase — run to confirm no regression from the frontend-only
+change).
+
+**Recorded honestly rather than glossed over:** the phone layout is a plain
+vertical stack, not the slide-up sheet the plan recommended — see
+[A19](../QUESTIONS.md#a19--a-phone-stacks-the-strip-above-the-detail-was-q22).
+A second overlay system was more than this phase's scope justified before
+anyone has used the plainer version on a real phone.
+
+---
+
 ## 2026-09-11 — Themes, for the price of a variable block
 
 Phase 2 of `.docs/features/music-select-and-themes/planning.md`. Three themes:

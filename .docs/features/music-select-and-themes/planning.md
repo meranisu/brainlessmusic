@@ -96,7 +96,7 @@ colour.
 Three themes shipped rather than two (blue, crimson, void): two look like a
 choice between two moods, three looks like a setting. 34/34 checks.
 
-## Phase 3 — The music select view, with a mouse
+## Phase 3 — The music select view, with a mouse — **Done** (2026-09-14)
 
 The layout from the reference: list on the right, detail on the left.
 
@@ -107,14 +107,41 @@ The layout from the reference: list on the right, detail on the left.
 - **Left:** the selected track at size — album art large, then title, artist,
   album, duration, format, bitrate, play count.
 - Click to select, click the selected entry (or a Play control) to play.
-- Whether this **replaces** the table or is a **second view mode** is
-  [Q21](../../QUESTIONS.md#q21). Recommendation in that entry: a toggle, because
-  the table carries sorting, filtering and the admin bulk actions that this
-  layout has nowhere to put.
+- Whether this **replaces** the table or is a **second view mode** was
+  [Q21](../../QUESTIONS.md#q21) — answered A18: **replace**, on `/`. The table
+  moves to `/manage`, admin-gated, with sorting, filtering, per-row flags and
+  bulk actions untouched.
 
 **Done when:** selection and playback work by mouse, the left panel tracks the
 selection, and the narrow-screen answer from Q22 is implemented rather than
 deferred.
+
+**Done.** `ArcadeSelect` renders the strip and detail panel; `LibraryPage`
+fetches with `useInfiniteQuery` (200-row pages, the server's own cap) and pages
+in automatically as the selection nears the loaded tail. The old table-based
+`LibraryPage` was renamed to `ManageTracksPage` and moved to `/manage`
+(admin-only, reachable from the top bar's overflow menu) rather than deleted —
+every filter, sort, flag and bulk action survives intact.
+
+Two things worth flagging:
+
+- **Q22 (phone layout) shipped simpler than recommended.** The plan's
+  recommendation was a slide-up sheet; what shipped is a plain vertical stack
+  (strip above detail, via CSS `order`). Recorded honestly as
+  [A19](../../QUESTIONS.md#a19--a-phone-stacks-the-strip-above-the-detail-was-q22)
+  rather than claimed as the sheet.
+- **`formatDuration` existed three times** across the codebase before this
+  phase, two of them rounding seconds (which can print `0:60`) and one
+  flooring. Consolidated into `lib/format.ts`, flooring — see FUNCTIONLOG.
+
+**Verified:** 50/50 across four headless-Chromium suites — centred-cursor
+mechanics, click-to-select vs. click-to-play, wheel selection with clamping at
+both ends, a missing track shown-but-unplayable, real pagination proven by
+counting actual network requests (200 rows → select the tail → exactly one more
+request → 231 total, no runaway or duplicate fetches), the phone layout, reduced
+motion, and the management page still fully functional for an admin. Plus tsc
+clean, no new lint warnings, and 281/281 backend tests (untouched this phase,
+confirming no regression).
 
 ## Phase 4 — Keyboard, and the scroll feel
 

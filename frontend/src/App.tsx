@@ -10,6 +10,7 @@ import { FavoritesPage } from './pages/FavoritesPage';
 import { HealthPage } from './pages/HealthPage';
 import { LibraryPage } from './pages/LibraryPage';
 import { LoginPage } from './pages/LoginPage';
+import { ManageTracksPage } from './pages/ManageTracksPage';
 import { OptionsPage } from './pages/OptionsPage';
 import { TitleScreenPage } from './pages/TitleScreenPage';
 import { PlaylistDetailPage } from './pages/PlaylistDetailPage';
@@ -41,6 +42,7 @@ export function App() {
           <Route path="/health" element={<HealthPage />} />
           <Route path="/options" element={<OptionsPage />} />
           <Route element={<RequireAdmin />}>
+            <Route path="/manage" element={<ManageTracksPage />} />
             <Route path="/upload" element={<UploadPage />} />
             <Route path="/users" element={<UsersPage />} />
           </Route>

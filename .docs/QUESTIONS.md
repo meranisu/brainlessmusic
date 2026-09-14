@@ -37,7 +37,6 @@ is never asked twice.
 | [Q12](#q12--does-the-first-play-wait-need-a-live-fallback-for-very-long-tracks) | Does the first-play wait need a live fallback for very long tracks? | 2026-09-10 | No |
 | [Q19](#q19--what-does-a-theme-control) | What does a theme control? | 2026-09-11 | Yes, at phase 2 |
 | [Q20](#q20--where-does-the-theme-choice-live) | Where does the theme choice live? | 2026-09-11 | No — assumption stated |
-| [Q22](#q22--what-does-the-arcade-select-do-on-a-phone) | What does the arcade select do on a phone? | 2026-09-11 | Yes, at phase 3 |
 | [Q23](#q23--should-selecting-a-track-preview-it) | Should selecting a track preview it? | 2026-09-11 | No — assumption stated |
 
 ### Q1 — Is the home network behind CGNAT?
@@ -149,19 +148,29 @@ a dark room and a desktop by a window can reasonably disagree. It also needs no
 migration, no endpoint and no round trip before the first paint, which matters
 because a theme that arrives late is a visible flash of the wrong colours.
 
-### Q22 — What does the arcade select do on a phone?
-**Asked:** 2026-09-11 · **Blocking:** at phase 3
+### A19 — A phone stacks the strip above the detail *(was Q22)*
+**Answered:** 2026-09-11, by what shipped · **Simple stacking**, not my own
+recommendation. I had recommended a slide-up sheet; the phase went a plainer
+route instead, and it is worth being honest that this is a downgrade in
+ambition rather than a considered alternative.
 
-Two panels side by side is a desktop shape. At 390px the choices are: stack the
-detail panel above a short list, make the detail a sheet that slides up when
-something is selected, or serve the table on phones and the arcade view only on
-wide screens.
+On mobile (below `lg`), the grid collapses to one column and CSS `order`
+puts the strip first, the detail panel second — you scroll to it rather than
+it sliding over the strip. The strip keeps its own fixed height
+(`min(34rem, calc(100svh - 19rem))`), so it still reads as "the thing you are
+scrolling," and the detail panel is reached the ordinary way, by scrolling the
+page.
 
-**Recommendation: the sheet.** The strip keeps the full height, which is what
-makes scrolling through a library feel like anything, and the detail arrives
-when it is relevant. Depends on Q21 — if the arcade view is a *toggle*, the
-narrow-screen answer can honestly be "the toggle defaults to the table on a
-phone", which is much less work.
+Why not the sheet as planned: it is a second overlay system (on top of the
+numpad, Options panel and interstitial already in the app), and building it
+well — a drag handle, a dismiss gesture, focus trapping — was more than this
+phase's scope justified before anyone has used the plain version. If stacking
+reads as flat once there is a phone to actually test it on, the sheet is still
+the next move, and nothing here forecloses it.
+
+**Verified:** 390px shows the strip on top with no sideways scroll
+(`scrollWidth` 375 vs a 390 viewport), the detail panel is reachable by
+scrolling, and no console errors.
 
 ### Q23 — Should selecting a track preview it?
 **Asked:** 2026-09-11 · **Blocking:** no

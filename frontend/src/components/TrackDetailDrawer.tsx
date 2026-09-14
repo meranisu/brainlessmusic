@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { formatDuration } from '../lib/format';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { useScrollLock } from '../hooks/useScrollLock';
@@ -13,13 +14,6 @@ interface TrackDetailDrawerProps {
   trackId: number;
   initialTab: 'tags' | 'diagnostics';
   onClose: () => void;
-}
-
-function formatDuration(seconds: number | null): string {
-  if (seconds == null) return '—';
-  const m = Math.floor(seconds / 60);
-  const s = Math.round(seconds % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 function formatBytes(bytes: number): string {
