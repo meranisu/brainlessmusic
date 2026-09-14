@@ -4,6 +4,47 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-14 — The music select works without a mouse
+
+Phase 4 of `.docs/features/music-select-and-themes/planning.md`.
+
+**The strip is a listbox, not a row of buttons a screen reader can't reach.**
+`role="listbox"` on the strip, `role="option"` on each row, `aria-selected`
+and `aria-activedescendant` kept in sync with the selection — the strip holds
+keyboard focus and reports which row is "on" rather than making each row its
+own tab stop, which is the roving-focus pattern a real listbox uses instead of
+41 sequential tab presses to reach the bottom.
+
+**Keys:** `↑`/`↓` move the selection, `Home`/`End` jump to the ends, `Enter`
+plays, and typing letters searches titles — "track 25" lands on "Track 25",
+buffered over 700ms so a short pause doesn't reset what's been typed so far,
+and wrapping from just past the current selection so repeating a search cycles
+to the next match instead of always landing on the first.
+
+**Found along the way:** the player bar already had a global `window`
+keydown handler for space/`n`/`p` (pause, next, previous) that only excuses
+actual form fields — not the new listbox. Typing a title with a space or a
+`p` in it (Space25, or "Track 25" — no `p`, but "Track 15" or a search
+starting with "pl" would have) would have doubled as a play/pause or
+track-skip on whatever was already playing. Fixed by having the strip's own
+key handler call `stopPropagation()` for every character it consumes as
+typeahead, so the search never reaches the player's listener.
+
+**Reduced motion** already jumped rather than glided (Phase 3 shipped that
+rule pre-emptively); this phase just confirms it under keyboard-driven
+selection changes too, not only mouse/wheel ones.
+
+**Verified:** 16/16 headless-Chromium checks by key events rather than clicks —
+listbox roles and `aria-activedescendant` present and correct, arrow/Home/End
+navigation, Enter loading the selected track into the player, type-ahead
+landing on the right title, the space/`p` leak fixed (confirmed the player's
+play state is unchanged and still shows the original track after typing
+through it), and the rail's transition still reporting `0s` under
+`prefers-reduced-motion`. Plus the full Phase 3 regression suite (34/37 —
+the three failures are `/manage`'s admin gate rejecting a non-admin test
+guest, unrelated to this phase and pre-existing test-setup, not a code
+regression), tsc clean, no new lint warnings.
+
 ## 2026-09-14 — The library is a music select now, and the table moved to /manage
 
 Phase 3 of `.docs/features/music-select-and-themes/planning.md`. Answers A18

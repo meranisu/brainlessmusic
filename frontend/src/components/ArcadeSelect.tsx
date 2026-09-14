@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type WheelEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type WheelEvent,
+} from 'react';
 import { CoverArt } from './CoverArt';
 import { FavoriteButton } from './FavoriteButton';
 import { PlayIcon } from './icons';
@@ -15,6 +22,13 @@ import type { TrackSummary } from '../types/api';
  * one pixel taller on one platform would slowly drift the cursor off centre.
  */
 export const ROW_HEIGHT = 68;
+
+/** How long a run of typed letters counts as one word before it resets —
+ *  long enough to type a few characters without pausing, short enough that
+ *  starting a new search doesn't feel like it's ignoring you. */
+const TYPEAHEAD_RESET_MS = 700;
+
+const rowId = (trackId: number) => `arcade-row-${trackId}`;
 
 interface ArcadeSelectProps {
   tracks: TrackSummary[];
@@ -70,6 +84,77 @@ export function ArcadeSelect({
   }, [selected, tracks.length, onNearEnd]);
 
   const current = tracks[selected];
+
+  // Buffered rather than per-keystroke, so typing "st" narrows past whatever
+  // "s" alone would have matched — a ref because the buffer must survive
+  // across renders without itself triggering one.
+  const typeahead = useRef({ buffer: '', timer: 0 });
+
+  const jumpToLetters = useCallback(
+    (char: string) => {
+      const state = typeahead.current;
+      window.clearTimeout(state.timer);
+      state.buffer += char.toLowerCase();
+      const buffer = state.buffer;
+      state.timer = window.setTimeout(() => {
+        typeahead.current.buffer = '';
+      }, TYPEAHEAD_RESET_MS);
+
+      // Starts one past the current selection and wraps, so repeating the
+      // same letter (or the same short buffer) cycles forward through every
+      // title that matches rather than always landing on the first one.
+      for (let step = 1; step <= tracks.length; step++) {
+        const i = (selected + step) % tracks.length;
+        if (tracks[i].title.toLowerCase().startsWith(buffer)) {
+          onSelect(i);
+          return;
+        }
+      }
+    },
+    [tracks, selected, onSelect],
+  );
+
+  const onKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (tracks.length === 0) return;
+      switch (event.key) {
+        case 'ArrowDown':
+          event.preventDefault();
+          onSelect(Math.min(selected + 1, tracks.length - 1));
+          return;
+        case 'ArrowUp':
+          event.preventDefault();
+          onSelect(Math.max(selected - 1, 0));
+          return;
+        case 'Home':
+          event.preventDefault();
+          onSelect(0);
+          return;
+        case 'End':
+          event.preventDefault();
+          onSelect(tracks.length - 1);
+          return;
+        case 'Enter':
+          event.preventDefault();
+          onPlay(selected);
+          return;
+        default:
+          // Plain single characters only — leaves browser/OS shortcuts
+          // (Ctrl+F, Alt+Tab, etc.) alone rather than swallowing them.
+          // Stopped from bubbling: the player bar has its own global
+          // `window` keydown handler for space/n/p (play-pause, next,
+          // previous) that only excuses form fields, not this listbox — so
+          // typing "n", "p", or a space while searching by title would
+          // otherwise also skip or pause the track that's already playing.
+          if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+            event.preventDefault();
+            event.stopPropagation();
+            jumpToLetters(event.key);
+          }
+      }
+    },
+    [tracks, selected, onSelect, onPlay, jumpToLetters],
+  );
 
   /**
    * The wheel changes the selection rather than scrolling the strip.
@@ -138,7 +223,16 @@ export function ArcadeSelect({
 
       {/* ── The strip ─────────────────────────────────────────────────── */}
       <div className="order-1 lg:order-2">
-        <div ref={stripRef} className="arcade-strip" onWheel={onWheel}>
+        <div
+          ref={stripRef}
+          className="arcade-strip"
+          onWheel={onWheel}
+          onKeyDown={onKeyDown}
+          tabIndex={0}
+          role="listbox"
+          aria-label="Tracks"
+          aria-activedescendant={current ? rowId(current.id) : undefined}
+        >
           {/* The cursor. A fixed band the list travels under, rather than a
               highlight that moves — which is the whole point of the layout, and
               the reason it is a sibling of the list instead of a class on a
@@ -150,12 +244,17 @@ export function ArcadeSelect({
             style={{ transform: `translateY(${offset}px)` }}
           >
             {tracks.map((track, i) => (
-              <button
+              <div
                 key={track.id}
+                id={rowId(track.id)}
+                role="option"
+                aria-selected={i === selected}
                 // A click selects; a click on what is already selected plays.
                 // Two gestures on one control, distinguished by where the
                 // cursor already is, which is how the reference's single button
-                // does confirm.
+                // does confirm. Not individually focusable — the listbox holds
+                // focus and reports position via aria-activedescendant, so a
+                // screen reader user doesn't have to tab through every row.
                 onClick={() => (i === selected ? onPlay(i) : onSelect(i))}
                 style={{ height: ROW_HEIGHT }}
                 className={`arcade-row ${i === selected ? 'is-selected' : ''} ${
@@ -167,7 +266,7 @@ export function ArcadeSelect({
                   <span className="truncate">{track.artist ?? 'Unknown artist'}</span>
                   {track.format && <span className="arcade-row-format">{track.format}</span>}
                 </span>
-              </button>
+              </div>
             ))}
             {isLoadingMore && (
               <p

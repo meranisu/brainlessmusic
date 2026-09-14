@@ -143,7 +143,7 @@ motion, and the management page still fully functional for an admin. Plus tsc
 clean, no new lint warnings, and 281/281 backend tests (untouched this phase,
 confirming no regression).
 
-## Phase 4 — Keyboard, and the scroll feel
+## Phase 4 — Keyboard, and the scroll feel — **Done** (2026-09-14)
 
 - `↑`/`↓` move the selection, `Enter` plays, `Home`/`End` jump, typing letters
   jumps to a title. Wheel scrolls the strip.
@@ -157,6 +157,30 @@ confirming no regression).
 
 **Done when:** the view is fully operable without a mouse, measured in headless
 Chromium by key events rather than by clicks.
+
+**Done.** The strip is `role="listbox"` and holds focus (`tabIndex={0}`); rows
+became non-focusable `role="option"` elements (were `<button>`s, individually
+tabbable — the exact problem this phase exists to fix) reporting position via
+`aria-activedescendant` rather than each being its own tab stop. `↑`/`↓`,
+`Home`/`End`, `Enter`, and type-ahead all work; type-ahead buffers over 700ms
+and searches forward from just past the current selection so repeating a
+short buffer cycles through matches instead of sticking on the first.
+`prefers-reduced-motion` was already handled in Phase 3 (the rail's
+transition is unconditionally disabled) — this phase confirmed it holds for
+keyboard-driven selection changes too, no new work needed.
+
+**Found along the way:** the player bar already had a global `window`
+keydown handler for space/`n`/`p` (pause/next/previous) guarded only against
+actual form fields, not this listbox. Typing a title containing a space or
+the letters `n`/`p` during type-ahead would have doubled as a play/pause or
+skip on whatever was already playing. Fixed by `stopPropagation()` on every
+key the strip's own handler consumes.
+
+**Verified:** 16/16 checks driven entirely by `page.keyboard.press`, plus the
+full Phase 3 mouse/wheel/pagination/reduced-motion regression suite
+(34/37 — the three failures are `/manage`'s admin gate rejecting a
+non-admin test fixture, unrelated to this phase). tsc clean, no new lint
+warnings.
 
 ## Phase 5 — Polish
 

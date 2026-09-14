@@ -4,13 +4,33 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `onKeyDown()` (in `ArcadeSelect`) — `frontend/src/components/ArcadeSelect.tsx`
+**Date:** 2026-09-14
+**How added:** new feature (Phase 4)
+**Purpose:** keyboard operation of the strip — `↑`/`↓` move the selection, `Home`/`End` jump to the ends, `Enter` plays, any other single printable character is handed to `jumpToLetters` for type-ahead search.
+**Side effects:** none directly; calls `onSelect`/`onPlay`. Calls `event.stopPropagation()` for every key it handles.
+**Before:** nothing — the strip had no key handling; rows were `<button>`s reachable only by tabbing through all of them individually, one row per tab stop.
+**After:** the strip itself (`role="listbox"`, `tabIndex={0}`) holds focus and handles keys; rows became non-focusable `role="option"` elements reporting position via `aria-activedescendant` rather than being tab stops. `stopPropagation()` on the type-ahead branch specifically exists because `PlayerBar` already has a global `window` keydown handler for space/`n`/`p` (pause/next/previous) that only excuses actual form fields (`input`, `textarea`, `select`, `[contenteditable]`) — without it, searching for a title containing a space or the letters `n`/`p` would have also toggled or skipped whatever track was already playing.
+
+---
+
+**Function:** `jumpToLetters()` (in `ArcadeSelect`) — `frontend/src/components/ArcadeSelect.tsx`
+**Date:** 2026-09-14
+**How added:** new feature (Phase 4)
+**Purpose:** type-ahead: accumulates typed characters into a buffer and selects the next track (searching forward from just past the current selection, wrapping around) whose title starts with it.
+**Side effects:** calls `onSelect`. Sets/clears a `window.setTimeout` held in a ref.
+**Before:** nothing — new function.
+**After:** the buffer lives in a `useRef`, not state, since accumulating keystrokes shouldn't itself trigger a render; it resets 700ms after the last keystroke via a timer stored in the same ref (cleared and restarted on every character) so pausing briefly doesn't lose progress but pausing for real starts a fresh search. Search starts one row past the current selection rather than from the top, so repeating the same short buffer (or the same single letter) cycles forward through every matching title instead of always re-landing on the first one.
+
+---
+
 **Function:** `ArcadeSelect()` — `frontend/src/components/ArcadeSelect.tsx`
 **Date:** 2026-09-14
 **How added:** new feature
 **Purpose:** the music-select strip and detail panel — fixed centred cursor, the list travelling under it.
 **Side effects:** none directly; calls `onSelect`/`onPlay`/`onNearEnd` callbacks the caller supplies.
 **Before:** nothing — new component.
-**After:** `ROW_HEIGHT` is a fixed constant rather than measured, because the strip's whole geometry (the centring offset, how far the rail travels) is arithmetic on it — measuring would mean a layout read on every selection change. The rail's offset is `stripHeight / 2 - ROW_HEIGHT / 2 - selected * ROW_HEIGHT`, observed via `ResizeObserver` so a rotated phone keeps the cursor centred without waiting for an unrelated re-render. The wheel handler changes the selection by one row per notch rather than scrolling the strip natively — free scrolling would let the list and the fixed cursor disagree about what is "selected," and a subsequent click could then pick something the cursor was not sitting on. A click on the already-selected row plays; a click on any other row selects — two gestures on one control, distinguished by prior selection state.
+**After:** `ROW_HEIGHT` is a fixed constant rather than measured, because the strip's whole geometry (the centring offset, how far the rail travels) is arithmetic on it — measuring would mean a layout read on every selection change. The rail's offset is `stripHeight / 2 - ROW_HEIGHT / 2 - selected * ROW_HEIGHT`, observed via `ResizeObserver` so a rotated phone keeps the cursor centred without waiting for an unrelated re-render. The wheel handler changes the selection by one row per notch rather than scrolling the strip natively — free scrolling would let the list and the fixed cursor disagree about what is "selected," and a subsequent click could then pick something the cursor was not sitting on. A click on the already-selected row plays; a click on any other row selects — two gestures on one control, distinguished by prior selection state. Rows are `role="option"` elements, not buttons, since Phase 4: a listbox's options are reached by the container's own focus plus `aria-activedescendant`, not by being individually tabbable.
 
 ---
 
