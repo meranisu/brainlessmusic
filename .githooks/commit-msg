@@ -1,0 +1,13 @@
+#!/bin/bash
+# Strips AI attribution trailers/footers from commit messages before they're
+# recorded. Exists because relying on an AI session to remember not to add
+# these has already failed once (see .docs/CLAUDE.md "Commit hygiene").
+msg_file="$1"
+
+sed -i \
+  -e '/^Co-Authored-By:.*\(claude\|anthropic\)/Id' \
+  -e '/^🤖 Generated with \[Claude Code\]/Id' \
+  "$msg_file"
+
+# Trim resulting trailing blank lines
+sed -i -e :a -e '/^\n*$/{$d;N;ba' -e '}' "$msg_file"

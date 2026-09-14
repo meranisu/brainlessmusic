@@ -85,6 +85,19 @@ On 2026-09-09 a test that did `rm -rf` on `config.libraryPath` was run directly 
 - **`npm test` is the only supported way to run the suite.** It sets `DB_PATH`, `LIBRARY_PATH`, `ARTWORK_PATH` and `UPLOAD_STAGING_PATH` to throwaway locations under `backend/.test-tmp/`. Importing `src/testing/harness.ts` enforces this at import time, so a direct `tsx --test` run fails loudly instead of touching real data.
 - **Remember that importing is enough to do damage**: `db/connection.ts` opens a database as a side effect of being imported, so any module that transitively reaches `db/` will touch whatever `DB_PATH` points at.
 
+## Commit hygiene
+
+No AI attribution in commits or PRs, ever — no `Co-Authored-By: Claude...`
+trailer, no "Generated with" footer. This repo's history carried that trailer
+on 33 commits before it was stripped and force-pushed on 2026-09-14; a
+`commit-msg` hook at `.githooks/commit-msg` now strips any such line
+automatically so it can't silently come back. The hook only activates once
+`core.hooksPath` is set per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
 ## Feature build order
 
 `.docs/process/development-roadmap.md` is the ordering authority — work the first unticked box. Within it, the Android steps expand into the phased approach in `.docs/process/android-phased-plan.md` (Phase 0: connect + auth → Phase 1: browsing → Phase 2: playback → Phase 3: background/system integration → Phase 4: polish). Room sync, offline downloads, and tag editing are tracked separately in `.docs/specs/` once each is designed — don't build them opportunistically inside an earlier phase.
