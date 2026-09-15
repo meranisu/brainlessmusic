@@ -222,6 +222,12 @@ which blocks phone-to-laptop traffic no matter how the host is set up.
 
 One image serves both the API and the web app, so there is nothing else to host.
 
+New to this and just want it running (no assumed Docker/Node knowledge, plus
+how to reach it from another device on the same network)? Use
+[.docs/ops/docker-local-build.md](.docs/ops/docker-local-build.md) instead —
+this section below is the terse version for anyone already comfortable with
+Docker.
+
 ```bash
 # 1. A secret. The server refuses to start without a real one.
 echo "JWT_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")" > .env
