@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { ApiError, apiClient, setUnlockTicket } from '../lib/apiClient';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
@@ -35,18 +35,18 @@ export function AdminNumpad({ onUnlocked, onDismiss }: AdminNumpadProps) {
    * animate afterwards. The panel and its backdrop leave together; a dialog
    * that vanishes while its ground fades reads as a crash rather than a close.
    */
-  function dismiss() {
+  const dismiss = useCallback(() => {
     setIsClosing(true);
     setTimeout(onDismiss, CLOSE_MS);
-  }
+  }, [onDismiss]);
 
   function press(key: string) {
     setError(null);
     setCode((current) => (current.length >= MAX_LENGTH ? current : current + key));
   }
 
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
+  const submit = useCallback(async () => {
+    if (isSubmitting || code.length === 0) return;
     setError(null);
     setIsSubmitting(true);
 
@@ -68,7 +68,37 @@ export function AdminNumpad({ onUnlocked, onDismiss }: AdminNumpadProps) {
     } finally {
       setIsSubmitting(false);
     }
+  }, [isSubmitting, code, onUnlocked]);
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    await submit();
   }
+
+  // The grid is drawn for a thumb, but a desktop with a keyboard attached
+  // shouldn't be forced to click through it one digit at a time. Scoped to
+  // this component's lifetime, so it never competes with input elsewhere —
+  // the numpad is a full-screen modal and the only thing on screen while it's up.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (isSubmitting) return;
+      if (event.key >= '0' && event.key <= '9') {
+        event.preventDefault();
+        press(event.key);
+      } else if (event.key === 'Backspace') {
+        event.preventDefault();
+        setCode((current) => current.slice(0, -1));
+      } else if (event.key === 'Enter') {
+        event.preventDefault();
+        void submit();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        dismiss();
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isSubmitting, submit, dismiss]);
 
   return (
     <div

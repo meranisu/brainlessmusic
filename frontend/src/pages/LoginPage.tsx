@@ -1,9 +1,12 @@
 import { useState, type FormEvent } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { ArcadeInterstitial } from '../components/ArcadeInterstitial';
 import { BrandLockup } from '../components/BrandLockup';
 import { TitleScreenPanel } from '../components/TitleScreenPanel';
-import { ApiError, getUnlockTicket, setUnlockTicket } from '../lib/apiClient';
+import { ApiError, getUnlockTicket } from '../lib/apiClient';
+import { markJustEntered } from '../lib/boot';
+import { interstitialDuration } from '../lib/interstitial';
 
 const lightInput =
   'w-full rounded-md border border-blue-950/30 bg-white px-3 py-2 text-sm text-blue-950 outline-none transition-colors placeholder:text-blue-950/40 focus:border-orange-600 disabled:opacity-60';
@@ -22,17 +25,24 @@ const lightInput =
  */
 export function LoginPage() {
   const { user, login } = useAuth();
+  const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // True from the moment login succeeds until the navigation actually fires —
+  // holds this page on screen for the card below instead of cutting straight
+  // to the library the instant `user` updates.
+  const [isLeaving, setIsLeaving] = useState(false);
 
   // A guest session still counts as `user` — guest entry is the default, open
   // door, so most people tapping the logo already have one. Only a real
   // account signing in twice should skip straight past this form; a guest
-  // needs to see it to actually become an admin.
-  if (user && !user.isGuest) return <Navigate to="/" replace />;
-  if (!getUnlockTicket()) return <Navigate to="/enter" replace />;
+  // needs to see it to actually become an admin. `isLeaving` is exempted for
+  // the same reason it is below: this component drives its own navigation
+  // once login succeeds, and a redirect racing that would skip the card.
+  if (user && !user.isGuest && !isLeaving) return <Navigate to="/" replace />;
+  if (!isLeaving && !getUnlockTicket()) return <Navigate to="/enter" replace />;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -40,12 +50,20 @@ export function LoginPage() {
     setIsSubmitting(true);
     try {
       await login(username, password);
+
+      // Same card the app uses to leave any screen through, and the same
+      // flag guest entry sets before landing in the library — logging in
+      // gets the identical arrival, not a bare cut to a different page.
+      setIsLeaving(true);
+      const wait = interstitialDuration();
+      if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+      markJustEntered();
+      navigate('/', { replace: true });
     } catch (err) {
-      // A server with ADMIN_ENTRY_CODE set answers a stale ticket exactly as it
-      // answers a wrong password, so this cannot tell the two apart and does
-      // not pretend to. Dropping the ticket sends the next attempt back through
-      // the numpad, which is the recovery either way.
-      if (err instanceof ApiError && err.status === 401) setUnlockTicket(null);
+      // Stay right here and say so — a wrong username or password (or, rarer,
+      // an expired unlock ticket; the server answers both identically on
+      // purpose) is corrected by retyping, not by being sent back through the
+      // numpad. The ticket is left alone so the retry doesn't need one either.
       setError(err instanceof ApiError ? err.message : 'Could not sign in — is the backend running?');
     } finally {
       setIsSubmitting(false);
@@ -109,6 +127,8 @@ export function LoginPage() {
       </div>
 
       <div className="absolute inset-x-0 bottom-[14%] z-10 h-px bg-blue-500/30" />
+
+      {isLeaving && <ArcadeInterstitial text={`Welcome back, ${username}`} detail="Loading your library" />}
     </div>
   );
 }

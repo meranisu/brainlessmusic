@@ -4,6 +4,66 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `seed-users.ts` (script) — `backend/src/scripts/seed-users.ts`
+**Date:** 2026-09-15
+**How added:** new feature (requested: repeatable creation of two named admin accounts)
+**Purpose:** upserts a hardcoded list of `{ username, password, isAdmin }` fixtures — currently `unskill` and `meran`, both admin, password `6969` — using `findUserByUsername`/`insertUser`/`setPasswordHash`/`setAdmin` from `db/users.ts` exactly as `set-admin.ts`/`set-password.ts` already do, run via `npm run seed-users`.
+**Side effects:** inserts or updates rows in `users`.
+**Before:** nothing — creating a second admin required either the bootstrap-then-register dance or hand-editing the DB.
+**After:** re-running it is safe — an existing username gets its password and admin flag reset instead of the script erroring on a duplicate, so it doubles as a "make sure these two people can always get in" command for a wiped `/data` volume.
+
+---
+
+**Function:** `LoginPage`'s `handleSubmit()` catch block — `frontend/src/pages/LoginPage.tsx`
+**Date:** 2026-09-15
+**How added:** bug fix / behavior change (superseded this morning's own fix, per direct follow-up feedback)
+**Purpose:** no longer calls `setUnlockTicket(null)` on a 401 — a wrong password now shows its error inline on the login form and leaves the ticket alone, rather than clearing it and letting the page's own redirect guard send the user back through the numpad.
+**Side effects:** removed — the ticket-clearing side effect this entry replaces.
+**Before (earlier today):** a 401 cleared the ticket, triggered a redirect to `/enter`, and forwarded the error as router state so `TitleScreenPage` could display it (see the two entries below this one, now superseded).
+**After:** the router-state forwarding those two functions existed for became unreachable, since this path no longer redirects at all — both were removed rather than left as dead code with nothing left to feed them.
+
+---
+
+**Function:** `LoginPage`'s render guards and `handleSubmit()` — `frontend/src/pages/LoginPage.tsx`
+**Date:** 2026-09-15
+**How added:** bug fix (two, found in sequence testing the same flow)
+**Purpose:** the top-of-render redirect that used to fire on any truthy `user` now exempts `user.isGuest` — guest entry is the open default, so most people reaching the numpad already hold a guest session, and the old guard bounced them home before the admin form ever painted. Separately, `handleSubmit`'s 401 branch now forwards its error message as router state on the `Navigate to="/enter"` it triggers (by clearing the ticket), since that redirect previously fired on the very next render — before the message it had just set could ever paint.
+**Side effects:** `Navigate`'s `state` prop now carries `{ notice: string | null }` on the ticket-cleared redirect.
+**Before:** a guest could not reach the admin login form at all via the numpad; a wrong password (indistinguishable from an expired ticket, by design) silently returned to the title screen with zero explanation.
+**After:** `TitleScreenPage` reads and displays that forwarded notice (see below); a real 401 is now visible, not silent.
+
+---
+
+**Function:** `TitleScreenPage`'s `error` seeding + history-scrub effect — `frontend/src/pages/TitleScreenPage.tsx`
+**Date:** 2026-09-15
+**How added:** bug fix (paired with the `LoginPage` fix above)
+**Purpose:** `error` state now initializes from `location.state?.notice` (the message `LoginPage` forwards on a failed-login redirect), reusing the same red error box the guest-entry-code flow already renders. A second effect immediately scrubs that state out of history (`navigate('.', { replace: true, state: null })`) once read, so a later browser back/forward landing on this same history entry doesn't replay a stale login failure.
+**Side effects:** one extra history replace on mount, only when arriving with router state.
+**Before:** nothing read `location.state`; a failed login's message had nowhere to land.
+**After:** none — this pairs with the `LoginPage` change and doesn't affect guest entry's own error flow.
+
+---
+
+**Function:** `AdminNumpad`'s `submit()` and its keyboard effect — `frontend/src/components/AdminNumpad.tsx`
+**Date:** 2026-09-15
+**How added:** new feature (requested: keyboard input for the numpad)
+**Purpose:** `handleSubmit`'s body was extracted into a standalone `submit()` (memoized with `useCallback`) so a `keydown` listener can call it directly without going through the `<form>`'s submit event. The listener maps digits to `press()`, Backspace to deleting the last digit, Enter to `submit()`, and Escape to `dismiss()`.
+**Side effects:** adds/removes a `window` `keydown` listener for the component's mounted lifetime (it's a full-screen modal — the only interactive thing on screen while it's up, so nothing else competes for the keys).
+**Before:** the numpad only accepted on-screen taps/clicks.
+**After:** `dismiss()` and `submit()` had to become `useCallback`s (not plain functions) to satisfy `react-hooks/exhaustive-deps` on the new effect without it re-subscribing on every render for no reason.
+
+---
+
+**Function:** `LoginPage`'s post-login sequence — `frontend/src/pages/LoginPage.tsx`
+**Date:** 2026-09-15
+**How added:** new feature (requested: a real transition instead of an instant cut)
+**Purpose:** on a successful login, the page now sets `isLeaving`, renders `ArcadeInterstitial` with `"Welcome back, <username>"`, waits out `interstitialDuration()`, calls `markJustEntered()` (the same flag the guest-entry flow sets), and only then navigates — instead of the previous instant `<Navigate>` the moment `user` updated.
+**Side effects:** none new — reuses `ArcadeInterstitial` and `markJustEntered()` exactly as the rest of the app already does for screen-to-screen transitions and the guest-entry arrival animation, respectively.
+**Before:** a successful admin login cut straight to the library with no transition at all, unlike every other screen change in the app.
+**After:** the render guards had to gain an `isLeaving` exemption too (see the first `LoginPage` entry above) — without it, `user` becoming truthy mid-transition would have raced the card with an immediate redirect.
+
+---
+
 **Function:** `play()` (in `ArcadeSelect`) — `frontend/src/components/ArcadeSelect.tsx`
 **Date:** 2026-09-14
 **How added:** new feature (Phase 5)

@@ -10,6 +10,7 @@
     "migrate": "tsx src/db/migrate.ts",
     "set-admin": "tsx src/scripts/set-admin.ts",
     "set-password": "tsx src/scripts/set-password.ts",
+    "seed-users": "tsx src/scripts/seed-users.ts",
     "test": "NODE_ENV=test DB_PATH=./.test-tmp/test.db LIBRARY_PATH=./.test-tmp/library ARTWORK_PATH=./.test-tmp/artwork UPLOAD_STAGING_PATH=./.test-tmp/staging tsx --test --test-concurrency=1 src/**/*.test.ts"
   },
   "dependencies": {

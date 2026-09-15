@@ -4,6 +4,83 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-15 — A wrong password now stays put, and two real accounts get seeded
+
+**A wrong username/password no longer leaves the login form.** The
+2026-09-15 fix earlier today forwarded the error message to the title screen
+so it would at least be visible after the redirect — but the owner's actual
+ask, once that was working, was simpler: don't redirect at all. `handleSubmit`
+(`frontend/src/pages/LoginPage.tsx`) no longer clears the unlock ticket on a
+401, so neither of the page's own render guards fire; the error shows inline
+on the same form instead, and the retry doesn't need the numpad redone. The
+now-unreachable notice-forwarding machinery this replaced (`location.state`
+seeding + scrub effect in `frontend/src/pages/TitleScreenPage.tsx`) was
+removed rather than left dead.
+
+**`npm run seed-users`** (`backend/src/scripts/seed-users.ts`), matching the
+existing `set-admin`/`set-password` CLI convention exactly (same
+`../db/migrate.js` + `db/users.ts` pattern, no HTTP round trip). Re-runnable:
+an existing username gets its password/admin flag reset rather than the
+script failing on "already exists". Seeded two fixed admin accounts,
+`unskill` and `meran`, both password `6969` — a deliberately weak,
+easy-to-remember password for a friends-only server, the same spirit as the
+`69420` numpad code chosen earlier today. Password-length validation (8
+chars, enforced on `POST /auth/register`) is an HTTP-route concern, not a
+`db/users.ts` one — `set-password.ts` already writes shorter passwords
+straight to the DB with no such check, and this script follows the same
+precedent rather than introducing a new inconsistency.
+
+Verified: `tsc --noEmit` clean, backend suite 281/281, seed script run
+against the live Docker container (`docker compose exec brainless-app node
+dist/scripts/seed-users.js`) and both accounts confirmed to log in via the
+numpad → login flow.
+
+---
+
+## 2026-09-15 — Admin login actually works, and says why when it doesn't
+
+Four related fixes to the numpad → login → library path, found while setting
+up a local Docker deployment and walking through it end to end for the first
+time as an admin rather than a guest.
+
+**`ADMIN_ENTRY_CODE` never reached the container.** It was read from `.env`
+into `config.adminEntryCode` on the backend, and set in `.env`, but
+`docker-compose.yml`'s `environment:` block never forwarded it — compose only
+passes through variables it's explicitly told to, unlike `JWT_SECRET` right
+above it. Added `ADMIN_ENTRY_CODE: ${ADMIN_ENTRY_CODE:-}` alongside it.
+
+**A guest session bypassed the admin login form entirely.** `LoginPage`
+redirected to `/` whenever `user` was truthy — but guest entry is the open
+default, so most people tapping the logo already hold a guest session, which
+is also a truthy `user`. Typing the correct passcode led to `/login` only to
+be immediately bounced back out before the form ever painted. Fixed by
+exempting `user.isGuest` from that redirect — a guest now actually sees the
+form, and can sign in as admin from it.
+
+**A failed login vanished without explanation.** A 401 (wrong password —
+indistinguishable from an expired ticket by design, so the server can't say
+which) cleared the unlock ticket and set an error message, but the very next
+render's own redirect-to-`/enter` guard fired before that message ever
+painted — landing back on the title screen with zero explanation of what
+went wrong. The message now rides along as router state on that redirect and
+`TitleScreenPage` displays it in the same error box the guest-entry flow
+already uses.
+
+**Two UX additions, requested together:** the numpad (`AdminNumpad.tsx`) now
+accepts a physical keyboard (digits, Backspace, Enter to submit, Escape to
+cancel) instead of requiring on-screen taps; and a successful login now plays
+the same "leaving the title screen" card (`ArcadeInterstitial`, reused
+verbatim) with "Welcome back, `<username>`" before landing in the library,
+instead of an instant, unanimated cut straight from `<Navigate>`.
+
+Verified: `npx tsc --noEmit` and `npx oxlint` clean; each fix rebuilt into the
+Docker image and re-verified against the running container in turn (numpad
+unlock → wrong password → correct password → library), including a direct
+`curl` round trip through `/auth/unlock` and `/auth/login` to confirm the
+backend side independent of the browser.
+
+---
+
 ## 2026-09-14 — A confirm flash, a drag you can grab, and a real drag bug
 
 Phase 5 of `.docs/features/music-select-and-themes/planning.md`.
