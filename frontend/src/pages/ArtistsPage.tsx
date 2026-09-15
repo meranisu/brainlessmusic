@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { LibraryEmptyState } from '../components/LibraryEmptyState';
 import { apiClient } from '../lib/apiClient';
 import type { ArtistListResponse } from '../types/api';
 
@@ -30,9 +31,7 @@ export function ArtistsPage() {
       {isLoading && <p className="text-sm text-blue-300">Loading artists…</p>}
       {isError && <p className="text-sm text-red-400">Could not load artists.</p>}
 
-      {data && data.artists.length === 0 && (
-        <p className="text-sm text-blue-300">No artists yet — run a library scan.</p>
-      )}
+      {data && data.artists.length === 0 && <LibraryEmptyState />}
 
       {data && data.artists.length > 0 && (
         <ul className="card divide-y divide-blue-800/60 overflow-hidden">

@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `LibraryEmptyState` — `frontend/src/components/LibraryEmptyState.tsx` (new file)
+**Date:** 2026-09-16
+**How added:** refactor (shared component, extracted from `LibraryPage.tsx`)
+**Purpose:** the "no music in the library yet" block (scan-in-progress bar or admin/guest-specific copy), previously local to the arcade select's empty state, now shared by `LibraryPage.tsx`, `AlbumsPage.tsx` and `ArtistsPage.tsx`.
+**Side effects:** polls `GET /admin/health` while mounted (same as before extraction).
+**Before:** `LibraryPage.tsx` had this inline; `AlbumsPage.tsx` rendered nothing for zero albums; `ArtistsPage.tsx` showed its own one-line text.
+**After:** all three pages read identically, and a real scan is visible from any of them, not just the arcade select. Also moved `GET /health`'s route (`App.tsx`) and nav link (`AppShell.tsx`) behind the existing `RequireAdmin` gate — it was reachable by any signed-in user, guest included; `GET /admin/health` itself stays open, since this component's scan bar depends on it from non-admin pages.
+
+---
+
 **Function:** `ensureDefaultLibraryRoot()` / `deleteLibraryRoot()` — `backend/src/db/libraryRoots.ts` (new file)
 **Date:** 2026-09-15
 **How added:** new feature (multi-root library)

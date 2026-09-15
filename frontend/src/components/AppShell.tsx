@@ -24,8 +24,9 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
  * **933px at a 390px viewport** — every page scrolled sideways on a phone — and
  * five would still measure ~375px before the wordmark, the search box or a
  * single button. So `primary` is what earns a place on the bar at `lg` and up,
- * and `overflow` is what lives behind **More** at every width: Upload and Users
- * are administrative, and Health is a thing you visit when something is wrong.
+ * and `overflow` is what lives behind **More** at every width: Manage, Upload,
+ * Users and Health are all admin-only — Health included, since knowing whether
+ * the system is actually healthy is an admin concern, not a guest one.
  * Below `lg` the primary tabs join them there.
  *
  * The breakpoint is `lg` and not `md` because `md` was measured and found
@@ -48,9 +49,9 @@ function navItemsFor(isAdmin: boolean): { primary: NavItem[]; overflow: NavItem[
             { to: '/manage', label: 'Manage' },
             { to: '/upload', label: 'Upload' },
             { to: '/users', label: 'Users' },
+            { to: '/health', label: 'Health' },
           ]
         : []),
-      { to: '/health', label: 'Health' },
     ],
   };
 }

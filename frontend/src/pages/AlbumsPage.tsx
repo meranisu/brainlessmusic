@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { AlbumGrid } from '../components/AlbumGrid';
+import { LibraryEmptyState } from '../components/LibraryEmptyState';
 import { apiClient } from '../lib/apiClient';
 import type { AlbumListResponse } from '../types/api';
 
@@ -30,7 +31,8 @@ export function AlbumsPage() {
       {isLoading && <p className="text-sm text-blue-300">Loading albums…</p>}
       {isError && <p className="text-sm text-red-400">Could not load albums.</p>}
 
-      {data && <AlbumGrid albums={data.albums} />}
+      {data && data.total === 0 && <LibraryEmptyState />}
+      {data && data.total > 0 && <AlbumGrid albums={data.albums} />}
 
       {totalPages > 1 && (
         <div className="flex items-center gap-3 text-sm text-blue-200">

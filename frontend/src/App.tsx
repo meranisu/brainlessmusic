@@ -39,12 +39,12 @@ export function App() {
           <Route path="/playlists" element={<PlaylistsPage />} />
           <Route path="/playlists/:id" element={<PlaylistDetailPage />} />
           <Route path="/search" element={<SearchPage />} />
-          <Route path="/health" element={<HealthPage />} />
           <Route path="/options" element={<OptionsPage />} />
           <Route element={<RequireAdmin />}>
             <Route path="/manage" element={<ManageTracksPage />} />
             <Route path="/upload" element={<UploadPage />} />
             <Route path="/users" element={<UsersPage />} />
+            <Route path="/health" element={<HealthPage />} />
           </Route>
         </Route>
       </Route>

@@ -4,6 +4,30 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-16 — One empty-library message everywhere, and Health is admin-only
+
+The "no music" message differed by page: the arcade select had a scan-aware
+version with a live sweeping bar, Albums had none at all (just a blank
+grid), Artists had its own plain line. Extracted the arcade select's version
+into a shared `LibraryEmptyState` component and pointed all three pages at
+it, so a genuinely empty library reads identically everywhere, scan-bar
+included — safe to treat "zero albums/artists" as "zero tracks" since every
+scanned track already gets at least an "Unknown Artist"/"Unknown Album" row.
+
+Separately: `/health` was reachable by any signed-in user, guest included —
+the route wasn't behind `RequireAdmin`, and its nav link showed
+unconditionally. Moved the route into the existing admin-only route group
+and the nav link into the admin-only overflow block, alongside
+Manage/Upload/Users. The underlying `GET /admin/health` endpoint stays open
+to any authenticated user, since `LibraryEmptyState`'s scan-progress bar
+depends on it from non-admin pages too.
+
+Verified: `tsc --noEmit`/`oxlint` clean on both sides, production build
+succeeds, confirmed against the running container's API that an empty
+library produces the response shape all three pages now render identically.
+
+---
+
 ## 2026-09-15 — Multiple library folders, including on external drives
 
 Full detail in `.docs/features/multi-root-library/planning.md`. The app had
