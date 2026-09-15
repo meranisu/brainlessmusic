@@ -39,7 +39,7 @@ async function findAudioFiles(root: string): Promise<string[]> {
 
 type ScanFileResult = { status: 'added' | 'updated' } | { status: 'failed'; error: string };
 
-async function scanFile(filePath: string): Promise<ScanFileResult> {
+async function scanFile(filePath: string, rootId: number): Promise<ScanFileResult> {
   try {
     const [stats, tags] = await Promise.all([stat(filePath), extractTrackTags(filePath)]);
 
@@ -48,6 +48,7 @@ async function scanFile(filePath: string): Promise<ScanFileResult> {
     const track = upsertTrack({
       path: filePath,
       fileSize: stats.size,
+      rootId,
       ...tags,
     });
 
@@ -69,9 +70,10 @@ async function scanFile(filePath: string): Promise<ScanFileResult> {
  *
  * The root is a parameter rather than a read of `config.libraryPath` so the
  * directory being walked is visible at the call site — see the note on
- * `fileIntoLibrary`.
+ * `fileIntoLibrary`. `rootId` is which `library_roots` row this walk belongs
+ * to, so every file it finds can be attributed back to it.
  */
-export async function scanLibrary(libraryRoot: string): Promise<ScanSummary> {
+export async function scanLibrary(libraryRoot: string, rootId: number): Promise<ScanSummary> {
   const start = Date.now();
 
   const files = await findAudioFiles(libraryRoot);
@@ -81,7 +83,7 @@ export async function scanLibrary(libraryRoot: string): Promise<ScanSummary> {
   const failures: ScanFailure[] = [];
 
   for (const filePath of files) {
-    const result = await scanFile(filePath);
+    const result = await scanFile(filePath, rootId);
     if (result.status === 'failed') {
       failures.push({ path: filePath, error: result.error });
     } else if (result.status === 'added') {
@@ -167,16 +169,21 @@ async function pathIsMissing(path: string): Promise<'present' | 'missing' | 'unr
  * refuses and changes nothing, on the grounds that losing half a library at
  * once is an infrastructure failure rather than someone tidying up. The next
  * sweep, once the mount is back, is a no-op.
+ *
+ * `rootId` scopes the guard and the set of rows judged to this root's own
+ * tracks — with more than one root registered, a healthy root's ratio must
+ * not be diluted (or tripped) by every other root's track count.
  */
 export async function reconcileMissingTracks(
   libraryRoot: string,
+  rootId: number,
   options: { abortRatio?: number; now?: Date } = {},
 ): Promise<ReconcileSummary> {
   const start = Date.now();
   const abortRatio = options.abortRatio ?? 0.5;
   const at = (options.now ?? new Date()).toISOString();
 
-  const rows = listTrackPaths();
+  const rows = listTrackPaths(rootId);
   const base = {
     checked: rows.length,
     newlyMissing: 0,

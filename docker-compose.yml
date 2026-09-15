@@ -39,8 +39,17 @@ services:
 
     volumes:
       # Your music. Read-write, not read-only: uploads through the web UI are
-      # filed into this tree.
+      # filed into this tree. This is also the app's default library root,
+      # registered automatically on first boot — see .docs/features/
+      # multi-root-library/planning.md.
       - ${LIBRARY_DIR:-./library}:/library
+
+      # Additional folders — e.g. a second drive's music — go here as more
+      # lines, each its own host path -> its own container path. A folder
+      # must be bind-mounted here (and the container restarted) before it can
+      # be registered as a library root from Options → Library folders; the
+      # app can only see what's actually mounted into it.
+      # - /mnt/d/old-music:/library-2
 
       # Database, extracted cover art, and upload staging. This is the volume
       # worth backing up — playlists, favorites and play history live here and

@@ -33,6 +33,7 @@ export interface TrackRow {
   sample_rate: number | null;
   last_stream_error: string | null;
   missing_since: string | null;
+  root_id: number | null;
 }
 
 export interface TrackInput {
@@ -47,6 +48,8 @@ export interface TrackInput {
   fileSize: number;
   bitrate?: number | null;
   sampleRate?: number | null;
+  /** Which `library_roots` row this file was found under. */
+  rootId: number;
 }
 
 export interface TrackFieldUpdate {
@@ -105,8 +108,8 @@ export function upsertTrack(input: TrackInput): TrackRow {
     : null;
 
   db.prepare(
-    `INSERT INTO tracks (path, title, artist_id, album_id, track_number, duration, format, file_size, bitrate, sample_rate)
-     VALUES (@path, @title, @artistId, @albumId, @trackNumber, @duration, @format, @fileSize, @bitrate, @sampleRate)
+    `INSERT INTO tracks (path, title, artist_id, album_id, track_number, duration, format, file_size, bitrate, sample_rate, root_id)
+     VALUES (@path, @title, @artistId, @albumId, @trackNumber, @duration, @format, @fileSize, @bitrate, @sampleRate, @rootId)
      ON CONFLICT (path) DO UPDATE SET
        title = excluded.title,
        artist_id = excluded.artist_id,
@@ -116,7 +119,8 @@ export function upsertTrack(input: TrackInput): TrackRow {
        format = excluded.format,
        file_size = excluded.file_size,
        bitrate = excluded.bitrate,
-       sample_rate = excluded.sample_rate`,
+       sample_rate = excluded.sample_rate,
+       root_id = excluded.root_id`,
   ).run({
     path: input.path,
     title: input.title,
@@ -128,6 +132,7 @@ export function upsertTrack(input: TrackInput): TrackRow {
     fileSize: input.fileSize,
     bitrate: input.bitrate ?? null,
     sampleRate: input.sampleRate ?? null,
+    rootId: input.rootId,
   });
 
   return findTrackByPath(input.path)!;
@@ -185,8 +190,20 @@ export function setLastStreamError(id: number, message: string | null): void {
   db.prepare('UPDATE tracks SET last_stream_error = ? WHERE id = ?').run(message, id);
 }
 
-/** Every track row and its path, for the sweep that checks them against disk. */
-export function listTrackPaths(): { id: number; path: string; missing_since: string | null }[] {
+/**
+ * Every track row and its path, for the sweep that checks them against disk.
+ * Scoped to one root when given — a multi-root reconcile must judge each
+ * root by its own tracks, not the whole library's, or one root's outage gets
+ * diluted (or a healthy root's guard tripped) by every other root's count.
+ */
+export function listTrackPaths(
+  rootId?: number,
+): { id: number; path: string; missing_since: string | null }[] {
+  if (rootId !== undefined) {
+    return db
+      .prepare('SELECT id, path, missing_since FROM tracks WHERE root_id = ? ORDER BY id')
+      .all(rootId) as { id: number; path: string; missing_since: string | null }[];
+  }
   return db
     .prepare('SELECT id, path, missing_since FROM tracks ORDER BY id')
     .all() as { id: number; path: string; missing_since: string | null }[];
@@ -233,6 +250,9 @@ export interface MissingTrack {
   path: string;
   missingSince: string;
   lastStreamError: string | null;
+  /** Null when the track's root was itself removed — see `deleteLibraryRoot`. */
+  rootId: number | null;
+  rootLabel: string | null;
 }
 
 /** The dead rows, oldest absence first — a worklist for the owner to act on. */
@@ -245,9 +265,12 @@ export function listMissingTracks(): MissingTrack[] {
          a.name as artist,
          t.path as path,
          t.missing_since as missingSince,
-         t.last_stream_error as lastStreamError
+         t.last_stream_error as lastStreamError,
+         t.root_id as rootId,
+         r.label as rootLabel
        FROM tracks t
        LEFT JOIN artists a ON a.id = t.artist_id
+       LEFT JOIN library_roots r ON r.id = t.root_id
        WHERE t.missing_since IS NOT NULL
        ORDER BY t.missing_since ASC, t.id ASC`,
     )

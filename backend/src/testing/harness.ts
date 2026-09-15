@@ -24,6 +24,7 @@ const TABLES_IN_DELETION_ORDER = [
   'playlist_tracks',
   'playlists',
   'tracks',
+  'library_roots',
   'albums',
   'artists',
   'users',

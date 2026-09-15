@@ -4,6 +4,44 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `ensureDefaultLibraryRoot()` / `deleteLibraryRoot()` — `backend/src/db/libraryRoots.ts` (new file)
+**Date:** 2026-09-15
+**How added:** new feature (multi-root library)
+**Purpose:** `ensureDefaultLibraryRoot(libraryPath)` seeds `library_roots` with the app's original single folder and adopts every pre-existing track into it — a no-op once any root exists, called once at boot since a migration can't read the `LIBRARY_PATH` env var itself. `deleteLibraryRoot(id)` detaches (not cascades) a root's tracks — `root_id = NULL` — before deleting the row, in one transaction.
+**Side effects:** both write to `tracks`/`library_roots`.
+**Before:** nothing — no concept of a "root" existed beyond the single `config.libraryPath`.
+**After:** the detach-then-delete order in `deleteLibraryRoot` is load-bearing, not stylistic — foreign keys are enforced (better-sqlite3's bundled SQLite defaults it on), so deleting a root row while tracks still reference it fails outright rather than leaving anything dangling.
+
+---
+
+**Function:** `syncLibrary()` / `startLibrarySyncSchedule()` — `backend/src/services/librarySync.ts`
+**Date:** 2026-09-15
+**How added:** hardening (multi-root support)
+**Purpose:** `syncLibrary` now takes a `rootId` alongside the root path, and its in-flight guard (`running`) became a `Set<number>` keyed by root id instead of one shared boolean. `startLibrarySyncSchedule` loops over `listLibraryRoots()` (read fresh every tick) instead of hardcoding the single configured path.
+**Side effects:** unchanged per-call; the lock's shape changed.
+**Before:** one boolean meant scanning any root blocked every other root's scan for as long as the first happened to take, and the scheduler only ever knew about one hardcoded path.
+**After:** a root added from the UI is picked up by the very next scheduled tick, no restart needed. `isLibrarySyncRunning(rootId)` (per-root) and a new `isAnyLibrarySyncRunning()` (whole-server, for `/admin/health`) replace the old no-argument `isLibrarySyncRunning()`.
+
+**Follow-up the same day, found by manually deleting a test root's directory
+against the live container:** `syncLibrary` now `stat`s the root before
+attempting a scan, skipping it (rather than letting `scanLibrary`'s
+`readdir` throw `ENOENT`) when the root can't be read — `reconcileMissingTracks`
+still runs and reports it. Before this, a rescan of a root whose folder had
+vanished entirely was a 500, not the graceful "unreachable" outcome the
+reconcile step already had. New test: `services/librarySync.test.ts`.
+
+---
+
+**Function:** `reconcileMissingTracks()` / `listTrackPaths()` — `backend/src/services/scanner.ts`, `backend/src/db/library.ts`
+**Date:** 2026-09-15
+**How added:** hardening (multi-root support)
+**Purpose:** both now take an optional/explicit root id so a sweep judges one root's own tracks rather than every track in the database — the guard-ratio abort logic and the `checked` count are meaningless across roots otherwise.
+**Side effects:** none new — same reads, now filtered.
+**Before:** `reconcileMissingTracks(libraryRoot)` called `listTrackPaths()` unscoped; with a second root registered, one root's outage would be diluted (or a healthy root's guard wrongly tripped) by every other root's track count.
+**After:** covered by three new tests in `services/reconcile.test.ts` proving isolation both directions (a root's own mass-deletion still trips its own guard despite healthy tracks elsewhere; a different root's mass-deletion doesn't trip this one's).
+
+---
+
 **Function:** `seed-users.ts` (script) — `backend/src/scripts/seed-users.ts`
 **Date:** 2026-09-15
 **How added:** new feature (requested: repeatable creation of two named admin accounts)

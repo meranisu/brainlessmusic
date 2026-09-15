@@ -6,6 +6,7 @@ import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../app.js';
 import { config } from '../config.js';
 import { upsertTrack } from '../db/library.js';
+import { insertLibraryRoot } from '../db/libraryRoots.js';
 import { insertUser } from '../db/users.js';
 import { hashPassword } from '../services/password.js';
 import { signMediaToken } from '../services/token.js';
@@ -54,6 +55,7 @@ beforeEach(async () => {
   const user = insertUser('listener', await hashPassword('correct horse battery staple'));
   mediaToken = signMediaToken({ id: user.id, username: user.username });
 
+  const rootId = insertLibraryRoot('/library', null).id;
   const track = upsertTrack({
     path: trackPath,
     title: 'Filler',
@@ -64,6 +66,7 @@ beforeEach(async () => {
     duration: 1,
     format: 'MP3',
     fileSize: BODY.length,
+    rootId,
   });
   trackId = track.id;
 

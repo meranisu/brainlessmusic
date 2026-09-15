@@ -222,6 +222,51 @@ stats dashboard is a distinct, larger feature and not implied by "full
 sorting search and more." Say the word if you actually want the dashboard.
 
 ---
+
+### Q26 — Does removing a library root delete its tracks, or just mark them missing?
+**Asked:** 2026-09-15 · **Blocking:** no
+
+Multi-root library support means a root's *registration* can be removed
+independently of whether the drive/folder still has music on it. Deleting
+the registration could either hard-delete every track that came from that
+root, or leave them as permanently-missing rows (same treatment as a single
+file going missing today).
+
+**Assumption I will build on: mark missing, don't delete.** Consistent with
+this app's existing hide-vs-delete philosophy — removing a root's
+registration is an admin decision about *tracking* that folder, not a
+decision to destroy the track rows, their play history, or their favorites.
+Re-adding the same path later would make them reappear naturally through the
+normal reconcile.
+
+---
+
+### Q27 — Should uploads let you pick which library root they file into?
+**Asked:** 2026-09-15 · **Blocking:** no
+
+With multiple roots, `POST /tracks/upload` still only knows about one
+destination (the original default root).
+
+**Assumption I will build on: uploads stay single-destination.** Extra roots
+are for folders that already hold music you want scanned in, not upload
+targets — a root picker on the upload UI is a separate, un-asked-for
+decision. Say so if you want uploads to target a chosen root instead.
+
+---
+
+### Q28 — Indeterminate scan bar now, or real weighted progress later?
+**Asked:** 2026-09-15 · **Blocking:** no
+
+`POST /library/scan` is one blocking request with no incremental-progress
+reporting today. A true "234 of 5,000 files" bar needs an async job plus a
+status-polling endpoint — a materially bigger, separate piece of backend
+work than what was asked for.
+
+**Assumption I will build on: an indeterminate animated bar** (reusing the
+existing progress-bar visual from `UploadPage.tsx`, just without a real
+percentage) while the scan request is in flight. Real weighted progress is a
+distinct future feature, not a corner cut silently.
+
 ---
 
 ## Answered

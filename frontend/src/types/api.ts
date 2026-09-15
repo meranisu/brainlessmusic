@@ -89,6 +89,53 @@ export interface HealthSnapshot {
   activeStreams: number;
   activeTranscodes: number;
   recentErrors: StreamErrorEntry[];
+  missingTracks: number;
+  /** True while any registered library root is mid-scan or mid-reconcile. */
+  librarySyncRunning: boolean;
+}
+
+export interface LibraryRoot {
+  id: number;
+  path: string;
+  label: string | null;
+  addedAt: string;
+  lastScannedAt: string | null;
+  status: 'ok' | 'unreachable';
+  trackCount: number;
+  scanning: boolean;
+}
+
+export interface LibraryRootListResponse {
+  roots: LibraryRoot[];
+}
+
+export interface LibraryScanSummary {
+  filesFound: number;
+  filesAdded: number;
+  filesUpdated: number;
+  filesFailed: number;
+  durationMs: number;
+  failures: { path: string; error: string }[];
+}
+
+export interface LibraryReconcileSummary {
+  checked: number;
+  newlyMissing: number;
+  recovered: number;
+  missingTotal: number;
+  strandedOutsideRoot: number;
+  unreadable: number;
+  aborted?: string;
+  durationMs: number;
+}
+
+export interface LibraryRootScanResult {
+  scan?: LibraryScanSummary;
+  reconcile?: LibraryReconcileSummary;
+}
+
+export interface AddLibraryRootResponse extends LibraryRootScanResult {
+  root: { id: number; path: string; label: string | null };
 }
 
 export interface ArtistSummary {

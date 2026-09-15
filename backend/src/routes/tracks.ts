@@ -16,6 +16,7 @@ import {
 import { findTrackArtworkId } from '../db/artwork.js';
 import { peaksForTrack } from '../services/waveform.js';
 import { deleteTrackRow, findTrackById, setLastStreamError, updateTrackFields, upsertTrack } from '../db/library.js';
+import { findLibraryRootByPath } from '../db/libraryRoots.js';
 import { countHistoryForTrack, listHistoryForTrack, recordScrobble } from '../db/plays.js';
 import {
   buildETag,
@@ -167,10 +168,20 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
         });
       }
 
+      // Uploads always file into the original configured folder, not
+      // whichever root happens to be scanned most recently — a root added
+      // for an existing external-drive collection is for scanning it in,
+      // not a destination the upload button can silently start writing to.
+      const defaultRoot = findLibraryRootByPath(config.libraryPath);
+      if (!defaultRoot) {
+        await unlink(stagingPath).catch(() => {});
+        return reply.code(500).send({ error: 'Default library root is not set up yet' });
+      }
+
       const stats = await stat(stagingPath);
       const destPath = await fileIntoLibrary(config.libraryPath, stagingPath, data.filename, tags);
 
-      const track = upsertTrack({ path: destPath, fileSize: stats.size, ...tags });
+      const track = upsertTrack({ path: destPath, fileSize: stats.size, rootId: defaultRoot.id, ...tags });
       await persistArtwork(track.id, track.album_id, tags.picture);
 
       return reply.code(201).send({ track: getTrackSummaryById(track.id) });

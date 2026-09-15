@@ -4,6 +4,81 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-15 — Multiple library folders, including on external drives
+
+Full detail in `.docs/features/multi-root-library/planning.md`. The app had
+exactly one music folder (`LIBRARY_PATH`); this lets an admin register more,
+in practice separate drives attached to the server, from Options.
+
+**The file-level machinery was already root-agnostic** — `scanLibrary`,
+`fileIntoLibrary`, and per-track missing-marking already took a root path as
+an explicit parameter and never read `config.libraryPath` internally. What
+assumed exactly one root, and needed real work: no `library_roots` table
+existed; the scan lock was one module-level boolean shared by every call
+(`services/librarySync.ts`); and the missing-tracks guard ratio was computed
+over every track in the database rather than one root's own
+(`services/scanner.ts`'s `reconcileMissingTracks`).
+
+**New migration `0013_add_library_roots.sql`**: `library_roots` table plus
+`tracks.root_id`. Foreign keys are enforced here — better-sqlite3's bundled
+SQLite defaults it on — discovered when a first pass of updated test
+fixtures using made-up root ids failed with real
+`SQLITE_CONSTRAINT_FOREIGNKEY` errors. A migration can't read the
+`LIBRARY_PATH` env var, so the current single root is seeded by application
+code instead, once at boot (`ensureDefaultLibraryRoot()`), which also
+backfills every pre-existing track's `root_id`.
+
+**Root-scoped scan/reconcile**: the sync lock is now a `Set<number>` keyed by
+root id, not one shared flag — independent roots (separate drives) have
+nothing to contend over. `reconcileMissingTracks`/`listTrackPaths` take a
+root id so a sweep judges one root's own tracks — without this, one root's
+outage would be diluted, or a healthy root's guard wrongly tripped, by every
+other root's count. Three new tests in `services/reconcile.test.ts` cover
+exactly this. The scheduled sweep now loops over every registered root, read
+fresh each tick — a root added from the UI needs no restart to be picked up.
+
+**New admin routes** (`routes/library.ts`): `GET/POST /library/roots`,
+`POST /library/roots/:id/scan`, `DELETE /library/roots/:id` (detaches and
+marks tracks missing rather than deleting them — Q26). `POST /library/scan`
+now loops over every root; `GET /library/missing` names which root each row
+belongs to.
+
+**Frontend**: `OptionsPage.tsx` gained an admin-only **Library folders**
+section — the first whole admin-gated section on that page — listing roots
+with status/track-count, Rescan and Remove, and an add-folder form. Polls
+`GET /library/roots` the same way `HealthPage` already polls
+`GET /admin/health`. `LibraryPage.tsx`'s existing (already-there, previously
+static) empty state now polls `GET /admin/health`'s `librarySyncRunning`
+(open to guests too, unlike the root-management endpoints) and shows an
+indeterminate sweeping bar while a scan runs — indeterminate rather than a
+real percentage, since a scan is one blocking request with no progress
+reporting today (Q28, not built speculatively).
+
+**A real gap found along the way**: `testing/harness.ts`'s `resetDatabase()`
+didn't include `library_roots` in its deletion list, so rows accumulated
+across tests within a process and later inserts collided on the `UNIQUE
+path` constraint — fixed by adding it, positioned after `tracks` (which
+reference it) in the deletion order.
+
+**A second real bug, found by actually simulating a removed drive against the
+running container** rather than trusting the tests alone: rescanning a root
+whose folder had been deleted entirely (not just one file inside it) threw
+an uncaught `ENOENT` out of `scanLibrary`'s `readdir` — a 500, not the
+graceful "unreadable" outcome `reconcileMissingTracks` already handles for
+the same case. Fixed in `syncLibrary` (`services/librarySync.ts`) with a
+`stat` check before attempting the scan; `reconcileMissingTracks` still runs
+and reports the root as unreachable. One more test:
+`services/librarySync.test.ts` (new file), reproducing the exact scenario —
+a root with a track, then its whole directory removed.
+
+Verified: `tsc --noEmit`/`oxlint` clean throughout, backend suite 285/285
+(281 prior + 4 new), production frontend build succeeds, and end-to-end
+against the running Docker container — including manually deleting a test
+root's directory mid-session and confirming the rescan now reports it
+gracefully instead of crashing.
+
+---
+
 ## 2026-09-15 — A wrong password now stays put, and two real accounts get seeded
 
 **A wrong username/password no longer leaves the login form.** The

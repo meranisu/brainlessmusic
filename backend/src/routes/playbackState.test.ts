@@ -3,6 +3,7 @@ import { after, before, beforeEach, describe, it } from 'node:test';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../app.js';
 import { upsertTrack } from '../db/library.js';
+import { insertLibraryRoot } from '../db/libraryRoots.js';
 import { insertUser } from '../db/users.js';
 import { signToken } from '../services/token.js';
 import { resetDatabase } from '../testing/harness.js';
@@ -35,6 +36,7 @@ beforeEach(() => {
   aliceToken = signToken({ id: alice.id, username: alice.username });
   bobToken = signToken({ id: bob.id, username: bob.username });
 
+  const rootId = insertLibraryRoot('/library', null).id;
   trackId = upsertTrack({
     path: '/library/a.mp3',
     title: 'A',
@@ -45,6 +47,7 @@ beforeEach(() => {
     duration: 100,
     format: 'MP3',
     fileSize: 1000,
+    rootId,
   }).id;
 });
 

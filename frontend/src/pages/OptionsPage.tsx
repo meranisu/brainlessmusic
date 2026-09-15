@@ -1,10 +1,14 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { usePlayer } from '../components/PlayerBar';
 import { DataSaverIcon } from '../components/icons';
 import { useState } from 'react';
 import { HandoffDialog } from '../components/HandoffDialog';
+import { useToast } from '../components/ToastProvider';
+import { ApiError, apiClient } from '../lib/apiClient';
 import { applyTheme, loadTheme, THEMES, type ThemeId } from '../lib/theme';
+import type { AddLibraryRootResponse, LibraryRoot, LibraryRootListResponse, LibraryRootScanResult } from '../types/api';
 
 interface ToggleRowProps {
   label: string;
@@ -38,6 +42,188 @@ function ToggleRow({ label, detail, icon, checked, onChange }: ToggleRowProps) {
         />
       </span>
     </button>
+  );
+}
+
+const STATUS_STYLES: Record<LibraryRoot['status'], string> = {
+  ok: 'text-blue-300',
+  unreachable: 'text-red-400',
+};
+
+function summarize(result?: LibraryRootScanResult): string | null {
+  if (!result?.scan) return null;
+  const { filesAdded, filesUpdated } = result.scan;
+  if (filesAdded === 0 && filesUpdated === 0) return 'No changes found';
+  const parts: string[] = [];
+  if (filesAdded > 0) parts.push(`${filesAdded} new`);
+  if (filesUpdated > 0) parts.push(`${filesUpdated} updated`);
+  return parts.join(', ');
+}
+
+/**
+ * Admin-only. Registering a folder here is what lets the scan/missing-file
+ * machinery (already built — see `backend/src/services/librarySync.ts`) see
+ * it at all; this section is entirely a UI over endpoints that otherwise sit
+ * unreachable behind a admin-only gate with nothing calling them.
+ *
+ * Polls the same way `HealthPage` already polls `/admin/health` — plain
+ * `refetchInterval`, no new pattern — so an in-progress scan (this admin's
+ * own, or the scheduled one) is reflected here without a manual refresh.
+ */
+function LibrarySection() {
+  const { showToast } = useToast();
+  const queryClient = useQueryClient();
+  const [newPath, setNewPath] = useState('');
+  const [newLabel, setNewLabel] = useState('');
+  const [removeTarget, setRemoveTarget] = useState<LibraryRoot | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['library-roots'],
+    queryFn: () => apiClient.get<LibraryRootListResponse>('/library/roots'),
+    refetchInterval: 3000,
+  });
+
+  function invalidate() {
+    queryClient.invalidateQueries({ queryKey: ['library-roots'] });
+    // A newly-found or newly-missing track changes what the arcade select
+    // and /manage show — not just this list.
+    queryClient.invalidateQueries({ queryKey: ['tracks'] });
+  }
+
+  const addRoot = useMutation({
+    mutationFn: () =>
+      apiClient.post<AddLibraryRootResponse>('/library/roots', {
+        path: newPath.trim(),
+        label: newLabel.trim() || undefined,
+      }),
+    onSuccess: (result) => {
+      invalidate();
+      setNewPath('');
+      setNewLabel('');
+      showToast(summarize(result) ?? 'Folder added');
+    },
+    onError: (err) => showToast(err instanceof ApiError ? err.message : 'Could not add that folder', 'error'),
+  });
+
+  const rescanRoot = useMutation({
+    mutationFn: (id: number) => apiClient.post<LibraryRootScanResult>(`/library/roots/${id}/scan`),
+    onSuccess: (result) => {
+      invalidate();
+      showToast(summarize(result) ?? 'Rescanned');
+    },
+    onError: (err) => showToast(err instanceof ApiError ? err.message : 'Scan failed', 'error'),
+  });
+
+  const removeRoot = useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/library/roots/${id}`),
+    onSuccess: () => {
+      invalidate();
+      setRemoveTarget(null);
+      showToast('Folder removed — its tracks are kept, flagged missing');
+    },
+    onError: (err) => showToast(err instanceof ApiError ? err.message : 'Could not remove that folder', 'error'),
+  });
+
+  return (
+    <section className="mt-7">
+      <h2 className="mb-3 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-blue-400">
+        Library folders
+      </h2>
+
+      {isLoading && <p className="text-sm text-blue-300">Loading…</p>}
+
+      {data && (
+        <div className="space-y-2">
+          {data.roots.map((root) => (
+            <div
+              key={root.id}
+              className="flex flex-wrap items-center gap-3 rounded-lg border border-blue-800 bg-blue-900/60 px-4 py-3"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-white">{root.label || root.path}</p>
+                <p className="truncate text-xs text-blue-400">{root.path}</p>
+              </div>
+              <span className={`shrink-0 text-xs ${STATUS_STYLES[root.status]}`}>
+                {root.scanning ? 'Scanning…' : root.status === 'ok' ? `${root.trackCount} tracks` : 'Unreachable'}
+              </span>
+              <div className="flex shrink-0 gap-1.5">
+                <button
+                  onClick={() => rescanRoot.mutate(root.id)}
+                  disabled={root.scanning || rescanRoot.isPending}
+                  className="btn-ghost btn-sm"
+                >
+                  Rescan
+                </button>
+                <button onClick={() => setRemoveTarget(root)} className="btn-ghost btn-sm text-red-400!">
+                  Remove
+                </button>
+              </div>
+            </div>
+          ))}
+          {data.roots.length === 0 && (
+            <p className="text-sm text-blue-400">No folders registered yet.</p>
+          )}
+        </div>
+      )}
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (newPath.trim()) addRoot.mutate();
+        }}
+        className="mt-3 flex flex-wrap gap-2"
+      >
+        <input
+          value={newPath}
+          onChange={(e) => setNewPath(e.target.value)}
+          placeholder="/path/inside/the/container"
+          className="input min-w-56 flex-1"
+        />
+        <input
+          value={newLabel}
+          onChange={(e) => setNewLabel(e.target.value)}
+          placeholder="Label (optional)"
+          className="input w-40"
+        />
+        <button type="submit" disabled={!newPath.trim() || addRoot.isPending} className="btn-primary btn-sm">
+          {addRoot.isPending ? 'Adding…' : 'Add folder'}
+        </button>
+      </form>
+      <p className="mt-2 text-xs text-blue-400">
+        The path is read from inside this server's own container — a drive that isn't already
+        mounted into it (see <code className="text-blue-300">docker-compose.yml</code>) won't be
+        visible here yet, however real it is on the host.
+      </p>
+
+      {removeTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+          onClick={() => setRemoveTarget(null)}
+        >
+          <div className="card w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
+            <h2 className="mb-2 text-sm font-semibold text-white">
+              Remove "{removeTarget.label || removeTarget.path}"?
+            </h2>
+            <p className="mb-4 text-xs text-blue-400">
+              Nothing on disk is touched. Its tracks stay in the database — flagged missing, with
+              their favorites, playlists and history intact — rather than being deleted.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setRemoveTarget(null)} className="btn-secondary btn-sm">
+                Cancel
+              </button>
+              <button
+                onClick={() => removeRoot.mutate(removeTarget.id)}
+                disabled={removeRoot.isPending}
+                className="btn-danger btn-sm"
+              >
+                {removeRoot.isPending ? 'Removing…' : 'Remove'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -133,6 +319,8 @@ export function OptionsPage() {
           onChange={() => void setDataSaver(!dataSaver)}
         />
       </section>
+
+      {user?.isAdmin && <LibrarySection />}
 
       <section className="mt-7">
         <h2 className="mb-3 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-blue-400">

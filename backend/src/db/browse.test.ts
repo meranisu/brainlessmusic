@@ -12,6 +12,7 @@ import {
   searchLibrary,
 } from './browse.js';
 import { markTracksMissing, upsertTrack } from './library.js';
+import { insertLibraryRoot } from './libraryRoots.js';
 import { countTopTracks, listTopTracks, recordScrobble } from './plays.js';
 import { addTrackToPlaylist, createPlaylist, getPlaylistDetail } from './playlists.js';
 import { insertUser } from './users.js';
@@ -24,6 +25,9 @@ import { resetDatabase } from '../testing/harness.js';
  */
 
 let nextPath = 0;
+// Foreign keys are enforced, so every track needs a real `library_roots`
+// row — set fresh in `beforeEach` below, since `resetDatabase()` clears it.
+let rootId = 0;
 
 function addTrack(title: string, artist: string, album: string | null) {
   return upsertTrack({
@@ -36,6 +40,7 @@ function addTrack(title: string, artist: string, album: string | null) {
     duration: 100,
     format: 'MP3',
     fileSize: 1000,
+    rootId,
   });
 }
 
@@ -50,6 +55,7 @@ function library(): { present: number; missing: number } {
 beforeEach(() => {
   resetDatabase();
   nextPath = 0;
+  rootId = insertLibraryRoot('/library', null).id;
 });
 
 describe('listing tracks', () => {

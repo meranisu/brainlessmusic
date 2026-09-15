@@ -1,10 +1,19 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
 import { ArcadeSelect } from '../components/ArcadeSelect';
 import { useFavoriteIds } from '../components/FavoriteButton';
 import { usePlayer } from '../components/PlayerBar';
 import { apiClient } from '../lib/apiClient';
-import type { TrackListResponse, TrackSummary } from '../types/api';
+import type { HealthSnapshot, TrackListResponse, TrackSummary } from '../types/api';
+
+/**
+ * How often the empty state checks whether a scan is still running. Only
+ * polled while the library is actually empty — a real library never pays for
+ * this once tracks exist.
+ */
+const SCAN_POLL_MS = 2000;
 
 /**
  * The server caps a page at 200 (`MAX_LIMIT` in `backend/src/utils/pagination.ts`).
@@ -26,6 +35,7 @@ const PAGE_SIZE = 200;
  * What is here is what you need to choose something to listen to.
  */
 export function LibraryPage() {
+  const { user } = useAuth();
   const { playQueue } = usePlayer();
   const favoriteIds = useFavoriteIds();
   const [selected, setSelected] = useState(0);
@@ -76,6 +86,17 @@ export function LibraryPage() {
     [tracks, playQueue],
   );
 
+  // Whether a scan is running right now — `/admin/health` is open to any
+  // signed-in user (guest included), unlike the root-management endpoints
+  // themselves, so this works from the one screen every kind of visitor
+  // actually lands on. Only polled once the library turns out to be empty.
+  const { data: health } = useQuery({
+    queryKey: ['health'],
+    queryFn: () => apiClient.get<HealthSnapshot>('/admin/health'),
+    refetchInterval: SCAN_POLL_MS,
+    enabled: !isLoading && tracks.length === 0,
+  });
+
   if (isLoading) {
     return <p className="text-sm text-blue-300">Loading your library…</p>;
   }
@@ -85,10 +106,31 @@ export function LibraryPage() {
   }
 
   if (tracks.length === 0) {
+    if (health?.librarySyncRunning) {
+      return (
+        <div className="py-16 text-center">
+          <p className="text-lg text-blue-100">Scanning for music…</p>
+          <div className="mx-auto mt-4 h-1.5 w-56 overflow-hidden rounded-full bg-blue-800">
+            <div className="scan-sweep h-full w-2/5 rounded-full bg-orange-600" />
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="py-16 text-center">
-        <p className="text-lg text-blue-100">Nothing in the library yet.</p>
-        <p className="mt-1 text-sm text-blue-400">Add some music and it will show up here.</p>
+        <p className="text-lg text-blue-100">No music in the library yet.</p>
+        {user?.isAdmin ? (
+          <p className="mt-1 text-sm text-blue-400">
+            Add a folder in{' '}
+            <Link to="/options" className="text-orange-500 underline hover:text-orange-400">
+              Options
+            </Link>{' '}
+            and it will show up here.
+          </p>
+        ) : (
+          <p className="mt-1 text-sm text-blue-400">Ask an admin to add some.</p>
+        )}
       </div>
     );
   }

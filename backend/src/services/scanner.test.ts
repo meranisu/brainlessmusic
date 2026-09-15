@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import { db } from '../db/connection.js';
+import { insertLibraryRoot } from '../db/libraryRoots.js';
 import { makeTempDir, resetDatabase } from '../testing/harness.js';
 import { scanLibrary } from './scanner.js';
 
@@ -34,6 +35,10 @@ async function hasFfmpeg(): Promise<boolean> {
 
 const count = (table: string): number =>
   (db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n;
+
+// Foreign keys are enforced, so every scanned track needs a real
+// `library_roots` row — set fresh in `beforeEach` below.
+let TEST_ROOT_ID = 0;
 
 describe('scanLibrary', async () => {
   let library = '';
@@ -82,16 +87,17 @@ describe('scanLibrary', async () => {
 
   beforeEach(() => {
     resetDatabase();
+    TEST_ROOT_ID = insertLibraryRoot(library, null).id;
   });
 
   it('finds only supported audio extensions', { skip: !ffmpegAvailable }, async () => {
-    const summary = await scanLibrary(library);
+    const summary = await scanLibrary(library, TEST_ROOT_ID);
     // 3 valid + 1 corrupt .flac; the .jpg/.txt/.m3u are never opened.
     assert.equal(summary.filesFound, 4, JSON.stringify(summary));
   });
 
   it('recurses into subdirectories', { skip: !ffmpegAvailable }, async () => {
-    await scanLibrary(library);
+    await scanLibrary(library, TEST_ROOT_ID);
     const nested = db
       .prepare('SELECT title FROM tracks WHERE path LIKE ?')
       .get('%Some Album%') as { title: string } | undefined;
@@ -99,7 +105,7 @@ describe('scanLibrary', async () => {
   });
 
   it('reads tags into artists and albums', { skip: !ffmpegAvailable }, async () => {
-    await scanLibrary(library);
+    await scanLibrary(library, TEST_ROOT_ID);
     const row = db
       .prepare(
         `SELECT t.title, a.name AS artist, al.title AS album
@@ -113,7 +119,7 @@ describe('scanLibrary', async () => {
   });
 
   it('falls back to the filename and Unknown Artist for an untagged file', { skip: !ffmpegAvailable }, async () => {
-    await scanLibrary(library);
+    await scanLibrary(library, TEST_ROOT_ID);
     const row = db
       .prepare(
         `SELECT t.title, a.name AS artist, t.album_id
@@ -128,7 +134,7 @@ describe('scanLibrary', async () => {
   });
 
   it('reports an unreadable file without aborting the scan', { skip: !ffmpegAvailable }, async () => {
-    const summary = await scanLibrary(library);
+    const summary = await scanLibrary(library, TEST_ROOT_ID);
 
     assert.equal(summary.filesFailed, 1, JSON.stringify(summary.failures));
     assert.match(summary.failures[0].path, /corrupt\.flac$/);
@@ -140,14 +146,14 @@ describe('scanLibrary', async () => {
   });
 
   it('is idempotent — a re-scan updates rather than duplicates', { skip: !ffmpegAvailable }, async () => {
-    const first = await scanLibrary(library);
+    const first = await scanLibrary(library, TEST_ROOT_ID);
     assert.equal(first.filesAdded, 3);
     assert.equal(first.filesUpdated, 0);
 
     const artistsAfterFirst = count('artists');
     const albumsAfterFirst = count('albums');
 
-    const second = await scanLibrary(library);
+    const second = await scanLibrary(library, TEST_ROOT_ID);
     assert.equal(second.filesAdded, 0, 'nothing new on a re-scan');
     assert.equal(second.filesUpdated, 3);
 
@@ -157,7 +163,7 @@ describe('scanLibrary', async () => {
   });
 
   it('returns a summary whose counts add up', { skip: !ffmpegAvailable }, async () => {
-    const s = await scanLibrary(library);
+    const s = await scanLibrary(library, TEST_ROOT_ID);
     assert.equal(s.filesFound, s.filesAdded + s.filesUpdated + s.filesFailed);
     assert.ok(s.durationMs >= 0);
   });
@@ -165,7 +171,7 @@ describe('scanLibrary', async () => {
   it('handles an empty directory without failing', async () => {
     const empty = await makeTempDir('scan-empty');
     try {
-      const summary = await scanLibrary(empty.path);
+      const summary = await scanLibrary(empty.path, TEST_ROOT_ID);
       assert.deepEqual(
         { found: summary.filesFound, added: summary.filesAdded, failed: summary.filesFailed },
         { found: 0, added: 0, failed: 0 },

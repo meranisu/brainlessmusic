@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { countMissingTracks } from '../db/library.js';
-import { isLibrarySyncRunning } from '../services/librarySync.js';
+import { isAnyLibrarySyncRunning } from '../services/librarySync.js';
 import { getHealthSnapshot } from '../services/streamMonitor.js';
 
 const healthRoute: FastifyPluginAsync = async (fastify) => {
@@ -13,7 +13,7 @@ const healthRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get('/admin/health', { preHandler: fastify.authenticate }, async () => ({
     ...getHealthSnapshot(),
     missingTracks: countMissingTracks(),
-    librarySyncRunning: isLibrarySyncRunning(),
+    librarySyncRunning: isAnyLibrarySyncRunning(),
   }));
 };
 

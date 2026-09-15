@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
 import { clearTracksMissing, deleteTrackRow, markTracksMissing, upsertTrack } from './library.js';
+import { insertLibraryRoot } from './libraryRoots.js';
 import { clearPlaybackState, loadPlaybackState, savePlaybackState } from './playbackState.js';
 import { insertUser } from './users.js';
 import { resetDatabase } from '../testing/harness.js';
@@ -13,6 +14,7 @@ import { resetDatabase } from '../testing/harness.js';
  */
 
 let nextPath = 0;
+let rootId = 0;
 
 function addTrack(title: string) {
   return upsertTrack({
@@ -25,6 +27,7 @@ function addTrack(title: string) {
     duration: 100,
     format: 'MP3',
     fileSize: 1000,
+    rootId,
   });
 }
 
@@ -36,6 +39,7 @@ describe('playback state', () => {
   beforeEach(() => {
     resetDatabase();
     nextPath = 0;
+    rootId = insertLibraryRoot('/library', null).id;
   });
 
   it('returns null for a user who has never played anything', () => {
