@@ -4,15 +4,11 @@ import { useAuth } from '../auth/AuthContext';
 import { useToast } from '../components/ToastProvider';
 import { useScrollLock } from '../hooks/useScrollLock';
 import { ApiError, apiClient } from '../lib/apiClient';
+import { formatDate } from '../lib/format';
 import type { UserSummary } from '../types/api';
 
 const MIN_PASSWORD_LENGTH = 8;
 const USERS_KEY = ['users'];
-
-function formatDate(iso: string): string {
-  const date = new Date(iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z');
-  return Number.isNaN(date.getTime()) ? iso : date.toLocaleDateString();
-}
 
 export function UsersPage() {
   const queryClient = useQueryClient();

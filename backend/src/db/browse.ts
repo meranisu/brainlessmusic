@@ -50,6 +50,7 @@ export interface TrackSummary {
   /** The file is gone from disk. Nothing can play it until it comes back. */
   missing: boolean;
   playCount: number;
+  dateAdded: string;
 }
 
 export interface TrackDetail extends TrackSummary {
@@ -57,7 +58,6 @@ export interface TrackDetail extends TrackSummary {
   fileSize: number;
   bitrate: number | null;
   sampleRate: number | null;
-  dateAdded: string;
   lastPlayedAt: string | null;
   lastStreamError: string | null;
   /** When the file was first observed absent, or `null` while it is present. */
@@ -123,7 +123,8 @@ const TRACK_SUMMARY_SELECT = `
     t.hidden as hidden,
     t.not_recommended as notRecommended,
     (t.missing_since IS NOT NULL) as missing,
-    t.play_count as playCount
+    t.play_count as playCount,
+    t.date_added as dateAdded
   FROM tracks t
   LEFT JOIN artists a ON a.id = t.artist_id
   LEFT JOIN albums al ON al.id = t.album_id

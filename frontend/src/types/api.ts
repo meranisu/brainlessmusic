@@ -22,6 +22,7 @@ export interface TrackSummary {
   /** The file is gone from disk — nothing can play this until it comes back. */
   missing: boolean;
   playCount: number;
+  dateAdded: string;
 }
 
 export interface PlaybackState {
@@ -39,7 +40,6 @@ export interface TrackDetail extends TrackSummary {
   fileSize: number;
   bitrate: number | null;
   sampleRate: number | null;
-  dateAdded: string;
   lastPlayedAt: string | null;
   lastStreamError: string | null;
   /** When the file was first observed absent, or `null` while it is present. */

@@ -190,6 +190,40 @@ rather than a phase here.
 
 ---
 
+### Q24 — Does bulk hide/delete on `/manage` need a real bulk endpoint?
+**Asked:** 2026-09-15 · **Blocking:** no
+
+Today "bulk" hide/un-hide/delete on the admin track table fires one
+`PATCH`/`DELETE /tracks/:id` per selected row (`Promise.all` in
+`ManageTracksPage`), not a real batch endpoint. Fine at a handful of rows;
+noticeably slower and noisier in the network tab if someone ever selects
+hundreds at once.
+
+**Assumption I will build on: skip it for now.** This library is
+friends-scale, not enterprise-scale, and no one has hit this as an actual
+problem yet — building a batch endpoint speculatively is exactly what
+"prefer surfacing over building" argues against. Revisit if bulk selections
+in practice turn out to be large.
+
+---
+
+### Q25 — Does `/manage` need a library-wide stats surface?
+**Asked:** 2026-09-15 · **Blocking:** no
+
+"See what music is in the library" could mean the searchable/sortable table
+itself (already true), or a dashboard-style summary — total tracks, total
+size on disk, format breakdown. The second is genuinely new backend work (no
+`GET /library/stats`-shaped endpoint exists), not something already sitting
+unexposed.
+
+**Assumption I will build on: not building it this pass.** The table already
+answers "what's in the library" for anything you'd search or filter for; a
+stats dashboard is a distinct, larger feature and not implied by "full
+sorting search and more." Say the word if you actually want the dashboard.
+
+---
+---
+
 ## Answered
 
 ### A17 — The top bar overflows, and floats *(was Q18)*

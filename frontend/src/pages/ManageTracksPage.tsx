@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { formatDuration } from '../lib/format';
-import { useState } from 'react';
+import { formatDate, formatDuration } from '../lib/format';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { ConfirmDeleteDialog } from '../components/ConfirmDeleteDialog';
 import { AddToPlaylistDialog } from '../components/AddToPlaylistDialog';
@@ -22,6 +23,14 @@ import type {
 } from '../types/api';
 
 const PAGE_SIZE = 50;
+const DEFAULT_SORT: SortField = 'title';
+const DEFAULT_ORDER: SortOrder = 'asc';
+const DEFAULT_HIDDEN: VisibilityFilter = 'exclude';
+const DEFAULT_NOT_RECOMMENDED: VisibilityFilter = 'all';
+// Matches the server's own default: a track nobody can play is not part of
+// the library you browse.
+const DEFAULT_MISSING: VisibilityFilter = 'exclude';
+const SEARCH_DEBOUNCE_MS = 300;
 
 function buildQuery(params: TrackListParams): string {
   const qs = new URLSearchParams();
@@ -39,16 +48,91 @@ function buildQuery(params: TrackListParams): string {
 const selectClass =
   'rounded-md border border-blue-700 bg-blue-950 px-2.5 py-2 text-sm text-blue-100 outline-none transition-colors hover:border-blue-400 focus:border-orange-600/60';
 
+interface SortHeaderProps {
+  field: SortField;
+  label: string;
+  activeSort: SortField;
+  order: SortOrder;
+  onSort: (field: SortField) => void;
+  align?: 'right';
+}
+
+/**
+ * A clickable column header that sorts by `field`, with a direction arrow
+ * once it's the active one. Kept at module scope rather than defined inside
+ * `ManageTracksPage` — a component defined inside another's render body is a
+ * new type on every render, so React would remount (and drop focus from) the
+ * very button a click on it just triggered a re-render from.
+ */
+function SortHeader({ field, label, activeSort, order, onSort, align }: SortHeaderProps) {
+  const isActive = activeSort === field;
+  return (
+    <th className={`py-2.5 font-medium ${align === 'right' ? 'pr-3 text-right' : ''}`}>
+      <button
+        type="button"
+        onClick={() => onSort(field)}
+        className={`inline-flex items-center gap-1 transition-colors hover:text-white ${
+          align === 'right' ? 'flex-row-reverse' : ''
+        }`}
+      >
+        {label}
+        {isActive && <span aria-hidden>{order === 'asc' ? '↑' : '↓'}</span>}
+      </button>
+    </th>
+  );
+}
+
 export function ManageTracksPage() {
-  const [search, setSearch] = useState('');
-  const [sort, setSort] = useState<SortField>('title');
-  const [order, setOrder] = useState<SortOrder>('asc');
-  const [hidden, setHidden] = useState<VisibilityFilter>('exclude');
-  const [notRecommended, setNotRecommended] = useState<VisibilityFilter>('all');
-  // Matches the server's own default: a track nobody can play is not part of
-  // the library you browse.
-  const [missing, setMissing] = useState<VisibilityFilter>('exclude');
-  const [page, setPage] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Every filter lives in the URL, not component state — a filtered view is
+  // then a link: bookmarkable, shareable, and still there after a refresh.
+  const search = searchParams.get('search') ?? '';
+  const sort = (searchParams.get('sort') as SortField | null) ?? DEFAULT_SORT;
+  const order = (searchParams.get('order') as SortOrder | null) ?? DEFAULT_ORDER;
+  const hidden = (searchParams.get('hidden') as VisibilityFilter | null) ?? DEFAULT_HIDDEN;
+  const notRecommended =
+    (searchParams.get('notRecommended') as VisibilityFilter | null) ?? DEFAULT_NOT_RECOMMENDED;
+  const missing = (searchParams.get('missing') as VisibilityFilter | null) ?? DEFAULT_MISSING;
+  const page = Number(searchParams.get('page') ?? '0');
+
+  /** Merges a patch into the URL's params; a `undefined` value removes that key. */
+  function updateParams(patch: Record<string, string | undefined>, resetPage = true) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        for (const [key, value] of Object.entries(patch)) {
+          if (value === undefined) next.delete(key);
+          else next.set(key, value);
+        }
+        if (resetPage) next.delete('page');
+        return next;
+      },
+      { replace: true },
+    );
+  }
+
+  // The textbox's own value — decoupled from `search` above so typing doesn't
+  // fire a query on every keystroke. Only what's actually committed to the
+  // URL (below, after a pause) is what the query reads.
+  const [searchInput, setSearchInput] = useState(search);
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (searchInput) next.set('search', searchInput);
+          else next.delete('search');
+          next.delete('page');
+          return next;
+        },
+        { replace: true },
+      );
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(handle);
+  }, [searchInput, setSearchParams]);
+
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [activeTrack, setActiveTrack] = useState<{ id: number; tab: 'tags' | 'diagnostics' } | null>(null);
   const [deleteTargets, setDeleteTargets] = useState<TrackSummary[] | null>(null);
@@ -131,7 +215,27 @@ export function ManageTracksPage() {
     });
   }
 
+  // Selecting "all" only ever means all on the loaded page — selections from
+  // a previous page are left alone, so paging through and selecting a few
+  // pages' worth doesn't require re-checking earlier pages first.
+  function toggleSelectAllOnPage() {
+    const pageIds = data?.tracks.map((t) => t.id) ?? [];
+    const allSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allSelected) pageIds.forEach((id) => next.delete(id));
+      else pageIds.forEach((id) => next.add(id));
+      return next;
+    });
+  }
+
   const selectedTracks = data?.tracks.filter((t) => selectedIds.has(t.id)) ?? [];
+  const allOnPageSelected =
+    (data?.tracks.length ?? 0) > 0 && (data?.tracks.every((t) => selectedIds.has(t.id)) ?? false);
+
+  function onSort(field: SortField) {
+    updateParams({ sort: field, order: sort === field && order === 'asc' ? 'desc' : 'asc' });
+  }
 
   return (
     <div>
@@ -150,36 +254,16 @@ export function ManageTracksPage() {
             ⌕
           </span>
           <input
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(0);
-            }}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search title, artist, album…"
             className="input pl-8"
           />
         </div>
         <div className="h-6 w-px bg-blue-800" />
-        <select value={sort} onChange={(e) => setSort(e.target.value as SortField)} className={selectClass}>
-          <option value="title">Title</option>
-          <option value="artist">Artist</option>
-          <option value="album">Album</option>
-          <option value="duration">Duration</option>
-          <option value="dateAdded">Date added</option>
-          <option value="playCount">Play count</option>
-        </select>
-        <button
-          onClick={() => setOrder(order === 'asc' ? 'desc' : 'asc')}
-          className="btn-secondary btn-sm px-2.5!"
-          aria-label="Toggle sort order"
-          title={order === 'asc' ? 'Ascending' : 'Descending'}
-        >
-          {order === 'asc' ? '↑' : '↓'}
-        </button>
-        <div className="h-6 w-px bg-blue-800" />
         <select
           value={hidden}
-          onChange={(e) => setHidden(e.target.value as VisibilityFilter)}
+          onChange={(e) => updateParams({ hidden: e.target.value as VisibilityFilter })}
           className={selectClass}
         >
           <option value="exclude">Visible only</option>
@@ -188,7 +272,7 @@ export function ManageTracksPage() {
         </select>
         <select
           value={notRecommended}
-          onChange={(e) => setNotRecommended(e.target.value as VisibilityFilter)}
+          onChange={(e) => updateParams({ notRecommended: e.target.value as VisibilityFilter })}
           className={selectClass}
         >
           <option value="all">All (recommended + not)</option>
@@ -197,10 +281,7 @@ export function ManageTracksPage() {
         </select>
         <select
           value={missing}
-          onChange={(e) => {
-            setMissing(e.target.value as VisibilityFilter);
-            setPage(0);
-          }}
+          onChange={(e) => updateParams({ missing: e.target.value as VisibilityFilter })}
           className={selectClass}
         >
           <option value="exclude">Playable only</option>
@@ -252,14 +333,39 @@ export function ManageTracksPage() {
             <table className="w-full text-left text-sm">
               <thead className="border-b border-blue-800">
                 <tr className="text-xs uppercase tracking-wide text-blue-400">
-                  {isAdmin && <th className="w-10 py-2.5 pl-4"></th>}
+                  {isAdmin && (
+                    <th className="w-10 py-2.5 pl-4">
+                      <input
+                        type="checkbox"
+                        checked={allOnPageSelected}
+                        onChange={toggleSelectAllOnPage}
+                        className="accent-orange-600"
+                        aria-label="Select all tracks on this page"
+                      />
+                    </th>
+                  )}
                   <th className="w-10 py-2.5"></th>
                   <th className="w-10 py-2.5"></th>
-                  <th className="py-2.5 font-medium">Title</th>
-                  <th className="py-2.5 font-medium">Artist</th>
-                  <th className="py-2.5 font-medium">Album</th>
-                  <th className="py-2.5 pr-3 text-right font-medium">Duration</th>
-                  <th className="py-2.5 pr-3 text-right font-medium">Plays</th>
+                  <SortHeader field="title" label="Title" activeSort={sort} order={order} onSort={onSort} />
+                  <SortHeader field="artist" label="Artist" activeSort={sort} order={order} onSort={onSort} />
+                  <SortHeader field="album" label="Album" activeSort={sort} order={order} onSort={onSort} />
+                  <SortHeader
+                    field="duration"
+                    label="Duration"
+                    activeSort={sort}
+                    order={order}
+                    onSort={onSort}
+                    align="right"
+                  />
+                  <SortHeader
+                    field="playCount"
+                    label="Plays"
+                    activeSort={sort}
+                    order={order}
+                    onSort={onSort}
+                    align="right"
+                  />
+                  <SortHeader field="dateAdded" label="Added" activeSort={sort} order={order} onSort={onSort} />
                   <th className="py-2.5 font-medium">Format</th>
                   <th className="py-2.5 font-medium">Flags</th>
                   <th className="w-10 py-2.5 pr-4"></th>
@@ -318,6 +424,7 @@ export function ManageTracksPage() {
                     <td className="py-2.5 pr-3 text-right tabular-nums text-blue-300">
                       {t.playCount > 0 ? t.playCount : '—'}
                     </td>
+                    <td className="py-2.5 pr-3 text-blue-300">{formatDate(t.dateAdded)}</td>
                     <td className="py-2.5 pr-3 text-blue-300">{t.format ?? '—'}</td>
                     <td className="py-2.5 pr-3">
                       <div className="flex gap-1">
@@ -344,7 +451,7 @@ export function ManageTracksPage() {
                 ))}
                 {data.tracks.length === 0 && (
                   <tr>
-                    <td colSpan={isAdmin ? 11 : 10} className="px-4 py-12 text-center text-blue-300">
+                    <td colSpan={isAdmin ? 12 : 11} className="px-4 py-12 text-center text-blue-300">
                       No tracks match these filters.
                     </td>
                   </tr>
@@ -356,7 +463,7 @@ export function ManageTracksPage() {
           <div className="mt-3 flex items-center gap-3 text-sm text-blue-300">
             <button
               disabled={page === 0}
-              onClick={() => setPage((p) => p - 1)}
+              onClick={() => updateParams({ page: page > 1 ? String(page - 1) : undefined }, false)}
               className="btn-secondary btn-sm"
             >
               Prev
@@ -366,7 +473,7 @@ export function ManageTracksPage() {
             </span>
             <button
               disabled={page + 1 >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
+              onClick={() => updateParams({ page: String(page + 1) }, false)}
               className="btn-secondary btn-sm"
             >
               Next

@@ -17,3 +17,15 @@ export function formatDuration(seconds: number | null): string {
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
+
+/**
+ * SQLite's `datetime('now')` (what every timestamp column here defaults to)
+ * writes `YYYY-MM-DD HH:MM:SS` — no `T`, no timezone marker. `Date.parse`
+ * accepts that shape but treats it as local time; normalizing to an explicit
+ * UTC ISO string first keeps this reading the same everywhere the app runs,
+ * not just wherever the server's clock happens to be.
+ */
+export function formatDate(iso: string): string {
+  const date = new Date(iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z');
+  return Number.isNaN(date.getTime()) ? iso : date.toLocaleDateString();
+}

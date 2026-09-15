@@ -38,6 +38,10 @@ export function TrackDetailDrawer({ trackId, initialTab, onClose }: TrackDetailD
   const [artist, setArtist] = useState('');
   const [album, setAlbum] = useState('');
   const [trackNumber, setTrackNumber] = useState('');
+  // Previously only reachable from the row menu or the bulk-action bar, never
+  // from the one place that already edits every other field on this track.
+  const [hidden, setHidden] = useState(false);
+  const [notRecommended, setNotRecommended] = useState(false);
 
   useEffect(() => {
     if (!data) return;
@@ -45,6 +49,8 @@ export function TrackDetailDrawer({ trackId, initialTab, onClose }: TrackDetailD
     setArtist(data.artist ?? '');
     setAlbum(data.album ?? '');
     setTrackNumber(data.trackNumber != null ? String(data.trackNumber) : '');
+    setHidden(data.hidden);
+    setNotRecommended(data.notRecommended);
   }, [data]);
 
   const saveMutation = useMutation({
@@ -63,6 +69,8 @@ export function TrackDetailDrawer({ trackId, initialTab, onClose }: TrackDetailD
       artist: artist.trim() ? artist : null,
       album: album.trim() ? album : null,
       trackNumber: trackNumber.trim() ? Number(trackNumber) : null,
+      hidden,
+      notRecommended,
     });
   }
 
@@ -129,6 +137,27 @@ export function TrackDetailDrawer({ trackId, initialTab, onClose }: TrackDetailD
                   className="input"
                 />
               </Field>
+
+              <label className="flex items-center gap-2 text-sm text-blue-100">
+                <input
+                  type="checkbox"
+                  checked={hidden}
+                  onChange={(e) => setHidden(e.target.checked)}
+                  disabled={!isAdmin}
+                  className="accent-orange-600"
+                />
+                Hidden — excluded from browsing and streaming
+              </label>
+              <label className="flex items-center gap-2 text-sm text-blue-100">
+                <input
+                  type="checkbox"
+                  checked={notRecommended}
+                  onChange={(e) => setNotRecommended(e.target.checked)}
+                  disabled={!isAdmin}
+                  className="accent-orange-600"
+                />
+                Not recommended — skipped by shuffle/radio, still playable directly
+              </label>
 
               {isAdmin ? (
                 <button onClick={handleSave} disabled={saveMutation.isPending} className="btn-primary btn-md w-full">

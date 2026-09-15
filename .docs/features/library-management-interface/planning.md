@@ -190,6 +190,44 @@ No loose threads remain from this pass — delete semantics, admin bootstrap, an
 
 ---
 
+## Phase 5 — The admin power view (2026-09-15)
+
+The four phases above predate the arcade-select split: `/` was still the
+table this doc designed, before ledger decision **A18**
+(`.docs/QUESTIONS.md`, 2026-09-11) moved it to `/manage` and put the arcade
+music-select at `/` instead. A18 explicitly deferred sorting/filtering
+improvements to "a later session" — this phase is that session.
+
+**Scope:** turn `/manage`'s table into the real "full sorting search and
+more" power view the owner asked for, reusing existing backend capability
+end to end rather than building new surface. Zero new pages, zero new
+routes.
+
+**What shipped:**
+- Column-header sorting (replacing the sort `<select>` + toggle button) for
+  every `SortField`, including a new **Added** column — required adding
+  `dateAdded` to the `TrackSummary` list response (`backend/src/db/browse.ts`
+  + `frontend/src/types/api.ts`); the column already existed and was already
+  sortable, just never projected into the list shape. The only backend touch
+  in this phase.
+- Debounced search (300ms) and full URL-persisted filter/sort/search/page
+  state via `useSearchParams` — a filtered view is now a link.
+- "Select all on this page" checkbox in the admin checkbox column.
+- `hidden`/`notRecommended` toggles added to `TrackDetailDrawer`'s Tags tab —
+  previously reachable only from the row menu / bulk bar, not the one place
+  that already edits every other field on a track.
+
+**Explicitly deferred** (`.docs/QUESTIONS.md` Q24, Q25 — both non-blocking):
+a real bulk `PATCH`/`DELETE` backend endpoint (bulk actions still fire one
+request per selected track today), and a library-wide stats surface (total
+size, format breakdown). Neither was asked for; building either speculatively
+would cut against this project's own "prefer surfacing over building" rule.
+
+Full detail in `.docs/CHANGELOG.md` (2026-09-15 entry) and
+`.docs/FUNCTIONLOG.md`.
+
+---
+
 ## Change log
 
 | Date | Change | Why |
@@ -214,3 +252,4 @@ No loose threads remain from this pass — delete semantics, admin bootstrap, an
 | 2026-09-03 | Full re-theme: flat navy blue + orange-red, replacing the dark neutral + amber palette everywhere. Every blur/glow/soft-shadow effect removed (login glow orb, backdrop-blur on header/modals/player bar, shadow-2xl/xl on cards/drawer/menu/toasts, input focus ring) — replaced with solid flat surfaces and plain borders. `AnimatedHeroBackground`'s orbit and sweep layers rebuilt as solid shapes instead of blurred/gradient ones. Same reference screenshots as the animated-background request, this time explicitly for palette + flat style, not the logo. Verified against every screen. | User asked to match the reference's color theme, pure flat/bright, no glow or blur |
 | 2026-09-03 | Login page card moved from centered to left-anchored, echoing the reference's off-center composition without copying its proportions or text. New `.font-brand` (Fredoka via Google Fonts) applied to the "brainlessmusic" wordmark on both LoginPage and AppShell. User's own original HTML/CSS recreation of the reference (fonts + CSS shapes, not Konami assets) supplied as the layout/font reference. Verified computed font-family and full regression with the real account. | User shared their own recreation, asked for same layout feel + same title font |
 | 2026-09-03 | Login page rebuilt — the off-center card attempt didn't match, per direct feedback. Replaced with the actual composition: wide white content band (left-anchored, `w-[60%]`) holding the form, new `TitleScreenPanel` component (scrolling navy mosaic + halftone dot-matrix soundwave silhouette, own shape) confined to the right half and layered above the band so it bleeds over its edge. `AnimatedHeroBackground` deleted (superseded). Verified via screenshot + full regression with the real account. | User: "nothing looks like what i was specifically specific before" |
+| 2026-09-15 | Phase 5 added and built: `/manage` column-header sorting (incl. new `dateAdded` field on `TrackSummary` — the one backend touch), debounced + URL-persisted filter/sort/search/page state, select-all-on-page, and `hidden`/`notRecommended` toggles unified into `TrackDetailDrawer`. Bulk endpoint and library-stats surface deferred to `.docs/QUESTIONS.md` Q24/Q25. tsc/oxlint clean, backend suite 281/281, verified against the running Docker container. | A18 (`.docs/QUESTIONS.md`) explicitly deferred this to "a later session" — this was it |

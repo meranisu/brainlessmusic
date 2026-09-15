@@ -24,6 +24,36 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `updateParams()` / `onSort()` / `toggleSelectAllOnPage()` / `SortHeader` — `frontend/src/pages/ManageTracksPage.tsx`
+**Date:** 2026-09-15
+**How added:** new feature (Phase 5, `library-management-interface`)
+**Purpose:** `updateParams` merges a patch into the URL's search params (deleting `page` by default, so any filter change lands back on page 1) — every other new function here is a thin caller of it. `onSort(field)` sets the active sort column, flipping direction if it's already active. `toggleSelectAllOnPage` selects/deselects every track id on the current page without touching selections from other pages. `SortHeader` (module-scope, not a closure inside the page component) renders one clickable, direction-indicating column header.
+**Side effects:** `updateParams`/`onSort` call `setSearchParams` (a URL/history write); `toggleSelectAllOnPage` writes `selectedIds` state.
+**Before:** sort was one `<select>` plus a separate asc/desc button; filters were five independent `useState` calls with no URL representation; multi-select required clicking every row.
+**After:** `SortHeader` is deliberately a module-level function, not one defined inside `ManageTracksPage`'s body — a component type recreated every render remounts on the very click that re-renders its parent, which would drop keyboard focus from the header button a user just pressed.
+
+---
+
+**Function:** `TrackDetailDrawer`'s `handleSave()` and its seeding effect — `frontend/src/components/TrackDetailDrawer.tsx`
+**Date:** 2026-09-15
+**How added:** hardening (closed a UI gap, no backend change)
+**Purpose:** the Tags tab's save now also carries `hidden`/`notRecommended`, seeded from the loaded track alongside title/artist/album/track-number. `TrackPatchInput` already accepted both fields — this was the drawer catching up to the API, not new backend capability.
+**Side effects:** `PATCH /tracks/:id` now includes two more fields when the drawer's own Save button is used.
+**Before:** `hidden`/`notRecommended` were editable only from `TrackRowMenu`'s per-row menu or `ManageTracksPage`'s bulk-action bar — never from the drawer that already edits everything else about the same track.
+**After:** one form now fully edits a track; the row menu and bulk bar are unchanged (still valid, faster paths for the common case of flipping just one flag).
+
+---
+
+**Function:** `toTrackSummary()` / `TRACK_SUMMARY_SELECT` — `backend/src/db/browse.ts`
+**Date:** 2026-09-15
+**How added:** hardening (additive response field, no migration)
+**Purpose:** projects `t.date_added` into every `TrackSummary`-shaped response (`listTracks`, `getTrackSummaryById`, `getTrackSummariesByIds`, search results) — the column already existed and was already a valid `SortField`, just never included in the row itself, so a client could sort by it but never display what it sorted by.
+**Side effects:** none — read-only projection of an existing column.
+**Before:** `TrackDetail` (the single-track shape) declared its own `dateAdded: string`, redundant now that it inherits one from `TrackSummary`; removed.
+**After:** `RawTrackSummary`'s `Omit<TrackSummary, 'hidden' | 'notRecommended' | 'missing'>` picked up `dateAdded` automatically — no boolean coercion needed for it, so `toTrackSummary()` itself needed no code change beyond the wider input type.
+
+---
+
 **Function:** `LoginPage`'s render guards and `handleSubmit()` — `frontend/src/pages/LoginPage.tsx`
 **Date:** 2026-09-15
 **How added:** bug fix (two, found in sequence testing the same flow)

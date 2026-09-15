@@ -37,6 +37,57 @@ numpad → login flow.
 
 ---
 
+## 2026-09-15 — `/manage` grows into the "later session" A18 promised
+
+Phase 5 of `.docs/features/library-management-interface/planning.md` — the
+increment ledger decision A18 (2026-09-11) deferred when the arcade select
+replaced `/` as the shared home screen: *"Sorting, filtering and the rest are
+to be planned in a later session."*
+
+**Zero backend query changes needed** — `GET /tracks` already had every
+search/sort/filter capability this phase surfaces. One small, genuinely new
+field: `TrackSummary` (`backend/src/db/browse.ts`) now carries `dateAdded`,
+previously only present on the single-track `TrackDetail` shape — the column
+already existed and was already sortable, just never projected into the list
+response. `TrackDetail`'s now-redundant own `dateAdded` declaration was
+removed (inherited from `TrackSummary` instead). Mirrored on the frontend
+type (`frontend/src/types/api.ts`).
+
+**`ManageTracksPage.tsx` rework:**
+- The sort `<select>` + separate asc/desc button are gone — every sortable
+  column's header is now clickable (arrow indicates direction; click again to
+  flip it), including a new **Added** column for the field above.
+- Every filter (search, sort, order, hidden/notRecommended/missing, page)
+  now lives in the URL via `useSearchParams` instead of component state — a
+  filtered view is a link: bookmarkable, shareable, and survives a refresh.
+- The search box is debounced (300ms) — typing no longer fires one request
+  per keystroke; only the committed value (after the pause) is ever queried.
+- A "select all on this page" checkbox in the admin checkbox column's header;
+  selections from other pages are left untouched when toggling it.
+
+**`TrackDetailDrawer.tsx`:** the Tags tab now has `hidden`/`notRecommended`
+checkboxes alongside the existing title/artist/album/track-number fields —
+previously those two flags were reachable only from the row menu or the bulk
+bar, never from the one form that already edits everything else about a
+track. `TrackPatchInput` already carried both fields; this closed a pure UI
+gap.
+
+**Deliberately not built this pass** (logged as `.docs/QUESTIONS.md` Q24/Q25,
+non-blocking): a real bulk `PATCH`/`DELETE` backend endpoint (today's bulk
+actions still fire one request per selected track), and a library-wide stats
+surface (total size, format breakdown). Neither was asked for explicitly, and
+"prefer surfacing over building" argued against building them speculatively.
+
+Verified: `npx tsc --noEmit` and `npx oxlint` clean on every changed file;
+backend suite 281/281 passing after the `browse.ts` change; manually
+exercised against the running Docker container — sorted every column both
+directions, confirmed a debounced search via the network tab, copied a
+filtered/sorted URL into a new tab and got the same table back, select-all +
+bulk-hide, and toggled hidden/notRecommended from the drawer instead of the
+row menu.
+
+---
+
 ## 2026-09-15 — Admin login actually works, and says why when it doesn't
 
 Four related fixes to the numpad → login → library path, found while setting
