@@ -4,6 +4,24 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `findAudioFiles()` — `backend/src/services/scanner.ts`
+**Date:** 2026-09-16
+**How added:** bug fix (found while adding root-content validation, not by reading)
+**Purpose:** unchanged goal — walk a root and return every audio-extension file under it — but rewritten as a hand-rolled recursive walk (directory by directory, catching each `readdir`'s own failure) instead of one `readdir(root, { recursive: true })` call. Returns `{ files, unreadableDirs }` instead of a bare array.
+**Side effects:** none — still read-only.
+**Before:** a single unreadable subdirectory anywhere in the tree threw and aborted the *entire* scan. Every Windows drive has at least one (`System Volume Information`, `$RECYCLE.BIN`), confirmed with a real `/mnt/d` drive once `/mnt` became mountable — this was not a hypothetical edge case, it was the default state of any real external drive.
+**After:** one unreadable subdirectory is skipped and counted; everything else under the root still scans normally. `ScanSummary` gained `unreadableDirs: number`, surfaced in Options' scan-result toast when non-zero. New test in `services/scanner.test.ts` (a `chmod 0o000` subdirectory alongside a real file, confirming both the file is still found and the count is right).
+
+**Function:** `POST /library/roots`'s post-scan check — `backend/src/routes/library.ts`
+**Date:** 2026-09-16
+**How added:** new feature (validation)
+**Purpose:** after the insert-then-scan that already happened, if `scan.filesFound === 0` the just-inserted root is deleted again and the request 400s — a directory being readable never meant it contained music. Reuses the scan that already ran rather than walking the tree a second time.
+**Side effects:** `deleteLibraryRoot()` on the rejection path — safe here specifically because zero files were found, so no track ever referenced the root's id in the first place.
+**Before:** any readable directory was accepted and registered permanently, music or not.
+**After:** two new tests in `routes/library.test.ts` — an empty folder is rejected and never appears in `GET /library/roots`; a folder with just one audio-extension file (content doesn't need to actually be valid audio — that's a separate, per-file scan concern) is accepted.
+
+---
+
 **Function:** `GET /library/browse` — `backend/src/routes/library.ts`
 **Date:** 2026-09-16
 **How added:** new feature (folder picker for adding a library root)

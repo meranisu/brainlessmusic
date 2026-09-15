@@ -123,6 +123,18 @@ const libraryRoute: FastifyPluginAsync = async (fastify) => {
     const root = insertLibraryRoot(path, label);
     const result = await syncLibrary(root.path, root.id, { scan: true });
 
+    // A directory is not a music folder just because it's readable — an
+    // admin pointing this at the wrong place (a whole drive, a Windows
+    // system folder, an empty directory) should be told, not left with a
+    // registered root that will only ever be empty. Checked against the
+    // scan that already ran rather than walking the tree a second time.
+    if (result?.scan && result.scan.filesFound === 0) {
+      deleteLibraryRoot(root.id);
+      return reply.code(400).send({
+        error: `No music files found in "${path}" — nothing was registered.`,
+      });
+    }
+
     return reply.code(201).send({
       root: { id: root.id, path: root.path, label: root.label },
       scan: result?.scan,

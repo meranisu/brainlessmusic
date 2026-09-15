@@ -20,21 +20,49 @@ export interface ScanSummary {
   filesAdded: number;
   filesUpdated: number;
   filesFailed: number;
+  /** Subdirectories skipped because they couldn't be read — a Windows drive's
+   *  own `System Volume Information`/`$RECYCLE.BIN`, or anything else this
+   *  container's user lacks permission for. Not fatal to the scan; see
+   *  `findAudioFiles`. */
+  unreadableDirs: number;
   durationMs: number;
   failures: ScanFailure[];
 }
 
-async function findAudioFiles(root: string): Promise<string[]> {
-  const entries = await readdir(root, { withFileTypes: true, recursive: true });
+/**
+ * Walked by hand, one directory at a time, rather than a single
+ * `readdir(root, { recursive: true })` — that form is all-or-nothing, and a
+ * single unreadable subdirectory anywhere in the tree (a Windows drive's own
+ * `System Volume Information` and `$RECYCLE.BIN` are both locked down by
+ * permissions the container's user doesn't have, confirmed the hard way once
+ * `/mnt` started being mountable whole) would throw and abort scanning the
+ * entire drive instead of just skipping the one folder it can't see into.
+ */
+async function findAudioFiles(root: string): Promise<{ files: string[]; unreadableDirs: number }> {
   const files: string[] = [];
+  let unreadableDirs = 0;
 
-  for (const entry of entries) {
-    if (!entry.isFile()) continue;
-    if (!AUDIO_EXTENSIONS.has(extname(entry.name).toLowerCase())) continue;
-    files.push(join(entry.parentPath ?? entry.path, entry.name));
+  async function walk(dir: string): Promise<void> {
+    let entries;
+    try {
+      entries = await readdir(dir, { withFileTypes: true });
+    } catch {
+      unreadableDirs++;
+      return;
+    }
+
+    for (const entry of entries) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        await walk(full);
+      } else if (entry.isFile() && AUDIO_EXTENSIONS.has(extname(entry.name).toLowerCase())) {
+        files.push(full);
+      }
+    }
   }
 
-  return files;
+  await walk(root);
+  return { files, unreadableDirs };
 }
 
 type ScanFileResult = { status: 'added' | 'updated' } | { status: 'failed'; error: string };
@@ -76,7 +104,7 @@ async function scanFile(filePath: string, rootId: number): Promise<ScanFileResul
 export async function scanLibrary(libraryRoot: string, rootId: number): Promise<ScanSummary> {
   const start = Date.now();
 
-  const files = await findAudioFiles(libraryRoot);
+  const { files, unreadableDirs } = await findAudioFiles(libraryRoot);
 
   let filesAdded = 0;
   let filesUpdated = 0;
@@ -98,6 +126,7 @@ export async function scanLibrary(libraryRoot: string, rootId: number): Promise<
     filesAdded,
     filesUpdated,
     filesFailed: failures.length,
+    unreadableDirs,
     durationMs: Date.now() - start,
     failures,
   };

@@ -114,6 +114,7 @@ export interface LibraryScanSummary {
   filesAdded: number;
   filesUpdated: number;
   filesFailed: number;
+  unreadableDirs: number;
   durationMs: number;
   failures: { path: string; error: string }[];
 }

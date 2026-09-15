@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { after, before, beforeEach, describe, it } from 'node:test';
@@ -180,4 +180,30 @@ describe('scanLibrary', async () => {
       await empty.cleanup();
     }
   });
+
+  it(
+    'skips a subdirectory it cannot read instead of aborting the whole scan',
+    { skip: !ffmpegAvailable },
+    async () => {
+      // A Windows drive's own `System Volume Information`/`$RECYCLE.BIN`
+      // are exactly this: real, unreadable-by-this-user subdirectories
+      // sitting alongside real music once a whole drive is mounted in.
+      const temp = await makeTempDir('scan-locked');
+      const root = insertLibraryRoot(temp.path, null).id;
+      try {
+        await makeAudio(join(temp.path, 'track.mp3'), { title: 'Reachable' });
+        const locked = join(temp.path, 'Locked');
+        await mkdir(locked);
+        await chmod(locked, 0o000);
+
+        const summary = await scanLibrary(temp.path, root);
+        assert.equal(summary.filesFound, 1, 'the reachable file must still be found');
+        assert.equal(summary.unreadableDirs, 1, JSON.stringify(summary));
+
+        await chmod(locked, 0o755); // restorable before cleanup can remove it
+      } finally {
+        await temp.cleanup();
+      }
+    },
+  );
 });

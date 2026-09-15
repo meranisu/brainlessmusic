@@ -123,3 +123,55 @@ describe('GET /library/browse', () => {
     assert.equal(res.statusCode, 403);
   });
 });
+
+describe('POST /library/roots', () => {
+  it('rejects a folder with no music files, and leaves nothing registered', async () => {
+    const temp = await makeTempDir('root-empty');
+    try {
+      await writeFile(join(temp.path, 'readme.txt'), 'not music');
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/library/roots',
+        headers: { authorization: `Bearer ${adminToken}` },
+        payload: { path: temp.path },
+      });
+      assert.equal(res.statusCode, 400);
+      assert.match(res.json().error, /no music files found/i);
+
+      const list = await app.inject({
+        method: 'GET',
+        url: '/api/library/roots',
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      assert.ok(
+        !list.json().roots.some((r: { path: string }) => r.path === temp.path),
+        'a rejected folder must not end up registered',
+      );
+    } finally {
+      await temp.cleanup();
+    }
+  });
+
+  it('accepts a folder that has at least one audio-extension file', async () => {
+    const temp = await makeTempDir('root-with-music');
+    try {
+      // Content doesn't need to be real audio — this is "does the folder
+      // contain candidates at all", the same thing `filesFound` already
+      // counts; whether each one's tags actually parse is a separate,
+      // per-file concern the scan already reports.
+      await writeFile(join(temp.path, 'track.mp3'), 'not real audio bytes');
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/api/library/roots',
+        headers: { authorization: `Bearer ${adminToken}` },
+        payload: { path: temp.path },
+      });
+      assert.equal(res.statusCode, 201, JSON.stringify(res.json()));
+      assert.equal(res.json().root.path, temp.path);
+    } finally {
+      await temp.cleanup();
+    }
+  });
+});

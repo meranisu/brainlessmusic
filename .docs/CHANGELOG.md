@@ -4,6 +4,39 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-16 — Reject a root with no music, and stop a whole-drive scan from crashing on a locked folder
+
+`POST /library/roots` accepted any readable directory, music or not — a
+folder with zero audio files still registered successfully and just sat
+there permanently empty. Now the scan that already runs on add is checked:
+if it found zero files, the just-inserted root is deleted again and the
+request 400s with "No music files found in ...". Nothing new is walked
+twice — this reuses the scan's own result.
+
+Found while verifying that: registering `/mnt/d` itself (a real, large
+external drive, mountable at all since yesterday's `/mnt:/mnt:ro` change) to
+prove the rejection doesn't misfire on real libraries surfaced a second, more
+serious bug — `findAudioFiles`'s single `readdir(root, { recursive: true })`
+throws on the *first* subdirectory it can't read, aborting the entire scan.
+Every Windows drive has at least one such folder (`System Volume
+Information`, `$RECYCLE.BIN`), so this would have broken on essentially any
+real external drive, not an edge case. Rewritten as a hand-rolled recursive
+walk that catches a per-directory read failure and skips just that
+subdirectory — `ScanSummary` gained `unreadableDirs` so this stays visible
+rather than silently swallowed, surfaced in Options' scan-result toast when
+non-zero.
+
+Verified against the running container: an empty temp folder is rejected and
+never appears in `GET /library/roots`; a folder with a fake `.mp3` is
+accepted (found-by-extension is the bar, not successfully-parsed — a
+corrupt file is still a per-file scan failure, reported, not a reason to
+reject the whole folder); registering the actual `/mnt/d` drive ran for
+several minutes without crashing or blocking other requests (`/api/health`
+kept responding throughout) — confirming the real-world case the fix was
+for, not just the synthetic one. 294/294 backend tests (291 prior + 3 new).
+
+---
+
 ## 2026-09-16 — In-app folder browser for adding a library root
 
 A native OS folder picker can't fill in this path: browsers never expose a

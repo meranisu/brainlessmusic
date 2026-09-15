@@ -53,11 +53,18 @@ const STATUS_STYLES: Record<LibraryRoot['status'], string> = {
 
 function summarize(result?: LibraryRootScanResult): string | null {
   if (!result?.scan) return null;
-  const { filesAdded, filesUpdated } = result.scan;
-  if (filesAdded === 0 && filesUpdated === 0) return 'No changes found';
+  const { filesAdded, filesUpdated, unreadableDirs } = result.scan;
   const parts: string[] = [];
   if (filesAdded > 0) parts.push(`${filesAdded} new`);
   if (filesUpdated > 0) parts.push(`${filesUpdated} updated`);
+  if (parts.length === 0) parts.push('No changes found');
+  // Not fatal to the scan (a Windows drive's own System Volume Information,
+  // say), but worth saying — otherwise a folder that looks emptier than
+  // expected reads as a bug rather than a permission this container's user
+  // was never going to have.
+  if (unreadableDirs > 0) {
+    parts.push(`${unreadableDirs} folder${unreadableDirs === 1 ? '' : 's'} couldn't be read`);
+  }
   return parts.join(', ');
 }
 
