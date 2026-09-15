@@ -26,6 +26,9 @@ export const THEMES = [
   { id: 'blue', name: 'Deep blue', detail: 'The original' },
   { id: 'red', name: 'Crimson', detail: 'After IIDX RED' },
   { id: 'void', name: 'Void', detail: 'Near-black, accent only' },
+  { id: 'nord', name: 'Nord', detail: 'Flat, after the palette' },
+  { id: 'pink', name: 'Magenta', detail: 'After osu!' },
+  { id: 'pastel', name: 'Pastel', detail: 'Material, soft and round' },
 ] as const;
 
 export type ThemeId = (typeof THEMES)[number]['id'];
