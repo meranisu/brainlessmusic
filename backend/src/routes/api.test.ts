@@ -39,15 +39,17 @@ const PROTECTED_ROUTES: Array<[method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELET
   ['GET', '/api/stats/top-tracks'],
   ['GET', '/api/users'],
   ['POST', '/api/library/scan'],
+  ['GET', '/api/library/browse'],
   ['POST', '/api/shuffle'],
 ];
 
 /** Routes that must additionally reject a signed-in non-admin. */
-const ADMIN_ROUTES: Array<[method: 'POST' | 'PATCH' | 'DELETE', url: string]> = [
+const ADMIN_ROUTES: Array<[method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url: string]> = [
   ['POST', '/api/tracks/upload'],
   ['PATCH', '/api/tracks/1'],
   ['DELETE', '/api/tracks/1'],
   ['PATCH', '/api/users/1'],
+  ['GET', '/api/library/browse'],
 ];
 
 before(async () => {

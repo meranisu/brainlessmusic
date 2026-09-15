@@ -44,12 +44,21 @@ services:
       # multi-root-library/planning.md.
       - ${LIBRARY_DIR:-./library}:/library
 
-      # Additional folders — e.g. a second drive's music — go here as more
-      # lines, each its own host path -> its own container path. A folder
-      # must be bind-mounted here (and the container restarted) before it can
-      # be registered as a library root from Options → Library folders; the
-      # app can only see what's actually mounted into it.
-      # - /mnt/d/old-music:/library-2
+      # Every Windows drive, read-only. WSL2 exposes them all under /mnt
+      # (C:, D:, external drives, all of it) before Docker even enters the
+      # picture, so mounting the parent once means any of them can be picked
+      # with Options → Library folders → Browse from here on — no more
+      # editing this file or restarting the container per drive, which
+      # matters with more than one person adding folders.
+      #
+      # `:ro` is deliberate, not just cautious: uploads and every write this
+      # app makes only ever land in the default root above, so nothing here
+      # ever needs to be writable, and read-only means a bug or a compromised
+      # admin session cannot touch anything on these drives regardless.
+      #
+      # A single narrower line (e.g. `- /mnt/d/old-music:/library-2`) is the
+      # alternative if you'd rather expose one drive than all of /mnt.
+      - /mnt:/mnt:ro
 
       # Database, extracted cover art, and upload staging. This is the volume
       # worth backing up — playlists, favorites and play history live here and

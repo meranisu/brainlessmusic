@@ -4,6 +4,24 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `GET /library/browse` — `backend/src/routes/library.ts`
+**Date:** 2026-09-16
+**How added:** new feature (folder picker for adding a library root)
+**Purpose:** lists the subdirectories of an admin-supplied container path — `resolve('/', path)` to canonicalize, `readdir(..., { withFileTypes: true })` filtered to directories (symlinks skipped, so a self-referential one can't loop the dialog), sorted case-insensitively, capped at 500 with a `truncated` flag. Backs `LibraryBrowseDialog`'s click-to-descend UI on Options, since a native OS folder picker cannot expose an absolute path and the path that matters is inside the container anyway.
+**Side effects:** none — read-only.
+**Before:** nothing — adding a root required already knowing its exact absolute path and typing it blind.
+**After:** paired with a `docker-compose.yml` change mounting `/mnt:/mnt:ro` (every WSL2-exposed Windows drive, read-only — nothing this app writes ever lands outside the default root) so a new drive is browsable and pickable without a further compose edit or restart; a narrower single-drive mount remains available as a documented alternative. New `backend/src/routes/library.test.ts` (6 tests): directories-only listing, correct `parent` including `null` at `/`, default-to-`/`, 400 on a missing/non-directory path, 403 for a non-admin.
+
+**Function:** `LibraryBrowseDialog` — `frontend/src/components/LibraryBrowseDialog.tsx` (new file)
+**Date:** 2026-09-16
+**How added:** new feature
+**Purpose:** the dialog itself — current path, an "Up a level" row, click-to-descend, Escape/backdrop/Cancel all leaving the caller's path field untouched, "Use this folder" writing the picked path back. Chrome copied from `ConfirmDeleteDialog`/`HandoffDialog` (`useScrollLock`, backdrop + `card` panel); Escape-to-close is new here, following `AdminNumpad`/`NavOverflow`'s existing pattern rather than the two dialogs it borrowed chrome from.
+**Side effects:** none — calls the read-only browse endpoint only.
+**Before:** nothing — `OptionsPage`'s "Add folder" row was a bare text input.
+**After:** wired into `LibrarySection` (`frontend/src/pages/OptionsPage.tsx`) via a `browsing` boolean and a "Browse…" button next to the existing path input.
+
+---
+
 **Function:** `useThemeCycle()` — `frontend/src/hooks/useThemeCycle.ts` (new file)
 **Date:** 2026-09-16
 **How added:** new feature

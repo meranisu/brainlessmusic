@@ -4,6 +4,36 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-16 — In-app folder browser for adding a library root
+
+A native OS folder picker can't fill in this path: browsers never expose a
+picked folder's real absolute path, and the path this app needs is one
+inside the *container's* filesystem anyway — something the admin's own
+device has no view into regardless of OS. Built the real equivalent
+instead: `GET /library/browse` (admin-only, read-only, lists a directory's
+subdirectories) and a `LibraryBrowseDialog` on Options with click-to-descend
+and an up-a-level control. Confirming fills the existing path field;
+Cancel/Escape leave it untouched, and typing/pasting a path directly still
+works unchanged.
+
+Paired with a `docker-compose.yml` change: every Windows drive is now
+mounted read-only at `/mnt:/mnt:ro` (WSL2 already exposes them all there),
+so a new drive is browsable and addable from Options without a further
+compose edit or restart — the earlier "add one commented-out line per
+drive" approach is now documented as the narrower alternative, not the
+default. Read-only isn't just caution: every write this app makes (uploads,
+tag edits) already only ever lands in the default root, so nothing under
+`/mnt` ever needed write access.
+
+Verified end-to-end with Playwright against the rebuilt container:
+descend/up navigation, "Use this folder" writing the real path into the
+field, Escape and Cancel both leaving a manually-typed path untouched, and
+navigating into `/root` (genuinely unreadable by the container's `node`
+user) surfacing a clean in-dialog error instead of crashing. 291/291 backend
+tests passing (285 prior + 6 new in `routes/library.test.ts`).
+
+---
+
 ## 2026-09-16 — The title screen and login page cycle through every theme
 
 Before signing in, the attract screen and login page now automatically cycle

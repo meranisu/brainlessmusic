@@ -138,6 +138,18 @@ export interface AddLibraryRootResponse extends LibraryRootScanResult {
   root: { id: number; path: string; label: string | null };
 }
 
+export interface BrowseDirEntry {
+  name: string;
+  path: string;
+}
+
+export interface BrowseDirResponse {
+  path: string;
+  parent: string | null;
+  entries: BrowseDirEntry[];
+  truncated?: boolean;
+}
+
 export interface ArtistSummary {
   id: number;
   name: string;

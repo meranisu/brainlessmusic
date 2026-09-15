@@ -1,4 +1,5 @@
-import { stat } from 'node:fs/promises';
+import { readdir, stat } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
 import type { FastifyPluginAsync } from 'fastify';
 import { listMissingTracks, listTrackPaths, markTracksMissing } from '../db/library.js';
 import {
@@ -15,6 +16,11 @@ interface AddRootBody {
   path: string;
   label?: string;
 }
+
+/** Above this, a directory's contents are truncated rather than returned in
+ *  full — this is a folder picker, not a filesystem export, and a virtual
+ *  directory like `/proc` can otherwise hand back thousands of entries. */
+const MAX_BROWSE_ENTRIES = 500;
 
 const libraryRoute: FastifyPluginAsync = async (fastify) => {
   // Every route here is admin-only: scanning walks a folder off disk and
@@ -38,6 +44,53 @@ const libraryRoute: FastifyPluginAsync = async (fastify) => {
       scanning: isLibrarySyncRunning(root.id),
     }));
     return reply.send({ roots });
+  });
+
+  // Lets the Options page's "Browse…" button walk the container's own
+  // filesystem instead of asking an admin to already know the exact path —
+  // read-only, directories only. Not a new trust boundary: `POST
+  // /library/roots` below already accepts and persists any container-
+  // readable absolute path with no allowlist, so listing directory *names*
+  // under an admin-only gate isn't a bigger exposure than that already is.
+  fastify.get<{ Querystring: { path?: string } }>('/library/browse', adminOnly, async (request, reply) => {
+    // Always absolute and with `..` collapsed, so a stray relative segment
+    // can't produce a confusing path — not a sandbox, just canonicalization.
+    const path = resolve('/', request.query.path ?? '/');
+
+    let dirents;
+    try {
+      dirents = await readdir(path, { withFileTypes: true });
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code === 'ENOENT' || code === 'ENOTDIR') {
+        return reply.code(400).send({ error: `"${path}" is not a directory inside the container` });
+      }
+      if (code === 'EACCES' || code === 'EPERM') {
+        return reply.code(400).send({ error: `Permission denied reading "${path}" inside the container` });
+      }
+      return reply.code(400).send({ error: err instanceof Error ? err.message : String(err) });
+    }
+
+    // Files aren't relevant to picking a folder. Symlinks are skipped too —
+    // `Dirent.isDirectory()` doesn't follow them, which conveniently also
+    // means a self-referential symlink can't turn into an infinite up/down
+    // loop in the dialog.
+    const directories = dirents
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+    const truncated = directories.length > MAX_BROWSE_ENTRIES;
+    const entries = directories
+      .slice(0, MAX_BROWSE_ENTRIES)
+      .map((name) => ({ name, path: resolve(path, name) }));
+
+    return reply.send({
+      path,
+      parent: path === '/' ? null : dirname(path),
+      entries,
+      ...(truncated ? { truncated: true } : {}),
+    });
   });
 
   fastify.post<{ Body: AddRootBody }>('/library/roots', adminOnly, async (request, reply) => {

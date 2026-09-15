@@ -98,6 +98,34 @@ On the **client**, open `http://<that-ip>:3000` in a browser — e.g.
 If it doesn't load: check the host's firewall isn't blocking port 3000, and
 that Docker Desktop is actually running on the host (not just installed).
 
+## Adding a second music folder (a separate drive, say)
+
+The app can scan more than one folder — from Options → Library folders,
+once signed in as admin, with a **Browse…** button that walks the
+container's own filesystem so you don't have to already know the exact
+path. But it can only see what's actually mounted into the container in the
+first place.
+
+`docker-compose.yml` already mounts every Windows drive, read-only:
+```yaml
+- /mnt:/mnt:ro
+```
+WSL2 exposes all of them under `/mnt` (`/mnt/c`, `/mnt/d`, and so on)
+whether or not Docker is involved, so this one line covers every drive at
+once — current ones and any plugged in later. In Options → Library folders,
+click Browse, navigate to the folder you want (e.g. `/mnt/d/old-music`), and
+add it. No `docker-compose.yml` edit or restart needed per folder.
+
+If you'd rather expose one specific drive than all of `/mnt`, swap that line
+for a narrower one instead:
+```yaml
+- /mnt/d/old-music:/library-2
+```
+— in which case a restart (`docker compose up -d`) is needed for that one
+mount to take effect, same as any new bind mount. This is the one thing this
+app can't do from its own UI — a container can't mount a drive into itself
+at runtime.
+
 ## Stopping it
 
 ```bash
@@ -111,3 +139,4 @@ docker compose down -v    # also wipes the database — only do this on purpose
 git pull
 docker compose up -d --build
 ```
+

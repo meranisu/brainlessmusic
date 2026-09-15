@@ -5,6 +5,7 @@ import { usePlayer } from '../components/PlayerBar';
 import { DataSaverIcon } from '../components/icons';
 import { useState } from 'react';
 import { HandoffDialog } from '../components/HandoffDialog';
+import { LibraryBrowseDialog } from '../components/LibraryBrowseDialog';
 import { useToast } from '../components/ToastProvider';
 import { ApiError, apiClient } from '../lib/apiClient';
 import { applyTheme, loadTheme, THEMES, type ThemeId } from '../lib/theme';
@@ -76,6 +77,7 @@ function LibrarySection() {
   const [newPath, setNewPath] = useState('');
   const [newLabel, setNewLabel] = useState('');
   const [removeTarget, setRemoveTarget] = useState<LibraryRoot | null>(null);
+  const [browsing, setBrowsing] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['library-roots'],
@@ -179,6 +181,9 @@ function LibrarySection() {
           placeholder="/path/inside/the/container"
           className="input min-w-56 flex-1"
         />
+        <button type="button" onClick={() => setBrowsing(true)} className="btn-secondary btn-sm">
+          Browse…
+        </button>
         <input
           value={newLabel}
           onChange={(e) => setNewLabel(e.target.value)}
@@ -194,6 +199,17 @@ function LibrarySection() {
         mounted into it (see <code className="text-blue-300">docker-compose.yml</code>) won't be
         visible here yet, however real it is on the host.
       </p>
+
+      {browsing && (
+        <LibraryBrowseDialog
+          initialPath={newPath.trim() || undefined}
+          onSelect={(path) => {
+            setNewPath(path);
+            setBrowsing(false);
+          }}
+          onCancel={() => setBrowsing(false)}
+        />
+      )}
 
       {removeTarget && (
         <div
