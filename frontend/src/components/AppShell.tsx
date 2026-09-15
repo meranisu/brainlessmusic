@@ -232,7 +232,7 @@ function BootFrame() {
 }
 
 export function AppShell() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [showHandoff, setShowHandoff] = useState(false);
   const [showMore, setShowMore] = useState(false);
   /** The card playing over everything, if any. Null the rest of the time. */
@@ -259,10 +259,11 @@ export function AppShell() {
    * simply still be there. Guarded against a second press, because two cards
    * racing each other is two timers racing each other.
    */
-  function leaveThrough(card: { text: string; detail?: string }, to: string) {
+  function leaveThrough(card: { text: string; detail?: string }, to: string, onNavigate?: () => void) {
     if (leaving) return;
     const wait = interstitialDuration();
     if (wait === 0) {
+      onNavigate?.();
       navigate(to);
       return;
     }
@@ -271,6 +272,12 @@ export function AppShell() {
       // Order matters. The card's blackout has just finished opaque and the
       // veil begins opaque, so swapping one for the other in the same commit
       // means the route changes under cover and nothing is ever seen to cut.
+      //
+      // `onNavigate` fires here rather than up front for the same reason —
+      // Exit uses it to clear the session, and clearing it before the card
+      // is up would drop `RequireAuth`'s guard mid-animation and unmount this
+      // whole overlay along with the page underneath it.
+      onNavigate?.();
       navigate(to);
       setLeaving(null);
 
@@ -341,21 +348,31 @@ export function AppShell() {
   }
 
   /**
-   * Back to the title screen, still signed in.
+   * Back to the title screen — still signed in for a guest, signed out for a
+   * real account.
    *
    * The flag is the whole mechanism: the title screen redirects a signed-in
    * visitor into the app, and without something to say "this one meant it" the
    * Exit button would bounce straight back off it. Set before navigating, since
    * the title screen reads it on its first render.
    *
-   * Not a log out, and deliberately so for a guest — the token stays in this
+   * Not a log out for a guest, and deliberately so — the token stays in this
    * browser, so pressing enter again returns to the same listening history
-   * rather than minting a stranger. Discarding the identity is a different,
+   * rather than minting a stranger. Discarding *that* identity is a different,
    * heavier action and it stays behind the warning in "This device".
+   *
+   * A real account is the opposite trade: it has a password, so nothing is
+   * lost by making Exit actually sign it out, and a shared device is exactly
+   * where an admin session left open is the more likely mistake. `logout` runs
+   * as `leaveThrough`'s `onNavigate`, not before — see the comment there.
    */
   function handleExit() {
     markAtTitle();
-    leaveThrough({ text: 'Thank you for using this system', detail: 'See you again' }, '/enter');
+    leaveThrough(
+      { text: 'Thank you for using this system', detail: 'See you again' },
+      '/enter',
+      user?.isGuest ? undefined : logout,
+    );
   }
 
   /**
@@ -416,49 +433,71 @@ export function AppShell() {
               bar so it reads as a seam rather than a wall. */}
           <span aria-hidden className="h-7 w-px shrink-0 bg-blue-700/80" />
 
-          {/* `boot-nav` staggers its children individually rather than fading
-              the row in as a block — a machine naming its parts, not a
-              container appearing. */}
-          <nav className={`hidden items-center gap-1 lg:flex ${isBooting ? 'boot-nav' : ''}`}>
-            {primary.map((item, i) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end}
-                onClick={(event) => onTabClick(event, item, i)}
-                className={navLinkClass}
-              >
-                {({ isActive }) => (
-                  <>
-                    {item.label}
-                    {/* The underline is a real element, present only in the
-                        active tab, so exactly one of them exists at a time —
-                        which is what lets it carry a `view-transition-name`
-                        and slide between tabs instead of cross-fading. It was
-                        an `::after` before, and a pseudo-element cannot be
-                        named.
+          {/* Tabs and More share one wrapper so `gap-1` sits between all of
+              them equally, More included — a tab's distance from its
+              neighbour is the same as Playlists's distance from More, instead
+              of the tight cluster of tabs this used to be next to a More set
+              apart by the bar's own wider gap.
 
-                        The overflow menu repeats these links below `lg` and
-                        deliberately gives them no underline: a second element
-                        carrying the same name does not merely look wrong, it
-                        disables the transition for the whole page. Below `lg`
-                        this whole nav is `display: none`, so nothing here is
-                        rendered to collide with it. */}
-                    {isActive && <span className="nav-underline" />}
-                  </>
-                )}
-              </NavLink>
-            ))}
-          </nav>
+              That gap has to stay `gap-1` and not the bar's own `gap-3
+              sm:gap-5` — this row was measured at 933px of tabs alone at a
+              390px viewport, and widening every gap in it here reproduces
+              that overflow at a wider, but still real, viewport. The bar's
+              wider gap keeps doing its job everywhere else: between the
+              divider and this wrapper, and between this wrapper and search.
 
-          <NavOverflow
-            className={boot('boot-more')}
-            primary={primary}
-            overflow={overflow}
-            isOpen={showMore}
-            onToggle={() => setShowMore((open) => !open)}
-            onClose={() => setShowMore(false)}
-          />
+              The wrapper itself is always `flex`, never `hidden` — only
+              `nav` hides below `lg`. More has to survive that: it's the only
+              way a guest on a phone reaches the primary tabs at all, so it
+              cannot disappear along with them. Below `lg`, `nav` is
+              `display: none` and contributes no width, so this wrapper's own
+              `gap-1` has nothing on its left to space against — More just
+              sits where it always did. */}
+          <div className="flex items-center gap-1">
+            {/* `boot-nav` staggers its children individually rather than
+                fading the row in as a block — a machine naming its parts, not
+                a container appearing. */}
+            <nav className={`hidden items-center gap-1 lg:flex ${isBooting ? 'boot-nav' : ''}`}>
+              {primary.map((item, i) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  onClick={(event) => onTabClick(event, item, i)}
+                  className={navLinkClass}
+                >
+                  {({ isActive }) => (
+                    <>
+                      {item.label}
+                      {/* The underline is a real element, present only in the
+                          active tab, so exactly one of them exists at a time —
+                          which is what lets it carry a `view-transition-name`
+                          and slide between tabs instead of cross-fading. It was
+                          an `::after` before, and a pseudo-element cannot be
+                          named.
+
+                          The overflow menu repeats these links below `lg` and
+                          deliberately gives them no underline: a second element
+                          carrying the same name does not merely look wrong, it
+                          disables the transition for the whole page. Below `lg`
+                          this whole nav is `display: none`, so nothing here is
+                          rendered to collide with it. */}
+                      {isActive && <span className="nav-underline" />}
+                    </>
+                  )}
+                </NavLink>
+              ))}
+            </nav>
+
+            <NavOverflow
+              className={boot('boot-more')}
+              primary={primary}
+              overflow={overflow}
+              isOpen={showMore}
+              onToggle={() => setShowMore((open) => !open)}
+              onClose={() => setShowMore(false)}
+            />
+          </div>
 
           {/* A plain spacer takes the slack, and search keeps its natural width
               beside the buttons.
@@ -501,15 +540,17 @@ export function AppShell() {
               <GearIcon className="h-5 w-5" />
             </button>
 
-            {/* Back to the attract screen, session intact — the arcade sense of
-                exit, not the account sense. Orange, which in this app is the
-                accent nothing else in the bar uses: the tab underline, the boot
-                frame and the title screen's enter button are all orange, so the
-                control that returns you to that screen wears its colour. */}
+            {/* Back to the attract screen — session intact for a guest (the
+                arcade sense of exit, not the account sense), signed out for a
+                real account (see `handleExit`). Orange, which in this app is
+                the accent nothing else in the bar uses: the tab underline,
+                the boot frame and the title screen's enter button are all
+                orange, so the control that returns you to that screen wears
+                its colour. */}
             <button
               onClick={handleExit}
-              aria-label="Exit to the title screen"
-              data-tip="Exit — you stay signed in"
+              aria-label={user?.isGuest ? 'Exit to the title screen' : 'Log out and exit to the title screen'}
+              data-tip={user?.isGuest ? 'Exit — you stay signed in' : 'Exit — signs you out'}
               className="tip btn-primary btn-sm shrink-0 px-2"
             >
               <ExitIcon className="h-5 w-5" />

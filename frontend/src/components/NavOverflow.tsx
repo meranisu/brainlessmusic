@@ -1,5 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
+
+/** Must match `.options-panel.is-closing` in `index.css`. */
+const CLOSE_MS = 160;
 
 export interface NavItem {
   to: string;
@@ -37,15 +40,37 @@ interface NavOverflowProps {
  */
 export function NavOverflow({ overflow, primary, isOpen, onToggle, onClose, className = '' }: NavOverflowProps) {
   const menuRef = useRef<HTMLDivElement>(null);
+  const wasOpen = useRef(isOpen);
+  const [isClosing, setIsClosing] = useState(false);
+
+  /**
+   * `isOpen` flips to `false` the instant the parent decides to close — a
+   * click outside, Escape, a tab away — which used to unmount this straight
+   * away and skip `.options-panel.is-closing`'s reverse of the entrance
+   * animation entirely. Staying mounted for one more `CLOSE_MS` is what lets
+   * it play: the menu that grew in now shrinks back to the button it came
+   * from instead of just disappearing.
+   */
+  useEffect(() => {
+    if (wasOpen.current && !isOpen) {
+      setIsClosing(true);
+      const timer = setTimeout(() => setIsClosing(false), CLOSE_MS);
+      wasOpen.current = isOpen;
+      return () => clearTimeout(timer);
+    }
+    wasOpen.current = isOpen;
+  }, [isOpen]);
+
+  const visible = isOpen || isClosing;
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!visible) return;
     function onKey(event: KeyboardEvent) {
       if (event.key === 'Escape') onClose();
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [isOpen, onClose]);
+  }, [visible, onClose]);
 
   const itemClass = ({ isActive }: { isActive: boolean }) =>
     `block rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${
@@ -54,16 +79,30 @@ export function NavOverflow({ overflow, primary, isOpen, onToggle, onClose, clas
         : 'text-blue-200 hover:bg-orange-500/12 hover:text-orange-300'
     }`;
 
+  /* Once the bar itself has room for the primary tabs (`lg` and up), the
+     only reason this button exists is `overflow` — for a guest, who has none,
+     it would sit there opening a menu with nothing admin in it and nothing
+     else, since `primary`'s copy inside is `lg:hidden` too. Below `lg`, where
+     the bar shows no tabs at all, it stays for everyone: it's the only way a
+     guest on a phone reaches Library, Albums, Artists, Favorites or
+     Playlists. */
+  const emptyAtDesktop = overflow.length === 0 ? 'lg:hidden' : '';
+
   return (
-    <div className={`relative shrink-0 ${className}`}>
+    <div className={`relative shrink-0 ${emptyAtDesktop} ${className}`}>
       <button
         onClick={onToggle}
         aria-expanded={isOpen}
         aria-haspopup="menu"
         /* `.nav-tab`, the same shape the tabs wear. It used to be a `btn-sm`,
            which put a smaller, lighter, differently-padded control in the
-           middle of a row that reads as one strip. */
-        className="nav-tab"
+           middle of a row that reads as one strip.
+
+           The border is the same `border-blue-700` the search box wears
+           beside it — the only two controls on the bar that open something
+           (a menu, a query) get the same outline, so they read as a pair of
+           inputs rather than one bordered box next to a bare label. */
+        className="nav-tab border border-blue-700"
       >
         More
         <span aria-hidden className={`transition-transform ${isOpen ? 'rotate-180' : ''}`}>
@@ -71,7 +110,7 @@ export function NavOverflow({ overflow, primary, isOpen, onToggle, onClose, clas
         </span>
       </button>
 
-      {isOpen && (
+      {visible && (
         <>
           <div className="fixed inset-0 z-40" onClick={onClose} aria-hidden />
           {/* Centred under the button rather than hung off its right edge — a
@@ -90,7 +129,11 @@ export function NavOverflow({ overflow, primary, isOpen, onToggle, onClose, clas
               viewport edge and give the page a horizontal scrollbar — the exact
               fault this bar rebuild exists to remove. */}
           <div className="absolute left-1/2 top-full z-50 mt-2 w-52 max-w-[calc(100vw-1.5rem)] -translate-x-1/2">
-            <div ref={menuRef} role="menu" className="options-panel card w-full p-2">
+            <div
+              ref={menuRef}
+              role="menu"
+              className={`options-panel card w-full p-2 ${isClosing ? 'is-closing' : ''}`}
+            >
             {/* Below `md` the bar shows no tabs at all, so they live here. The
                 divider only appears when both groups are on screen. */}
               {primary.length > 0 && (
