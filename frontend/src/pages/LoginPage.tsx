@@ -27,7 +27,11 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (user) return <Navigate to="/" replace />;
+  // A guest session still counts as `user` — guest entry is the default, open
+  // door, so most people tapping the logo already have one. Only a real
+  // account signing in twice should skip straight past this form; a guest
+  // needs to see it to actually become an admin.
+  if (user && !user.isGuest) return <Navigate to="/" replace />;
   if (!getUnlockTicket()) return <Navigate to="/enter" replace />;
 
   async function handleSubmit(e: FormEvent) {
