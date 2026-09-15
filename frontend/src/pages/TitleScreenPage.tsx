@@ -6,6 +6,7 @@ import { AdminNumpad } from '../components/AdminNumpad';
 import { BrandMark } from '../components/BrandLockup';
 import { TitleScreenPanel } from '../components/TitleScreenPanel';
 import { useSecretTaps } from '../hooks/useSecretTaps';
+import { useThemeCycle } from '../hooks/useThemeCycle';
 import { ApiError, apiClient } from '../lib/apiClient';
 import { clearAtTitle, isAtTitle, markJustEntered } from '../lib/boot';
 import { arrivalDuration } from '../lib/interstitial';
@@ -87,6 +88,7 @@ function TitleHud() {
 export function TitleScreenPage() {
   const { user, enterAsGuest, adoptToken } = useAuth();
   const navigate = useNavigate();
+  useThemeCycle();
 
   const [isEntering, setIsEntering] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -219,7 +221,7 @@ export function TitleScreenPage() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#0c1a52]">
+    <div className="app-ground relative min-h-screen overflow-hidden">
       <TitleScreenPanel className={isLeaving ? 'title-exit-panel' : undefined} />
       <TitleHud />
 

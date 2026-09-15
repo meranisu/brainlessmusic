@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { ArcadeInterstitial } from '../components/ArcadeInterstitial';
 import { BrandLockup } from '../components/BrandLockup';
 import { TitleScreenPanel } from '../components/TitleScreenPanel';
+import { useThemeCycle } from '../hooks/useThemeCycle';
 import { ApiError, getUnlockTicket } from '../lib/apiClient';
 import { markJustEntered } from '../lib/boot';
 import { interstitialDuration } from '../lib/interstitial';
@@ -34,6 +35,7 @@ export function LoginPage() {
   // holds this page on screen for the card below instead of cutting straight
   // to the library the instant `user` updates.
   const [isLeaving, setIsLeaving] = useState(false);
+  useThemeCycle();
 
   // A guest session still counts as `user` — guest entry is the default, open
   // door, so most people tapping the logo already have one. Only a real
@@ -71,7 +73,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#0c1a52]">
+    <div className="app-ground relative min-h-screen overflow-hidden">
       <TitleScreenPanel />
 
       <div

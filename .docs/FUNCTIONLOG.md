@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `useThemeCycle()` — `frontend/src/hooks/useThemeCycle.ts` (new file)
+**Date:** 2026-09-16
+**How added:** new feature
+**Purpose:** advances `document.documentElement.dataset.theme` through every entry in `THEMES` on a 20s interval while mounted, setting `data-theme-cycling` (what a new `:root[data-theme-cycling]` transition in `index.css` is scoped to) so a manual pick in Options stays instant. Skips entirely under `prefersReducedMotion()` (reused from `lib/interstitial.ts`). Restores `loadTheme()` directly on unmount — never writes to `localStorage`.
+**Side effects:** none — a DOM attribute and a timer, no storage writes.
+**Before:** nothing — `TitleScreenPage`/`LoginPage` rendered whatever the saved theme happened to be, statically.
+**After:** called unconditionally from both pages (both already outside `RequireAuth`). Paired with `frontend/src/index.css` registering every themed `--color-*`/`--app-ground`/`--backdrop-*` custom property via `@property` (`inherits: true`, required since `@property` defaults to `false`) so the transition actually interpolates instead of snapping.
+
 **Function:** `LibraryEmptyState` — `frontend/src/components/LibraryEmptyState.tsx` (new file)
 **Date:** 2026-09-16
 **How added:** refactor (shared component, extracted from `LibraryPage.tsx`)

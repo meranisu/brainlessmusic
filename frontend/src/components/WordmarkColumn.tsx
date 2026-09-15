@@ -81,7 +81,10 @@ function WordRun({ size, stroke }: { size: string; stroke?: string }) {
           <Lettering stroke={stroke} />
           {/* A separator, so a row of them reads as a marquee rather than as
               one very long nonsense word. */}
-          <span aria-hidden style={{ color: stroke ?? 'rgba(59,130,246,0.18)' }}>
+          <span
+            aria-hidden
+            style={{ color: stroke ?? 'color-mix(in oklab, var(--color-blue-500) 18%, transparent)' }}
+          >
             ·
           </span>
         </span>

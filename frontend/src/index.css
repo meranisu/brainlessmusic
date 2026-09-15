@@ -84,6 +84,89 @@
   --bar-sheen: oklch(80% 0.02 265 / 0.13);
 }
 
+/* ── Theme cycling (pre-login only) ──────────────────────────────────────
+   `useThemeCycle` (frontend/src/hooks/useThemeCycle.ts) advances `data-theme`
+   on a timer while the title screen or login page is mounted. A plain custom
+   property does not know how to interpolate between two values — swapping
+   `data-theme` would just cut every color instantly, the same way a manual
+   pick in Options does today. `@property` teaches the browser that a given
+   variable holds a `<color>` (or, for the two raw "R G B" channel triples
+   below, a space-separated list of numbers), which is what lets the
+   `transition` further down actually fade instead of snap.
+
+   `inherits: true` on every one of these is not optional: `@property`
+   defaults to `false`, and getting it wrong would silently stop the variable
+   from reaching anything past `:root` — every themed color in the app flows
+   through inheritance from here.
+
+   `initial-value` is required by the spec for a non-universal syntax and is
+   only ever used before a real rule applies; the values below are today's
+   default (blue) theme — Tailwind's own stock palette plus this file's own
+   `:root` block — so registering these makes no visual decision of its own. */
+@property --color-blue-950 { syntax: '<color>'; inherits: true; initial-value: oklch(28.2% .091 267.935); }
+@property --color-blue-900 { syntax: '<color>'; inherits: true; initial-value: oklch(37.9% .146 265.522); }
+@property --color-blue-800 { syntax: '<color>'; inherits: true; initial-value: oklch(42.4% .199 265.638); }
+@property --color-blue-700 { syntax: '<color>'; inherits: true; initial-value: oklch(48.8% .243 264.376); }
+@property --color-blue-600 { syntax: '<color>'; inherits: true; initial-value: oklch(54.6% .245 262.881); }
+@property --color-blue-500 { syntax: '<color>'; inherits: true; initial-value: oklch(62.3% .214 259.815); }
+@property --color-blue-400 { syntax: '<color>'; inherits: true; initial-value: oklch(70.7% .165 254.624); }
+@property --color-blue-300 { syntax: '<color>'; inherits: true; initial-value: oklch(80.9% .105 251.813); }
+@property --color-blue-200 { syntax: '<color>'; inherits: true; initial-value: oklch(88.2% .059 254.128); }
+@property --color-blue-100 { syntax: '<color>'; inherits: true; initial-value: oklch(93.2% .032 255.585); }
+
+@property --color-orange-600 { syntax: '<color>'; inherits: true; initial-value: oklch(64.6% .222 41.116); }
+@property --color-orange-500 { syntax: '<color>'; inherits: true; initial-value: oklch(70.5% .213 47.604); }
+@property --color-orange-400 { syntax: '<color>'; inherits: true; initial-value: oklch(75% .183 55.934); }
+@property --color-orange-300 { syntax: '<color>'; inherits: true; initial-value: oklch(83.7% .128 66.29); }
+@property --color-orange-200 { syntax: '<color>'; inherits: true; initial-value: oklch(90.1% .076 70.697); }
+
+@property --color-red-900 { syntax: '<color>'; inherits: true; initial-value: oklch(39.6% .141 25.723); }
+@property --color-red-800 { syntax: '<color>'; inherits: true; initial-value: oklch(44.4% .177 26.899); }
+@property --color-red-700 { syntax: '<color>'; inherits: true; initial-value: oklch(50.5% .213 27.518); }
+@property --color-red-600 { syntax: '<color>'; inherits: true; initial-value: oklch(57.7% .245 27.325); }
+@property --color-red-500 { syntax: '<color>'; inherits: true; initial-value: oklch(63.7% .237 25.331); }
+@property --color-red-400 { syntax: '<color>'; inherits: true; initial-value: oklch(70.4% .191 22.216); }
+@property --color-red-300 { syntax: '<color>'; inherits: true; initial-value: oklch(80.8% .114 19.571); }
+@property --color-red-200 { syntax: '<color>'; inherits: true; initial-value: oklch(88.5% .062 18.334); }
+
+@property --app-ground { syntax: '<color>'; inherits: true; initial-value: #080e28; }
+@property --backdrop-far { syntax: '<color>'; inherits: true; initial-value: rgba(59, 130, 246, 0.15); }
+@property --backdrop-mid { syntax: '<color>'; inherits: true; initial-value: rgba(96, 165, 250, 0.17); }
+@property --backdrop-near { syntax: '<color>'; inherits: true; initial-value: rgba(59, 130, 246, 0.26); }
+@property --backdrop-band { syntax: '<color>'; inherits: true; initial-value: rgba(59, 130, 246, 0.17); }
+@property --bar-sheen { syntax: '<color>'; inherits: true; initial-value: rgba(147, 197, 253, 0.14); }
+
+/* Raw "R G B" channel triples, not colors — consumed elsewhere in this file
+   as `rgb(var(--x) / alpha)`. `<number>+` is a space-separated list of
+   numbers; registering it lets the ring/mote tap-glow easter egg fade with
+   everything else instead of snapping. If a browser doesn't support this
+   syntax the rule is simply invalid and ignored — those two just snap while
+   every other token still fades, nothing breaks. */
+@property --backdrop-ring { syntax: '<number>+'; inherits: true; initial-value: 234 88 12; }
+@property --backdrop-mote { syntax: '<number>+'; inherits: true; initial-value: 147 197 253; }
+
+/* Set by `useThemeCycle` for as long as the title screen or login page is
+   mounted and reduced motion isn't requested — never by a manual pick in
+   Options, which stays instant. Transitioning the properties themselves,
+   once, here, is enough: every element that reads one via
+   `var(--color-blue-900)` etc. repaints on its own as the value moves, with
+   no per-element transition needed anywhere else in the app. */
+:root[data-theme-cycling] {
+  transition:
+    --color-blue-950 4s ease, --color-blue-900 4s ease, --color-blue-800 4s ease,
+    --color-blue-700 4s ease, --color-blue-600 4s ease, --color-blue-500 4s ease,
+    --color-blue-400 4s ease, --color-blue-300 4s ease, --color-blue-200 4s ease,
+    --color-blue-100 4s ease,
+    --color-orange-600 4s ease, --color-orange-500 4s ease, --color-orange-400 4s ease,
+    --color-orange-300 4s ease, --color-orange-200 4s ease,
+    --color-red-900 4s ease, --color-red-800 4s ease, --color-red-700 4s ease,
+    --color-red-600 4s ease, --color-red-500 4s ease, --color-red-400 4s ease,
+    --color-red-300 4s ease, --color-red-200 4s ease,
+    --app-ground 4s ease, --backdrop-far 4s ease, --backdrop-mid 4s ease,
+    --backdrop-near 4s ease, --backdrop-band 4s ease, --bar-sheen 4s ease,
+    --backdrop-ring 4s ease, --backdrop-mote 4s ease;
+}
+
 @layer base {
   /* One tempo for the whole title screen. 0.4s is 150 BPM — the pocket the
      reference genre sits in, and slow enough to sit behind a form. Every

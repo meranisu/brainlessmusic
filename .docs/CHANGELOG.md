@@ -4,6 +4,41 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-16 — The title screen and login page cycle through every theme
+
+Before signing in, the attract screen and login page now automatically cycle
+through all three themes (`blue`/`red`/`void`) every 20 seconds, crossfading
+smoothly rather than cutting — a native CSS transition, not a JS-driven
+blend. Every themed `--color-*`/`--app-ground`/`--backdrop-*` custom
+property is registered with `@property` (`syntax: '<color>'`, and critically
+`inherits: true` — `@property` defaults to `false`, and getting that wrong
+would silently break theming everywhere past `:root`), and a single
+`transition` rule on `:root[data-theme-cycling]` makes every consumer
+repaint smoothly as the underlying value moves, with zero per-element
+changes needed anywhere else in the app. The two raw "R G B" channel triples
+(`--backdrop-ring`/`--backdrop-mote`) use `syntax: '<number>+'` for the same
+effect; a browser that doesn't support it just sees those two snap instead
+of fade, nothing breaks.
+
+New `useThemeCycle()` hook, called only from `TitleScreenPage`/`LoginPage`
+(both outside `RequireAuth`, so "mounted here" already means "not signed in
+yet"). Skips entirely under `prefers-reduced-motion`, never touches
+`localStorage`, and restores the actual saved theme on unmount so signing in
+always shows what Options says, not wherever the cycle last landed. A
+handful of hardcoded color literals that predated the theme system
+(`bg-[#0c1a52]`, a couple of wordmark stroke colors) were moved onto the
+existing `--app-ground`/`--color-blue-*` tokens so they participate in the
+fade too — reusing `--app-ground` also means the title screen's blue-theme
+background is now the same tone as the rest of the app, not its own
+slightly different navy.
+
+Verified with Playwright against the rebuilt container: sampled the
+background color every 500ms across a real theme switch and confirmed 8
+distinct intermediate values over the ~4s fade window rather than a single
+2-value hard cut, with no console or page errors.
+
+---
+
 ## 2026-09-16 — One empty-library message everywhere, and Health is admin-only
 
 The "no music" message differed by page: the arcade select had a scan-aware
