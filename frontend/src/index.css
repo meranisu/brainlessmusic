@@ -2383,3 +2383,313 @@
     animation-duration: 1ms;
   }
 }
+
+/* ── Player deck: the desktop bar, restyled as a control panel ────────────
+   The original bar was a plain rounded-md/btn-ghost row — the same furniture
+   as a settings form, sitting under a screen whose whole point is to look
+   like an arcade cabinet. This reuses the vocabulary the library strip
+   already established (the breathing glow, `--beat`, `.font-display`) rather
+   than inventing a second visual language for the same app. */
+/* No `position` here on purpose — both places this is used already carry
+   Tailwind's `fixed`, which is itself a positioned value and works as the
+   containing block `::before` needs. Setting `relative` here is unlayered
+   CSS and would win the cascade over the layered `fixed` utility outright,
+   silently dropping the bar out of `position: fixed` and off the bottom of
+   the screen — exactly what happened the first time this was written. */
+.player-deck {
+  overflow: hidden;
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--color-blue-900) 96%, transparent),
+    var(--color-blue-950)
+  );
+}
+
+/* A thin marquee line rather than a static border — the cabinet-light
+   sweep the strip's own glow is a slower cousin of. Kept to opacity so it
+   never fights the orange progress fill sitting just underneath it. */
+.player-deck::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--color-orange-500), transparent);
+  animation: player-deck-sweep calc(var(--beat, 0.4s) * 10) ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* The phone strip already has a real, meaningful progress line sitting in
+   this same top edge — the decorative sweep would just double it up. */
+.player-deck.no-sweep::before {
+  display: none;
+}
+
+@keyframes player-deck-sweep {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+.player-title {
+  font-family: 'Barlow Condensed', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+/* The transport: two flat icon buttons flanking one large, tactile play
+   button — a cabinet's own three-button layout rather than a media player's
+   thin row. */
+.player-transport-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--color-blue-700);
+  background: color-mix(in oklab, var(--color-blue-800) 55%, transparent);
+  color: var(--color-blue-200);
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease, transform 90ms ease;
+}
+
+.player-transport-btn:hover:not(:disabled) {
+  border-color: var(--color-blue-500);
+  background-color: var(--color-blue-700);
+  color: var(--color-white);
+}
+
+.player-transport-btn:active:not(:disabled) {
+  transform: scale(0.9);
+}
+
+/* A pressable button, not a flat icon — the bevel is the bottom shadow, and
+   pressing it flattens by moving the button down into its own shadow rather
+   than just recoloring. */
+.player-play-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 2px solid color-mix(in oklab, var(--color-orange-300) 35%, var(--color-orange-600));
+  background: linear-gradient(180deg, var(--color-orange-500), var(--color-orange-600));
+  color: var(--color-white);
+  box-shadow:
+    0 3px 0 color-mix(in oklab, black 40%, var(--color-orange-600)),
+    0 5px 12px rgba(0, 0, 0, 0.35);
+  transition: transform 90ms ease, box-shadow 90ms ease;
+}
+
+.player-play-btn:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.player-play-btn:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow:
+    0 1px 0 color-mix(in oklab, black 40%, var(--color-orange-600)),
+    0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.player-play-btn:disabled {
+  opacity: 0.6;
+}
+
+/* One pulse ring while actually playing — the same "confirm the press
+   landed" idea as the strip's launch flash, sustained instead of one-shot
+   since this button stays relevant for as long as the track does. Its own
+   class rather than folded into `.player-play-btn`, so the Now Playing
+   sheet's differently-styled (hollow-ring) play button can opt into just the
+   pulse without inheriting this one's solid bevel. Needs `position: relative`
+   on whatever it's applied to. */
+.pulse-ring.is-playing::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 999px;
+  border: 2px solid color-mix(in oklab, var(--color-orange-500) 65%, transparent);
+  animation: player-pulse-ring calc(var(--beat, 0.4s) * 4) ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes player-pulse-ring {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.9;
+  }
+  70%,
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+/* Shuffle / repeat / data saver / mute: one family of round icon toggles
+   replacing the old text `btn-ghost` row, so "on" reads as a lit cabinet
+   button (an orange glow) instead of a color swap on a label. */
+.player-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--color-blue-700);
+  background: color-mix(in oklab, var(--color-blue-900) 55%, transparent);
+  color: var(--color-blue-300);
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.player-pill:hover:not(:disabled) {
+  border-color: var(--color-blue-500);
+  color: var(--color-white);
+}
+
+.player-pill:disabled {
+  opacity: 0.4;
+}
+
+.player-pill.is-active {
+  border-color: var(--color-orange-500);
+  background: color-mix(in oklab, var(--color-orange-600) 24%, var(--color-blue-900));
+  color: var(--color-orange-300);
+  box-shadow: 0 0 10px 0 color-mix(in oklab, var(--color-orange-600) 40%, transparent);
+}
+
+/* The seek bar: a segmented meter standing in for the plain browser range
+   track, in the same spirit as the Now Playing waveform — a decorative
+   ladder underneath an invisible native range that still owns drag,
+   keyboard and screen-reader behaviour. */
+/* The outer box is what the range input positions itself against, and it
+   does NOT clip — the knob is taller than the ladder pill it rides on and
+   needs room to stick out top and bottom. `.player-meter-track` inside it is
+   the pill itself: same size as before, `overflow: hidden` and all, just no
+   longer the thing the input's thumb has to also fit inside. */
+.player-meter-outer {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.player-meter-track {
+  position: relative;
+  width: 100%;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: var(--color-blue-800);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.player-meter-fill {
+  position: absolute;
+  inset: 0;
+  width: var(--fill, 0%);
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--color-orange-600) 65%, var(--color-blue-500)),
+    var(--color-orange-500)
+  );
+  box-shadow: 0 0 10px 1px color-mix(in oklab, var(--color-orange-600) 50%, transparent);
+}
+
+/* Tick marks painted over both the filled and unfilled portions, so the
+   whole bar reads as a row of lit/unlit segments rather than one continuous
+   fill — the ladder look this is going for. */
+.player-meter-track::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    to right,
+    transparent 0,
+    transparent 5px,
+    rgba(0, 0, 0, 0.35) 5px,
+    rgba(0, 0, 0, 0.35) 6px
+  );
+  pointer-events: none;
+}
+
+/* Sits over the decorative ladder, its own track and fill made fully
+   transparent so the ladder underneath does the talking — but the thumb
+   stays real and visible, so there is still a knob to grab rather than a
+   bar that only ever reacts to a click. Taller than the ladder itself
+   (which is a slim 0.55rem) so the knob has somewhere to sit without being
+   clipped top and bottom. */
+.player-meter-range {
+  appearance: none;
+  -webkit-appearance: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 100%;
+  height: 1rem;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.player-meter-range::-webkit-slider-runnable-track {
+  height: 1rem;
+  background: transparent;
+}
+
+.player-meter-range::-moz-range-track {
+  height: 1rem;
+  background: transparent;
+}
+
+.player-meter-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  border: none;
+  background: var(--color-orange-500);
+  box-shadow:
+    0 0 0 2px var(--color-blue-950),
+    0 0 8px 1px color-mix(in oklab, var(--color-orange-600) 65%, transparent);
+}
+
+.player-meter-range::-moz-range-thumb {
+  width: 1rem;
+  height: 1rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-orange-500);
+  box-shadow:
+    0 0 0 2px var(--color-blue-950),
+    0 0 8px 1px color-mix(in oklab, var(--color-orange-600) 65%, transparent);
+}
+
+/* Unlayered rules win the cascade over any Tailwind utility on the same
+   element regardless of specificity, so the JSX's `disabled:cursor-not-allowed`
+   utility can never actually beat the plain `cursor: pointer` above — this is
+   the only way to make the disabled state change the cursor. */
+.player-meter-range:disabled {
+  cursor: not-allowed;
+}
+
+.player-meter-range:disabled::-webkit-slider-thumb {
+  background: var(--color-blue-500);
+  box-shadow: none;
+}
+
+.player-meter-range:disabled::-moz-range-thumb {
+  background: var(--color-blue-500);
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player-deck::before {
+    animation: none;
+    opacity: 0.6;
+  }
+
+  .pulse-ring.is-playing::after {
+    animation: none;
+    opacity: 0;
+  }
+}

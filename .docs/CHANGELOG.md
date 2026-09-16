@@ -4,6 +4,54 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-16 — Player bar redesigned as an arcade control deck; volume added to the phone sheet
+
+The bar was plain `btn-ghost`/rounded-md furniture — the same visual
+language as a settings form — on a screen whose whole point is to look like
+an arcade rhythm-game cabinet. Redesigned the desktop bar and the phone
+mini-strip to match the language the library strip already established
+(`--beat`-timed breathing glow, `.font-display`), instead of inventing a
+second visual system for the same app.
+
+- **Desktop bar:** round transport buttons; the play button gained a
+  pressed-in 3D bevel (a bottom drop-shadow that flattens on `:active`) and a
+  pulsing glow ring while playing. Shuffle/Repeat/Data saver/Mute swapped
+  from text `btn-ghost` labels to round icon "pills" that light up orange
+  when active, instead of just recoloring text. The bar itself gained a
+  gradient background and a slow sweeping neon line along its top edge
+  (`prefers-reduced-motion` turns both the sweep and the pulse ring off).
+- **Seek bar and volume slider:** both replaced with a segmented
+  orange/blue "ladder" meter — more orange fill the further into the track,
+  or the higher the volume — with a real, fully solid orange knob riding on
+  top for dragging (kept on request after an earlier pass hid the native
+  thumb entirely). The native `<input type="range">` still owns drag,
+  keyboard and screen-reader behavior; the ladder is decoration underneath
+  it, the same construction the `NowPlaying` waveform scrubber already used.
+- **Phone mini-strip:** same deck background and glowing play button as the
+  desktop bar, with the decorative top sweep suppressed there specifically —
+  the strip already has a real, meaningful progress line in that exact spot,
+  and the sweep would have doubled it up.
+- **`NowPlaying` full-screen sheet:** left mostly as-is (already carried the
+  arcade language — waveform scrubber, big ring play button) but gained the
+  same pulse-ring glow on its play button, and a mute button + volume slider
+  (previously desktop-bar-only) using the same ladder-meter styling.
+- One real bug caught mid-build: the first pass gave `.player-deck` an
+  explicit `position: relative`. That rule sits outside any `@layer` block
+  (following this file's existing `.arcade-*` precedent), and an unlayered
+  rule wins the cascade over a layered one — Tailwind's `fixed` utility —
+  regardless of specificity or source order. That silently downgraded the
+  bar from `position: fixed` to `relative`, dropping it entirely below the
+  bottom of the viewport. Fixed by removing the declaration; both places
+  this class is used already carry Tailwind's `fixed`, which is itself a
+  positioned value and is all the `::before` sweep needs as a containing
+  block.
+- Verified with a scripted Playwright pass across desktop and phone
+  viewports (bounding-box checks confirming `position: fixed` and correct
+  screen placement after the cascade fix, screenshots of the seek/volume
+  meters at several fill levels including muted), `tsc --noEmit` clean, and
+  a re-run of the existing scroll/drag/overlap and attract-screen regression
+  scripts to confirm no regressions from earlier fixes in this session.
+
 ## 2026-09-16 — Volume control on the desktop player bar
 
 No way to change playback volume from the app at all before this — only the

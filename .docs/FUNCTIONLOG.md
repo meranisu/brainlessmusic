@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `PlayerProvider()`'s render output — `frontend/src/components/PlayerBar.tsx`
+**Date:** 2026-09-16
+**How added:** refactor (visual redesign, no state/logic change)
+**Purpose:** unchanged (renders the phone mini-strip and the desktop bar) — restyled both from plain `btn-ghost`/`rounded-md` utility classes to a new arcade "control deck" look: `.player-deck` (gradient background + sweeping top line), `.player-play-btn`/`.player-transport-btn` (round, beveled, glowing while playing via `.pulse-ring.is-playing`), `.player-pill` (icon toggles that light up orange via `.is-active` instead of just recoloring text), and `.player-meter-outer`/`.player-meter-track`/`.player-meter-fill`/`.player-meter-range` (a segmented ladder meter with a real, visible knob) replacing the plain native `<input type="range">` styling for both the seek bar and the volume slider.
+**Side effects:** none — purely which classes/markup render; `toggle`/`seek`/`setVolume`/etc. are all called exactly as before.
+**Before:** a flat `border-t border-blue-800 bg-blue-900` bar with text-label buttons ("Shuffle", "Repeat", "Data saver") and an unstyled native range for seek/volume.
+**After:** see `.docs/CHANGELOG.md` (2026-09-16, "Player bar redesigned as an arcade control deck"). One real bug found and fixed mid-build: `.player-deck` briefly had an explicit `position: relative`, which — being an unlayered rule — overrode Tailwind's layered `fixed` utility outright and dropped the bar off the bottom of the viewport; removed since both usages already carry `fixed`.
+
+**Function:** `NowPlaying()` — `frontend/src/components/NowPlaying.tsx`
+**Date:** 2026-09-16
+**How added:** new feature (parity with the desktop bar) + visual redesign
+**Purpose:** gained a mute button + volume slider between the transport buttons and the format-spec badges, using the same `volume`/`setVolume`/`toggleMute` from `PlayerContextValue` the desktop bar already used — no new player-state logic, just a second consumer of it. Styled with the same `.player-meter-*` ladder-meter classes as the desktop bar's seek/volume controls, and the sheet's existing hollow-ring play button gained `.pulse-ring.is-playing` for the same glow the desktop bar's solid play button has (a separate class from `.player-play-btn` specifically so it doesn't also inherit that button's solid-bevel background, which would have clobbered the sheet's intentional hollow-ring look).
+**Side effects:** none new — `setVolume`/`toggleMute` already existed and already write to `localStorage`/the `<audio>` element.
+**Before:** volume was desktop-bar-only; the phone sheet had no way to change it short of the OS/browser's own mixer.
+**After:** phone users get the same mute + slider control, verified via a scripted Playwright pass opening the sheet and checking `input[aria-label="Volume"]` renders and responds.
+
 **Function:** `setVolume()` / `toggleMute()` — `frontend/src/components/PlayerBar.tsx`
 **Date:** 2026-09-16
 **How added:** new feature

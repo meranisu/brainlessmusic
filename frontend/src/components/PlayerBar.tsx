@@ -6,6 +6,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
 } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -21,7 +22,19 @@ import {
 } from '../lib/streamQuality';
 import { CoverArt } from './CoverArt';
 import { FavoriteButton, useFavoriteIds } from './FavoriteButton';
-import { PauseIcon, PlayIcon, SkipBackIcon, SkipForwardIcon, VolumeIcon, VolumeMutedIcon } from './icons';
+import {
+  CloseIcon,
+  DataSaverIcon,
+  PauseIcon,
+  PlayIcon,
+  RepeatIcon,
+  RepeatOneIcon,
+  ShuffleIcon,
+  SkipBackIcon,
+  SkipForwardIcon,
+  VolumeIcon,
+  VolumeMutedIcon,
+} from './icons';
 import { NowPlaying } from './NowPlaying';
 import type { PlaybackState, TrackSummary } from '../types/api';
 import { useToast } from './ToastProvider';
@@ -1073,7 +1086,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       {/* Phone: a strip that opens the full view. The bar below is the same
           player at a size that only works with a mouse and a wide window. */}
       {user && current && !onAttractScreen && !isSheetOpen && (
-        <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-blue-800 bg-blue-900 px-4 py-2.5 md:hidden">
+        <div className="player-deck no-sweep fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 px-4 py-2.5 md:hidden">
           <span
             aria-hidden
             className="absolute inset-x-0 top-0 h-0.5 origin-left bg-orange-600"
@@ -1089,14 +1102,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           >
             <CoverArt kind="tracks" id={current.id} className="h-10 w-10 shrink-0 rounded-md" alt="" />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium text-white">{current.title}</span>
+              <span className="player-title block truncate text-sm text-white">{current.title}</span>
               <span className="block truncate text-xs text-blue-300">{current.artist ?? 'Unknown Artist'}</span>
             </span>
           </button>
           <button
             onClick={toggle}
             disabled={isLoading}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-600 text-white disabled:opacity-60"
+            className={`player-play-btn pulse-ring h-10 w-10 shrink-0 ${isPlaying ? 'is-playing' : ''}`}
             aria-label={isPlaying ? 'Pause' : 'Play'}
           >
             {isPlaying ? <PauseIcon className="h-4 w-4" /> : <PlayIcon className="h-4 w-4" />}
@@ -1109,21 +1122,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       )}
 
       {user && current && !onAttractScreen && (
-        <div className="fixed inset-x-0 bottom-0 z-40 hidden border-t border-blue-800 bg-blue-900 md:block">
+        <div className="player-deck fixed inset-x-0 bottom-0 z-40 hidden md:block">
           <div className="page-shell flex items-center gap-4 px-6 py-3">
-            <div className="flex shrink-0 items-center gap-1">
+            <div className="flex shrink-0 items-center gap-2.5">
               <button
                 onClick={previous}
-                className="btn-ghost btn-sm h-9 w-9 !px-0"
+                className="player-transport-btn h-9 w-9"
                 aria-label="Previous track"
                 title="Previous (P)"
               >
-                <SkipBackIcon />
+                <SkipBackIcon className="h-4 w-4" />
               </button>
               <button
                 onClick={toggle}
                 disabled={isLoading}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-600 text-white transition-colors hover:bg-orange-500 disabled:opacity-60"
+                className={`player-play-btn pulse-ring h-11 w-11 ${isPlaying ? 'is-playing' : ''}`}
                 aria-label={isPlaying ? 'Pause' : 'Play'}
                 title="Play/pause (Space)"
               >
@@ -1137,19 +1150,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               </button>
               <button
                 onClick={next}
-                className="btn-ghost btn-sm h-9 w-9 !px-0"
+                className="player-transport-btn h-9 w-9"
                 aria-label="Next track"
                 title="Next (N)"
               >
-                <SkipForwardIcon />
+                <SkipForwardIcon className="h-4 w-4" />
               </button>
             </div>
 
             <CoverArt kind="tracks" id={current.id} className="h-11 w-11" alt="" />
 
-            <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
               <div className="flex items-baseline gap-2">
-                <span className="truncate text-sm font-medium text-white">{current.title}</span>
+                <span className="player-title truncate text-base text-white">{current.title}</span>
                 <span className="truncate text-xs text-blue-300">{current.artist ?? 'Unknown Artist'}</span>
                 <span className="ml-auto flex shrink-0 items-center gap-2 font-mono text-xs">
                   {isBuffering && <span className="animate-pulse text-blue-400">Buffering…</span>}
@@ -1173,35 +1186,45 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 <span className="w-9 shrink-0 text-right font-mono text-xs tabular-nums text-blue-300">
                   {formatTime(currentTime)}
                 </span>
-                <input
-                  type="range"
-                  min={0}
-                  max={effectiveDuration || 1}
-                  step={0.1}
-                  value={isScrubbing ? currentTime : Math.min(currentTime, effectiveDuration || 1)}
-                  onChange={(e) => setCurrentTime(Number(e.target.value))}
-                  onMouseDown={() => setIsScrubbing(true)}
-                  onTouchStart={() => setIsScrubbing(true)}
-                  onMouseUp={(e) => {
-                    setIsScrubbing(false);
-                    seek(Number((e.target as HTMLInputElement).value));
-                  }}
-                  onTouchEnd={(e) => {
-                    setIsScrubbing(false);
-                    seek(Number((e.target as HTMLInputElement).value));
-                  }}
-                  onKeyUp={(e) => seek(Number((e.target as HTMLInputElement).value))}
-                  disabled={!effectiveDuration}
-                  className="h-1 w-full cursor-pointer accent-orange-600 disabled:cursor-not-allowed"
-                  aria-label="Seek"
-                />
+                <div className="player-meter-outer flex-1">
+                  <div className="player-meter-track">
+                    <div
+                      className="player-meter-fill"
+                      style={{
+                        '--fill': `${effectiveDuration ? (Math.min(currentTime, effectiveDuration) / effectiveDuration) * 100 : 0}%`,
+                      } as CSSProperties}
+                    />
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={effectiveDuration || 1}
+                    step={0.1}
+                    value={isScrubbing ? currentTime : Math.min(currentTime, effectiveDuration || 1)}
+                    onChange={(e) => setCurrentTime(Number(e.target.value))}
+                    onMouseDown={() => setIsScrubbing(true)}
+                    onTouchStart={() => setIsScrubbing(true)}
+                    onMouseUp={(e) => {
+                      setIsScrubbing(false);
+                      seek(Number((e.target as HTMLInputElement).value));
+                    }}
+                    onTouchEnd={(e) => {
+                      setIsScrubbing(false);
+                      seek(Number((e.target as HTMLInputElement).value));
+                    }}
+                    onKeyUp={(e) => seek(Number((e.target as HTMLInputElement).value))}
+                    disabled={!effectiveDuration}
+                    className="player-meter-range"
+                    aria-label="Seek"
+                  />
+                </div>
                 <span className="w-9 shrink-0 font-mono text-xs tabular-nums text-blue-300">
                   {formatTime(effectiveDuration)}
                 </span>
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-1">
+            <div className="flex shrink-0 items-center gap-1.5">
               <FavoriteButton
                 trackId={current.id}
                 isFavorited={favoriteIds.has(current.id)}
@@ -1210,50 +1233,61 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               <button
                 onClick={toggleShuffle}
                 disabled={queue.length < 2}
-                className={`btn-ghost btn-sm ${isShuffled ? 'text-orange-500' : ''}`}
+                className={`player-pill h-9 w-9 ${isShuffled ? 'is-active' : ''}`}
                 aria-pressed={isShuffled}
+                aria-label="Shuffle"
                 title="Smart shuffle — avoids the same artist back-to-back"
               >
-                Shuffle
+                <ShuffleIcon className="h-4 w-4" />
               </button>
               <button
                 onClick={cycleRepeat}
-                className={`btn-ghost btn-sm ${repeat !== 'off' ? 'text-orange-500' : ''}`}
+                className={`player-pill h-9 w-9 ${repeat !== 'off' ? 'is-active' : ''}`}
+                aria-label={`Repeat: ${repeat}`}
                 title={`Repeat: ${repeat}`}
               >
-                {repeat === 'one' ? 'Repeat 1' : 'Repeat'}
+                {repeat === 'one' ? <RepeatOneIcon className="h-4 w-4" /> : <RepeatIcon className="h-4 w-4" />}
               </button>
               <button
                 onClick={() => void setDataSaver(!dataSaver)}
-                className={`btn-ghost btn-sm ${dataSaver ? 'text-orange-500' : ''}`}
+                className={`player-pill h-9 w-9 ${dataSaver ? 'is-active' : ''}`}
                 aria-pressed={dataSaver}
+                aria-label="Data saver"
                 title="Data saver — stream a smaller copy, re-encoded once and kept"
               >
-                Data saver
+                <DataSaverIcon className="h-4 w-4" />
               </button>
-              <div className="ml-1 flex items-center gap-1.5">
+              <div className="ml-1 flex items-center gap-2">
                 <button
                   onClick={toggleMute}
-                  className="btn-ghost btn-sm px-1.5!"
+                  className={`player-pill h-9 w-9 ${volume === 0 ? 'is-active' : ''}`}
                   aria-label={volume === 0 ? 'Unmute' : 'Mute'}
                   aria-pressed={volume === 0}
                   title={volume === 0 ? 'Unmute' : 'Mute'}
                 >
                   {volume === 0 ? <VolumeMutedIcon className="h-4 w-4" /> : <VolumeIcon className="h-4 w-4" />}
                 </button>
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={volume}
-                  onChange={(e) => setVolume(Number(e.target.value))}
-                  className="h-1 w-20 cursor-pointer accent-orange-600"
-                  aria-label="Volume"
-                />
+                <div className="player-meter-outer w-20">
+                  <div className="player-meter-track">
+                    <div
+                      className="player-meter-fill"
+                      style={{ '--fill': `${volume * 100}%` } as CSSProperties}
+                    />
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    value={volume}
+                    onChange={(e) => setVolume(Number(e.target.value))}
+                    className="player-meter-range"
+                    aria-label="Volume"
+                  />
+                </div>
               </div>
-              <button onClick={stopAndForget} className="btn-ghost btn-sm" aria-label="Close player">
-                ✕
+              <button onClick={stopAndForget} className="player-pill h-9 w-9 ml-1" aria-label="Close player">
+                <CloseIcon className="h-4 w-4" />
               </button>
             </div>
           </div>

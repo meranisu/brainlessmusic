@@ -15,6 +15,8 @@ import {
   ShuffleIcon,
   SkipBackIcon,
   SkipForwardIcon,
+  VolumeIcon,
+  VolumeMutedIcon,
 } from './icons';
 import { useScrollLock } from '../hooks/useScrollLock';
 import type { PlayerContextValue } from './PlayerBar';
@@ -114,6 +116,7 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
     repeat,
     isShuffled,
     dataSaver,
+    volume,
     servedLabel,
     toggle,
     next,
@@ -123,6 +126,8 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
     cycleRepeat,
     toggleShuffle,
     setDataSaver,
+    setVolume,
+    toggleMute,
     stop,
   } = player;
 
@@ -299,7 +304,7 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
         <button
           onClick={toggle}
           disabled={isLoading}
-          className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-[3px] border-orange-600 bg-blue-950 text-white transition-colors hover:bg-blue-900 disabled:opacity-60"
+          className={`pulse-ring relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-[3px] border-orange-600 bg-blue-950 text-white transition-colors hover:bg-blue-900 disabled:opacity-60 ${isPlaying ? 'is-playing' : ''}`}
           aria-label={isPlaying ? 'Pause' : 'Play'}
         >
           {isLoading ? (
@@ -313,6 +318,27 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
         <button onClick={next} className="btn-ghost btn-sm h-11 w-11 !px-0" aria-label="Next track">
           <SkipForwardIcon className="h-6 w-6" />
         </button>
+      </div>
+
+      <div className="flex items-center gap-3 px-5 pt-5">
+        <button
+          onClick={toggleMute}
+          className="btn-ghost btn-sm h-9 w-9 shrink-0 !px-0"
+          aria-label={volume === 0 ? 'Unmute' : 'Mute'}
+          aria-pressed={volume === 0}
+        >
+          {volume === 0 ? <VolumeMutedIcon className="h-5 w-5" /> : <VolumeIcon className="h-5 w-5" />}
+        </button>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={volume}
+          onChange={(e) => setVolume(Number(e.target.value))}
+          className="h-1.5 w-full cursor-pointer accent-orange-600"
+          aria-label="Volume"
+        />
       </div>
 
       {(specs.length > 0 || showServed) && (
