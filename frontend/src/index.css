@@ -1820,6 +1820,12 @@
   animation: boot-rise 320ms cubic-bezier(0.16, 1, 0.3, 1) 320ms both;
 }
 
+/* The "create a new profile" teaser, stacked below the guest card — one
+   more beat in the same cascade rather than arriving with it. */
+.profile-stage-3b {
+  animation: boot-rise 320ms cubic-bezier(0.16, 1, 0.3, 1) 440ms both;
+}
+
 /* A light chasing round the frame, arcade-panel style — the two cards are
    the only furniture on this screen and were reading as flat rectangles next
    to the moving backdrop behind them. The ring is a `::before`, not a border
@@ -1913,6 +1919,25 @@
   }
   to {
     opacity: 0;
+  }
+}
+
+/* The register card doesn't rise into place like the others — it grows,
+   reading as "this is now the main event" rather than one more card joining
+   the two that are already there. Timed to start right as the grid's own
+   `.profile-card-recede` (240ms) finishes fading it out, so nothing overlaps. */
+.profile-card-grow-in {
+  animation: profile-grow-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes profile-grow-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 
@@ -2042,7 +2067,9 @@
   .title-entrance,
   .profile-stage-1,
   .profile-stage-2,
-  .profile-stage-3 {
+  .profile-stage-3,
+  .profile-stage-3b,
+  .profile-card-grow-in {
     animation: none;
   }
 

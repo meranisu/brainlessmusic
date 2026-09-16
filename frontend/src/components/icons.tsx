@@ -148,3 +148,25 @@ export function ArrowUpIcon({ className = 'h-4 w-4' }: IconProps) {
     </svg>
   );
 }
+
+/** Password visible — an open eye. */
+export function EyeIcon({ className = 'h-4 w-4' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+/** Password hidden — the same eye, crossed out rather than closed: a closed
+    lid reads as "blinking" at this size, where a slash reads as "off". */
+export function EyeOffIcon({ className = 'h-4 w-4' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c6.4 0 10 7 10 7a18.6 18.6 0 0 1-3.16 4.19M6.5 6.64A18.6 18.6 0 0 0 2 11s3.6 7 10 7a10.5 10.5 0 0 0 4.24-.88" />
+      <path d="M9.9 9.9a3 3 0 0 0 4.24 4.24" />
+      <path d="M2 2l20 20" />
+    </svg>
+  );
+}

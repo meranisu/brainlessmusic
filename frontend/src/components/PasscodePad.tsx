@@ -16,12 +16,18 @@ interface PasscodePadProps {
  * handling here: `Numpad` is a full-screen modal with nothing else to type
  * into, so global keydown capture is safe there; inlined next to a username
  * field, it would steal digits meant for that field instead.
+ *
+ * Sized deliberately small: inlined next to a username field (rather than
+ * floating over everything the way the modal version used to), this has to
+ * share the viewport with the rest of the card instead of owning the whole
+ * screen — a full-size keypad here was what pushed the sign-in card past the
+ * fold and forced a page scroll to reach the submit button.
  */
 export function PasscodePad({ code, maxLength, disabled = false, onPress, onBackspace }: PasscodePadProps) {
   return (
     <div>
       <div
-        className="mb-2 flex h-10 items-center justify-center gap-2 rounded-md border border-blue-700 bg-blue-950"
+        className="mb-1 flex h-7 items-center justify-center gap-2 rounded-md border border-blue-700 bg-blue-950"
         aria-live="polite"
         aria-label={`${code.length} digits entered`}
       >
@@ -34,14 +40,14 @@ export function PasscodePad({ code, maxLength, disabled = false, onPress, onBack
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 gap-1">
         {KEYS.map((key) => (
           <button
             key={key}
             type="button"
             disabled={disabled || code.length >= maxLength}
             onClick={() => onPress(key)}
-            className="h-12 rounded-md border border-blue-700 bg-blue-900 text-lg font-medium text-white transition-colors hover:border-blue-500 hover:bg-blue-800 disabled:opacity-50"
+            className="h-8 rounded-md border border-blue-700 bg-blue-900 text-sm font-medium text-white transition-colors hover:border-blue-500 hover:bg-blue-800 disabled:opacity-50"
           >
             {key}
           </button>
@@ -51,7 +57,7 @@ export function PasscodePad({ code, maxLength, disabled = false, onPress, onBack
           type="button"
           disabled={disabled || code.length >= maxLength}
           onClick={() => onPress('0')}
-          className="h-12 rounded-md border border-blue-700 bg-blue-900 text-lg font-medium text-white transition-colors hover:border-blue-500 hover:bg-blue-800 disabled:opacity-50"
+          className="h-8 rounded-md border border-blue-700 bg-blue-900 text-sm font-medium text-white transition-colors hover:border-blue-500 hover:bg-blue-800 disabled:opacity-50"
         >
           0
         </button>
@@ -60,7 +66,7 @@ export function PasscodePad({ code, maxLength, disabled = false, onPress, onBack
           disabled={disabled || code.length === 0}
           onClick={onBackspace}
           aria-label="Delete last digit"
-          className="h-12 rounded-md text-lg font-medium text-blue-400 transition-colors hover:bg-blue-800 hover:text-white disabled:opacity-50"
+          className="h-8 rounded-md text-sm font-medium text-blue-400 transition-colors hover:bg-blue-800 hover:text-white disabled:opacity-50"
         >
           ⌫
         </button>

@@ -6,7 +6,8 @@ import { ShellBackdrop } from '../components/BackdropDepth';
 import { BrandMark, Wordmark } from '../components/BrandLockup';
 import { Numpad } from '../components/Numpad';
 import { PasscodePad } from '../components/PasscodePad';
-import { RegisterModal } from '../components/RegisterModal';
+import { PasswordInput } from '../components/PasswordInput';
+import { RegisterForm } from '../components/RegisterForm';
 import { useThemeCycle } from '../hooks/useThemeCycle';
 import { apiClient, ApiError } from '../lib/apiClient';
 import { clearAtTitle, markAtTitle, markJustEntered } from '../lib/boot';
@@ -37,6 +38,16 @@ const IDLE_EVENTS = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchsta
 const COMMIT_MS = 420;
 function commitDuration(): number {
   return prefersReducedMotion() ? 0 : COMMIT_MS;
+}
+
+/**
+ * How long the grid's cards take to fade out before the register form grows
+ * into their place. Must match `.profile-card-recede` in index.css — the
+ * form doesn't mount until the fade finishes, so the two never overlap.
+ */
+const RECEDE_MS = 240;
+function recedeDuration(): number {
+  return prefersReducedMotion() ? 0 : RECEDE_MS;
 }
 
 /** Which card, if either, is currently being committed to. */
@@ -90,6 +101,8 @@ export function AccountSelectPage() {
   // flashing on and then vanishing on a closed server.
   const [registrationOpen, setRegistrationOpen] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
+  /** True for the brief window where the grid is fading out on its way to `showRegister`. */
+  const [startingRegister, setStartingRegister] = useState(false);
 
   useEffect(() => {
     apiClient
@@ -106,6 +119,10 @@ export function AccountSelectPage() {
   const [passcode, setPasscodeInput] = useState('');
   const [passcodeError, setPasscodeError] = useState<string | null>(null);
   const [isPasscodeLoggingIn, setIsPasscodeLoggingIn] = useState(false);
+  // Passcode mode starts collapsed to just a button — the keypad only takes
+  // over once someone actually presses it, so a stray "Passcode" tab click
+  // doesn't by itself push the card past the fold the way it used to.
+  const [passcodeKeypadOpen, setPasscodeKeypadOpen] = useState(false);
 
   // Set once a password login succeeds against an account with no passcode
   // yet, and not already declined on this browser — the login card swaps its
@@ -137,7 +154,7 @@ export function AccountSelectPage() {
   // isn't idleness — there is a request in flight or a real decision pending,
   // not an abandoned form — so the timer doesn't even start during either.
   useEffect(() => {
-    if (committing || welcomeName !== null || pendingPasscodeSetup || showRegister) return;
+    if (committing || welcomeName !== null || pendingPasscodeSetup || showRegister || startingRegister) return;
 
     let timer = window.setTimeout(() => setIdleTimedOut(true), IDLE_MS);
     const reset = () => {
@@ -150,7 +167,7 @@ export function AccountSelectPage() {
       window.clearTimeout(timer);
       for (const event of IDLE_EVENTS) window.removeEventListener(event, reset);
     };
-  }, [committing, welcomeName, pendingPasscodeSetup, showRegister]);
+  }, [committing, welcomeName, pendingPasscodeSetup, showRegister, startingRegister]);
 
   // Same shape as `finishEntry` below, but leaving empty-handed rather than
   // signed in: hold on the card, then go — `markAtTitle` so the title screen
@@ -216,6 +233,18 @@ export function AccountSelectPage() {
     }
   }
 
+  function openPasscodeKeypad() {
+    if (disabled || username.length === 0) return;
+    setPasscodeError(null);
+    setPasscodeKeypadOpen(true);
+  }
+
+  function closePasscodeKeypad() {
+    setPasscodeKeypadOpen(false);
+    setPasscodeInput('');
+    setPasscodeError(null);
+  }
+
   function pressPasscodeDigit(digit: string) {
     setPasscodeError(null);
     setPasscodeInput((current) => (current.length >= 8 ? current : current + digit));
@@ -257,23 +286,36 @@ export function AccountSelectPage() {
     void commitAndFinish('login', pendingPasscodeSetup.username);
   }
 
-  async function handleRegisterSubmit({
-    username: newUsername,
-    password: newPassword,
-    passcode: newPasscode,
-  }: {
-    username: string;
-    password: string;
-    passcode: string;
-  }) {
-    const who = await register(newUsername, newPassword);
-    if (newPasscode) await setPasscode(newPasscode);
-    return who;
+  /** Fades the grid out, then swaps to the register form once it's clear. */
+  async function beginRegister() {
+    if (disabled) return;
+    setStartingRegister(true);
+    await delay(recedeDuration());
+    setStartingRegister(false);
+    setShowRegister(true);
   }
 
+  async function handleRegisterSubmit({ username: newUsername, password: newPassword }: { username: string; password: string }) {
+    return register(newUsername, newPassword);
+  }
+
+  // `showRegister` is deliberately never reset here, the same way
+  // `pendingPasscodeSetup` never resets on its own success path: the card
+  // stays put and simply starts its own commit zoom, rather than snapping
+  // back to a grid that's about to be replaced by the welcome screen anyway.
+  // A fresh account is exactly the `!hasPasscode` case `handleLogin` already
+  // handles, so registering routes through the very same prompt instead of
+  // asking about a passcode a second, different way.
   function handleRegisterSuccess(who: User) {
-    setShowRegister(false);
+    if (!who.hasPasscode && !passcodePromptDismissed(who.id)) {
+      setPendingPasscodeSetup(who);
+      return;
+    }
     void commitAndFinish('login', who.username);
+  }
+
+  function cancelRegister() {
+    setShowRegister(false);
   }
 
   async function handleGuest(event: FormEvent) {
@@ -316,25 +358,34 @@ export function AccountSelectPage() {
     return <ArcadeInterstitial text="Returning to title screen" detail="No activity" />;
   }
 
-  const disabled = Boolean(committing) || pendingPasscodeSetup !== null;
+  const disabled = Boolean(committing) || pendingPasscodeSetup !== null || startingRegister;
   // Only an actual commit — the winning card zooming to black — makes the
   // rest of the screen get out of the way. Deciding whether to set up a
   // passcode is not that: the logo and heading stay put while that prompt
   // is still asking a question, and only fade once a choice is finally made.
   const recede = (mine: Committing) => (committing && committing !== mine ? 'profile-card-recede' : '');
+  // The grid's own fade, used only by its three cards — `startingRegister`
+  // is the one case where the header stays put (it's about to announce the
+  // form that's replacing them) while the cards themselves still get out of
+  // the way, so this deliberately doesn't fold into `recede` above.
+  const gridFade = (mine: Committing) => (startingRegister ? 'profile-card-recede' : recede(mine));
 
   return (
     <div className="app-ground relative min-h-screen overflow-hidden text-white">
       <ShellBackdrop vivid />
 
-      <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-4 py-16 sm:px-6">
-        <div className={`profile-stage-1 mb-10 flex flex-col items-center gap-4 text-center ${recede(null)}`}>
+      <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-4 py-6 sm:px-6">
+        <div className={`profile-stage-1 mb-4 flex flex-col items-center gap-4 text-center ${recede(null)}`}>
           <span className="flex items-center gap-3">
             <BrandMark className="h-10 w-10 border-2 border-blue-300 sm:h-12 sm:w-12" />
             <Wordmark className="text-2xl text-white sm:text-3xl" />
           </span>
           <h1 className="font-display text-2xl font-semibold uppercase tracking-[0.1em] text-white sm:text-3xl">
-            {pendingPasscodeSetup ? 'Creating a passcode' : 'Select your profile type'}
+            {pendingPasscodeSetup
+              ? 'Creating a passcode'
+              : showRegister || startingRegister
+                ? 'Creating a new profile'
+                : 'Select your profile type'}
           </h1>
         </div>
 
@@ -361,12 +412,23 @@ export function AccountSelectPage() {
               </button>
             </div>
           </div>
+        ) : showRegister ? (
+          /* ── Register: the whole card is the form, no scrim ─────────────── */
+          <RegisterForm
+            onSubmit={handleRegisterSubmit}
+            onSuccess={handleRegisterSuccess}
+            onCancel={cancelRegister}
+            disabled={disabled}
+            className={`profile-card-glow card w-full max-w-md p-6 sm:p-7 ${
+              committing === 'login' ? 'profile-card-commit' : 'profile-card-grow-in'
+            }`}
+          />
         ) : (
           <div className="grid w-full max-w-3xl gap-5 md:grid-cols-2">
             {/* ── Sign in: a returning player with a save file ─────────────── */}
             <div
               className={`profile-stage-2 profile-card-glow card p-6 sm:p-7 ${
-                committing === 'login' ? 'profile-card-commit' : recede('login')
+                committing === 'login' ? 'profile-card-commit' : gridFade('login')
               }`}
             >
               <div className="flex items-start justify-between gap-3">
@@ -381,6 +443,7 @@ export function AccountSelectPage() {
                       setAuthMode('password');
                       setPasscodeInput('');
                       setPasscodeError(null);
+                      setPasscodeKeypadOpen(false);
                     }}
                     disabled={disabled}
                     className={`rounded px-2.5 py-1 font-medium transition-colors ${
@@ -394,6 +457,7 @@ export function AccountSelectPage() {
                     onClick={() => {
                       setAuthMode('passcode');
                       setLoginError(null);
+                      setPasscodeKeypadOpen(false);
                     }}
                     disabled={disabled}
                     className={`rounded px-2.5 py-1 font-medium transition-colors ${
@@ -423,15 +487,14 @@ export function AccountSelectPage() {
                   <label className="mb-1 block text-sm text-blue-200" htmlFor="password">
                     Password
                   </label>
-                  <input
+                  <PasswordInput
                     id="password"
-                    type="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={setPassword}
                     autoComplete="current-password"
                     required
                     disabled={disabled}
-                    className="input mb-4"
+                    className="mb-4"
                   />
 
                   {loginError && (
@@ -463,84 +526,122 @@ export function AccountSelectPage() {
                     className="input mb-4"
                   />
 
-                  <label className="mb-1 block text-sm text-blue-200">Passcode</label>
-                  <PasscodePad
-                    code={passcode}
-                    maxLength={8}
-                    disabled={disabled || isPasscodeLoggingIn}
-                    onPress={pressPasscodeDigit}
-                    onBackspace={backspacePasscodeDigit}
-                  />
+                  {passcodeKeypadOpen ? (
+                    <>
+                      <label className="mb-1 block text-sm text-blue-200">Passcode</label>
+                      <PasscodePad
+                        code={passcode}
+                        maxLength={8}
+                        disabled={disabled || isPasscodeLoggingIn}
+                        onPress={pressPasscodeDigit}
+                        onBackspace={backspacePasscodeDigit}
+                      />
 
-                  {passcodeError && (
-                    <p className="mt-3 rounded-md border border-red-700 bg-red-700 px-3 py-2 text-sm text-white">
-                      {passcodeError}
+                      {passcodeError && (
+                        <p className="mt-3 rounded-md border border-red-700 bg-red-700 px-3 py-2 text-sm text-white">
+                          {passcodeError}
+                        </p>
+                      )}
+
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          type="submit"
+                          disabled={isPasscodeLoggingIn || disabled || passcode.length < 4}
+                          className="btn-primary btn-md flex-1"
+                        >
+                          {isPasscodeLoggingIn ? 'Signing in…' : 'Sign in'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={closePasscodeKeypad}
+                          disabled={isPasscodeLoggingIn}
+                          className="btn-secondary btn-md"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={openPasscodeKeypad}
+                      disabled={disabled || username.length === 0}
+                      className="btn-primary btn-md w-full"
+                    >
+                      Enter passcode
+                    </button>
+                  )}
+                </form>
+              )}
+            </div>
+
+            {/* ── Guest, and below it a way to register instead ───────────────
+                 Grouped in one flex column so this whole thing is a single
+                 grid item — the sign-in card's own height still decides the
+                 row height (via the grid's default stretch), but now that
+                 space is spent on a second real card instead of sitting
+                 empty under the guest button. */}
+            <div className="flex flex-col gap-5">
+              <div
+                className={`profile-stage-3 profile-card-glow card p-6 sm:p-7 ${
+                  committing === 'guest' ? 'profile-card-commit' : gridFade('guest')
+                }`}
+              >
+                <h2 className="text-lg font-semibold text-white">Continue as guest</h2>
+                <p className="mt-1 text-sm text-blue-300">
+                  No account needed. This device gets its own listening history.
+                </p>
+
+                <form onSubmit={handleGuest} className="mt-5">
+                  {guestNeedsCode && (
+                    <>
+                      <label className="mb-1 block text-sm text-blue-200" htmlFor="entry-code">
+                        This server asks for a code
+                      </label>
+                      <input
+                        id="entry-code"
+                        value={guestCode}
+                        onChange={(e) => setGuestCode(e.target.value)}
+                        autoFocus
+                        disabled={disabled}
+                        className="input mb-4"
+                      />
+                    </>
+                  )}
+
+                  {guestError && (
+                    <p className="mb-4 rounded-md border border-red-700 bg-red-700 px-3 py-2 text-sm text-white">
+                      {guestError}
                     </p>
                   )}
 
                   <button
                     type="submit"
-                    disabled={isPasscodeLoggingIn || disabled || passcode.length < 4}
-                    className="btn-primary btn-md mt-3 w-full"
+                    disabled={isEnteringGuest || disabled}
+                    className="btn-primary btn-md w-full"
                   >
-                    {isPasscodeLoggingIn ? 'Signing in…' : 'Sign in'}
+                    {isEnteringGuest ? 'Entering…' : 'Enter as guest'}
                   </button>
                 </form>
-              )}
-            </div>
-
-            {/* ── Guest: a new player trying the system out ─────────────────── */}
-            <div
-              className={`profile-stage-3 profile-card-glow card p-6 sm:p-7 ${
-                committing === 'guest' ? 'profile-card-commit' : recede('guest')
-              }`}
-            >
-              <h2 className="text-lg font-semibold text-white">Continue as guest</h2>
-              <p className="mt-1 text-sm text-blue-300">
-                No account needed. This device gets its own listening history.
-              </p>
-
-              <form onSubmit={handleGuest} className="mt-5">
-                {guestNeedsCode && (
-                  <>
-                    <label className="mb-1 block text-sm text-blue-200" htmlFor="entry-code">
-                      This server asks for a code
-                    </label>
-                    <input
-                      id="entry-code"
-                      value={guestCode}
-                      onChange={(e) => setGuestCode(e.target.value)}
-                      autoFocus
-                      disabled={disabled}
-                      className="input mb-4"
-                    />
-                  </>
-                )}
-
-                {guestError && (
-                  <p className="mb-4 rounded-md border border-red-700 bg-red-700 px-3 py-2 text-sm text-white">
-                    {guestError}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isEnteringGuest || disabled}
-                  className="btn-primary btn-md w-full"
-                >
-                  {isEnteringGuest ? 'Entering…' : 'Enter as guest'}
-                </button>
-              </form>
+              </div>
 
               {registrationOpen && (
-                <button
-                  type="button"
-                  onClick={() => setShowRegister(true)}
-                  disabled={disabled}
-                  className="btn-secondary btn-md mt-3 w-full"
+                <div
+                  className={`profile-stage-3b profile-card-glow card p-6 sm:p-7 ${gridFade('guest')}`}
                 >
-                  Create a new profile
-                </button>
+                  <h2 className="text-lg font-semibold text-white">New here?</h2>
+                  <p className="mt-1 text-sm text-blue-300">
+                    Register your own account on this server.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={beginRegister}
+                    disabled={disabled}
+                    className="btn-primary btn-md mt-5 w-full"
+                  >
+                    Create a new profile
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -557,14 +658,6 @@ export function AccountSelectPage() {
           onSubmit={handleCreatePasscodeSubmit}
           onSuccess={handleCreatePasscodeSuccess}
           onDismiss={() => setShowCreatePasscode(false)}
-        />
-      )}
-
-      {showRegister && (
-        <RegisterModal
-          onSubmit={handleRegisterSubmit}
-          onSuccess={handleRegisterSuccess}
-          onDismiss={() => setShowRegister(false)}
         />
       )}
 
