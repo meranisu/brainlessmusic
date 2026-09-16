@@ -6,6 +6,7 @@ import { DataSaverIcon } from '../components/icons';
 import { useState } from 'react';
 import { HandoffDialog } from '../components/HandoffDialog';
 import { LibraryBrowseDialog } from '../components/LibraryBrowseDialog';
+import { Numpad } from '../components/Numpad';
 import { useToast } from '../components/ToastProvider';
 import { ApiError, apiClient } from '../lib/apiClient';
 import { applyTheme, loadTheme, THEMES, type ThemeId } from '../lib/theme';
@@ -269,10 +270,13 @@ function LibrarySection() {
  * `lib/theme.ts`.
  */
 export function OptionsPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, setPasscode, clearPasscode } = useAuth();
   const { dataSaver, setDataSaver } = usePlayer();
+  const { showToast } = useToast();
   const navigate = useNavigate();
   const [showHandoff, setShowHandoff] = useState(false);
+  const [showPasscodeNumpad, setShowPasscodeNumpad] = useState(false);
+  const [isClearingPasscode, setIsClearingPasscode] = useState(false);
   /* Initialised from storage rather than an effect, so the selected swatch is
      correct on the first paint instead of flicking to it afterwards. The
      document attribute is already set — the inline script in `index.html` did
@@ -375,11 +379,70 @@ export function OptionsPage() {
         )}
       </section>
 
+      {/* Passcodes are the arcade-card alternative to a password, from the
+          account-select screen — self-service only, so this is the one place
+          to create, change or drop one. Guests have no password either, so
+          there is nothing here for them to bind a passcode to. */}
+      {user && !user.isGuest && (
+        <section className="mt-7">
+          <h2 className="mb-3 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-blue-400">
+            Passcode
+          </h2>
+          <div className="rounded-lg border border-blue-800 bg-blue-900/60 p-4">
+            <p className="text-sm text-blue-100">
+              {user.hasPasscode
+                ? 'A passcode is set — sign in with it instead of your password.'
+                : 'No passcode set. Sign-in still needs your password.'}
+            </p>
+            <div className="mt-3 flex gap-2">
+              <button onClick={() => setShowPasscodeNumpad(true)} className="btn-secondary btn-md">
+                {user.hasPasscode ? 'Change passcode' : 'Create passcode'}
+              </button>
+              {user.hasPasscode && (
+                <button
+                  onClick={async () => {
+                    setIsClearingPasscode(true);
+                    try {
+                      await clearPasscode();
+                      showToast('Passcode removed');
+                    } catch (err) {
+                      showToast(err instanceof ApiError ? err.message : 'Could not remove the passcode', 'error');
+                    } finally {
+                      setIsClearingPasscode(false);
+                    }
+                  }}
+                  disabled={isClearingPasscode}
+                  className="btn-ghost btn-md"
+                >
+                  {isClearingPasscode ? 'Removing…' : 'Remove passcode'}
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
       <button onClick={() => navigate(-1)} className="btn-ghost btn-md mt-7">
         ← Back
       </button>
 
       {showHandoff && <HandoffDialog onClose={() => setShowHandoff(false)} />}
+
+      {showPasscodeNumpad && (
+        <Numpad
+          title={user?.hasPasscode ? 'Change your passcode' : 'Choose a passcode'}
+          minLength={4}
+          maxLength={8}
+          submitLabel="Save"
+          submittingLabel="Saving…"
+          onSubmit={setPasscode}
+          onSuccess={() => {
+            setShowPasscodeNumpad(false);
+            showToast('Passcode saved');
+          }}
+          onDismiss={() => setShowPasscodeNumpad(false)}
+        />
+      )}
     </div>
   );
 }

@@ -1,29 +1,50 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { ApiError, apiClient, setUnlockTicket } from '../lib/apiClient';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
-const MAX_LENGTH = 12;
 
 /** Must match `.numpad-*.is-closing` in `index.css`. */
 const CLOSE_MS = 160;
 
-interface AdminNumpadProps {
-  onUnlocked: () => void;
+interface NumpadProps {
+  /** What this dialog is for — "Enter passcode", "Create a passcode", and so on. */
+  title: string;
+  /** Continue stays disabled below this many digits. */
+  minLength?: number;
+  maxLength?: number;
+  submitLabel?: string;
+  /** Label shown on the button while `onSubmit` is in flight. */
+  submittingLabel?: string;
+  /**
+   * Does the actual work — a network call, typically. Throw to show an error
+   * (the thrown `Error`'s `message` is what's displayed) and clear the
+   * entry; resolve to signal success.
+   */
+  onSubmit: (code: string) => Promise<void>;
+  onSuccess: () => void;
   onDismiss: () => void;
 }
 
 /**
- * The panel behind the title screen's tap gesture. Collects a code and sends
- * it to `POST /auth/unlock`, which is where it is actually checked — comparing
- * it here would ship the secret to every guest's browser inside the bundle,
- * and the endpoint answers `curl` whatever this component draws.
+ * A numeric keypad dialog — first built for the admin entry code, now the
+ * shared shape behind every short-code entry in the app (passcode sign-in,
+ * creating or changing a passcode). The interaction is generic; the caller's
+ * `onSubmit` is the only thing that actually knows what the code is for.
  *
  * Built as a keypad rather than a text input on purpose: this is the one
  * control on the screen that has to work with a thumb on a phone and a mouse
  * on a desktop, and a numeric `<input>` summons a keyboard that covers half
  * the screen it is standing on.
  */
-export function AdminNumpad({ onUnlocked, onDismiss }: AdminNumpadProps) {
+export function Numpad({
+  title,
+  minLength = 1,
+  maxLength = 8,
+  submitLabel = 'Continue',
+  submittingLabel = 'Checking…',
+  onSubmit,
+  onSuccess,
+  onDismiss,
+}: NumpadProps) {
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,33 +63,24 @@ export function AdminNumpad({ onUnlocked, onDismiss }: AdminNumpadProps) {
 
   function press(key: string) {
     setError(null);
-    setCode((current) => (current.length >= MAX_LENGTH ? current : current + key));
+    setCode((current) => (current.length >= maxLength ? current : current + key));
   }
 
   const submit = useCallback(async () => {
-    if (isSubmitting || code.length === 0) return;
+    if (isSubmitting || code.length < minLength) return;
     setError(null);
     setIsSubmitting(true);
 
     try {
-      const { ticket } = await apiClient.post<{ ticket: string }>('/auth/unlock', { code });
-      setUnlockTicket(ticket);
-      onUnlocked();
+      await onSubmit(code);
+      onSuccess();
     } catch (err) {
-      // 429 is the lockout, and says something different from a wrong code —
-      // "try again" is useless advice when the answer is "not for a minute".
-      setError(
-        err instanceof ApiError
-          ? err.status === 429
-            ? 'Too many tries. Wait a minute.'
-            : 'That code is not right.'
-          : 'Could not reach the server.',
-      );
+      setError(err instanceof Error ? err.message : 'Something went wrong.');
       setCode('');
     } finally {
       setIsSubmitting(false);
     }
-  }, [isSubmitting, code, onUnlocked]);
+  }, [isSubmitting, code, minLength, onSubmit, onSuccess]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -109,10 +121,10 @@ export function AdminNumpad({ onUnlocked, onDismiss }: AdminNumpadProps) {
       <form
         onSubmit={handleSubmit}
         className={`numpad-panel card w-full max-w-[19rem] p-5 ${isClosing ? 'is-closing' : ''}`}
-        aria-label="Administrator code"
+        aria-label={title}
       >
         <p className="mb-3 text-center text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-blue-300">
-          Enter code
+          {title}
         </p>
 
         {/* The code itself is never echoed — a keypad held up at arm's length
@@ -172,10 +184,10 @@ export function AdminNumpad({ onUnlocked, onDismiss }: AdminNumpadProps) {
 
         <button
           type="submit"
-          disabled={isSubmitting || code.length === 0}
+          disabled={isSubmitting || code.length < minLength}
           className="btn-primary btn-md mt-3 w-full"
         >
-          {isSubmitting ? 'Checking…' : 'Continue'}
+          {isSubmitting ? submittingLabel : submitLabel}
         </button>
       </form>
     </div>

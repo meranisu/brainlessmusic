@@ -6,10 +6,15 @@ interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
   /** Passwordless entry: mints a new listener and signs in as it. */
-  enterAsGuest: (code?: string) => Promise<void>;
+  enterAsGuest: (code?: string) => Promise<User>;
   /** Takes over an identity handed across from another device. */
-  adoptToken: (token: string) => Promise<void>;
-  login: (username: string, password: string) => Promise<void>;
+  adoptToken: (token: string) => Promise<User>;
+  login: (username: string, password: string) => Promise<User>;
+  /** The arcade-card alternative to `login` — a username and a short bound passcode instead of a password. */
+  loginWithPasscode: (username: string, passcode: string) => Promise<User>;
+  /** Creates or replaces the signed-in account's own passcode. */
+  setPasscode: (passcode: string) => Promise<void>;
+  clearPasscode: () => Promise<void>;
   logout: () => void;
 }
 
@@ -34,9 +39,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /** Store a token and find out who it belongs to. Shared by all three ways in. */
-  async function signInWith(token: string) {
+  async function signInWith(token: string): Promise<User> {
     setToken(token);
-    setUser(await apiClient.get<User>('/auth/me'));
+    const who = await apiClient.get<User>('/auth/me');
+    setUser(who);
+    return who;
   }
 
   async function enterAsGuest(code?: string) {
@@ -46,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       '/auth/guest',
       code ? { code } : {},
     );
-    await signInWith(token);
+    return signInWith(token);
   }
 
   /**
@@ -56,17 +63,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * token it was reached by is the only key that row ever had.
    */
   async function adoptToken(token: string) {
-    await signInWith(token);
+    return signInWith(token);
   }
 
   async function login(username: string, password: string) {
-    // Carries the unlock ticket when one is held. The server ignores it unless
-    // ADMIN_ENTRY_CODE is set, and refuses the login without it when it is.
-    const { token } = await apiClient.postUnlocked<{ token: string }>('/auth/login', {
+    const { token } = await apiClient.post<{ token: string }>('/auth/login', { username, password });
+    return signInWith(token);
+  }
+
+  async function loginWithPasscode(username: string, passcode: string) {
+    const { token } = await apiClient.post<{ token: string }>('/auth/passcode-login', {
       username,
-      password,
+      passcode,
     });
-    await signInWith(token);
+    return signInWith(token);
+  }
+
+  async function setPasscode(passcode: string) {
+    await apiClient.post('/auth/passcode', { passcode });
+    setUser(await apiClient.get<User>('/auth/me'));
+  }
+
+  async function clearPasscode() {
+    await apiClient.delete('/auth/passcode');
+    setUser(await apiClient.get<User>('/auth/me'));
   }
 
   function logout() {
@@ -75,7 +95,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, enterAsGuest, adoptToken, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        enterAsGuest,
+        adoptToken,
+        login,
+        loginWithPasscode,
+        setPasscode,
+        clearPasscode,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

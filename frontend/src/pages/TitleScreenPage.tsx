@@ -1,13 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import { AdminNumpad } from '../components/AdminNumpad';
 import { BrandMark } from '../components/BrandLockup';
 import { TitleScreenPanel } from '../components/TitleScreenPanel';
-import { useSecretTaps } from '../hooks/useSecretTaps';
 import { useThemeCycle } from '../hooks/useThemeCycle';
-import { ApiError, apiClient } from '../lib/apiClient';
+import { apiClient } from '../lib/apiClient';
 import { clearAtTitle, isAtTitle, markJustEntered } from '../lib/boot';
 import { arrivalDuration } from '../lib/interstitial';
 import { ArrivalVeil } from '../components/ArcadeInterstitial';
@@ -86,23 +84,16 @@ function TitleHud() {
 }
 
 export function TitleScreenPage() {
-  const { user, enterAsGuest, adoptToken } = useAuth();
+  const { user, adoptToken } = useAuth();
   const navigate = useNavigate();
   useThemeCycle();
 
   const [isEntering, setIsEntering] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [needsCode, setNeedsCode] = useState(false);
-  const [code, setCode] = useState('');
-  const [showNumpad, setShowNumpad] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   // Read during the first render rather than in an effect, so the screen never
   // paints the ordinary enter button for a frame before switching.
   const [handoff, setHandoff] = useState<string | null>(tokenFromHash);
-  // Whether the header's Exit sent us here on purpose. Read once and held,
-  // not re-read: `clearAtTitle` runs while this screen is still animating
-  // away, and a live read would flip the gate below mid-exit and cut it.
-  const [heldAtTitle] = useState(isAtTitle);
 
   /**
    * The black lifting off this screen after an Exit.
@@ -132,72 +123,27 @@ export function TitleScreenPage() {
     window.history.replaceState(null, '', window.location.pathname + window.location.search);
   }, []);
 
-  const openNumpad = useCallback(() => setShowNumpad(true), []);
-  const countTap = useSecretTaps(openNumpad);
+  // A signed-in visitor landing here directly (a stale bookmark, a typed URL)
+  // belongs in the app, not on the attract screen — Exit is the only door out
+  // of a session now, so nobody reaches `/enter` with a session still open on
+  // purpose. `!isLeaving` is what lets `acceptHandoff` play its own exit
+  // animation below: it sets `user` by succeeding, and without this gate the
+  // redirect would fire on the animation's first frame and cut it short.
+  if (user && !isLeaving) return <Navigate to="/" replace />;
 
-  // Bumped on every tap. Used as a `key`, so the flash remounts and replays —
-  // the only way to retrigger a one-shot CSS animation without reaching for a
-  // forced reflow.
-  const [taps, setTaps] = useState(0);
-
-  function onLogoTap() {
-    setTaps((n) => n + 1);
-    countTap();
-  }
-
-  // Held while leaving. `enterAsGuest` sets `user`, and without this gate the
-  // redirect would fire on the animation's first frame and cut it — the
-  // navigation is done by hand below, once the picture has actually gone.
-  //
-  // `heldAtTitle` is the other exemption: the redirect is here so a signed-in
-  // tab cannot land on the attract screen by accident, which makes arriving
-  // deliberately the one case it gets wrong. Exit sets the flag, and this is
-  // where it is honoured.
-  if (user && !isLeaving && !heldAtTitle) return <Navigate to="/" replace />;
-
-  // Someone who exited and is on their way back in. They already have a token,
-  // so there is nothing to mint — only the animation to play.
-  const isReturning = Boolean(user);
-
+  /**
+   * Nothing is minted here — the choice between signing in and continuing as
+   * a guest hasn't been made yet, so this only plays the CRT exit and hands
+   * off to the account-select screen, where it's actually made.
+   */
   async function handleEnter(event?: FormEvent) {
     event?.preventDefault();
     setError(null);
     setIsEntering(true);
     setIsLeaving(true);
 
-    try {
-      // Deliberately concurrent. Awaiting the mint first would leave the button
-      // reading "Entering…" for a whole round trip before anything moved, which
-      // reads as a hang on exactly the slow connection the animation exists to
-      // cover. Run together, the slower of the two decides when the app
-      // appears — on a LAN that is always the animation, so the timing is
-      // predictable rather than network-dependent.
-      await Promise.all([
-        isReturning ? Promise.resolve() : enterAsGuest(needsCode ? code : undefined),
-        delay(exitDuration()),
-      ]);
-      clearAtTitle();
-      markJustEntered();
-      navigate('/', { replace: true });
-    } catch (err) {
-      // Come back. Animating away and *then* discovering the server said no is
-      // the one outcome this sequence must never produce.
-      setIsLeaving(false);
-      // A 401 on the first press is how the client learns this server wants a
-      // code — the server does not advertise it, and does not need to.
-      if (err instanceof ApiError && err.status === 401) {
-        setNeedsCode(true);
-        setError(needsCode ? 'That code is not right.' : null);
-      } else if (err instanceof ApiError && err.status === 429) {
-        setError('Too many tries from here. Wait a little.');
-      } else if (err instanceof ApiError && err.status === 503) {
-        setError('This server is full right now.');
-      } else {
-        setError('Could not reach the server.');
-      }
-    } finally {
-      setIsEntering(false);
-    }
+    await delay(exitDuration());
+    navigate('/enter/profile', { replace: true });
   }
 
   async function acceptHandoff() {
@@ -241,32 +187,16 @@ export function TitleScreenPage() {
             Self-hosted · Personal audio
           </p>
 
-          {/* The gesture lives here and must not look like it does: no cursor
-              change, no hover state, no title attribute, nothing in the DOM a
-              guest could notice. Seven taps in rhythm, or nothing happens. */}
           <h1
-            onClick={onLogoTap}
             className="title-sheen-host font-brand font-bold leading-[0.95] tracking-tight text-blue-950 select-none"
             style={{ fontSize: TITLE_SIZE }}
           >
-            <span
-              key={taps}
-              className={`inline-flex items-center gap-[0.12em] ${taps > 0 ? 'title-tapped' : ''}`}
-            >
+            <span className="inline-flex items-center gap-[0.12em]">
               <BrandMark className="h-[0.62em] w-[0.62em] border-[0.055em] border-blue-950" />
               <span className="relative inline-block">
                 <span className="title-sheen-text">
                   brainless<span className="text-orange-600">music</span>
                 </span>
-                {/* A second copy of the type, clipped to the same glyphs, for
-                    the line that runs across on a tap. Separate element by
-                    necessity: the resting sheen already drives
-                    `background-position` on the text itself. */}
-                {taps > 0 && (
-                  <span aria-hidden className="title-tap-line">
-                    brainlessmusic
-                  </span>
-                )}
               </span>
             </span>
           </h1>
@@ -297,21 +227,6 @@ export function TitleScreenPage() {
               </>
             ) : (
               <form onSubmit={handleEnter}>
-                {needsCode && (
-                  <>
-                    <label className="mb-1 block text-sm text-blue-950/70" htmlFor="entry-code">
-                      This server asks for a code
-                    </label>
-                    <input
-                      id="entry-code"
-                      value={code}
-                      onChange={(e) => setCode(e.target.value)}
-                      autoFocus
-                      className="mb-3 w-full rounded-md border border-blue-950/30 bg-white px-3 py-3 text-base text-blue-950 outline-none transition-colors focus:border-orange-600"
-                    />
-                  </>
-                )}
-
                 {/* One instruction, the way the reference has one. Big enough
                     for a thumb (min-h-14), full width on a phone, and its
                     blink never reaches invisible — a control you cannot see is
@@ -321,7 +236,7 @@ export function TitleScreenPage() {
                   disabled={isEntering}
                   className="btn-primary btn-md enter-blink min-h-14 w-full text-base font-semibold uppercase tracking-[0.15em] sm:w-auto sm:px-10"
                 >
-                  {isEntering ? 'Entering…' : isReturning ? 'Click here to resume' : 'Click here to enter'}
+                  {isEntering ? 'Entering…' : 'Click here to enter'}
                 </button>
               </form>
             )}
@@ -330,13 +245,8 @@ export function TitleScreenPage() {
               <p className="mt-3 rounded-md bg-red-700 px-3 py-2 text-sm text-white">{error}</p>
             )}
 
-            {/* Exit keeps the token, so the returning line has to say so —
-                otherwise the attract screen reads as a sign-out and the honest
-                worry is "have I just lost my playlists?". */}
             <p className="mt-4 text-xs text-blue-950/45">
-              {isReturning
-                ? 'Still signed in on this device. Your library is where you left it.'
-                : 'No account needed. This device gets its own listening history.'}
+              Sign in, or continue as a guest, on the next screen.
             </p>
           </div>
         </div>
@@ -378,13 +288,6 @@ export function TitleScreenPage() {
           the route changes. */}
       {isLeaving && (
         <div aria-hidden className="title-exit-blackout pointer-events-none absolute inset-0 z-30 bg-black" />
-      )}
-
-      {showNumpad && (
-        <AdminNumpad
-          onUnlocked={() => navigate('/login')}
-          onDismiss={() => setShowNumpad(false)}
-        />
       )}
 
       {arriving && <ArrivalVeil />}

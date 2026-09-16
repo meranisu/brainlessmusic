@@ -15,16 +15,12 @@ import {
 import { db } from '../db/connection.js';
 import { hashPassword } from '../services/password.js';
 import { resetAllRateLimiters } from '../services/rateLimit.js';
-import { signToken, signUnlockTicket, verifyMediaToken, verifySessionToken } from '../services/token.js';
+import { verifyMediaToken, verifySessionToken } from '../services/token.js';
 import { resetDatabase } from '../testing/harness.js';
 
 /**
- * Passwordless guest entry, and the numpad in front of the admin login.
- *
- * The check that matters most in this file is the one asserting a *correct*
- * username and password are refused without an unlock ticket: everything else
- * about hiding the login page is cosmetic, and that assertion is what says the
- * mechanism is real.
+ * Passwordless guest entry, and the arcade-style passcode sign-in that
+ * replaced the hidden admin numpad.
  */
 
 const PASSWORD = 'correct horse battery staple';
@@ -47,11 +43,10 @@ beforeEach(async () => {
 
   originalConfig = {
     entryCode: config.entryCode,
-    adminEntryCode: config.adminEntryCode,
     maxGuests: config.maxGuests,
     guestIdleDays: config.guestIdleDays,
     guestMintsPerHour: config.guestMintsPerHour,
-    unlockAttemptsPerMinute: config.unlockAttemptsPerMinute,
+    passcodeAttemptsPerMinute: config.passcodeAttemptsPerMinute,
     allowOpenRegistration: config.allowOpenRegistration,
   };
 });
@@ -302,130 +297,136 @@ describe('guest entry — limits', () => {
   });
 });
 
-describe('the admin numpad', () => {
-  it('is transparent while ADMIN_ENTRY_CODE is unset', async () => {
-    config.adminEntryCode = '';
-    const admin = await createAdmin();
-
-    const res = await app.inject({
+describe('passcode sign-in', () => {
+  async function setPasscode(token: string, passcode: string) {
+    return app.inject({
       method: 'POST',
-      url: '/api/auth/login',
-      payload: { username: admin.username, password: PASSWORD },
+      url: '/api/auth/passcode',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { passcode },
     });
-    assert.equal(res.statusCode, 200, 'login must behave exactly as before when no code is set');
-  });
+  }
 
-  it('refuses a correct username and password with no ticket', async () => {
-    // This is the assertion the whole design rests on. Hiding /login in the
-    // SPA is cosmetic — the bundle carries the route table and this endpoint
-    // answers curl regardless. If this ever goes green-by-accident, the
-    // "hidden" admin door is decorative.
-    config.adminEntryCode = '246810';
-    const admin = await createAdmin();
-
-    const res = await app.inject({
+  async function loginWithPasscode(username: string, passcode: unknown) {
+    return app.inject({
       method: 'POST',
-      url: '/api/auth/login',
-      payload: { username: admin.username, password: PASSWORD },
+      url: '/api/auth/passcode-login',
+      payload: { username, passcode },
     });
+  }
 
-    assert.equal(res.statusCode, 401);
-    assert.equal(res.json().error, 'invalid username or password', 'must not hint that a code exists');
-  });
-
-  it('accepts the same login once a ticket is presented', async () => {
-    config.adminEntryCode = '246810';
-    const admin = await createAdmin();
-
-    const unlock = await app.inject({
-      method: 'POST',
-      url: '/api/auth/unlock',
-      payload: { code: '246810' },
-    });
-    assert.equal(unlock.statusCode, 200);
-
-    const res = await app.inject({
-      method: 'POST',
-      url: '/api/auth/login',
-      headers: { 'x-unlock-ticket': unlock.json().ticket },
-      payload: { username: admin.username, password: PASSWORD },
-    });
-    assert.equal(res.statusCode, 200);
-    assert.ok(res.json().token);
-  });
-
-  it('refuses a wrong code', async () => {
-    config.adminEntryCode = '246810';
-
-    for (const code of ['000000', '24681', '2468100', '', 246810]) {
-      const res = await app.inject({ method: 'POST', url: '/api/auth/unlock', payload: { code } });
-      assert.equal(res.statusCode, 401, `code ${JSON.stringify(code)} must be refused`);
-    }
-  });
-
-  it('hands out a ticket freely when no code is configured', async () => {
-    // Deliberate, and a reversal of this endpoint's first version. With no code
-    // set, `/auth/login` does not ask for a ticket — so a ticket grants nothing
-    // that was not already available, and refusing here would leave the numpad
-    // as the only route to a door it could never open. The cost is one bit that
-    // a single login attempt reveals anyway.
-    config.adminEntryCode = '';
-
-    const res = await app.inject({ method: 'POST', url: '/api/auth/unlock', payload: { code: '' } });
-    assert.equal(res.statusCode, 200);
-
+  it('has no passcode until one is set', async () => {
     const admin = await createAdmin();
     const login = await app.inject({
       method: 'POST',
       url: '/api/auth/login',
-      headers: { 'x-unlock-ticket': res.json().ticket },
       payload: { username: admin.username, password: PASSWORD },
     });
-    assert.equal(login.statusCode, 200, 'a ticket must never make an otherwise-valid login worse');
+    const { token } = login.json() as { token: string };
+
+    const me = await app.inject({
+      method: 'GET',
+      url: '/api/auth/me',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    assert.equal(me.json().hasPasscode, false);
+
+    assert.equal((await loginWithPasscode(admin.username, '1234')).statusCode, 401);
   });
 
-  it('locks out after repeated wrong codes', async () => {
-    config.adminEntryCode = '246810';
-    config.unlockAttemptsPerMinute = 3;
+  it('can be created by the signed-in account and used to log back in', async () => {
+    const admin = await createAdmin();
+    const login = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { username: admin.username, password: PASSWORD },
+    });
+    const { token } = login.json() as { token: string };
+
+    assert.equal((await setPasscode(token, '4269')).statusCode, 204);
+
+    const me = await app.inject({
+      method: 'GET',
+      url: '/api/auth/me',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    assert.equal(me.json().hasPasscode, true);
+
+    const res = await loginWithPasscode(admin.username, '4269');
+    assert.equal(res.statusCode, 200);
+    assert.ok(res.json().token);
+  });
+
+  it('refuses a passcode outside 4-8 digits, or non-numeric', async () => {
+    const admin = await createAdmin();
+    const login = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { username: admin.username, password: PASSWORD },
+    });
+    const { token } = login.json() as { token: string };
+
+    for (const passcode of ['123', '123456789', 'abcd', '12 34', '']) {
+      const res = await setPasscode(token, passcode);
+      assert.equal(res.statusCode, 400, `passcode ${JSON.stringify(passcode)} must be refused`);
+    }
+  });
+
+  it('refuses a guest trying to set one', async () => {
+    const { token } = (await mintGuest()).json() as { token: string };
+    assert.equal((await setPasscode(token, '1234')).statusCode, 403);
+  });
+
+  it('refuses a wrong passcode with the same shape as no passcode at all', async () => {
+    const admin = await createAdmin();
+    const login = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { username: admin.username, password: PASSWORD },
+    });
+    await setPasscode((login.json() as { token: string }).token, '4269');
+
+    const res = await loginWithPasscode(admin.username, '0000');
+    assert.equal(res.statusCode, 401);
+    assert.equal(res.json().error, 'invalid username or passcode');
+  });
+
+  it('can be removed, after which it refuses to log in again', async () => {
+    const admin = await createAdmin();
+    const login = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { username: admin.username, password: PASSWORD },
+    });
+    const { token } = login.json() as { token: string };
+    await setPasscode(token, '4269');
+
+    const cleared = await app.inject({
+      method: 'DELETE',
+      url: '/api/auth/passcode',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    assert.equal(cleared.statusCode, 204);
+
+    assert.equal((await loginWithPasscode(admin.username, '4269')).statusCode, 401);
+  });
+
+  it('rate-limits attempts per address, and a correct one clears the window', async () => {
+    config.passcodeAttemptsPerMinute = 3;
+    const admin = await createAdmin();
+    const login = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { username: admin.username, password: PASSWORD },
+    });
+    await setPasscode((login.json() as { token: string }).token, '4269');
 
     for (let i = 0; i < 3; i += 1) {
-      const res = await app.inject({ method: 'POST', url: '/api/auth/unlock', payload: { code: 'nope' } });
+      const res = await loginWithPasscode(admin.username, '0000');
       assert.equal(res.statusCode, 401, `attempt ${i + 1} is merely wrong`);
     }
 
-    const locked = await app.inject({ method: 'POST', url: '/api/auth/unlock', payload: { code: '246810' } });
-    assert.equal(locked.statusCode, 429, 'even the right code waits once the budget is spent');
-  });
-
-  it('refuses a forged or malformed ticket', async () => {
-    config.adminEntryCode = '246810';
-    const admin = await createAdmin();
-    const real = signUnlockTicket();
-
-    for (const ticket of ['', 'not.a.jwt', real.slice(0, -3) + 'aaa', signToken({ id: 1, username: 'x' })]) {
-      const res = await app.inject({
-        method: 'POST',
-        url: '/api/auth/login',
-        headers: { 'x-unlock-ticket': ticket },
-        payload: { username: admin.username, password: PASSWORD },
-      });
-      assert.equal(res.statusCode, 401, `ticket ${JSON.stringify(ticket.slice(0, 12))} must be refused`);
-    }
-  });
-
-  it('is not a credential', async () => {
-    // It identifies nobody and grants nothing on its own — the existing scope
-    // rules refuse it without having been told it exists.
-    const ticket = signUnlockTicket();
-
-    const res = await app.inject({
-      method: 'GET',
-      url: '/api/auth/me',
-      headers: { authorization: `Bearer ${ticket}` },
-    });
-    assert.equal(res.statusCode, 401);
-
-    const media = await app.inject({ method: 'GET', url: `/api/tracks/1/cover?token=${ticket}` });
-    assert.equal(media.statusCode, 401);
+    const locked = await loginWithPasscode(admin.username, '4269');
+    assert.equal(locked.statusCode, 429, 'even the right passcode waits once the budget is spent');
   });
 });

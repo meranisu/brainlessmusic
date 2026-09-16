@@ -3,11 +3,15 @@ export interface User {
   username: string;
   isAdmin: boolean;
   /**
-   * Minted by the title screen's enter button rather than signed into. Has no
-   * password and cannot be logged back into once its token is gone — which is
-   * why the header offers a guest a handoff rather than a "log out".
+   * Minted by the account-select screen's guest card rather than signed into.
+   * Has no password and cannot be logged back into once its token is gone —
+   * which is why Options offers a guest a handoff (carry the identity to
+   * another device, or deliberately discard it) before Exit ends the session
+   * the same way it does for a real account.
    */
   isGuest: boolean;
+  /** Whether this account has a passcode bound to it — the arcade-card-PIN alternative to a password. Never true for a guest. */
+  hasPasscode: boolean;
 }
 
 export interface TrackSummary {

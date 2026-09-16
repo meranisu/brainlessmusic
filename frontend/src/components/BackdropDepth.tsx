@@ -1,3 +1,5 @@
+import { WordmarkBand, WordmarkColumn } from './WordmarkColumn';
+
 /**
  * The two layers that give the backdrop depth without adding any more type.
  *
@@ -104,6 +106,158 @@ export function FloatingMotes() {
           }}
         />
       ))}
+    </div>
+  );
+}
+
+/**
+ * Two tiers, at different sizes and speeds, running in opposite directions.
+ *
+ * That is the whole trick: a single sheet of scrolling type reads as a sheet
+ * of scrolling type. Two of them passing each other at different rates reads
+ * as depth, and costs nothing extra — the near tier is bigger, brighter and
+ * quicker, which is what "nearer" means to an eye.
+ *
+ * Beat counts are co-prime so no two columns ever line up and the field never
+ * visibly loops. Every duration is in beats rather than seconds, so this keeps
+ * time with the title screen and the player.
+ *
+ * Three sizes rather than two. With only a far and a near tier the field reads
+ * as two planes; a middle one turns it into a gradient of distance, and it is
+ * the cheapest way to make the same number of elements look like more depth.
+ */
+const FAR_SIZE = 'clamp(2.5rem, 8vh, 5vw)';
+const MID_SIZE = 'clamp(3.5rem, 12.5vh, 8vw)';
+const NEAR_SIZE = 'clamp(5.5rem, 20vh, 13vw)';
+
+/* Named in CSS rather than written here, so a theme can reach them. A colour
+   inlined in a component is a colour no `[data-theme]` selector can override,
+   which is precisely how a red theme ends up with a blue backdrop. The values
+   and the reasoning for them live on `:root` in `index.css`. */
+const FAR_STROKE = 'var(--backdrop-far)';
+const MID_STROKE = 'var(--backdrop-mid)';
+const NEAR_STROKE = 'var(--backdrop-near)';
+
+/**
+ * The crawling bands. Sized between the two column tiers so they belong to the
+ * same field rather than sitting in front of it, and stroked at the far tier's
+ * weight — they cross the whole screen, including the part with the reading on
+ * it, so they are the layer that can least afford to be loud.
+ */
+const BAND_SIZE = 'clamp(3.5rem, 13vh, 8vw)';
+const BAND_STROKE = 'var(--backdrop-band)';
+
+/**
+ * The app's moving backdrop. Full-bleed since 2026-09-11; it used to be two
+ * columns confined to the gutters and hidden below `2xl`, for the good reason
+ * that decoration behind a data table is a bug rather than a feature.
+ *
+ * Going full-bleed keeps that constraint and answers it with a mask instead of
+ * a breakpoint: `.shell-backdrop` holds the middle of the screen — where the
+ * content column actually sits — at a fraction of the strength it has in the
+ * gutters. Motion is visible everywhere, and loudest where there is nothing to
+ * read. The measured cost to a track row is in the change log; it is under a
+ * unit of colour per channel.
+ *
+ * Below `md` the inner columns drop out. A phone has no gutters, so every
+ * column there is behind the text, and three of them is clutter rather than
+ * depth.
+ *
+ * Shared by `AppShell` and `AccountSelectPage` — both are screens with a
+ * column of readable content in the middle and nothing else to say about
+ * their background, which is exactly what this was built for.
+ *
+ * `vivid` loosens the centre mask that normally holds the backdrop down
+ * behind readable content (see `.shell-backdrop` in index.css). `AppShell`
+ * sits a dense track list on top of it and needs that restraint; the account
+ * select screen has two cards and a lot of open ground, and can afford the
+ * backdrop being the more obviously "alive" thing it was always animating to
+ * be.
+ */
+export function ShellBackdrop({ vivid = false }: { vivid?: boolean }) {
+  return (
+    <div
+      aria-hidden
+      className={`shell-backdrop pointer-events-none fixed inset-0 z-0 overflow-hidden ${
+        vivid ? 'shell-backdrop-vivid' : ''
+      }`}
+    >
+      {/* Deepest. Behind every piece of type, and the only orange back here. */}
+      <SpinRing />
+
+      {/* Far tier — small, faint, slow, climbing. */}
+      <WordmarkColumn className="left-[-3%]" size={FAR_SIZE} beats={128} stroke={FAR_STROKE} />
+      <WordmarkColumn
+        className="left-[43%] hidden lg:block"
+        size={FAR_SIZE}
+        beats={97}
+        offset={-31}
+        stroke={FAR_STROKE}
+      />
+      <WordmarkColumn className="right-[-3%]" size={FAR_SIZE} beats={113} offset={-17} stroke={FAR_STROKE} />
+
+      {/* Middle tier — the one that turns two planes into a sense of distance. */}
+      <WordmarkColumn
+        className="left-[9%] hidden xl:block"
+        size={MID_SIZE}
+        beats={83}
+        offset={-53}
+        stroke={MID_STROKE}
+        reverse
+      />
+      <WordmarkColumn
+        className="left-[57%] hidden xl:block"
+        size={MID_SIZE}
+        beats={103}
+        offset={-11}
+        stroke={MID_STROKE}
+      />
+
+      {/* Motes drift through the type rather than behind it, so they cross in
+          front of some columns and behind others. */}
+      <FloatingMotes />
+
+      {/* Near tier — larger, brighter, quicker, and falling against the rest. */}
+      <WordmarkColumn
+        className="left-[19%] hidden md:block"
+        size={NEAR_SIZE}
+        beats={67}
+        stroke={NEAR_STROKE}
+        reverse
+      />
+      <WordmarkColumn
+        className="left-[68%] hidden md:block"
+        size={NEAR_SIZE}
+        beats={53}
+        offset={-23}
+        stroke={NEAR_STROKE}
+        reverse
+      />
+
+      {/* Two bands crossing the columns, in opposite directions and at
+          different heights. The columns give the field a grain; a grain has no
+          direction, and after a few seconds the eye stops reading it as motion
+          at all. Something travelling the full width is what it follows.
+
+          Placed high and low on purpose — off the vertical middle, where the
+          content sits and where a line crossing the reading would be a bug
+          rather than decoration. Every beat count in this backdrop is co-prime
+          with every other (128/97/113/83/103/67/53/149/181, and the ring's
+          340/289/233/181), so nothing ever comes back into step. */}
+      <WordmarkBand
+        className="top-[14%]"
+        size={BAND_SIZE}
+        beats={149}
+        stroke={BAND_STROKE}
+      />
+      <WordmarkBand
+        className="bottom-[16%]"
+        size={BAND_SIZE}
+        beats={181}
+        offset={-41}
+        stroke={BAND_STROKE}
+        reverse
+      />
     </div>
   );
 }

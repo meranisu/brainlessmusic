@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { config } from '../config.js';
 import {
+  clearPasscodeById,
   countAccounts,
   countGuests,
   findUserById,
@@ -10,34 +11,32 @@ import {
   insertUser,
   pruneIdleGuests,
   setAdmin,
+  setPasscodeHashById,
   touchLastSeen,
 } from '../db/users.js';
-import { hashPassword, verifyPassword } from '../services/password.js';
+import { hashPasscode, hashPassword, verifyPasscode, verifyPassword } from '../services/password.js';
 import { createRateLimiter } from '../services/rateLimit.js';
-import {
-  signMediaToken,
-  signToken,
-  signUnlockTicket,
-  tokenExpiresAt,
-  verifyUnlockTicket,
-} from '../services/token.js';
+import { signMediaToken, signToken, tokenExpiresAt } from '../services/token.js';
 
 interface Credentials {
   username: string;
   password: string;
 }
 
+interface PasscodeLogin {
+  username: string;
+  passcode: string;
+}
+
 const USERNAME_PATTERN = /^[A-Za-z0-9._-]{2,32}$/;
 const MIN_PASSWORD_LENGTH = 8;
-
-/** Header the browser carries an unlock ticket in — a header, not a body field, so it composes with the credentials shape already in use. */
-const UNLOCK_HEADER = 'x-unlock-ticket';
+const PASSCODE_PATTERN = /^\d{4,8}$/;
 
 const HOUR_MS = 60 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
 
 const guestMintLimiter = createRateLimiter();
-const unlockLimiter = createRateLimiter();
+const passcodeLoginLimiter = createRateLimiter();
 
 /**
  * Constant-time compare for a configured secret against something a stranger
@@ -130,70 +129,6 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
   });
 
   /**
-   * Answers the numpad behind the title screen's hidden admin entrance, and
-   * returns a ticket `/auth/login` then demands.
-   *
-   * The code is checked **here** rather than in the browser for the reason the
-   * whole mechanism exists: a single-page app ships its route table and every
-   * constant in it to everyone, so a code compared in React is a code handed to
-   * the people it is hiding from. Hiding `/login` is tidiness; this is the part
-   * that refuses.
-   *
-   * **With no code configured this hands a ticket to anyone who asks**, and
-   * that is deliberate. `/auth/login` does not ask for a ticket in that
-   * configuration, so the ticket grants nothing that was not already available
-   * — and the alternative locks the owner out of a door the UI has just hidden,
-   * since the numpad would be the only way to it and could never be satisfied.
-   * The cost is one bit ("this server has no admin code"), which anyone learns
-   * from a single login attempt anyway. Reversed from the first version of this
-   * endpoint, which refused identically in both cases; see the 2026-09-11
-   * change-log entry.
-   */
-  fastify.post<{ Body: { code?: unknown } }>('/auth/unlock', async (request, reply) => {
-    const rate = unlockLimiter.check(request.ip, {
-      limit: config.unlockAttemptsPerMinute,
-      windowMs: MINUTE_MS,
-    });
-
-    if (!rate.allowed) {
-      return reply
-        .code(429)
-        .header('retry-after', String(rate.retryAfterSeconds))
-        .send({ error: 'Too many attempts — wait a moment' });
-    }
-
-    if (config.adminEntryCode !== '' && !secretMatches(request.body?.code, config.adminEntryCode)) {
-      return reply.code(401).send({ error: 'That code is not right' });
-    }
-
-    // A correct answer clears the failures before it, so a fumbled entry
-    // followed by a correct one doesn't eat into the next minute's budget.
-    unlockLimiter.clear(request.ip);
-
-    const ticket = signUnlockTicket();
-    return reply.send({ ticket, expiresAt: new Date(tokenExpiresAt(ticket)).toISOString() });
-  });
-
-  /**
-   * Is this request allowed to attempt a password login at all? Only relevant
-   * while `ADMIN_ENTRY_CODE` is set; unset, this is transparent and login works
-   * exactly as it always has.
-   */
-  function unlockedForLogin(request: FastifyRequest): boolean {
-    if (config.adminEntryCode === '') return true;
-
-    const ticket = request.headers[UNLOCK_HEADER];
-    if (typeof ticket !== 'string') return false;
-
-    try {
-      verifyUnlockTicket(ticket);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
    * Composed by hand rather than as `preHandler: [authenticate, requireAdmin]`
    * because the gate is conditional. `request.user` is the signal that
    * `authenticate` succeeded: when it fails it has already sent a 401, and
@@ -250,12 +185,6 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
   );
 
   fastify.post<{ Body: Credentials }>('/auth/login', async (request, reply) => {
-    if (!unlockedForLogin(request)) {
-      // Same shape as a wrong password: a distinct "you need the code" reply
-      // would confirm the account exists to anyone who found this endpoint.
-      return reply.code(401).send({ error: 'invalid username or password' });
-    }
-
     const { username, password } = request.body ?? ({} as Credentials);
 
     if (!username || !password) {
@@ -275,6 +204,79 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
     return reply.send({ token });
   });
 
+  /**
+   * The arcade-card alternative to `/auth/login` — a username plus a short
+   * numeric passcode instead of a password. Rate-limited far more tightly
+   * than the password path (`passcodeAttemptsPerMinute`, default 8/minute per
+   * IP): a 4-8 digit code has nothing like a password's keyspace, so the
+   * limit is doing the work the code's own length can't.
+   */
+  fastify.post<{ Body: PasscodeLogin }>('/auth/passcode-login', async (request, reply) => {
+    const rate = passcodeLoginLimiter.check(request.ip, {
+      limit: config.passcodeAttemptsPerMinute,
+      windowMs: MINUTE_MS,
+    });
+
+    if (!rate.allowed) {
+      return reply
+        .code(429)
+        .header('retry-after', String(rate.retryAfterSeconds))
+        .send({ error: 'Too many tries — wait a moment' });
+    }
+
+    const { username, passcode } = request.body ?? ({} as PasscodeLogin);
+
+    if (!username || !passcode) {
+      return reply.code(400).send({ error: 'username and passcode are required' });
+    }
+
+    const user = findUserByUsername(username);
+
+    // Same refusal shape as `/auth/login`: no user, a guest, no passcode ever
+    // set, or a wrong one, all look identical from the outside.
+    if (
+      !user ||
+      user.kind === 'guest' ||
+      !user.passcode_hash ||
+      !(await verifyPasscode(passcode, user.passcode_hash))
+    ) {
+      return reply.code(401).send({ error: 'invalid username or passcode' });
+    }
+
+    // A correct passcode clears this IP's window, the same courtesy a correct
+    // password gets by never having counted against one at all.
+    passcodeLoginLimiter.clear(request.ip);
+
+    const token = signToken({ id: user.id, username: user.username });
+    return reply.send({ token });
+  });
+
+  /** Creates or replaces the signed-in account's own passcode. Self-service only — see `/auth/passcode-login`'s doc comment for why a wrong one can't be told apart from a missing one. */
+  fastify.post<{ Body: { passcode?: unknown } }>(
+    '/auth/passcode',
+    { preHandler: fastify.authenticate },
+    async (request, reply) => {
+      const user = findUserById(request.user!.id);
+      if (!user || user.kind === 'guest') {
+        return reply.code(403).send({ error: 'guests cannot set a passcode' });
+      }
+
+      const passcode = request.body?.passcode;
+      if (typeof passcode !== 'string' || !PASSCODE_PATTERN.test(passcode)) {
+        return reply.code(400).send({ error: 'passcode must be 4-8 digits' });
+      }
+
+      const passcodeHash = await hashPasscode(passcode);
+      setPasscodeHashById(user.id, passcodeHash);
+      return reply.code(204).send();
+    },
+  );
+
+  fastify.delete('/auth/passcode', { preHandler: fastify.authenticate }, async (request, reply) => {
+    clearPasscodeById(request.user!.id);
+    return reply.code(204).send();
+  });
+
   fastify.get('/auth/me', { preHandler: fastify.authenticate }, async (request, reply) => {
     const user = findUserById(request.user!.id);
     if (!user) {
@@ -291,6 +293,7 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       username: user.username,
       isAdmin: Boolean(user.is_admin),
       isGuest: user.kind === 'guest',
+      hasPasscode: Boolean(user.passcode_hash),
     });
   });
 

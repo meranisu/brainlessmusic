@@ -35,6 +35,8 @@ const PROTECTED_ROUTES: Array<[method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELET
   ['PUT', '/api/me/playback-state'],
   ['DELETE', '/api/me/playback-state'],
   ['GET', '/api/auth/me'],
+  ['POST', '/api/auth/passcode'],
+  ['DELETE', '/api/auth/passcode'],
   ['GET', '/api/me/history'],
   ['GET', '/api/stats/top-tracks'],
   ['GET', '/api/users'],
@@ -88,15 +90,14 @@ describe('open routes', () => {
     // accidentally-open route is visible as a deliberate one, and so the count
     // is something a reader can check rather than infer.
     // Full behaviour lives in guestAuth.test.ts.
-    for (const url of ['/api/auth/guest', '/api/auth/unlock']) {
+    for (const url of ['/api/auth/guest', '/api/auth/login', '/api/auth/passcode-login']) {
       const res = await app.inject({ method: 'POST', url, payload: {} });
       assert.notEqual(res.statusCode, 404, `${url} must exist`);
       assert.notEqual(res.statusCode, 403, `${url} must not be behind the admin gate`);
     }
 
     // The guest door specifically must not want a bearer token — it is what
-    // *issues* them. (`/auth/unlock` legitimately answers 401 here: it checks a
-    // code, and no code is configured in the test environment.)
+    // *issues* them.
     const guest = await app.inject({ method: 'POST', url: '/api/auth/guest', payload: {} });
     assert.notEqual(guest.statusCode, 401, 'the guest door cannot require a credential');
   });

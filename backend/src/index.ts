@@ -40,10 +40,6 @@ console.info(
     : 'Guest entry: requires ENTRY_CODE.',
 );
 
-if (config.adminEntryCode === '') {
-  console.info('Admin sign-in: /login, no entry code. Set ADMIN_ENTRY_CODE to require the numpad.');
-}
-
 const app = buildApp();
 
 app.listen({ port: config.port, host: '0.0.0.0' }, (err, address) => {

@@ -272,10 +272,10 @@
 
 /* Raw "R G B" channel triples, not colors — consumed elsewhere in this file
    as `rgb(var(--x) / alpha)`. `<number>+` is a space-separated list of
-   numbers; registering it lets the ring/mote tap-glow easter egg fade with
-   everything else instead of snapping. If a browser doesn't support this
-   syntax the rule is simply invalid and ignored — those two just snap while
-   every other token still fades, nothing breaks. */
+   numbers; registering it lets the backdrop's ring and motes fade with every
+   other token instead of snapping. If a browser doesn't support this syntax
+   the rule is simply invalid and ignored — those two just snap while every
+   other token still fades, nothing breaks. */
 @property --backdrop-ring { syntax: '<number>+'; inherits: true; initial-value: 234 88 12; }
 @property --backdrop-mote { syntax: '<number>+'; inherits: true; initial-value: 147 197 253; }
 
@@ -690,72 +690,7 @@
   }
 }
 
-/* Feedback for the tap gesture: the wordmark lights up and a bright line runs
-   across it, once per tap.
-
-   Worth being explicit about the trade, because this cuts against the
-   gesture's whole point: the admin door is meant to be invisible, and a logo
-   that reacts to being touched is a logo that invites being touched again.
-   What it does *not* do is put anything in the DOM at rest — there is still no
-   cursor change, no title, no hint for a guest who never touches it — so what
-   leaks is "this responds", not "there is a door here". Deliberate: a
-   seven-tap gesture with no feedback at all is one nobody can tell they are
-   halfway through.
-
-   The line is a second copy of the type laid over the first and clipped to the
-   glyphs. It has to be a separate element: the resting sheen already owns
-   `background-image` on the text itself, and two animations cannot drive one
-   background-position. */
-.title-tap-line {
-  position: absolute;
-  left: 0;
-  top: 0;
-  white-space: nowrap;
-  pointer-events: none;
-  color: transparent;
-  background-image: linear-gradient(
-    100deg,
-    transparent 46%,
-    rgba(255, 255, 255, 0.98) 50%,
-    transparent 54%
-  );
-  background-size: 320% 100%;
-  background-repeat: no-repeat;
-  -webkit-background-clip: text;
-  background-clip: text;
-  animation: tap-line 520ms cubic-bezier(0.3, 0, 0.2, 1) 1 both;
-}
-
-@keyframes tap-line {
-  from {
-    background-position: 165% 0;
-  }
-  to {
-    background-position: -65% 0;
-  }
-}
-
-/* The glow rides on the container rather than the line, because `text-shadow`
-   needs actual painted glyphs and the line's own colour is transparent. Orange
-   rather than white: the band behind this is white, so a white halo round navy
-   type is invisible. */
-.title-tapped {
-  animation: tap-glow 520ms ease-out 1 both;
-}
-
-@keyframes tap-glow {
-  0% {
-    text-shadow: 0 0 0 rgb(var(--backdrop-ring) / 0);
-  }
-  25% {
-    text-shadow: 0 0 0.22em rgb(var(--backdrop-ring) / 0.85);
-  }
-  100% {
-    text-shadow: 0 0 0 rgb(var(--backdrop-ring) / 0);
-  }
-}
-
-/* ── The admin numpad ─────────────────────────────────────────────────────
+/* ── The numpad ────────────────────────────────────────────────────────────
    In and out. The panel arrives with the ground it sits on rather than after
    it, and leaves the same way — a dialog that vanishes while its backdrop
    fades reads as a crash. */
@@ -1391,6 +1326,15 @@
   mask-composite: intersect;
 }
 
+/* The account select screen's variant — same mask shape, a much lighter
+   touch. There is no dense text column to protect here, just two cards with
+   air around them, so the backdrop can actually read as the moving thing it
+   is instead of a near-flat wash. Two classes on one element for specificity
+   over the base rule above, rather than relying on source order. */
+.shell-backdrop.shell-backdrop-vivid {
+  --backdrop-dim: rgba(0, 0, 0, 0.55);
+}
+
 /* ── Leaving the title screen ─────────────────────────────────────────────
    820ms, and three things happening at once on three different planes: the
    band collapses the way a CRT loses its picture, the logo comes at the
@@ -1780,6 +1724,119 @@
   }
 }
 
+/* ── Account select: two cards, one choice ────────────────────────────────
+   The heading and the two cards arrive one after another rather than as a
+   block, the same "machine naming its parts" idea `.boot-nav` uses on the way
+   into the app — reusing that section's `boot-rise` keyframe rather than a
+   near-identical second one. */
+.profile-stage-1 {
+  animation: boot-rise 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.profile-stage-2 {
+  animation: boot-rise 320ms cubic-bezier(0.16, 1, 0.3, 1) 160ms both;
+}
+
+.profile-stage-3 {
+  animation: boot-rise 320ms cubic-bezier(0.16, 1, 0.3, 1) 320ms both;
+}
+
+/* A light chasing round the frame, arcade-panel style — the two cards are
+   the only furniture on this screen and were reading as flat rectangles next
+   to the moving backdrop behind them. The ring is a `::before`, not a border
+   on the card itself: a `conic-gradient` masked down to a hairline is how a
+   rotating gradient becomes an *outline* instead of a filled shape, and the
+   mask needs its own layer to punch the card's interior out of. `--angle` is
+   `@property`-registered the same way the theme colours are, so the browser
+   can tween a custom property instead of jumping between conic-gradient
+   snapshots. */
+@property --angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.profile-card-glow {
+  position: relative;
+}
+
+.profile-card-glow::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--angle),
+    transparent 0deg,
+    var(--color-orange-600) 35deg,
+    transparent 80deg,
+    transparent 210deg,
+    var(--color-blue-400) 260deg,
+    transparent 320deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: profile-card-spin 7s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes profile-card-spin {
+  to {
+    --angle: 360deg;
+  }
+}
+
+/**
+ * The card that was picked keeps going: it zooms in and fades to black,
+ * `--commit` long (mirrored in `AccountSelectPage.tsx` as `COMMIT_MS`, the
+ * same JS/CSS split the title screen's `--exit` uses). The request behind it
+ * runs at the same time rather than after — the card animating and the
+ * network settling race each other, and whichever is slower decides when the
+ * welcome card takes over.
+ */
+:root {
+  --commit: 420ms;
+}
+
+.profile-card-commit {
+  animation: profile-commit var(--commit) cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+@keyframes profile-commit {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.06);
+    opacity: 0;
+  }
+}
+
+/* The card that was *not* picked, and the heading above both — they have
+   nothing left to say once a choice is made, so they simply get out of the
+   way rather than sitting there disabled. Quicker than the winner's zoom, so
+   the eye has already settled on the one card by the time it also goes. */
+.profile-card-recede {
+  animation: profile-recede 240ms ease-in forwards;
+}
+
+@keyframes profile-recede {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 /* Someone who has asked their OS for less motion gets a steady dot and a
    still grid. The mosaic keeps its shading — only the movement stops. */
 @media (prefers-reduced-motion: reduce) {
@@ -1794,9 +1851,7 @@
   .title-sheen-text,
   .enter-blink,
   .scan-sweep,
-  .boot-frame rect,
-  .title-tap-line,
-  .title-tapped {
+  .boot-frame rect {
     animation: none;
   }
 
@@ -1905,19 +1960,34 @@
      specificity and coming later in the file is what makes this win. */
   .boot-stage,
   .boot-nav > *:nth-child(n),
-  .title-entrance {
+  .title-entrance,
+  .profile-stage-1,
+  .profile-stage-2,
+  .profile-stage-3 {
     animation: none;
   }
 
   /* The exit keeps a token duration rather than being cancelled: its `forwards`
      fill is what lands the screen on black, and the sequence still has to end,
-     just immediately. */
+     just immediately. Same reasoning for the winning profile card — it still
+     has to reach `opacity: 0` for the welcome card to take over cleanly. */
 
   .title-exit-band,
   .title-exit-logo,
   .title-exit-panel,
-  .title-exit-blackout {
+  .title-exit-blackout,
+  .profile-card-commit,
+  .profile-card-recede {
     animation-duration: 1ms;
+  }
+
+  /* The chase round the card frame stops rather than being collapsed to a
+     token duration — it has no `forwards` fill for anything downstream to
+     depend on, so there is nothing to reach. A full conic gradient already
+     draws a complete ring at any single angle, so freezing it costs nothing
+     visually; it just stops sweeping. */
+  .profile-card-glow::before {
+    animation: none;
   }
 
   /* The entrance is the one exception to "animation: none": cancelling it

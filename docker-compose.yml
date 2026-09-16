@@ -28,10 +28,6 @@ services:
       # Put it in a .env file next to this one as JWT_SECRET=...
       JWT_SECRET: ${JWT_SECRET:-}
 
-      # Numpad code gating the hidden admin login (see backend/src/config.ts).
-      # Unset means /auth/login works with no extra step; set here from .env.
-      ADMIN_ENTRY_CODE: ${ADMIN_ENTRY_CODE:-}
-
       # Optional overrides; the image's defaults are usually right.
       # JWT_EXPIRES_IN: 7d
       # MEDIA_TOKEN_TTL: 2h

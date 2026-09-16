@@ -13,14 +13,6 @@ export interface TokenUser {
  */
 const MEDIA_SCOPE = 'media';
 
-/**
- * Marks a token as proof that a browser typed the admin entry code. It stands
- * for a fact about the *device*, not about a person, so it carries no `sub`
- * and identifies nobody — presenting one proves only that whoever holds it got
- * past the numpad, which is exactly as much as it should be able to say.
- */
-const UNLOCK_SCOPE = 'unlock';
-
 export function signToken(user: TokenUser): string {
   return jwt.sign({ sub: user.id, username: user.username }, config.jwtSecret, {
     expiresIn: config.jwtExpiresIn,
@@ -71,33 +63,6 @@ export function verifyMediaToken(token: string): TokenUser {
   }
 
   return { id: Number(payload.sub), username: payload.username as string };
-}
-
-/**
- * Short-lived proof that the admin entry code was entered correctly. Held by
- * the browser for minutes, and required by `POST /auth/login` while
- * `ADMIN_ENTRY_CODE` is set — which is the part that makes hiding the login
- * page mean something. A single-page app cannot hide a route from anyone
- * willing to read its bundle, so the route is not what refuses; this is.
- *
- * Note what this deliberately is not: it is not a credential. It carries no
- * subject, grants no access on its own, and the two verifiers above already
- * refuse it without needing to know it exists — `verifySessionToken` rejects
- * any scoped token, `verifyMediaToken` demands `media` specifically.
- */
-export function signUnlockTicket(): string {
-  return jwt.sign({ scope: UNLOCK_SCOPE }, config.jwtSecret, {
-    expiresIn: config.unlockTicketTtl,
-  } as jwt.SignOptions);
-}
-
-/** Throws unless the token is a live, correctly-signed unlock ticket. */
-export function verifyUnlockTicket(token: string): void {
-  const payload = jwt.verify(token, config.jwtSecret) as jwt.JwtPayload;
-
-  if (payload.scope !== UNLOCK_SCOPE) {
-    throw new Error('Not an unlock ticket');
-  }
 }
 
 /** Expiry of an already-signed token, in epoch milliseconds. */

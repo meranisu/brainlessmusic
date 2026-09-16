@@ -18,6 +18,8 @@ export interface UserRow {
   created_at: string;
   kind: UserKind;
   last_seen_at: string | null;
+  /** NULL means no passcode is set. See `0014_add_passcode.sql`. */
+  passcode_hash: string | null;
 }
 
 export function findUserByUsername(username: string): UserRow | undefined {
@@ -210,6 +212,17 @@ export function setAdminById(id: number, isAdmin: boolean): UserRow | undefined 
 
 export function setPasswordHashById(id: number, passwordHash: string): UserRow | undefined {
   db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(passwordHash, id);
+  return findUserById(id);
+}
+
+/** Self-service only — set from Options by the account it belongs to. */
+export function setPasscodeHashById(id: number, passcodeHash: string): UserRow | undefined {
+  db.prepare('UPDATE users SET passcode_hash = ? WHERE id = ?').run(passcodeHash, id);
+  return findUserById(id);
+}
+
+export function clearPasscodeById(id: number): UserRow | undefined {
+  db.prepare('UPDATE users SET passcode_hash = NULL WHERE id = ?').run(id);
   return findUserById(id);
 }
 

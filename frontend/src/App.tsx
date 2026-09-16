@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { RequireAdmin } from './auth/RequireAdmin';
 import { RequireAuth } from './auth/RequireAuth';
+import { AccountSelectPage } from './pages/AccountSelectPage';
 import { AppShell } from './components/AppShell';
 import { AlbumDetailPage } from './pages/AlbumDetailPage';
 import { AlbumsPage } from './pages/AlbumsPage';
@@ -9,7 +10,6 @@ import { ArtistsPage } from './pages/ArtistsPage';
 import { FavoritesPage } from './pages/FavoritesPage';
 import { HealthPage } from './pages/HealthPage';
 import { LibraryPage } from './pages/LibraryPage';
-import { LoginPage } from './pages/LoginPage';
 import { ManageTracksPage } from './pages/ManageTracksPage';
 import { OptionsPage } from './pages/OptionsPage';
 import { TitleScreenPage } from './pages/TitleScreenPage';
@@ -22,11 +22,18 @@ import { UsersPage } from './pages/UsersPage';
 export function App() {
   return (
     <Routes>
-      {/* The way in. `/login` still exists and still works typed directly —
-          hiding a route in a bundle hides nothing — but it is unlinked, and
-          the server is what refuses when ADMIN_ENTRY_CODE is set. */}
+      {/* The way in: the title screen, then the account select screen it
+          hands off to — sign in (password or a bound passcode) or continue
+          as a guest, all reachable typed directly too, since hiding a route
+          in a bundle hides nothing. There is no hidden admin door any more:
+          an account is protected by what it actually holds. */}
       <Route path="/enter" element={<TitleScreenPage />} />
-      <Route path="/login" element={<LoginPage />} />
+      <Route path="/enter/profile" element={<AccountSelectPage />} />
+      {/* `/login` was the old standalone sign-in screen, folded into the
+          account select screen's sign-in card. Redirected rather than
+          removed, so anything that had it bookmarked still lands somewhere
+          useful. */}
+      <Route path="/login" element={<Navigate to="/enter/profile" replace />} />
 
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
