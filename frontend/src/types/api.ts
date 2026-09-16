@@ -110,6 +110,10 @@ export interface LibraryRoot {
   status: 'ok' | 'unreachable';
   trackCount: number;
   scanning: boolean;
+  /** `null` while `scanning` is true covers "still walking the folder tree,
+   *  no file count to report yet" as well as "not scanning at all" — the
+   *  `scanning` flag is what tells those two apart. */
+  scanProgress: { processed: number; total: number } | null;
 }
 
 export interface LibraryRootListResponse {

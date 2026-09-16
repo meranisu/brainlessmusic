@@ -4,6 +4,49 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-16 — Live scan progress, in Options and on the Library page
+
+`GET /library/roots` returning `scanning: boolean` and nothing else meant
+neither screen could say anything better than "Scanning…" for however long a
+big folder took. `scanLibrary()` now takes an optional progress callback,
+called once per file as it finishes; `librarySync.ts` records `{ processed,
+total }` per root while a sync is running and clears it when the sync ends,
+and the route now returns it alongside `scanning`. `total` is `null` until
+the initial directory walk finishes, which the two screens show as a bare
+"Scanning…" rather than a fraction with nothing on either side of the slash.
+
+Surfaced in both places that already showed `scanning` at all:
+
+- **Options' library-folders list** — each row now reads
+  `Scanning… 128/512 (25%)` instead of a flat `Scanning…`.
+- **The arcade Library page's strip footer** — a new line alongside the
+  existing "N of M loaded", admin-only (the underlying endpoint is
+  admin-gated, since it returns real filesystem paths), aggregated across
+  every root currently scanning. Polls `/library/roots` only while
+  something is actually scanning (`refetchInterval` reads the last-fetched
+  data to decide whether to keep polling), so an idle library costs one
+  request, not a running timer.
+
+Both screens format the line through one shared `formatScanStatus()`
+(`frontend/src/lib/format.ts`) instead of each guessing at wording
+independently.
+
+Also (found already uncommitted in the same file while making this change):
+`scanLibrary()` now processes files in batches of 6 concurrently rather than
+one at a time — each file's work is I/O-bound (a `stat`, a tag parse, an
+artwork write), so serial execution was paying full round-trip latency per
+file for nothing. The progress callback accounts for this: files land in
+completion order, not the order they were found in, so the new test asserts
+the *set* of reported `processed` values covers 1..N, not that they arrive
+in sequence.
+
+Verified: `scanner.test.ts`'s new case asserts the callback fires exactly
+once per file and ends at the true total; `npx tsx --test` run directly
+against `scanner.test.ts`, `librarySync.test.ts`, and `library.test.ts`
+(18 tests) all pass. A handful of unrelated auth/passcode tests are flaky on
+the full `npm test` run regardless of this change — reproduced with and
+without it, same failures either way, not investigated further here.
+
 ## 2026-09-16 — The detail panel could be starved to nothing by a long title
 
 On a real library (hundreds of real track names, not the short test titles

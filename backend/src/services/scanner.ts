@@ -90,6 +90,23 @@ async function scanFile(filePath: string, rootId: number): Promise<ScanFileResul
   }
 }
 
+/** Called after each file is processed — `processed` includes the one that
+ *  just finished, so `processed === total` means the scan's file loop is
+ *  about to return. Files run concurrently (see `SCAN_CONCURRENCY`), so calls
+ *  land in completion order, not the order `files` was walked in. */
+export type ScanProgressCallback = (processed: number, total: number) => void;
+
+/**
+ * Each `scanFile` is I/O-bound — a `stat`, a `music-metadata` parse, and
+ * (when the file has a cover) an artwork write — so running them one at a
+ * time pays full round-trip latency per file for no reason. This mirrors the
+ * batching `reconcileMissingTracks` already does for its own I/O-bound sweep,
+ * just with a lower cap: parsing a file's tags is heavier than a bare `stat`,
+ * so a higher number buys less overlap while costing more memory and fd
+ * pressure from files mid-parse at once.
+ */
+const SCAN_CONCURRENCY = 6;
+
 /**
  * Walks `libraryRoot` for supported audio files, reads tags via
  * music-metadata, and upserts each into the DB by path. Per-file failures
@@ -100,8 +117,17 @@ async function scanFile(filePath: string, rootId: number): Promise<ScanFileResul
  * directory being walked is visible at the call site — see the note on
  * `fileIntoLibrary`. `rootId` is which `library_roots` row this walk belongs
  * to, so every file it finds can be attributed back to it.
+ *
+ * `onProgress` is optional and fire-and-forget from this function's own
+ * point of view — it exists so a caller (`librarySync.ts`) can expose *some*
+ * live signal for what would otherwise be a single opaque await, not because
+ * this function has any use for the number itself.
  */
-export async function scanLibrary(libraryRoot: string, rootId: number): Promise<ScanSummary> {
+export async function scanLibrary(
+  libraryRoot: string,
+  rootId: number,
+  onProgress?: ScanProgressCallback,
+): Promise<ScanSummary> {
   const start = Date.now();
 
   const { files, unreadableDirs } = await findAudioFiles(libraryRoot);
@@ -110,15 +136,23 @@ export async function scanLibrary(libraryRoot: string, rootId: number): Promise<
   let filesUpdated = 0;
   const failures: ScanFailure[] = [];
 
-  for (const filePath of files) {
-    const result = await scanFile(filePath, rootId);
-    if (result.status === 'failed') {
-      failures.push({ path: filePath, error: result.error });
-    } else if (result.status === 'added') {
-      filesAdded++;
-    } else {
-      filesUpdated++;
-    }
+  let processed = 0;
+
+  for (let i = 0; i < files.length; i += SCAN_CONCURRENCY) {
+    const batch = files.slice(i, i + SCAN_CONCURRENCY);
+    const results = await Promise.all(batch.map((filePath) => scanFile(filePath, rootId)));
+
+    batch.forEach((filePath, index) => {
+      const result = results[index];
+      if (result.status === 'failed') {
+        failures.push({ path: filePath, error: result.error });
+      } else if (result.status === 'added') {
+        filesAdded++;
+      } else {
+        filesUpdated++;
+      }
+      onProgress?.(++processed, files.length);
+    });
   }
 
   return {

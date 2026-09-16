@@ -998,14 +998,31 @@
 /* The strip's own footer, not a caption sitting below the panel — same
    family as the rows above it, just quieter and set off by a seam. */
 .arcade-strip-footer {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
   flex: 0 0 auto;
   border-top: 1px solid var(--color-blue-800);
   background-color: color-mix(in oklab, var(--color-blue-900) 75%, transparent);
   padding: 0.4rem 1rem;
-  text-align: right;
   font-size: 0.7rem;
   letter-spacing: 0.02em;
   color: var(--color-blue-400);
+}
+
+/* Pushed to the right by its own margin rather than the row's
+   `justify-content`, so the count still lands on the right with nothing
+   else on the line — the scan status is the one that comes and goes. */
+.arcade-strip-footer-count {
+  margin-left: auto;
+}
+
+.arcade-strip-footer-scan {
+  overflow: hidden;
+  min-width: 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--color-orange-400);
 }
 
 /* The cursor is a fixed band; the list travels under it. That inversion is the

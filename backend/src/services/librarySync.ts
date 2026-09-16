@@ -48,6 +48,26 @@ export function isAnyLibrarySyncRunning(): boolean {
   return running.size > 0;
 }
 
+export interface ScanProgress {
+  processed: number;
+  total: number;
+}
+
+/**
+ * Live file-count progress for a root's scan phase, keyed the same way as
+ * `running`. Absent (not merely zero) for two different reasons an API
+ * consumer needs to tell apart: no scan is running at all, or one is running
+ * but is still inside `findAudioFiles`'s own walk, before a total file count
+ * even exists to report. Cleared in the same `finally` that clears `running`,
+ * so a finished scan doesn't leave a stale 100%-done entry behind for the
+ * next poll to pick up.
+ */
+const scanProgress = new Map<number, ScanProgress>();
+
+export function getScanProgress(rootId: number): ScanProgress | null {
+  return scanProgress.get(rootId) ?? null;
+}
+
 /**
  * Reconciles, and optionally scans first, one root. Returns `null` if that
  * root already has a sync in progress.
@@ -71,7 +91,12 @@ export async function syncLibrary(
       () => true,
       () => false,
     );
-    const scan = options.scan && rootIsReadable ? await scanLibrary(libraryRoot, rootId) : undefined;
+    const scan =
+      options.scan && rootIsReadable
+        ? await scanLibrary(libraryRoot, rootId, (processed, total) => {
+            scanProgress.set(rootId, { processed, total });
+          })
+        : undefined;
     const reconcile = await reconcileMissingTracks(libraryRoot, rootId, {
       abortRatio: config.libraryMissingAbortRatio,
     });
@@ -79,6 +104,7 @@ export async function syncLibrary(
     return { scan, reconcile };
   } finally {
     running.delete(rootId);
+    scanProgress.delete(rootId);
   }
 }
 

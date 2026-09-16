@@ -10,7 +10,7 @@ import {
   insertLibraryRoot,
   listLibraryRoots,
 } from '../db/libraryRoots.js';
-import { isLibrarySyncRunning, syncLibrary } from '../services/librarySync.js';
+import { getScanProgress, isLibrarySyncRunning, syncLibrary } from '../services/librarySync.js';
 
 interface AddRootBody {
   path: string;
@@ -42,6 +42,10 @@ const libraryRoute: FastifyPluginAsync = async (fastify) => {
       status: root.last_scan_error ? ('unreachable' as const) : ('ok' as const),
       trackCount: countTracksForRoot(root.id),
       scanning: isLibrarySyncRunning(root.id),
+      // `null` covers two different states a consumer needs to tell apart:
+      // not scanning at all, or scanning but still inside the initial
+      // directory walk, before a file count exists to report.
+      scanProgress: getScanProgress(root.id),
     }));
     return reply.send({ roots });
   });

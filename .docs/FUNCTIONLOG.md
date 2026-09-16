@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `scanLibrary()` — `backend/src/services/scanner.ts`
+**Date:** 2026-09-16
+**How added:** new feature (live scan progress) on top of an already-present, uncommitted change to run file scanning concurrently (`SCAN_CONCURRENCY = 6`, `Promise.all` per batch) instead of one file at a time.
+**Purpose:** takes an optional `onProgress?: (processed, total) => void`, called once per file as its batch settles, so a caller has *some* live signal for what used to be a single opaque `await` covering the whole file loop.
+**Side effects:** none of its own — `onProgress` is the caller's, and this function never inspects the values it passes.
+**Before:** no way to observe a scan's progress except waiting for the whole `ScanSummary` to resolve at the end.
+**After:** `librarySync.ts`'s `syncLibrary()` passes a callback that records `{ processed, total }` per root, exposed via `getScanProgress()` and surfaced through `GET /library/roots`. New test in `scanner.test.ts` asserting the callback fires exactly once per file and — since files now run concurrently and land in completion order, not file order — that the *set* of `processed` values still covers 1..N by the time the scan resolves.
+
+**Function:** `getScanProgress()` / the `scanProgress` map — `backend/src/services/librarySync.ts`
+**Date:** 2026-09-16
+**How added:** new feature
+**Purpose:** per-root live scan progress, alongside the existing `running` set. Populated by the `onProgress` callback passed into `scanLibrary()`, cleared in the same `finally` that clears `running` so a finished scan doesn't leave a stale entry for the next poll. `null` covers two states a caller needs to tell apart: not scanning, or scanning but still inside the initial directory walk before a file count exists.
+**Side effects:** none — an in-memory `Map`, same lifetime and shape as `running`.
+**Before:** nothing — new state.
+**After:** `GET /library/roots` (admin-only) returns `scanProgress` per root. Surfaced in the Options page's per-folder row and, aggregated across all scanning roots, in the Library page's arcade strip footer (admin-only there too, since the underlying endpoint is) — both via one shared `formatScanStatus()` in `frontend/src/lib/format.ts` so the wording doesn't drift between the two screens.
+
 **Function:** `findAudioFiles()` — `backend/src/services/scanner.ts`
 **Date:** 2026-09-16
 **How added:** bug fix (found while adding root-content validation, not by reading)

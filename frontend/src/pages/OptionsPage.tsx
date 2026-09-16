@@ -9,6 +9,7 @@ import { LibraryBrowseDialog } from '../components/LibraryBrowseDialog';
 import { Numpad } from '../components/Numpad';
 import { useToast } from '../components/ToastProvider';
 import { ApiError, apiClient } from '../lib/apiClient';
+import { formatScanStatus } from '../lib/format';
 import { applyTheme, loadTheme, THEMES, type ThemeId } from '../lib/theme';
 import type { AddLibraryRootResponse, LibraryRoot, LibraryRootListResponse, LibraryRootScanResult } from '../types/api';
 
@@ -154,7 +155,11 @@ function LibrarySection() {
                 <p className="truncate text-xs text-blue-400">{root.path}</p>
               </div>
               <span className={`shrink-0 text-xs ${STATUS_STYLES[root.status]}`}>
-                {root.scanning ? 'Scanning…' : root.status === 'ok' ? `${root.trackCount} tracks` : 'Unreachable'}
+                {root.scanning
+                  ? formatScanStatus(root.scanning, root.scanProgress)
+                  : root.status === 'ok'
+                    ? `${root.trackCount} tracks`
+                    : 'Unreachable'}
               </span>
               <div className="flex shrink-0 gap-1.5">
                 <button

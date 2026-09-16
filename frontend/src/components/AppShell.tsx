@@ -287,7 +287,7 @@ export function AppShell() {
         like a rendering fault. Fading the page out behind that strip makes the
         bar read as floating over the content rather than punched through it.
       */}
-      <header className="sticky top-0 z-30 bg-gradient-to-b from-blue-950 via-blue-950/90 to-transparent px-3 pb-4 pt-3 sm:px-4">
+      <header className="sticky top-0 z-30 select-none bg-gradient-to-b from-blue-950 via-blue-950/90 to-transparent px-3 pb-4 pt-3 sm:px-4">
         <div className="shell-bar page-shell relative flex items-center gap-3 rounded-xl border border-blue-700 bg-blue-950/92 px-3 backdrop-blur-md sm:gap-5 sm:px-5">
           <div className={`flex shrink-0 items-center gap-2.5 ${boot('boot-wordmark')}`}>
             <BrandMark className="h-8 w-8 border-2 border-blue-200" />

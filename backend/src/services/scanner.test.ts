@@ -168,6 +168,27 @@ describe('scanLibrary', async () => {
     assert.ok(s.durationMs >= 0);
   });
 
+  it(
+    'reports progress once per file, ending at the total',
+    { skip: !ffmpegAvailable },
+    async () => {
+      const calls: Array<[number, number]> = [];
+      const summary = await scanLibrary(library, TEST_ROOT_ID, (processed, total) => {
+        calls.push([processed, total]);
+      });
+
+      assert.equal(calls.length, summary.filesFound);
+      // `total` is known up front (the directory walk finishes before the
+      // file loop starts) and never changes mid-scan.
+      assert.ok(calls.every(([, total]) => total === summary.filesFound));
+      // Files run concurrently, so call order isn't file order — but the
+      // shared counter they increment still has to land on every value from
+      // 1 to the total, once each, by the time the scan resolves.
+      const processedValues = calls.map(([processed]) => processed).sort((a, b) => a - b);
+      assert.deepEqual(processedValues, Array.from({ length: summary.filesFound }, (_, i) => i + 1));
+    },
+  );
+
   it('handles an empty directory without failing', async () => {
     const empty = await makeTempDir('scan-empty');
     try {

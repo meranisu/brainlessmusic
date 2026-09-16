@@ -54,6 +54,11 @@ interface ArcadeSelectProps {
   isLoadingMore?: boolean;
   /** Called when the selection nears the end of what has been loaded. */
   onNearEnd?: () => void;
+  /** A library scan in progress, already formatted (`"Scanning… 43/210"`) —
+   *  the page decides whether one exists and how to word it (admin-only,
+   *  aggregated across roots); the strip just has somewhere to put it.
+   *  Empty/omitted shows nothing. */
+  scanStatus?: string;
 }
 
 /**
@@ -75,6 +80,7 @@ export function ArcadeSelect({
   onPlay,
   isLoadingMore = false,
   onNearEnd,
+  scanStatus,
 }: ArcadeSelectProps) {
   const stripRef = useRef<HTMLDivElement>(null);
   const [stripHeight, setStripHeight] = useState(0);
@@ -523,9 +529,15 @@ export function ArcadeSelect({
           </div>
 
           {/* The strip's own status line, inside the same bordered panel
-              rather than floating below it — one theme instead of two. */}
+              rather than floating below it — one theme instead of two. A
+              scan running alongside the count it's building toward, not a
+              second line — the strip has one status line, not a growing
+              stack of them. */}
           <p className="arcade-strip-footer">
-            {tracks.length > 0 ? `${selected + 1} of ${tracks.length} loaded` : ''}
+            {scanStatus && <span className="arcade-strip-footer-scan">{scanStatus}</span>}
+            <span className="arcade-strip-footer-count">
+              {tracks.length > 0 ? `${selected + 1} of ${tracks.length} loaded` : ''}
+            </span>
           </p>
         </div>
       </div>

@@ -29,3 +29,23 @@ export function formatDate(iso: string): string {
   const date = new Date(iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z');
   return Number.isNaN(date.getTime()) ? iso : date.toLocaleDateString();
 }
+
+/**
+ * One line of text for a root's scan state — shared by the Options page's
+ * per-folder row and the arcade strip's footer, so a scan reads the same way
+ * in both places instead of two screens independently guessing at wording.
+ *
+ * `total` is only known once the initial directory walk finishes, which is
+ * why this isn't just `${processed}/${total}` unconditionally — a scan can
+ * sit in "Scanning…" alone for a while first, on a large or slow-to-list
+ * folder, before any number exists to show.
+ */
+export function formatScanStatus(scanning: boolean, progress: { processed: number; total: number } | null): string {
+  if (!scanning) return '';
+  if (!progress) return 'Scanning…';
+  // `total` is 0 only for a root with no audio files at all, mid-scan — the
+  // file loop this progress comes from never runs a single iteration for
+  // it, so there's nothing to divide by yet.
+  const percent = progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0;
+  return `Scanning… ${progress.processed}/${progress.total} (${percent}%)`;
+}
