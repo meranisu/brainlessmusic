@@ -114,7 +114,10 @@ _Last updated: 2026-09-14 (music-select-and-themes is fully shipped: themed, key
 - **Backend:** custom Node.js/TypeScript build (Fastify) — Navidrome (fork or otherwise) is **not** being used. See `.docs/history/backend-decision-history.md`.
 - **Database:** SQLite, own schema, FTS5 + WAL mode.
 - **Auth:** JWT + bcrypt (backend) — implemented, see above; bearer token stored via encrypted DataStore (Android, not yet built).
-- **Deployment target:** Docker, on the existing home server hardware.
+- **Deployment target:** Docker, on a friend's Arch Linux gaming PC (not the
+  originally planned home server build), reached via a Cloudflare Tunnel +
+  Access gate at `nobrainmusic.my` — no port-forwarding, CGNAT-proof. See
+  A20/A21 in `QUESTIONS.md` and `.docs/ops/cloudflare-tunnel-deployment.md`.
 - **Local dev environment:** WSL2 for backend, native Windows/Android Studio for the Android app.
 - **Entry model (decided 2026-09-11, not yet built):** passwordless **guest entry** replaces the login form — an arcade-style title screen with one "click here to enter" button mints a randomised session token and a `kind = 'guest'` row. One identity per device, never a shared house account; a handoff link/QR moves an identity to a second device so cross-device resume survives. The password login stays for the owner at an unadvertised `/login`, because upload / scan / user management must not be reachable by whoever pressed the button. Plan: `.docs/features/guest-access-and-title-screen/planning.md`; reasoning: A13–A16 in `QUESTIONS.md`.
 - **Web frontend scope:** full parity with — actually beyond — the Android app in *management* capability (Android stays the listening client; web is the control room). React + TypeScript + Vite + Tailwind + TanStack Query. Admin-role model (`is_admin`, CLI-bootstrapped) gates delete/hide/not-recommended/upload; browsing, preview playback, and the health dashboard stay open to any signed-in user. Full 4-phase plan (Plan/Structure/Interior/Walkthrough) done, see `.docs/features/library-management-interface/planning.md` — build not started.
@@ -125,13 +128,15 @@ _Last updated: 2026-09-14 (music-select-and-themes is fully shipped: themed, key
 entries kept with their decision. It is the source of truth; this section is a
 pointer so there is only ever one place to look.
 
-Blocking right now: **Q1** (CGNAT status — blocks roadmap box 13, which blocks
-the rest of v0.2). **Q2** is half-answered as of 2026-09-11: the flag itself is
+Blocking right now: **Q2** — half-answered as of 2026-09-11: the flag itself is
 being closed as part of guest access ([A16](QUESTIONS.md)), but the exposure it
 stood in for got *wider*, not narrower — passwordless entry means reaching the
-server is permission to listen, so Q2 stays open until box 13's gate exists.
+server is permission to listen, so Q2 stays open until box 13's network-edge
+gate exists and is running (in progress: `.docs/ops/cloudflare-tunnel-deployment.md`).
 **A13–A16** (2026-09-11) settle guest access: one identity per device, `/login`
 kept but unadvertised, `ENTRY_CODE` shipped unset, `/signup` deleted.
+**A20/A21** (2026-09-16) settle deployment target and networking: Arch Linux on
+a friend's PC, Cloudflare Tunnel + Access — CGNAT is no longer a blocker.
 
 ## Next steps
 

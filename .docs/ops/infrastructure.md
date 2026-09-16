@@ -2,6 +2,12 @@
 
 ## Server hardware
 
+**Superseded 2026-09-16 ([A20](../QUESTIONS.md#a20--which-os-for-the-server-was-q3)):**
+deployment moved to a friend's existing Arch Linux gaming PC, staying on
+24/7, rather than a dedicated build. The spec below described the
+originally-planned home server hardware and no longer reflects the current
+plan; the friend's machine's actual specs aren't documented yet.
+
 - **CPU:** Ryzen 7 5700x (8c/16t) — far more than enough for audio transcoding
 - **RAM:** 24GB DDR4 — plenty of headroom
 - **Storage:** 500GB SATA SSD — likely the real constraint long-term. FLAC libraries grow fast (~20-40MB/track); plan for a larger drive (HDD for library + SSD for OS/DB/transcode scratch) before the library grows significantly
@@ -9,7 +15,8 @@
 
 ## Operating system
 
-- Leaning **Arch-based Linux distro** — not finalized, may change depending on server requirements
+**Decided 2026-09-16:** **Arch Linux**, on a friend's gaming PC. See
+[A20](../QUESTIONS.md#a20--which-os-for-the-server-was-q3).
 
 ## Deployment: Docker vs. native package
 
@@ -26,14 +33,20 @@
 - **Data cap is not a concern** at current usage estimates (well under 1000GB/month even with regular use)
 - **Seeking/scrubbing**: supported via HTTP byte-range requests; mobile-network latency may add a small delay vs. fibre but shouldn't meaningfully affect audio playback
 
-### CGNAT — open item
+### CGNAT — resolved, moot
 
-Needs to be checked on-site: whether the router is behind **CGNAT** (check WAN IP in router admin panel; `100.64.0.0–100.127.255.255` range = CGNAT). Common on SIM-based mobile routers, and would make traditional port forwarding impossible.
+**Resolved 2026-09-16 ([A21](../QUESTIONS.md#a21--is-the-home-network-behind-cgnat-was-q1)):**
+decided on a **Cloudflare Tunnel** (outbound-only `cloudflared`) instead of
+port forwarding, which needs no inbound port at all — so whether the network
+is behind CGNAT never needed checking. Domain `nobrainmusic.my` is on
+Cloudflare DNS; a Cloudflare Access application gates the tunnel's public
+hostname behind an email-allowlist login as defense-in-depth. Full
+walkthrough: `.docs/ops/cloudflare-tunnel-deployment.md`.
 
-- **If behind CGNAT:** use **Tailscale** (mesh VPN) or **Cloudflare Tunnel** (outbound-only tunnel) instead of port forwarding
-- **If not behind CGNAT:** traditional port forwarding + reverse proxy/TLS becomes viable, though VPN/mesh may still be preferable for a small friend group (lower ops/security burden vs. exposing a port publicly)
-
-**Status: not yet checked.**
+Note this also changes the network this section originally assumed above —
+the app is deploying on a friend's Arch Linux PC, not the U Mobile 5G Home
+WiFi connection described below, which may still be relevant if that
+changes again.
 
 ## Library
 

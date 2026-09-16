@@ -28,9 +28,7 @@ is never asked twice.
 
 | ID | Question | Asked | Blocking |
 |---|---|---|---|
-| [Q1](#q1--is-the-home-network-behind-cgnat) | Is the home network behind CGNAT? | 2026-09-09 | **Yes** — box 13, and all of v0.2 behind it |
 | [Q2](#q2--when-does-open-registration-get-turned-off) | When does open registration get turned off? | 2026-09-09 | Yes, at box 13's done-when |
-| [Q3](#q3--which-os-for-the-server) | Which OS for the server? | 2026-09-09 | No |
 | [Q4](#q4--room-sync-design-details) | Room-sync design details | 2026-09-09 | Not yet — v0.3 |
 | [Q5](#q5--tag-editing-scope) | Tag-editing scope | 2026-09-09 | No |
 | [Q10](#q10--gapless-playback) | Gapless playback | 2026-09-10 | No |
@@ -38,18 +36,6 @@ is never asked twice.
 | [Q19](#q19--what-does-a-theme-control) | What does a theme control? | 2026-09-11 | Yes, at phase 2 |
 | [Q20](#q20--where-does-the-theme-choice-live) | Where does the theme choice live? | 2026-09-11 | No — assumption stated |
 | [Q23](#q23--should-selecting-a-track-preview-it) | Should selecting a track preview it? | 2026-09-11 | No — assumption stated |
-
-### Q1 — Is the home network behind CGNAT?
-**Asked:** 2026-09-09 · **Blocking:** yes · **Owner action, not a code question**
-
-Roadmap box 13 (reach the server from outside the LAN) can't be designed until
-this is known — behind CGNAT, port-forwarding is off the table and it becomes a
-tunnel/relay problem instead. Box 13 blocks the rest of v0.2. Details in
-`.docs/ops/infrastructure.md`.
-
-**What I need:** whether the WAN IP the router reports matches the public IP a
-site like `ifconfig.me` reports. Same → not CGNAT. Different (and the router's
-is `100.64.x.x`–`100.127.x.x`) → CGNAT.
 
 ### Q2 — When does open registration get turned off?
 **Asked:** 2026-09-09 · **Blocking:** yes, at box 13's done-when
@@ -68,17 +54,6 @@ reaches the server can now press a button and listen without minting an account
 at all, so the exposure Q2 was standing in for moves to
 [A15](#a15--the-entry-code-hook-ships-now-unset) and to box 13's gate. This
 entry stays open until that gate exists and is running.
-
-### Q3 — Which OS for the server?
-**Asked:** 2026-09-09 · **Blocking:** no
-
-Arch-based is leaning but not locked in. Only matters when the deploy is real;
-Docker keeps the app itself indifferent.
-
-**Deliberately deferred 2026-09-10**, when it was put and answered "leave it
-open". Deciding it now would only be a guess written down as a decision. Kept
-open rather than answered because it does have to be settled eventually — ask
-again when box 13 turns into a real deploy, not before.
 
 ### Q4 — Room-sync design details
 **Asked:** 2026-09-09 · **Blocking:** not yet — v0.3 work
@@ -270,6 +245,34 @@ distinct future feature, not a corner cut silently.
 ---
 
 ## Answered
+
+### A20 — Which OS for the server? *(was Q3)*
+**Answered:** 2026-09-16 · **Arch Linux**, running on a friend's existing
+gaming PC — not the dedicated home-server build `.docs/ops/infrastructure.md`
+originally described.
+
+The whole deployment target changed, not just the OS: instead of building out
+the planned home server hardware, the app deploys on a friend's already-running
+Arch Linux box, staying on 24/7, reached over the internet via a Cloudflare
+Tunnel ([A21](#a21--is-the-home-network-behind-cgnat-was-q1)). Docker still
+isolates the app from the OS choice as designed — this only changes where
+`docker compose up -d` runs, not the app itself. Full walkthrough:
+`.docs/ops/cloudflare-tunnel-deployment.md`. The server-hardware section of
+`.docs/ops/infrastructure.md` now describes a build that isn't the current
+plan; the friend's machine's actual specs aren't documented yet.
+
+### A21 — Is the home network behind CGNAT? *(was Q1)*
+**Answered:** 2026-09-16 · **Doesn't matter — the question is moot.** Decided
+on a **Cloudflare Tunnel** (outbound-only `cloudflared` connection to
+Cloudflare's edge) instead of port-forwarding. A tunnel needs no inbound port
+at all, so it works identically whether or not the network is behind CGNAT —
+box 13 no longer needs this fact to move forward.
+
+Domain (`nobrainmusic.my`) is already on Cloudflare DNS (confirmed Active,
+free plan). Paired with a **Cloudflare Access** application in front of the
+tunnel's public hostname (email-allowlist login gate) as defense-in-depth,
+since this app's own auth was designed for a LAN and is now permanently
+internet-facing. Full walkthrough: `.docs/ops/cloudflare-tunnel-deployment.md`.
 
 ### A17 — The top bar overflows, and floats *(was Q18)*
 **Answered:** 2026-09-11 · **Overflow menu.** Owner's choice, over a scrolling

@@ -11,7 +11,7 @@ Home-made, self-hosted music streaming server — built from scratch as a learni
 | Database | SQLite (WAL mode) |
 | Frontend | React + TypeScript · Vite · Tailwind · TanStack Query |
 | Mobile | Kotlin + Jetpack Compose (not yet started) |
-| Deployment | Docker (server only, not local dev) |
+| Deployment | Docker (server only, not local dev) · Cloudflare Tunnel + Access for reaching it off the LAN, see below |
 
 Full resolved stack + reasoning: [.docs/reference/tech-stack.md](.docs/reference/tech-stack.md). Why a custom backend instead of Navidrome: [.docs/history/backend-decision-history.md](.docs/history/backend-decision-history.md).
 
@@ -249,6 +249,14 @@ One container, `brainless-app`: Fastify serves the built web app from its own or
 
 The image is Debian-based rather than Alpine on purpose: `better-sqlite3` and `bcrypt` ship prebuilt binaries for glibc, and on musl they'd be compiled from source at install time.
 
+## Reaching it from outside the LAN
+
+Everything above gets it running on your own network. To reach it from anywhere — a phone on mobile data, a laptop elsewhere — without opening a port on the router or worrying about CGNAT: a **Cloudflare Tunnel** (outbound-only connection to Cloudflare's edge, free TLS) plus a **Cloudflare Access** login gate in front of the tunnel's hostname, since the app's own auth (guest entry + JWT) is designed for a LAN, not the open internet.
+
+Full walkthrough — Docker on a dedicated Linux box, the tunnel, the Access gate, and the `docker-compose.yml` service to run `cloudflared` alongside the app: [.docs/ops/cloudflare-tunnel-deployment.md](.docs/ops/cloudflare-tunnel-deployment.md).
+
+Decision record (why a tunnel over port-forwarding, and the OS/hosting change): [A20 and A21 in .docs/QUESTIONS.md](.docs/QUESTIONS.md#answered).
+
 ## API overview
 
 **All API routes live under `/api`** — `/api/tracks`, `/api/auth/login`, and so on. The prefix isn't decoration: the web app has its own `/albums`, `/artists`, `/playlists`, `/search` and `/health` routes, so without it the API answers first and a browser navigating to `/albums` gets JSON instead of the page.
@@ -285,6 +293,7 @@ Predate the React frontend. These standalone HTML files (repo root, no build ste
 Start at [.docs/STATUS.md](.docs/STATUS.md) for current project state and next steps. See [.docs/CLAUDE.md](.docs/CLAUDE.md) for the full docs folder map, conventions, and workflow.
 
 - **[.docs/process/development-roadmap.md](.docs/process/development-roadmap.md) — what to build next: ordered checklist, grouped into three releases**
+- [.docs/ops/cloudflare-tunnel-deployment.md](.docs/ops/cloudflare-tunnel-deployment.md) — deploying on a dedicated Linux box and reaching it from outside the LAN via Cloudflare Tunnel + Access
 - [.docs/reference/capability-map.md](.docs/reference/capability-map.md) — every capability, per-layer status
 - [.docs/CHANGELOG.md](.docs/CHANGELOG.md) — dated log of every backend/frontend change
 - [.docs/FUNCTIONLOG.md](.docs/FUNCTIONLOG.md) — per-function log of what was added/changed and why
@@ -300,6 +309,7 @@ Working toward **v0.1 — "it works for me"**: a full evening of listening in th
 - **Backend** — auth, library scan, streaming (byte-range + transcoding + media tokens), FTS5 search, browsing, playlists, play tracking, upload, favorites, smart shuffle, cover art, waveform peaks, and scheduled verified backups are built and tested (139 tests). Missing: tag write-back to files, dedupe/"Various Artists" handling.
 - **Frontend** — a real player with a queue, seeking, transport, shuffle, repeat and keyboard control, plus album/artist browsing, playlists, favorites, search, upload, user management and a health dashboard. On a phone the bar opens a full-screen Now Playing view with a waveform scrubber. Missing: gapless, listening history and top-tracks pages.
 - **Android** — not started.
+- **Ops (roadmap box 13, "reach it from outside")** — hosting/networking decided: Arch Linux on a friend's PC, Cloudflare Tunnel + Access, no port-forwarding. In progress; see [.docs/ops/cloudflare-tunnel-deployment.md](.docs/ops/cloudflare-tunnel-deployment.md).
 
 See [.docs/STATUS.md](.docs/STATUS.md) for detail, [.docs/reference/capability-map.md](.docs/reference/capability-map.md) for per-layer status, and [.docs/process/development-roadmap.md](.docs/process/development-roadmap.md) for what's next.
 
