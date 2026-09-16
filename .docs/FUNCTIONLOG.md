@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `setVolume()` / `toggleMute()` — `frontend/src/components/PlayerBar.tsx`
+**Date:** 2026-09-16
+**How added:** new feature
+**Purpose:** `setVolume(n)` clamps to 0-1, updates state, persists to `localStorage`, and applies directly to `audioRef.current.volume` in the same call (not through a reactive effect — a dragged slider fires many times a second). `toggleMute()` sets volume to 0 and remembers the pre-mute level in a ref for the next toggle to restore.
+**Side effects:** `localStorage` write (`brainlessmusic.volume`); mutates the live `<audio>` element's `volume` property.
+**Before:** nothing — no volume control existed anywhere in the app; only the OS/browser mixer.
+**After:** a mute button + slider on the desktop player bar, wired through `PlayerContextValue.volume`/`setVolume`/`toggleMute`. Verified with a scripted pass (drag the slider, mute, unmute, checking the persisted value at each step).
+
 **Function:** `PlayerProvider()` — `frontend/src/components/PlayerBar.tsx`
 **Date:** 2026-09-16
 **How added:** bug fix

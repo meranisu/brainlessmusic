@@ -4,6 +4,30 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-16 — Volume control on the desktop player bar
+
+No way to change playback volume from the app at all before this — only the
+OS/browser's own mixer. Added a mute button and a slider (0-1, `accent-orange-600`
+to match the seek bar) to the desktop bar, between Data saver and Close.
+
+`PlayerContextValue` gained `volume` and two setters: `setVolume(n)` applies
+directly to the `<audio>` element and persists to `localStorage`
+(`brainlessmusic.volume`, mirroring `dataSaver`'s own storage pattern) on
+every change — a slider mid-drag fires many times a second, so this doesn't
+wait on a render round trip. `toggleMute()` sets volume to 0 and remembers
+the level it was at (a ref, not state — read once, on the next toggle) so
+unmuting restores exactly that instead of jumping to 100%. New tab, new
+session: loads whatever was saved, defaulting to full volume the first time,
+same as every other player's default.
+
+Not added to the phone mini-strip or the `NowPlaying` sheet — matches the
+existing precedent that Shuffle/Repeat/Data saver are desktop-bar-only too,
+and a phone already has its own hardware volume buttons.
+
+Verified with a scripted pass: drag the slider, confirm the persisted value
+updates; mute, confirm it reads 0; unmute, confirm it restores the exact
+pre-mute level rather than jumping to a fixed default.
+
 ## 2026-09-16 — Player bar no longer shows through the title/account-select screens
 
 `PlayerProvider` wraps the whole router, not just `AppShell`, so playback

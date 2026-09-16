@@ -100,6 +100,27 @@ export function DataSaverIcon({ className = 'h-4 w-4' }: IconProps) {
   );
 }
 
+export function VolumeIcon({ className = 'h-4 w-4' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 10v4h4l5 4V6L8 10Z" />
+      <path d="M17 8.5a5 5 0 0 1 0 7" />
+      <path d="M19.5 6a8.5 8.5 0 0 1 0 12" />
+    </svg>
+  );
+}
+
+/** Same speaker, no waves, a line struck through — muted rather than merely
+ *  quiet, which the plain speaker with a fainter wave would have implied. */
+export function VolumeMutedIcon({ className = 'h-4 w-4' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 10v4h4l5 4V6L8 10Z" />
+      <path d="m16.5 9.5 5 5m0-5-5 5" />
+    </svg>
+  );
+}
+
 export function CloseIcon({ className = 'h-4 w-4' }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">

@@ -21,7 +21,7 @@ import {
 } from '../lib/streamQuality';
 import { CoverArt } from './CoverArt';
 import { FavoriteButton, useFavoriteIds } from './FavoriteButton';
-import { PauseIcon, PlayIcon, SkipBackIcon, SkipForwardIcon } from './icons';
+import { PauseIcon, PlayIcon, SkipBackIcon, SkipForwardIcon, VolumeIcon, VolumeMutedIcon } from './icons';
 import { NowPlaying } from './NowPlaying';
 import type { PlaybackState, TrackSummary } from '../types/api';
 import { useToast } from './ToastProvider';
@@ -100,6 +100,32 @@ function scrobbleThresholdMs(durationSeconds: number): number {
   return Math.min(durationSeconds / 2, SCROBBLE_CAP_SECONDS) * 1000;
 }
 
+const VOLUME_STORAGE_KEY = 'brainlessmusic.volume';
+
+/** Loud by default (1) rather than guessing at a "safe" lower number — a
+ *  fresh browser profile has never told us anything about what this person
+ *  considers too loud, and full volume is what every other player defaults
+ *  to as well. */
+function loadVolumePreference(): number {
+  try {
+    const raw = localStorage.getItem(VOLUME_STORAGE_KEY);
+    if (raw === null) return 1;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? Math.min(Math.max(parsed, 0), 1) : 1;
+  } catch {
+    return 1;
+  }
+}
+
+function saveVolumePreference(volume: number): void {
+  try {
+    localStorage.setItem(VOLUME_STORAGE_KEY, String(volume));
+  } catch {
+    // Same trade-off as `saveDataSaverPreference`: applies for this session,
+    // just won't survive a reload. Not worth interrupting playback over.
+  }
+}
+
 export interface PlayerContextValue {
   queue: QueueTrack[];
   index: number;
@@ -115,6 +141,9 @@ export interface PlayerContextValue {
   repeat: RepeatMode;
   isShuffled: boolean;
   dataSaver: boolean;
+  /** 0 to 1. Muting sets this to 0 rather than tracking a separate flag —
+   *  one number is the whole state, and "muted" is just `volume === 0`. */
+  volume: number;
   /** What the server actually sent, e.g. `OPUS · 64k`. Null until probed. */
   servedLabel: string | null;
   playQueue: (tracks: QueueTrack[], startIndex: number) => void;
@@ -127,6 +156,8 @@ export interface PlayerContextValue {
   cycleRepeat: () => void;
   toggleShuffle: () => void;
   setDataSaver: (enabled: boolean) => void;
+  setVolume: (volume: number) => void;
+  toggleMute: () => void;
   stop: () => void;
 }
 
@@ -149,6 +180,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [repeat, setRepeat] = useState<RepeatMode>('off');
   const [isShuffled, setIsShuffled] = useState(false);
   const [dataSaver, setDataSaverState] = useState(loadDataSaverPreference);
+  const [volume, setVolumeState] = useState(loadVolumePreference);
+  // What to restore to on unmute — the volume the moment *before* it was
+  // last set to 0, not a fixed number. A ref because it's read once, on the
+  // next toggle, never during render.
+  const preMuteVolumeRef = useRef(volume || 1);
   const [served, setServed] = useState<ServedStream | null>(null);
   const [isScrubbing, setIsScrubbing] = useState(false);
   // True while playback has stalled mid-track (a `waiting` event) rather than
@@ -230,6 +266,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const audio = new Audio();
+    // Read fresh rather than closing over the `volume` state — this effect
+    // only ever runs once, at mount, so it must not appear to depend on a
+    // value that can change afterward.
+    audio.volume = loadVolumePreference();
     audioRef.current = audio;
 
     const onTime = () => {
@@ -542,6 +582,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     } finally {
       if (token === swapRef.current.token) setIsLoading(false);
     }
+  }
+
+  /** Applied to the element immediately rather than through the effect
+   *  below — a slider mid-drag fires this many times a second, and there's
+   *  no reason to wait a render round trip to actually change the level. */
+  function setVolume(next: number) {
+    const clamped = Math.min(Math.max(next, 0), 1);
+    setVolumeState(clamped);
+    saveVolumePreference(clamped);
+    if (audioRef.current) audioRef.current.volume = clamped;
+    if (clamped > 0) preMuteVolumeRef.current = clamped;
+  }
+
+  function toggleMute() {
+    setVolume(volume > 0 ? 0 : preMuteVolumeRef.current);
   }
 
   function playQueue(tracks: QueueTrack[], startIndex: number) {
@@ -975,6 +1030,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     repeat,
     isShuffled,
     dataSaver,
+    volume,
     servedLabel,
     playQueue,
     playTrack,
@@ -986,6 +1042,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     cycleRepeat,
     toggleShuffle,
     setDataSaver,
+    setVolume,
+    toggleMute,
     stop: stopAndForget,
   };
 
@@ -1154,6 +1212,27 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               >
                 Data saver
               </button>
+              <div className="ml-1 flex items-center gap-1.5">
+                <button
+                  onClick={toggleMute}
+                  className="btn-ghost btn-sm px-1.5!"
+                  aria-label={volume === 0 ? 'Unmute' : 'Mute'}
+                  aria-pressed={volume === 0}
+                  title={volume === 0 ? 'Unmute' : 'Mute'}
+                >
+                  {volume === 0 ? <VolumeMutedIcon className="h-4 w-4" /> : <VolumeIcon className="h-4 w-4" />}
+                </button>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={volume}
+                  onChange={(e) => setVolume(Number(e.target.value))}
+                  className="h-1 w-20 cursor-pointer accent-orange-600"
+                  aria-label="Volume"
+                />
+              </div>
               <button onClick={stopAndForget} className="btn-ghost btn-sm" aria-label="Close player">
                 ✕
               </button>
