@@ -4,7 +4,31 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
-## 2026-09-16 — Reject a root with no music, and stop a whole-drive scan from crashing on a locked folder
+## 2026-09-16 — Stop the arcade select screen from growing past the viewport
+
+The Library page's music-select screen (`ArcadeSelect`) could push the whole
+document taller than the browser window: `.arcade-select` was a CSS grid with
+an auto-sized row, so the "now playing" detail panel's natural content
+height (cover art, title, facts, button) — not the capped strip — decided
+the row's height whenever it was taller than the strip's own hardcoded
+`min(34rem, calc(100svh - 19rem))`. That produced a real page scrollbar and,
+on a short window, let the detail panel's lower rows sit behind the fixed
+player bar.
+
+Rewrote the block as flexbox with one definite, `overflow: hidden` height
+(`min(44rem, calc(100svh - 14.5rem))` on `.arcade-select`) instead of an
+auto-sized row: the strip now takes `flex: 1 1 0%` of whatever's left after
+the detail panel, and the detail panel itself scrolls internally
+(`overflow-y: auto`) if its own content doesn't fit, so neither one can ever
+be the thing that makes the *page* scroll. Also added `user-select: none` to
+the strip — dragging the rail with a mouse was highlighting the row text
+underneath the pointer instead of just moving the list.
+
+Verified with a scripted Playwright pass (mocked API, no real backend
+needed) across six viewport sizes from a 500px-tall desktop window to a
+390×800 phone: no document-level scrollbar at any of them, no player-bar
+overlap, no text selected after a drag, and the strip visibly taller than
+before on normal-height windows.
 
 `POST /library/roots` accepted any readable directory, music or not — a
 folder with zero audio files still registered successfully and just sat

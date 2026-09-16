@@ -307,7 +307,7 @@ export function ArcadeSelect({
   const offset = stripHeight / 2 - ROW_HEIGHT / 2 - selected * ROW_HEIGHT + dragDeltaPx;
 
   return (
-    <div className="arcade-select grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
+    <div className="arcade-select">
       {/* ── The chosen one, written large ─────────────────────────────── */}
       <div className="arcade-detail order-2 min-w-0 lg:order-1">
         {current ? (
@@ -351,7 +351,7 @@ export function ArcadeSelect({
       </div>
 
       {/* ── The strip ─────────────────────────────────────────────────── */}
-      <div className="order-1 lg:order-2">
+      <div className="arcade-rail-col order-1 lg:order-2">
         <div
           ref={stripRef}
           className="arcade-strip"

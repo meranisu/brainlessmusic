@@ -835,15 +835,88 @@
 }
 
 /* ── The music select ─────────────────────────────────────────────────────
-   List on the right, the chosen one written large on the left. */
+   List on the right, the chosen one written large on the left.
+
+   The whole block is capped to one definite height — `svh` rather than `vh`
+   so a phone's collapsing address bar does not leave the bottom rows under
+   the player — and everything below that cap divides it up with flexbox
+   instead of sizing itself from content. That is the one rule that keeps the
+   *document* from ever growing past the viewport: no descendant here is
+   allowed a content-driven height, so none of them can push this block, and
+   therefore the page, taller than the room actually available. Anything that
+   doesn't fit (a long "now playing" panel, a huge list) scrolls inside its
+   own box instead. The 14.5rem subtracted is the header, the page's own
+   vertical padding and the player bar's reserved strip — all fixed by
+   Tailwind classes elsewhere, not measured, so it has to stay in step with
+   them by hand. */
+.arcade-select {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  height: min(44rem, calc(100svh - 14.5rem));
+  overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+  .arcade-select {
+    flex-direction: row;
+    align-items: stretch;
+  }
+}
+
+/* Grows to fill whatever the detail panel (mobile) or the row (desktop)
+   leaves it — `min-height: 0` is required for a flex item to shrink below
+   its content size at all, which is what lets this actually respect the
+   cap above instead of forcing the column past it. */
+.arcade-rail-col {
+  display: flex;
+  flex: 1 1 0%;
+  flex-direction: column;
+  min-height: 0;
+}
+
+@media (min-width: 1024px) {
+  .arcade-rail-col {
+    /* Fixed width on desktop, matching the old grid track — shrinks before it
+       would force the row wider than the viewport, never grows past it. */
+    flex: 0 1 26rem;
+  }
+}
+
+.arcade-detail {
+  min-height: 0;
+  /* The one part of this layout whose content genuinely varies (title length,
+     how many facts there are) — rather than trying to bound it exactly, it
+     gets to scroll on its own so a long one can never be the thing that makes
+     the page scroll. */
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-blue-700) transparent;
+}
+
+@media (max-width: 1023.98px) {
+  .arcade-detail {
+    /* Stacked below the strip on a phone — capped so a long detail panel
+       can't crowd the strip down to nothing before either even gets the
+       chance to shrink. */
+    flex: 0 1 40%;
+  }
+}
+
+@media (min-width: 1024px) {
+  .arcade-detail {
+    flex: 1 1 0%;
+  }
+}
 
 .arcade-strip {
   position: relative;
-  /* Tall enough that the list reads as continuous rather than as a short box
-     with a few rows in it, and bounded so the page itself never scrolls — the
-     strip is the thing that moves. `svh` rather than `vh` so a phone's
-     collapsing address bar does not leave the bottom rows under the player. */
-  height: min(34rem, calc(100svh - 19rem));
+  /* No height of its own — `flex: 1 1 0%` takes exactly what `.arcade-rail-col`
+     has left after its meta line, which is what makes this "a bit longer"
+     wherever the viewport has the room and shorter where it doesn't, instead
+     of a number picked once and wrong for most screens. */
+  flex: 1 1 0%;
+  min-height: 0;
   overflow: hidden;
   border-radius: 0.75rem;
   border: 1px solid var(--color-blue-800);
@@ -853,6 +926,12 @@
      scroll handling instead of reaching the pointer handlers cleanly. */
   touch-action: none;
   cursor: grab;
+  /* Dragging the rail is a press-and-move on the same text-bearing rows the
+     strip renders, so without this every drag starts by highlighting a title
+     instead of moving the list. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .arcade-strip:active {
