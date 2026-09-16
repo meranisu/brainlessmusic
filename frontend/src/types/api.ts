@@ -25,6 +25,9 @@ export interface TrackSummary {
   notRecommended: boolean;
   /** The file is gone from disk — nothing can play this until it comes back. */
   missing: boolean;
+  /** Failed to stream last time it was tried — might well play fine now; see
+   *  `TrackDetail.lastStreamError` for the message behind this flag. */
+  hasStreamError: boolean;
   playCount: number;
   dateAdded: string;
 }

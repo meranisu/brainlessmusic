@@ -498,7 +498,12 @@ export function ArcadeSelect({
                   style={{ height: ROW_HEIGHT }}
                   className={`arcade-row ${i === selected ? 'is-selected' : ''} ${
                     track.missing ? 'is-missing' : ''
-                  }`}
+                  } ${track.hasStreamError ? 'has-stream-error' : ''}`}
+                  title={
+                    track.hasStreamError && !track.missing
+                      ? 'Failed to play last time — might work now'
+                      : undefined
+                  }
                 >
                   <span className="arcade-row-title">{track.title}</span>
                   <span className="arcade-row-meta">

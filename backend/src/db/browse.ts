@@ -49,6 +49,9 @@ export interface TrackSummary {
   notRecommended: boolean;
   /** The file is gone from disk. Nothing can play it until it comes back. */
   missing: boolean;
+  /** Failed to stream last time it was tried — might well play fine now; see
+   *  `TrackDetail.lastStreamError` for the message behind this flag. */
+  hasStreamError: boolean;
   playCount: number;
   dateAdded: string;
 }
@@ -123,6 +126,7 @@ const TRACK_SUMMARY_SELECT = `
     t.hidden as hidden,
     t.not_recommended as notRecommended,
     (t.missing_since IS NOT NULL) as missing,
+    (t.last_stream_error IS NOT NULL) as hasStreamError,
     t.play_count as playCount,
     t.date_added as dateAdded
   FROM tracks t
@@ -130,10 +134,12 @@ const TRACK_SUMMARY_SELECT = `
   LEFT JOIN albums al ON al.id = t.album_id
 `;
 
-interface RawTrackSummary extends Omit<TrackSummary, 'hidden' | 'notRecommended' | 'missing'> {
+interface RawTrackSummary
+  extends Omit<TrackSummary, 'hidden' | 'notRecommended' | 'missing' | 'hasStreamError'> {
   hidden: number;
   notRecommended: number;
   missing: number;
+  hasStreamError: number;
 }
 
 function toTrackSummary(row: RawTrackSummary): TrackSummary {
@@ -142,6 +148,7 @@ function toTrackSummary(row: RawTrackSummary): TrackSummary {
     hidden: Boolean(row.hidden),
     notRecommended: Boolean(row.notRecommended),
     missing: Boolean(row.missing),
+    hasStreamError: Boolean(row.hasStreamError),
   };
 }
 
@@ -347,10 +354,12 @@ export function getTrackSummariesByIds(ids: number[]): TrackSummary[] {
   return rows.map(toTrackSummary);
 }
 
-interface RawTrackDetail extends Omit<TrackDetail, 'hidden' | 'notRecommended' | 'missing'> {
+interface RawTrackDetail
+  extends Omit<TrackDetail, 'hidden' | 'notRecommended' | 'missing' | 'hasStreamError'> {
   hidden: number;
   notRecommended: number;
   missing: number;
+  hasStreamError: number;
 }
 
 export function getTrackDetailById(id: number): TrackDetail | undefined {
@@ -374,7 +383,8 @@ export function getTrackDetailById(id: number): TrackDetail | undefined {
          t.play_count as playCount,
          t.date_added as dateAdded,
          t.last_played_at as lastPlayedAt,
-         t.last_stream_error as lastStreamError
+         t.last_stream_error as lastStreamError,
+         (t.last_stream_error IS NOT NULL) as hasStreamError
        FROM tracks t
        LEFT JOIN artists a ON a.id = t.artist_id
        LEFT JOIN albums al ON al.id = t.album_id
@@ -388,6 +398,7 @@ export function getTrackDetailById(id: number): TrackDetail | undefined {
     hidden: Boolean(row.hidden),
     notRecommended: Boolean(row.notRecommended),
     missing: Boolean(row.missing),
+    hasStreamError: Boolean(row.hasStreamError),
   };
 }
 

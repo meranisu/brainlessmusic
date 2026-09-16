@@ -330,6 +330,11 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
         }
       }
 
+      // Reaching this point means the file (or its transcode) resolved fine —
+      // a flag left over from an earlier, possibly transient failure (a busy
+      // transcoder, a network blip) would otherwise say "broken" forever.
+      if (track.last_stream_error) setLastStreamError(id, null);
+
       // The bytes are a stable representation, so they get validators: a
       // replayed track revalidates into a 304 instead of coming down the wire
       // again. A cache entry's mtime moves when it is touched on read, which

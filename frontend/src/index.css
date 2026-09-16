@@ -1139,6 +1139,14 @@
   opacity: 0.45;
 }
 
+/* Failed to stream last time, not necessarily unplayable now — a lighter
+   touch than `.is-missing`, which is a certainty rather than a past failure. */
+.arcade-row.has-stream-error:not(.is-missing) .arcade-row-title {
+  text-decoration: underline dotted;
+  text-decoration-color: var(--color-orange-500);
+  text-underline-offset: 0.2em;
+}
+
 .arcade-row-title {
   overflow: hidden;
   font-size: 0.95rem;

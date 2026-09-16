@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { apiClient } from '../lib/apiClient';
 import type { TrackDetail } from '../types/api';
 import { CoverArt } from './CoverArt';
@@ -107,6 +108,7 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
     index,
     isPlaying,
     isLoading,
+    isBuffering,
     currentTime,
     duration,
     repeat,
@@ -125,6 +127,13 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
   } = player;
 
   const favoriteIds = useFavoriteIds();
+  // Null except mid-drag. Calling `seek()` on every `input` tick would fire a
+  // new range request for each intermediate position on a streamed track, so
+  // the audio spends the whole drag chasing a moving target instead of landing
+  // where the finger let go. Tracking the drag locally and seeking once on
+  // release fixes that, and also stops `timeupdate`'s real playback position
+  // from fighting the thumb while it's being dragged.
+  const [scrubTime, setScrubTime] = useState<number | null>(null);
 
   // The queue only carries what it needs to play; sample rate and bitrate live
   // on the full record. Same query key the bar invalidates after a scrobble.
@@ -152,7 +161,8 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
   if (!current) return null;
 
   const upNext = queue.slice(index + 1);
-  const progress = duration > 0 ? currentTime / duration : 0;
+  const displayTime = scrubTime ?? currentTime;
+  const progress = duration > 0 ? displayTime / duration : 0;
   const bars = waveform?.peaks?.length ? barsFromPeaks(waveform.peaks) : placeholderHeights(current.id);
 
   const specs = [
@@ -256,8 +266,20 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
           min={0}
           max={duration || 1}
           step={0.1}
-          value={Math.min(currentTime, duration || 1)}
-          onChange={(e) => seek(Number(e.target.value))}
+          value={Math.min(displayTime, duration || 1)}
+          onChange={(e) => setScrubTime(Number(e.target.value))}
+          onMouseUp={(e) => {
+            seek(Number((e.target as HTMLInputElement).value));
+            setScrubTime(null);
+          }}
+          onTouchEnd={(e) => {
+            seek(Number((e.target as HTMLInputElement).value));
+            setScrubTime(null);
+          }}
+          onKeyUp={(e) => {
+            seek(Number((e.target as HTMLInputElement).value));
+            setScrubTime(null);
+          }}
           disabled={!duration}
           className="absolute inset-x-5 top-6 h-14 w-[calc(100%-2.5rem)] cursor-pointer opacity-0"
           aria-label="Seek"
@@ -265,7 +287,8 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
       </div>
 
       <div className="flex justify-between px-5 pt-2 font-mono text-xs tabular-nums text-blue-400">
-        <span>{formatTime(currentTime)}</span>
+        <span>{formatTime(displayTime)}</span>
+        {isBuffering && <span className="animate-pulse">Buffering…</span>}
         <span>{formatTime(duration)}</span>
       </div>
 
