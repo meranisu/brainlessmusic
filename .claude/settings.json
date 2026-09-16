@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(ls)",
+      "Bash(cat frontend/package.json)",
+      "Bash(cat vite.config.ts)",
+      "Bash(cat vite.config.mts)",
+      "Bash(curl -s http://localhost:5180/api/health)",
+      "Bash(curl -s -X POST http://localhost:5180/api/auth/guest -H 'Content-Type: application/json' -d '{}')",
+      "Bash(npx --yes playwright --version)",
+      "Bash(node -e ' *)"
+    ]
+  }
+}
