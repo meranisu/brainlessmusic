@@ -33,9 +33,8 @@ const DRAG_THRESHOLD_PX = 6;
 
 /** Below this, dialling through the whole list by hand is already fast
  *  enough that a letter rail would be one more thing on screen for nothing —
- *  it earns its place once a library is big enough that reaching the far end
- *  a row at a time is a genuine chore. */
-const ALPHABET_INDEX_MIN_TRACKS = 24;
+ *  it earns its place once there's more than a handful of rows to get past. */
+const ALPHABET_INDEX_MIN_TRACKS = 8;
 
 /** How long a run of typed letters counts as one word before it resets —
  *  long enough to type a few characters without pausing, short enough that

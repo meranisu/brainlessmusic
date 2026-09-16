@@ -861,6 +861,10 @@
   .arcade-select {
     flex-direction: row;
     align-items: stretch;
+    /* Wider than the stacked-mobile gap — the detail panel's own scrollbar
+       (see `.arcade-detail` below) sits right at its border on this side,
+       and the tighter gap read as the strip crowding it. */
+    gap: 2rem;
   }
 }
 
@@ -900,6 +904,11 @@
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--color-blue-700) transparent;
+  /* A browser draws the scrollbar at the border edge regardless of padding
+     elsewhere, so this is what keeps it off the text it's scrolling once it
+     actually shows up — not decorative spacing, the one gap that's load
+     bearing here. */
+  padding-right: 0.6rem;
 }
 
 @media (max-width: 1023.98px) {
@@ -933,6 +942,25 @@
   border: 1px solid var(--color-blue-800);
   background-color: color-mix(in oklab, var(--color-blue-900) 55%, transparent);
   overflow: hidden;
+  /* A slow breathing glow rather than a static frame — the same orange the
+     cursor and the launch flash already use, so the panel reads as part of
+     the same live instrument instead of a plain box around it. Slow (10
+     beats, ~4s) and gentle on purpose: this runs continuously behind
+     whatever else is happening in the strip, so it has to be the kind of
+     motion that recedes rather than one that competes for attention. */
+  animation: arcade-strip-glow calc(var(--beat, 0.4s) * 10) ease-in-out infinite;
+}
+
+@keyframes arcade-strip-glow {
+  0%,
+  100% {
+    border-color: var(--color-blue-800);
+    box-shadow: 0 0 0 0 transparent;
+  }
+  50% {
+    border-color: color-mix(in oklab, var(--color-orange-600) 55%, var(--color-blue-800));
+    box-shadow: 0 0 16px 1px color-mix(in oklab, var(--color-orange-600) 28%, transparent);
+  }
 }
 
 .arcade-strip-viewport {
@@ -2241,6 +2269,12 @@
   .arcade-row,
   .arcade-cursor {
     transition: none;
+  }
+
+  .arcade-strip {
+    animation: none;
+    border-color: var(--color-blue-800);
+    box-shadow: none;
   }
 
   .arcade-detail-inner {

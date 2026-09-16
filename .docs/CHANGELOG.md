@@ -29,6 +29,29 @@ off its intended 26rem, and — since this one slipped past every test built
 from short mock titles — directly against the owner's real library after
 the fix, at several window sizes.
 
+## 2026-09-16 — Strip glow, wider detail gap, lower letter-rail threshold
+
+Three small follow-ups from using the arcade screen with a real (small,
+18-track) library:
+
+- **The letter rail never showed.** Its threshold was 24 tracks, picked for
+  a "many songs" library; an actual small personal library doesn't clear
+  that. Lowered to 8 — enough that a 2-3 track queue still doesn't bother
+  with it, low enough that it earns its keep well before a library is
+  "large."
+- **The detail panel's safety-net scrollbar sits right at the border,
+  regardless of padding** (browsers draw it at the border edge, not the
+  padding edge) — real webfonts pushed real content past the box's height
+  often enough that this wasn't the rare case it looked like against
+  fallback fonts in testing. Gave the panel `padding-right` so scrolled text
+  doesn't run under the thumb, and widened the gap between the two panels at
+  desktop width (1.25rem → 2rem) so the scrollbar isn't sitting hard against
+  the strip beside it.
+- **The strip's border now glows** — a slow (10-beat, ~4s) breathing pulse
+  between the resting blue-800 and the app's orange accent, off entirely
+  under `prefers-reduced-motion`. Decorative only; the strip's own
+  interaction logic is untouched.
+
 ## 2026-09-16 — Letter rail for the arcade song strip
 
 An iOS-contacts-style A-Z rail down the strip's right edge (`AlphabetIndex`),
