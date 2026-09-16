@@ -8,6 +8,7 @@ import {
   type PointerEvent,
   type WheelEvent,
 } from 'react';
+import { AlphabetIndex, bucketOf } from './AlphabetIndex';
 import { CoverArt } from './CoverArt';
 import { FavoriteButton } from './FavoriteButton';
 import { PlayIcon } from './icons';
@@ -29,6 +30,12 @@ export const ROW_HEIGHT = 68;
  *  a tap — small enough to feel immediate, large enough that a slightly
  *  unsteady tap still reaches the row's click handler instead of the rail. */
 const DRAG_THRESHOLD_PX = 6;
+
+/** Below this, dialling through the whole list by hand is already fast
+ *  enough that a letter rail would be one more thing on screen for nothing —
+ *  it earns its place once a library is big enough that reaching the far end
+ *  a row at a time is a genuine chore. */
+const ALPHABET_INDEX_MIN_TRACKS = 24;
 
 /** How long a run of typed letters counts as one word before it resets —
  *  long enough to type a few characters without pausing, short enough that
@@ -457,8 +464,18 @@ export function ArcadeSelect({
               {launchToken !== null && <span key={launchToken} className="arcade-launch-flash" />}
             </div>
 
+            {tracks.length >= ALPHABET_INDEX_MIN_TRACKS && (
+              <AlphabetIndex
+                tracks={tracks}
+                currentBucket={current ? bucketOf(current.title) : null}
+                onJump={onSelect}
+              />
+            )}
+
             <div
-              className={`arcade-rail ${isDragging ? 'is-dragging' : ''}`}
+              className={`arcade-rail ${isDragging ? 'is-dragging' : ''} ${
+                tracks.length >= ALPHABET_INDEX_MIN_TRACKS ? 'has-alpha-index' : ''
+              }`}
               style={{ transform: `translateY(${offset}px)` }}
             >
               {tracks.map((track, i) => (

@@ -1009,6 +1009,45 @@
   animation: arcade-launch var(--beat, 0.4s) cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* The letter rail — one pointer surface the whole height of the strip, not
+   27 individually-hit-tested buttons. Above the cursor band and the rows
+   (z-index 2 vs the cursor's 1) so a tap or drag here always reaches the
+   rail before anything underneath it does. */
+.arcade-alpha-index {
+  position: absolute;
+  top: 0.5rem;
+  bottom: 0.5rem;
+  right: 0.2rem;
+  z-index: 2;
+  display: flex;
+  width: 1.1rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.arcade-alpha-index-letter {
+  font-size: 0.6rem;
+  line-height: 1;
+  font-weight: 600;
+  color: var(--color-blue-500);
+  transition: color 120ms ease-out;
+}
+
+/* Still jumps (to the nearest letter after it), just not pretending every
+   letter is an equally live destination in a small or lopsided library. */
+.arcade-alpha-index-letter.is-sparse {
+  color: color-mix(in oklab, var(--color-blue-700) 65%, transparent);
+}
+
+.arcade-alpha-index-letter.is-current {
+  color: var(--color-orange-400);
+}
+
 @keyframes arcade-launch {
   0% {
     opacity: 0;
@@ -1088,6 +1127,12 @@
 .arcade-row.is-selected {
   padding-inline-start: 1.6rem;
   color: var(--color-white);
+}
+
+/* Room for the letter rail along the right edge, only when it's actually
+   showing — a small library keeps the row's normal, symmetric padding. */
+.arcade-rail.has-alpha-index .arcade-row {
+  padding-inline-end: 1.85rem;
 }
 
 .arcade-row.is-missing {

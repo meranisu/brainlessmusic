@@ -4,6 +4,30 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-16 — Letter rail for the arcade song strip
+
+An iOS-contacts-style A-Z rail down the strip's right edge (`AlphabetIndex`),
+shown once a library has 24+ tracks — small ones are already fast to dial
+through by hand. Tap a letter or drag down the rail to jump straight to it;
+a letter with nothing loaded under it yet jumps to the nearest one after it
+instead of doing nothing. One pointer-tracking surface reads whichever
+letter the pointer is over on every move rather than 27 separately-hit-tested
+buttons, which is what makes a single drag sweep from "A" to "Z" work the
+way it does on a phone. `CoverArt`-style bucketing: anything not starting
+A-Z groups under "#".
+
+This only means anything because the strip is already sorted by title —
+`LibraryPage`'s query was already `sort=title&order=asc` (and the backend's
+own default), so no sort change was needed, just something that takes
+advantage of it.
+
+Rows get a little extra right-edge padding only while the rail is showing
+(`.arcade-rail.has-alpha-index`), so it never sits over truncated title text
+or the format badge. Verified with a scripted pass (27 mock tracks spanning
+A-Z): clicking "S" lands on the one title that actually starts with S, and
+the six-viewport no-scrollbar check from the last two entries still passes
+unchanged.
+
 ## 2026-09-16 — Fill out the arcade select screen's "now playing" panel
 
 Two follow-ups to the same screen, both from using it after the viewport fix:
