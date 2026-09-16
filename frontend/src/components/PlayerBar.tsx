@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useIsPhone } from '../hooks/useIsPhone';
 import { apiClient, buildCoverUrl, buildStreamUrl } from '../lib/apiClient';
@@ -157,6 +158,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // Phone only: the bar collapses to a strip and this opens the full view.
   const [isExpanded, setIsExpanded] = useState(false);
   const isPhone = useIsPhone();
+  // `PlayerProvider` wraps the whole router, not just `AppShell` — on
+  // purpose, so playback survives a navigation instead of being torn down
+  // and rebuilt — but that means the bar would otherwise render right
+  // through the title/account-select screens' own full-screen interstitial
+  // cards too, since those live outside `AppShell` and know nothing about
+  // this bar to layer themselves above it. The attract screens are the one
+  // place a signed-in identity's leftover queue shouldn't be visible anyway:
+  // arriving as a fresh profile with someone else's last-played track
+  // peeking out from under a "Welcome, <name>" card reads as a bug, not a
+  // feature, no matter whose queue it actually is.
+  const { pathname } = useLocation();
+  const onAttractScreen = pathname.startsWith('/enter');
   // Only the phone strip can open the sheet, and only the sheet can close it —
   // so a window that grows past `md` mid-playback would otherwise strand the
   // user with a hidden sheet, no strip, and nothing left to press. Deriving the
@@ -982,7 +995,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       {/* Phone: a strip that opens the full view. The bar below is the same
           player at a size that only works with a mouse and a wide window. */}
-      {user && current && !isSheetOpen && (
+      {user && current && !onAttractScreen && !isSheetOpen && (
         <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-blue-800 bg-blue-900 px-4 py-2.5 md:hidden">
           <span
             aria-hidden
@@ -1014,11 +1027,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         </div>
       )}
 
-      {user && current && isSheetOpen && (
+      {user && current && !onAttractScreen && isSheetOpen && (
         <NowPlaying player={value} onCollapse={() => setIsExpanded(false)} />
       )}
 
-      {user && current && (
+      {user && current && !onAttractScreen && (
         <div className="fixed inset-x-0 bottom-0 z-40 hidden border-t border-blue-800 bg-blue-900 md:block">
           <div className="page-shell flex items-center gap-4 px-6 py-3">
             <div className="flex shrink-0 items-center gap-1">

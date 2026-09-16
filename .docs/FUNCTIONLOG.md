@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `PlayerProvider()` — `frontend/src/components/PlayerBar.tsx`
+**Date:** 2026-09-16
+**How added:** bug fix
+**Purpose:** unchanged (provides playback state/controls app-wide, renders the mini/desktop bar and the expanded `NowPlaying` sheet) — added an `onAttractScreen` check (`useLocation().pathname.startsWith('/enter')`) alongside the existing `user && current` gate on all three render blocks.
+**Side effects:** none new — purely which JSX renders, not playback itself.
+**Before:** `PlayerProvider` wraps the whole router (so playback survives navigation), which meant the bar rendered on `/enter`/`/enter/profile` too — visible right through the title/account-select screens' own full-screen interstitial cards, since those live outside `AppShell` and don't know the bar exists.
+**After:** the bar (all three render paths) stays hidden while on an `/enter*` route; a track already playing keeps playing, it just has no visible control surface there.
+
 **Function:** `scanLibrary()` — `backend/src/services/scanner.ts`
 **Date:** 2026-09-16
 **How added:** new feature (live scan progress) on top of an already-present, uncommitted change to run file scanning concurrently (`SCAN_CONCURRENCY = 6`, `Promise.all` per batch) instead of one file at a time.

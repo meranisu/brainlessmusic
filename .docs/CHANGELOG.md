@@ -4,6 +4,30 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-16 — Player bar no longer shows through the title/account-select screens
+
+`PlayerProvider` wraps the whole router, not just `AppShell`, so playback
+survives a navigation instead of being torn down and rebuilt on every route
+change. The cost: the title screen and account-select screen's own
+full-screen interstitial cards (`ArcadeInterstitial`, the "Welcome to the
+system, `<name>`" card) live outside `AppShell` and have no way to know
+about a bar that isn't part of their own tree, so a signed-in identity's
+leftover queue showed right through underneath the card — a previous
+profile's last-played track peeking out during the very card meant to
+welcome a *new* one in.
+
+`PlayerBar` now also checks the route directly (`useLocation`, available
+since `PlayerProvider` sits inside `BrowserRouter`) and stays hidden while
+`pathname` starts with `/enter` — the mini bar, the full desktop bar, and the
+expanded `NowPlaying` sheet all gated the same way. Playback itself is
+untouched; only the bar's own visibility changes, so a track already playing
+keeps playing when you land back on `/enter` for some reason (Exit, mainly),
+it just doesn't show a control surface for it there.
+
+Verified with a scripted pass: play a track from the library, navigate to
+`/enter/profile` with that same queue still active, confirm the bar is
+visible on the library page and absent on the attract screen.
+
 ## 2026-09-16 — Live scan progress, in Options and on the Library page
 
 `GET /library/roots` returning `scanning: boolean` and nothing else meant
