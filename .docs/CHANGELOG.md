@@ -4,6 +4,31 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-16 — The detail panel could be starved to nothing by a long title
+
+On a real library (hundreds of real track names, not the short test titles
+used while building the last few entries), the "now playing" detail panel
+could collapse to a sliver a few pixels wide — cover art, title, everything,
+just gone — while the song strip beside it swelled to fill the whole row.
+Reproduced only past a certain library size, on certain titles, at desktop
+width; not zoom, not a stale dev-server bundle (checked both).
+
+Root cause: `.arcade-rail-col` (the strip's column) never got `min-width: 0`
+— only the `min-height: 0` its own vertical layout needs. At desktop width
+`.arcade-select` is a *row*, and without a `min-width` override a flex item
+won't shrink below its content's natural size. `.arcade-row-title` uses
+`white-space: nowrap`, so that natural size is "as wide as the single
+longest title in the list, unwrapped" — 26rem for short test titles, however
+wide a real library's longest one happens to be otherwise. `.arcade-detail`,
+which does have `min-width: 0`, absorbed all of the resulting pressure and
+got crushed instead.
+
+Fixed by adding the missing `min-width: 0`. Verified two ways: a track with
+a deliberately absurd 100+ character title no longer moves the strip column
+off its intended 26rem, and — since this one slipped past every test built
+from short mock titles — directly against the owner's real library after
+the fix, at several window sizes.
+
 ## 2026-09-16 — Letter rail for the arcade song strip
 
 An iOS-contacts-style A-Z rail down the strip's right edge (`AlphabetIndex`),

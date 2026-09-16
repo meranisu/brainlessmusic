@@ -873,6 +873,13 @@
   flex: 1 1 0%;
   flex-direction: column;
   min-height: 0;
+  /* The one that actually matters at desktop width: `.arcade-select` is a
+     row there, and without this a flex item won't shrink below its content's
+     natural size — which for a column full of `white-space: nowrap` row
+     titles is "however wide the longest title is," not 26rem. A long enough
+     title (a real library, not short test titles) forces this column wide
+     and starves `.arcade-detail` next to it down to nothing. */
+  min-width: 0;
 }
 
 @media (min-width: 1024px) {
