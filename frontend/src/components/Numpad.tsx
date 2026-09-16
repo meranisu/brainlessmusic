@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-
-const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
+import { PasscodePad } from './PasscodePad';
 
 /** Must match `.numpad-*.is-closing` in `index.css`. */
 const CLOSE_MS = 160;
@@ -129,54 +128,21 @@ export function Numpad({
 
         {/* The code itself is never echoed — a keypad held up at arm's length
             in a room with other people is the normal case, not the exception. */}
-        <div
-          className="mb-4 flex h-10 items-center justify-center gap-2 rounded-md border border-blue-700 bg-blue-950"
-          aria-live="polite"
-          aria-label={`${code.length} digits entered`}
-        >
-          {code.length === 0 ? (
-            <span className="text-sm text-blue-500">– – – – – –</span>
-          ) : (
-            Array.from({ length: code.length }).map((_, i) => (
-              <span key={i} className="h-2 w-2 rounded-full bg-orange-600" />
-            ))
-          )}
-        </div>
+        <PasscodePad
+          code={code}
+          maxLength={maxLength}
+          disabled={isSubmitting}
+          onPress={press}
+          onBackspace={() => setCode((current) => current.slice(0, -1))}
+        />
 
-        <div className="grid grid-cols-3 gap-2">
-          {KEYS.map((key) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => press(key)}
-              className="h-14 rounded-md border border-blue-700 bg-blue-900 text-lg font-medium text-white transition-colors hover:border-blue-500 hover:bg-blue-800"
-            >
-              {key}
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={dismiss}
-            className="h-14 rounded-md text-xs font-medium text-blue-400 transition-colors hover:bg-blue-800 hover:text-white"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={() => press('0')}
-            className="h-14 rounded-md border border-blue-700 bg-blue-900 text-lg font-medium text-white transition-colors hover:border-blue-500 hover:bg-blue-800"
-          >
-            0
-          </button>
-          <button
-            type="button"
-            onClick={() => setCode((current) => current.slice(0, -1))}
-            aria-label="Delete last digit"
-            className="h-14 rounded-md text-lg font-medium text-blue-400 transition-colors hover:bg-blue-800 hover:text-white"
-          >
-            ⌫
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={dismiss}
+          className="mt-2 w-full rounded-md py-1.5 text-xs font-medium text-blue-400 transition-colors hover:bg-blue-800 hover:text-white"
+        >
+          Cancel
+        </button>
 
         {error && (
           <p className="mt-3 rounded-md bg-red-700 px-3 py-2 text-center text-xs text-white">{error}</p>

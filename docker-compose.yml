@@ -28,6 +28,11 @@ services:
       # Put it in a .env file next to this one as JWT_SECRET=...
       JWT_SECRET: ${JWT_SECRET:-}
 
+      # Anyone who can reach this server may create their own (non-admin)
+      # account from the account-select screen's "Create a new profile"
+      # button. Same "correct on a LAN" reasoning as ENTRY_CODE below.
+      ALLOW_OPEN_REGISTRATION: 'true'
+
       # Optional overrides; the image's defaults are usually right.
       # JWT_EXPIRES_IN: 7d
       # MEDIA_TOKEN_TTL: 2h

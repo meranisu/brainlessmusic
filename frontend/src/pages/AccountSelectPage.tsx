@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { ArcadeInterstitial, ArrivalVeil } from '../components/ArcadeInterstitial';
 import { ShellBackdrop } from '../components/BackdropDepth';
 import { BrandMark, Wordmark } from '../components/BrandLockup';
 import { Numpad } from '../components/Numpad';
+import { PasscodePad } from '../components/PasscodePad';
+import { RegisterModal } from '../components/RegisterModal';
 import { useThemeCycle } from '../hooks/useThemeCycle';
-import { ApiError } from '../lib/apiClient';
+import { apiClient, ApiError } from '../lib/apiClient';
 import { clearAtTitle, markAtTitle, markJustEntered } from '../lib/boot';
 import { arrivalDuration, interstitialDuration, prefersReducedMotion } from '../lib/interstitial';
 import type { User } from '../types/api';
@@ -14,7 +16,7 @@ import type { User } from '../types/api';
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Nobody left this screen open on purpose for five minutes — an arcade
+ * Nobody left this screen open on purpose for two minutes — an arcade
  * cabinet doesn't hold a player-select screen forever either, and a sign-in
  * form with a username sitting in it is exactly the kind of thing a shared
  * device shouldn't be left showing. Events reset it, not renders: a re-render
@@ -22,7 +24,7 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  * to input events directly (rather than to component state) is what keeps a
  * slow typist from being timed out mid-word.
  */
-const IDLE_MS = 5 * 60 * 1000;
+const IDLE_MS = 2 * 60 * 1000;
 const IDLE_EVENTS = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart', 'input'] as const;
 
 /**
@@ -79,17 +81,31 @@ function dismissPasscodePrompt(userId: number): void {
  * password login or later from Options.
  */
 export function AccountSelectPage() {
-  const { user, login, loginWithPasscode, setPasscode, enterAsGuest } = useAuth();
+  const { user, login, loginWithPasscode, register, setPasscode, enterAsGuest } = useAuth();
   const navigate = useNavigate();
   useThemeCycle();
+
+  // Whether `/auth/register` will actually accept a new account right now —
+  // unset until the check resolves, so the button stays hidden rather than
+  // flashing on and then vanishing on a closed server.
+  const [registrationOpen, setRegistrationOpen] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
+
+  useEffect(() => {
+    apiClient
+      .get<{ open: boolean }>('/auth/registration-status')
+      .then((res) => setRegistrationOpen(res.open))
+      .catch(() => setRegistrationOpen(false));
+  }, []);
 
   const [authMode, setAuthMode] = useState<'password' | 'passcode'>('password');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [showPasscodeLogin, setShowPasscodeLogin] = useState(false);
-  const passcodeLoginResult = useRef<User | null>(null);
+  const [passcode, setPasscodeInput] = useState('');
+  const [passcodeError, setPasscodeError] = useState<string | null>(null);
+  const [isPasscodeLoggingIn, setIsPasscodeLoggingIn] = useState(false);
 
   // Set once a password login succeeds against an account with no passcode
   // yet, and not already declined on this browser — the login card swaps its
@@ -121,7 +137,7 @@ export function AccountSelectPage() {
   // isn't idleness — there is a request in flight or a real decision pending,
   // not an abandoned form — so the timer doesn't even start during either.
   useEffect(() => {
-    if (committing || welcomeName !== null || pendingPasscodeSetup) return;
+    if (committing || welcomeName !== null || pendingPasscodeSetup || showRegister) return;
 
     let timer = window.setTimeout(() => setIdleTimedOut(true), IDLE_MS);
     const reset = () => {
@@ -134,7 +150,7 @@ export function AccountSelectPage() {
       window.clearTimeout(timer);
       for (const event of IDLE_EVENTS) window.removeEventListener(event, reset);
     };
-  }, [committing, welcomeName, pendingPasscodeSetup]);
+  }, [committing, welcomeName, pendingPasscodeSetup, showRegister]);
 
   // Same shape as `finishEntry` below, but leaving empty-handed rather than
   // signed in: hold on the card, then go — `markAtTitle` so the title screen
@@ -149,12 +165,13 @@ export function AccountSelectPage() {
   }, [idleTimedOut, navigate]);
 
   // Already signed in — reached directly, or a double-back after committing
-  // already navigated away. Nothing left to choose. `pendingPasscodeSetup` is
-  // the third exemption alongside `committing`: a password login sets `user`
-  // the instant it resolves, before this page has decided whether to show
-  // the "want a passcode?" prompt — without it, this redirect would fire on
-  // that very first render and skip the prompt every time.
-  if (user && !committing && !pendingPasscodeSetup) return <Navigate to="/" replace />;
+  // already navigated away. Nothing left to choose. `pendingPasscodeSetup`
+  // and `showRegister` are exemptions alongside `committing` for the same
+  // reason: `login`/`register` set `user` the instant the request resolves,
+  // before this page has decided what to do next (show the passcode prompt,
+  // or close the register modal and start its own commit) — without them,
+  // this redirect would fire on that very first render and skip the step.
+  if (user && !committing && !pendingPasscodeSetup && !showRegister) return <Navigate to="/" replace />;
 
   /** Shared tail for both cards: hold on the welcome text, then land in the app. */
   async function finishEntry(name: string) {
@@ -199,14 +216,30 @@ export function AccountSelectPage() {
     }
   }
 
-  async function handlePasscodeLoginSubmit(code: string) {
-    passcodeLoginResult.current = await loginWithPasscode(username, code);
+  function pressPasscodeDigit(digit: string) {
+    setPasscodeError(null);
+    setPasscodeInput((current) => (current.length >= 8 ? current : current + digit));
   }
 
-  function handlePasscodeLoginSuccess() {
-    setShowPasscodeLogin(false);
-    const who = passcodeLoginResult.current;
-    if (who) void commitAndFinish('login', who.username);
+  function backspacePasscodeDigit() {
+    setPasscodeInput((current) => current.slice(0, -1));
+  }
+
+  async function submitPasscodeLogin(event: FormEvent) {
+    event.preventDefault();
+    if (committing || pendingPasscodeSetup || isPasscodeLoggingIn || passcode.length < 4) return;
+    setPasscodeError(null);
+    setIsPasscodeLoggingIn(true);
+
+    try {
+      const who = await loginWithPasscode(username, passcode);
+      await commitAndFinish('login', who.username);
+    } catch (err) {
+      setPasscodeError(err instanceof ApiError ? err.message : 'Could not sign in — is the backend running?');
+      setPasscodeInput('');
+    } finally {
+      setIsPasscodeLoggingIn(false);
+    }
   }
 
   async function handleCreatePasscodeSubmit(code: string) {
@@ -222,6 +255,25 @@ export function AccountSelectPage() {
     if (!pendingPasscodeSetup) return;
     dismissPasscodePrompt(pendingPasscodeSetup.id);
     void commitAndFinish('login', pendingPasscodeSetup.username);
+  }
+
+  async function handleRegisterSubmit({
+    username: newUsername,
+    password: newPassword,
+    passcode: newPasscode,
+  }: {
+    username: string;
+    password: string;
+    passcode: string;
+  }) {
+    const who = await register(newUsername, newPassword);
+    if (newPasscode) await setPasscode(newPasscode);
+    return who;
+  }
+
+  function handleRegisterSuccess(who: User) {
+    setShowRegister(false);
+    void commitAndFinish('login', who.username);
   }
 
   async function handleGuest(event: FormEvent) {
@@ -265,10 +317,11 @@ export function AccountSelectPage() {
   }
 
   const disabled = Boolean(committing) || pendingPasscodeSetup !== null;
-  // Which card, in spirit, currently has the floor — mid-commit, or mid a
-  // passcode-setup decision that hasn't started its own commit yet.
-  const active: Committing = committing ?? (pendingPasscodeSetup ? 'login' : null);
-  const recede = (mine: Committing) => (active && active !== mine ? 'profile-card-recede' : '');
+  // Only an actual commit — the winning card zooming to black — makes the
+  // rest of the screen get out of the way. Deciding whether to set up a
+  // passcode is not that: the logo and heading stay put while that prompt
+  // is still asking a question, and only fade once a choice is finally made.
+  const recede = (mine: Committing) => (committing && committing !== mine ? 'profile-card-recede' : '');
 
   return (
     <div className="app-ground relative min-h-screen overflow-hidden text-white">
@@ -281,198 +334,218 @@ export function AccountSelectPage() {
             <Wordmark className="text-2xl text-white sm:text-3xl" />
           </span>
           <h1 className="font-display text-2xl font-semibold uppercase tracking-[0.1em] text-white sm:text-3xl">
-            Select your profile type
+            {pendingPasscodeSetup ? 'Creating a passcode' : 'Select your profile type'}
           </h1>
         </div>
 
-        <div className="grid w-full max-w-3xl gap-5 md:grid-cols-2">
-          {/* ── Sign in: a returning player with a save file ─────────────── */}
+        {pendingPasscodeSetup ? (
+          /* ── Passcode prompt: its own centered card, not a slot in the grid ── */
           <div
-            className={`profile-stage-2 profile-card-glow card p-6 sm:p-7 ${
-              committing === 'login' ? 'profile-card-commit' : recede('login')
+            className={`profile-stage-2 profile-card-glow card w-full max-w-md p-6 sm:p-7 ${
+              committing === 'login' ? 'profile-card-commit' : ''
             }`}
           >
-            {pendingPasscodeSetup ? (
-              <>
-                <h2 className="text-lg font-semibold text-white">Want a faster way back in?</h2>
-                <p className="mt-1 text-sm text-blue-300">
-                  Set a short passcode for{' '}
-                  <span className="font-medium text-white">{pendingPasscodeSetup.username}</span> —
-                  next time, sign in with that instead of typing a password. You can add or change
-                  this later from Options.
-                </p>
-                <div className="mt-5 flex gap-2">
-                  <button
-                    onClick={() => setShowCreatePasscode(true)}
-                    className="btn-primary btn-md flex-1"
-                  >
-                    Create a passcode
-                  </button>
-                  <button onClick={skipPasscodeSetup} className="btn-secondary btn-md">
-                    Skip
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-lg font-semibold text-white">Sign in</h2>
-                    <p className="mt-1 text-sm text-blue-300">Returning, with an account on this server.</p>
-                  </div>
-                  <div className="flex shrink-0 rounded-md border border-blue-700 p-0.5 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setAuthMode('password')}
-                      disabled={disabled}
-                      className={`rounded px-2.5 py-1 font-medium transition-colors ${
-                        authMode === 'password' ? 'bg-blue-700 text-white' : 'text-blue-300 hover:text-white'
-                      }`}
-                    >
-                      Password
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAuthMode('passcode')}
-                      disabled={disabled}
-                      className={`rounded px-2.5 py-1 font-medium transition-colors ${
-                        authMode === 'passcode' ? 'bg-blue-700 text-white' : 'text-blue-300 hover:text-white'
-                      }`}
-                    >
-                      Passcode
-                    </button>
-                  </div>
-                </div>
-
-                {authMode === 'password' ? (
-                  <form onSubmit={handleLogin} className="mt-5">
-                    <label className="mb-1 block text-sm text-blue-200" htmlFor="username">
-                      Username
-                    </label>
-                    <input
-                      id="username"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      autoComplete="username"
-                      required
-                      disabled={disabled}
-                      className="input mb-4"
-                    />
-
-                    <label className="mb-1 block text-sm text-blue-200" htmlFor="password">
-                      Password
-                    </label>
-                    <input
-                      id="password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      autoComplete="current-password"
-                      required
-                      disabled={disabled}
-                      className="input mb-4"
-                    />
-
-                    {loginError && (
-                      <p className="mb-4 rounded-md border border-red-700 bg-red-700 px-3 py-2 text-sm text-white">
-                        {loginError}
-                      </p>
-                    )}
-
-                    <button
-                      type="submit"
-                      disabled={isLoggingIn || disabled}
-                      className="btn-primary btn-md w-full"
-                    >
-                      {isLoggingIn ? 'Signing in…' : 'Sign in'}
-                    </button>
-                  </form>
-                ) : (
-                  <div className="mt-5">
-                    <label className="mb-1 block text-sm text-blue-200" htmlFor="passcode-username">
-                      Username
-                    </label>
-                    <input
-                      id="passcode-username"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      autoComplete="username"
-                      required
-                      disabled={disabled}
-                      className="input mb-4"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() => setShowPasscodeLogin(true)}
-                      disabled={disabled || username.length === 0}
-                      className="btn-primary btn-md w-full"
-                    >
-                      Enter passcode
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-
-          {/* ── Guest: a new player trying the system out ─────────────────── */}
-          <div
-            className={`profile-stage-3 profile-card-glow card p-6 sm:p-7 ${
-              committing === 'guest' ? 'profile-card-commit' : recede('guest')
-            }`}
-          >
-            <h2 className="text-lg font-semibold text-white">Continue as guest</h2>
+            <h2 className="text-lg font-semibold text-white">Want a faster way back in?</h2>
             <p className="mt-1 text-sm text-blue-300">
-              No account needed. This device gets its own listening history.
+              Set a short passcode for{' '}
+              <span className="font-medium text-white">{pendingPasscodeSetup.username}</span> —
+              next time, sign in with that instead of typing a password. You can add or change
+              this later from Options.
             </p>
+            <div className="mt-5 flex gap-2">
+              <button onClick={() => setShowCreatePasscode(true)} className="btn-primary btn-md flex-1">
+                Create a passcode
+              </button>
+              <button onClick={skipPasscodeSetup} className="btn-secondary btn-md">
+                Skip
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid w-full max-w-3xl gap-5 md:grid-cols-2">
+            {/* ── Sign in: a returning player with a save file ─────────────── */}
+            <div
+              className={`profile-stage-2 profile-card-glow card p-6 sm:p-7 ${
+                committing === 'login' ? 'profile-card-commit' : recede('login')
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-white">Sign in</h2>
+                  <p className="mt-1 text-sm text-blue-300">Returning, with an account on this server.</p>
+                </div>
+                <div className="flex shrink-0 rounded-md border border-blue-700 p-0.5 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMode('password');
+                      setPasscodeInput('');
+                      setPasscodeError(null);
+                    }}
+                    disabled={disabled}
+                    className={`rounded px-2.5 py-1 font-medium transition-colors ${
+                      authMode === 'password' ? 'bg-blue-700 text-white' : 'text-blue-300 hover:text-white'
+                    }`}
+                  >
+                    Password
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMode('passcode');
+                      setLoginError(null);
+                    }}
+                    disabled={disabled}
+                    className={`rounded px-2.5 py-1 font-medium transition-colors ${
+                      authMode === 'passcode' ? 'bg-blue-700 text-white' : 'text-blue-300 hover:text-white'
+                    }`}
+                  >
+                    Passcode
+                  </button>
+                </div>
+              </div>
 
-            <form onSubmit={handleGuest} className="mt-5">
-              {guestNeedsCode && (
-                <>
-                  <label className="mb-1 block text-sm text-blue-200" htmlFor="entry-code">
-                    This server asks for a code
+              {authMode === 'password' ? (
+                <form onSubmit={handleLogin} className="mt-5">
+                  <label className="mb-1 block text-sm text-blue-200" htmlFor="username">
+                    Username
                   </label>
                   <input
-                    id="entry-code"
-                    value={guestCode}
-                    onChange={(e) => setGuestCode(e.target.value)}
-                    autoFocus
+                    id="username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    autoComplete="username"
+                    required
                     disabled={disabled}
                     className="input mb-4"
                   />
-                </>
-              )}
 
-              {guestError && (
-                <p className="mb-4 rounded-md border border-red-700 bg-red-700 px-3 py-2 text-sm text-white">
-                  {guestError}
-                </p>
-              )}
+                  <label className="mb-1 block text-sm text-blue-200" htmlFor="password">
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
+                    required
+                    disabled={disabled}
+                    className="input mb-4"
+                  />
 
-              <button
-                type="submit"
-                disabled={isEnteringGuest || disabled}
-                className="btn-primary btn-md w-full"
-              >
-                {isEnteringGuest ? 'Entering…' : 'Enter as guest'}
-              </button>
-            </form>
+                  {loginError && (
+                    <p className="mb-4 rounded-md border border-red-700 bg-red-700 px-3 py-2 text-sm text-white">
+                      {loginError}
+                    </p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={isLoggingIn || disabled}
+                    className="btn-primary btn-md w-full"
+                  >
+                    {isLoggingIn ? 'Signing in…' : 'Sign in'}
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={submitPasscodeLogin} className="mt-5">
+                  <label className="mb-1 block text-sm text-blue-200" htmlFor="passcode-username">
+                    Username
+                  </label>
+                  <input
+                    id="passcode-username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    autoComplete="username"
+                    required
+                    disabled={disabled}
+                    className="input mb-4"
+                  />
+
+                  <label className="mb-1 block text-sm text-blue-200">Passcode</label>
+                  <PasscodePad
+                    code={passcode}
+                    maxLength={8}
+                    disabled={disabled || isPasscodeLoggingIn}
+                    onPress={pressPasscodeDigit}
+                    onBackspace={backspacePasscodeDigit}
+                  />
+
+                  {passcodeError && (
+                    <p className="mt-3 rounded-md border border-red-700 bg-red-700 px-3 py-2 text-sm text-white">
+                      {passcodeError}
+                    </p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={isPasscodeLoggingIn || disabled || passcode.length < 4}
+                    className="btn-primary btn-md mt-3 w-full"
+                  >
+                    {isPasscodeLoggingIn ? 'Signing in…' : 'Sign in'}
+                  </button>
+                </form>
+              )}
+            </div>
+
+            {/* ── Guest: a new player trying the system out ─────────────────── */}
+            <div
+              className={`profile-stage-3 profile-card-glow card p-6 sm:p-7 ${
+                committing === 'guest' ? 'profile-card-commit' : recede('guest')
+              }`}
+            >
+              <h2 className="text-lg font-semibold text-white">Continue as guest</h2>
+              <p className="mt-1 text-sm text-blue-300">
+                No account needed. This device gets its own listening history.
+              </p>
+
+              <form onSubmit={handleGuest} className="mt-5">
+                {guestNeedsCode && (
+                  <>
+                    <label className="mb-1 block text-sm text-blue-200" htmlFor="entry-code">
+                      This server asks for a code
+                    </label>
+                    <input
+                      id="entry-code"
+                      value={guestCode}
+                      onChange={(e) => setGuestCode(e.target.value)}
+                      autoFocus
+                      disabled={disabled}
+                      className="input mb-4"
+                    />
+                  </>
+                )}
+
+                {guestError && (
+                  <p className="mb-4 rounded-md border border-red-700 bg-red-700 px-3 py-2 text-sm text-white">
+                    {guestError}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isEnteringGuest || disabled}
+                  className="btn-primary btn-md w-full"
+                >
+                  {isEnteringGuest ? 'Entering…' : 'Enter as guest'}
+                </button>
+              </form>
+
+              {registrationOpen && (
+                <button
+                  type="button"
+                  onClick={() => setShowRegister(true)}
+                  disabled={disabled}
+                  className="btn-secondary btn-md mt-3 w-full"
+                >
+                  Create a new profile
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
-
-      {showPasscodeLogin && (
-        <Numpad
-          title={`Passcode for ${username}`}
-          minLength={4}
-          maxLength={8}
-          submitLabel="Sign in"
-          onSubmit={handlePasscodeLoginSubmit}
-          onSuccess={handlePasscodeLoginSuccess}
-          onDismiss={() => setShowPasscodeLogin(false)}
-        />
-      )}
 
       {showCreatePasscode && (
         <Numpad
@@ -484,6 +557,14 @@ export function AccountSelectPage() {
           onSubmit={handleCreatePasscodeSubmit}
           onSuccess={handleCreatePasscodeSuccess}
           onDismiss={() => setShowCreatePasscode(false)}
+        />
+      )}
+
+      {showRegister && (
+        <RegisterModal
+          onSubmit={handleRegisterSubmit}
+          onSuccess={handleRegisterSuccess}
+          onDismiss={() => setShowRegister(false)}
         />
       )}
 

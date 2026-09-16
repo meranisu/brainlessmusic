@@ -12,6 +12,8 @@ interface AuthContextValue {
   login: (username: string, password: string) => Promise<User>;
   /** The arcade-card alternative to `login` — a username and a short bound passcode instead of a password. */
   loginWithPasscode: (username: string, passcode: string) => Promise<User>;
+  /** Self-registration. Only ever reachable when the server says it's open — see `/auth/registration-status`. */
+  register: (username: string, password: string) => Promise<User>;
   /** Creates or replaces the signed-in account's own passcode. */
   setPasscode: (passcode: string) => Promise<void>;
   clearPasscode: () => Promise<void>;
@@ -79,6 +81,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return signInWith(token);
   }
 
+  /**
+   * `/auth/register` itself only hands back the new row, not a session — it's
+   * the same endpoint the admin-only Users page uses to create an account for
+   * someone else, so it has no opinion on signing the caller in. A plain
+   * `login` right after is what turns "account exists" into "signed in as it."
+   */
+  async function register(username: string, password: string) {
+    await apiClient.post('/auth/register', { username, password });
+    return login(username, password);
+  }
+
   async function setPasscode(passcode: string) {
     await apiClient.post('/auth/passcode', { passcode });
     setUser(await apiClient.get<User>('/auth/me'));
@@ -103,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         adoptToken,
         login,
         loginWithPasscode,
+        register,
         setPasscode,
         clearPasscode,
         logout,
