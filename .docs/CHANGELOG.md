@@ -4,6 +4,45 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-16 — Fill out the arcade select screen's "now playing" panel
+
+Two follow-ups to the same screen, both from using it after the viewport fix:
+
+**The cursor could sit over empty strip.** The song strip always centred the
+selected row exactly in the middle, which is right for anywhere in the
+middle of the list but left a block of dead space above track one (or below
+the last track) with the cursor floating over nothing. The rail's resting
+offset is now clamped to the list's own bounds — `.arcade-cursor`'s position
+is computed from that same clamped offset instead of a flat CSS `top: 50%`,
+so it slides up to meet track one flush at the strip's top (and down to meet
+the last track at its bottom) instead of leaving a gap. The "N of M loaded"
+line also moved from a caption below the strip into a footer bar inside the
+same bordered panel.
+
+**The detail panel was mostly empty.** Its height comes from the strip
+beside it, not from its own text, so cover art + four facts + a button left
+a few hundred pixels of nothing below — worth fixing on its own, but also
+the direct cause of a real scrollbar some content/font combinations tripped
+on the panel's `overflow-y: auto` safety net. Reworked it: art sits beside
+the title instead of above it, the facts are small stat cards (plus a new
+"Added" one, using `dateAdded` that was already on `TrackSummary`), a "More
+from `<artist>`" list fills the rest from tracks already loaded in the strip
+(click one to jump to it — no extra request), and a faint blurred echo of
+the cover art sits behind all of it. `CoverArt` gained a `bare` prop so that
+decorative layer isn't stuck with the thumbnail's default border/rounding.
+Also gave the Library page's animated backdrop the same `vivid` treatment
+the account-select screen already used — its list now has its own card
+backgrounds to read against, so the backdrop can bleed through the gaps the
+way it does there instead of staying held back for a dense, backdrop-only
+list. Every other page keeps the restrained version.
+
+Verified with a scripted Playwright pass against a mocked API (60 tracks
+across 7 artists, no real backend needed): row zero and the last row sit
+flush against the strip's edges with the cursor exactly on them, the "more
+from artist" list's clicks land on the right track, and the six-viewport
+no-scrollbar/no-overlap check from the previous entry still passes
+unchanged.
+
 ## 2026-09-16 — Stop the arcade select screen from growing past the viewport
 
 The Library page's music-select screen (`ArcadeSelect`) could push the whole

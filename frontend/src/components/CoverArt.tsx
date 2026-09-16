@@ -8,6 +8,10 @@ interface CoverArtProps {
   /** Tailwind sizing classes for the box — the placeholder matches them. */
   className?: string;
   alt?: string;
+  /** Skips the default rounded-corner-and-border treatment so `className` can
+   *  fully own the shape — for a decorative use (a full-bleed blurred
+   *  background, say) where a hard-edged border would show through the blur. */
+  bare?: boolean;
 }
 
 /**
@@ -22,7 +26,14 @@ interface Loaded {
   failed: boolean;
 }
 
-export function CoverArt({ kind, id, size = 'thumb', className = 'h-10 w-10', alt = '' }: CoverArtProps) {
+export function CoverArt({
+  kind,
+  id,
+  size = 'thumb',
+  className = 'h-10 w-10',
+  alt = '',
+  bare = false,
+}: CoverArtProps) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
 
   // Identifies which cover the loaded state belongs to. Comparing it during
@@ -47,7 +58,9 @@ export function CoverArt({ kind, id, size = 'thumb', className = 'h-10 w-10', al
   }, [kind, id, size]);
 
   const current = loaded?.key === key ? loaded : null;
-  const shared = `${className} shrink-0 rounded-md border border-blue-800 object-cover`;
+  const shared = bare
+    ? `${className} shrink-0 object-cover`
+    : `${className} shrink-0 rounded-md border border-blue-800 object-cover`;
 
   if (!current || current.failed || !current.url) {
     return (

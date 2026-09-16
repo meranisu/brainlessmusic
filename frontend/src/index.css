@@ -884,6 +884,7 @@
 }
 
 .arcade-detail {
+  position: relative;
   min-height: 0;
   /* The one part of this layout whose content genuinely varies (title length,
      how many facts there are) — rather than trying to bound it exactly, it
@@ -909,18 +910,29 @@
   }
 }
 
+/* The panel: the scrolling viewport and its own status line share one
+   border/background/radius, so the count reads as part of the instrument
+   rather than a caption floating underneath it. */
 .arcade-strip {
-  position: relative;
+  display: flex;
+  flex-direction: column;
   /* No height of its own — `flex: 1 1 0%` takes exactly what `.arcade-rail-col`
-     has left after its meta line, which is what makes this "a bit longer"
-     wherever the viewport has the room and shorter where it doesn't, instead
-     of a number picked once and wrong for most screens. */
+     has left, which is what makes this "a bit longer" wherever the viewport
+     has the room and shorter where it doesn't, instead of a number picked
+     once and wrong for most screens. */
   flex: 1 1 0%;
   min-height: 0;
-  overflow: hidden;
   border-radius: 0.75rem;
   border: 1px solid var(--color-blue-800);
   background-color: color-mix(in oklab, var(--color-blue-900) 55%, transparent);
+  overflow: hidden;
+}
+
+.arcade-strip-viewport {
+  position: relative;
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow: hidden;
   /* Vertical panning is the strip's own gesture (drag the rail), not the
      page's — without this a touch drag on the strip fights the browser's own
      scroll handling instead of reaching the pointer handlers cleanly. */
@@ -934,7 +946,7 @@
   -webkit-touch-callout: none;
 }
 
-.arcade-strip:active {
+.arcade-strip-viewport:active {
   cursor: grabbing;
   /* Fades the ends so entries arrive and leave rather than being clipped by a
      hard edge — which is what makes a bounded list feel like a long one. */
@@ -948,15 +960,30 @@
   mask-image: linear-gradient(to bottom, transparent 0, #000 14%, #000 86%, transparent 100%);
 }
 
+/* The strip's own footer, not a caption sitting below the panel — same
+   family as the rows above it, just quieter and set off by a seam. */
+.arcade-strip-footer {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--color-blue-800);
+  background-color: color-mix(in oklab, var(--color-blue-900) 75%, transparent);
+  padding: 0.4rem 1rem;
+  text-align: right;
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  color: var(--color-blue-400);
+}
+
 /* The cursor is a fixed band; the list travels under it. That inversion is the
    whole layout — a highlight that moves down a static list is a file browser. */
 .arcade-cursor {
   position: absolute;
-  top: 50%;
+  /* `top` comes in as an inline style, in px — it tracks the list's resting
+     offset, which steps away from dead centre at either end of it. */
   right: 0;
   left: 0;
   z-index: 1;
   transform: translateY(-50%);
+  transition: top 260ms cubic-bezier(0.16, 1, 0.3, 1);
   border-top: 1px solid var(--color-orange-600);
   border-bottom: 1px solid var(--color-orange-600);
   background: linear-gradient(
@@ -1102,7 +1129,148 @@
 /* The detail panel re-keys on the selected track, so this replays per change —
    the panel answering the strip rather than quietly swapping its contents. */
 .arcade-detail-inner {
+  position: relative;
+  z-index: 1;
   animation: arcade-detail-in 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* A faint, blurred echo of the cover art, sized to the panel's full
+   (stretched) height rather than the text's — the panel's height comes from
+   the strip beside it, not from its own content, so without this it's just
+   dead air below the button on anything taller than a phone. Absolutely
+   positioned against `.arcade-detail` itself: it fills whatever height that
+   box already is, so it can never be the thing that makes the box (and so
+   the page) grow. */
+.arcade-detail-glow {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  height: 100%;
+  width: 100%;
+  border-radius: 1.25rem;
+  object-fit: cover;
+  opacity: 0.18;
+  filter: blur(4px) saturate(1.35);
+  -webkit-mask-image: linear-gradient(to bottom, black, transparent 88%);
+  mask-image: linear-gradient(to bottom, black, transparent 88%);
+  pointer-events: none;
+}
+
+/* Art beside the title block instead of stacked above it — the same
+   information in less height, which is what leaves the stat row below room
+   to breathe without the panel running out of content halfway down. */
+.arcade-detail-head {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.arcade-detail-art {
+  height: 9rem;
+  width: 9rem;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+@media (min-width: 640px) {
+  .arcade-detail-art {
+    height: 11rem;
+    width: 11rem;
+  }
+}
+
+/* Small cards instead of a plain definition list — the same facts, read
+   faster and with room for a track to actually flag something (a missing
+   file gets its own colour instead of blending into the rest). */
+.arcade-stat-row {
+  margin-top: 1.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.arcade-stat {
+  flex: 1 1 7rem;
+  min-width: 7rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--color-blue-800);
+  background-color: color-mix(in oklab, var(--color-blue-900) 45%, transparent);
+  padding: 0.6rem 0.9rem;
+}
+
+.arcade-stat dt {
+  font-size: 0.65rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-blue-400);
+}
+
+.arcade-stat dd {
+  margin-top: 0.2rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-blue-100);
+}
+
+.arcade-stat.is-accent dd {
+  color: var(--color-orange-400);
+}
+
+/* Other tracks by the same artist — a shortcut into the strip's own list
+   rather than new content, so it earns its place in the same family as the
+   stat cards above it instead of reading as a bolted-on widget. */
+.arcade-detail-more {
+  margin-top: 1.75rem;
+  min-width: 0;
+  max-width: 26rem;
+}
+
+.arcade-detail-more-heading {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-blue-400);
+}
+
+.arcade-detail-more-list {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  border-radius: 0.6rem;
+  border: 1px solid var(--color-blue-800);
+  background-color: color-mix(in oklab, var(--color-blue-900) 35%, transparent);
+  overflow: hidden;
+}
+
+.arcade-detail-more-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.9rem;
+  text-align: left;
+  font-size: 0.85rem;
+  color: var(--color-blue-200);
+  border-top: 1px solid var(--color-blue-800);
+  transition: color 160ms ease-out, background-color 160ms ease-out;
+}
+
+.arcade-detail-more-list li:first-child .arcade-detail-more-item {
+  border-top: none;
+}
+
+.arcade-detail-more-item:hover {
+  color: var(--color-white);
+  background-color: color-mix(in oklab, var(--color-blue-800) 55%, transparent);
+}
+
+.arcade-detail-more-item-meta {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-blue-400);
 }
 
 @keyframes arcade-detail-in {
@@ -2010,7 +2178,8 @@
      swaps rather than rising. The selection still moves — this is about how it
      gets there, not whether it does. */
   .arcade-rail,
-  .arcade-row {
+  .arcade-row,
+  .arcade-cursor {
     transition: none;
   }
 

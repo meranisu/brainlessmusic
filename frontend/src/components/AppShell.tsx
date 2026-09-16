@@ -262,7 +262,14 @@ export function AppShell() {
 
   return (
     <div className="app-ground relative min-h-screen pb-20 text-white">
-      <ShellBackdrop />
+      {/* Vivid on the Library screen specifically — its list now carries its
+          own solid card background (the strip, the detail panel's stat
+          cards), so the backdrop can bleed through the gaps around them the
+          way it does on the account-select screen instead of staying held
+          back for a dense, backdrop-only track list. Every other page here
+          still gets the restrained version — a table of rows has no card of
+          its own to read against. */}
+      <ShellBackdrop vivid={pathname === '/'} />
 
       {/*
         Floating, and taller than it was. The bar used to be a full-width band

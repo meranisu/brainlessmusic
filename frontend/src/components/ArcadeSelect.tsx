@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent,
@@ -10,7 +11,7 @@ import {
 import { CoverArt } from './CoverArt';
 import { FavoriteButton } from './FavoriteButton';
 import { PlayIcon } from './icons';
-import { formatDuration } from '../lib/format';
+import { formatDate, formatDuration } from '../lib/format';
 import type { TrackSummary } from '../types/api';
 
 /**
@@ -90,6 +91,16 @@ export function ArcadeSelect({
   }, [selected, tracks.length, onNearEnd]);
 
   const current = tracks[selected];
+
+  // Other tracks by the same artist, already sitting in memory — nothing
+  // fetched for this, since `tracks` is the same page the strip is already
+  // showing. Fills the detail panel with something worth clicking instead of
+  // open space, and doubles as a shortcut past however many other artists
+  // separate them in the alphabetical strip.
+  const moreFromArtist = useMemo(() => {
+    if (!current?.artist) return [];
+    return tracks.filter((t) => t.artist === current.artist && t.id !== current.id).slice(0, 5);
+  }, [tracks, current]);
 
   // A one-shot confirm flash on the cursor band when a track actually starts
   // playing — distinct from selecting, which is silent (Q23). `null` until
@@ -302,49 +313,114 @@ export function ArcadeSelect({
     [clampDelta, selected, tracks.length, onSelect],
   );
 
-  // Where the list has to sit for the selected row to land in the middle,
-  // plus whatever a drag in progress has pulled it away from that by.
-  const offset = stripHeight / 2 - ROW_HEIGHT / 2 - selected * ROW_HEIGHT + dragDeltaPx;
+  // Where the list would have to sit for the selected row to land dead
+  // centre — the pure "cursor never moves" version.
+  const centeredOffset = stripHeight / 2 - ROW_HEIGHT / 2 - selected * ROW_HEIGHT;
+
+  // Clamped so the rail can never reveal empty space past either end of the
+  // actual list: `0` keeps row zero's top from being pushed below the
+  // strip's own top, and `stripHeight - railHeight` keeps the last row's
+  // bottom from being pulled above the strip's own bottom. Near either edge
+  // this wins over centring — track zero sits flush at the top rather than
+  // floating in the middle of a mostly-empty strip.
+  const railRows = tracks.length + (isLoadingMore ? 1 : 0);
+  const railHeight = railRows * ROW_HEIGHT;
+  const minOffset = Math.min(0, stripHeight - railHeight);
+  const restingOffset = Math.min(0, Math.max(minOffset, centeredOffset));
+
+  // The cursor band follows the resting position, not the drag delta — it
+  // holds still through a drag (the list moves under it) and only steps
+  // away from dead centre between selections, at the ends of the list.
+  const cursorCenter = restingOffset + selected * ROW_HEIGHT + ROW_HEIGHT / 2;
+
+  // A drag in progress pulls the rail away from its resting position.
+  const offset = restingOffset + dragDeltaPx;
 
   return (
     <div className="arcade-select">
       {/* ── The chosen one, written large ─────────────────────────────── */}
       <div className="arcade-detail order-2 min-w-0 lg:order-1">
         {current ? (
-          <div key={current.id} className="arcade-detail-inner">
+          <>
+            {/* A faint, blurred echo of the cover art filling the panel behind
+                the content — the panel's own height comes from the strip
+                beside it, not from this text, so without something to fill
+                the rest it would just be a lot of dead air under the button. */}
             <CoverArt
+              key={`glow-${current.id}`}
               kind="tracks"
               id={current.id}
-              className="aspect-square w-full max-w-72 rounded-xl border border-blue-700"
+              size="full"
+              className="arcade-detail-glow"
+              alt=""
+              bare
             />
-            <h2 className="mt-5 text-2xl font-semibold leading-tight text-white lg:text-3xl">
-              {current.title}
-            </h2>
-            <p className="mt-1 text-base text-blue-200">{current.artist ?? 'Unknown artist'}</p>
-            <p className="text-sm text-blue-400">{current.album ?? 'No album'}</p>
+            <div key={current.id} className="arcade-detail-inner">
+              <div className="arcade-detail-head">
+                <CoverArt
+                  kind="tracks"
+                  id={current.id}
+                  className="arcade-detail-art rounded-xl border border-blue-700"
+                />
+                <div className="flex min-w-0 flex-col justify-center">
+                  <h2 className="text-2xl font-semibold leading-tight text-white lg:text-3xl">
+                    {current.title}
+                  </h2>
+                  <p className="mt-1 text-base text-blue-200">{current.artist ?? 'Unknown artist'}</p>
+                  <p className="text-sm text-blue-400">{current.album ?? 'No album'}</p>
 
-            <dl className="mt-5 grid max-w-sm grid-cols-2 gap-x-6 gap-y-2 text-sm">
-              <Fact label="Length" value={formatDuration(current.duration)} />
-              <Fact label="Format" value={current.format ?? '—'} />
-              <Fact label="Plays" value={current.playCount > 0 ? String(current.playCount) : '—'} />
-              <Fact
-                label="Status"
-                value={current.missing ? 'File missing' : current.hidden ? 'Hidden' : 'Ready'}
-              />
-            </dl>
+                  <div className="mt-4 flex items-center gap-3">
+                    <button
+                      onClick={() => play(selected)}
+                      disabled={current.missing}
+                      className="btn-primary btn-md min-h-12 gap-2 px-6 text-base font-semibold uppercase tracking-[0.12em]"
+                    >
+                      <PlayIcon className="h-3.5 w-3.5" />
+                      Play
+                    </button>
+                    <FavoriteButton trackId={current.id} isFavorited={favoriteIds.has(current.id)} />
+                  </div>
+                </div>
+              </div>
 
-            <div className="mt-6 flex items-center gap-3">
-              <button
-                onClick={() => play(selected)}
-                disabled={current.missing}
-                className="btn-primary btn-md min-h-12 gap-2 px-6 text-base font-semibold uppercase tracking-[0.12em]"
-              >
-                <PlayIcon className="h-3.5 w-3.5" />
-                Play
-              </button>
-              <FavoriteButton trackId={current.id} isFavorited={favoriteIds.has(current.id)} />
+              <dl className="arcade-stat-row">
+                <Fact label="Length" value={formatDuration(current.duration)} />
+                <Fact label="Format" value={current.format ?? '—'} />
+                <Fact label="Plays" value={current.playCount > 0 ? String(current.playCount) : '—'} />
+                <Fact
+                  label="Status"
+                  value={current.missing ? 'File missing' : current.hidden ? 'Hidden' : 'Ready'}
+                  accent={current.missing}
+                />
+                <Fact label="Added" value={formatDate(current.dateAdded)} />
+              </dl>
+
+              {moreFromArtist.length > 0 && (
+                <div className="arcade-detail-more">
+                  <h3 className="arcade-detail-more-heading">More from {current.artist}</h3>
+                  <ul className="arcade-detail-more-list">
+                    {moreFromArtist.map((track) => (
+                      <li key={track.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const index = tracks.findIndex((t) => t.id === track.id);
+                            if (index !== -1) onSelect(index);
+                          }}
+                          className="arcade-detail-more-item"
+                        >
+                          <span className="truncate">{track.title}</span>
+                          <span className="arcade-detail-more-item-meta">
+                            {formatDuration(track.duration)}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
-          </div>
+          </>
         ) : (
           <p className="text-sm text-blue-300">Nothing here yet.</p>
         )}
@@ -352,85 +428,95 @@ export function ArcadeSelect({
 
       {/* ── The strip ─────────────────────────────────────────────────── */}
       <div className="arcade-rail-col order-1 lg:order-2">
-        <div
-          ref={stripRef}
-          className="arcade-strip"
-          onWheel={onWheel}
-          onKeyDown={onKeyDown}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
-          tabIndex={0}
-          role="listbox"
-          aria-label="Tracks"
-          aria-activedescendant={current ? rowId(current.id) : undefined}
-        >
-          {/* The cursor. A fixed band the list travels under, rather than a
-              highlight that moves — which is the whole point of the layout, and
-              the reason it is a sibling of the list instead of a class on a
-              row. */}
-          <div aria-hidden className="arcade-cursor" style={{ height: ROW_HEIGHT }}>
-            {launchToken !== null && <span key={launchToken} className="arcade-launch-flash" />}
-          </div>
-
+        <div className="arcade-strip">
           <div
-            className={`arcade-rail ${isDragging ? 'is-dragging' : ''}`}
-            style={{ transform: `translateY(${offset}px)` }}
+            ref={stripRef}
+            className="arcade-strip-viewport"
+            onWheel={onWheel}
+            onKeyDown={onKeyDown}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
+            tabIndex={0}
+            role="listbox"
+            aria-label="Tracks"
+            aria-activedescendant={current ? rowId(current.id) : undefined}
           >
-            {tracks.map((track, i) => (
-              <div
-                key={track.id}
-                id={rowId(track.id)}
-                role="option"
-                aria-selected={i === selected}
-                // A click selects; a click on what is already selected plays.
-                // Two gestures on one control, distinguished by where the
-                // cursor already is, which is how the reference's single button
-                // does confirm. Not individually focusable — the listbox holds
-                // focus and reports position via aria-activedescendant, so a
-                // screen reader user doesn't have to tab through every row.
-                onClick={() => {
-                  if (wasDragging.current) return;
-                  if (i === selected) play(i);
-                  else onSelect(i);
-                }}
-                style={{ height: ROW_HEIGHT }}
-                className={`arcade-row ${i === selected ? 'is-selected' : ''} ${
-                  track.missing ? 'is-missing' : ''
-                }`}
-              >
-                <span className="arcade-row-title">{track.title}</span>
-                <span className="arcade-row-meta">
-                  <span className="truncate">{track.artist ?? 'Unknown artist'}</span>
-                  {track.format && <span className="arcade-row-format">{track.format}</span>}
-                </span>
-              </div>
-            ))}
-            {isLoadingMore && (
-              <p
-                style={{ height: ROW_HEIGHT }}
-                className="flex items-center px-4 text-xs uppercase tracking-[0.2em] text-blue-400"
-              >
-                Loading…
-              </p>
-            )}
-          </div>
-        </div>
+            {/* The cursor. A fixed band the list travels under, rather than a
+                highlight that moves — which is the whole point of the layout, and
+                the reason it is a sibling of the list instead of a class on a
+                row. Its own position, not a flat 50%, so it can step off dead
+                centre at either end of the list instead of leaving empty strip
+                above track one or below the last track. */}
+            <div
+              aria-hidden
+              className="arcade-cursor"
+              style={{ height: ROW_HEIGHT, top: cursorCenter }}
+            >
+              {launchToken !== null && <span key={launchToken} className="arcade-launch-flash" />}
+            </div>
 
-        <p className="mt-2 px-1 text-xs text-blue-400">
-          {tracks.length > 0 ? `${selected + 1} of ${tracks.length} loaded` : ''}
-        </p>
+            <div
+              className={`arcade-rail ${isDragging ? 'is-dragging' : ''}`}
+              style={{ transform: `translateY(${offset}px)` }}
+            >
+              {tracks.map((track, i) => (
+                <div
+                  key={track.id}
+                  id={rowId(track.id)}
+                  role="option"
+                  aria-selected={i === selected}
+                  // A click selects; a click on what is already selected plays.
+                  // Two gestures on one control, distinguished by where the
+                  // cursor already is, which is how the reference's single button
+                  // does confirm. Not individually focusable — the listbox holds
+                  // focus and reports position via aria-activedescendant, so a
+                  // screen reader user doesn't have to tab through every row.
+                  onClick={() => {
+                    if (wasDragging.current) return;
+                    if (i === selected) play(i);
+                    else onSelect(i);
+                  }}
+                  style={{ height: ROW_HEIGHT }}
+                  className={`arcade-row ${i === selected ? 'is-selected' : ''} ${
+                    track.missing ? 'is-missing' : ''
+                  }`}
+                >
+                  <span className="arcade-row-title">{track.title}</span>
+                  <span className="arcade-row-meta">
+                    <span className="truncate">{track.artist ?? 'Unknown artist'}</span>
+                    {track.format && <span className="arcade-row-format">{track.format}</span>}
+                  </span>
+                </div>
+              ))}
+              {isLoadingMore && (
+                <p
+                  style={{ height: ROW_HEIGHT }}
+                  className="flex items-center px-4 text-xs uppercase tracking-[0.2em] text-blue-400"
+                >
+                  Loading…
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* The strip's own status line, inside the same bordered panel
+              rather than floating below it — one theme instead of two. */}
+          <p className="arcade-strip-footer">
+            {tracks.length > 0 ? `${selected + 1} of ${tracks.length} loaded` : ''}
+          </p>
+        </div>
       </div>
     </div>
   );
 }
 
-function Fact({ label, value }: { label: string; value: string }) {
+function Fact({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
   return (
-    <>
-      <dt className="text-blue-400">{label}</dt>
-      <dd className="text-right text-blue-100">{value}</dd>
-    </>
+    <div className={`arcade-stat ${accent ? 'is-accent' : ''}`}>
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+    </div>
   );
 }
