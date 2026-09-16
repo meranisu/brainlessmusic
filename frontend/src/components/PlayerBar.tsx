@@ -266,6 +266,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const audio = new Audio();
+    // Buffer as aggressively as the browser allows whenever this tab does
+    // have network priority — a backgrounded tab still gets deprioritized
+    // fetches regardless (that part isn't something this can override), but
+    // there's no reason to leave any headroom on the table while foregrounded.
+    audio.preload = 'auto';
     // Read fresh rather than closing over the `volume` state — this effect
     // only ever runs once, at mount, so it must not appear to depend on a
     // value that can change afterward.
@@ -628,10 +633,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const audio = audioRef.current;
     if (audio && audio.currentTime > RESTART_THRESHOLD_SECONDS) {
       audio.currentTime = 0;
+      // Same reasoning as `seek()`: keep the reconnect anchor from going
+      // stale the instant this jump happens.
+      if (progressRef.current) progressRef.current.lastTime = 0;
       return;
     }
     if (index > 0) return goTo(index - 1);
-    if (audio) audio.currentTime = 0;
+    if (audio) {
+      audio.currentTime = 0;
+      if (progressRef.current) progressRef.current.lastTime = 0;
+    }
   }
 
   function toggle() {
@@ -649,8 +660,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const audio = audioRef.current;
     if (!audio) return;
     const max = duration || audio.duration || 0;
-    audio.currentTime = Math.min(Math.max(seconds, 0), max);
-    setCurrentTime(audio.currentTime);
+    const target = Math.min(Math.max(seconds, 0), max);
+    audio.currentTime = target;
+    // A mid-stream failure (see the `error` listener in the mount effect)
+    // reconnects at `progressRef.current.lastTime`, which otherwise only
+    // catches up on the next `timeupdate` tick. Without this, an error
+    // landing in that gap — a backgrounded tab is exactly where a stall is
+    // most likely — would resume from wherever the track was *before* this
+    // seek instead of where it was asked to go.
+    if (progressRef.current) progressRef.current.lastTime = target;
+    setCurrentTime(target);
   }
 
   function cycleRepeat() {
