@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { AUDIO_EXTENSIONS } from './trackTags.js';
-import { buildETag, ifRangeAllowsRange, isNotModified, mimeTypeFor, parseRange } from './streaming.js';
+import {
+  buildETag,
+  ifRangeAllowsRange,
+  isNotModified,
+  isWebKitOnlyClient,
+  mimeTypeFor,
+  parseRange,
+} from './streaming.js';
 
 const SIZE = 1000; // valid byte offsets are 0..999
 
@@ -119,6 +126,67 @@ describe('mimeTypeFor', () => {
 
   it('is not fooled by a dot inside the filename', () => {
     assert.equal(mimeTypeFor('/music/Album 1.5 - Track.mp3'), 'audio/mpeg');
+  });
+});
+
+describe('isWebKitOnlyClient', () => {
+  it('is false with no User-Agent at all', () => {
+    assert.equal(isWebKitOnlyClient(undefined), false);
+  });
+
+  it('catches every browser on iOS, whatever engine its UA claims', () => {
+    // Safari.
+    assert.equal(
+      isWebKitOnlyClient(
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+      ),
+      true,
+    );
+    // Chrome for iOS — still WebKit under the hood; Apple requires it.
+    assert.equal(
+      isWebKitOnlyClient(
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/125.0.6422.80 Mobile/15E148 Safari/604.1',
+      ),
+      true,
+    );
+    // An iPad reports itself the same way.
+    assert.equal(
+      isWebKitOnlyClient(
+        'Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+      ),
+      true,
+    );
+  });
+
+  it('catches desktop Safari', () => {
+    assert.equal(
+      isWebKitOnlyClient(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15',
+      ),
+      true,
+    );
+  });
+
+  it('is not fooled by Chrome, Chromium or Edge on desktop, which also carry "Safari" in their UA', () => {
+    assert.equal(
+      isWebKitOnlyClient(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      ),
+      false,
+    );
+    assert.equal(
+      isWebKitOnlyClient(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0',
+      ),
+      false,
+    );
+  });
+
+  it('is false for a non-WebKit browser with no "Safari" token at all', () => {
+    assert.equal(
+      isWebKitOnlyClient('Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0'),
+      false,
+    );
   });
 });
 

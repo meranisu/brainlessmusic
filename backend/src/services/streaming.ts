@@ -19,6 +19,37 @@ export function mimeTypeFor(filePath: string): string {
   return MIME_TYPES[extname(filePath).toLowerCase()] ?? 'application/octet-stream';
 }
 
+/** Source containers WebKit cannot demux at all, on any platform, at any
+ *  bitrate — see `isWebKitOnlyClient` for why that makes them a special case
+ *  rather than another data-saver-style downgrade. */
+export const WEBKIT_INCOMPATIBLE_EXTENSIONS = new Set(['.opus', '.ogg']);
+
+/**
+ * True for a browser that cannot open an Ogg container or bare Opus at all —
+ * every browser on iOS (Safari, Chrome, Firefox, an in-app WebView) is
+ * required by Apple to run on WebKit under the hood, and WebKit has never
+ * shipped Ogg demuxing on any platform, desktop Safari included. A client
+ * like this needs a different container, not a smaller one — dropping the
+ * bitrate changes nothing about whether it can be opened.
+ *
+ * Sniffed from User-Agent because that is the only signal available: a plain
+ * `<audio src>` sends no `Accept` header naming codecs, and probing playback
+ * support would mean a round trip to the client before every stream request
+ * just to answer a question the request line already carries the evidence
+ * for.
+ */
+export function isWebKitOnlyClient(userAgent: string | undefined): boolean {
+  if (!userAgent) return false;
+  // Every iOS browser: Apple forces them all onto WebKit, whatever engine
+  // their own User-Agent token otherwise claims (CriOS, FxiOS, EdgiOS and a
+  // bare WebView all still apply).
+  if (/iPad|iPhone|iPod/.test(userAgent)) return true;
+  // Desktop Safari specifically. Chrome, Chromium, Edge and Opera on macOS
+  // all carry "Safari/" in their own User-Agent for legacy compatibility, so
+  // it only counts once every non-WebKit engine has been ruled out.
+  return /Safari\//.test(userAgent) && !/Chrome\/|Chromium\/|Edg\/|OPR\//.test(userAgent);
+}
+
 export interface ByteRange {
   start: number;
   end: number;
@@ -246,6 +277,36 @@ export const REMUX_M4A_VARIANT: Variant = {
   extension: '.m4a',
   mimeType: 'audio/mp4',
   configure: (c) => c.noVideo().audioCodec('copy').outputOptions('-movflags', '+faststart').format('mp4'),
+};
+
+/** Bitrate for the WebKit-compatibility copy below. Chosen for "sounds like
+ *  the source to nearly everyone," not for size — this variant exists to fix
+ *  a browser that cannot open the container at all, not to trim bytes off one
+ *  it already can. */
+export const WEBKIT_COMPAT_BITRATE_BPS = 192_000;
+const WEBKIT_COMPAT_BITRATE = `${WEBKIT_COMPAT_BITRATE_BPS / 1000}k`;
+
+/**
+ * Opus/Ogg re-encoded into an AAC-in-M4A container WebKit can actually open.
+ *
+ * Unlike `REMUX_M4A_VARIANT`, this re-encodes rather than copying frames:
+ * Opus and AAC are different codecs, so there is nothing to carry over
+ * byte-for-byte the way raw ADTS's AAC frames are. That makes this strictly
+ * lossy on top of whatever loss the source already carries — acceptable here
+ * because the alternative on a WebKit-only client is not "a smaller file",
+ * it's "no playback at all".
+ */
+export const WEBKIT_COMPAT_VARIANT: Variant = {
+  id: 'webkitcompat',
+  extension: '.m4a',
+  mimeType: 'audio/mp4',
+  configure: (c) =>
+    c
+      .noVideo()
+      .audioCodec('aac')
+      .audioBitrate(WEBKIT_COMPAT_BITRATE)
+      .outputOptions('-movflags', '+faststart')
+      .format('mp4'),
 };
 
 /** Thrown when every transcode slot is busy, so callers can answer 503 rather than 500. */

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { promisify } from 'node:util';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../app.js';
@@ -12,6 +14,17 @@ import { hashPassword } from '../services/password.js';
 import { signMediaToken } from '../services/token.js';
 import { buildETag } from '../services/streaming.js';
 import { makeTempDir, resetDatabase } from '../testing/harness.js';
+
+const run = promisify(execFile);
+
+async function hasFfmpeg(): Promise<boolean> {
+  try {
+    await run('ffmpeg', ['-version']);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * The audio path, end to end over the real Fastify instance.
@@ -27,6 +40,7 @@ const BODY = Buffer.from(Array.from({ length: 4096 }, (_, i) => i % 251));
 
 let app: FastifyInstance;
 let cleanup: () => Promise<void>;
+let tempPath: string;
 let trackPath: string;
 let trackId: number;
 let mediaToken: string;
@@ -39,6 +53,7 @@ before(async () => {
 
   const temp = await makeTempDir('stream');
   cleanup = temp.cleanup;
+  tempPath = temp.path;
   trackPath = join(temp.path, 'track.mp3');
   await writeFile(trackPath, BODY);
 });
@@ -200,5 +215,114 @@ describe('the data-saver path', () => {
     } finally {
       config.maxConcurrentTranscodes = original;
     }
+  });
+});
+
+describe('WebKit compatibility for Ogg/Opus sources', async () => {
+  const ffmpegAvailable = await hasFfmpeg();
+  const IPHONE_UA =
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
+  const DESKTOP_SAFARI_UA =
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15';
+  const CHROME_UA =
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+  let oggPath: string;
+  let oggTrackId: number;
+
+  before(async () => {
+    if (!ffmpegAvailable) return;
+    // Real audio, unlike `BODY` above: this path actually decodes and
+    // re-encodes the source, so it needs to be something ffmpeg will accept.
+    oggPath = join(tempPath, 'track.opus');
+    await run('ffmpeg', [
+      '-loglevel', 'error', '-y',
+      '-f', 'lavfi', '-i', 'sine=frequency=440:duration=1',
+      '-c:a', 'libopus', oggPath,
+    ]);
+  });
+
+  beforeEach(() => {
+    if (!ffmpegAvailable) return;
+    const rootId = insertLibraryRoot('/library/opus', null).id;
+    const track = upsertTrack({
+      path: oggPath,
+      title: 'Opus Filler',
+      artistName: 'Nobody',
+      albumTitle: null,
+      albumYear: null,
+      trackNumber: null,
+      duration: 1,
+      format: 'OPUS',
+      fileSize: 0,
+      rootId,
+    });
+    oggTrackId = track.id;
+  });
+
+  function oggStreamUrl(query = ''): string {
+    return `/api/tracks/${oggTrackId}/stream?token=${mediaToken}${query}`;
+  }
+
+  it('serves the original Ogg container to a non-WebKit browser', { skip: !ffmpegAvailable }, async () => {
+    const res = await app.inject({ method: 'GET', url: oggStreamUrl(), headers: { 'user-agent': CHROME_UA } });
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.headers['content-type'], 'audio/opus');
+  });
+
+  it('re-encodes to M4A for an iPhone, which cannot open Ogg at all', { skip: !ffmpegAvailable }, async () => {
+    const res = await app.inject({ method: 'GET', url: oggStreamUrl(), headers: { 'user-agent': IPHONE_UA } });
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.headers['content-type'], 'audio/mp4');
+  });
+
+  it('re-encodes to M4A for desktop Safari too', { skip: !ffmpegAvailable }, async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: oggStreamUrl(),
+      headers: { 'user-agent': DESKTOP_SAFARI_UA },
+    });
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.headers['content-type'], 'audio/mp4');
+  });
+
+  it('is not fooled by Chrome and Edge, which also carry "Safari" in their UA', { skip: !ffmpegAvailable }, async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: oggStreamUrl(),
+      headers: {
+        'user-agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0',
+      },
+    });
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.headers['content-type'], 'audio/opus', 'Edge on desktop is Chromium, not WebKit');
+  });
+
+  it('takes priority over a data-saver request instead of compounding with it', { skip: !ffmpegAvailable }, async () => {
+    // A smaller Ogg file is still an Ogg file an iPhone cannot open — the
+    // compatibility fix has to win outright, not stack a bitrate drop onto a
+    // container that was always going to fail.
+    const res = await app.inject({
+      method: 'GET',
+      url: oggStreamUrl('&quality=low'),
+      headers: { 'user-agent': IPHONE_UA },
+    });
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.headers['content-type'], 'audio/mp4');
+  });
+
+  it('leaves a non-Ogg source alone even for an iPhone', async () => {
+    // The original suite's plain .mp3 track, which needs no fixing anywhere.
+    const res = await app.inject({ method: 'GET', url: streamUrl(), headers: { 'user-agent': IPHONE_UA } });
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.headers['content-type'], 'audio/mpeg');
+    assert.deepEqual(res.rawPayload, BODY);
   });
 });

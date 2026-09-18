@@ -22,12 +22,15 @@ import {
   buildETag,
   ifRangeAllowsRange,
   isNotModified,
+  isWebKitOnlyClient,
   mimeTypeFor,
   parseRange,
   LOW_QUALITY_BITRATE_BPS,
   LOW_QUALITY_VARIANT,
   NoTranscodeSlotError,
   REMUX_M4A_VARIANT,
+  WEBKIT_COMPAT_VARIANT,
+  WEBKIT_INCOMPATIBLE_EXTENSIONS,
   type Variant,
 } from '../services/streaming.js';
 import { getOrCreate } from '../services/transcodeCache.js';
@@ -50,8 +53,14 @@ const CACHE_CONTROL = 'private, max-age=86400';
 /**
  * Whether this request should be served a converted copy, and which one.
  *
- * Two independent reasons to convert:
+ * Three independent reasons to convert:
  *
+ *  - **The client can't open the container at all.** WebKit — every browser on
+ *    iOS, plus desktop Safari — has never supported Ogg, so a `.opus` or
+ *    `.ogg` source needs re-encoding into `.m4a` before it plays there,
+ *    regardless of bitrate. Checked first: serving a *smaller* file the
+ *    client still can't decode fixes nothing, so this overrides a data-saver
+ *    request rather than compounding with it.
  *  - **Data saver.** Only worth it when the source is far enough above the
  *    target to pay for a second lossy generation. A strict "above 64k" test
  *    would re-encode a 121 kbps Opus file for a measured 36% saving; lossless
@@ -62,14 +71,24 @@ const CACHE_CONTROL = 'private, max-age=86400';
  *    and Chrome, which scales the seek bar by half again. Remuxing to `.m4a`
  *    copies the frames untouched into a container that states the real length.
  */
-function variantFor(track: { path: string; bitrate: number | null }, wantsLowQuality: boolean): Variant | null {
+function variantFor(
+  track: { path: string; bitrate: number | null },
+  wantsLowQuality: boolean,
+  userAgent: string | undefined,
+): Variant | null {
+  const ext = extname(track.path).toLowerCase();
+
+  if (WEBKIT_INCOMPATIBLE_EXTENSIONS.has(ext) && isWebKitOnlyClient(userAgent)) {
+    return WEBKIT_COMPAT_VARIANT;
+  }
+
   if (wantsLowQuality) {
     const floor = LOW_QUALITY_BITRATE_BPS * config.transcodeMinSourceBitrateRatio;
     if (track.bitrate !== null && track.bitrate < floor) return null;
     return LOW_QUALITY_VARIANT;
   }
 
-  return extname(track.path).toLowerCase() === '.aac' ? REMUX_M4A_VARIANT : null;
+  return ext === '.aac' ? REMUX_M4A_VARIANT : null;
 }
 
 const SORT_FIELDS = new Set<SortField>(['title', 'artist', 'album', 'duration', 'dateAdded', 'playCount']);
@@ -298,7 +317,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
       // Everything past this point treats all three cases identically, because
       // a cache entry *is* a file — which is the entire reason the cache
       // exists. Ranges, `ETag`, `304` and a working scrubber come free.
-      const variant = variantFor(track, request.query.quality === 'low');
+      const variant = variantFor(track, request.query.quality === 'low', request.headers['user-agent']);
 
       let servePath = track.path;
       let serveStats = stats;
