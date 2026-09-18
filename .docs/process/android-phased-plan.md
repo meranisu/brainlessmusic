@@ -25,7 +25,7 @@ Goal: connect → browse → stream → control. Each phase should be independen
 
 **Done when:** user can enter server details once, app confirms a working connection, and credentials persist across app restarts.
 
-**Status:** in progress — see `.docs/STATUS.md`.
+**Status:** scaffolded and build-verified 2026-09-18 — Gradle project, DI graph, networking, encrypted session storage, and all three screens (server-config, home placeholder, splash/restore) are written, and `./gradlew :app:assembleDebug` succeeds (JDK/Android SDK/Gradle installed user-space in WSL2, no Android Studio needed to build — see `android/README.md`). **Not yet run anywhere** — no emulator or device in this environment; the built APK is pending an on-device install/test. Full detail: `.docs/features/android-phase-0-connect/planning.md`.
 
 ---
 

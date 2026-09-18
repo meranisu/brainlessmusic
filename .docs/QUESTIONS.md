@@ -244,6 +244,24 @@ distinct future feature, not a corner cut silently.
 
 ---
 
+### Q29 — Should Android Phase 0 support guest entry, not just password login?
+**Asked:** 2026-09-18 · **Blocking:** no
+
+`.docs/process/android-phased-plan.md`'s Phase 0 was written before guest
+access shipped (2026-09-11) and only specs `POST /auth/login` (username +
+password). The web app's front door is now guest-entry-first, with password
+login demoted to an unadvertised `/login`.
+
+**Assumption I will build on: password login only, for now.** This is the
+owner's own device, not a friend's — Phase 0's done-when ("credentials
+persist across app restarts") reads as written for a real account, and guest
+entry has no persistent identity to restore on restart anyway. `AuthRepository`
+is structured so a `guestLogin()` method would be additive (same token shape,
+same `TokenProvider`/`SessionStore` plumbing), not a rework, if this turns out
+wrong. Say so if the Android app should offer a guest option too.
+
+---
+
 ## Answered
 
 ### A20 — Which OS for the server? *(was Q3)*

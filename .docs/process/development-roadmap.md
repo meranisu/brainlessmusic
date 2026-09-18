@@ -103,8 +103,8 @@ Hosting comes before the app, so there's a real server to point the phone at.
 
 ### Android — the listening client
 
-- [ ] **15. Android Phase 0 — connect.** Scaffold Kotlin/Compose + Hilt + Retrofit, server-config screen, login, JWT in encrypted DataStore, distinct errors for unreachable host / 401 / TLS / bad URL. Verify the emulator reaches WSL2 on `http://10.0.2.2:3000`.
-  *Done when:* the app confirms a connection and stays logged in across restarts.
+- [ ] **15. Android Phase 0 — connect.** Scaffold Kotlin/Compose + Hilt + Retrofit, server-config screen, login, JWT in encrypted DataStore, distinct errors for unreachable host / 401 / TLS / bad URL. Verify the emulator reaches WSL2 on `http://10.0.2.2:3000`. — **scaffolded 2026-09-18**, everything but the last sentence: this environment has no JDK/Gradle/Android SDK to build or run it against the emulator. See `.docs/features/android-phase-0-connect/planning.md`.
+  *Done when:* the app confirms a connection and stays logged in across restarts. — **not yet verified.**
 
 - [ ] **16. Android Phase 1 — browse.** Artists → albums → tracks, search, cover art via Coil (needs step 4), loading and empty states, pull-to-refresh.
   *Done when:* you can find any track in your library from the phone.

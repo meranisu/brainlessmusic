@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cleartext HTTP is intentionally allowed for every destination. This app's
+  whole first screen is "type in the address of a self-hosted server" — the
+  WSL2 dev backend and a bare LAN server both speak plain HTTP, with no way
+  to know in advance which hosts the user will type. The public deployment
+  (roadmap box 13) terminates real TLS at Cloudflare's edge regardless of
+  this file. See .docs/features/android-phase-0-connect/planning.md.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

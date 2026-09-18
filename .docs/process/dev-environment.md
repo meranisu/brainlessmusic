@@ -2,7 +2,7 @@
 
 Local development is done on **WSL2 (Ubuntu)**, not Docker and not native Windows Node. Docker is reserved for eventual deployment on the home server (see `.docs/ops/infrastructure.md`); native Windows Node is avoided because native-compile npm packages (e.g. `better-sqlite3`) build more reliably on Linux, and it keeps the dev environment closer to the eventual Arch server.
 
-The Android app is the exception — it's developed natively on Windows via Android Studio, since Docker offers no benefit there and GPU-accelerated emulation in a container is impractical.
+The Android app is developed natively on Windows via Android Studio for actually *running* it — an emulator needs GPU acceleration WSL2 can't give it, and there's no device attached here. **Building it doesn't need Android Studio, though** — a JDK, the Android SDK command-line tools, and Gradle install user-space in WSL2 with no root (confirmed 2026-09-18; `sudo` needing a password was the original assumption, and none of these three actually need it). `./gradlew :app:assembleDebug` from `android/` produces a real APK there. See `android/README.md` for the setup steps and what still can't be done from WSL2 (running/installing it — no emulator, no device).
 
 ## 1. Install WSL2 + Ubuntu
 

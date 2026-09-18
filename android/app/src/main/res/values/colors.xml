@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- XML-level colors only, for the pre-Compose window background/status
+         bar (theme flash prevention). Everything Compose renders uses
+         ui/theme/Color.kt instead — kept in sync by eye, there being only
+         one color here. -->
+    <color name="navy_900">#0F172A</color>
+</resources>

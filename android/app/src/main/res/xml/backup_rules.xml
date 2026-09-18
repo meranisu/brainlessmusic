@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Pre-Android-12 (API < 31) full-backup rules. Excludes the session
+  DataStore: its token is encrypted with an AndroidKeyStore key that never
+  leaves this device's hardware-backed storage, so a restored copy on a
+  different device could never decrypt it anyway — better to exclude it than
+  restore a session that silently can't be used.
+-->
+<full-backup-content>
+    <exclude domain="file" path="datastore/session_prefs.preferences_pb" />
+</full-backup-content>

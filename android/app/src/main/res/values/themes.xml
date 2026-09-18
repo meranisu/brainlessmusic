@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The real theme is Compose's Material3 theme (ui/theme/Theme.kt).
+         This XML theme only covers the moment before Compose takes over —
+         window background and status bar color, so there's no white flash
+         on a dark-themed app. -->
+    <style name="Theme.BrainlessMusic" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@color/navy_900</item>
+        <item name="android:windowBackground">@color/navy_900</item>
+    </style>
+</resources>
