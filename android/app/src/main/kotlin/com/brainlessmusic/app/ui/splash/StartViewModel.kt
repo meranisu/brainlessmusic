@@ -23,7 +23,7 @@ class StartViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             _resolvedRoute.value = when (authRepository.restoreSession()) {
-                is SessionRestoreResult.Restored -> Routes.HOME
+                is SessionRestoreResult.Restored -> Routes.ARTISTS
                 SessionRestoreResult.NoStoredSession,
                 SessionRestoreResult.StoredSessionInvalid,
                 -> Routes.SERVER_CONFIG

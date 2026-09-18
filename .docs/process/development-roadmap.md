@@ -106,8 +106,8 @@ Hosting comes before the app, so there's a real server to point the phone at.
 - [x] **15. Android Phase 0 — connect.** Scaffold Kotlin/Compose + Hilt + Retrofit, server-config screen, login, JWT in encrypted DataStore, distinct errors for unreachable host / 401 / TLS / bad URL. — **done 2026-09-18**, built and confirmed on a real device (owner's POCO F5, against a live Cloudflare Quick Tunnel, not the WSL2 emulator path the box originally named). Error-state UI (401 / unreachable / malformed URL) is implemented but not yet individually exercised on-device — not part of this box's stated done-when, tracked as a follow-up in `.docs/features/android-phase-0-connect/planning.md`.
   *Done when:* the app confirms a connection and stays logged in across restarts. — **verified**: logged in, killed the app, reopened it, still on Home with no re-login prompt.
 
-- [ ] **16. Android Phase 1 — browse.** Artists → albums → tracks, search, cover art via Coil (needs step 4), loading and empty states, pull-to-refresh.
-  *Done when:* you can find any track in your library from the phone.
+- [ ] **16. Android Phase 1 — browse.** Artists → albums → tracks, search, cover art via Coil (needs step 4), loading and empty states, pull-to-refresh. — **scaffolded and build-verified 2026-09-18**, same day as box 15. See `.docs/features/android-phase-1-browse/planning.md`.
+  *Done when:* you can find any track in your library from the phone. — **not yet verified on-device** — box 15's pattern (build-verify here, then confirm for real on the owner's phone) hasn't completed its second half yet.
 
 - [ ] **17. Android Phase 2 — play.** Media3/ExoPlayer against the stream endpoint, byte-range seeking, queue, Now Playing screen, scrobble on play.
   *Done when:* you tap a track on the phone and hear it.

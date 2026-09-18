@@ -1,5 +1,12 @@
 package com.brainlessmusic.app.data.repository
 
+import retrofit2.HttpException
+import java.io.IOException
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
+import javax.net.ssl.SSLException
+
 /** The four failure modes Phase 0 asks to be surfaced distinctly, plus a catch-all. */
 sealed interface ConnectionError {
     data object Unreachable : ConnectionError
@@ -7,6 +14,16 @@ sealed interface ConnectionError {
     data object TlsError : ConnectionError
     data object InvalidUrl : ConnectionError
     data class Unknown(val detail: String?) : ConnectionError
+}
+
+/** Shared by every repository that talks to the API — one place decides what a given failure means. */
+fun classifyError(t: Throwable): ConnectionError = when (t) {
+    is HttpException -> if (t.code() == 401) ConnectionError.Unauthorized else ConnectionError.Unknown("HTTP ${t.code()}")
+    // SSLException is an IOException subtype — must be checked before the generic IOException branch below.
+    is SSLException -> ConnectionError.TlsError
+    is UnknownHostException, is ConnectException, is SocketTimeoutException -> ConnectionError.Unreachable
+    is IOException -> ConnectionError.Unreachable
+    else -> ConnectionError.Unknown(t.message)
 }
 
 fun ConnectionError.toMessage(): String = when (this) {

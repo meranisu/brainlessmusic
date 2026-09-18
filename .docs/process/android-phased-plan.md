@@ -33,13 +33,15 @@ Goal: connect → browse → stream → control. Each phase should be independen
 
 **Goal:** User can see and navigate their library.
 
-- Fetch artists, albums, tracks from backend endpoints (TBD — backend library-scan endpoints not yet built)
+- ~~Fetch artists, albums, tracks from backend endpoints (TBD — backend library-scan endpoints not yet built)~~ **stale as of 2026-09-18 — the backend has been fully built since 2026-09-08/09.** `GET /artists`, `/artists/:id` (embeds albums), `/albums/:id` (embeds tracks), `/search` are all live; see `.docs/features/android-phase-1-browse/planning.md`.
 - Compose screens: Artists list → Album grid → Track list (detail)
 - Cover art loading with a Compose image loader (Coil recommended), placeholder/fallback art
 - Basic search — artist/album/track results
 - Loading states, empty states, pull-to-refresh
 
 **Done when:** user can browse from artist down to individual tracks, see cover art, and search the library.
+
+**Status:** scaffolded and build-verified 2026-09-18 — same day as Phase 0. Artists list, artist detail (album grid), album detail (track list), and search are all built against the real backend endpoints, with Coil-loaded cover art and manual refresh actions. `./gradlew :app:assembleDebug :app:lintDebug` succeeds, lint unchanged from Phase 0's clean baseline. **Not yet run anywhere** — see `.docs/features/android-phase-1-browse/planning.md`.
 
 ---
 
