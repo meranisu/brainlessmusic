@@ -2,3 +2,7 @@
 .env
 .env.*
 !.env.example
+
+# Machine-specific absolute paths (JDK location etc.) — same reason
+# android/local.properties and backend/.env stay out of git.
+.vscode/settings.json
