@@ -140,6 +140,17 @@ export function ExitIcon({ className = 'h-4 w-4' }: IconProps) {
   );
 }
 
+/** Search: a magnifying glass — the bar's search box, shrunk to an icon for
+    the header button that opens it on narrow screens. */
+export function SearchIcon({ className = 'h-4 w-4' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="m20 20-4.8-4.8" />
+    </svg>
+  );
+}
+
 /** Options: a gear. Six teeth rather than eight — fewer, larger teeth stay
     legible at 16px, where eight turn into a ring of noise. */
 export function GearIcon({ className = 'h-4 w-4' }: IconProps) {

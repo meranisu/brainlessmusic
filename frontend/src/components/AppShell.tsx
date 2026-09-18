@@ -1,4 +1,4 @@
-import { useEffect, useState, type MouseEvent } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { consumeJustEntered, markAtTitle } from '../lib/boot';
@@ -8,8 +8,13 @@ import { GlobalSearch } from './GlobalSearch';
 import { HandoffDialog } from './HandoffDialog';
 import { ArcadeInterstitial, ArrivalVeil } from './ArcadeInterstitial';
 import { ShellBackdrop } from './BackdropDepth';
-import { ExitIcon, GearIcon } from './icons';
+import { CloseIcon, ExitIcon, GearIcon, SearchIcon } from './icons';
 import { NavOverflow, type NavItem } from './NavOverflow';
+
+/** Must match `.options-panel.is-closing` in `index.css` — the mobile search
+ *  panel borrows the same menu chrome the "More" dropdown uses, so it borrows
+ *  the same closing-animation timing. */
+const SEARCH_CLOSE_MS = 160;
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `nav-tab ${isActive ? 'nav-tab-active' : ''}`;
@@ -100,6 +105,38 @@ export function AppShell() {
   const { user, logout } = useAuth();
   const [showHandoff, setShowHandoff] = useState(false);
   const [showMore, setShowMore] = useState(false);
+
+  /** The mobile search panel — `GlobalSearch` itself is `hidden` below `lg`,
+   *  where the bar has no room for a standing input, so this is the only way
+   *  a phone reaches search at all. */
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
+  const wasMobileSearchOpen = useRef(showMobileSearch);
+  const [isMobileSearchClosing, setIsMobileSearchClosing] = useState(false);
+
+  // Same stay-mounted-to-play-the-reverse trick `NavOverflow` uses: closing
+  // flips `showMobileSearch` to false immediately, and without this the panel
+  // would simply vanish instead of shrinking back into the icon that opened it.
+  useEffect(() => {
+    if (wasMobileSearchOpen.current && !showMobileSearch) {
+      setIsMobileSearchClosing(true);
+      const timer = setTimeout(() => setIsMobileSearchClosing(false), SEARCH_CLOSE_MS);
+      wasMobileSearchOpen.current = showMobileSearch;
+      return () => clearTimeout(timer);
+    }
+    wasMobileSearchOpen.current = showMobileSearch;
+  }, [showMobileSearch]);
+
+  const mobileSearchVisible = showMobileSearch || isMobileSearchClosing;
+
+  useEffect(() => {
+    if (!mobileSearchVisible) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') setShowMobileSearch(false);
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [mobileSearchVisible]);
+
   /** The card playing over everything, if any. Null the rest of the time. */
   const [leaving, setLeaving] = useState<{ text: string; detail?: string } | null>(null);
   /** Black still covering the page just arrived on, lifting off it. */
@@ -388,7 +425,31 @@ export function AppShell() {
           <div className={`hidden min-w-0 flex-1 justify-end lg:flex ${boot('boot-search')}`}>
             <GlobalSearch />
           </div>
-          <div className="flex-1 lg:hidden" />
+
+          {/* Below `lg`, `GlobalSearch` above is `hidden` and there is no
+              standing input for a phone to use, so this is search's only way
+              in on that width — a button that opens the panel below instead
+              of a box that would not fit beside the tabs.
+
+              `min-w-0`, the same fix the desktop search wrapper above already
+              needed and for the same reason: a `flex-1` item's minimum width
+              defaults to its own content's, not to zero, and this bar is
+              already measured as running out of room at narrow widths (see
+              the six-tabs-at-933px comment on `navItemsFor`). Without it this
+              button's own min-content width adds to that total instead of
+              yielding to it, and the gear/exit icons on its right get pushed
+              toward — and past — the edge of the screen. */}
+          <div className="flex min-w-0 flex-1 justify-end lg:hidden">
+            <button
+              onClick={() => setShowMobileSearch((open) => !open)}
+              aria-label="Search"
+              aria-expanded={showMobileSearch}
+              data-tip="Search"
+              className="tip btn-ghost btn-sm shrink-0 px-2"
+            >
+              <SearchIcon className="h-5 w-5" />
+            </button>
+          </div>
 
           <div className={`relative flex shrink-0 items-center gap-2 py-3 text-sm ${boot('boot-account')}`}>
             {user?.isAdmin && <span className="badge-admin mr-1 hidden shrink-0 xl:inline">Admin</span>}
@@ -441,6 +502,52 @@ export function AppShell() {
           >
             <span className="band-sweep band-sweep-rail band-sweep-bottom" />
           </span>
+
+          {/* The panel the mobile search button opens. `absolute`, off
+              `shell-bar` (already `relative`, the same anchor More and
+              Options hang off), and *not* a plain flow row — that was tried
+              first and jittered on close: `options-panel`'s animation only
+              ever touches `opacity`/`transform`, never height, because it was
+              built for exactly this kind of floating popover. In normal flow
+              the panel's full layout height stays reserved for the whole
+              160ms close, so the page content below sat still while the
+              panel visually shrank away, then snapped upward in one frame the
+              instant React unmounted it. Floating it removes the panel from
+              layout entirely, so open and close are purely the same
+              fade/scale everywhere else on the bar, and nothing below it ever
+              moves. `inset-x-0` spans exactly `shell-bar`'s own width, so it
+              needs no `page-shell` of its own. */}
+          {mobileSearchVisible && (
+            <>
+              <div
+                className="fixed inset-0 z-20 lg:hidden"
+                onClick={() => setShowMobileSearch(false)}
+                aria-hidden
+              />
+              <div className="absolute inset-x-0 top-full z-30 mt-2 lg:hidden">
+                <div
+                  className={`options-panel card flex items-center gap-2 p-2 ${
+                    isMobileSearchClosing ? 'is-closing' : ''
+                  }`}
+                >
+                  <GlobalSearch
+                    className="relative flex-1"
+                    inputClassName="input w-full select-text py-1.5 pr-3 text-sm"
+                    showShortcutHint={false}
+                    autoFocus
+                    onNavigate={() => setShowMobileSearch(false)}
+                  />
+                  <button
+                    onClick={() => setShowMobileSearch(false)}
+                    aria-label="Close search"
+                    className="btn-ghost btn-sm shrink-0 px-2"
+                  >
+                    <CloseIcon className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </header>
 
