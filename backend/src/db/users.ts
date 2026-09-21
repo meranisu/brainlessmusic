@@ -226,6 +226,19 @@ export function clearPasscodeById(id: number): UserRow | undefined {
   return findUserById(id);
 }
 
+// export function deleteUser(id: number): boolean {
+//   return db.prepare('DELETE FROM users WHERE id = ?').run(id).changes > 0;
+// }
 export function deleteUser(id: number): boolean {
-  return db.prepare('DELETE FROM users WHERE id = ?').run(id).changes > 0;
+  const purge = db.transaction((userId: number) => {
+    db.prepare(
+      'DELETE FROM playlist_tracks WHERE playlist_id IN (SELECT id FROM playlists WHERE owner_id = ?)',
+    ).run(userId);
+    db.prepare('DELETE FROM playlists WHERE owner_id = ?').run(userId);
+    db.prepare('DELETE FROM favorites WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM play_history WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM playback_state WHERE user_id = ?').run(userId);
+    return db.prepare('DELETE FROM users WHERE id = ?').run(userId).changes > 0;
+  });
+  return purge(id);
 }

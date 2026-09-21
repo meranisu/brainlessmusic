@@ -41,6 +41,8 @@ services:
       # button. Same "correct on a LAN" reasoning as ENTRY_CODE below.
       ALLOW_OPEN_REGISTRATION: ${ALLOW_OPEN_REGISTRATION:-true}
       ENTRY_CODE: ${ENTRY_CODE:-}
+      TRANSCODE_PATH: /data/transcodes
+
 
       # Optional overrides; the image's defaults are usually right.
       # JWT_EXPIRES_IN: 7d
