@@ -7,6 +7,14 @@
 name: brainlessmusic
 
 services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: brainless-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+     - brainless-app
+
   brainless-app:
     build: .
     image: brainlessmusic:local
@@ -31,7 +39,8 @@ services:
       # Anyone who can reach this server may create their own (non-admin)
       # account from the account-select screen's "Create a new profile"
       # button. Same "correct on a LAN" reasoning as ENTRY_CODE below.
-      ALLOW_OPEN_REGISTRATION: 'true'
+      ALLOW_OPEN_REGISTRATION: ${ALLOW_OPEN_REGISTRATION:-true}
+      ENTRY_CODE: ${ENTRY_CODE:-}
 
       # Optional overrides; the image's defaults are usually right.
       # JWT_EXPIRES_IN: 7d
