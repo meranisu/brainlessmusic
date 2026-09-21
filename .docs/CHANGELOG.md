@@ -4,6 +4,63 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-21 — Deployed on the `smol` box at `music.nobrainmusic.my`; compose now passes `ENTRY_CODE` and `ALLOW_OPEN_REGISTRATION` through
+
+Commit `7aadcc7`. A deploy/config change (no application code), logged here
+because it changed what the running container actually does — `docker-compose.yml`
+was silently overriding two `.env` settings the server's own warnings tell you
+to set.
+
+- **`ALLOW_OPEN_REGISTRATION` was hardcoded `'true'` in compose**, so a value
+  in `.env` never reached the container: the boot log kept printing "Open
+  registration is ON" no matter what `.env` said. Now
+  `${ALLOW_OPEN_REGISTRATION:-true}` — the default is unchanged, so local dev
+  and the LAN behave exactly as before; only a deployment that sets it
+  differently sees a difference.
+- **`ENTRY_CODE` had no way in under compose at all.** A comment in the file
+  referred to "ENTRY_CODE below", but nothing followed it. Added
+  `ENTRY_CODE: ${ENTRY_CODE:-}` (unset by default, per
+  [A15](QUESTIONS.md#a15--the-entry-code-hook-ships-now-unset)). Compose does
+  not hand every `.env` entry to a container — only the ones listed under
+  `environment:` — which is the general lesson behind both fixes.
+- **Added a `cloudflared` service** (`cloudflare/cloudflared`, `restart:
+  unless-stopped`, `depends_on: brainless-app`) driven by
+  `CLOUDFLARE_TUNNEL_TOKEN` from `.env`, so the tunnel restarts with the app.
+- **Deployed on `smol`** (Manjaro, Tailscale `100.110.131.71`): the repo's root
+  `.env` (gitignored — *not* `backend/.env`) holds `JWT_SECRET`, `ALLOW_OPEN_REGISTRATION=false`,
+  `ENTRY_CODE` and the tunnel token, and `LIBRARY_DIR=/home/smol/Music`. The
+  library is read **in place** from smol's own disk, not copied as the
+  runbook originally described — nothing about the app changed for that; it is
+  still just a bind mount onto `/library`.
+- **Verified 2026-09-21:** 14 migrations applied on first boot; the log then
+  read "Guest entry: requires ENTRY_CODE" with no open-registration warning;
+  `cloudflared` registered four connections (two `kul01`, `sin14`, `sin15`,
+  QUIC) and its pushed ingress config routed `music.nobrainmusic.my` →
+  `http://brainless-app:3000`; `GET https://music.nobrainmusic.my/api/health`
+  from a laptop with no Tailscale in the path returned `200 {"status":"ok"}`.
+  Admin account created and library scanned through the public hostname.
+  `.env` was audited before the first `up -d` for duplicate keys (it had two
+  `ENTRY_CODE` lines, and the later one wins) and stray quotes/CRs.
+- **Not done, on purpose:** the Cloudflare Access gate — see
+  [Q30](QUESTIONS.md#q30--should-cloudflare-access-sit-in-front-of-the-public-hostname).
+  Until it exists, the only gates are `ENTRY_CODE` and account login.
+
+## 2026-09-21 — The top-bar logo and wordmark link back to the Library
+
+Commit `411d899`, `frontend/src/components/AppShell.tsx`.
+
+- The brand mark and the `brainlessmusic` wordmark were a plain `div`, so
+  clicking them did nothing. Wrapped in a router `Link` to `/` (the Library
+  tab), keeping the same classes so the bar's layout and the boot animation
+  are untouched.
+- The header gradient moved to Tailwind v4's `bg-linear-to-b`. The old
+  `bg-gradient-to-b` still works as a deprecated alias, and this was the only
+  place it was used in `frontend/src`.
+- **Known nit:** two commented-out `// import ...` lines were left at the top
+  of the file when a stash conflict was resolved by hand. Dead code, harmless,
+  worth deleting.
+- Not exercised in a browser yet — tsc/oxlint were not run for this change.
+
 ## 2026-09-16 — Player bar redesigned as an arcade control deck; volume added to the phone sheet
 
 The bar was plain `btn-ghost`/rounded-md furniture — the same visual

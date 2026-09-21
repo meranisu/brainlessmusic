@@ -36,6 +36,7 @@ is never asked twice.
 | [Q19](#q19--what-does-a-theme-control) | What does a theme control? | 2026-09-11 | Yes, at phase 2 |
 | [Q20](#q20--where-does-the-theme-choice-live) | Where does the theme choice live? | 2026-09-11 | No — assumption stated |
 | [Q23](#q23--should-selecting-a-track-preview-it) | Should selecting a track preview it? | 2026-09-11 | No — assumption stated |
+| [Q30](#q30--should-cloudflare-access-sit-in-front-of-the-public-hostname) | Should Cloudflare Access sit in front of the public hostname? | 2026-09-21 | No — assumption stated |
 
 ### Q2 — When does open registration get turned off?
 **Asked:** 2026-09-09 · **Blocking:** yes, at box 13's done-when
@@ -54,6 +55,13 @@ reaches the server can now press a button and listen without minting an account
 at all, so the exposure Q2 was standing in for moves to
 [A15](#a15--the-entry-code-hook-ships-now-unset) and to box 13's gate. This
 entry stays open until that gate exists and is running.
+
+**Update 2026-09-21:** the tunnel is now running and public at
+`music.nobrainmusic.my`, with `ALLOW_OPEN_REGISTRATION=false` and `ENTRY_CODE`
+set (both now actually reach the container — see the changelog). What is still
+missing is the Cloudflare Access gate, which is now its own decision,
+[Q30](#q30--should-cloudflare-access-sit-in-front-of-the-public-hostname).
+Q2 closes when that is answered either way.
 
 ### Q4 — Room-sync design details
 **Asked:** 2026-09-09 · **Blocking:** not yet — v0.3 work
@@ -259,6 +267,40 @@ entry has no persistent identity to restore on restart anyway. `AuthRepository`
 is structured so a `guestLogin()` method would be additive (same token shape,
 same `TokenProvider`/`SessionStore` plumbing), not a rework, if this turns out
 wrong. Say so if the Android app should offer a guest option too.
+
+---
+
+### Q30 — Should Cloudflare Access sit in front of the public hostname?
+**Asked:** 2026-09-21 · **Blocking:** no — assumption stated
+
+[A21](#a21--is-the-home-network-behind-cgnat-was-q1) planned a Cloudflare Access
+application (email-allowlist login) in front of the tunnel as defense-in-depth.
+The tunnel went live on 2026-09-21 without it, so `music.nobrainmusic.my` is
+currently gated only by `ENTRY_CODE` and account login.
+
+The catch is that Access is a browser login. A request that arrives without
+the Access cookie — the Android app, or a web client cloned and pointed at the
+hostname — is redirected to Cloudflare's login page instead of reaching the
+API, so it breaks unless it is given a Cloudflare **service token** (extra
+headers on every request, which the Android app does not send today).
+
+- **Access on:** strongest protection; the request never reaches the
+  container without passing Cloudflare first. Browser users get an extra
+  email/OTP step, and native clients need service tokens or a bypass rule for
+  the API paths.
+- **Access off:** native and cloned clients connect directly; the app's own
+  `ENTRY_CODE` + accounts are the only gate, so a bug or a leaked code is the
+  whole exposure.
+
+**Assumption I will build on: Access stays off for now**, because the Android
+app (Phase 0 confirmed on a real device against a tunnel URL) should be able to
+use the permanent hostname without new client work. Say so if browser-only
+access is enough and the gate should go on now.
+
+Related, non-blocking: nothing copies `/data/backups` (the backend's own
+database backups, which live in the same Docker volume as the database) off
+`smol`, so a dead disk takes both. Not a question — a gap; noted here so it
+is not lost.
 
 ---
 
