@@ -154,17 +154,23 @@ class PlaybackController @Inject constructor(
      * earlier "Play next" tracks), and hand it back.
      */
     private fun placeNextInShuffleOrder(inserted: Int) {
+        val sequence = shuffledSequence().toMutableList()
+        sequence.remove(inserted)
+        val currentPosition = sequence.indexOf(player.currentMediaItemIndex).coerceAtLeast(0)
+        sequence.add((currentPosition + playNextPending + 1).coerceAtMost(sequence.size), inserted)
+        player.setShuffleOrder(DefaultShuffleOrder(sequence.toIntArray(), System.nanoTime()))
+    }
+
+    /** Every queue index in the order shuffle will play them, from the first to the last. */
+    private fun shuffledSequence(): List<Int> {
         val timeline = player.currentTimeline
-        val sequence = mutableListOf<Int>()
+        val sequence = ArrayList<Int>(queue.size)
         var i = timeline.getFirstWindowIndex(/* shuffleModeEnabled = */ true)
         while (i != C.INDEX_UNSET) {
             sequence.add(i)
             i = timeline.getNextWindowIndex(i, Player.REPEAT_MODE_OFF, /* shuffleModeEnabled = */ true)
         }
-        sequence.remove(inserted)
-        val currentPosition = sequence.indexOf(player.currentMediaItemIndex).coerceAtLeast(0)
-        sequence.add((currentPosition + playNextPending + 1).coerceAtMost(sequence.size), inserted)
-        player.setShuffleOrder(DefaultShuffleOrder(sequence.toIntArray(), System.nanoTime()))
+        return sequence
     }
 
     /** Replaces ExoPlayer's random shuffle with [SmartShuffle]'s artist-spread order, starting from [first]. */
@@ -358,6 +364,8 @@ class PlaybackController @Inject constructor(
             error = errorMessage,
             hasNext = player.hasNextMediaItem(),
             hasPrevious = player.hasPreviousMediaItem(),
+            nextIndex = player.nextMediaItemIndex.takeIf { it != C.INDEX_UNSET } ?: -1,
+            playOrder = if (player.shuffleModeEnabled && queue.isNotEmpty()) shuffledSequence() else emptyList(),
             shuffle = player.shuffleModeEnabled,
             repeat = when (player.repeatMode) {
                 Player.REPEAT_MODE_ALL -> Repeat.ALL
@@ -373,7 +381,7 @@ class PlaybackController @Inject constructor(
         val estimate = DefaultBandwidthMeter.getSingletonInstance(context).bitrateEstimate
         return StreamInfo(
             // The server's name for the container beats a MIME type ("flac" over "audio/flac").
-            codec = queue.getOrNull(player.currentMediaItemIndex)?.format?.takeIf { it.isNotBlank() }?.uppercase()
+            codec = queue.getOrNull(player.currentMediaItemIndex)?.format?.takeIf { it.isNotBlank() }?.let(::prettyFormat)
                 ?: format?.sampleMimeType?.let(::codecName),
             sampleRateHz = format?.sampleRate?.takeIf { it > 0 },
             channels = format?.channelCount?.takeIf { it > 0 },
@@ -381,6 +389,24 @@ class PlaybackController @Inject constructor(
             bufferedAheadMs = (player.bufferedPosition - player.currentPosition).coerceAtLeast(0),
             networkKbps = estimate.takeIf { it > 0 }?.let { it / 1000 },
         )
+    }
+
+    /**
+     * The server stores whatever the tag reader called the codec ("MPEG 1 Layer 3", "flac", "Opus"); shown
+     * as the short names people know. Anything unrecognised is shown as it is.
+     */
+    private fun prettyFormat(raw: String): String {
+        val f = raw.trim().lowercase()
+        return when {
+            "layer 3" in f || f == "mp3" -> "MP3"
+            "flac" in f -> "FLAC"
+            "opus" in f -> "Opus"
+            "vorbis" in f -> "Vorbis"
+            "alac" in f -> "ALAC"
+            "aac" in f || "mpeg-4" in f || f == "m4a" -> "AAC"
+            f in setOf("wav", "wave", "pcm") -> "WAV"
+            else -> raw.trim()
+        }
     }
 
     private fun codecName(mime: String): String = when (mime.lowercase().removePrefix("audio/")) {

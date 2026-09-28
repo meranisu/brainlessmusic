@@ -14,9 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -56,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.brainlessmusic.app.playback.PlaybackUiState
+import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.playback.Repeat
 import com.brainlessmusic.app.playback.StreamInfo
 import com.brainlessmusic.app.ui.common.CoverImage
@@ -101,17 +100,18 @@ fun NowPlayingScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp),
         ) {
-            CoverImage(
-                url = current.coverUrl,
-                contentDescription = current.album,
-                cornerRadius = 20.dp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f),
-            )
+            // The cover takes whatever height the controls below do not need, as large a square as fits — so a
+            // tall phone gets a big cover rather than a gap at the bottom, and a short one a smaller cover.
+            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                CoverImage(
+                    url = current.coverUrl,
+                    contentDescription = current.album,
+                    cornerRadius = 20.dp,
+                    modifier = Modifier.aspectRatio(1f),
+                )
+            }
 
             // Three lines, left-aligned: what it is, who made it, what it came from.
             Column(modifier = Modifier.fillMaxWidth().padding(top = 20.dp)) {
@@ -161,7 +161,7 @@ fun NowPlayingScreen(
             }
 
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 16.dp).navigationBarsPadding(),
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
@@ -170,6 +170,12 @@ fun NowPlayingScreen(
                     Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = "Queue")
                 }
             }
+
+            UpNextCard(
+                next = state.next,
+                onClick = { showQueue = true },
+                modifier = Modifier.padding(top = 8.dp, bottom = 16.dp).navigationBarsPadding(),
+            )
         }
     }
 
@@ -233,6 +239,43 @@ private fun TransportRow(state: PlaybackUiState, viewModel: PlaybackViewModel) {
     }
 }
 
+/** What plays after this — in play order, so with shuffle on it is the shuffled next. Tapping opens the queue. */
+@Composable
+private fun UpNextCard(next: QueueItem?, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (next != null) {
+                CoverImage(url = next.coverUrl, contentDescription = null, cornerRadius = 8.dp, modifier = Modifier.size(44.dp))
+            }
+            Column(modifier = Modifier.weight(1f).padding(start = if (next != null) 12.dp else 4.dp)) {
+                Text("UP NEXT", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    next?.title ?: "End of the queue",
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                next?.artist?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
+
 /** What is actually coming down the wire, in two short lines. Hidden until the player knows anything. */
 @Composable
 private fun StreamReadout(stream: StreamInfo?, modifier: Modifier = Modifier) {
@@ -275,17 +318,22 @@ private fun StreamReadout(stream: StreamInfo?, modifier: Modifier = Modifier) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun QueueSheet(state: PlaybackUiState, onSkipTo: (Int) -> Unit, onDismiss: () -> Unit) {
+    // With shuffle on, the list order is not the play order; show what will actually play, in that order.
+    val order = if (state.shuffle && state.playOrder.size == state.queue.size) state.playOrder else state.queue.indices.toList()
+    val currentPosition = order.indexOf(state.currentIndex).coerceAtLeast(0)
+
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
         Text(
-            "Queue · ${state.queue.size} track${if (state.queue.size == 1) "" else "s"}",
+            "Queue · ${state.queue.size} track${if (state.queue.size == 1) "" else "s"}" + if (state.shuffle) " · shuffled" else "",
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
         )
         // Opens on what is playing, not at the top of a long queue.
-        val listState = rememberLazyListState(initialFirstVisibleItemIndex = (state.currentIndex - 1).coerceAtLeast(0))
+        val listState = rememberLazyListState(initialFirstVisibleItemIndex = (currentPosition - 1).coerceAtLeast(0))
         LazyColumn(state = listState, modifier = Modifier.navigationBarsPadding()) {
-            itemsIndexed(state.queue, key = { index, item -> "$index-${item.trackId}" }) { index, item ->
-                val isCurrent = index == state.currentIndex
+            itemsIndexed(order, key = { position, queueIndex -> "$position-${state.queue[queueIndex].trackId}" }) { _, queueIndex ->
+                val item = state.queue[queueIndex]
+                val isCurrent = queueIndex == state.currentIndex
                 ListItem(
                     headlineContent = {
                         Text(
@@ -300,7 +348,7 @@ private fun QueueSheet(state: PlaybackUiState, onSkipTo: (Int) -> Unit, onDismis
                     colors = ListItemDefaults.colors(
                         containerColor = if (isCurrent) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
                     ),
-                    modifier = Modifier.clickable { onSkipTo(index) },
+                    modifier = Modifier.clickable { onSkipTo(queueIndex) },
                 )
             }
         }

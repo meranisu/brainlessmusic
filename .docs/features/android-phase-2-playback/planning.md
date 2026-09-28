@@ -121,6 +121,21 @@ Owner's request after seeing it on the phone.
   and several "Play next" taps queue in the order tapped (previously each one jumped ahead of the last, shuffle or not).
 - Build, unit tests and lint pass; **not seen on a device.**
 
+## Fixes from the first look at the redesign (2026-09-28)
+
+- **Tapping the progress bar landed in the wrong place.** The seek bar's touch handlers are started once and keep running, and
+  they had captured the values from the first composition — including the track's length. After the track changed, a tap at 30%
+  sought to 30% of the *previous* track's length, which read as "skipping ahead". They now always use the current callbacks
+  (`rememberUpdatedState` in `SeekBar.kt`).
+- **Shuffle "did nothing".** The controller-to-ExoPlayer hookup is now pinned by a unit test (`ShuffleOrderContractTest`: walking
+  ExoPlayer's shuffle order yields the smart-shuffle sequence), so the logic itself is right. What was misleading is that the queue
+  sheet always listed the queue in *list* order, so with shuffle on it looked untouched. It now lists tracks in the order they will
+  play ("shuffled" in the title), and Now Playing has an **Up next** card showing the real next track. Still to be confirmed by ear
+  on the phone.
+- **Empty space under the controls:** the cover now takes whatever height is left (as large a square as fits), and the Up next card
+  sits at the bottom.
+- Settings: the classic-slider preview was drawn disabled (grey); fixed. Codec names are tidied ("MPEG 1 Layer 3" → "MP3").
+
 ## Change Log
 
 | Date | Phase affected | What changed | Why | Still fits the Plan phase? |

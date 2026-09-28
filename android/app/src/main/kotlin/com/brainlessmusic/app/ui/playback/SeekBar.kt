@@ -18,6 +18,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -62,7 +63,8 @@ fun SeekBar(
             value = fraction,
             onValueChange = onFraction,
             onValueChangeFinished = onFinished,
-            enabled = enabled && interactive,
+            // A preview is drawn enabled (a disabled slider is grey) but is inert: its value never changes.
+            enabled = enabled,
             modifier = modifier,
         )
         return
@@ -92,20 +94,26 @@ fun SeekBar(
     var widthPx by remember { mutableIntStateOf(1) }
     val f = fraction.coerceIn(0f, 1f)
 
+    // The gesture handlers below are started once and keep running. Capturing `onFraction`/`onFinished`
+    // directly would freeze the values they close over at the first composition — including the track's
+    // length — so after the track changed, a tap at 30% would seek to 30% of the *previous* track's length.
+    val latestOnFraction by rememberUpdatedState(onFraction)
+    val latestOnFinished by rememberUpdatedState(onFinished)
+
     val touch = if (interactive && enabled) {
         Modifier
             .pointerInput(Unit) {
                 detectTapGestures { offset ->
-                    onFraction((offset.x / widthPx).coerceIn(0f, 1f))
-                    onFinished()
+                    latestOnFraction((offset.x / widthPx).coerceIn(0f, 1f))
+                    latestOnFinished()
                 }
             }
             .pointerInput(Unit) {
                 detectHorizontalDragGestures(
-                    onDragStart = { onFraction((it.x / widthPx).coerceIn(0f, 1f)) },
-                    onDragEnd = onFinished,
-                    onDragCancel = onFinished,
-                ) { change, _ -> onFraction((change.position.x / widthPx).coerceIn(0f, 1f)) }
+                    onDragStart = { latestOnFraction((it.x / widthPx).coerceIn(0f, 1f)) },
+                    onDragEnd = { latestOnFinished() },
+                    onDragCancel = { latestOnFinished() },
+                ) { change, _ -> latestOnFraction((change.position.x / widthPx).coerceIn(0f, 1f)) }
             }
     } else {
         Modifier

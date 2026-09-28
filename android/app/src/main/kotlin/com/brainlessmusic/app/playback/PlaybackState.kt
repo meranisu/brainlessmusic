@@ -37,10 +37,15 @@ data class PlaybackUiState(
     // Asked of the player rather than derived from the index: with shuffle or repeat on, "next" is not index + 1.
     val hasNext: Boolean = false,
     val hasPrevious: Boolean = false,
+    /** Index in [queue] of what plays after the current track (shuffle- and repeat-aware), or -1. */
+    val nextIndex: Int = -1,
+    /** With shuffle on: queue indices in the order they will play (current track first). Empty otherwise. */
+    val playOrder: List<Int> = emptyList(),
     val shuffle: Boolean = false,
     val repeat: Repeat = Repeat.OFF,
     val stream: StreamInfo? = null,
 ) {
     val current: QueueItem? get() = queue.getOrNull(currentIndex)
     val hasQueue: Boolean get() = queue.isNotEmpty()
+    val next: QueueItem? get() = queue.getOrNull(nextIndex)
 }
