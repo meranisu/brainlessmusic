@@ -9,7 +9,7 @@ import com.brainlessmusic.app.ui.playback.MiniPlayer
 @Composable
 fun AppBottomBar(navController: NavHostController) {
     Column {
-        MiniPlayer(onClick = { navController.navigate(Routes.NOW_PLAYING) })
+        MiniPlayer(onClick = { navController.navigate(Routes.NOW_PLAYING) }, extendUnderSystemBar = false)
         LibraryBottomBar(navController)
     }
 }

@@ -2,6 +2,9 @@ package com.brainlessmusic.app.ui.playback
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,11 +30,20 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.brainlessmusic.app.ui.common.CoverImage
 
-/** Sits above the navigation bar (or alone, on detail screens); draws nothing until something is queued. */
+/**
+ * Sits above the navigation bar (or alone, on detail screens); draws nothing until something is queued.
+ *
+ * Colored with the same role as [androidx.compose.material3.NavigationBar]'s own container
+ * (`surfaceContainer`) so the two read as one block. It used `surface` plus a tonal overlay, which is a
+ * visibly different tone. Alone on a detail screen it must also extend under the system navigation
+ * bar ([extendUnderSystemBar]); above the app's own bar that bar already does, and doing it twice
+ * would leave a gap.
+ */
 @Composable
 fun MiniPlayer(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    extendUnderSystemBar: Boolean = true,
     viewModel: PlaybackViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -44,12 +56,14 @@ fun MiniPlayer(
     }
 
     Surface(
-        tonalElevation = 3.dp,
+        color = MaterialTheme.colorScheme.surfaceContainer,
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
     ) {
-        Column {
+        Column(
+            modifier = if (extendUnderSystemBar) Modifier.windowInsetsPadding(WindowInsets.navigationBars) else Modifier,
+        ) {
             LinearProgressIndicator(
                 progress = { progress },
                 modifier = Modifier

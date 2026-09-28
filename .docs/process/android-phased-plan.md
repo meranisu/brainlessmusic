@@ -121,6 +121,13 @@ read once synchronously at launch so a forced theme never flashes the other one,
 the app's choice rather than the phone's, and the pre-Compose window background is now light by day / navy by night
 (`values/` and `values-night/`) instead of always navy. Not verified on a device.
 
+### Mini player vs. navigation bar (2026-09-28)
+
+On newer Android the mini player and the navigation bar under it were visibly different tones: the player was `surface`
+plus a tonal overlay, the bar is `surfaceContainer`. The player now uses `surfaceContainer` too. On the artist and album
+screens the player sits alone and had no system-bar inset, so it drew under the phone's own navigation bar; it now extends
+under it (`extendUnderSystemBar`, off when it is stacked on the app's bar, which already does). Not verified on a device.
+
 ## App icon (2026-09-28)
 
 An abstract mark: an orange disc with a waveform cut out of it and a small satellite dot, on a deep-navy adaptive
