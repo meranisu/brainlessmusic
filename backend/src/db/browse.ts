@@ -161,6 +161,24 @@ const SORT_COLUMNS: Record<SortField, string> = {
   playCount: 't.play_count',
 };
 
+/**
+ * What breaks a tie within the chosen sort. Without one, SQLite orders equal
+ * keys arbitrarily — which is invisible in a table sorted by a mostly-unique
+ * title, but scrambles an album into random track order when sorting by
+ * album, and lets `LIMIT/OFFSET` paging repeat or skip rows at a page seam
+ * because the tied rows aren't guaranteed to come back in the same order twice.
+ * The final `t.id` makes every ordering total.
+ */
+const TRACK_ORDER = 't.track_number IS NULL, t.track_number, t.title COLLATE NOCASE, t.id';
+const SORT_TIEBREAKERS: Record<SortField, string> = {
+  title: 't.id',
+  artist: `al.title COLLATE NOCASE, ${TRACK_ORDER}`,
+  album: `a.name COLLATE NOCASE, ${TRACK_ORDER}`,
+  duration: 't.id',
+  dateAdded: 't.id',
+  playCount: 't.id',
+};
+
 function visibilityClause(column: string, filter: VisibilityFilter | undefined): string | null {
   if (filter === 'only') return `${column} = 1`;
   if (filter === 'exclude') return `${column} = 0`;
@@ -327,11 +345,14 @@ export function countTracks(options: ListTracksOptions = {}): number {
 
 export function listTracks(limit: number, offset: number, options: ListTracksOptions = {}): TrackSummary[] {
   const { where, params } = buildTrackFilter(options);
-  const sortColumn = SORT_COLUMNS[options.sort ?? 'title'];
+  const sort = options.sort ?? 'title';
   const direction = options.order === 'desc' ? 'DESC' : 'ASC';
+  // Only the primary key flips with `order` — a descending album list still
+  // reads track 1 → N inside each album.
+  const orderBy = `${SORT_COLUMNS[sort]} ${direction}, ${SORT_TIEBREAKERS[sort]}`;
 
   const rows = db
-    .prepare(`${TRACK_SUMMARY_SELECT} ${where} ORDER BY ${sortColumn} ${direction} LIMIT ? OFFSET ?`)
+    .prepare(`${TRACK_SUMMARY_SELECT} ${where} ORDER BY ${orderBy} LIMIT ? OFFSET ?`)
     .all(...params, limit, offset) as RawTrackSummary[];
 
   return rows.map(toTrackSummary);

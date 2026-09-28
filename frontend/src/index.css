@@ -846,14 +846,15 @@
    therefore the page, taller than the room actually available. Anything that
    doesn't fit (a long "now playing" panel, a huge list) scrolls inside its
    own box instead. The 14.5rem subtracted is the header, the page's own
-   vertical padding and the player bar's reserved strip — all fixed by
-   Tailwind classes elsewhere, not measured, so it has to stay in step with
-   them by hand. */
+   vertical padding and the player bar's reserved strip, and the rest is the
+   Simple/Full toggle row above it (`--library-toolbar-h`) — all fixed by
+   Tailwind classes or the rule below, not measured, so it has to stay in
+   step with them by hand. */
 .arcade-select {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-  height: min(44rem, calc(100svh - 14.5rem));
+  height: min(44rem, calc(100svh - 14.5rem - var(--library-toolbar-h)));
   overflow: hidden;
 }
 
@@ -2691,5 +2692,256 @@
   .pulse-ring.is-playing::after {
     animation: none;
     opacity: 0;
+  }
+}
+
+/* ── Library: the Simple / Full toggle and the Full view ────────────────────
+   In `@layer components`, unlike the `.arcade-*` rules above, on purpose: these
+   are put on elements that also carry Tailwind utilities (`hidden`, `w-8`,
+   `text-right`, `pl-4`…) which must be able to override the padding, width and
+   text-align set here. An unlayered rule beats every layered utility
+   regardless of specificity, which would make those utilities silently do
+   nothing. */
+:root {
+  /* The toggle row above the Library, including the gap under it. Both the
+     arcade select and the Full panel subtract it from their fixed height. */
+  --library-toolbar-h: 2.75rem;
+}
+
+@layer components {
+  .library-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    height: calc(var(--library-toolbar-h) - 0.75rem);
+    margin-bottom: 0.75rem;
+  }
+
+  .library-view-toggle {
+    display: inline-flex;
+    padding: 2px;
+    border: 1px solid var(--color-blue-800);
+    border-radius: 999px;
+    background-color: color-mix(in oklab, var(--color-blue-900) 55%, transparent);
+  }
+
+  .library-view-option {
+    padding: 0.2rem 0.95rem;
+    border-radius: 999px;
+    font-family: 'Barlow Condensed', ui-sans-serif, system-ui, sans-serif;
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-blue-300);
+    transition: background-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+  }
+
+  .library-view-option:hover {
+    color: var(--color-white);
+  }
+
+  .library-view-option[aria-pressed='true'] {
+    background-color: var(--color-orange-600);
+    color: var(--color-white);
+    box-shadow: 0 0 10px 0 color-mix(in oklab, var(--color-orange-600) 45%, transparent);
+  }
+
+  /* A fixed-height panel that scrolls inside itself — the same rule the arcade
+     select follows, so switching views never makes the page grow a scrollbar. */
+  .lf {
+    display: flex;
+    flex-direction: column;
+    height: min(44rem, calc(100svh - 14.5rem - var(--library-toolbar-h)));
+    min-height: 0;
+    overflow: hidden;
+    border: 1px solid var(--color-blue-800);
+    border-radius: 0.75rem;
+    background-color: color-mix(in oklab, var(--color-blue-950) 82%, transparent);
+  }
+
+  .lf-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 0 0 auto;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--color-blue-800);
+  }
+
+  .lf-bulk {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 0 0 auto;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.875rem;
+    border-bottom: 1px solid color-mix(in oklab, var(--color-orange-600) 30%, transparent);
+    background-color: color-mix(in oklab, var(--color-orange-600) 8%, transparent);
+  }
+
+  .lf-scroll {
+    flex: 1 1 0%;
+    min-height: 0;
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-blue-700) transparent;
+  }
+
+  .lf-state {
+    padding: 3rem 1rem;
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--color-blue-300);
+  }
+
+  .lf-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.875rem;
+  }
+
+  .lf-th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 0.55rem 0.5rem;
+    text-align: left;
+    white-space: nowrap;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--color-blue-100);
+    background-color: var(--color-blue-900);
+    border-bottom: 1px solid var(--color-blue-800);
+  }
+
+  .lf-td {
+    height: 2.4rem;
+    padding: 0 0.5rem;
+    color: var(--color-blue-100);
+    vertical-align: middle;
+    border-bottom: 1px solid color-mix(in oklab, var(--color-blue-800) 50%, transparent);
+  }
+
+  .lf-muted {
+    color: var(--color-blue-300);
+  }
+
+  .lf-num {
+    color: var(--color-blue-400);
+  }
+
+  .lf-row {
+    cursor: pointer;
+    transition: background-color 100ms ease;
+  }
+
+  .lf-row:hover {
+    background-color: color-mix(in oklab, var(--color-blue-800) 55%, transparent);
+  }
+
+  .lf-row.is-missing {
+    cursor: default;
+    opacity: 0.55;
+  }
+
+  /* The playing track, painted the way the reference player paints its
+     selection: a solid orange bar, white text. */
+  .lf-row.is-current,
+  .lf-row.is-current:hover {
+    background-color: color-mix(in oklab, var(--color-orange-600) 82%, var(--color-blue-900));
+  }
+
+  .lf-row.is-current .lf-td,
+  .lf-row.is-current .lf-muted,
+  .lf-row.is-current .lf-num {
+    color: var(--color-white);
+  }
+
+  .lf-group-head td {
+    padding: 0;
+    background-color: color-mix(in oklab, var(--color-blue-900) 88%, transparent);
+    border-bottom: 1px solid color-mix(in oklab, var(--color-orange-600) 45%, var(--color-blue-800));
+  }
+
+  .lf-group-line {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 0.6rem 0.75rem 0.4rem;
+  }
+
+  .lf-group-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: 'Barlow Condensed', ui-sans-serif, system-ui, sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-orange-500);
+  }
+
+  .lf-group-meta {
+    margin-left: auto;
+    flex: 0 0 auto;
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-orange-500);
+  }
+
+  /* The cover sits beside its rows and spans them. Its box is absolutely
+     positioned so it contributes no height — a table cell that did would
+     stretch a one-track album's single row to the height of the cover. */
+  .lf-cover-cell {
+    position: relative;
+    width: 7.25rem;
+    min-width: 7.25rem;
+    padding: 0;
+    border-bottom: 1px solid color-mix(in oklab, var(--color-blue-800) 50%, transparent);
+  }
+
+  .lf-cover-box {
+    position: absolute;
+    inset: 0.6rem 0.75rem 0.4rem;
+    overflow: hidden;
+  }
+
+  .lf-cover {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 0.25rem;
+  }
+
+  .lf-cover-caption {
+    display: flex;
+    flex-direction: column;
+    margin-top: 0.4rem;
+    font-size: 0.72rem;
+    line-height: 1.25;
+    color: var(--color-orange-500);
+  }
+
+  .lf-filler td {
+    padding: 0;
+    border: 0;
+  }
+
+  .lf-footer {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    flex: 0 0 auto;
+    padding: 0.4rem 1rem;
+    font-size: 0.7rem;
+    letter-spacing: 0.02em;
+    color: var(--color-blue-400);
+    border-top: 1px solid var(--color-blue-800);
+    background-color: color-mix(in oklab, var(--color-blue-900) 75%, transparent);
   }
 }

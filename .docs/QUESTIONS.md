@@ -308,6 +308,12 @@ is not lost.
 
 ## Answered
 
+### A34 — Fold `/manage` into the Library as a Simple / Full toggle, visible to every user? *(was Q34)*
+**Answered:** 2026-09-28 · **Yes, default Simple.** The Library page now has a Simple (arcade select) / Full (album-grouped
+table, styled after the owner's AIMP screenshot) toggle, remembered per device; `/manage` redirects to `/?view=full`. Full is
+read-only for non-admins and hidden tracks stay hidden from them — enforced server-side (`GET /tracks` clamps `hidden` to
+`exclude` for non-admins; it did not before, which the question had flagged as unchecked). See CHANGELOG 2026-09-28.
+
 ### A22 — Home dashboard, playlists and genre on Android: in what order? *(was Q31)*
 **Answered:** 2026-09-28 · **Recommended order accepted** ("proceed").
 

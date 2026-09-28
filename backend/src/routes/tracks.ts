@@ -18,6 +18,7 @@ import { peaksForTrack } from '../services/waveform.js';
 import { deleteTrackRow, findTrackById, setLastStreamError, updateTrackFields, upsertTrack } from '../db/library.js';
 import { recordPlaybackFailure } from '../db/playbackFailures.js';
 import { findLibraryRootByPath } from '../db/libraryRoots.js';
+import { findUserById } from '../db/users.js';
 import { countHistoryForTrack, listHistoryForTrack, recordScrobble } from '../db/plays.js';
 import {
   buildETag,
@@ -144,11 +145,17 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
     { preHandler: fastify.authenticate },
     async (request, reply) => {
       const { limit, offset } = parsePagination(request.query);
+      // Re-read from the DB, same as `requireAdmin`, so a revoked role stops
+      // counting immediately. The Library's Full view is open to every user,
+      // so `?hidden=all|only` can't stay a query-string switch anyone can
+      // flip: hiding a track from the people it was hidden from is only real
+      // if the server enforces it, not the dropdown that isn't drawn for them.
+      const isAdmin = Boolean(findUserById(request.user!.id)?.is_admin);
       const options = {
         search: request.query.search,
         sort: parseSort(request.query.sort),
         order: request.query.order === 'desc' ? ('desc' as const) : ('asc' as const),
-        hidden: parseVisibility(request.query.hidden),
+        hidden: isAdmin ? parseVisibility(request.query.hidden) : ('exclude' as const),
         notRecommended: parseVisibility(request.query.notRecommended),
         // Defaults to excluding them (see `ListTracksOptions`); `?missing=only`
         // is how an admin reaches them without a separate screen.

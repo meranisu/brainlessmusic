@@ -27,9 +27,6 @@ const PlaylistDetailPage = lazy(() =>
 );
 const SearchPage = lazy(() => import('./pages/SearchPage').then((m) => ({ default: m.SearchPage })));
 const OptionsPage = lazy(() => import('./pages/OptionsPage').then((m) => ({ default: m.OptionsPage })));
-const ManageTracksPage = lazy(() =>
-  import('./pages/ManageTracksPage').then((m) => ({ default: m.ManageTracksPage })),
-);
 const UploadPage = lazy(() => import('./pages/UploadPage').then((m) => ({ default: m.UploadPage })));
 const UsersPage = lazy(() => import('./pages/UsersPage').then((m) => ({ default: m.UsersPage })));
 const ControlCenterPage = lazy(() =>
@@ -65,8 +62,10 @@ export function App() {
             <Route path="/playlists/:id" element={<PlaylistDetailPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/options" element={<OptionsPage />} />
+            {/* Folded into the Library's Full view, open to everyone — kept as a
+                redirect so bookmarks and the old nav link still land somewhere. */}
+            <Route path="/manage" element={<Navigate to="/?view=full" replace />} />
             <Route element={<RequireAdmin />}>
-              <Route path="/manage" element={<ManageTracksPage />} />
               <Route path="/upload" element={<UploadPage />} />
               <Route path="/users" element={<UsersPage />} />
               <Route path="/control-center" element={<ControlCenterPage />} />

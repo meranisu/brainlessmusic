@@ -4,6 +4,32 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `LibraryPage()` / `SimpleLibrary()` — `frontend/src/pages/LibraryPage.tsx`
+**Date:** 2026-09-28
+**How added:** refactor + new feature
+**Purpose:** `SimpleLibrary` is the previous `LibraryPage` body, unchanged (the arcade select). `LibraryPage` is now a wrapper: a Simple/Full toggle above either `SimpleLibrary` or `LibraryFull`. The view is `?view=` if present, else the stored per-device choice (`loadLibraryView()`), else Simple; `chooseView()` writes the storage and the URL together, clearing other params when leaving Full since the filters belong to it.
+**Side effects:** `localStorage` write (`brainlessmusic.libraryView`) on toggle.
+**Before:** the page was only the arcade select; sorting, filters and the table lived on the admin-only `/manage`.
+**After:** every signed-in user can reach both views from the Library. `/manage` redirects to `/?view=full` (`App.tsx`); the "Manage" nav item is removed.
+
+**Function:** `LibraryFull()` — `frontend/src/components/LibraryFull.tsx` (new file)
+**Date:** 2026-09-28
+**How added:** refactor (moved from `ManageTracksPage`) + restyle
+**Purpose:** the album-grouped, AIMP-style table. Filters live in the URL; an infinite query (100 per page) feeds a fixed-height, inner-scrolling panel that requests the next page within 480px of the bottom, and again after each page in case the panel is not yet scrollable. `groupByAlbum()` folds consecutive same-album rows into blocks when sorted by album; any other sort renders a flat list. For a non-admin it omits checkboxes, the bulk bar, the hidden filter, and (via `TrackRowMenu`'s `isAdmin`) edit/hide/delete.
+**Side effects:** `PATCH`/`DELETE /tracks/:id` for admins (bulk hide/un-hide/delete, row menu) — unchanged from the old page; invalidates the `['tracks']` queries after.
+**Before:** `ManageTracksPage` — a paged plain table, admin-only route.
+**After:** "Select all" now means all *loaded* rows (there is no page to mean), and the cover column is an absolutely-positioned box plus a filler row so a one-track album isn't stretched to the cover's height. Drawing the read-only mode is tidiness; the server enforces it (see `GET /tracks` below).
+
+**Function:** `GET /tracks` handler and `listTracks()` — `backend/src/routes/tracks.ts`, `backend/src/db/browse.ts`
+**Date:** 2026-09-28
+**How added:** hardening (route) + bug fix (ordering)
+**Purpose:** the route now forces `hidden: 'exclude'` unless the caller's `is_admin` — read from the DB with `findUserById`, the way `requireAdmin` does — is set. `listTracks` appends per-sort tiebreakers (`SORT_TIEBREAKERS`, ending in `t.id`) to its `ORDER BY`; only the primary key flips with `order=desc`.
+**Side effects:** none — one extra indexed user lookup per request.
+**Before:** any authenticated user could pass `?hidden=all|only` and list admin-hidden tracks. Equal sort keys came back in unspecified order, so an album sorted by album was in random track order and `LIMIT/OFFSET` paging could repeat or skip a row at a page seam.
+**After:** a non-admin's `hidden` is ignored; album sort reads album → artist → track number → title, and every ordering is total. Three new tests in `routes/api.test.ts`. Other endpoints that can return hidden tracks (search, album/artist detail) were not audited.
+
+---
+
 **Function:** `streamStarted()` / `streamEnded()` / `listActiveSessions()` — `backend/src/services/streamMonitor.ts`
 **Date:** 2026-09-28
 **How added:** refactor (counter → identified sessions)

@@ -3,7 +3,10 @@ import { after, before, beforeEach, describe, it } from 'node:test';
 import jwt from 'jsonwebtoken';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../app.js';
+import { db } from '../db/connection.js';
 import { config } from '../config.js';
+import { insertLibraryRoot } from '../db/libraryRoots.js';
+import { updateTrackFields, upsertTrack } from '../db/library.js';
 import { findUserByUsername, insertUser, setAdmin } from '../db/users.js';
 import { hashPassword } from '../services/password.js';
 import { signMediaToken, signToken } from '../services/token.js';
@@ -267,6 +270,81 @@ describe('admin gating', () => {
       headers: { authorization: `Bearer ${adminToken}` },
     });
     assert.equal(after.statusCode, 403, 'the same token must lose admin access immediately');
+  });
+});
+
+describe('hidden tracks', () => {
+  /** One visible and one hidden track, so a filter that leaks shows up as a count. */
+  function seedTracks(): void {
+    const rootId = insertLibraryRoot('/library', null).id;
+    for (const title of ['Visible Song', 'Hidden Song']) {
+      upsertTrack({
+        path: `/library/${title}.mp3`,
+        title,
+        artistName: 'Nobody',
+        albumTitle: null,
+        albumYear: null,
+        trackNumber: null,
+        duration: 1,
+        format: 'MP3',
+        fileSize: 1,
+        rootId,
+      });
+    }
+    const hidden = (db.prepare('SELECT id FROM tracks WHERE title = ?').get('Hidden Song') as { id: number }).id;
+    updateTrackFields(hidden, { hidden: true });
+  }
+
+  async function titles(token: string, query: string): Promise<string[]> {
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/tracks?${query}`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    assert.equal(res.statusCode, 200);
+    return (res.json() as { tracks: Array<{ title: string }> }).tracks.map((t) => t.title).sort();
+  }
+
+  it('lets an admin ask for hidden tracks', async () => {
+    seedTracks();
+    assert.deepEqual(await titles(adminToken, 'hidden=all'), ['Hidden Song', 'Visible Song']);
+    assert.deepEqual(await titles(adminToken, 'hidden=only'), ['Hidden Song']);
+  });
+
+  it('ignores hidden=all and hidden=only from a non-admin', async () => {
+    seedTracks();
+    assert.deepEqual(await titles(listenerToken, ''), ['Visible Song']);
+    assert.deepEqual(await titles(listenerToken, 'hidden=all'), ['Visible Song']);
+    assert.deepEqual(await titles(listenerToken, 'hidden=only'), ['Visible Song']);
+  });
+});
+
+describe('track ordering', () => {
+  it('keeps an album in track order when sorting by album', async () => {
+    const rootId = insertLibraryRoot('/library', null).id;
+    // Inserted out of order, and titled so alphabetical order differs from
+    // track order — a sort that only looks at the album title fails this.
+    for (const [title, trackNumber] of [['Zulu', 1], ['Alpha', 3], ['Mike', 2]] as const) {
+      upsertTrack({
+        path: `/library/${title}.mp3`,
+        title,
+        artistName: 'Band',
+        albumTitle: 'Record',
+        albumYear: null,
+        trackNumber,
+        duration: 1,
+        format: 'MP3',
+        fileSize: 1,
+        rootId,
+      });
+    }
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/tracks?sort=album&order=desc',
+      headers: { authorization: `Bearer ${listenerToken}` },
+    });
+    const titles = (res.json() as { tracks: Array<{ title: string }> }).tracks.map((t) => t.title);
+    assert.deepEqual(titles, ['Zulu', 'Mike', 'Alpha']);
   });
 });
 

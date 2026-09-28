@@ -1,12 +1,15 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { ArcadeSelect } from '../components/ArcadeSelect';
 import { useFavoriteIds } from '../components/FavoriteButton';
 import { LibraryEmptyState } from '../components/LibraryEmptyState';
+import { LibraryFull } from '../components/LibraryFull';
 import { usePlayer } from '../components/PlayerBar';
 import { apiClient } from '../lib/apiClient';
 import { formatScanStatus } from '../lib/format';
+import { loadLibraryView, saveLibraryView, type LibraryView } from '../lib/libraryView';
 import type { LibraryRootListResponse, TrackListResponse, TrackSummary } from '../types/api';
 
 /** How often to re-poll `/library/roots` while a scan is running, so the
@@ -24,17 +27,15 @@ const SCAN_POLL_MS = 2000;
 const PAGE_SIZE = 200;
 
 /**
- * The library, as a music select rather than a table.
+ * The library as a music select — the "Simple" side of the toggle.
  *
- * The table did not shrink into this — it moved. Sorting, the four filters, the
- * per-row flags and the admin bulk actions all still exist, on `/manage`, which
- * is where someone doing maintenance already is. Trying to keep them here would
- * have produced a screen that was neither a listening surface nor a management
- * one; the decision is recorded as A18 in the questions ledger.
- *
- * What is here is what you need to choose something to listen to.
+ * What is here is what you need to choose something to listen to. Sorting,
+ * the filters, the per-row flags and the admin bulk actions live in the
+ * "Full" view (`LibraryFull`), one toggle away; trying to keep them here would
+ * have produced a screen that was neither a listening surface nor a
+ * management one (A18 in the questions ledger).
  */
-export function LibraryPage() {
+function SimpleLibrary() {
   const { user } = useAuth();
   const { playQueue } = usePlayer();
   const favoriteIds = useFavoriteIds();
@@ -135,5 +136,47 @@ export function LibraryPage() {
       onNearEnd={loadMore}
       scanStatus={scanStatus}
     />
+  );
+}
+
+/**
+ * The Library page: the arcade select (Simple) or the album-grouped table
+ * (Full), for every signed-in user.
+ *
+ * The choice is per device (`localStorage`, Simple by default). `?view=` beats
+ * the stored choice so a link — including the old `/manage` redirect — lands on
+ * the view it names, and the toggle writes both, so the address bar and the
+ * saved preference never disagree after a click.
+ */
+export function LibraryPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const paramView = searchParams.get('view');
+  const view: LibraryView = paramView === 'full' || paramView === 'simple' ? paramView : loadLibraryView();
+
+  function chooseView(next: LibraryView) {
+    saveLibraryView(next);
+    // The filters in the URL belong to the Full view; leaving it starts clean.
+    setSearchParams(next === 'full' ? { view: 'full' } : {}, { replace: true });
+  }
+
+  return (
+    <>
+      <div className="library-toolbar">
+        <div className="library-view-toggle" role="group" aria-label="Library view">
+          {(['simple', 'full'] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={view === option}
+              onClick={() => chooseView(option)}
+              className="library-view-option"
+            >
+              {option === 'simple' ? 'Simple' : 'Full'}
+            </button>
+          ))}
+        </div>
+      </div>
+      {view === 'full' ? <LibraryFull /> : <SimpleLibrary />}
+    </>
   );
 }

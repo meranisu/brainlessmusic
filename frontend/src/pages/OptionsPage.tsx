@@ -97,7 +97,7 @@ function LibrarySection() {
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ['library-roots'] });
     // A newly-found or newly-missing track changes what the arcade select
-    // and /manage show — not just this list.
+    // and the Library's Full view show — not just this list.
     queryClient.invalidateQueries({ queryKey: ['tracks'] });
   }
 

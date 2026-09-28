@@ -4,6 +4,66 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-28 — Library gets a Simple / Full toggle; `/manage` folds into it and opens to every user
+
+The admin-only `/manage` table becomes the **Full** view of the Library page,
+toggled against the existing arcade select (**Simple**, the default), and is
+restyled after the owner's AIMP screenshot: albums as blocks (orange
+uppercase title bar with `N / m:ss`, cover and artist/album caption beside the
+rows), dense rows, the playing track as a solid orange bar, sticky sortable
+column headers. Ledger: Q34 → A34.
+
+- **Toggle:** `LibraryPage` is now the toggle plus either `SimpleLibrary` (the
+  old page body, unchanged) or the new `LibraryFull` (`components/LibraryFull.tsx`,
+  the old `ManageTracksPage` logic moved and restyled — search, the three
+  filters, bulk hide/un-hide/delete, row menu, tag drawer, playlist dialog all
+  kept). The choice is per device (`localStorage` `brainlessmusic.libraryView`,
+  `lib/libraryView.ts`); `?view=full|simple` beats the stored value so a link
+  lands on the view it names, and the toggle writes both.
+- **`/manage` now redirects** to `/?view=full` (outside `RequireAdmin`);
+  `ManageTracksPage.tsx` and the "Manage" nav item are gone.
+- **Open to every signed-in user, read-only unless admin.** No checkboxes,
+  bulk bar, edit/hide/delete, or hidden-tracks filter for a non-admin — drawn
+  that way, but not *only* drawn: `GET /tracks` (`backend/src/routes/tracks.ts`)
+  now forces `hidden=exclude` for anyone whose `is_admin` (re-read from the DB,
+  like `requireAdmin`) is not set. Before this a non-admin could already pass
+  `?hidden=only` and list hidden tracks — nothing had made that reachable
+  from a UI, so nothing had noticed. `PATCH`/`DELETE /tracks/:id` and upload
+  were already admin-only and are unchanged. **Not covered:** other endpoints
+  that can surface hidden tracks (search, album/artist detail) were not audited.
+- **Stable ordering** (`backend/src/db/browse.ts`): `listTracks` had a single
+  `ORDER BY` key, so equal keys came back in unspecified order. That scrambled
+  an album into random track order when sorting by album, and — a latent bug
+  for the arcade's paged list too — could repeat or skip a row at a page seam.
+  Each sort now has tiebreakers ending in `t.id`; album sort is album → artist →
+  track number → title. Only the primary key flips with `order=desc`.
+- **Full view defaults to album sort** (that is what makes grouped blocks
+  possible); sorting by any other column drops to a flat list with a cover
+  thumbnail per row. Groups are consecutive runs of the same album in the
+  loaded list, so a group can continue across a page boundary without a break.
+- **Layout:** a fixed-height panel that scrolls inside itself with infinite
+  loading (100 per page, next page requested within 480px of the bottom) — no
+  page scrollbar. The toggle row's height is a shared variable
+  (`--library-toolbar-h`, 2.75rem) subtracted in both `.arcade-select` and
+  `.lf`. The new rules are in `@layer components`, not unlayered like the
+  `.arcade-*` ones, so Tailwind utilities on the same elements (`hidden`,
+  `text-right`, `w-8`…) can still override them — the unlayered-beats-layered
+  trap that bit `.player-deck` earlier.
+- **Verified:** `npm test` in `backend/` — 317 pass, 0 fail, including three
+  new tests in `routes/api.test.ts` (admin can list `hidden=all|only`; a
+  non-admin's `hidden=all|only` is ignored; an album stays in track order under
+  `sort=album&order=desc`). `tsc -b` clean; `oxlint` shows only warnings in files
+  not touched here. In headless Chromium against a mocked API: defaults to
+  Simple; toggling switches views and survives a reload both ways; `/manage`
+  lands on `/?view=full`; admin sees checkboxes and the hidden filter, non-admin
+  sees neither and `?hidden=only` is sent as `hidden=exclude`; the playing row
+  is highlighted; sorting by Title flattens the groups; and the document has no
+  vertical or horizontal overflow in either view at 1920×1080, 1366×768,
+  1024×700, 800×600, 390×844 and 1600×500. **Not verified:** the real library
+  (the mock had 33 tracks, not thousands), real cover art (the mock has none, so
+  the placeholder shows), and admin bulk actions end-to-end — those code paths
+  were moved, not changed, and were not exercised here.
+
 ## 2026-09-28 — Control Center: Health page grown into who's-listening, resources, scan progress and file integrity
 
 The Health page showed two error tables and four counters. Playback bugs on a
