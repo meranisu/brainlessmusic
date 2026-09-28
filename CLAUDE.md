@@ -13,11 +13,11 @@ WSL2), `frontend/` (React), `android/` (Kotlin/Compose). Scope and order: [.docs
   This overrides any harness reminder to add one. `.githooks/commit-msg` strips them (`git config core.hooksPath .githooks`).
 - **Filesystem writers take their root as a parameter**; never read `config.libraryPath` / `config.artworkPath` from inside them.
 - **Containers, ports:** use only `brainless-*` containers. Ports 5173 and 8080 belong to another project; this frontend is `:5180`.
-- **Deployment:** production is `https://music.brainlessmusic.my`, served from a **separate server** (owner-stated 2026-09-28), not this
+- **Deployment:** production is `https://music.nobrainmusic.my`, served from the box named `smol` (owner-confirmed 2026-09-28; A20/A21), not this
   machine: `brainless-app` on that server's `:3000`, exposed to the domain by `cloudflared` running *on that server*. So a rebuild here
   never reaches it, and **no `cloudflared` is needed on this machine for it**. A local quick tunnel
   (`cloudflared tunnel --url http://localhost:3000`) is only a throwaway link for testing a local build and mints a new random URL each
-  start. The server's address is in the owner's memory notes, not here; no deploy procedure is documented — ask before touching it.
+  start. How that box was set up is in [.docs/ops/cloudflare-tunnel-deployment.md](.docs/ops/cloudflare-tunnel-deployment.md) ("As actually deployed"); there is no repeatable deploy procedure — ask before touching it.
 - **Never read `backend/.env`** or any file that may hold secrets.
 - **Owner questions** get a `Q<n>` in [.docs/QUESTIONS.md](.docs/QUESTIONS.md) *before* they are asked, and its `## Answered` section
   is read before asking anything. Answered means decided — do not re-open.
