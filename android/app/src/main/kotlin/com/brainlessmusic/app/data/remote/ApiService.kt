@@ -14,6 +14,7 @@ import com.brainlessmusic.app.data.remote.dto.SavePlaybackStateRequest
 import com.brainlessmusic.app.data.remote.dto.ScrobbleRequest
 import com.brainlessmusic.app.data.remote.dto.ScrobbleResponse
 import com.brainlessmusic.app.data.remote.dto.SearchResultsDto
+import com.brainlessmusic.app.data.remote.dto.ShuffledTracksPageDto
 import com.brainlessmusic.app.data.remote.dto.TracksPageDto
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -53,6 +54,9 @@ interface ApiService {
         @Query("offset") offset: Int,
         @Query("sort") sort: String = "title",
     ): TracksPageDto
+
+    @GET("browse/shuffled")
+    suspend fun shuffled(@Query("seed") seed: Int, @Query("limit") limit: Int, @Query("offset") offset: Int): ShuffledTracksPageDto
 
     @GET("browse/letters")
     suspend fun letters(@Query("scope") scope: String): LetterIndexDto

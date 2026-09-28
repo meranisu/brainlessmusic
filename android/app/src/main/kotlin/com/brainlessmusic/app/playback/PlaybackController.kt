@@ -89,6 +89,12 @@ class PlaybackController @Inject constructor(
     private var wantShuffle = false
     private var wantRepeat = Player.REPEAT_MODE_OFF
 
+    // Where the queue is topped up from as it runs low (see QueueSource). `generation` changes whenever the queue is
+    // replaced, so a top-up that was in flight for the old queue is dropped instead of landing on the new one.
+    private var source: QueueSource? = null
+    private var refilling = false
+    private var generation = 0
+
     // Tracks added with "Play next" that have not started yet, so a second one lands after the first, not before it.
     private var playNextPending = 0
 
@@ -100,7 +106,13 @@ class PlaybackController @Inject constructor(
     }
 
     /** Replaces the queue and starts playing [startIndex]. */
-    fun playQueue(items: List<QueueItem>, startIndex: Int) = loadQueue(items, startIndex, 0L, play = true)
+    fun playQueue(items: List<QueueItem>, startIndex: Int, source: QueueSource? = null, shuffle: Boolean? = null) {
+        if (shuffle != null && shuffle != wantShuffle) {
+            wantShuffle = shuffle
+            scope.launch { settings.setShuffle(shuffle) }
+        }
+        loadQueue(items, startIndex, 0L, play = true, source)
+    }
 
     /**
      * Puts a saved queue back at [positionMs] — paused unless [autoPlay]. A no-op
@@ -112,13 +124,15 @@ class PlaybackController @Inject constructor(
         loadQueue(items, startIndex, positionMs, play = autoPlay)
     }
 
-    private fun loadQueue(items: List<QueueItem>, startIndex: Int, positionMs: Long, play: Boolean) {
+    private fun loadQueue(items: List<QueueItem>, startIndex: Int, positionMs: Long, play: Boolean, source: QueueSource? = null) {
         if (items.isEmpty()) return
         val mediaItems = items.map { toMediaItem(it) ?: return }
         val index = startIndex.coerceIn(0, items.lastIndex)
 
         queue.clear()
         queue.addAll(items)
+        this.source = source
+        generation++
         errorMessage = null
         connectSession()
         player.shuffleModeEnabled = wantShuffle
@@ -130,6 +144,7 @@ class PlaybackController @Inject constructor(
         if (play) player.play()
         beginTrack()
         publish()
+        maybeRefill()
     }
 
     /** Inserts right after the current track; starts playing if nothing is queued. */
@@ -159,6 +174,78 @@ class PlaybackController @Inject constructor(
         val currentPosition = sequence.indexOf(player.currentMediaItemIndex).coerceAtLeast(0)
         sequence.add((currentPosition + playNextPending + 1).coerceAtMost(sequence.size), inserted)
         player.setShuffleOrder(DefaultShuffleOrder(sequence.toIntArray(), System.nanoTime()))
+    }
+
+    /** Tracks left to play after the current one, in play order. */
+    private fun tracksRemaining(): Int =
+        if (player.shuffleModeEnabled) {
+            val sequence = shuffledSequence()
+            sequence.size - 1 - sequence.indexOf(player.currentMediaItemIndex)
+        } else {
+            queue.size - 1 - player.currentMediaItemIndex
+        }
+
+    /** When the queue is running low and has a [source], fetch the next batch and add it to the end. */
+    private fun maybeRefill() {
+        if (source == null || refilling || queue.isEmpty() || tracksRemaining() > REFILL_WHEN_REMAINING) return
+        refilling = true
+        val startedFor = generation
+        scope.launch {
+            var appended = false
+            try {
+                val more = nextChunk()
+                // The queue was replaced or stopped while this was on its way: it belongs to nothing now.
+                if (startedFor == generation && !more.isNullOrEmpty()) {
+                    appendItems(more)
+                    appended = true
+                }
+            } finally {
+                refilling = false
+            }
+            // A chunk can arrive already short of the threshold (a tiny library); keep going until it is not.
+            // A failed fetch does not loop: the next track change tries again.
+            if (appended) maybeRefill()
+        }
+    }
+
+    /** The next batch from [source], advancing it; `null` when the source is spent or the request failed. */
+    private suspend fun nextChunk(): List<QueueItem>? {
+        when (val current = source) {
+            null -> return null
+            is QueueSource.Songs -> {
+                val page = libraryRepository.getTracksPage(current.nextOffset, REFILL_CHUNK).getOrNull() ?: return null
+                val next = current.nextOffset + page.tracks.size
+                source = if (page.tracks.isEmpty() || next >= page.total) null else QueueSource.Songs(next)
+                return page.tracks.map(libraryRepository::queueItem)
+            }
+            is QueueSource.Shuffled -> {
+                val page = libraryRepository.getShuffledPage(current.seed, current.nextOffset, REFILL_CHUNK).getOrNull() ?: return null
+                val next = current.nextOffset + page.tracks.size
+                // End of this pass: start another with a fresh seed rather than stopping.
+                source = if (page.tracks.isEmpty() || next >= page.total) {
+                    QueueSource.Shuffled(kotlin.random.Random.nextInt(Int.MAX_VALUE), 0)
+                } else {
+                    QueueSource.Shuffled(current.seed, next)
+                }
+                return page.tracks.map(libraryRepository::queueItem)
+            }
+        }
+    }
+
+    /** Adds [items] to the end of the queue; with shuffle on, they play after everything already queued, artist-spread among themselves. */
+    private fun appendItems(items: List<QueueItem>) {
+        val mediaItems = items.map { toMediaItem(it) ?: return }
+        val firstNew = queue.size
+        queue.addAll(items)
+        player.addMediaItems(mediaItems)
+        if (player.shuffleModeEnabled) {
+            // ExoPlayer scatters new items through the shuffle order; put them back at the end instead.
+            val existing = shuffledSequence().filter { it < firstNew }
+            val keys = items.map { it.artist?.trim()?.lowercase()?.takeIf(String::isNotEmpty) }
+            val chunk = SmartShuffle.order(keys).map { firstNew + it }
+            player.setShuffleOrder(DefaultShuffleOrder((existing + chunk).toIntArray(), System.nanoTime()))
+        }
+        publish()
     }
 
     /** Every queue index in the order shuffle will play them, from the first to the last. */
@@ -252,6 +339,8 @@ class PlaybackController @Inject constructor(
         player.stop()
         player.clearMediaItems()
         queue.clear()
+        source = null
+        generation++
         playNextPending = 0
         tracker = null
         trackerItem = null
@@ -298,6 +387,7 @@ class PlaybackController @Inject constructor(
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             if (playNextPending > 0) playNextPending--
             beginTrack()
+            maybeRefill()
             publish()
         }
 
@@ -437,5 +527,11 @@ class PlaybackController @Inject constructor(
 
     private companion object {
         const val RESTART_THRESHOLD_MS = 3_000L
+
+        /** Top the queue up when this few tracks are left to play... */
+        const val REFILL_WHEN_REMAINING = 30
+
+        /** ...with this many at a time (the server's page cap). */
+        const val REFILL_CHUNK = 200
     }
 }

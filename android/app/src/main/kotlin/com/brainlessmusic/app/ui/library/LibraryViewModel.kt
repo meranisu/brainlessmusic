@@ -16,7 +16,8 @@ import com.brainlessmusic.app.data.repository.AuthRepository
 import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.PlaybackResume
-import com.brainlessmusic.app.playback.QueueItem
+import com.brainlessmusic.app.playback.QueueSource
+import com.brainlessmusic.app.playback.queueItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +26,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.random.Random
 
 enum class LibraryTab(val label: String, val letterScope: String?) {
     SONGS("Songs", "tracks"),
@@ -36,7 +38,7 @@ enum class LibraryTab(val label: String, val letterScope: String?) {
 // Well under the server's hard cap of 200 rows per request (backend/src/utils/pagination.ts).
 private const val PAGE_SIZE = 100
 
-// How many songs a tap queues: the tapped one and what follows it. One request, the server's own cap.
+// How many songs are fetched up front (the server's page cap); the queue is topped up from there as it runs down.
 private const val QUEUE_FROM_TAP = 200
 
 @HiltViewModel
@@ -104,24 +106,36 @@ class LibraryViewModel @Inject constructor(
 
     fun albumCoverUrl(albumId: Int): String? = libraryRepository.albumCoverUrl(albumId)
 
-    /** Queues the tapped song and the ones after it, in list order. */
+    /** Queues the tapped song and the ones after it, in list order — and keeps adding from the library as the queue runs down. */
     fun playSongsFrom(index: Int) {
         viewModelScope.launch {
             libraryRepository.getTracksPage(index, QUEUE_FROM_TAP).onSuccess { page ->
                 if (page.tracks.isEmpty()) return@onSuccess
+                val next = index + page.tracks.size
                 playbackController.playQueue(
-                    page.tracks.map {
-                        QueueItem(
-                            trackId = it.id,
-                            title = it.title,
-                            artist = it.artist,
-                            album = it.album,
-                            durationSec = it.duration,
-                            coverUrl = libraryRepository.trackCoverUrl(it.id),
-                            format = it.format,
-                        )
-                    },
-                    0,
+                    items = page.tracks.map(libraryRepository::queueItem),
+                    startIndex = 0,
+                    source = if (next < page.total) QueueSource.Songs(next) else null,
+                )
+            }
+        }
+    }
+
+    /**
+     * Plays the whole library in a random order: a seeded shuffle from the server, so each song comes up once
+     * before any repeats, and a fresh shuffle starts when a pass ends. Turns the player's shuffle on, so the
+     * batch on hand is also spread by artist.
+     */
+    fun shuffleAll() {
+        val seed = Random.nextInt(Int.MAX_VALUE)
+        viewModelScope.launch {
+            libraryRepository.getShuffledPage(seed, 0, QUEUE_FROM_TAP).onSuccess { page ->
+                if (page.tracks.isEmpty()) return@onSuccess
+                playbackController.playQueue(
+                    items = page.tracks.map(libraryRepository::queueItem),
+                    startIndex = 0,
+                    source = QueueSource.Shuffled(seed, page.tracks.size),
+                    shuffle = true,
                 )
             }
         }

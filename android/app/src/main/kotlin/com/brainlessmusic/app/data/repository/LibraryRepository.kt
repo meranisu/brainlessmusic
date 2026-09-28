@@ -14,6 +14,7 @@ import com.brainlessmusic.app.data.remote.dto.PlaybackStateDto
 import com.brainlessmusic.app.data.remote.dto.SavePlaybackStateRequest
 import com.brainlessmusic.app.data.remote.dto.ScrobbleRequest
 import com.brainlessmusic.app.data.remote.dto.SearchResultsDto
+import com.brainlessmusic.app.data.remote.dto.ShuffledTracksPageDto
 import com.brainlessmusic.app.data.remote.dto.TracksPageDto
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -33,6 +34,10 @@ class LibraryRepository @Inject constructor(
 
     suspend fun getAlbumsPage(offset: Int, limit: Int): Result<AlbumsPageDto> =
         callApi { it.albums(limit, offset) }
+
+    /** A page of the whole library in the random order fixed by [seed]; the same seed always gives the same order. */
+    suspend fun getShuffledPage(seed: Int, offset: Int, limit: Int): Result<ShuffledTracksPageDto> =
+        callApi { it.shuffled(seed, limit, offset) }
 
     suspend fun getArtistsPage(offset: Int, limit: Int): Result<ArtistsPageDto> =
         callApi { it.artists(limit, offset) }

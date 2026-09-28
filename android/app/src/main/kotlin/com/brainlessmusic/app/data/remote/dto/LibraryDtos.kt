@@ -118,6 +118,15 @@ data class AlbumsPageDto(
     val albums: List<AlbumSummaryDto>,
 )
 
+/** `GET /browse/shuffled` — the whole library in the random order fixed by [seed], one page of it. */
+data class ShuffledTracksPageDto(
+    val seed: Int,
+    val total: Int,
+    val limit: Int,
+    val offset: Int,
+    val tracks: List<TrackSummaryDto>,
+)
+
 /** `GET /browse/letters` — where each letter starts in a scope's default listing (backend/src/db/letterIndex.ts). */
 data class LetterIndexDto(
     val scope: String,

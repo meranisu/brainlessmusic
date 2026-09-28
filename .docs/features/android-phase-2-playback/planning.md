@@ -136,6 +136,22 @@ Owner's request after seeing it on the phone.
   sits at the bottom.
 - Settings: the classic-slider preview was drawn disabled (grey); fixed. Codec names are tidied ("MPEG 1 Layer 3" → "MP3").
 
+## Endless queue and "Shuffle all" (2026-09-28)
+
+A queue of 200 songs used to just end. Now a queue can have a **source** (`playback/QueueSource.kt`) and the controller tops it up
+when 30 tracks are left, 200 at a time, so listening runs until the library does:
+
+- **Tapping a song** in the Songs list queues it and what follows in title order, sourced from the list; the next batches continue
+  from where the last stopped, and it ends only at the end of the library.
+- **Shuffle all** (button on the Songs tab) plays the *whole* library in a random order: the server shuffles with a seed
+  (`GET /api/browse/shuffled`, see CHANGELOG) so each song comes up once before any repeats, and when a pass ends a fresh seed starts
+  the next one, so it never stops. It also turns the player's shuffle on, so each batch is spread by artist as well.
+- Appended batches go to the end of the play order, never scattered through what is already queued; a batch that arrives while the
+  queue has since been replaced is dropped; a failed fetch is retried on the next track change rather than in a loop.
+- Not persisted: after the app is restarted the restored queue is finite (the source is not saved), so press Shuffle all again.
+- Needs the new server endpoint deployed to work for "Shuffle all"; tapping a song needs nothing new.
+- Build, unit tests and lint pass; **not run on a device.**
+
 ## Change Log
 
 | Date | Phase affected | What changed | Why | Still fits the Plan phase? |
