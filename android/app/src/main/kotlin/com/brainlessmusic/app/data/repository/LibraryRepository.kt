@@ -7,6 +7,8 @@ import com.brainlessmusic.app.data.remote.MediaUrlProvider
 import com.brainlessmusic.app.data.remote.dto.AlbumDetailDto
 import com.brainlessmusic.app.data.remote.dto.ArtistDetailDto
 import com.brainlessmusic.app.data.remote.dto.ArtistSummaryDto
+import com.brainlessmusic.app.data.remote.dto.PlaybackStateDto
+import com.brainlessmusic.app.data.remote.dto.SavePlaybackStateRequest
 import com.brainlessmusic.app.data.remote.dto.ScrobbleRequest
 import com.brainlessmusic.app.data.remote.dto.SearchResultsDto
 import kotlinx.coroutines.flow.first
@@ -34,6 +36,12 @@ class LibraryRepository @Inject constructor(
 
     suspend fun scrobble(trackId: Int, msPlayed: Long): Result<Unit> =
         callApi { it.scrobble(trackId, ScrobbleRequest(msPlayed)) }.map { }
+
+    suspend fun loadPlaybackState(): Result<PlaybackStateDto?> =
+        callApi { it.playbackState().state }
+
+    suspend fun savePlaybackState(trackIds: List<Int>, index: Int, positionSeconds: Double): Result<Unit> =
+        callApi { it.savePlaybackState(SavePlaybackStateRequest(trackIds, index, positionSeconds)) }
 
     /**
      * Byte-range seekable, and authenticated by the bearer header ExoPlayer's

@@ -583,11 +583,10 @@ before the question came back:
 4. **Restores paused, does not auto-play** — browsers block autoplay without a
    user gesture, so resume-and-play would silently do nothing on a phone.
 
-**Still genuinely open, and cheap to change:** number 4 on **Android**. A native
-client has no autoplay restriction, so it *can* resume playing, and whether it
-should is a taste question this decision does not settle. Numbers 1–3 are in the
-schema and would cost a migration to revisit; number 4 is a client-side choice
-with no stored state behind it.
+**Number 4 on Android — decided 2026-09-28: a setting.** A native client has no autoplay
+restriction, so it can resume playing; the owner chose a **Settings toggle** ("Auto-play on resume"), default **off**
+(restore paused, as on the web). Client-side only, no stored server state. Built in Android Phase 2, see
+`features/android-phase-2-playback/planning.md`.
 
 Landed: `0011_create_playback_state.sql`, `backend/src/db/playbackState.ts`,
 `backend/src/routes/playbackState.ts`, and the save/restore effects in

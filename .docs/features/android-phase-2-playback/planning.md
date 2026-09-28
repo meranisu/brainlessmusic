@@ -75,13 +75,28 @@ screen, and a play recorded on the server.
 ## Not built, on purpose
 
 - **Shuffle and repeat** — not in Phase 2's list; the web player has both and `POST /shuffle` exists.
-- **Resume where you left off** (`/me/playback-state`) — [A9](../../QUESTIONS.md) left "should Android auto-play on
-  resume?" open; not decided here.
 - **Background / lock-screen playback** — Phase 3. Until then playback is only dependable while the app is in front.
 - Data-saver (`?quality=low`), queue editing beyond Play next, "add to end of queue" — later phases.
+
+## Resume where you left off (added 2026-09-28)
+
+Owner's call on A9's open item: **a Settings toggle**, not a fixed behavior.
+
+- `PlaybackResume` saves to `PUT /me/playback-state` on a queue/track change, on play/pause, every 10 s while playing
+  (`ResumeSavePolicy`, unit-tested) and when the activity stops. An empty queue never overwrites what is saved.
+- On the first screen after login or a restored session, `restore()` fetches `GET /me/playback-state` and queues it at the
+  saved position — **paused by default**, playing if **Settings → Auto-play on resume** is on
+  (`PlaybackSettings.autoPlayOnResume`, DataStore, default off, survives logout).
+- If the listener has already started something while the fetch was in flight, the restore does nothing.
+- Logout does not clear the saved state (it belongs to the account and follows it across devices).
+- Same server row as the web player, so it also picks up a queue started on the web. Last write wins.
+
+Verify on the phone: play, kill the app, reopen → queue and position back, paused; flip the toggle, repeat → it plays;
+then start a queue on the web and reopen the app → the web queue appears.
 
 ## Change Log
 
 | Date | Phase affected | What changed | Why | Still fits the Plan phase? |
 |---|---|---|---|---|
+| 2026-09-28 | Interior | Added resume-where-you-left-off with an auto-play toggle (Settings screen) | Owner's decision on A9's open item | Yes — additive; no playback API changed |
 | 2026-09-28 | Structure | Audio focus and becoming-noisy handling turned on in Phase 2 instead of Phase 3 | Each is one ExoPlayer flag; leaving them off would make Phase 2 playback talk over calls | Yes — Phase 3 keeps everything that needs a service |

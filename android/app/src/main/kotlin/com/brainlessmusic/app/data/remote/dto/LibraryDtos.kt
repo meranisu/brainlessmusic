@@ -82,3 +82,22 @@ data class ScrobbleResponse(
     val trackId: Int,
     val playCount: Int,
 )
+
+/** `GET /me/playback-state` — `state` is `null` (not a 404) when nothing has been saved yet. */
+data class PlaybackStateResponse(
+    val state: PlaybackStateDto?,
+)
+
+/** The queue arrives hydrated and already filtered of unplayable tracks, with `queueIndex` adjusted to match. */
+data class PlaybackStateDto(
+    val queue: List<TrackSummaryDto>,
+    val queueIndex: Int,
+    val positionSeconds: Double,
+)
+
+/** `PUT /me/playback-state` — ids only; the server rejects (rather than clamps) an out-of-range index. */
+data class SavePlaybackStateRequest(
+    val queue: List<Int>,
+    val queueIndex: Int,
+    val positionSeconds: Double,
+)

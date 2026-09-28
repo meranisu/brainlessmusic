@@ -68,7 +68,19 @@ class PlaybackController @Inject constructor(
     private var errorMessage: String? = null
 
     /** Replaces the queue and starts playing [startIndex]. */
-    fun playQueue(items: List<QueueItem>, startIndex: Int) {
+    fun playQueue(items: List<QueueItem>, startIndex: Int) = loadQueue(items, startIndex, 0L, play = true)
+
+    /**
+     * Puts a saved queue back at [positionMs] — paused unless [autoPlay]. A no-op
+     * if something is already queued: a listener who tapped a track while the
+     * saved state was still downloading must not have it replaced underneath them.
+     */
+    fun restoreQueue(items: List<QueueItem>, startIndex: Int, positionMs: Long, autoPlay: Boolean) {
+        if (queue.isNotEmpty()) return
+        loadQueue(items, startIndex, positionMs, play = autoPlay)
+    }
+
+    private fun loadQueue(items: List<QueueItem>, startIndex: Int, positionMs: Long, play: Boolean) {
         if (items.isEmpty()) return
         val mediaItems = items.map { toMediaItem(it) ?: return }
         val index = startIndex.coerceIn(0, items.lastIndex)
@@ -76,9 +88,9 @@ class PlaybackController @Inject constructor(
         queue.clear()
         queue.addAll(items)
         errorMessage = null
-        player.setMediaItems(mediaItems, index, 0L)
+        player.setMediaItems(mediaItems, index, positionMs.coerceAtLeast(0))
         player.prepare()
-        player.play()
+        if (play) player.play()
         beginTrack()
         publish()
     }

@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -44,6 +45,9 @@ fun ArtistsListScreen(
                 actions = {
                     IconButton(onClick = viewModel::load) {
                         Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
+                    }
+                    IconButton(onClick = { navController.navigate(Routes.SETTINGS) }) {
+                        Icon(Icons.Filled.Settings, contentDescription = "Settings")
                     }
                     IconButton(onClick = { viewModel.logout(onLoggedOut) }) {
                         Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Log out")

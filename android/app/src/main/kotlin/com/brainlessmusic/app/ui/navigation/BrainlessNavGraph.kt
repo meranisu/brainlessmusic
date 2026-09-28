@@ -14,6 +14,7 @@ import com.brainlessmusic.app.ui.artists.ArtistsListScreen
 import com.brainlessmusic.app.ui.playback.NowPlayingScreen
 import com.brainlessmusic.app.ui.search.SearchScreen
 import com.brainlessmusic.app.ui.serverconfig.ServerConfigScreen
+import com.brainlessmusic.app.ui.settings.SettingsScreen
 import com.brainlessmusic.app.ui.splash.SplashScreen
 
 @Composable
@@ -71,6 +72,9 @@ fun BrainlessNavGraph(navController: NavHostController = rememberNavController()
         }
         composable(Routes.NOW_PLAYING) {
             NowPlayingScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.SETTINGS) {
+            SettingsScreen(onBack = { navController.popBackStack() })
         }
     }
 }

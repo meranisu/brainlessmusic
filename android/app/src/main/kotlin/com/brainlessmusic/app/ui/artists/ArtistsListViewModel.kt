@@ -8,6 +8,7 @@ import com.brainlessmusic.app.data.repository.ConnectionException
 import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.data.repository.toMessage
 import com.brainlessmusic.app.playback.PlaybackController
+import com.brainlessmusic.app.playback.PlaybackResume
 import com.brainlessmusic.app.ui.common.LoadState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +22,7 @@ class ArtistsListViewModel @Inject constructor(
     private val libraryRepository: LibraryRepository,
     private val authRepository: AuthRepository,
     private val playbackController: PlaybackController,
+    private val playbackResume: PlaybackResume,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<LoadState<List<ArtistSummaryDto>>>(LoadState.Loading)
@@ -28,6 +30,8 @@ class ArtistsListViewModel @Inject constructor(
 
     init {
         load()
+        // First screen after a login or a restored session: the earliest point a saved queue can be fetched.
+        viewModelScope.launch { playbackResume.restore() }
     }
 
     fun load() {
