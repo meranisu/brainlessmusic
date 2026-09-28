@@ -16,6 +16,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
@@ -88,6 +89,9 @@ class PlaybackController @Inject constructor(
     private var wantShuffle = false
     private var wantRepeat = Player.REPEAT_MODE_OFF
 
+    // Tracks added with "Play next" that have not started yet, so a second one lands after the first, not before it.
+    private var playNextPending = 0
+
     init {
         scope.launch {
             wantShuffle = settings.shuffle.first()
@@ -119,7 +123,9 @@ class PlaybackController @Inject constructor(
         connectSession()
         player.shuffleModeEnabled = wantShuffle
         player.repeatMode = wantRepeat
+        playNextPending = 0
         player.setMediaItems(mediaItems, index, positionMs.coerceAtLeast(0))
+        if (wantShuffle) applySmartShuffle(first = index)
         player.prepare()
         if (play) player.play()
         beginTrack()
@@ -133,10 +139,39 @@ class PlaybackController @Inject constructor(
             return
         }
         val mediaItem = toMediaItem(item) ?: return
-        val at = (player.currentMediaItemIndex + 1).coerceAtMost(queue.size)
+        // After the current track and after anything already queued with "Play next".
+        val at = (player.currentMediaItemIndex + 1 + playNextPending).coerceAtMost(queue.size)
         queue.add(at, item)
         player.addMediaItem(at, mediaItem)
+        if (player.shuffleModeEnabled) placeNextInShuffleOrder(at)
+        playNextPending++
         publish()
+    }
+
+    /**
+     * ExoPlayer slots an inserted track into its shuffle order at random. To make it really play next,
+     * take the order as it now stands, move [inserted] to just after the current track (and after any
+     * earlier "Play next" tracks), and hand it back.
+     */
+    private fun placeNextInShuffleOrder(inserted: Int) {
+        val timeline = player.currentTimeline
+        val sequence = mutableListOf<Int>()
+        var i = timeline.getFirstWindowIndex(/* shuffleModeEnabled = */ true)
+        while (i != C.INDEX_UNSET) {
+            sequence.add(i)
+            i = timeline.getNextWindowIndex(i, Player.REPEAT_MODE_OFF, /* shuffleModeEnabled = */ true)
+        }
+        sequence.remove(inserted)
+        val currentPosition = sequence.indexOf(player.currentMediaItemIndex).coerceAtLeast(0)
+        sequence.add((currentPosition + playNextPending + 1).coerceAtMost(sequence.size), inserted)
+        player.setShuffleOrder(DefaultShuffleOrder(sequence.toIntArray(), System.nanoTime()))
+    }
+
+    /** Replaces ExoPlayer's random shuffle with [SmartShuffle]'s artist-spread order, starting from [first]. */
+    private fun applySmartShuffle(first: Int) {
+        if (queue.size < 2) return
+        val keys = queue.map { it.artist?.trim()?.lowercase()?.takeIf(String::isNotEmpty) }
+        player.setShuffleOrder(DefaultShuffleOrder(SmartShuffle.order(keys, first), System.nanoTime()))
     }
 
     fun togglePlayPause() {
@@ -180,6 +215,7 @@ class PlaybackController @Inject constructor(
 
     fun skipToIndex(index: Int) {
         if (index !in queue.indices) return
+        playNextPending = 0
         player.seekToDefaultPosition(index)
         if (!player.isPlaying) player.play()
     }
@@ -187,6 +223,7 @@ class PlaybackController @Inject constructor(
     fun toggleShuffle() {
         wantShuffle = !wantShuffle
         player.shuffleModeEnabled = wantShuffle
+        if (wantShuffle) applySmartShuffle(first = player.currentMediaItemIndex)
         scope.launch { settings.setShuffle(wantShuffle) }
         publish()
     }
@@ -209,6 +246,7 @@ class PlaybackController @Inject constructor(
         player.stop()
         player.clearMediaItems()
         queue.clear()
+        playNextPending = 0
         tracker = null
         trackerItem = null
         errorMessage = null
@@ -252,6 +290,7 @@ class PlaybackController @Inject constructor(
         override fun onRepeatModeChanged(repeatMode: Int) = publish()
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            if (playNextPending > 0) playNextPending--
             beginTrack()
             publish()
         }

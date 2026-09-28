@@ -110,7 +110,15 @@ Owner's request after seeing it on the phone.
 - **Progress bar styles** (Settings → Progress bar, each with a live preview): squiggle (default; animates while playing, flat
   when paused), classic Material slider, thin line, pill with a gap around the handle, dots. Drawn by hand
   (`ui/playback/SeekBar.kt`) because Material 3's official wavy slider is only in a pre-release library.
-- Known limit: with shuffle on, "Play next" inserts after the current track in list order, not necessarily next in play order.
+- **Shuffle is now an artist-spread shuffle** (`playback/SmartShuffle.kt`), not ExoPlayer's plain random one: the same artist
+  is not played twice in a row wherever that can be avoided. It is the server's idea (`backend/src/services/shuffle.ts`, greedy
+  "largest remaining artist that isn't the last") but picks at random weighted by how many tracks each artist has left, with the
+  one rule that keeps it correct — an artist holding more than half of what is left is played now. It runs on the phone, so no
+  round trip, works offline, and isn't limited by queue size; the server's `POST /shuffle` is still unused. The tapped/current
+  track always leads. Unknown artists never count as matching. When one artist is more than half the queue (an album, say) repeats
+  are unavoidable and are kept to the minimum. 8 unit tests cover it (`SmartShuffleTest`).
+- **"Play next" now plays next even with shuffle on**: the new track is moved to just after the current one in the shuffle order,
+  and several "Play next" taps queue in the order tapped (previously each one jumped ahead of the last, shuffle or not).
 - Build, unit tests and lint pass; **not seen on a device.**
 
 ## Change Log
