@@ -13,7 +13,7 @@ import com.brainlessmusic.app.ui.artists.ArtistDetailScreen
 import com.brainlessmusic.app.ui.library.LibraryScreen
 import com.brainlessmusic.app.ui.playback.NowPlayingScreen
 import com.brainlessmusic.app.ui.search.SearchScreen
-import com.brainlessmusic.app.ui.serverconfig.ServerConfigScreen
+import com.brainlessmusic.app.ui.login.LoginScreen
 import com.brainlessmusic.app.ui.settings.SettingsScreen
 import com.brainlessmusic.app.ui.splash.SplashScreen
 
@@ -29,11 +29,11 @@ fun BrainlessNavGraph(navController: NavHostController = rememberNavController()
                 },
             )
         }
-        composable(Routes.SERVER_CONFIG) {
-            ServerConfigScreen(
+        composable(Routes.LOGIN) {
+            LoginScreen(
                 onLoggedIn = {
                     navController.navigate(Routes.ARTISTS) {
-                        popUpTo(Routes.SERVER_CONFIG) { inclusive = true }
+                        popUpTo(Routes.LOGIN) { inclusive = true }
                     }
                 },
             )
@@ -42,7 +42,7 @@ fun BrainlessNavGraph(navController: NavHostController = rememberNavController()
             LibraryScreen(
                 navController = navController,
                 onLoggedOut = {
-                    navController.navigate(Routes.SERVER_CONFIG) {
+                    navController.navigate(Routes.LOGIN) {
                         popUpTo(Routes.ARTISTS) { inclusive = true }
                     }
                 },

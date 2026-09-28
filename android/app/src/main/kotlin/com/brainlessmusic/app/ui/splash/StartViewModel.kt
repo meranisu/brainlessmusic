@@ -26,7 +26,7 @@ class StartViewModel @Inject constructor(
                 is SessionRestoreResult.Restored -> Routes.ARTISTS
                 SessionRestoreResult.NoStoredSession,
                 SessionRestoreResult.StoredSessionInvalid,
-                -> Routes.SERVER_CONFIG
+                -> Routes.LOGIN
             }
         }
     }

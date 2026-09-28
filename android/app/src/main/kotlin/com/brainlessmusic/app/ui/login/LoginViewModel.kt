@@ -1,4 +1,4 @@
-package com.brainlessmusic.app.ui.serverconfig
+package com.brainlessmusic.app.ui.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -16,7 +16,7 @@ import javax.inject.Inject
 
 enum class ConnectionCheck { IDLE, CHECKING, SUCCESS, FAILED }
 
-data class ServerConfigUiState(
+data class LoginUiState(
     val serverHost: String = "",
     val username: String = "",
     val password: String = "",
@@ -27,13 +27,13 @@ data class ServerConfigUiState(
 )
 
 @HiltViewModel
-class ServerConfigViewModel @Inject constructor(
+class LoginViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     serverConfig: ServerConfig,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(ServerConfigUiState(serverHost = serverConfig.host))
-    val uiState: StateFlow<ServerConfigUiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(LoginUiState(serverHost = serverConfig.host))
+    val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
     init {
         // The light is the first thing the screen says, so check without being asked.

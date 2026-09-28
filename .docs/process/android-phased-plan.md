@@ -121,6 +121,22 @@ read once synchronously at launch so a forced theme never flashes the other one,
 the app's choice rather than the phone's, and the pre-Compose window background is now light by day / navy by night
 (`values/` and `values-night/`) instead of always navy. Not verified on a device.
 
+### Login screen (2026-09-28)
+
+The bare form was rebuilt after the web app's title screen (`frontend/src/pages/TitleScreenPage.tsx`): a tile mosaic
+behind (`ui/login/BeatMosaic.kt`) whose wavefront crosses it once per beat and lights tiles toward the accent; a solid
+band across the middle with the ringed mark (`ui/common/BrandMark.kt`, the dot breathes), the "SELF-HOSTED · PERSONAL
+AUDIO" eyebrow and the two-tone wordmark; monospace corner readouts (`VER`, `SERVER OK / CHECKING / UNREACHABLE` with the
+same green/red light and tap-to-retry, the host, `SELF-HOSTED`); and the form on a rounded card. Choices worth knowing:
+
+- **Colors are Material You roles, not the web's navy and orange** — the band is `inverseSurface` with `inversePrimary` for
+  "music" — so it follows the wallpaper and light/dark like the rest of the app.
+- **Slower and softer than the web**: the beat is 0.8 s (web: 0.4 s) and tiles glow gently, since a fast flash behind a form
+  is tiring on a phone. It holds still when the system's animations are off.
+- The web's CRT shut-off transition, sweeping band highlights and scrolling wordmark columns were not ported.
+- Renamed `ServerConfigScreen`/`ViewModel` to `LoginScreen`/`LoginViewModel` and the route to `login`: it no longer
+  configures a server. Not verified on a device.
+
 ### Mini player vs. navigation bar (2026-09-28)
 
 On newer Android the mini player and the navigation bar under it were visibly different tones: the player was `surface`
