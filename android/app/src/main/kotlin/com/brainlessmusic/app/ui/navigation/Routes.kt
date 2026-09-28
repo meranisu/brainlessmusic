@@ -12,6 +12,8 @@ object Routes {
     const val ARTIST_DETAIL = "artist/{artistId}"
     const val ALBUM_DETAIL = "album/{albumId}"
 
+    const val NOW_PLAYING = "now_playing"
+
     const val ARG_ARTIST_ID = "artistId"
     const val ARG_ALBUM_ID = "albumId"
 

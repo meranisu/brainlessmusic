@@ -32,12 +32,14 @@ import com.brainlessmusic.app.data.remote.dto.ArtistDetailDto
 import com.brainlessmusic.app.ui.common.CoverImage
 import com.brainlessmusic.app.ui.common.LoadState
 import com.brainlessmusic.app.ui.common.LoadStateContent
+import com.brainlessmusic.app.ui.playback.MiniPlayer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ArtistDetailScreen(
     onBack: () -> Unit,
     onAlbumClick: (albumId: Int) -> Unit,
+    onOpenNowPlaying: () -> Unit,
     viewModel: ArtistDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -62,6 +64,7 @@ fun ArtistDetailScreen(
                 },
             )
         },
+        bottomBar = { MiniPlayer(onClick = onOpenNowPlaying) },
     ) { padding ->
         LoadStateContent(
             state = state,

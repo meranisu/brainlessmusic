@@ -7,6 +7,7 @@ import com.brainlessmusic.app.data.remote.MediaUrlProvider
 import com.brainlessmusic.app.data.remote.dto.AlbumDetailDto
 import com.brainlessmusic.app.data.remote.dto.ArtistDetailDto
 import com.brainlessmusic.app.data.remote.dto.ArtistSummaryDto
+import com.brainlessmusic.app.data.remote.dto.ScrobbleRequest
 import com.brainlessmusic.app.data.remote.dto.SearchResultsDto
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
@@ -30,6 +31,16 @@ class LibraryRepository @Inject constructor(
 
     suspend fun search(query: String): Result<SearchResultsDto> =
         callApi { it.search(query) }
+
+    suspend fun scrobble(trackId: Int, msPlayed: Long): Result<Unit> =
+        callApi { it.scrobble(trackId, ScrobbleRequest(msPlayed)) }.map { }
+
+    /**
+     * Byte-range seekable, and authenticated by the bearer header ExoPlayer's
+     * OkHttp data source adds via the shared client — no `?token=` needed
+     * (backend/src/plugins/auth.ts `authenticateMedia`).
+     */
+    fun streamUrl(trackId: Int): String? = mediaUrlProvider.current?.let { "${it}tracks/$trackId/stream" }
 
     /** `null` while there's no active session — the cover just won't load, same as any other network failure. */
     fun albumCoverUrl(albumId: Int): String? = mediaUrlProvider.current?.let { "${it}albums/$albumId/cover" }

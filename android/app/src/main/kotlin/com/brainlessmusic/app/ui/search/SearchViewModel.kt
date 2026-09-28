@@ -7,6 +7,9 @@ import com.brainlessmusic.app.data.remote.dto.SearchResultsDto
 import com.brainlessmusic.app.data.repository.ConnectionException
 import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.data.repository.toMessage
+import com.brainlessmusic.app.data.remote.dto.TrackSummaryDto
+import com.brainlessmusic.app.playback.PlaybackController
+import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.ui.common.LoadState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +27,7 @@ private val EMPTY_RESULTS = SearchResultsDto(artists = emptyList(), albums = emp
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val libraryRepository: LibraryRepository,
+    private val playbackController: PlaybackController,
 ) : ViewModel() {
 
     private val _query = MutableStateFlow("")
@@ -68,4 +72,21 @@ class SearchViewModel @Inject constructor(
     }
 
     fun albumCoverUrl(albumId: Int): String? = libraryRepository.albumCoverUrl(albumId)
+
+    /** The visible track results become the queue, starting at the one tapped. */
+    fun playTracks(tracks: List<TrackSummaryDto>, index: Int) {
+        playbackController.playQueue(
+            tracks.map {
+                QueueItem(
+                    trackId = it.id,
+                    title = it.title,
+                    artist = it.artist,
+                    album = it.album,
+                    durationSec = it.duration,
+                    coverUrl = libraryRepository.trackCoverUrl(it.id),
+                )
+            },
+            index,
+        )
+    }
 }

@@ -25,7 +25,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.brainlessmusic.app.data.remote.dto.ArtistSummaryDto
 import com.brainlessmusic.app.ui.common.LoadStateContent
-import com.brainlessmusic.app.ui.navigation.LibraryBottomBar
+import com.brainlessmusic.app.ui.navigation.AppBottomBar
 import com.brainlessmusic.app.ui.navigation.Routes
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,7 +51,7 @@ fun ArtistsListScreen(
                 },
             )
         },
-        bottomBar = { LibraryBottomBar(navController) },
+        bottomBar = { AppBottomBar(navController) },
     ) { padding ->
         LoadStateContent(
             state = state,

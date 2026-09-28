@@ -72,3 +72,13 @@ data class SearchResultsDto(
     val albums: List<AlbumSummaryDto>,
     val tracks: List<TrackSummaryDto>,
 )
+
+data class ScrobbleRequest(
+    val msPlayed: Long,
+)
+
+/** `POST /tracks/:id/scrobble` answers 201 with the updated counters; the client only needs to know it landed. */
+data class ScrobbleResponse(
+    val trackId: Int,
+    val playCount: Int,
+)

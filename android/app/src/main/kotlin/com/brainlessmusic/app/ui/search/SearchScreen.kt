@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
@@ -35,7 +36,7 @@ import com.brainlessmusic.app.data.remote.dto.TrackSummaryDto
 import com.brainlessmusic.app.ui.common.CoverImage
 import com.brainlessmusic.app.ui.common.LoadStateContent
 import com.brainlessmusic.app.ui.common.formatDuration
-import com.brainlessmusic.app.ui.navigation.LibraryBottomBar
+import com.brainlessmusic.app.ui.navigation.AppBottomBar
 import com.brainlessmusic.app.ui.navigation.Routes
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -52,7 +53,7 @@ fun SearchScreen(
     // filled/rounded search-field look). A plain body-level TextField gets
     // full control over size, shape and color instead.
     Scaffold(
-        bottomBar = { LibraryBottomBar(navController) },
+        bottomBar = { AppBottomBar(navController) },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -106,8 +107,8 @@ fun SearchScreen(
                     }
                     if (results.tracks.isNotEmpty()) {
                         item { SectionHeader("Tracks") }
-                        items(results.tracks, key = { "track-${it.id}" }) { track ->
-                            TrackResultRow(track)
+                        itemsIndexed(results.tracks, key = { _, track -> "track-${track.id}" }) { index, track ->
+                            TrackResultRow(track) { viewModel.playTracks(results.tracks, index) }
                         }
                     }
                 }
@@ -150,11 +151,13 @@ private fun AlbumResultRow(album: AlbumSummaryDto, coverUrl: String?, onClick: (
 }
 
 @Composable
-private fun TrackResultRow(track: TrackSummaryDto) {
+private fun TrackResultRow(track: TrackSummaryDto, onClick: () -> Unit) {
     ListItem(
         headlineContent = { Text(track.title) },
         supportingContent = { Text(listOfNotNull(track.artist, track.album).joinToString(" — ")) },
         trailingContent = { Text(formatDuration(track.duration), style = MaterialTheme.typography.bodySmall) },
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
     )
 }

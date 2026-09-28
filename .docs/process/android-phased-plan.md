@@ -58,6 +58,8 @@ Goal: connect → browse → stream → control. Each phase should be independen
 
 **Done when:** user can tap any track, hear it play, seek within it, and skip to the next/previous track in queue.
 
+**Status:** built 2026-09-28 (Media3 `ExoPlayer` in an app-wide `PlaybackController`, mini player, Now Playing, queue, scrobble by the web rule); build, lint and unit tests pass. **No audio has been played yet** — on-device check pending. Detail and the on-device checklist: `.docs/features/android-phase-2-playback/planning.md`. Background/lock-screen playback remains Phase 3.
+
 ---
 
 ## Phase 3 — Background & System Integration

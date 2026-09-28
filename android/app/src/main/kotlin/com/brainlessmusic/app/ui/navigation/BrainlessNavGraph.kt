@@ -11,6 +11,7 @@ import androidx.navigation.navArgument
 import com.brainlessmusic.app.ui.albums.AlbumDetailScreen
 import com.brainlessmusic.app.ui.artists.ArtistDetailScreen
 import com.brainlessmusic.app.ui.artists.ArtistsListScreen
+import com.brainlessmusic.app.ui.playback.NowPlayingScreen
 import com.brainlessmusic.app.ui.search.SearchScreen
 import com.brainlessmusic.app.ui.serverconfig.ServerConfigScreen
 import com.brainlessmusic.app.ui.splash.SplashScreen
@@ -56,13 +57,20 @@ fun BrainlessNavGraph(navController: NavHostController = rememberNavController()
             ArtistDetailScreen(
                 onBack = { navController.popBackStack() },
                 onAlbumClick = { albumId -> navController.navigate(Routes.albumDetail(albumId)) },
+                onOpenNowPlaying = { navController.navigate(Routes.NOW_PLAYING) },
             )
         }
         composable(
             Routes.ALBUM_DETAIL,
             arguments = listOf(intArg(Routes.ARG_ALBUM_ID)),
         ) {
-            AlbumDetailScreen(onBack = { navController.popBackStack() })
+            AlbumDetailScreen(
+                onBack = { navController.popBackStack() },
+                onOpenNowPlaying = { navController.navigate(Routes.NOW_PLAYING) },
+            )
+        }
+        composable(Routes.NOW_PLAYING) {
+            NowPlayingScreen(onBack = { navController.popBackStack() })
         }
     }
 }

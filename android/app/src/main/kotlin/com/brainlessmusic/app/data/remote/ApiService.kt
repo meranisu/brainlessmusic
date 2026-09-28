@@ -7,6 +7,8 @@ import com.brainlessmusic.app.data.remote.dto.HealthResponse
 import com.brainlessmusic.app.data.remote.dto.LoginRequest
 import com.brainlessmusic.app.data.remote.dto.LoginResponse
 import com.brainlessmusic.app.data.remote.dto.MeResponse
+import com.brainlessmusic.app.data.remote.dto.ScrobbleRequest
+import com.brainlessmusic.app.data.remote.dto.ScrobbleResponse
 import com.brainlessmusic.app.data.remote.dto.SearchResultsDto
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -43,4 +45,7 @@ interface ApiService {
 
     @GET("search")
     suspend fun search(@Query("q") query: String): SearchResultsDto
+
+    @POST("tracks/{id}/scrobble")
+    suspend fun scrobble(@Path("id") id: Int, @Body body: ScrobbleRequest): ScrobbleResponse
 }

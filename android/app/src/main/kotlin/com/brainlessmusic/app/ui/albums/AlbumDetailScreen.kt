@@ -1,6 +1,18 @@
 package com.brainlessmusic.app.ui.albums
 
 import androidx.compose.foundation.layout.Column
+import com.brainlessmusic.app.ui.playback.MiniPlayer
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -36,9 +48,11 @@ import com.brainlessmusic.app.ui.common.formatDuration
 @Composable
 fun AlbumDetailScreen(
     onBack: () -> Unit,
+    onOpenNowPlaying: () -> Unit,
     viewModel: AlbumDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val playback by viewModel.playback.collectAsStateWithLifecycle()
     val title = when (val s = state) {
         is LoadState.Content -> s.data.title
         else -> "Album"
@@ -60,6 +74,7 @@ fun AlbumDetailScreen(
                 },
             )
         },
+        bottomBar = { MiniPlayer(onClick = onOpenNowPlaying) },
     ) { padding ->
         LoadStateContent(
             state = state,
@@ -70,8 +85,13 @@ fun AlbumDetailScreen(
         ) { album: AlbumDetailDto ->
             LazyColumn {
                 item { AlbumHeader(album, coverUrl = viewModel.coverUrl()) }
-                items(album.tracks, key = { it.id }) { track ->
-                    TrackRow(track)
+                itemsIndexed(album.tracks, key = { _, track -> track.id }) { index, track ->
+                    TrackRow(
+                        track = track,
+                        isCurrent = playback.current?.trackId == track.id,
+                        onClick = { viewModel.playFrom(album, index) },
+                        onPlayNext = { viewModel.playNext(album, track) },
+                    )
                 }
             }
         }
@@ -110,7 +130,13 @@ private fun AlbumHeader(album: AlbumDetailDto, coverUrl: String?) {
 }
 
 @Composable
-private fun TrackRow(track: AlbumTrackDto) {
+private fun TrackRow(
+    track: AlbumTrackDto,
+    isCurrent: Boolean,
+    onClick: () -> Unit,
+    onPlayNext: () -> Unit,
+) {
+    var menuOpen by remember { mutableStateOf(false) }
     ListItem(
         leadingContent = {
             Text(
@@ -119,7 +145,32 @@ private fun TrackRow(track: AlbumTrackDto) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         },
-        headlineContent = { Text(track.title) },
-        trailingContent = { Text(formatDuration(track.duration), style = MaterialTheme.typography.bodySmall) },
+        headlineContent = {
+            Text(
+                track.title,
+                fontWeight = if (isCurrent) FontWeight.Bold else null,
+                color = if (isCurrent) MaterialTheme.colorScheme.primary else Color.Unspecified,
+            )
+        },
+        trailingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(formatDuration(track.duration), style = MaterialTheme.typography.bodySmall)
+                Box {
+                    IconButton(onClick = { menuOpen = true }) {
+                        Icon(Icons.Filled.MoreVert, contentDescription = "More")
+                    }
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Play next") },
+                            onClick = {
+                                menuOpen = false
+                                onPlayNext()
+                            },
+                        )
+                    }
+                }
+            }
+        },
+        modifier = Modifier.clickable(onClick = onClick),
     )
 }

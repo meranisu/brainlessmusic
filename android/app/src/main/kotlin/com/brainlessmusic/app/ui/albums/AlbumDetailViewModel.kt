@@ -7,6 +7,10 @@ import com.brainlessmusic.app.data.remote.dto.AlbumDetailDto
 import com.brainlessmusic.app.data.repository.ConnectionException
 import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.data.repository.toMessage
+import com.brainlessmusic.app.playback.PlaybackController
+import com.brainlessmusic.app.playback.PlaybackUiState
+import com.brainlessmusic.app.playback.QueueItem
+import com.brainlessmusic.app.data.remote.dto.AlbumTrackDto
 import com.brainlessmusic.app.ui.common.LoadState
 import com.brainlessmusic.app.ui.navigation.Routes
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,6 +24,7 @@ import javax.inject.Inject
 class AlbumDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val libraryRepository: LibraryRepository,
+    private val playbackController: PlaybackController,
 ) : ViewModel() {
 
     val albumId: Int = checkNotNull(savedStateHandle[Routes.ARG_ALBUM_ID])
@@ -46,4 +51,25 @@ class AlbumDetailViewModel @Inject constructor(
     }
 
     fun coverUrl(): String? = libraryRepository.albumCoverUrl(albumId)
+
+    val playback: StateFlow<PlaybackUiState> = playbackController.state
+
+    /** Plays the whole album as the queue, starting at [index]. */
+    fun playFrom(album: AlbumDetailDto, index: Int) {
+        playbackController.playQueue(album.tracks.map { queueItem(album, it) }, index)
+    }
+
+    fun playNext(album: AlbumDetailDto, track: AlbumTrackDto) {
+        playbackController.playNext(queueItem(album, track))
+    }
+
+    // An album's tracks carry no artist/album/cover of their own; the album supplies them.
+    private fun queueItem(album: AlbumDetailDto, track: AlbumTrackDto) = QueueItem(
+        trackId = track.id,
+        title = track.title,
+        artist = album.artistName,
+        album = album.title,
+        durationSec = track.duration,
+        coverUrl = libraryRepository.albumCoverUrl(album.id),
+    )
 }

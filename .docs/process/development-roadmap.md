@@ -109,8 +109,8 @@ Hosting comes before the app, so there's a real server to point the phone at.
 - [ ] **16. Android Phase 1 — browse.** Artists → albums → tracks, search, cover art via Coil (needs step 4), loading and empty states, pull-to-refresh. — **scaffolded and build-verified 2026-09-18**, same day as box 15. See `.docs/features/android-phase-1-browse/planning.md`.
   *Done when:* you can find any track in your library from the phone. — **not yet verified on-device** — box 15's pattern (build-verify here, then confirm for real on the owner's phone) hasn't completed its second half yet.
 
-- [ ] **17. Android Phase 2 — play.** Media3/ExoPlayer against the stream endpoint, byte-range seeking, queue, Now Playing screen, scrobble on play.
-  *Done when:* you tap a track on the phone and hear it.
+- [ ] **17. Android Phase 2 — play.** Media3/ExoPlayer against the stream endpoint, byte-range seeking, queue, Now Playing screen, scrobble on play. — **built 2026-09-28**: build, lint and 7 unit tests pass; **no audio has been played yet** (no device here). See `.docs/features/android-phase-2-playback/planning.md`.
+  *Done when:* you tap a track on the phone and hear it. — **not yet verified on-device.**
 
 - [ ] **18. Android Phase 3 — background.** MediaSession, foreground service, lock-screen and notification controls, audio focus, auto-pause on headphone/Bluetooth disconnect.
   *Done when:* playback survives locking the phone and is controllable from the lock screen.
