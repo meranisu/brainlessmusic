@@ -53,8 +53,23 @@ yet; that's Phase 2.
 
 ---
 
+## Post-device-test fixes (2026-09-28)
+
+First on-device look at Phase 1 (owner's POCO F5) turned up three problems, all fixed:
+
+- **List and album grid rendered under the top bar.** Root cause was one line, not two layout bugs: `LoadStateContent` applied the Scaffold's `innerPadding` (passed as `modifier`) only to its loading/error/empty branches, never to populated content — so every real list started at y=0 and slid beneath the `TopAppBar`, clipping the first row and the first album cover. Populated content is now wrapped in a `Box(modifier)`. This is why Phase 1's build+lint pass missed it: the code compiled, and the bug only exists once real data fills the screen.
+- **Search field looked unstyled.** A bare `OutlinedTextField` in a `TopAppBar` title slot comes out cramped. Replaced with a body-level filled, rounded `TextField` (leading search icon, clear button), with no top bar on that tab.
+- **Material You adopted** (owner's request) — see `.docs/process/android-phased-plan.md`. `BrainlessMusicTheme` now uses dynamic color on API 31+ with the static palette as fallback, and the launcher icon gained a `<monochrome>` layer (which also closed that lint finding). Auditing for consequences turned up three hardcoded colors in `ServerConfigScreen` (`Orange500`, `Red400`, `Color.White`) that would have bypassed the dynamic scheme; they now use `MaterialTheme.colorScheme` roles.
+
+Not verified on-device yet: whether the fixed layout and dynamic color look right on the phone. The build compiles and lint is 31 warnings (down from 33).
+
+The owner also asked for genre, playlists and a Home dashboard — held as [Q30](../../QUESTIONS.md#q30--should-android-get-a-home-dashboard-playlists-and-genre-browsing--and-in-what-order) rather than built, since genre needs backend work and "quick listen" needs Phase 2's playback.
+
+---
+
 ## Change Log
 
 | Date | Phase affected | What changed | Why | Still fits the Plan phase? |
 |---|---|---|---|---|
+| 2026-09-28 | Phase 3 (Interior) | Fixed padding drop in `LoadStateContent`, restyled search field, adopted Material You | Found by the owner on-device; Material You was an explicit design request | Yes — no API or navigation shape changed |
 | 2026-09-18 | Phase 1 (Interior) | Added manual refresh `IconButton`s to Artists/Artist-detail/Album-detail after first-pass review found refresh only worked from the error path | Phase 1's stated done-when includes "pull-to-refresh"; the first pass only half-delivered it | Yes — additive, no API or navigation shape changed |

@@ -88,6 +88,26 @@ Goal: connect → browse → stream → control. Each phase should be independen
 
 ---
 
+## Design language — Material You (decided 2026-09-28)
+
+The Android app follows **Material You**: on Android 12+ (API 31) the color
+scheme comes from the device wallpaper via Material3's
+`dynamicDarkColorScheme`/`dynamicLightColorScheme`, and on Android 13+ the
+launcher icon supplies a `<monochrome>` layer so it joins the system's
+themed-icons setting. This applies to every phase, not just Phase 1 — new
+screens use `MaterialTheme.colorScheme` roles and never hardcode colors.
+
+- **Fallback:** devices below API 31 (minSdk is 26) have no wallpaper-extraction
+  API, so they keep the static navy/orange scheme in `ui/theme/Theme.kt`
+  unconditionally. `BrainlessMusicTheme(dynamicColor = false)` forces that
+  scheme on 12+ as well, if the brand palette is ever wanted there.
+- **What this trades away:** on Android 12+ the app no longer matches the web
+  app's navy/orange identity — that is the point of dynamic color, and was
+  the owner's explicit call. The web palette is untouched.
+- **Implication for screens:** avoid `Orange500`/`Navy*` from `Color.kt`
+  directly in composables (only `Theme.kt` should read them), or the
+  dynamic scheme will be bypassed on those elements.
+
 ## Notes for implementation
 
 - Auth token should be cached and reused per session rather than regenerated on every request, refreshed/re-logged-in on 401

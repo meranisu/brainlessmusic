@@ -1,21 +1,29 @@
 package com.brainlessmusic.app.ui.search
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -39,48 +47,68 @@ fun SearchScreen(
     val query by viewModel.query.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
 
+    // No TopAppBar here on purpose — a text field crammed into a TopAppBar's
+    // title slot comes out cramped and unstyled (it inherits none of the
+    // filled/rounded search-field look). A plain body-level TextField gets
+    // full control over size, shape and color instead.
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    OutlinedTextField(
-                        value = query,
-                        onValueChange = viewModel::onQueryChange,
-                        placeholder = { Text("Search artists, albums, tracks") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                },
-            )
-        },
         bottomBar = { LibraryBottomBar(navController) },
     ) { padding ->
-        LoadStateContent(
-            state = state,
-            onRetry = viewModel::retry,
-            modifier = Modifier.padding(padding),
-            isEmpty = { it.artists.isEmpty() && it.albums.isEmpty() && it.tracks.isEmpty() },
-            emptyMessage = if (query.isBlank()) "Search your library." else "No matches for \"$query\".",
-        ) { results: SearchResultsDto ->
-            LazyColumn {
-                if (results.artists.isNotEmpty()) {
-                    item { SectionHeader("Artists") }
-                    items(results.artists, key = { "artist-${it.id}" }) { artist ->
-                        ArtistResultRow(artist) { navController.navigate(Routes.artistDetail(artist.id)) }
-                    }
-                }
-                if (results.albums.isNotEmpty()) {
-                    item { SectionHeader("Albums") }
-                    items(results.albums, key = { "album-${it.id}" }) { album ->
-                        AlbumResultRow(album, coverUrl = viewModel.albumCoverUrl(album.id)) {
-                            navController.navigate(Routes.albumDetail(album.id))
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize(),
+        ) {
+            TextField(
+                value = query,
+                onValueChange = viewModel::onQueryChange,
+                placeholder = { Text("Search artists, albums, tracks") },
+                singleLine = true,
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (query.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.onQueryChange("") }) {
+                            Icon(Icons.Filled.Clear, contentDescription = "Clear search")
                         }
                     }
-                }
-                if (results.tracks.isNotEmpty()) {
-                    item { SectionHeader("Tracks") }
-                    items(results.tracks, key = { "track-${it.id}" }) { track ->
-                        TrackResultRow(track)
+                },
+                colors = TextFieldDefaults.colors(
+                    unfocusedIndicatorColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                ),
+                shape = MaterialTheme.shapes.extraLarge,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+            )
+
+            LoadStateContent(
+                state = state,
+                onRetry = viewModel::retry,
+                modifier = Modifier.fillMaxSize(),
+                isEmpty = { it.artists.isEmpty() && it.albums.isEmpty() && it.tracks.isEmpty() },
+                emptyMessage = if (query.isBlank()) "Search your library." else "No matches for \"$query\".",
+            ) { results: SearchResultsDto ->
+                LazyColumn {
+                    if (results.artists.isNotEmpty()) {
+                        item { SectionHeader("Artists") }
+                        items(results.artists, key = { "artist-${it.id}" }) { artist ->
+                            ArtistResultRow(artist) { navController.navigate(Routes.artistDetail(artist.id)) }
+                        }
+                    }
+                    if (results.albums.isNotEmpty()) {
+                        item { SectionHeader("Albums") }
+                        items(results.albums, key = { "album-${it.id}" }) { album ->
+                            AlbumResultRow(album, coverUrl = viewModel.albumCoverUrl(album.id)) {
+                                navController.navigate(Routes.albumDetail(album.id))
+                            }
+                        }
+                    }
+                    if (results.tracks.isNotEmpty()) {
+                        item { SectionHeader("Tracks") }
+                        items(results.tracks, key = { "track-${it.id}" }) { track ->
+                            TrackResultRow(track)
+                        }
                     }
                 }
             }

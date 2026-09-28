@@ -30,7 +30,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -38,8 +37,6 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.brainlessmusic.app.ui.theme.Orange500
-import com.brainlessmusic.app.ui.theme.Red400
 
 @Composable
 fun ServerConfigScreen(
@@ -77,8 +74,16 @@ fun ServerConfigScreen(
             }
             when (state.connectionCheck) {
                 ConnectionCheck.CHECKING -> CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                ConnectionCheck.SUCCESS -> Icon(Icons.Filled.CheckCircle, contentDescription = "Connected", tint = Orange500)
-                ConnectionCheck.FAILED -> Icon(Icons.Filled.Error, contentDescription = "Connection failed", tint = Red400)
+                ConnectionCheck.SUCCESS -> Icon(
+                    Icons.Filled.CheckCircle,
+                    contentDescription = "Connected",
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                ConnectionCheck.FAILED -> Icon(
+                    Icons.Filled.Error,
+                    contentDescription = "Connection failed",
+                    tint = MaterialTheme.colorScheme.error,
+                )
                 ConnectionCheck.IDLE -> Unit
             }
         }
@@ -129,7 +134,10 @@ fun ServerConfigScreen(
             modifier = Modifier.fillMaxWidth(),
         ) {
             if (state.isLoggingIn) {
-                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                )
             } else {
                 Text("Log in")
             }
