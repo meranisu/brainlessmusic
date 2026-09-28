@@ -1,6 +1,7 @@
 import { stat } from 'node:fs/promises';
 import { config } from '../config.js';
 import { ensureDefaultLibraryRoot, listLibraryRoots, recordLibraryRootScan } from '../db/libraryRoots.js';
+import { replaceScanFailures } from '../db/scanFailures.js';
 import { reconcileMissingTracks, scanLibrary, type ReconcileSummary, type ScanSummary } from './scanner.js';
 
 /**
@@ -97,6 +98,9 @@ export async function syncLibrary(
             scanProgress.set(rootId, { processed, total });
           })
         : undefined;
+    // Only after a scan that actually ran: a reconcile-only pass has no
+    // failure list, and replacing with nothing would wipe the last real one.
+    if (scan) replaceScanFailures(rootId, scan.failures);
     const reconcile = await reconcileMissingTracks(libraryRoot, rootId, {
       abortRatio: config.libraryMissingAbortRatio,
     });

@@ -62,6 +62,7 @@ export function countTracksForRoot(id: number): number {
 export function deleteLibraryRoot(id: number): void {
   db.transaction(() => {
     db.prepare('UPDATE tracks SET root_id = NULL WHERE root_id = ?').run(id);
+    db.prepare('DELETE FROM scan_failures WHERE root_id = ?').run(id);
     db.prepare('DELETE FROM library_roots WHERE id = ?').run(id);
   })();
 }

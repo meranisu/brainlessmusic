@@ -238,6 +238,40 @@ have no other way to be reclaimed. It runs only when `POST /auth/guest` hits
 **PK:** composite `(user_id, track_id)` — a track can only be favorited once per user; `starTrack()`/`unstarTrack()` are both idempotent (`INSERT OR IGNORE` / plain `DELETE`), a deliberate toggle-style choice.
 **Indexes:** `idx_favorites_user_id`, plus the composite PK's own auto index.
 
+### `playback_failures`
+
+| Column | Type | Null? | Default | Notes |
+|---|---|---|---|---|
+| `id` | INTEGER | — | — | **PK**, autoincrement |
+| `user_id` | INTEGER | NOT NULL | — | **FK → `users.id`**, `ON DELETE NO ACTION` — guests included |
+| `track_id` | INTEGER | NOT NULL | — | **FK → `tracks.id`**, `ON DELETE NO ACTION` |
+| `source` | TEXT | NOT NULL | — | `'client'` (player got the bytes but couldn't decode them — `POST /tracks/:id/playback-failure`) or `'server'` (stream route refused to serve: missing file, failed transcode) |
+| `message` | TEXT | NOT NULL | — | |
+| `media_error_code` | INTEGER | nullable | — | the browser's `MediaError.code` (1–4), client-sourced rows only |
+| `content_type` | TEXT | nullable | — | what the server actually sent, as read back by the client |
+| `user_agent` | TEXT | nullable | — | |
+| `created_at` | TEXT | NOT NULL | `datetime('now')` | |
+
+**FKs:** `user_id → users.id`, `track_id → tracks.id` (both `NO ACTION`).
+**Indexes:** `idx_playback_failures_created_at`, `idx_playback_failures_user_id`.
+**An event log** — append-only, newest first in `GET /admin/playback-failures` (admin-only: it names users). Deliberately **not** fed into `/admin/health`, which any signed-in user can read.
+**Deletion order matters:** `deleteTrackRow()`, `pruneIdleGuests()` and `deleteUser()` each delete a parent's `playback_failures` rows first (regression tests in `db/failureLogs.test.ts`).
+
+### `scan_failures`
+
+| Column | Type | Null? | Default | Notes |
+|---|---|---|---|---|
+| `id` | INTEGER | — | — | **PK**, autoincrement |
+| `root_id` | INTEGER | NOT NULL | — | **FK → `library_roots.id`**, `ON DELETE NO ACTION` |
+| `path` | TEXT | NOT NULL | — | the file the scanner couldn't read |
+| `message` | TEXT | NOT NULL | — | |
+| `created_at` | TEXT | NOT NULL | `datetime('now')` | |
+
+**FKs:** `root_id → library_roots.id` (`NO ACTION`).
+**Indexes:** `idx_scan_failures_root_id`.
+**The current set, not a history:** `replaceScanFailures()` (`db/scanFailures.ts`, called from `syncLibrary()` after a scan that actually ran) swaps a root's rows for the latest scan's, so a fixed file drops off and a file failing every scan doesn't accumulate. A reconcile-only pass does not touch it.
+**Deletion order matters:** `deleteLibraryRoot()` deletes the root's `scan_failures` rows first.
+
 ### `schema_migrations` (infrastructure, not domain data)
 
 | Column | Type | Null? | Default | Notes |
@@ -260,6 +294,9 @@ Written by `backend/src/db/migrate.ts` on every `npm run migrate` — not someth
 | `play_history` | `track_id` | `tracks` | `NO ACTION` | `deleteTrackRow()` — deletes `play_history` rows first |
 | `favorites` | `user_id` | `users` | `NO ACTION` | nothing deletes users today |
 | `favorites` | `track_id` | `tracks` | `NO ACTION` | `deleteTrackRow()` — deletes `favorites` rows first |
+| `playback_failures` | `user_id` | `users` | `NO ACTION` | `pruneIdleGuests()` and `deleteUser()` (`db/users.ts`) — delete `playback_failures` rows first |
+| `playback_failures` | `track_id` | `tracks` | `NO ACTION` | `deleteTrackRow()` — deletes `playback_failures` rows first |
+| `scan_failures` | `root_id` | `library_roots` | `NO ACTION` | `deleteLibraryRoot()` (`db/libraryRoots.ts`) — deletes `scan_failures` rows first |
 
 ## Discrepancies / things worth knowing
 
@@ -355,11 +392,14 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | `0010_add_track_missing_tracking.sql` | `tracks.missing_since` + index — when a track's file was first seen absent from disk |
 | `0011_create_playback_state.sql` | `playback_state` (one row per user — `user_id` is the PK) — resume position, queue and index |
 | `0012_add_user_kind.sql` | `users.kind`, `users.last_seen_at` + `idx_users_kind_last_seen` — passwordless guest rows |
+| `0015_create_playback_failures.sql` | `playback_failures` + `idx_playback_failures_created_at`, `idx_playback_failures_user_id` — who hit a track that wouldn't play |
+| `0016_create_scan_failures.sql` | `scan_failures` + `idx_scan_failures_root_id` — files the last scan of each root couldn't read |
 
 ## Change log
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-09-28 | Migrations `0015_create_playback_failures.sql` and `0016_create_scan_failures.sql` — `playback_failures`, `scan_failures`; new table sections, relationship rows and migration history. **`0013`/`0014` are still missing from the migration list above** (found while adding these; not backfilled here) | Control Center: durable playback-failure log and per-root file-integrity list. Both tables reference `users`/`tracks`/`library_roots` with enforced, non-cascading FKs, so `deleteTrackRow`, `pruneIdleGuests`, `deleteUser` and `deleteLibraryRoot` were extended to clear them first |
 | 2026-09-11 | Migration `0012_add_user_kind.sql` — `users.kind`, `users.last_seen_at`, `idx_users_kind_last_seen`; `users` section, ERD and relationship notes updated. Also **backfilled `0011` into the migration list**, which had been missing since it landed on 2026-09-10 | Passwordless guest entry. A `kind` column rather than a sentinel `password_hash`: `''` is a value `bcrypt.compare` will happily be asked about, so "this row cannot log in" would have lived in whoever remembered to check it — a column lets `/auth/login` refuse before it reaches a hash at all. Applied to the live database against `data/brainlessmusic.pre-0012-backup-2026-09-11T00-42-55.db`; `imran` (id 13) came through as `kind = 'account'` and `integrity_check` returned ok |
 | 2026-09-10 | Migration `0010_add_track_missing_tracking.sql` — `tracks.missing_since` + `idx_tracks_missing_since`; `tracks` column table and index list updated | Scheduled reconciliation between the database and the disk. Applied to the live database against a `pre-0010` backup, which also picked up `0009`, still unapplied there. The first sweep flagged 11 of 30 rows, all pointing at `/mnt/wsl/music` — the tmpfs library root that was lost — and it flags rather than deletes precisely because those rows carry favorites and playlist entries for files that may still exist in a backup |
 | 2026-09-03 | File created — full live-introspected schema map, ERD, per-table breakdown, relationship summary, 7 flagged discrepancies | Requested: a maintained database structure reference, checked against the real DB rather than just migration files |

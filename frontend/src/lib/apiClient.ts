@@ -128,10 +128,24 @@ async function getMediaToken(): Promise<string> {
  * URL for `<audio src>` — supports native byte-range seeking, unlike the blob
  * download this replaced.
  */
-export async function buildStreamUrl(trackId: number, quality?: 'low'): Promise<string> {
+export async function buildStreamUrl(trackId: number, quality?: 'low', forceCompat?: boolean): Promise<string> {
   const params = new URLSearchParams({ token: await getMediaToken() });
   if (quality) params.set('quality', quality);
+  if (forceCompat) params.set('compat', '1');
   return `${API_BASE_URL}/tracks/${trackId}/stream?${params.toString()}`;
+}
+
+/**
+ * Tells the server a stream it served fine still failed to play — the one
+ * failure the backend has no way to see on its own, since the bytes went out
+ * without error. Best effort: a report that itself fails to send costs
+ * nothing but a missing log line, never a second toast.
+ */
+export function reportPlaybackFailure(
+  trackId: number,
+  details: { mediaErrorCode?: number; detail?: string; contentType?: string },
+): void {
+  void apiClient.post(`/tracks/${trackId}/playback-failure`, details).catch(() => {});
 }
 
 /**

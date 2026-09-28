@@ -97,3 +97,26 @@ export function describeServed(served: ServedStream, durationSeconds: number): s
   const kbps = Math.round((served.bytes * 8) / durationSeconds / 1000);
   return `${label} · ${kbps}k`;
 }
+
+/**
+ * Turns a native `MediaError` into the one piece of information a remote bug
+ * report never includes on its own: whether the element gave up because the
+ * network dropped or because it couldn't decode what arrived. Safari raises
+ * `MEDIA_ERR_SRC_NOT_SUPPORTED` for a container/codec it won't play, which
+ * looks identical to a dropped connection from the toast text alone.
+ */
+export function describeMediaError(error: MediaError | null | undefined): string | null {
+  if (!error) return null;
+  switch (error.code) {
+    case MediaError.MEDIA_ERR_ABORTED:
+      return 'aborted';
+    case MediaError.MEDIA_ERR_NETWORK:
+      return 'network error';
+    case MediaError.MEDIA_ERR_DECODE:
+      return 'decode error';
+    case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+      return 'format not supported';
+    default:
+      return `error ${error.code}`;
+  }
+}

@@ -16,6 +16,7 @@ import {
 import { findTrackArtworkId } from '../db/artwork.js';
 import { peaksForTrack } from '../services/waveform.js';
 import { deleteTrackRow, findTrackById, setLastStreamError, updateTrackFields, upsertTrack } from '../db/library.js';
+import { recordPlaybackFailure } from '../db/playbackFailures.js';
 import { findLibraryRootByPath } from '../db/libraryRoots.js';
 import { countHistoryForTrack, listHistoryForTrack, recordScrobble } from '../db/plays.js';
 import {
@@ -53,7 +54,7 @@ const CACHE_CONTROL = 'private, max-age=86400';
 /**
  * Whether this request should be served a converted copy, and which one.
  *
- * Three independent reasons to convert:
+ * Four independent reasons to convert:
  *
  *  - **The client can't open the container at all.** WebKit — every browser on
  *    iOS, plus desktop Safari — has never supported Ogg, so a `.opus` or
@@ -61,6 +62,18 @@ const CACHE_CONTROL = 'private, max-age=86400';
  *    regardless of bitrate. Checked first: serving a *smaller* file the
  *    client still can't decode fixes nothing, so this overrides a data-saver
  *    request rather than compounding with it.
+ *  - **The client already tried and failed.** `?compat=1` is what the player
+ *    sends on a retry after the *first* attempt raised a decode /
+ *    unsupported-format `MediaError` — the one signal that a source genuinely
+ *    didn't play, as opposed to the extension-based guess above. This is what
+ *    covers every format that guess doesn't name explicitly (a mistagged
+ *    file, a WebKit version with narrower codec support than assumed, etc.)
+ *    without re-encoding every `.flac`/`.wav`/`.mp3` up front on the mere
+ *    chance it needed it — the vast majority of which play on WebKit today
+ *    and would only lose quality for nothing. Still gated on WebKit: a
+ *    non-WebKit client has no reason to ask for this, and honouring it
+ *    unconditionally would let a confused client force an unnecessary
+ *    transcode.
  *  - **Data saver.** Only worth it when the source is far enough above the
  *    target to pay for a second lossy generation. A strict "above 64k" test
  *    would re-encode a 121 kbps Opus file for a measured 36% saving; lossless
@@ -75,10 +88,11 @@ function variantFor(
   track: { path: string; bitrate: number | null },
   wantsLowQuality: boolean,
   userAgent: string | undefined,
+  forceCompat: boolean,
 ): Variant | null {
   const ext = extname(track.path).toLowerCase();
 
-  if (WEBKIT_INCOMPATIBLE_EXTENSIONS.has(ext) && isWebKitOnlyClient(userAgent)) {
+  if ((forceCompat || WEBKIT_INCOMPATIBLE_EXTENSIONS.has(ext)) && isWebKitOnlyClient(userAgent)) {
     return WEBKIT_COMPAT_VARIANT;
   }
 
@@ -284,7 +298,10 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
 
   // `authenticateMedia`, not `authenticate` — this is the one route a browser
   // loads by URL alone, so it also accepts a scoped `?token=` media token.
-  fastify.get<{ Params: { id: string }; Querystring: { quality?: string; token?: string } }>(
+  fastify.get<{
+    Params: { id: string };
+    Querystring: { quality?: string; token?: string; compat?: string };
+  }>(
     '/tracks/:id/stream',
     { preHandler: fastify.authenticateMedia },
     async (request, reply) => {
@@ -298,14 +315,34 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(404).send({ error: 'Track not found' });
       }
 
+      // Attached to every failure logged below — a served-fine file that a
+      // client still couldn't decode is invisible here (the bytes went out
+      // clean), so this identity is what turns "someone's stream broke" into
+      // "who, on what client" for the two failure modes this handler can
+      // actually see. See `/tracks/:id/playback-failure` for the client-side
+      // decode failure that this alone doesn't cover.
+      const logContext = {
+        trackId: id,
+        userId: request.user!.id,
+        username: request.user!.username,
+        userAgent: request.headers['user-agent'],
+      };
+
       let stats;
       try {
         stats = await stat(track.path);
       } catch (err) {
         const message = 'Track file is missing from disk';
-        request.log.error({ err, trackId: id, path: track.path }, message);
+        request.log.error({ ...logContext, err, path: track.path }, message);
         setLastStreamError(id, message);
         recordStreamError(id, message);
+        recordPlaybackFailure({
+          userId: logContext.userId,
+          trackId: id,
+          source: 'server',
+          message,
+          userAgent: logContext.userAgent,
+        });
         return reply.code(500).send({
           error: message,
           trackId: id,
@@ -317,7 +354,12 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
       // Everything past this point treats all three cases identically, because
       // a cache entry *is* a file — which is the entire reason the cache
       // exists. Ranges, `ETag`, `304` and a working scrubber come free.
-      const variant = variantFor(track, request.query.quality === 'low', request.headers['user-agent']);
+      const variant = variantFor(
+        track,
+        request.query.quality === 'low',
+        request.headers['user-agent'],
+        request.query.compat === '1',
+      );
 
       let servePath = track.path;
       let serveStats = stats;
@@ -334,7 +376,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
           // the small copy asked for a reason, and quietly sending ten times
           // the bytes is the worse answer.
           if (err instanceof NoTranscodeSlotError) {
-            request.log.warn({ trackId: id }, 'Refused a transcode: all slots busy');
+            request.log.warn({ ...logContext, variant: variant.id }, 'Refused a transcode: all slots busy');
             return reply
               .code(503)
               .header('Retry-After', '5')
@@ -342,9 +384,16 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
           }
 
           const message = `Transcode failed: ${err instanceof Error ? err.message : String(err)}`;
-          request.log.error({ err, trackId: id }, message);
+          request.log.error({ ...logContext, err, variant: variant.id }, message);
           setLastStreamError(id, message);
           recordStreamError(id, message);
+          recordPlaybackFailure({
+            userId: logContext.userId,
+            trackId: id,
+            source: 'server',
+            message,
+            userAgent: logContext.userAgent,
+          });
           return reply.code(500).send({ error: message, trackId: id });
         }
       }
@@ -400,8 +449,13 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
 
       reply.header('Content-Type', contentType);
 
-      streamStarted();
-      reply.raw.on('close', streamEnded);
+      const sessionId = streamStarted({
+        userId: logContext.userId,
+        username: logContext.username,
+        trackId: id,
+        trackTitle: track.title,
+      });
+      reply.raw.on('close', () => streamEnded(sessionId));
 
       if (range === 'none') {
         reply.header('Content-Length', serveStats.size);
@@ -413,6 +467,66 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
       reply.header('Content-Range', `bytes ${start}-${end}/${serveStats.size}`);
       reply.header('Content-Length', end - start + 1);
       return reply.send(createReadStream(servePath, { start, end }));
+    },
+  );
+
+  /**
+   * The one failure mode `/tracks/:id/stream` can never see: the bytes went
+   * out fine (200/206, no server-side error), but the element on the other
+   * end couldn't decode them anyway — a codec/container it doesn't support,
+   * a corrupt file, whatever. That happens entirely client-side, so without
+   * this the server has zero record of it: a friend's "it just skips" is
+   * otherwise unattributable to anyone.
+   *
+   * Fire-and-forget from the player on a load failure — see `PlayerBar.tsx`'s
+   * `describeStreamFailure`. Logged only (not fed into `recordStreamError`'s
+   * ring buffer, which backs `/admin/health` — that endpoint is deliberately
+   * identity-free for any signed-in user to read, per the comment on
+   * `/admin/health` itself).
+   */
+  fastify.post<{
+    Params: { id: string };
+    Body: { mediaErrorCode?: number; detail?: string; contentType?: string };
+  }>(
+    '/tracks/:id/playback-failure',
+    { preHandler: fastify.authenticate },
+    async (request, reply) => {
+      const id = Number(request.params.id);
+      if (!Number.isInteger(id)) {
+        return reply.code(404).send({ error: 'Track not found' });
+      }
+
+      if (!findTrackById(id)) {
+        return reply.code(404).send({ error: 'Track not found' });
+      }
+
+      const { mediaErrorCode, detail, contentType } = request.body ?? {};
+      const normalized = {
+        mediaErrorCode: typeof mediaErrorCode === 'number' ? mediaErrorCode : undefined,
+        detail: typeof detail === 'string' ? detail : undefined,
+        contentType: typeof contentType === 'string' ? contentType : undefined,
+      };
+      request.log.warn(
+        {
+          trackId: id,
+          userId: request.user!.id,
+          username: request.user!.username,
+          userAgent: request.headers['user-agent'],
+          ...normalized,
+        },
+        'Client reported a playback failure',
+      );
+      recordPlaybackFailure({
+        userId: request.user!.id,
+        trackId: id,
+        source: 'client',
+        message: normalized.detail ?? 'Client reported a playback failure',
+        mediaErrorCode: normalized.mediaErrorCode,
+        contentType: normalized.contentType,
+        userAgent: request.headers['user-agent'],
+      });
+
+      return reply.code(204).send();
     },
   );
 

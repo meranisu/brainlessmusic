@@ -4,6 +4,62 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `streamStarted()` / `streamEnded()` / `listActiveSessions()` — `backend/src/services/streamMonitor.ts`
+**Date:** 2026-09-28
+**How added:** refactor (counter → identified sessions)
+**Purpose:** track each open stream with who and what, so the Control Center can say who is listening to which track rather than only how many.
+**Side effects:** in-memory `Map` only.
+**Before:** `streamStarted()`/`streamEnded()` took no arguments and incremented/decremented a bare counter.
+**After:** `streamStarted({ userId, username, trackId, trackTitle })` returns a session id that the stream route hands to `streamEnded(id)` on `close`; `getHealthSnapshot().activeStreams` is the map size (shape unchanged), and `listActiveSessions()` is served only through the admin-gated `/admin/control-center`. Ending an id twice is a no-op, so the count cannot go negative.
+
+**Function:** `getSystemStats()` — `backend/src/services/systemStats.ts`
+**Date:** 2026-09-28
+**How added:** new feature
+**Purpose:** the server's own memory, CPU, disk and transcode-cache usage for the Control Center.
+**Side effects:** `fs.statfs` reads; module state for the previous CPU sample (a call under 1s after the last repeats its answer).
+**Before:** nothing — new function.
+**After:** CPU is this process only — ffmpeg children are not counted. A volume that is unmounted is left out rather than failing the response.
+
+**Function:** `replaceScanFailures()` / `listScanFailures()` / `countScanFailures()` — `backend/src/db/scanFailures.ts`
+**Date:** 2026-09-28
+**How added:** new feature
+**Purpose:** keep the files each root's last scan couldn't read, instead of dropping `ScanSummary.failures` when `syncLibrary()` returns.
+**Side effects:** DB writes to `scan_failures` (delete-then-insert in one transaction per root).
+**Before:** nothing — new functions; the failures existed only in memory during a scan.
+**After:** called from `syncLibrary()` only when a scan ran, so a reconcile-only pass cannot wipe the last real list.
+
+**Function:** `deleteTrackRow()` / `pruneIdleGuests()` / `deleteUser()` / `deleteLibraryRoot()` — `backend/src/db/library.ts`, `users.ts`, `libraryRoots.ts`
+**Date:** 2026-09-28
+**How added:** bug fix
+**Purpose:** clear `playback_failures` / `scan_failures` rows before deleting the parent row.
+**Side effects:** extra `DELETE`s inside each existing transaction; `deleteUser()` now runs in a transaction.
+**Before:** foreign keys are enforced and none cascade, so a track, guest or user with a `playback_failures` row (or a root with `scan_failures`) could not be deleted.
+**After:** regression tests in `db/failureLogs.test.ts`.
+
+**Function:** `describeStreamFailure()` / `StreamLoadError` / retry in `load()` and `reconnect()` — `frontend/src/components/PlayerBar.tsx`
+**Date:** 2026-09-18
+**How added:** new feature (diagnostics) + bug fix
+**Purpose:** turn a generic load failure into "reason; served as <type>", and retry once through the compat transcode on a decode / unsupported-format `MediaError`.
+**Side effects:** a second ranged `fetch` of the stream URL (3s timeout, best effort); `reportPlaybackFailure()` POST on the final failure.
+**Before:** a hardcoded "The stream could not be loaded", raised only from `waitForMetadata()`; a bare `audio.play()` rejection carried nothing.
+**After:** both paths raise `StreamLoadError` carrying `mediaErrorCode`, `contentType` and a rendered `detail`; retryable codes (3, 4) call the load attempt again with `forceCompat`. At most one retry.
+
+**Function:** `variantFor()` — `backend/src/routes/tracks.ts`
+**Date:** 2026-09-18
+**How added:** hardening
+**Purpose:** choose which converted copy, if any, a stream request gets.
+**Side effects:** none.
+**Before:** WebKit compat only for `.opus`/`.ogg` sources.
+**After:** `?compat=1` also forces it for any source, still only when the User-Agent is WebKit-only.
+
+**Function:** `POST /tracks/:id/playback-failure` — `backend/src/routes/tracks.ts`
+**Date:** 2026-09-18
+**How added:** new feature
+**Purpose:** record a decode failure the stream route cannot observe.
+**Side effects:** pino warn line; insert into `playback_failures`; 404 for an unknown track (added 2026-09-28 once foreign-key enforcement made the insert throw).
+**Before:** nothing — new endpoint.
+**After:** the player calls it fire-and-forget; failures to report are swallowed.
+
 **Function:** `PlayerProvider()`'s render output — `frontend/src/components/PlayerBar.tsx`
 **Date:** 2026-09-16
 **How added:** refactor (visual redesign, no state/logic change)

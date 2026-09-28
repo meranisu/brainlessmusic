@@ -101,6 +101,71 @@ export interface HealthSnapshot {
   librarySyncRunning: boolean;
 }
 
+/**
+ * Unlike `StreamErrorEntry` above, this names names — who hit it and from
+ * what client — which is why it lives behind its own admin-only endpoint
+ * rather than folded into `/admin/health`. `source: 'client'` is a player
+ * that received bytes fine but couldn't decode them (a codec/container
+ * issue); `'server'` is the stream route refusing to serve bytes at all.
+ */
+export interface PlaybackFailureEntry {
+  id: number;
+  trackId: number;
+  trackTitle: string | null;
+  userId: number;
+  username: string;
+  source: 'client' | 'server';
+  message: string;
+  mediaErrorCode: number | null;
+  contentType: string | null;
+  userAgent: string | null;
+  createdAt: string;
+}
+
+/** One open stream — who is listening to what, right now. */
+export interface ActiveSession {
+  id: number;
+  userId: number;
+  username: string;
+  trackId: number;
+  trackTitle: string;
+  startedAt: string;
+}
+
+export interface DiskUsage {
+  label: string;
+  path: string;
+  totalBytes: number;
+  freeBytes: number;
+}
+
+export interface SystemStats {
+  memoryBytes: number;
+  heapUsedBytes: number;
+  /** The server process only, as a share of one core — ffmpeg is not counted. */
+  cpuPercent: number;
+  disks: DiskUsage[];
+  transcodeCache: { usedBytes: number; maxBytes: number };
+}
+
+/** A file the last scan of a library root couldn't read. */
+export interface ScanFailureEntry {
+  id: number;
+  rootId: number;
+  rootLabel: string | null;
+  rootPath: string;
+  path: string;
+  message: string;
+  createdAt: string;
+}
+
+export interface ControlCenterSnapshot {
+  system: SystemStats;
+  activeSessions: ActiveSession[];
+  scanFailures: ScanFailureEntry[];
+  scanFailureCount: number;
+}
+
 export interface LibraryRoot {
   id: number;
   path: string;

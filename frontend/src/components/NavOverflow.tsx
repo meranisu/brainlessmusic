@@ -26,7 +26,7 @@ interface NavOverflowProps {
  * The bar's "More" menu.
  *
  * Two lists rather than one, because the bar collapses in stages. `overflow`
- * holds what is behind the menu at any width — Upload, Users and Health, which
+ * holds what is behind the menu at any width — Upload, Users and the Control Center, which
  * are administrative or occasional. `primary` holds the real tabs, and appears
  * here **only below `lg`**, where the bar has no room for them at all: five
  * tabs measure roughly 375px before the wordmark, the search box or a single

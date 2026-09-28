@@ -28,16 +28,37 @@ const RECENT_ERRORS_RETURNED = 10;
  */
 const DEGRADED_WINDOW_MS = 15 * 60 * 1000;
 
-const startedAt = Date.now();
-let activeStreams = 0;
-const recentErrors: StreamErrorEntry[] = [];
-
-export function streamStarted(): void {
-  activeStreams++;
+/** One open stream, with enough identity to answer "who is listening to what". */
+export interface ActiveSession {
+  id: number;
+  userId: number;
+  username: string;
+  trackId: number;
+  trackTitle: string;
+  startedAt: string;
 }
 
-export function streamEnded(): void {
-  activeStreams = Math.max(0, activeStreams - 1);
+const startedAt = Date.now();
+let nextSessionId = 1;
+// A Map rather than a counter so the count can never drift from the list: the
+// number on `/admin/health` is `size`, and the identified list is the values.
+const activeSessions = new Map<number, ActiveSession>();
+const recentErrors: StreamErrorEntry[] = [];
+
+/** Returns the handle to pass to `streamEnded` when the connection closes. */
+export function streamStarted(info: Omit<ActiveSession, 'id' | 'startedAt'>): number {
+  const id = nextSessionId++;
+  activeSessions.set(id, { id, ...info, startedAt: new Date().toISOString() });
+  return id;
+}
+
+export function streamEnded(id: number): void {
+  activeSessions.delete(id);
+}
+
+/** Oldest first, so a long-running listen stays put instead of jumping around. */
+export function listActiveSessions(): ActiveSession[] {
+  return [...activeSessions.values()];
 }
 
 export function recordStreamError(trackId: number, message: string): void {
@@ -52,7 +73,7 @@ export function getHealthSnapshot(now: number = Date.now()): HealthSnapshot {
   return {
     status: stillDegraded ? 'degraded' : 'ok',
     uptimeSeconds: Math.floor((now - startedAt) / 1000),
-    activeStreams,
+    activeStreams: activeSessions.size,
     activeTranscodes: getActiveTranscodes(),
     recentErrors: recentErrors.slice(0, RECENT_ERRORS_RETURNED),
   };
@@ -60,6 +81,6 @@ export function getHealthSnapshot(now: number = Date.now()): HealthSnapshot {
 
 /** Test seam — the counters and the error ring are module state. */
 export function resetStreamMonitor(): void {
-  activeStreams = 0;
+  activeSessions.clear();
   recentErrors.length = 0;
 }

@@ -4,6 +4,88 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-28 — Control Center: Health page grown into who's-listening, resources, scan progress and file integrity
+
+The Health page showed two error tables and four counters. Playback bugs on a
+friend's phone (2026-09-18) needed far more than that to diagnose, so it is now
+the **Control Center** (`/control-center`; `/health` redirects so old links
+land). Admin-only, polled every 10s (2s while a scan is running).
+
+- **Now playing:** `streamStarted()`/`streamEnded()` in `streamMonitor.ts` took
+  no arguments and only bumped a counter, discarding the user and track that
+  were in scope at the call site. They now keep a `Map` of open sessions
+  (user, track title, start time); `/admin/health`'s `activeStreams` is the
+  map's size, so its shape is unchanged. The identified list is served only by
+  the admin-gated `GET /admin/control-center`.
+- **Server resources:** new `services/systemStats.ts` — RSS and heap from
+  `process.memoryUsage()`, CPU from `process.cpuUsage()` deltas, free/total
+  bytes from `fs.statfs()` on the data and library volumes, plus the existing
+  `cacheSizeBytes()` against the transcode cache cap. No new dependency.
+  **CPU is the server process only — ffmpeg is a child process and is not
+  counted**, so a transcode does not show there; "Transcoding" beside it is the
+  signal for that.
+- **File integrity:** the scanner already returned `failures` per scan and
+  `syncLibrary()` dropped them. Migration `0016_create_scan_failures.sql` +
+  `db/scanFailures.ts` keep the *current* set per root (replaced wholesale by
+  each scan that ran), shown in the page. Scan progress reuses the existing
+  `GET /library/roots`.
+- **Playback failures** (migration `0015`, from 2026-09-18) moved onto the
+  page under the stream errors.
+- **Bug found and fixed in my own 0015 table:** foreign keys are enforced and
+  none cascade, but 0015's comment claimed they weren't. As shipped, any track
+  with a failure row could not be deleted, and any idle guest with one broke
+  `pruneIdleGuests()` — which would have blocked new guests at the cap.
+  `deleteTrackRow`, `pruneIdleGuests`, `deleteUser` and `deleteLibraryRoot` now
+  clear the new tables first, `POST /tracks/:id/playback-failure` 404s on an
+  unknown track instead of a constraint 500, and `testing/harness.ts` resets
+  both tables. Comments in both migrations corrected.
+- **Verified:** `cd backend && npm test` — 314 pass (new: `db/failureLogs.test.ts`,
+  7 cases; `streamMonitor.test.ts` moved to the session API). The
+  track-deletion regression test was confirmed to fail with
+  `FOREIGN KEY constraint failed` when its fix is removed. `tsc -b` clean;
+  `oxlint` reports no warnings in touched files. Deployed to `brainless-app`;
+  migrations 0015/0016 applied on start; `/api/admin/control-center` and
+  `/api/admin/playback-failures` answer 401 unauthenticated; the bundle
+  contains the page. **Not run:** the page itself was not opened in a browser
+  and the admin endpoint was not called with a session, so the rendered layout
+  and live numbers are unchecked.
+
+---
+
+## 2026-09-18 — Playback failure diagnostics, WebKit compat retry, and the transcode-cache path fix
+
+A friend on an iPhone could not play a run of Opus/Ogg tracks even after the
+WebKit transcode fix (`7599371`), and the only feedback was a generic
+"could not be played" toast.
+
+- **Root cause found via the new diagnostics:** every transcode failed with
+  `EACCES: permission denied, mkdir './data'`. `TRANSCODE_PATH` was the one
+  data-path variable missing from the Dockerfile's `ENV` block, so it fell back
+  to the relative `./data/transcodes`, i.e. under `/app`, which is root-owned
+  while the container runs as `node`. Added `TRANSCODE_PATH=/data/transcodes`.
+  Checked inside the rebuilt container: the path resolves and is writable.
+- **Client diagnostics:** the player now reads the element's `MediaError`
+  (`describeMediaError()`) and asks the server what `Content-Type` it actually
+  sent, and appends both to the toast, e.g. "(format not supported; served as
+  audio/ogg)". `audio.play()` rejections on a fresh load are wrapped the same
+  way — previously only the seek-and-resume path was.
+- **One silent retry:** a decode / unsupported-format failure retries once
+  with `?compat=1`, which forces the AAC transcode for any WebKit client
+  regardless of extension (`variantFor()` in `routes/tracks.ts`), instead of
+  guessing a longer extension list.
+- **Server-side record:** stream failures now log user id, username and
+  User-Agent, and `POST /tracks/:id/playback-failure` receives failures the
+  server cannot see itself (bytes served fine, decode failed). Persisted to
+  `playback_failures` (migration `0015`).
+- **Toast noise:** a queue of unplayable tracks fires every failure within a
+  second or two. Only the first two "Skipped" toasts show now; the final
+  give-up toast states how many were skipped. The cap itself was unchanged:
+  one pass over the queue.
+- **Verified:** backend `npm test` 305 pass at the time; `tsc` clean; image
+  rebuilt and deployed. **Not verified:** that the iPhone now plays the tracks
+  — no request from her device had reached the server when this was written.
+
+---
 ## 2026-09-21 — Deployed on the `smol` box at `music.nobrainmusic.my`; compose now passes `ENTRY_CODE` and `ALLOW_OPEN_REGISTRATION` through
 
 Commit `7aadcc7`. A deploy/config change (no application code), logged here

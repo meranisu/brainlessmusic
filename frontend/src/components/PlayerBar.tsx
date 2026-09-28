@@ -12,8 +12,9 @@ import {
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useIsPhone } from '../hooks/useIsPhone';
-import { apiClient, buildCoverUrl, buildStreamUrl } from '../lib/apiClient';
+import { apiClient, buildCoverUrl, buildStreamUrl, reportPlaybackFailure } from '../lib/apiClient';
 import {
+  describeMediaError,
   describeServed,
   loadDataSaverPreference,
   probeServedStream,
@@ -76,6 +77,70 @@ interface PlayProgress {
  *  without a ceiling that hangs the loading spinner forever. */
 const METADATA_TIMEOUT_MS = 15_000;
 
+interface StreamFailureInfo {
+  /** The native `MediaError` code (1-4), when the failure raised one. */
+  mediaErrorCode?: number;
+  /** `Content-Type` the server actually sent, read back separately since the
+   *  `<audio>` element itself exposes no response headers at all. */
+  contentType?: string;
+  /** Rendered for the toast, e.g. " (format not supported; served as audio/ogg)". */
+  detail: string;
+}
+
+const EMPTY_FAILURE_INFO: StreamFailureInfo = { detail: '' };
+
+/**
+ * A load failure, carrying whatever diagnostic could be recovered alongside
+ * the human-readable message — this is what turns a report of "it just
+ * skips" into something actionable without needing console access on the
+ * device that failed (a phone, most of the time), and what lets a decode
+ * failure trigger one silent retry through the WebKit-compat transcode
+ * before bothering the listener with a toast at all.
+ */
+class StreamLoadError extends Error {
+  readonly info: StreamFailureInfo;
+  constructor(message: string, info: StreamFailureInfo = EMPTY_FAILURE_INFO) {
+    super(message);
+    this.info = info;
+  }
+}
+
+/** MediaError codes worth retrying through the compat transcode for — a
+ *  container/codec WebKit won't open, or a decode failure that a different
+ *  encode of the same audio might not hit. A network or abort error would
+ *  just fail the same way again. */
+function isRetryableMediaError(code: number | undefined): boolean {
+  return code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED || code === MediaError.MEDIA_ERR_DECODE;
+}
+
+/**
+ * Best-effort diagnostics for a playback failure. Combines the native
+ * `MediaError` (network vs. decode vs. unsupported-format — indistinguishable
+ * from the toast text alone otherwise) with a second, tiny ranged request
+ * that reads back the `Content-Type` the server actually sent.
+ */
+async function describeStreamFailure(audio: HTMLAudioElement, url: string): Promise<StreamFailureInfo> {
+  const parts: string[] = [];
+  const mediaErrorCode = audio.error?.code;
+  const reason = describeMediaError(audio.error);
+  if (reason) parts.push(reason);
+
+  let contentType: string | undefined;
+  try {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 3000);
+    const served = await probeServedStream(url, controller.signal).finally(() => window.clearTimeout(timer));
+    if (served) {
+      contentType = served.mimeType;
+      parts.push(`served as ${served.mimeType}`);
+    }
+  } catch {
+    // Best effort — the failure still reports with whatever was gathered above.
+  }
+
+  return { mediaErrorCode, contentType, detail: parts.length > 0 ? ` (${parts.join('; ')})` : '' };
+}
+
 /**
  * Resolves once the element knows enough about a newly-assigned source to be
  * seeked into. Rejects on a load failure — or on a timeout, for a connection
@@ -95,11 +160,14 @@ function waitForMetadata(audio: HTMLAudioElement): Promise<void> {
     };
     const onFailed = () => {
       cleanup();
-      reject(new Error('The stream could not be loaded'));
+      const src = audio.currentSrc;
+      void describeStreamFailure(audio, src).then((info) => {
+        reject(new StreamLoadError('The stream could not be loaded', info));
+      });
     };
     const timer = window.setTimeout(() => {
       cleanup();
-      reject(new Error('The stream timed out'));
+      reject(new StreamLoadError('The stream timed out'));
     }, METADATA_TIMEOUT_MS);
     audio.addEventListener('loadedmetadata', onReady);
     audio.addEventListener('error', onFailed);
@@ -401,19 +469,40 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const audio = audioRef.current;
     if (!audio) return;
 
-    swappingRef.current = true;
-    try {
-      audio.src = await buildStreamUrl(track.id, dataSaver ? 'low' : undefined);
-      await waitForMetadata(audio);
-      audio.currentTime = resumeAt;
+    async function attempt(forceCompat: boolean): Promise<void> {
+      audio!.src = await buildStreamUrl(track.id, dataSaver ? 'low' : undefined, forceCompat);
+      await waitForMetadata(audio!);
+      audio!.currentTime = resumeAt;
       if (progressRef.current) progressRef.current.lastTime = resumeAt;
       setCurrentTime(resumeAt);
+    }
+
+    swappingRef.current = true;
+    try {
+      try {
+        await attempt(false);
+      } catch (err) {
+        // One silent retry through the WebKit-compat transcode for a decode /
+        // unsupported-format failure — see `load()` for why this isn't
+        // limited to the `.opus`/`.ogg` extensions the server guesses at.
+        if (err instanceof StreamLoadError && isRetryableMediaError(err.info.mediaErrorCode)) {
+          await attempt(true);
+        } else {
+          throw err;
+        }
+      }
       swappingRef.current = false;
       if (wasPlaying) await audio.play();
-    } catch {
+    } catch (err) {
       swappingRef.current = false;
       setIsPlaying(false);
-      showToast(`Playback stopped — couldn't reconnect to "${track.title}"`, 'error');
+      const info = err instanceof StreamLoadError ? err.info : EMPTY_FAILURE_INFO;
+      reportPlaybackFailure(track.id, {
+        mediaErrorCode: info.mediaErrorCode,
+        contentType: info.contentType,
+        detail: err instanceof Error ? err.message : String(err),
+      });
+      showToast(`Playback stopped — couldn't reconnect to "${track.title}"${info.detail}`, 'error');
     }
   }
 
@@ -443,24 +532,62 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     // don't report a usable duration until fully buffered.
     setDuration(track.duration ?? 0);
 
-    try {
-      const url = await buildStreamUrl(track.id, dataSaver ? 'low' : undefined);
+    // `audio.play()` itself rejects when the source turns out to be
+    // undecodable — the common case here, since a fresh `at`-index load never
+    // waits on `waitForMetadata` unless it also has to seek. Wrapped so that
+    // path gets the same `StreamLoadError` diagnostics `waitForMetadata`'s own
+    // `error` listener produces, rather than a bare, undiagnosable `DOMException`.
+    async function attempt(forceCompat: boolean): Promise<void> {
+      const url = await buildStreamUrl(track.id, dataSaver ? 'low' : undefined, forceCompat);
       if (token !== loadTokenRef.current) return;
-      audio.src = url;
+      audio!.src = url;
       if (resumeAt > 0) {
         // Nothing can be seeked until the browser knows how long the track is.
-        await waitForMetadata(audio);
+        await waitForMetadata(audio!);
         if (token !== loadTokenRef.current) return;
-        audio.currentTime = resumeAt;
+        audio!.currentTime = resumeAt;
         // Restoring is not listening. Anchoring here stops the jump up from 0
         // being counted as time heard, which would scrobble a track nobody
         // has played yet.
         if (progressRef.current) progressRef.current.lastTime = resumeAt;
         setCurrentTime(resumeAt);
       }
-      if (autoplay) await audio.play();
+      if (autoplay) {
+        try {
+          await audio!.play();
+        } catch (err) {
+          throw new StreamLoadError(
+            err instanceof Error ? err.message : 'Playback failed',
+            await describeStreamFailure(audio!, url),
+          );
+        }
+      }
+    }
+
+    try {
+      try {
+        await attempt(false);
+      } catch (err) {
+        if (token !== loadTokenRef.current) return;
+        // One silent retry through the WebKit-compat transcode before this
+        // becomes a user-visible skip — see the comment on `variantFor` in
+        // the backend for why this covers every format, not just the ones
+        // guessed by extension.
+        if (err instanceof StreamLoadError && isRetryableMediaError(err.info.mediaErrorCode)) {
+          await attempt(true);
+        } else {
+          throw err;
+        }
+      }
     } catch (err) {
       if (token !== loadTokenRef.current) return; // a newer load already reports for itself
+
+      const info = err instanceof StreamLoadError ? err.info : EMPTY_FAILURE_INFO;
+      reportPlaybackFailure(track.id, {
+        mediaErrorCode: info.mediaErrorCode,
+        contentType: info.contentType,
+        detail: err instanceof Error ? err.message : String(err),
+      });
 
       // A queue with one bad file shouldn't go silent — skip past it the same
       // way `next()` would, rather than stopping dead on the track that broke.
@@ -468,9 +595,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       // instead of skipping forever.
       const nextIndex = at < tracks.length - 1 ? at + 1 : repeat === 'all' && tracks.length > 0 ? 0 : -1;
       consecutiveLoadFailuresRef.current += 1;
+      const failureCount = consecutiveLoadFailuresRef.current;
 
-      if (nextIndex >= 0 && consecutiveLoadFailuresRef.current <= tracks.length) {
-        showToast(`Skipped — "${track.title}" could not be played`, 'error');
+      if (nextIndex >= 0 && failureCount <= tracks.length) {
+        // Each failure here resolves near-instantly (no network wait), so a
+        // queue with several bad tracks in a row can fire this within a
+        // couple of seconds — past the first two, that's no longer new
+        // information, just more toasts stacking on top of each other.
+        if (failureCount <= 2) {
+          showToast(`Skipped — "${track.title}" could not be played${info.detail}`, 'error');
+        }
         goTo(nextIndex);
         return;
       }
@@ -478,8 +612,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       consecutiveLoadFailuresRef.current = 0;
       showToast(
         tracks.length > 1
-          ? "Couldn't play any track in the queue"
-          : (err instanceof Error ? err.message : `Could not play ${track.title}`),
+          ? `Couldn't play any track in the queue — ${failureCount} skipped${info.detail}`
+          : (err instanceof Error ? `${err.message}${info.detail}` : `Could not play ${track.title}`),
         'error',
       );
       setIsPlaying(false);

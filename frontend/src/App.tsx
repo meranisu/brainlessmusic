@@ -32,7 +32,9 @@ const ManageTracksPage = lazy(() =>
 );
 const UploadPage = lazy(() => import('./pages/UploadPage').then((m) => ({ default: m.UploadPage })));
 const UsersPage = lazy(() => import('./pages/UsersPage').then((m) => ({ default: m.UsersPage })));
-const HealthPage = lazy(() => import('./pages/HealthPage').then((m) => ({ default: m.HealthPage })));
+const ControlCenterPage = lazy(() =>
+  import('./pages/ControlCenterPage').then((m) => ({ default: m.ControlCenterPage })),
+);
 
 export function App() {
   return (
@@ -67,7 +69,9 @@ export function App() {
               <Route path="/manage" element={<ManageTracksPage />} />
               <Route path="/upload" element={<UploadPage />} />
               <Route path="/users" element={<UsersPage />} />
-              <Route path="/health" element={<HealthPage />} />
+              <Route path="/control-center" element={<ControlCenterPage />} />
+              {/* The page's old name — kept so a bookmark or a link someone sent still lands. */}
+              <Route path="/health" element={<Navigate to="/control-center" replace />} />
             </Route>
           </Route>
         </Route>

@@ -63,6 +63,7 @@ ENV PORT=3000 \
     LIBRARY_PATH=/library \
     ARTWORK_PATH=/data/artwork \
     UPLOAD_STAGING_PATH=/data/upload-staging \
+    TRANSCODE_PATH=/data/transcodes \
     FRONTEND_PATH=/app/public
 
 # `node` is a non-root user that the base image already provides. The library

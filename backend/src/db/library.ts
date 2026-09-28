@@ -291,6 +291,7 @@ export function deleteTrackRow(id: number): void {
     db.prepare('DELETE FROM favorites WHERE track_id = ?').run(trackId);
     db.prepare('DELETE FROM playlist_tracks WHERE track_id = ?').run(trackId);
     db.prepare('DELETE FROM play_history WHERE track_id = ?').run(trackId);
+    db.prepare('DELETE FROM playback_failures WHERE track_id = ?').run(trackId);
     db.prepare('DELETE FROM tracks WHERE id = ?').run(trackId);
   });
   cleanup(id);
