@@ -117,3 +117,17 @@ data class AlbumsPageDto(
     val offset: Int,
     val albums: List<AlbumSummaryDto>,
 )
+
+/** `GET /browse/letters` — where each letter starts in a scope's default listing (backend/src/db/letterIndex.ts). */
+data class LetterIndexDto(
+    val scope: String,
+    val total: Int,
+    val letters: List<LetterEntryDto>,
+)
+
+/** [letter] is `#`, `A`–`Z` or `…`; [offset] is the bucket's first row (or where it would be, if [count] is 0). */
+data class LetterEntryDto(
+    val letter: String,
+    val offset: Int,
+    val count: Int,
+)

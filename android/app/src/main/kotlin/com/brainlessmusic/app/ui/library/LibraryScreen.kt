@@ -9,16 +9,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
@@ -26,19 +24,23 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -48,17 +50,24 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import androidx.paging.LoadState
+import androidx.paging.compose.LazyPagingItems
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import com.brainlessmusic.app.data.remote.dto.AlbumSummaryDto
 import com.brainlessmusic.app.data.remote.dto.ArtistSummaryDto
 import com.brainlessmusic.app.data.remote.dto.TrackSummaryDto
 import com.brainlessmusic.app.ui.common.CoverImage
-import com.brainlessmusic.app.ui.common.LoadStateContent
 import com.brainlessmusic.app.ui.common.formatDuration
 import com.brainlessmusic.app.ui.navigation.AppBottomBar
 import com.brainlessmusic.app.ui.navigation.Routes
+import kotlinx.coroutines.launch
 
 // The floating tab bar covers the top of the list, so every list starts this far down.
 private val TabBarClearance = 68.dp
+
+// Room on the right for the alphabet rail, so a row's duration isn't drawn under it.
+private val RailWidth = 28.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,6 +77,11 @@ fun LibraryScreen(
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
     val tab by viewModel.tab.collectAsStateWithLifecycle()
+
+    // Hoisted so each tab keeps its scroll position while another is showing.
+    val songsState = rememberLazyListState()
+    val albumsState = rememberLazyGridState()
+    val artistsState = rememberLazyListState()
 
     Scaffold(
         topBar = {
@@ -90,9 +104,9 @@ fun LibraryScreen(
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             when (tab) {
-                LibraryTab.SONGS -> SongsTab(viewModel)
-                LibraryTab.ALBUMS -> AlbumsTab(viewModel, navController)
-                LibraryTab.ARTISTS -> ArtistsTab(viewModel, navController)
+                LibraryTab.SONGS -> SongsTab(viewModel, songsState)
+                LibraryTab.ALBUMS -> AlbumsTab(viewModel, navController, albumsState)
+                LibraryTab.ARTISTS -> ArtistsTab(viewModel, navController, artistsState)
                 LibraryTab.GENRES -> GenresTab()
             }
             LibraryTabBar(
@@ -134,21 +148,67 @@ private fun LibraryTabBar(selected: LibraryTab, onSelect: (LibraryTab) -> Unit, 
     }
 }
 
+/**
+ * Loading, error and empty states for a paged list; [content] draws it once there is something to show.
+ * Only the first load is handled here — a later page that fails just leaves its placeholders, and
+ * scrolling to them tries again.
+ */
 @Composable
-private fun SongsTab(viewModel: LibraryViewModel) {
-    val state by viewModel.songs.collectAsStateWithLifecycle()
-    LoadStateContent(
-        state = state,
-        onRetry = viewModel::refresh,
-        isEmpty = { it.items.isEmpty() },
-        emptyMessage = "No songs yet — scan your library from the web app.",
-    ) { songs ->
-        val listState = rememberLazyListState()
-        LoadMoreOnScroll(listState, itemCount = songs.items.size, onLoadMore = viewModel::loadMoreSongs)
-        LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(top = TabBarClearance)) {
-            itemsIndexed(songs.items, key = { _, song -> song.id }) { index, song ->
-                SongRow(song, onClick = { viewModel.playSongs(songs.items, index) })
+private fun <T : Any> PagedContent(
+    items: LazyPagingItems<T>,
+    emptyMessage: String,
+    content: @Composable () -> Unit,
+) {
+    val refresh = items.loadState.refresh
+    when {
+        refresh is LoadState.Loading && items.itemCount == 0 ->
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+
+        refresh is LoadState.Error && items.itemCount == 0 ->
+            Column(
+                Modifier.fillMaxSize().padding(24.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text("Couldn't load the library. Check your connection.", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+                OutlinedButton(onClick = { items.retry() }, modifier = Modifier.padding(top = 16.dp)) { Text("Retry") }
             }
+
+        refresh is LoadState.NotLoading && items.itemCount == 0 ->
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(emptyMessage, style = MaterialTheme.typography.bodyMedium)
+            }
+
+        else -> content()
+    }
+}
+
+@Composable
+private fun SongsTab(viewModel: LibraryViewModel, listState: LazyListState) {
+    val items = viewModel.songs.collectAsLazyPagingItems()
+    val letters by viewModel.letters.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    RegisterRefresh(viewModel, items::refresh)
+
+    PagedContent(items, emptyMessage = "No songs yet — scan your library from the web app.") {
+        val firstVisible by remember { derivedStateOf { listState.firstVisibleItemIndex } }
+        Box(Modifier.fillMaxSize()) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(top = TabBarClearance, end = RailWidth),
+            ) {
+                items(count = items.itemCount, key = items.itemKey { it.id }) { index ->
+                    val song = items[index]
+                    if (song != null) SongRow(song, onClick = { viewModel.playSongsFrom(index) }) else PlaceholderRow()
+                }
+            }
+            AlphabetRail(
+                letters = letters[LibraryTab.SONGS].orEmpty(),
+                firstVisibleIndex = firstVisible,
+                onJump = { scope.launch { listState.scrollToItem(it) } },
+                topInset = TabBarClearance,
+            )
         }
     }
 }
@@ -170,32 +230,49 @@ private fun SongRow(song: TrackSummaryDto, onClick: () -> Unit) {
     )
 }
 
+/** Same height as a real row, so the list does not jump when a page arrives. */
 @Composable
-private fun AlbumsTab(viewModel: LibraryViewModel, navController: NavHostController) {
-    val state by viewModel.albums.collectAsStateWithLifecycle()
-    LoadStateContent(
-        state = state,
-        onRetry = viewModel::refresh,
-        isEmpty = { it.items.isEmpty() },
-        emptyMessage = "No albums yet — scan your library from the web app.",
-    ) { albums ->
-        val gridState = rememberLazyGridState()
-        LoadMoreOnScroll(gridState, itemCount = albums.items.size, onLoadMore = viewModel::loadMoreAlbums)
-        LazyVerticalGrid(
-            state = gridState,
-            columns = GridCells.Adaptive(minSize = 140.dp),
-            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = TabBarClearance + 4.dp, bottom = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            items(albums.items, key = { it.id }) { album ->
-                AlbumCard(
-                    album = album,
-                    coverUrl = viewModel.albumCoverUrl(album.id),
-                    onClick = { navController.navigate(Routes.albumDetail(album.id)) },
-                )
+private fun PlaceholderRow() {
+    Box(Modifier.fillMaxWidth().height(72.dp))
+}
+
+@Composable
+private fun AlbumsTab(viewModel: LibraryViewModel, navController: NavHostController, gridState: LazyGridState) {
+    val items = viewModel.albums.collectAsLazyPagingItems()
+    val letters by viewModel.letters.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    RegisterRefresh(viewModel, items::refresh)
+
+    PagedContent(items, emptyMessage = "No albums yet — scan your library from the web app.") {
+        val firstVisible by remember { derivedStateOf { gridState.firstVisibleItemIndex } }
+        Box(Modifier.fillMaxSize()) {
+            LazyVerticalGrid(
+                state = gridState,
+                columns = GridCells.Adaptive(minSize = 140.dp),
+                contentPadding = PaddingValues(start = 12.dp, end = 12.dp + RailWidth, top = TabBarClearance + 4.dp, bottom = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                items(count = items.itemCount, key = items.itemKey { it.id }) { index ->
+                    val album = items[index]
+                    if (album != null) {
+                        AlbumCard(
+                            album = album,
+                            coverUrl = viewModel.albumCoverUrl(album.id),
+                            onClick = { navController.navigate(Routes.albumDetail(album.id)) },
+                        )
+                    } else {
+                        Box(Modifier.fillMaxWidth().aspectRatio(0.8f))
+                    }
+                }
             }
+            AlphabetRail(
+                letters = letters[LibraryTab.ALBUMS].orEmpty(),
+                firstVisibleIndex = firstVisible,
+                onJump = { scope.launch { gridState.scrollToItem(it) } },
+                topInset = TabBarClearance,
+            )
         }
     }
 }
@@ -226,18 +303,35 @@ private fun AlbumCard(album: AlbumSummaryDto, coverUrl: String?, onClick: () -> 
 }
 
 @Composable
-private fun ArtistsTab(viewModel: LibraryViewModel, navController: NavHostController) {
-    val state by viewModel.artists.collectAsStateWithLifecycle()
-    LoadStateContent(
-        state = state,
-        onRetry = viewModel::refresh,
-        isEmpty = { it.isEmpty() },
-        emptyMessage = "No artists yet — scan your library from the web app.",
-    ) { artists ->
-        LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(top = TabBarClearance)) {
-            items(artists, key = { it.id }) { artist ->
-                ArtistRow(artist, onClick = { navController.navigate(Routes.artistDetail(artist.id)) })
+private fun ArtistsTab(viewModel: LibraryViewModel, navController: NavHostController, listState: LazyListState) {
+    val items = viewModel.artists.collectAsLazyPagingItems()
+    val letters by viewModel.letters.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    RegisterRefresh(viewModel, items::refresh)
+
+    PagedContent(items, emptyMessage = "No artists yet — scan your library from the web app.") {
+        val firstVisible by remember { derivedStateOf { listState.firstVisibleItemIndex } }
+        Box(Modifier.fillMaxSize()) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(top = TabBarClearance, end = RailWidth),
+            ) {
+                items(count = items.itemCount, key = items.itemKey { it.id }) { index ->
+                    val artist = items[index]
+                    if (artist != null) {
+                        ArtistRow(artist, onClick = { navController.navigate(Routes.artistDetail(artist.id)) })
+                    } else {
+                        PlaceholderRow()
+                    }
+                }
             }
+            AlphabetRail(
+                letters = letters[LibraryTab.ARTISTS].orEmpty(),
+                firstVisibleIndex = firstVisible,
+                onJump = { scope.launch { listState.scrollToItem(it) } },
+                topInset = TabBarClearance,
+            )
         }
     }
 }
@@ -269,21 +363,11 @@ private fun GenresTab() {
     }
 }
 
-/** Asks for the next page once the last visible row is within a screen of the end. */
+/** Lets the top-bar Refresh reach whichever list is showing. */
 @Composable
-private fun LoadMoreOnScroll(state: LazyListState, itemCount: Int, onLoadMore: () -> Unit) {
-    LaunchedEffect(state, itemCount) {
-        snapshotFlow { state.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }
-            .collect { last -> if (last >= itemCount - LOAD_MORE_MARGIN) onLoadMore() }
+private fun RegisterRefresh(viewModel: LibraryViewModel, refresh: () -> Unit) {
+    DisposableEffect(refresh) {
+        viewModel.registerRefresh(refresh)
+        onDispose { }
     }
 }
-
-@Composable
-private fun LoadMoreOnScroll(state: LazyGridState, itemCount: Int, onLoadMore: () -> Unit) {
-    LaunchedEffect(state, itemCount) {
-        snapshotFlow { state.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }
-            .collect { last -> if (last >= itemCount - LOAD_MORE_MARGIN) onLoadMore() }
-    }
-}
-
-private const val LOAD_MORE_MARGIN = 20

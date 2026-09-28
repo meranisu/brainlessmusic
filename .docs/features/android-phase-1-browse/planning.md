@@ -81,12 +81,32 @@ The owner asked for a floating tab selector on the Library page: **Songs · Albu
   plainly; it shows nothing to browse until that backend work is done.
 - Not verified on a device.
 
+### Alphabet rail and paging (2026-09-28)
+
+An A–Z strip down the right edge of Songs, Albums and Artists: tap or drag and the list jumps to that letter, with a large
+letter shown while a finger is down and the current letter highlighted as you scroll.
+
+- **Why the server was involved:** the app only ever has some of a list loaded, so it cannot count what comes before "M". New
+  endpoint `GET /api/browse/letters?scope=tracks|albums|artists` (backend `db/letterIndex.ts`, `routes/letters.ts`) returns the
+  start offset of `#`, `A`–`Z` and `…`. Buckets follow the sort's real boundaries (SQLite `NOCASE` folds ASCII only), so kana,
+  CJK and accented titles sit under `…` after Z, not under `#` as on the web rail. Letters with nothing under them are dimmed
+  and jump to where they would be.
+- **The lists moved to Paging 3** (`data/paging/OffsetPagingSource.kt`): each list learns its full length from its first page
+  and shows placeholders for the rest, so the rail can scroll to row 4,000 without loading the 3,999 before it. Pages are 100
+  rows (server cap 200). This also fixes a real bug: the Artists tab used to load only the **first 200 artists** and stop.
+- **Tapping a song** now queues that song and the 199 after it (one request), rather than "everything loaded so far".
+- Each tab keeps its scroll position while another is showing.
+- Tests: `OffsetPagingSourceTest` (7 — first page knows the length, a jump, append, prepend without overlap, last page, failure,
+  a list that shrank) and the backend `letters.test.ts` (6, including a check of every offset against the real listing).
+- Not verified on a device: the drag feel, the bubble, and a jump over a large library.
+
 ---
 
 ## Change Log
 
 | Date | Phase affected | What changed | Why | Still fits the Plan phase? |
 |---|---|---|---|---|
+| 2026-09-28 | Phase 3 (Interior) | Songs/Albums/Artists moved to Paging 3; added an A–Z rail backed by `GET /api/browse/letters`; tapping a song queues it plus the next 199 | Owner's request; also fixes Artists stopping at 200 | Yes — additive; list contents unchanged |
 | 2026-09-28 | Phase 3 (Interior) | Library page gained a floating Songs/Albums/Artists/Genres selector; new paged `GET /tracks` and `GET /albums` calls; Genres is a placeholder | Owner's request | Yes — additive, no navigation shape changed |
 | 2026-09-28 | Phase 3 (Interior) | Fixed padding drop in `LoadStateContent`, restyled search field, adopted Material You | Found by the owner on-device; Material You was an explicit design request | Yes — no API or navigation shape changed |
 | 2026-09-18 | Phase 1 (Interior) | Added manual refresh `IconButton`s to Artists/Artist-detail/Album-detail after first-pass review found refresh only worked from the error path | Phase 1's stated done-when includes "pull-to-refresh"; the first pass only half-delivered it | Yes — additive, no API or navigation shape changed |

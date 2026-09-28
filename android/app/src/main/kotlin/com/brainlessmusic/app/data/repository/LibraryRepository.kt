@@ -6,6 +6,8 @@ import com.brainlessmusic.app.data.remote.MediaUrlProvider
 import com.brainlessmusic.app.data.remote.ServerConfig
 import com.brainlessmusic.app.data.remote.dto.AlbumDetailDto
 import com.brainlessmusic.app.data.remote.dto.AlbumsPageDto
+import com.brainlessmusic.app.data.remote.dto.ArtistsPageDto
+import com.brainlessmusic.app.data.remote.dto.LetterIndexDto
 import com.brainlessmusic.app.data.remote.dto.ArtistDetailDto
 import com.brainlessmusic.app.data.remote.dto.ArtistSummaryDto
 import com.brainlessmusic.app.data.remote.dto.PlaybackStateDto
@@ -31,6 +33,13 @@ class LibraryRepository @Inject constructor(
 
     suspend fun getAlbumsPage(offset: Int, limit: Int): Result<AlbumsPageDto> =
         callApi { it.albums(limit, offset) }
+
+    suspend fun getArtistsPage(offset: Int, limit: Int): Result<ArtistsPageDto> =
+        callApi { it.artists(limit, offset) }
+
+    /** [scope] is `tracks`, `albums` or `artists`. */
+    suspend fun getLetterIndex(scope: String): Result<LetterIndexDto> =
+        callApi { it.letters(scope) }
 
     suspend fun getArtistDetail(id: Int): Result<ArtistDetailDto> =
         callApi { it.artistDetail(id) }

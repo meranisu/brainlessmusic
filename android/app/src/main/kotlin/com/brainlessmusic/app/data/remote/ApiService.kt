@@ -5,6 +5,7 @@ import com.brainlessmusic.app.data.remote.dto.AlbumsPageDto
 import com.brainlessmusic.app.data.remote.dto.ArtistDetailDto
 import com.brainlessmusic.app.data.remote.dto.ArtistsPageDto
 import com.brainlessmusic.app.data.remote.dto.HealthResponse
+import com.brainlessmusic.app.data.remote.dto.LetterIndexDto
 import com.brainlessmusic.app.data.remote.dto.LoginRequest
 import com.brainlessmusic.app.data.remote.dto.LoginResponse
 import com.brainlessmusic.app.data.remote.dto.MeResponse
@@ -52,6 +53,9 @@ interface ApiService {
         @Query("offset") offset: Int,
         @Query("sort") sort: String = "title",
     ): TracksPageDto
+
+    @GET("browse/letters")
+    suspend fun letters(@Query("scope") scope: String): LetterIndexDto
 
     @GET("artists/{id}")
     suspend fun artistDetail(@Path("id") id: Int): ArtistDetailDto

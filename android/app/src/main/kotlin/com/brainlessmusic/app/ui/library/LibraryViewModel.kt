@@ -2,41 +2,42 @@ package com.brainlessmusic.app.ui.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
+import com.brainlessmusic.app.data.paging.OffsetPage
+import com.brainlessmusic.app.data.paging.OffsetPagingSource
 import com.brainlessmusic.app.data.remote.dto.AlbumSummaryDto
 import com.brainlessmusic.app.data.remote.dto.ArtistSummaryDto
+import com.brainlessmusic.app.data.remote.dto.LetterEntryDto
 import com.brainlessmusic.app.data.remote.dto.TrackSummaryDto
 import com.brainlessmusic.app.data.repository.AuthRepository
-import com.brainlessmusic.app.data.repository.ConnectionException
 import com.brainlessmusic.app.data.repository.LibraryRepository
-import com.brainlessmusic.app.data.repository.toMessage
 import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.PlaybackResume
 import com.brainlessmusic.app.playback.QueueItem
-import com.brainlessmusic.app.ui.common.LoadState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-enum class LibraryTab(val label: String) {
-    SONGS("Songs"),
-    ALBUMS("Albums"),
-    ARTISTS("Artists"),
-    GENRES("Genres"),
+enum class LibraryTab(val label: String, val letterScope: String?) {
+    SONGS("Songs", "tracks"),
+    ALBUMS("Albums", "albums"),
+    ARTISTS("Artists", "artists"),
+    GENRES("Genres", null),
 }
 
-/** Items loaded so far out of [total]; the rest are fetched as the list is scrolled. */
-data class Paged<T>(
-    val items: List<T>,
-    val total: Int,
-    val loadingMore: Boolean = false,
-) {
-    val hasMore: Boolean get() = items.size < total
-}
+// Well under the server's hard cap of 200 rows per request (backend/src/utils/pagination.ts).
+private const val PAGE_SIZE = 100
 
-private const val PAGE_SIZE = 200
+// How many songs a tap queues: the tapped one and what follows it. One request, the server's own cap.
+private const val QUEUE_FROM_TAP = 200
 
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
@@ -49,17 +50,25 @@ class LibraryViewModel @Inject constructor(
     private val _tab = MutableStateFlow(LibraryTab.SONGS)
     val tab: StateFlow<LibraryTab> = _tab.asStateFlow()
 
-    private val _songs = MutableStateFlow<LoadState<Paged<TrackSummaryDto>>>(LoadState.Loading)
-    val songs: StateFlow<LoadState<Paged<TrackSummaryDto>>> = _songs.asStateFlow()
+    // Each list is a pager over the server's list, so it knows its full length from the first page (see
+    // OffsetPagingSource) and the rail can jump anywhere in it. Nothing is fetched until a tab is first shown.
+    val songs: Flow<PagingData<TrackSummaryDto>> = pager { offset, limit ->
+        libraryRepository.getTracksPage(offset, limit).map { OffsetPage(it.tracks, it.total) }
+    }
 
-    private val _albums = MutableStateFlow<LoadState<Paged<AlbumSummaryDto>>>(LoadState.Loading)
-    val albums: StateFlow<LoadState<Paged<AlbumSummaryDto>>> = _albums.asStateFlow()
+    val albums: Flow<PagingData<AlbumSummaryDto>> = pager { offset, limit ->
+        libraryRepository.getAlbumsPage(offset, limit).map { OffsetPage(it.albums, it.total) }
+    }
 
-    private val _artists = MutableStateFlow<LoadState<List<ArtistSummaryDto>>>(LoadState.Loading)
-    val artists: StateFlow<LoadState<List<ArtistSummaryDto>>> = _artists.asStateFlow()
+    val artists: Flow<PagingData<ArtistSummaryDto>> = pager { offset, limit ->
+        libraryRepository.getArtistsPage(offset, limit).map { OffsetPage(it.artists, it.total) }
+    }
 
-    // A tab is fetched the first time it is shown, not all four up front.
-    private val loaded = mutableSetOf<LibraryTab>()
+    private val _letters = MutableStateFlow<Map<LibraryTab, List<LetterEntryDto>>>(emptyMap())
+    val letters: StateFlow<Map<LibraryTab, List<LetterEntryDto>>> = _letters.asStateFlow()
+
+    /** Set by the screen for the tab showing, so Refresh reaches that tab's list. */
+    private var refreshCurrent: () -> Unit = {}
 
     init {
         selectTab(LibraryTab.SONGS)
@@ -69,82 +78,53 @@ class LibraryViewModel @Inject constructor(
 
     fun selectTab(tab: LibraryTab) {
         _tab.value = tab
-        if (loaded.add(tab)) load(tab)
+        loadLetters(tab)
     }
 
-    /** Reloads whichever tab is showing. */
-    fun refresh() = load(_tab.value)
-
-    private fun load(tab: LibraryTab) {
-        when (tab) {
-            LibraryTab.SONGS -> viewModelScope.launch {
-                _songs.value = LoadState.Loading
-                libraryRepository.getTracksPage(0, PAGE_SIZE).fold(
-                    onSuccess = { _songs.value = LoadState.Content(Paged(it.tracks, it.total)) },
-                    onFailure = { _songs.value = LoadState.Error(it.message()) },
-                )
-            }
-            LibraryTab.ALBUMS -> viewModelScope.launch {
-                _albums.value = LoadState.Loading
-                libraryRepository.getAlbumsPage(0, PAGE_SIZE).fold(
-                    onSuccess = { _albums.value = LoadState.Content(Paged(it.albums, it.total)) },
-                    onFailure = { _albums.value = LoadState.Error(it.message()) },
-                )
-            }
-            LibraryTab.ARTISTS -> viewModelScope.launch {
-                _artists.value = LoadState.Loading
-                libraryRepository.getArtists().fold(
-                    onSuccess = { _artists.value = LoadState.Content(it) },
-                    onFailure = { _artists.value = LoadState.Error(it.message()) },
-                )
-            }
-            LibraryTab.GENRES -> Unit // nothing to fetch: the server has no genre data yet
-        }
+    fun registerRefresh(refresh: () -> Unit) {
+        refreshCurrent = refresh
     }
 
-    fun loadMoreSongs() {
-        val current = (_songs.value as? LoadState.Content)?.data ?: return
-        if (!current.hasMore || current.loadingMore) return
-        _songs.value = LoadState.Content(current.copy(loadingMore = true))
+    /** Reloads whichever tab is showing, letters included. */
+    fun refresh() {
+        loadLetters(_tab.value, force = true)
+        refreshCurrent()
+    }
+
+    private fun loadLetters(tab: LibraryTab, force: Boolean = false) {
+        val scope = tab.letterScope ?: return
+        if (!force && _letters.value.containsKey(tab)) return
         viewModelScope.launch {
-            libraryRepository.getTracksPage(current.items.size, PAGE_SIZE).fold(
-                onSuccess = { _songs.value = LoadState.Content(Paged(current.items + it.tracks, it.total)) },
-                // Keep what is already on screen; scrolling to the end again retries.
-                onFailure = { _songs.value = LoadState.Content(current.copy(loadingMore = false)) },
-            )
-        }
-    }
-
-    fun loadMoreAlbums() {
-        val current = (_albums.value as? LoadState.Content)?.data ?: return
-        if (!current.hasMore || current.loadingMore) return
-        _albums.value = LoadState.Content(current.copy(loadingMore = true))
-        viewModelScope.launch {
-            libraryRepository.getAlbumsPage(current.items.size, PAGE_SIZE).fold(
-                onSuccess = { _albums.value = LoadState.Content(Paged(current.items + it.albums, it.total)) },
-                onFailure = { _albums.value = LoadState.Content(current.copy(loadingMore = false)) },
-            )
+            // A failure just leaves the rail off; the list itself still works.
+            libraryRepository.getLetterIndex(scope).onSuccess { index ->
+                _letters.update { it + (tab to index.letters) }
+            }
         }
     }
 
     fun albumCoverUrl(albumId: Int): String? = libraryRepository.albumCoverUrl(albumId)
 
-    /** Everything loaded so far becomes the queue, starting at the tapped song. */
-    fun playSongs(songs: List<TrackSummaryDto>, index: Int) {
-        playbackController.playQueue(
-            songs.map {
-                QueueItem(
-                    trackId = it.id,
-                    title = it.title,
-                    artist = it.artist,
-                    album = it.album,
-                    durationSec = it.duration,
-                    coverUrl = libraryRepository.trackCoverUrl(it.id),
-                    format = it.format,
+    /** Queues the tapped song and the ones after it, in list order. */
+    fun playSongsFrom(index: Int) {
+        viewModelScope.launch {
+            libraryRepository.getTracksPage(index, QUEUE_FROM_TAP).onSuccess { page ->
+                if (page.tracks.isEmpty()) return@onSuccess
+                playbackController.playQueue(
+                    page.tracks.map {
+                        QueueItem(
+                            trackId = it.id,
+                            title = it.title,
+                            artist = it.artist,
+                            album = it.album,
+                            durationSec = it.duration,
+                            coverUrl = libraryRepository.trackCoverUrl(it.id),
+                            format = it.format,
+                        )
+                    },
+                    0,
                 )
-            },
-            index,
-        )
+            }
+        }
     }
 
     fun logout(onLoggedOut: () -> Unit) {
@@ -155,6 +135,17 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    private fun Throwable.message(): String =
-        (this as? ConnectionException)?.error?.toMessage() ?: "Something went wrong."
+    private fun <T : Any> pager(fetch: suspend (offset: Int, limit: Int) -> Result<OffsetPage<T>>): Flow<PagingData<T>> =
+        Pager(
+            config = PagingConfig(
+                pageSize = PAGE_SIZE,
+                initialLoadSize = PAGE_SIZE,
+                prefetchDistance = PAGE_SIZE / 2,
+                enablePlaceholders = true,
+                // Scrolling further than this past what is loaded reloads at the target row instead of paging
+                // through every page in between.
+                jumpThreshold = PAGE_SIZE * 2,
+            ),
+            pagingSourceFactory = { OffsetPagingSource(fetch) },
+        ).flow.cachedIn(viewModelScope)
 }
