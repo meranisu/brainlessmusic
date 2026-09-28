@@ -304,38 +304,25 @@ is not lost.
 
 ---
 
-### Q31 — Should Android get a Home dashboard, playlists, and genre browsing — and in what order?
-**Asked:** 2026-09-28 · **Blocking:** no
-
-Raised by the owner after seeing Phase 1 on-device: add **genre** and
-**playlist** browsing, plus a **Home** tab showing newly added songs, last
-heard, and quick access to a recent playlist. What exists today decides the
-cost:
-
-- **Playlists** — full CRUD already built server-side; Android has no UI for
-  it. Pure surfacing work.
-- **Newly added / last heard** — `dateAdded` is already on every track
-  summary; `GET /me/history` and `GET /stats/top-tracks` exist. Pure
-  surfacing work.
-- **Genre — does not exist anywhere in the backend.** No column, no scanner
-  extraction, no endpoint (checked `backend/src/` and the schema doc). It
-  needs a migration, a scanner change and a re-scan before Android has
-  anything to show; this is backend work, not Android UI.
-- **"Quick listen"** — tapping a track does nothing yet, because playback is
-  Phase 2 (roadmap box 17). A Home tab built first would let you *see* your
-  recent playlist but not *play* it.
-
-**Assumption I will build on: none of this is built yet.** Phase 1 stays
-scoped to browse + search (its done-when), and the requests are held here so
-the ordering is your call. My recommendation: playback (Phase 2) first, then
-Home + playlists together (both are surfacing work over existing endpoints,
-and Home's "quick listen" needs playback to mean anything), and genre last as
-its own backend-then-Android piece. Say so if you want a different order —
-e.g. Home and playlists before playback.
-
 ---
 
 ## Answered
+
+### A22 — Home dashboard, playlists and genre on Android: in what order? *(was Q31)*
+**Answered:** 2026-09-28 · **Recommended order accepted** ("proceed").
+
+1. **Playback first** — Android Phase 2 (roadmap box 17). Nothing else on the
+   list means much while tapping a track does nothing.
+2. **Home + playlists together** — both are surfacing work over endpoints that
+   already exist (playlists CRUD, `dateAdded`, `GET /me/history`,
+   `GET /stats/top-tracks`), and Home's "quick listen" needs playback.
+3. **Genre last**, as its own backend-then-Android piece: it does not exist in
+   the backend at all (no column, no scanner extraction, no endpoint), so it
+   needs a migration, a scanner change and a re-scan before Android has
+   anything to show.
+
+Landed: this ordering, in `.docs/features/android-phase-1-browse/planning.md`
+(Phase 1 stays browse + search only). Nothing for 2 or 3 is built.
 
 ### A20 — Which OS for the server? *(was Q3)*
 **Answered:** 2026-09-16 · **Arch Linux**, running on a friend's existing

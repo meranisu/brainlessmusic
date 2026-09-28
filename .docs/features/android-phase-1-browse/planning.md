@@ -63,7 +63,7 @@ First on-device look at Phase 1 (owner's POCO F5) turned up three problems, all 
 
 Not verified on-device yet: whether the fixed layout and dynamic color look right on the phone. The build compiles and lint is 31 warnings (down from 33).
 
-The owner also asked for genre, playlists and a Home dashboard — held as [Q30](../../QUESTIONS.md#q30--should-android-get-a-home-dashboard-playlists-and-genre-browsing--and-in-what-order) rather than built, since genre needs backend work and "quick listen" needs Phase 2's playback.
+The owner also asked for genre, playlists and a Home dashboard — resolved as [A22](../../QUESTIONS.md#a22--home-dashboard-playlists-and-genre-on-android-in-what-order-was-q31) (recommended order accepted: playback first, then Home + playlists, genre last) rather than built, since genre needs backend work and "quick listen" needs Phase 2's playback.
 
 ---
 
