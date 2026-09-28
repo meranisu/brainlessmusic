@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { smartShuffle, type ShuffleTrack } from './shuffle.js';
+import { seededShuffle, smartShuffle, type ShuffleTrack } from './shuffle.js';
 
 function adjacentSameArtistPairs(order: number[], tracks: ShuffleTrack[]): number {
   const artistById = new Map(tracks.map((t) => [t.trackId, t.artistId]));
@@ -91,4 +91,24 @@ test('repeated calls on the same input produce different orderings', () => {
   }
 
   assert.ok(orderings.size > 1, 'expected multiple distinct orderings across 10 runs');
+});
+
+test('seededShuffle: the same seed gives the same order, a different seed a different one', () => {
+  const ids = Array.from({ length: 200 }, (_, i) => i + 1);
+  assert.deepEqual(seededShuffle(ids, 42), seededShuffle(ids, 42));
+  assert.notDeepEqual(seededShuffle(ids, 42), seededShuffle(ids, 43));
+});
+
+test('seededShuffle: keeps every id exactly once, leaves the input alone, and really moves things', () => {
+  const ids = Array.from({ length: 200 }, (_, i) => i + 1);
+  const copy = [...ids];
+  const out = seededShuffle(ids, 7);
+  assert.deepEqual(ids, copy);
+  assert.deepEqual([...out].sort((a, b) => a - b), ids);
+  assert.notDeepEqual(out, ids);
+});
+
+test('seededShuffle: handles empty and single-item lists', () => {
+  assert.deepEqual(seededShuffle([], 1), []);
+  assert.deepEqual(seededShuffle([9], 1), [9]);
 });

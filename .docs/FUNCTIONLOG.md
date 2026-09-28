@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `seededShuffle(items, seed)` — `backend/src/services/shuffle.ts`
+**Date:** 2026-09-28
+**How added:** new feature (Android endless shuffle)
+**Purpose:** Fisher–Yates shuffle driven by a seeded PRNG (mulberry32); the same seed always gives the same order. Returns a new array.
+**Side effects:** none.
+**Before:** only `smartShuffle` (random, artist-spread), which cannot be re-derived on a later request.
+**After:** lets `GET /browse/shuffled` serve one long shuffle in pages without storing it. Not a security-grade generator and not meant to be.
+
+**Function:** `shuffledTracksRoute` / `listPlayableTrackIds()` — `backend/src/routes/shuffledTracks.ts`, `backend/src/db/shuffledTracks.ts` (new files)
+**Date:** 2026-09-28
+**How added:** new feature
+**Purpose:** `GET /api/browse/shuffled?seed&offset&limit` — playable (on disk, not hidden) track ids, seeded-shuffled, sliced, then hydrated with `getTrackSummariesByIds` and put back in slice order.
+**Side effects:** none (read-only).
+**Before:** —
+**After:** if the plain list's default filter changes (hidden/missing), `listPlayableTrackIds` must change with it or "shuffle everything" would offer tracks the list hides.
+
 **Function:** `getLetterIndex(scope)` — `backend/src/db/letterIndex.ts` (new file)
 **Date:** 2026-09-28
 **How added:** new feature (Android alphabet rail)

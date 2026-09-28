@@ -4,6 +4,27 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-28 — `GET /api/browse/shuffled`: the whole library in a seeded random order, a page at a time
+
+For the Android "shuffle all" and its endless queue: a queue of 200 songs ends, and the owner wants to hear
+as much of the library as possible. Additive.
+
+- **Endpoint:** `GET /api/browse/shuffled?seed=N&offset=&limit=` (auth required; `seed` an integer 0–2147483647,
+  else 400; `limit` capped at 200 like every list) → `{ seed, total, limit, offset, tracks }`, tracks as
+  `TrackSummary`, in the shuffled order.
+- **Deterministic on purpose:** the order is derived from the seed on every request (mulberry32 +
+  Fisher–Yates over the playable ids), so a client can ask for page 1, then page 2, … without the server
+  keeping any state, and every track appears exactly once per pass. Cost per request: one id query and an
+  O(n) shuffle.
+- **Which tracks:** on disk and not hidden — the plain list's default — so "shuffle everything" and "the songs
+  list" are the same set.
+- **New:** `seededShuffle` in `services/shuffle.ts` (next to `smartShuffle`, untouched), `db/shuffledTracks.ts`,
+  `routes/shuffledTracks.ts` (+ test), one registration line in `app.ts`.
+- **Verified:** `npx tsc --noEmit` clean; `npm test` 332 pass, 0 fail (9 new): 3 for `seededShuffle`
+  (same seed same order, different seed different, all ids kept / input untouched / empty and single) and 6
+  route tests (401, bad seed, paging through 45 tracks in pages of 20 gives each exactly once, same seed
+  repeatable, hidden and missing excluded and nothing past the end, page size capped at 200).
+
 ## 2026-09-28 — `GET /api/browse/letters`: where each letter starts, for the Android alphabet rail
 
 A paging client cannot count for itself, so the Android app's A–Z rail (jump straight to "M" in a

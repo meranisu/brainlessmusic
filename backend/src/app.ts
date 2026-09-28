@@ -15,6 +15,7 @@ import libraryRoute from './routes/library.js';
 import playlistsRoute from './routes/playlists.js';
 import searchRoute from './routes/search.js';
 import lettersRoute from './routes/letters.js';
+import shuffledTracksRoute from './routes/shuffledTracks.js';
 import shuffleRoute from './routes/shuffle.js';
 import statsRoute from './routes/stats.js';
 import tracksRoute from './routes/tracks.js';
@@ -70,6 +71,7 @@ export function buildApp() {
       api.register(playbackStateRoute);
       api.register(shuffleRoute);
       api.register(lettersRoute);
+      api.register(shuffledTracksRoute);
       api.register(usersRoute);
     },
     { prefix: API_PREFIX },

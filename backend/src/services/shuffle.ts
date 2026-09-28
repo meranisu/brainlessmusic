@@ -49,3 +49,30 @@ export function smartShuffle(tracks: ShuffleTrack[]): number[] {
 
   return result;
 }
+
+/** A small, fast, seedable generator (mulberry32) — enough for shuffling, not for anything secret. */
+function seededRandom(seed: number): () => number {
+  let a = seed | 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * The same shuffle for the same seed, every time. That is what lets a client walk a shuffled
+ * library in pages ("give me 200, then the next 200") without the server remembering anything:
+ * each request re-derives the same order from the seed, so no track repeats until the whole
+ * library has been played.
+ */
+export function seededShuffle<T>(items: T[], seed: number): T[] {
+  const random = seededRandom(seed);
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
