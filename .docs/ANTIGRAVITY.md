@@ -65,7 +65,7 @@ When starting a non-trivial new feature, create `.docs/features/<feature-name>/p
 ```
 .docs/
 ├── features/     — per-feature planning docs
-├── history/      — how decisions evolved, changelogs
+├── history/      — how decisions evolved, changelogs, frozen pre-2026-09-28 STATUS.md (status-archive.md)
 ├── ops/          — hardware, deployment, networking
 ├── process/      — dev environment setup, phased build plans, workflow
 ├── reference/    — stable factual reference
@@ -91,7 +91,8 @@ When starting a non-trivial new feature, create `.docs/features/<feature-name>/p
 - **Shared codebase:** You and Claude Code are actively collaborating on this repository.
 - **Inspect git state first:** Before starting any work or writing code, always run `git status` and check recent changes. Claude Code may have left modified files, untracked work, or newly verified endpoints (e.g., in `backend/` or `android/`). Never blindly overwrite or revert active changes.
 - **Respect established conventions:** Stay aligned with conventions established in `.docs/CLAUDE.md` and previous implementations (e.g., Fastify + SQLite WAL/FTS5, in-memory session state, WSL2 dev environment, JWT auth).
-- **Keep `.docs/STATUS.md` synchronized:** When you implement or verify a feature, update `.docs/STATUS.md` immediately. Document what was done, status codes, env vars, and pending actions so Claude Code has clear context when resuming.
+- **Keep `.docs/STATUS.md` accurate, and short:** It is a one-page snapshot (under ~150 lines). Update its table row or Next list when a feature's state actually moves. Put what was done, status codes, env vars and verification in `.docs/CHANGELOG.md` (and `.docs/FUNCTIONLOG.md` for functions) so Claude Code has clear context when resuming; pending actions go in `.docs/QUESTIONS.md` if they need an owner decision. Older detail lives in `.docs/history/status-archive.md`.
+- **Hard rules apply to you:** see the root `CLAUDE.md` — tests only via `cd backend && npm test`, never read `.env` files, no AI attribution in commits.
 
 ### 2. Cross-referencing Documentation
 - **No assumptions:** The `.docs/` folder is the authoritative source of truth. Always cross-reference `.docs/STATUS.md`, `.docs/reference/tech-stack.md`, and relevant specs before making architectural or implementation decisions.

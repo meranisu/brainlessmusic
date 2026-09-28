@@ -2,6 +2,9 @@
 
 Guidance for Claude Code when working on this repo.
 
+The short, auto-loaded version is the root [`CLAUDE.md`](../CLAUDE.md): hard rules, verification and token-use rules, and a
+definition of done. This file is the long-form reference — read the section you need rather than the whole file.
+
 ## What this is
 
 Personal, self-hosted music streaming project — library, backend, web frontend, and Android app, built from scratch as a learning project. Not a public product: small-scale, for personal use and a couple of friends, including on-the-road/bike-trip listening. Centerpiece feature: a Spotify-Jam-style synced "room" listening session.
@@ -150,12 +153,26 @@ Every backend/frontend code change (not doc-only commits) gets logged in both, n
 
 Update both files as part of the same piece of work that makes the change — don't batch it up for later.
 
+## Harness (enforced, not just written down)
+
+Rules that have already been broken once are enforced by tooling, because a written rule depends on a session remembering it.
+
+| Guard | Where | What it does |
+|---|---|---|
+| Bash guard | `.claude/hooks/guard-bash.mjs` (PreToolUse) | Blocks a direct `tsx --test` / `node --test`, recursive deletes aimed at library, artwork, database or `/mnt` paths, reading `.env` files, and docker commands that don't name a `brainless-*` container |
+| Stop check | `.claude/hooks/stop-check.mjs` + `track-edits.mjs` | At the end of a turn, type-checks only the packages touched this session (`backend`, `frontend`) and flags a missing CHANGELOG entry or a migration without a `database-schema.md` update. Blocks once, never loops |
+| Secret reads | `permissions.deny` in `.claude/settings.json` | Denies reading `backend/.env` and root `.env` |
+| Commit trailers | `.githooks/commit-msg` | Strips AI attribution (needs `core.hooksPath`, see Commit hygiene) |
+
+These are Claude Code hooks; other agents are not bound by them but the rules behind them apply to everyone. If a hook blocks
+something legitimate, fix the hook (with the owner's say-so) rather than working around it.
+
 ## Docs folder structure
 
 ```
 .docs/
 ├── features/     — per-feature planning docs (.docs/features/<name>/planning.md)
-├── history/      — how decisions evolved, changelogs
+├── history/      — how decisions evolved, changelogs, and the frozen pre-2026-09-28 STATUS.md (status-archive.md)
 ├── ops/          — hardware, deployment, networking
 ├── process/      — dev environment setup, phased build plans, workflow
 ├── reference/    — stable factual reference (resolved tech stack, schema, API shape)
@@ -165,12 +182,12 @@ Update both files as part of the same piece of work that makes the change — do
 ├── CHANGELOG.md  — dated log of every backend/frontend change (see Change tracking below)
 ├── FUNCTIONLOG.md — per-function log of what was added/changed and why (see Change tracking below)
 ├── QUESTIONS.md  — the open-questions ledger; every owner decision waited on, by ID
-└── STATUS.md     — one-page current-state snapshot, entry point
+└── STATUS.md     — one-page current-state snapshot, entry point (keep under ~150 lines; history goes to history/)
 ```
 
 ## Where to look first
 
-- Current project state: `.docs/STATUS.md`
+- Current project state: `.docs/STATUS.md` (short). Per-endpoint behaviour and verification detail up to 2026-09-28: `.docs/history/status-archive.md`; newer changes: `.docs/CHANGELOG.md`
 - **Anything waiting on an owner decision: `.docs/QUESTIONS.md`** — check it before asking, and before assuming something is undecided
 - Why the backend ended up as a custom Node/TS build (not Navidrome): `.docs/history/backend-decision-history.md`
 - Full resolved stack + MVP scope: `.docs/reference/tech-stack.md`

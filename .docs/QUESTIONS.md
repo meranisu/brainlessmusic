@@ -332,8 +332,8 @@ Landed with hooks in `.claude/hooks/` (bash guard, Stop-time type-check and doc 
 ### A32 — May STATUS.md be split into a short live file and an archive? *(was Q32)*
 **Answered:** 2026-09-28 · **Yes.** The full old file is frozen verbatim in
 [`history/status-archive.md`](history/status-archive.md); `STATUS.md` is now a one-page snapshot (target under 150 lines).
-README's per-endpoint link now points at the archive. `AGENTS.md` still says to update STATUS.md on completion — that now
-means the table row / Next list only; the header of `STATUS.md` says so.
+README's per-endpoint link now points at the archive. `AGENTS.md` and `.docs/ANTIGRAVITY.md` were reworded so "update
+STATUS.md on completion" means the table row / Next list only, with detail going to the CHANGELOG.
 
 ### A33 — How should the harness treat gortex for this repo? *(was Q33)*
 **Answered:** 2026-09-28 · **Make the global rule conditional** (option b). `~/.claude/CLAUDE.md` now says the gortex
