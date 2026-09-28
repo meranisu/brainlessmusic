@@ -14,6 +14,7 @@ import historyRoute from './routes/history.js';
 import libraryRoute from './routes/library.js';
 import playlistsRoute from './routes/playlists.js';
 import searchRoute from './routes/search.js';
+import lettersRoute from './routes/letters.js';
 import shuffleRoute from './routes/shuffle.js';
 import statsRoute from './routes/stats.js';
 import tracksRoute from './routes/tracks.js';
@@ -68,6 +69,7 @@ export function buildApp() {
       api.register(favoritesRoute);
       api.register(playbackStateRoute);
       api.register(shuffleRoute);
+      api.register(lettersRoute);
       api.register(usersRoute);
     },
     { prefix: API_PREFIX },

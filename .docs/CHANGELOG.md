@@ -4,6 +4,30 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-09-28 — `GET /api/browse/letters`: where each letter starts, for the Android alphabet rail
+
+A paging client cannot count for itself, so the Android app's A–Z rail (jump straight to "M" in a
+list it has only partly loaded) needs the server to say where each letter begins. Additive; nothing
+existing changed.
+
+- **Endpoint:** `GET /api/browse/letters?scope=tracks|albums|artists` (auth required) →
+  `{ scope, total, letters: [{ letter, offset, count }] }`, 28 entries: `#`, `A`–`Z`, `…`.
+  `offset` is the bucket's first row in that scope's default listing; an empty bucket reports where
+  it *would* start (the next row that exists), so a jump never lands before the letter it names.
+- **Buckets are cut on the sort's own boundaries, not on "first letter".** The lists sort
+  `COLLATE NOCASE`, which folds ASCII only, so the order is: below "a" (digits, quotes, most
+  punctuation) → a–z → above "z" (`{|}~`, accents, kana, CJK). `#` and `…` are those two ends. This
+  is why Japanese titles are under `…` (after Z), where the web rail's `bucketOf` files them under `#`
+  — noted, not changed.
+- **One scan** per request (`SUM(col COLLATE NOCASE < 'x')` for each boundary), with the same filters
+  as the lists: tracks exclude missing and hidden; albums and artists need a playable track.
+- **New files** (kept apart from `browse.ts`/`tracks.ts` on purpose): `db/letterIndex.ts`,
+  `routes/letters.ts`, `routes/letters.test.ts`; one registration line in `app.ts`.
+- **Verified:** `npx tsc --noEmit` clean; `npm test` 323 pass, 0 fail (6 new). The key test checks
+  every non-empty offset against the real `GET /tracks?sort=title` listing — the row at that offset
+  belongs to that letter — using titles that include digits, `/`, a quote, mixed case, kana and an
+  accented capital, plus unknown scope (400), no session (401) and an empty library.
+
 ## 2026-09-28 — Library gets a Simple / Full toggle; `/manage` folds into it and opens to every user
 
 The admin-only `/manage` table becomes the **Full** view of the Library page,

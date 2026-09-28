@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `getLetterIndex(scope)` — `backend/src/db/letterIndex.ts` (new file)
+**Date:** 2026-09-28
+**How added:** new feature (Android alphabet rail)
+**Purpose:** returns `{ total, letters: [{ letter, offset, count }] }` for `tracks`, `albums` or `artists`: the start offset of `#`, `A`–`Z` and `…` in that scope's default, NOCASE-sorted listing. One `SELECT` of `SUM(col COLLATE NOCASE < 'x')` per boundary; buckets are the runs below "a", a–z, and above "z".
+**Side effects:** none (read-only).
+**Before:** nothing told a client where a letter starts; the web rail computes it from rows it has already loaded.
+**After:** a client that pages can jump to a letter without loading everything before it. The scope filters deliberately copy the lists' defaults (missing/hidden excluded; albums and artists need a playable track) — if a list's default filter changes, this must change with it or jumps land on the wrong row.
+
+**Function:** `lettersRoute` — `backend/src/routes/letters.ts` (new file)
+**Date:** 2026-09-28
+**How added:** new feature
+**Purpose:** `GET /api/browse/letters?scope=` behind `fastify.authenticate`; 400 for an unknown or missing scope.
+**Side effects:** none.
+**Before:** —
+**After:** registered in `app.ts` after `shuffleRoute`.
+
 **Function:** `LibraryPage()` / `SimpleLibrary()` — `frontend/src/pages/LibraryPage.tsx`
 **Date:** 2026-09-28
 **How added:** refactor + new feature
