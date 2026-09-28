@@ -1,18 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A placeholder mark — an orange play triangle in a ring, inside the
-     adaptive-icon safe zone (inner 66dp of 108dp). Swap for a real brand
-     mark whenever one exists; nothing downstream depends on this shape. -->
+<!-- Abstract mark: a disc with a waveform cut out of it, and a small satellite dot. Everything sits
+     inside the adaptive-icon safe zone (inner 66dp of 108dp). The waveform is a hole (even-odd), so the
+     background shows through it. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
     <path
-        android:fillColor="#00000000"
-        android:strokeColor="#F97316"
-        android:strokeWidth="4"
-        android:pathData="M54,21 A33,33 0,1,1 53.9,21 Z" />
-    <path
         android:fillColor="#F97316"
-        android:pathData="M45,38 L74,54 L45,70 Z" />
+        android:fillType="evenOdd"
+        android:pathData="M54,28 a26,26 0 1 0 0.01,0 z M35.5,50.5 a2.5,2.5 0 0 1 5,0 v7 a2.5,2.5 0 0 1 -5,0 z M43.5,43.5 a2.5,2.5 0 0 1 5,0 v21 a2.5,2.5 0 0 1 -5,0 z M51.5,37.5 a2.5,2.5 0 0 1 5,0 v33 a2.5,2.5 0 0 1 -5,0 z M59.5,45.5 a2.5,2.5 0 0 1 5,0 v17 a2.5,2.5 0 0 1 -5,0 z M67.5,51.5 a2.5,2.5 0 0 1 5,0 v5 a2.5,2.5 0 0 1 -5,0 z" />
+    <path
+        android:fillColor="#FDBA74"
+        android:pathData="M79,24 a5,5 0 1 0 0.01,0 z" />
 </vector>

@@ -14,7 +14,7 @@ headset/Bluetooth buttons.
 | 1. Plan | Where the player lives, how the service starts, permissions | Done |
 | 2. Structure | `media3-session`, manifest, `PlaybackService` | Done |
 | 3. Interior | Artwork behind the bearer token, notification permission, task removal | Done |
-| 4. Walkthrough | Build, lint, release check; **on-device check pending** | Build verified 2026-09-28 |
+| 4. Walkthrough | Build, lint, release check; on-device check | Build verified; screen-off playback and notification confirmed on the phone 2026-09-28, rest pending |
 
 ## Decisions
 
@@ -41,7 +41,8 @@ headset/Bluetooth buttons.
 - [x] `./gradlew :app:testDebugUnitTest :app:assembleDebug :app:lintDebug :app:assembleRelease` — BUILD SUCCESSFUL; 14/14
   unit tests; lint 0 errors, 42 warnings (new: the exported service, which is by design; the two ABI/cleartext notes).
   Release APK 2.5 MB (`media3-session` added ~0.5 MB), signature and manifest checked.
-- [ ] **Not verified: anything on a device.** Only a phone can confirm:
+- [x] **Confirmed by the owner on the POCO F5, 2026-09-28:** playback continues with the screen off, and the notification player is shown.
+- [ ] **Still unconfirmed** (not reported yet):
   - start an album, press Home / lock the screen → music keeps playing;
   - the notification shows title, artist and **cover art**, and play/pause/next/previous work from it and from the lock screen;
   - first play on Android 13+ shows the notification-permission prompt; denying it still leaves audio playing;

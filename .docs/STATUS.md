@@ -29,8 +29,8 @@ Work the first unticked box there.
 | Docker image | Built, verified — box 12 | [ops/docker-local-build.md](ops/docker-local-build.md) |
 | Android Phase 0 — connect + auth | Confirmed on a real device 2026-09-18 | [features/android-phase-0-connect](features/android-phase-0-connect/planning.md) |
 | Android Phase 1 — browse | Built; first on-device look 2026-09-28 led to padding/search fixes and Material You (dynamic color) | [features/android-phase-1-browse](features/android-phase-1-browse/planning.md) |
-| Android Phase 2 — playback (Media3, queue, Now Playing, scrobble) | Built, unit-tested and linted; **not verified on a device** — checklist in the plan | [features/android-phase-2-playback](features/android-phase-2-playback/planning.md) |
-| Android Phase 3 — background (MediaSession, foreground service, notification/lock-screen controls) | Built; **not verified on a device** | [features/android-phase-3-background](features/android-phase-3-background/planning.md) |
+| Android Phase 2 — playback (Media3, queue, Now Playing, scrobble) | Built; **playback confirmed on a phone over Wi-Fi and mobile data (2026-09-28)**; seek, Opus, play-count-on-web, Play next and error paths not yet reported — checklist in the plan | [features/android-phase-2-playback](features/android-phase-2-playback/planning.md) |
+| Android Phase 3 — background (MediaSession, foreground service, notification/lock-screen controls) | Built; **screen-off playback and the notification confirmed on a phone (2026-09-28)**; lock-screen buttons, artwork, headset pause not yet reported | [features/android-phase-3-background](features/android-phase-3-background/planning.md) |
 | Reach it from outside (roadmap box 13) | **Not done — the critical path for v0.2** | [ops/cloudflare-tunnel-deployment.md](ops/cloudflare-tunnel-deployment.md) |
 | Room sync (v0.3) | Not started; spec first (box 21) | Q4 |
 

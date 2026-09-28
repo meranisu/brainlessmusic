@@ -64,7 +64,8 @@ screen, and a play recorded on the server.
 - [x] **Two real problems found by the tools, both fixed:** lint failed the build on `@OptIn(UnstableApi::class)` — Media3's
   marker is an AndroidX experimental annotation, so it needs `androidx.annotation.OptIn`, not Kotlin's (the compiler had
   warned that Kotlin's was being ignored); and a `when` over `playbackState` lacked an `else`.
-- [ ] **Not verified: any audio.** No emulator or device here, so nothing has been played. What only a phone can confirm:
+- [x] **Confirmed by the owner on the POCO F5, 2026-09-28:** audio playback works on both mobile data and Wi-Fi.
+- [ ] **Still unconfirmed** (not reported yet): what only a phone can confirm from the list below —
   - a tapped album track starts, and the album continues to the next track on its own;
   - seeking mid-track works (the server sends byte ranges — untested from ExoPlayer);
   - Opus/Ogg files play (ExoPlayer supports them; this library is mostly Opus);

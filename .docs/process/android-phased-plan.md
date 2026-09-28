@@ -74,7 +74,7 @@ Goal: connect → browse → stream → control. Each phase should be independen
 
 **Done when:** user can start playback, leave the app or lock the phone, and control playback from the notification/lock screen without it stopping unexpectedly.
 
-**Status:** built and build-verified 2026-09-28 (`PlaybackService`, notification permission, authenticated artwork). Audio focus and auto-pause on headphone disconnect were already in Phase 2. **Not run on a device** — checklist in `.docs/features/android-phase-3-background/planning.md`.
+**Status:** built and build-verified 2026-09-28 (`PlaybackService`, notification permission, authenticated artwork). Audio focus and auto-pause on headphone disconnect were already in Phase 2. Screen-off playback and the notification confirmed on a phone 2026-09-28; the rest of the checklist is in `.docs/features/android-phase-3-background/planning.md`.
 
 ---
 
@@ -111,6 +111,13 @@ screens use `MaterialTheme.colorScheme` roles and never hardcode colors.
 - **Implication for screens:** avoid `Orange500`/`Navy*` from `Color.kt`
   directly in composables (only `Theme.kt` should read them), or the
   dynamic scheme will be bypassed on those elements.
+
+## App icon (2026-09-28)
+
+An abstract mark: an orange disc with a waveform cut out of it and a small satellite dot, on a deep-navy adaptive
+background with one tonal circle (`res/drawable/ic_launcher_*.xml`, all vectors). Shapes stay inside the 66 dp safe
+zone. The `<monochrome>` layer is the same shape in one color, so on Android 13+ with "Themed icons" on the system
+recolors it from the wallpaper (Material You). Replaces the placeholder play-triangle-in-a-ring.
 
 ## Notes for implementation
 
