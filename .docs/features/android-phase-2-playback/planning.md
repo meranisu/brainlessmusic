@@ -95,6 +95,24 @@ Owner's call on A9's open item: **a Settings toggle**, not a fixed behavior.
 Verify on the phone: play, kill the app, reopen → queue and position back, paused; flip the toggle, repeat → it plays;
 then start a queue on the web and reopen the app → the web queue appears.
 
+## Now Playing redesign (2026-09-28)
+
+Owner's request after seeing it on the phone.
+
+- **Three lines, left-aligned:** title, artist, album; the cover fills the content width so their left edges line up.
+- **Shuffle and repeat** (off / whole queue / this track) beside the transport buttons, lit when on, remembered across launches
+  (`PlaybackSettings`). Plain ExoPlayer shuffle of the current queue — the server's smart shuffle (`POST /shuffle`) is not used.
+  `hasNext`/`hasPrevious` are now asked of the player, since with shuffle or repeat on "next" is not index + 1.
+- **Queue button** opens a bottom sheet with the queue, scrolled to the current track; the inline queue list is gone.
+- **Stream readout:** codec (the server's container name, else the MIME type), sample rate, channels and bitrate when the stream
+  declares one (FLAC and Opus often don't), plus how far ahead the buffer is and ExoPlayer's running network estimate. Read from
+  the player, so a transcoded stream would show what is really arriving. The network figure is an estimate, not a measurement.
+- **Progress bar styles** (Settings → Progress bar, each with a live preview): squiggle (default; animates while playing, flat
+  when paused), classic Material slider, thin line, pill with a gap around the handle, dots. Drawn by hand
+  (`ui/playback/SeekBar.kt`) because Material 3's official wavy slider is only in a pre-release library.
+- Known limit: with shuffle on, "Play next" inserts after the current track in list order, not necessarily next in play order.
+- Build, unit tests and lint pass; **not seen on a device.**
+
 ## Change Log
 
 | Date | Phase affected | What changed | Why | Still fits the Plan phase? |

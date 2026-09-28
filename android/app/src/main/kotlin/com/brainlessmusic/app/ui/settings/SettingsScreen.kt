@@ -1,15 +1,22 @@
 package com.brainlessmusic.app.ui.settings
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.RadioButton
+import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -24,7 +31,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.Role
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.brainlessmusic.app.data.local.SeekStyle
 import com.brainlessmusic.app.data.local.ThemeMode
+import com.brainlessmusic.app.ui.playback.SeekBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,6 +43,7 @@ fun SettingsScreen(
 ) {
     val autoPlay by viewModel.autoPlayOnResume.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+    val seekStyle by viewModel.seekStyle.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -47,7 +57,7 @@ fun SettingsScreen(
             )
         },
     ) { padding ->
-        Column(modifier = Modifier.padding(padding)) {
+        Column(modifier = Modifier.padding(padding).verticalScroll(rememberScrollState())) {
             ListItem(
                 headlineContent = { Text("Theme") },
                 supportingContent = {
@@ -58,6 +68,17 @@ fun SettingsScreen(
                                 onClick = { viewModel.setThemeMode(mode) },
                                 shape = SegmentedButtonDefaults.itemShape(index, ThemeMode.entries.size),
                             ) { Text(mode.label) }
+                        }
+                    }
+                },
+            )
+            ListItem(
+                headlineContent = { Text("Progress bar") },
+                supportingContent = {
+                    Column {
+                        Text("How the seek bar looks on the Now Playing screen.")
+                        SeekStyle.entries.forEach { style ->
+                            SeekStyleOption(style, selected = style == seekStyle, onClick = { viewModel.setSeekStyle(style) })
                         }
                     }
                 },
@@ -77,6 +98,31 @@ fun SettingsScreen(
                 trailingContent = { Switch(checked = autoPlay, onCheckedChange = null) },
                 modifier = Modifier
                     .toggleable(value = autoPlay, role = Role.Switch, onValueChange = viewModel::setAutoPlayOnResume),
+            )
+        }
+    }
+}
+
+/** One choice in the progress-bar picker, with the bar itself drawn at 40% so the look is visible before picking it. */
+@Composable
+private fun SeekStyleOption(style: SeekStyle, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .padding(vertical = 4.dp),
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Column(modifier = Modifier.padding(start = 12.dp)) {
+            Text(style.label, style = MaterialTheme.typography.bodyMedium)
+            SeekBar(
+                style = style,
+                fraction = 0.4f,
+                playing = selected,
+                onFraction = {},
+                onFinished = {},
+                interactive = false,
             )
         }
     }

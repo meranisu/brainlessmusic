@@ -16,8 +16,10 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import com.brainlessmusic.app.data.local.PlaybackSettings
 import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.google.common.util.concurrent.ListenableFuture
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -29,6 +31,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
@@ -55,6 +58,7 @@ class PlaybackController @Inject constructor(
     @ApplicationContext private val context: Context,
     private val okHttpClient: OkHttpClient,
     private val libraryRepository: LibraryRepository,
+    private val settings: PlaybackSettings,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -80,6 +84,17 @@ class PlaybackController @Inject constructor(
     private var tickerJob: Job? = null
     private var errorMessage: String? = null
 
+    // The listener's shuffle/repeat choice, applied to the player whenever a queue is loaded.
+    private var wantShuffle = false
+    private var wantRepeat = Player.REPEAT_MODE_OFF
+
+    init {
+        scope.launch {
+            wantShuffle = settings.shuffle.first()
+            wantRepeat = settings.repeatMode.first()
+        }
+    }
+
     /** Replaces the queue and starts playing [startIndex]. */
     fun playQueue(items: List<QueueItem>, startIndex: Int) = loadQueue(items, startIndex, 0L, play = true)
 
@@ -102,6 +117,8 @@ class PlaybackController @Inject constructor(
         queue.addAll(items)
         errorMessage = null
         connectSession()
+        player.shuffleModeEnabled = wantShuffle
+        player.repeatMode = wantRepeat
         player.setMediaItems(mediaItems, index, positionMs.coerceAtLeast(0))
         player.prepare()
         if (play) player.play()
@@ -167,6 +184,25 @@ class PlaybackController @Inject constructor(
         if (!player.isPlaying) player.play()
     }
 
+    fun toggleShuffle() {
+        wantShuffle = !wantShuffle
+        player.shuffleModeEnabled = wantShuffle
+        scope.launch { settings.setShuffle(wantShuffle) }
+        publish()
+    }
+
+    /** Off, then repeat the whole queue, then repeat the current track. */
+    fun cycleRepeat() {
+        wantRepeat = when (wantRepeat) {
+            Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+            Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+            else -> Player.REPEAT_MODE_OFF
+        }
+        player.repeatMode = wantRepeat
+        scope.launch { settings.setRepeatMode(wantRepeat) }
+        publish()
+    }
+
     /** Ends playback and empties the queue — logout must not leave the previous account's music running. */
     fun stop() {
         if (queue.isEmpty()) return
@@ -210,6 +246,10 @@ class PlaybackController @Inject constructor(
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) = publish()
+
+        override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) = publish()
+
+        override fun onRepeatModeChanged(repeatMode: Int) = publish()
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             beginTrack()
@@ -277,7 +317,41 @@ class PlaybackController @Inject constructor(
             positionMs = player.currentPosition.coerceAtLeast(0),
             durationMs = duration,
             error = errorMessage,
+            hasNext = player.hasNextMediaItem(),
+            hasPrevious = player.hasPreviousMediaItem(),
+            shuffle = player.shuffleModeEnabled,
+            repeat = when (player.repeatMode) {
+                Player.REPEAT_MODE_ALL -> Repeat.ALL
+                Player.REPEAT_MODE_ONE -> Repeat.ONE
+                else -> Repeat.OFF
+            },
+            stream = if (queue.isEmpty()) null else streamInfo(),
         )
+    }
+
+    private fun streamInfo(): StreamInfo {
+        val format = player.audioFormat
+        val estimate = DefaultBandwidthMeter.getSingletonInstance(context).bitrateEstimate
+        return StreamInfo(
+            // The server's name for the container beats a MIME type ("flac" over "audio/flac").
+            codec = queue.getOrNull(player.currentMediaItemIndex)?.format?.takeIf { it.isNotBlank() }?.uppercase()
+                ?: format?.sampleMimeType?.let(::codecName),
+            sampleRateHz = format?.sampleRate?.takeIf { it > 0 },
+            channels = format?.channelCount?.takeIf { it > 0 },
+            bitrateKbps = format?.bitrate?.takeIf { it > 0 }?.let { it / 1000 },
+            bufferedAheadMs = (player.bufferedPosition - player.currentPosition).coerceAtLeast(0),
+            networkKbps = estimate.takeIf { it > 0 }?.let { it / 1000 },
+        )
+    }
+
+    private fun codecName(mime: String): String = when (mime.lowercase().removePrefix("audio/")) {
+        "flac" -> "FLAC"
+        "opus" -> "Opus"
+        "vorbis" -> "Vorbis"
+        "mpeg" -> "MP3"
+        "mp4a-latm" -> "AAC"
+        "raw" -> "PCM"
+        else -> mime.substringAfter('/').uppercase()
     }
 
     private fun toMediaItem(item: QueueItem): MediaItem? {

@@ -87,5 +87,6 @@ class PlaybackResume @Inject constructor(
         album = track.album,
         durationSec = track.duration,
         coverUrl = libraryRepository.trackCoverUrl(track.id),
+        format = track.format,
     )
 }

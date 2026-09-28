@@ -71,5 +71,6 @@ class AlbumDetailViewModel @Inject constructor(
         album = album.title,
         durationSec = track.duration,
         coverUrl = libraryRepository.albumCoverUrl(album.id),
+        format = track.format,
     )
 }

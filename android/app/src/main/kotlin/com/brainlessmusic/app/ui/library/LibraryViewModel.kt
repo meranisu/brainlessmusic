@@ -140,6 +140,7 @@ class LibraryViewModel @Inject constructor(
                     album = it.album,
                     durationSec = it.duration,
                     coverUrl = libraryRepository.trackCoverUrl(it.id),
+                    format = it.format,
                 )
             },
             index,
