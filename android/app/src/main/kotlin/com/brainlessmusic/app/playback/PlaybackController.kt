@@ -1,5 +1,6 @@
 package com.brainlessmusic.app.playback
 
+import android.content.ComponentName
 import android.content.Context
 import android.os.SystemClock
 import android.util.Log
@@ -15,7 +16,10 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
 import com.brainlessmusic.app.data.repository.LibraryRepository
+import com.google.common.util.concurrent.ListenableFuture
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,10 +39,9 @@ private const val TAG = "PlaybackController"
 private const val TICK_MS = 500L
 
 /**
- * The one ExoPlayer in the app, held in-process. Phase 2 of
- * `.docs/process/android-phased-plan.md`: playback works while the app is in
- * the foreground; Phase 3 moves this behind a `MediaSessionService` for
- * background and lock-screen control.
+ * The one ExoPlayer in the app, held in-process. [PlaybackService] (Phase 3 of
+ * `.docs/process/android-phased-plan.md`) wraps it in a MediaSession for the
+ * notification, lock screen, headset buttons and background playback.
  *
  * Streams through the same authenticated [OkHttpClient] as Retrofit, so the
  * bearer header rides along on every range request and there is no
@@ -56,6 +59,16 @@ class PlaybackController @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private val player: ExoPlayer by lazy { buildPlayer() }
+
+    /**
+     * The player [PlaybackService] wraps in a MediaSession. It stays owned here — the UI and the
+     * service drive the same instance — so the service being killed never loses the queue.
+     */
+    val sessionPlayer: Player get() = player
+
+    // Held for the life of the process: a connected controller is what keeps PlaybackService bound,
+    // and Media3 moves the bound service to the foreground while audio is playing.
+    private var sessionController: ListenableFuture<MediaController>? = null
 
     private val queue = mutableListOf<QueueItem>()
     private val _state = MutableStateFlow(PlaybackUiState())
@@ -88,6 +101,7 @@ class PlaybackController @Inject constructor(
         queue.clear()
         queue.addAll(items)
         errorMessage = null
+        connectSession()
         player.setMediaItems(mediaItems, index, positionMs.coerceAtLeast(0))
         player.prepare()
         if (play) player.play()
@@ -164,6 +178,12 @@ class PlaybackController @Inject constructor(
         errorMessage = null
         tickerJob?.cancel()
         publish()
+    }
+
+    private fun connectSession() {
+        if (sessionController != null) return
+        val token = SessionToken(context, ComponentName(context, PlaybackService::class.java))
+        sessionController = MediaController.Builder(context, token).buildAsync()
     }
 
     private fun buildPlayer(): ExoPlayer =

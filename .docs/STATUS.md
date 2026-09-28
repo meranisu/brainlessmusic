@@ -30,6 +30,7 @@ Work the first unticked box there.
 | Android Phase 0 — connect + auth | Confirmed on a real device 2026-09-18 | [features/android-phase-0-connect](features/android-phase-0-connect/planning.md) |
 | Android Phase 1 — browse | Built; first on-device look 2026-09-28 led to padding/search fixes and Material You (dynamic color) | [features/android-phase-1-browse](features/android-phase-1-browse/planning.md) |
 | Android Phase 2 — playback (Media3, queue, Now Playing, scrobble) | Built, unit-tested and linted; **not verified on a device** — checklist in the plan | [features/android-phase-2-playback](features/android-phase-2-playback/planning.md) |
+| Android Phase 3 — background (MediaSession, foreground service, notification/lock-screen controls) | Built; **not verified on a device** | [features/android-phase-3-background](features/android-phase-3-background/planning.md) |
 | Reach it from outside (roadmap box 13) | **Not done — the critical path for v0.2** | [ops/cloudflare-tunnel-deployment.md](ops/cloudflare-tunnel-deployment.md) |
 | Room sync (v0.3) | Not started; spec first (box 21) | Q4 |
 
@@ -59,7 +60,7 @@ open until box 13's network-edge gate exists). Q19 is still listed open although
 ## Next
 
 1. **Box 13 — reach it from outside** (ops): the tunnel + Access gate; nothing else in v0.2 gets music onto a phone away from home.
-2. **Android Phase 2 — on-device check** (box 17): run the checklist on the POCO F5. Then Phase 3 background/system integration (box 18); Home + playlists after that (A22).
+2. **Android Phase 2 — on-device check** (box 17): run the checklist on the POCO F5. Phase 3 (box 18) is built too and needs the same phone check; Home + playlists come next (A22).
 3. Commit or finish the failure-logging work above.
 4. v0.3 starts with the room-sync spec (box 21) — spec before code.
 

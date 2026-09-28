@@ -74,6 +74,8 @@ Goal: connect → browse → stream → control. Each phase should be independen
 
 **Done when:** user can start playback, leave the app or lock the phone, and control playback from the notification/lock screen without it stopping unexpectedly.
 
+**Status:** built and build-verified 2026-09-28 (`PlaybackService`, notification permission, authenticated artwork). Audio focus and auto-pause on headphone disconnect were already in Phase 2. **Not run on a device** — checklist in `.docs/features/android-phase-3-background/planning.md`.
+
 ---
 
 ## Phase 4 — Polish
