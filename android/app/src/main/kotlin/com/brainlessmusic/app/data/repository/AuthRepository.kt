@@ -3,11 +3,10 @@ package com.brainlessmusic.app.data.repository
 import com.brainlessmusic.app.data.local.SessionStore
 import com.brainlessmusic.app.data.remote.ApiServiceFactory
 import com.brainlessmusic.app.data.remote.MediaUrlProvider
+import com.brainlessmusic.app.data.remote.ServerConfig
 import com.brainlessmusic.app.data.remote.TokenProvider
 import com.brainlessmusic.app.data.remote.dto.LoginRequest
 import kotlinx.coroutines.flow.first
-import java.net.MalformedURLException
-import java.net.URL
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -23,22 +22,21 @@ class AuthRepository @Inject constructor(
     private val sessionStore: SessionStore,
     private val tokenProvider: TokenProvider,
     private val mediaUrlProvider: MediaUrlProvider,
+    private val serverConfig: ServerConfig,
 ) {
 
-    /** Prefill values for the server-config screen — never the password, which is never stored. */
-    suspend fun savedServerUrl(): String? = sessionStore.serverUrl.first()
+    /** Prefill for the login screen — never the password, which is never stored. */
     suspend fun savedUsername(): String? = sessionStore.username.first()
 
-    suspend fun testConnection(serverUrl: String): Result<Unit> {
-        val validated = validateUrl(serverUrl) ?: return Result.failure(ConnectionException(ConnectionError.InvalidUrl))
-        return runCatching {
-            apiServiceFactory.get(validated).health()
+    /** `GET /health` against the bound server; drives the green/red light on the login screen. */
+    suspend fun testConnection(): Result<Unit> =
+        runCatching {
+            apiServiceFactory.get(serverConfig.url).health()
             Unit
         }.recoverCatching { throw ConnectionException(classifyError(it)) }
-    }
 
-    suspend fun login(serverUrl: String, username: String, password: String): Result<Unit> {
-        val validated = validateUrl(serverUrl) ?: return Result.failure(ConnectionException(ConnectionError.InvalidUrl))
+    suspend fun login(username: String, password: String): Result<Unit> {
+        val validated = serverConfig.url
         return runCatching {
             val response = apiServiceFactory.get(validated).login(LoginRequest(username, password))
             tokenProvider.current = response.token
@@ -59,7 +57,9 @@ class AuthRepository @Inject constructor(
      * is not the same as one the server still honors.
      */
     suspend fun restoreSession(): SessionRestoreResult {
-        val serverUrl = sessionStore.serverUrl.first() ?: return SessionRestoreResult.NoStoredSession
+        // Always the bound server: a session saved by a build pointing elsewhere (an old
+        // quick tunnel, say) just fails /auth/me below and sends the listener to log in.
+        val serverUrl = serverConfig.url
         val token = sessionStore.readToken() ?: return SessionRestoreResult.NoStoredSession
 
         tokenProvider.current = token
@@ -80,17 +80,6 @@ class AuthRepository @Inject constructor(
         tokenProvider.current = null
         mediaUrlProvider.current = null
         sessionStore.clearCredentials()
-    }
-
-    private fun validateUrl(raw: String): String? {
-        val trimmed = raw.trim()
-        if (trimmed.isEmpty()) return null
-        return try {
-            val url = URL(trimmed)
-            if ((url.protocol == "http" || url.protocol == "https") && !url.host.isNullOrBlank()) trimmed else null
-        } catch (_: MalformedURLException) {
-            null
-        }
     }
 }
 

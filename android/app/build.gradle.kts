@@ -15,6 +15,11 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "0.1.0"
+
+        // The one server this app talks to, baked in so login is just a username and password.
+        // Override for a dev backend: ./gradlew assembleDebug -PserverUrl=http://10.0.2.2:3000
+        val serverUrl = (project.findProperty("serverUrl") as String?) ?: "https://music.nobrainmusic.my"
+        buildConfigField("String", "SERVER_URL", "\"$serverUrl\"")
     }
 
     buildTypes {

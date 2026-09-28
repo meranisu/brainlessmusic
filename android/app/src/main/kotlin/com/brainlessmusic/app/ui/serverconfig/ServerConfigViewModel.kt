@@ -2,6 +2,7 @@ package com.brainlessmusic.app.ui.serverconfig
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.brainlessmusic.app.data.remote.ServerConfig
 import com.brainlessmusic.app.data.repository.AuthRepository
 import com.brainlessmusic.app.data.repository.ConnectionException
 import com.brainlessmusic.app.data.repository.toMessage
@@ -16,7 +17,7 @@ import javax.inject.Inject
 enum class ConnectionCheck { IDLE, CHECKING, SUCCESS, FAILED }
 
 data class ServerConfigUiState(
-    val serverUrl: String = "",
+    val serverHost: String = "",
     val username: String = "",
     val password: String = "",
     val connectionCheck: ConnectionCheck = ConnectionCheck.IDLE,
@@ -28,26 +29,19 @@ data class ServerConfigUiState(
 @HiltViewModel
 class ServerConfigViewModel @Inject constructor(
     private val authRepository: AuthRepository,
+    serverConfig: ServerConfig,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(ServerConfigUiState())
+    private val _uiState = MutableStateFlow(ServerConfigUiState(serverHost = serverConfig.host))
     val uiState: StateFlow<ServerConfigUiState> = _uiState.asStateFlow()
 
     init {
+        // The light is the first thing the screen says, so check without being asked.
+        checkServer()
         viewModelScope.launch {
-            val savedUrl = authRepository.savedServerUrl()
             val savedUsername = authRepository.savedUsername()
-            _uiState.update {
-                it.copy(
-                    serverUrl = savedUrl ?: it.serverUrl,
-                    username = savedUsername ?: it.username,
-                )
-            }
+            _uiState.update { it.copy(username = it.username.ifEmpty { savedUsername ?: "" }) }
         }
-    }
-
-    fun onServerUrlChange(value: String) {
-        _uiState.update { it.copy(serverUrl = value, connectionCheck = ConnectionCheck.IDLE, connectionError = null) }
     }
 
     fun onUsernameChange(value: String) {
@@ -58,11 +52,11 @@ class ServerConfigViewModel @Inject constructor(
         _uiState.update { it.copy(password = value, loginError = null) }
     }
 
-    fun testConnection() {
-        val url = _uiState.value.serverUrl
+    fun checkServer() {
+        if (_uiState.value.connectionCheck == ConnectionCheck.CHECKING) return
         viewModelScope.launch {
             _uiState.update { it.copy(connectionCheck = ConnectionCheck.CHECKING, connectionError = null) }
-            authRepository.testConnection(url).fold(
+            authRepository.testConnection().fold(
                 onSuccess = {
                     _uiState.update { it.copy(connectionCheck = ConnectionCheck.SUCCESS) }
                 },
@@ -83,7 +77,7 @@ class ServerConfigViewModel @Inject constructor(
         val state = _uiState.value
         viewModelScope.launch {
             _uiState.update { it.copy(isLoggingIn = true, loginError = null) }
-            authRepository.login(state.serverUrl, state.username, state.password).fold(
+            authRepository.login(state.username, state.password).fold(
                 onSuccess = {
                     _uiState.update { it.copy(isLoggingIn = false, password = "") }
                     onLoggedIn(state.username)
@@ -96,6 +90,8 @@ class ServerConfigViewModel @Inject constructor(
                                 ?: "Something went wrong.",
                         )
                     }
+                    // A failed login may really be an unreachable server; let the light say which.
+                    checkServer()
                 },
             )
         }

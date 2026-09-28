@@ -51,9 +51,10 @@ Versions in play: AGP 8.5.2, Gradle 8.7, Kotlin 1.9.24, Compose compiler
 
 ## Connecting to the backend during development
 
-The emulator does not see the host machine as `localhost` — use
-`http://10.0.2.2:<port>` (`http://10.0.2.2:3000` for `npm run dev`'s default)
-in the app's server-config screen. See
+The app talks to one server, fixed at build time: `https://music.nobrainmusic.my` by default
+(`SERVER_URL` in `app/build.gradle.kts`). To point a build at a dev backend, pass it on the command line:
+`./gradlew assembleDebug -PserverUrl=http://10.0.2.2:3000`. The emulator does not see the host machine as
+`localhost` — use `10.0.2.2`. See
 `.docs/process/dev-environment.md`'s "Android emulator ↔ WSL2 backend
 networking" section.
 

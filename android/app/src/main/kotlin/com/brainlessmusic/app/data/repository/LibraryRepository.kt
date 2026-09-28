@@ -1,9 +1,9 @@
 package com.brainlessmusic.app.data.repository
 
-import com.brainlessmusic.app.data.local.SessionStore
 import com.brainlessmusic.app.data.remote.ApiService
 import com.brainlessmusic.app.data.remote.ApiServiceFactory
 import com.brainlessmusic.app.data.remote.MediaUrlProvider
+import com.brainlessmusic.app.data.remote.ServerConfig
 import com.brainlessmusic.app.data.remote.dto.AlbumDetailDto
 import com.brainlessmusic.app.data.remote.dto.ArtistDetailDto
 import com.brainlessmusic.app.data.remote.dto.ArtistSummaryDto
@@ -11,14 +11,13 @@ import com.brainlessmusic.app.data.remote.dto.PlaybackStateDto
 import com.brainlessmusic.app.data.remote.dto.SavePlaybackStateRequest
 import com.brainlessmusic.app.data.remote.dto.ScrobbleRequest
 import com.brainlessmusic.app.data.remote.dto.SearchResultsDto
-import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class LibraryRepository @Inject constructor(
     private val apiServiceFactory: ApiServiceFactory,
-    private val sessionStore: SessionStore,
+    private val serverConfig: ServerConfig,
     private val mediaUrlProvider: MediaUrlProvider,
 ) {
 
@@ -57,9 +56,7 @@ class LibraryRepository @Inject constructor(
     fun trackCoverUrl(trackId: Int): String? = mediaUrlProvider.current?.let { "${it}tracks/$trackId/cover" }
 
     private suspend fun <T> callApi(block: suspend (ApiService) -> T): Result<T> {
-        val serverUrl = sessionStore.serverUrl.first()
-            ?: return Result.failure(ConnectionException(ConnectionError.Unreachable))
-        return runCatching { block(apiServiceFactory.get(serverUrl)) }
+        return runCatching { block(apiServiceFactory.get(serverConfig.url)) }
             .recoverCatching { throw ConnectionException(classifyError(it)) }
     }
 }

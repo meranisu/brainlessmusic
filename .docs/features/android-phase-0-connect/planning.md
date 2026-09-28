@@ -67,5 +67,6 @@ one generic "something went wrong."
 
 | Date | Phase affected | What changed | Why | Still fits the Plan phase? |
 |---|---|---|---|---|
+| 2026-09-28 | Interior | **Server address bound into the app** (`BuildConfig.SERVER_URL`, default `https://music.nobrainmusic.my`, `-PserverUrl=` to override); the login screen lost its address field and "Test connection" button and gained a green/red/grey server light that checks `/health` on open, on tap and after a failed login | Owner's call: the listener should only have to log in | Yes — same endpoints, less UI |
 | 2026-09-18 | Plan | Auth scope narrowed to password-login only, guest entry deferred | `.docs/process/android-phased-plan.md` predates guest access; logged as [Q29](../../QUESTIONS.md#q29--should-android-phase-0-support-guest-entry-not-just-password-login) rather than silently assumed | Yes — additive later |
 | 2026-09-18 | Phase 4 | Reversed the "can't build without Android Studio" assumption — JDK/Android SDK/Gradle installed user-space in WSL2, project actually compiled | Root wasn't needed for any of it, only assumed; the owner asked to check before falling back to Windows-only development | Yes — Phase 4 was written expecting Android Studio to be the only way in, not that it's unnecessary for building |

@@ -18,6 +18,7 @@ WSL2), `frontend/` (React), `android/` (Kotlin/Compose). Scope and order: [.docs
   never reaches it, and **no `cloudflared` is needed on this machine for it**. A local quick tunnel
   (`cloudflared tunnel --url http://localhost:3000`) is only a throwaway link for testing a local build and mints a new random URL each
   start. How that box was set up is in [.docs/ops/cloudflare-tunnel-deployment.md](.docs/ops/cloudflare-tunnel-deployment.md) ("As actually deployed"); there is no repeatable deploy procedure — ask before touching it.
+  The Android app has this host baked in (`SERVER_URL` in `android/app/build.gradle.kts`; `-PserverUrl=` for a dev backend), so its login screen has no address field.
 - **Never read `backend/.env`** or any file that may hold secrets.
 - **Owner questions** get a `Q<n>` in [.docs/QUESTIONS.md](.docs/QUESTIONS.md) *before* they are asked, and its `## Answered` section
   is read before asking anything. Answered means decided — do not re-open.
