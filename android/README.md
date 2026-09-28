@@ -58,10 +58,10 @@ The app talks to one server, fixed at build time: `https://music.nobrainmusic.my
 `.docs/process/dev-environment.md`'s "Android emulator ↔ WSL2 backend
 networking" section.
 
-Cleartext HTTP is intentionally allowed (`usesCleartextTraffic="true"`) for
-exactly this reason — the dev backend and a bare LAN server don't have TLS in
-front of them. The public deployment (roadmap box 13) puts real TLS at the
-edge via Cloudflare regardless of this flag.
+Release builds are HTTPS-only (`src/main/res/xml/network_security_config.xml`). Debug builds
+override that file (`src/debug/res/xml/`) to allow plain HTTP, so a dev backend or a bare LAN
+server works with `-PserverUrl=http://...`. The public deployment puts real TLS at the edge via
+Cloudflare regardless.
 
 ## What's built (Phase 0)
 

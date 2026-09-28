@@ -1,14 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Cleartext HTTP is intentionally allowed for every destination. This app's
-  whole first screen is "type in the address of a self-hosted server" — the
-  WSL2 dev backend and a bare LAN server both speak plain HTTP, with no way
-  to know in advance which hosts the user will type. The public deployment
-  (roadmap box 13) terminates real TLS at Cloudflare's edge regardless of
-  this file. See .docs/features/android-phase-0-connect/planning.md.
+  Release builds talk HTTPS only. The app's server is fixed at build time
+  (SERVER_URL in app/build.gradle.kts) and the public deployment terminates
+  TLS at Cloudflare's edge, so plain HTTP has no legitimate use here.
+  Debug builds override this file (src/debug/res/xml) to allow the HTTP dev
+  backend at http://10.0.2.2:3000.
 -->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="true">
+    <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
