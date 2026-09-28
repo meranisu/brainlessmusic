@@ -5,12 +5,14 @@ import com.brainlessmusic.app.data.remote.ApiServiceFactory
 import com.brainlessmusic.app.data.remote.MediaUrlProvider
 import com.brainlessmusic.app.data.remote.ServerConfig
 import com.brainlessmusic.app.data.remote.dto.AlbumDetailDto
+import com.brainlessmusic.app.data.remote.dto.AlbumsPageDto
 import com.brainlessmusic.app.data.remote.dto.ArtistDetailDto
 import com.brainlessmusic.app.data.remote.dto.ArtistSummaryDto
 import com.brainlessmusic.app.data.remote.dto.PlaybackStateDto
 import com.brainlessmusic.app.data.remote.dto.SavePlaybackStateRequest
 import com.brainlessmusic.app.data.remote.dto.ScrobbleRequest
 import com.brainlessmusic.app.data.remote.dto.SearchResultsDto
+import com.brainlessmusic.app.data.remote.dto.TracksPageDto
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -23,6 +25,12 @@ class LibraryRepository @Inject constructor(
 
     suspend fun getArtists(): Result<List<ArtistSummaryDto>> =
         callApi { it.artists().artists }
+
+    suspend fun getTracksPage(offset: Int, limit: Int): Result<TracksPageDto> =
+        callApi { it.tracks(limit, offset) }
+
+    suspend fun getAlbumsPage(offset: Int, limit: Int): Result<AlbumsPageDto> =
+        callApi { it.albums(limit, offset) }
 
     suspend fun getArtistDetail(id: Int): Result<ArtistDetailDto> =
         callApi { it.artistDetail(id) }

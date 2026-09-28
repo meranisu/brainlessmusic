@@ -101,3 +101,19 @@ data class SavePlaybackStateRequest(
     val queueIndex: Int,
     val positionSeconds: Double,
 )
+
+/** `GET /tracks` — the whole library, paged. */
+data class TracksPageDto(
+    val total: Int,
+    val limit: Int,
+    val offset: Int,
+    val tracks: List<TrackSummaryDto>,
+)
+
+/** `GET /albums` — every album, paged. */
+data class AlbumsPageDto(
+    val total: Int,
+    val limit: Int,
+    val offset: Int,
+    val albums: List<AlbumSummaryDto>,
+)

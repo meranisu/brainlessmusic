@@ -67,9 +67,26 @@ The owner also asked for genre, playlists and a Home dashboard — resolved as [
 
 ---
 
+## Library tabs (2026-09-28)
+
+The owner asked for a floating tab selector on the Library page: **Songs · Albums · Artists · Genres**.
+
+- The Library screen (`ui/library/LibraryScreen.kt`, replaces `ArtistsListScreen`) has a pill that floats over the list —
+  content scrolls under it, so each list starts a tab-bar's height down. Each tab loads the first time it is shown.
+- **Songs** = `GET /tracks?sort=title`, **Albums** = `GET /albums`, both paged 200 at a time and loading the next page as
+  the list nears its end (the earlier "one page of 200" scoping was only ever for artists). Tapping a song queues everything
+  loaded so far, starting there. **Artists** is the old list, unchanged.
+- **Genres is a placeholder.** The backend has no genre data at all (no column, no scanner extraction, no endpoint), which is
+  the "genre last, backend first" piece of [A22](../../QUESTIONS.md). The tab exists so the layout is final and says so
+  plainly; it shows nothing to browse until that backend work is done.
+- Not verified on a device.
+
+---
+
 ## Change Log
 
 | Date | Phase affected | What changed | Why | Still fits the Plan phase? |
 |---|---|---|---|---|
+| 2026-09-28 | Phase 3 (Interior) | Library page gained a floating Songs/Albums/Artists/Genres selector; new paged `GET /tracks` and `GET /albums` calls; Genres is a placeholder | Owner's request | Yes — additive, no navigation shape changed |
 | 2026-09-28 | Phase 3 (Interior) | Fixed padding drop in `LoadStateContent`, restyled search field, adopted Material You | Found by the owner on-device; Material You was an explicit design request | Yes — no API or navigation shape changed |
 | 2026-09-18 | Phase 1 (Interior) | Added manual refresh `IconButton`s to Artists/Artist-detail/Album-detail after first-pass review found refresh only worked from the error path | Phase 1's stated done-when includes "pull-to-refresh"; the first pass only half-delivered it | Yes — additive, no API or navigation shape changed |

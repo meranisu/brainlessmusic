@@ -1,6 +1,7 @@
 package com.brainlessmusic.app.data.remote
 
 import com.brainlessmusic.app.data.remote.dto.AlbumDetailDto
+import com.brainlessmusic.app.data.remote.dto.AlbumsPageDto
 import com.brainlessmusic.app.data.remote.dto.ArtistDetailDto
 import com.brainlessmusic.app.data.remote.dto.ArtistsPageDto
 import com.brainlessmusic.app.data.remote.dto.HealthResponse
@@ -12,6 +13,7 @@ import com.brainlessmusic.app.data.remote.dto.SavePlaybackStateRequest
 import com.brainlessmusic.app.data.remote.dto.ScrobbleRequest
 import com.brainlessmusic.app.data.remote.dto.ScrobbleResponse
 import com.brainlessmusic.app.data.remote.dto.SearchResultsDto
+import com.brainlessmusic.app.data.remote.dto.TracksPageDto
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -39,6 +41,17 @@ interface ApiService {
     // it and every library described in .docs/STATUS.md is well under it.
     @GET("artists")
     suspend fun artists(@Query("limit") limit: Int = 200, @Query("offset") offset: Int = 0): ArtistsPageDto
+
+    @GET("albums")
+    suspend fun albums(@Query("limit") limit: Int, @Query("offset") offset: Int): AlbumsPageDto
+
+    // Sorted server-side so paging is stable; hidden/missing tracks are already excluded by default.
+    @GET("tracks")
+    suspend fun tracks(
+        @Query("limit") limit: Int,
+        @Query("offset") offset: Int,
+        @Query("sort") sort: String = "title",
+    ): TracksPageDto
 
     @GET("artists/{id}")
     suspend fun artistDetail(@Path("id") id: Int): ArtistDetailDto

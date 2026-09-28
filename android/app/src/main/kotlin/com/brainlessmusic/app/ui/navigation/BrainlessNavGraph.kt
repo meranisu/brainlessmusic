@@ -10,7 +10,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.brainlessmusic.app.ui.albums.AlbumDetailScreen
 import com.brainlessmusic.app.ui.artists.ArtistDetailScreen
-import com.brainlessmusic.app.ui.artists.ArtistsListScreen
+import com.brainlessmusic.app.ui.library.LibraryScreen
 import com.brainlessmusic.app.ui.playback.NowPlayingScreen
 import com.brainlessmusic.app.ui.search.SearchScreen
 import com.brainlessmusic.app.ui.serverconfig.ServerConfigScreen
@@ -39,7 +39,7 @@ fun BrainlessNavGraph(navController: NavHostController = rememberNavController()
             )
         }
         composable(Routes.ARTISTS) {
-            ArtistsListScreen(
+            LibraryScreen(
                 navController = navController,
                 onLoggedOut = {
                     navController.navigate(Routes.SERVER_CONFIG) {
