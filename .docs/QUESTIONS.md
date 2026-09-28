@@ -324,6 +324,23 @@ is not lost.
 Landed: this ordering, in `.docs/features/android-phase-1-browse/planning.md`
 (Phase 1 stays browse + search only). Nothing for 2 or 3 is built.
 
+### A31 — Should project instructions live in a repo-root CLAUDE.md? *(was Q31)*
+**Answered:** 2026-09-28 · **Yes.** A short root [`CLAUDE.md`](../CLAUDE.md) (hard rules, verify-don't-recall rules,
+token rules, definition of done, pointers) now auto-loads each session; `.docs/CLAUDE.md` stays as the long-form reference.
+Landed with hooks in `.claude/hooks/` (bash guard, Stop-time type-check and doc check).
+
+### A32 — May STATUS.md be split into a short live file and an archive? *(was Q32)*
+**Answered:** 2026-09-28 · **Yes.** The full old file is frozen verbatim in
+[`history/status-archive.md`](history/status-archive.md); `STATUS.md` is now a one-page snapshot (target under 150 lines).
+README's per-endpoint link now points at the archive. `AGENTS.md` still says to update STATUS.md on completion — that now
+means the table row / Next list only; the header of `STATUS.md` says so.
+
+### A33 — How should the harness treat gortex for this repo? *(was Q33)*
+**Answered:** 2026-09-28 · **Make the global rule conditional** (option b). `~/.claude/CLAUDE.md` now says the gortex
+"MUST use" tables apply only when the `mcp__gortex__*` tools are actually connected; otherwise use Grep/Read/Edit normally.
+The repo was not tracked in gortex.
+
+
 ### A20 — Which OS for the server? *(was Q3)*
 **Answered:** 2026-09-16 · **Arch Linux**, running on a friend's existing
 gaming PC — not the dedicated home-server build `.docs/ops/infrastructure.md`

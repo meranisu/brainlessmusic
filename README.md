@@ -278,7 +278,7 @@ All routes except `/api/health` and `/api/auth/login` require `Authorization: Be
 - **Favorites** — `PUT /tracks/:id/favorite`, `DELETE /tracks/:id/favorite`, `GET /me/favorites`, `GET /me/favorites/ids`
 - **Shuffle** — `POST /shuffle` (artist-adjacency-avoiding reorder)
 
-Full behavior, edge cases, and verification detail for every endpoint: [.docs/STATUS.md](.docs/STATUS.md).
+Full behavior, edge cases, and verification detail for every endpoint: [.docs/history/status-archive.md](.docs/history/status-archive.md) (frozen 2026-09-28); newer changes are in [.docs/CHANGELOG.md](.docs/CHANGELOG.md).
 
 ## Manual test pages
 

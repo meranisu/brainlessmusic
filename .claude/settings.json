@@ -10,6 +10,30 @@
       "Bash(curl -s -X POST http://localhost:5180/api/auth/guest -H 'Content-Type: application/json' -d '{}')",
       "Bash(npx --yes playwright --version)",
       "Bash(node -e ' *)"
+    ],
+    "deny": [
+      "Read(./backend/.env)",
+      "Read(./backend/.env.*.local)",
+      "Read(./.env)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-bash.mjs\"", "timeout": 10 }]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/track-edits.mjs\"", "timeout": 10 }]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [{ "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop-check.mjs\"", "timeout": 180 }]
+      }
     ]
   }
 }
