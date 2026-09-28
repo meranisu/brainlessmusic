@@ -63,6 +63,22 @@ override that file (`src/debug/res/xml/`) to allow plain HTTP, so a dev backend 
 server works with `-PserverUrl=http://...`. The public deployment puts real TLS at the edge via
 Cloudflare regardless.
 
+## Small APK for the phones
+
+`./gradlew :app:assembleRelease` → `app/build/outputs/apk/release/app-release.apk`, **about 2 MB** (the debug
+APK is about 20 MB and stays that way — debug is unshrunk on purpose). What makes the difference:
+
+- **R8 + resource shrinking** in release. Most of the size was `material-icons-extended`, which R8 cuts to the few
+  icons the app uses. `proguard-rules.pro` keeps the API classes in `data/remote/dto` un-renamed, because Gson
+  reads them by field name.
+- **arm64 only** (POCO F5 and Xperia 5 V are both arm64) and **English strings only**. For an emulator or another
+  phone: `-PallAbis` brings back x86 and 32-bit libs.
+- The release build is signed with the local debug key so it installs over a debug install; a store release would
+  need a real keystore. Release is also HTTPS-only.
+
+A minified build can break at runtime in ways the compiler can't see (reflection). Anything that touches JSON,
+Hilt or Retrofit should be re-checked on the phone with the release APK.
+
 ## What's built (Phase 0)
 
 Server-config screen → test connection (`GET /api/health`) → login

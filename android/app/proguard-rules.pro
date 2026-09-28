@@ -1,4 +1,4 @@
-# Add project specific ProGuard rules here.
-# minifyEnabled is off for this early phase (see app/build.gradle.kts) — this
-# file exists so a later release build has somewhere to add rules without a
-# separate first change.
+# Gson fills these by reflecting on field names; R8 renaming them would make every
+# response parse to nulls. (Retrofit, OkHttp, Media3, Hilt and Coil ship their own consumer rules.)
+-keepattributes Signature, *Annotation*
+-keep class com.brainlessmusic.app.data.remote.dto.** { *; }

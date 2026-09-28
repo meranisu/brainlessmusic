@@ -20,11 +20,23 @@ android {
         // Override for a dev backend: ./gradlew assembleDebug -PserverUrl=http://10.0.2.2:3000
         val serverUrl = (project.findProperty("serverUrl") as String?) ?: "https://music.nobrainmusic.my"
         buildConfigField("String", "SERVER_URL", "\"$serverUrl\"")
+
+        // Size: both target phones (POCO F5, Xperia 5 V) are arm64, and only English strings are
+        // wanted. `-PallAbis` brings back the x86/32-bit libs for an emulator or an old phone.
+        resourceConfigurations += "en"
+        if (!project.hasProperty("allAbis")) {
+            ndk { abiFilters += "arm64-v8a" }
+        }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8 drops the unused ~99% of material-icons-extended, the bulk of the dex.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            // Personal sideloading: signed with the local debug key so it installs over the debug build
+            // (same signature). A store release would need a real keystore instead.
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
