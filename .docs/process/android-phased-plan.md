@@ -112,6 +112,15 @@ screens use `MaterialTheme.colorScheme` roles and never hardcode colors.
   directly in composables (only `Theme.kt` should read them), or the
   dynamic scheme will be bypassed on those elements.
 
+### Light / dark (2026-09-28)
+
+The scheme always followed the phone's light/dark setting, but there was no way to override it in the app. Settings now has
+**Theme: System / Light / Dark** (`AppearanceSettings`, DataStore, default System, survives logout). It picks between the
+dynamic (or static fallback) dark and light schemes; Material You wallpaper color still applies in both. The saved choice is
+read once synchronously at launch so a forced theme never flashes the other one, the status/navigation bar icon colors follow
+the app's choice rather than the phone's, and the pre-Compose window background is now light by day / navy by night
+(`values/` and `values-night/`) instead of always navy. Not verified on a device.
+
 ## App icon (2026-09-28)
 
 An abstract mark: an orange disc with a waveform cut out of it and a small satellite dot, on a deep-navy adaptive
