@@ -308,6 +308,17 @@ is not lost.
 
 ## Answered
 
+### A35 — What is the design reference, and what should the app feel like? *(was Q35)*
+**Answered:** 2026-10-09 · **References:** beatmania IIDX, Sound Voltex, osu!, DJMAX Respect, maimai, CHUNITHM.
+**Mood:** a machine offering you things; flat and solid; loud backdrop, legible text. **Never:** a generic SaaS
+dashboard, glassy / neon-glow surfaces, and no other hard bans. Asked so UI work has written direction instead of an
+agent inventing one. Landed in the root [`DESIGN.md`](../DESIGN.md).
+
+### A36 — Does Android carry the web identity, or follow the wallpaper? *(was Q36)*
+**Answered:** 2026-10-09 · **Same brand as the web.** Recorded in [`DESIGN.md`](../DESIGN.md) as the target. Android
+still defaults to Material dynamic colour and the system font (`ui/theme/Theme.kt:51`, `Type.kt:10`), noted there as a
+known gap; no Android code changed.
+
 ### A34 — Fold `/manage` into the Library as a Simple / Full toggle, visible to every user? *(was Q34)*
 **Answered:** 2026-09-28 · **Yes, default Simple.** The Library page now has a Simple (arcade select) / Full (album-grouped
 table, styled after the owner's AIMP screenshot) toggle, remembered per device; `/manage` redirects to `/?view=full`. Full is

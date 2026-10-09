@@ -1,0 +1,76 @@
+# DESIGN.md — brainlessmusic
+
+Design direction for every UI in this repo (web `frontend/`, Android `android/`). It records decisions the owner has
+made: the answers to [A35/A36](.docs/QUESTIONS.md#answered), plus choices already built and explained in the code
+(cited). It is direction, not a component spec. Where this file and the code disagree, the code is current; fix
+whichever one is wrong, and do not quietly follow either.
+
+## Identity
+
+An arcade rhythm-game music select pointed at your own library. The references are **beatmania IIDX, Sound Voltex,
+osu!, DJMAX Respect, maimai and CHUNITHM** (A35). Borrow their composition and behaviour, not their artwork or logos.
+
+What that means in practice, as already built:
+
+- **The list moves, the cursor does not.** The selected entry stays fixed and everything else slides past it. "A cursor
+  walking down a static list is a file browser; a list travelling under a fixed cursor is a machine offering you
+  things." (`frontend/src/components/ArcadeSelect.tsx:68-72`)
+- **Chosen item large on one side, names on the other.** (`ArcadeSelect.tsx:65`)
+- **Content band plus a side panel of scrolling geometric graphics** on the title screen. (`TitleScreenPanel.tsx:47-51`, right half of the screen)
+- **The player bar is a control deck**, not a media-player strip (commit `93dd81d`).
+
+## Mood
+
+Owner's picks (A35):
+
+- **A machine offering you things.** Browsing should feel like a cabinet presenting songs, not like a file manager.
+- **Flat and solid.** Use solid borders for elevation and swap the border colour on focus. No drop-shadow blur, no
+  rings, no glow (`frontend/src/index.css:388-395`).
+- **Loud backdrop, legible text.** The animated backdrop can be strong. The only limit is that text in front of it stays
+  readable (backdrop strength turned up 2026-09-11).
+
+## Never
+
+- **A generic SaaS dashboard:** sidebar, row of stat cards, soft shadows, decorative gradients.
+- **Glassy or neon-glow surfaces:** blur panels, glow rings, bloom.
+
+The owner chose no other bans (A35).
+
+## Palette
+
+Colours are theme tokens, never literals. A colour written straight into a rule can't be reached by any theme
+(`frontend/src/index.css:312-317`). Tailwind's scale names are **positional**, not hues: `blue-950` is the deepest
+ground, `blue-300` is muted text, `orange-600` is the accent (`frontend/src/lib/theme.ts:14-18`). Danger and success
+keep their meaning in every theme. Danger moves out of the theme's own hue when the two would clash.
+
+- **Default ("Deep blue", the original):** navy ground `#080e28`, blue backdrop, orange accent
+  (`index.css:312-334`, `theme.ts:36`).
+- **Alternatives, chosen by the user:** Crimson (after IIDX RED), Void (near-black, accent only), Nord, Magenta (after
+  osu!), Pastel (Material tonal). Each names its source in `theme.ts:26-33`. That stated source is their purpose, so
+  Magenta's vivid and Pastel's soft palettes are intentional, not defaults.
+- A theme controls **colour only**. Layout and type stay the same (Q19, still open, colour-only recommended).
+
+## Typography
+
+- **Fredoka** (500–700): the wordmark only (`.font-brand`, `index.css:355-358`).
+- **Barlow Condensed** (800): track titles at display size (`.font-display`). Narrow and heavy so weight carries the
+  title instead of `text-transform`. A third of the library has mixed-script titles, and uppercasing them capitalises
+  only the Latin half (`index.css:360-367`).
+- Everything else uses the system UI sans.
+- Both web fonts load from Google Fonts in `frontend/index.html:18`.
+
+## Motion
+
+- Title-screen animation runs on one tempo, `--beat: 0.4s` (150 BPM), so nothing drifts (`index.css:306-310`).
+- The mosaic's wavefront burns orange on the downbeat (`TitleScreenPanel.tsx:53-56`).
+- On the title screen and login page, themes cycle with a 4 s cross-fade. A manual pick in Options switches instantly
+  (`index.css:282-290`). The cycle is skipped under reduced motion (`useThemeCycle.ts:21`).
+
+## Android
+
+**Same brand as the web** (A36): the navy-and-orange default, flat surfaces, Fredoka and Barlow Condensed.
+
+Known gap, not yet closed: the Android theme defaults to Material dynamic colour, which follows the wallpaper
+(`android/.../ui/theme/Theme.kt:51`). It uses the system font (`Type.kt:10`), and its colours only "loosely match" the
+web (`Color.kt:5-8`). Close the gap when Android UI work next touches the theme. Until then, don't treat Android's
+current look as the reference.
