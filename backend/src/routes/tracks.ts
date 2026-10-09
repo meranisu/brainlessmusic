@@ -576,7 +576,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
 
   fastify.post<{ Params: { id: string }; Body: { msPlayed?: number } }>(
     '/tracks/:id/scrobble',
-    { preHandler: fastify.authenticate },
+    { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
       const id = Number(request.params.id);
       if (!Number.isInteger(id)) {
@@ -607,7 +607,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
 
   fastify.get<{ Params: { id: string }; Querystring: { limit?: string; offset?: string } }>(
     '/tracks/:id/history',
-    { preHandler: fastify.authenticate },
+    { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
       const id = Number(request.params.id);
       if (!Number.isInteger(id)) {

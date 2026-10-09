@@ -254,25 +254,20 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
   /** Creates or replaces the signed-in account's own passcode. Self-service only — see `/auth/passcode-login`'s doc comment for why a wrong one can't be told apart from a missing one. */
   fastify.post<{ Body: { passcode?: unknown } }>(
     '/auth/passcode',
-    { preHandler: fastify.authenticate },
+    { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
-      const user = findUserById(request.user!.id);
-      if (!user || user.kind === 'guest') {
-        return reply.code(403).send({ error: 'guests cannot set a passcode' });
-      }
-
       const passcode = request.body?.passcode;
       if (typeof passcode !== 'string' || !PASSCODE_PATTERN.test(passcode)) {
         return reply.code(400).send({ error: 'passcode must be 4-8 digits' });
       }
 
       const passcodeHash = await hashPasscode(passcode);
-      setPasscodeHashById(user.id, passcodeHash);
+      setPasscodeHashById(request.user!.id, passcodeHash);
       return reply.code(204).send();
     },
   );
 
-  fastify.delete('/auth/passcode', { preHandler: fastify.authenticate }, async (request, reply) => {
+  fastify.delete('/auth/passcode', { preHandler: [fastify.authenticate, fastify.requireAccount] }, async (request, reply) => {
     clearPasscodeById(request.user!.id);
     return reply.code(204).send();
   });

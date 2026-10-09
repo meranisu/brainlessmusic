@@ -46,7 +46,7 @@ this section is a hint, not the source of truth. When these land, update the sch
 
 - **Backend:** custom Node.js/TypeScript (Fastify), not Navidrome — [history/backend-decision-history.md](history/backend-decision-history.md).
 - **Database:** SQLite, own schema, FTS5 + WAL.
-- **Auth:** JWT + bcrypt; guest entry replaces the login form, `/login` kept but unadvertised, `ENTRY_CODE` ships unset, `/signup` removed (A13–A16).
+- **Auth:** JWT + bcrypt; guest entry replaces the login form, `/login` kept but unadvertised, `ENTRY_CODE` ships unset, `/signup` removed (A13–A16). Guests are listen-only since 2026-10-09: no playlists, favorites, play counts or history, enforced by `requireAccount` (A37; not yet on smol).
 - **Deployment:** Docker on a friend's Arch Linux PC (`smol`), reached via Cloudflare Tunnel at `music.nobrainmusic.my` since 2026-09-21; Cloudflare Access is still off (Q30) (A20/A21).
 - **Dev environment:** WSL2 for the backend, native Windows / Android Studio for the app — [process/dev-environment.md](process/dev-environment.md).
 - **Web vs Android:** Android is the listening client; web is the control room (management parity and beyond).

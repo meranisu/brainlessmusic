@@ -4,6 +4,36 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-09 — Guests are listen-only: no playlists, favorites, play counts or history
+
+Owner decision A37: a guest browses, searches, streams and keeps "resume where you left off", and nothing that
+builds up personal data. Enforced on the server; the web app hides what a guest can't use. Android unchanged
+(login only, A29). Plan: `.docs/features/guest-listen-only/planning.md`.
+
+- **Backend gate:** new `requireAccount` preHandler (`plugins/auth.ts`, beside `requireAdmin`, re-reads the row)
+  answers guests `403 Guests can't do that`. Applied to all 8 playlist routes, the 4 favorites routes,
+  `GET /me/history`, `GET /tracks/:id/history`, `GET /stats/top-tracks`, `POST /tracks/:id/scrobble`, and
+  `POST`/`DELETE /auth/passcode` (the POST already refused guests inside its handler; that check moved into the
+  gate so the classification test can see it). `GET /admin/health` stays open to guests on purpose: the
+  empty-library screen uses it.
+- **Route classification test** (`routes/guestAccess.test.ts`): reads every API route's real preHandlers as it
+  registers and compares them with a table of 60 routes (public / guest / account / admin / custom). A new
+  route, or one whose gate changes, fails until the table says who may call it. A second block hits every
+  account-only route with a guest token (all 403) and an account token (none 403), and every guest route with
+  a guest token (no 401/403).
+- **Web:** `RequireAccount` route guard on `/favorites` and `/playlists/*` (inline "Needs an account" message,
+  like `RequireAdmin`); Favorites/Playlists nav links hidden; `FavoriteButton` renders nothing and the
+  favorite-ids query doesn't run for guests; "Add to playlist" left out of the row menu; the player skips the
+  scrobble call for guests. Options for a guest was already Theme, Playback, This device.
+- **Verified:** backend `npx tsc --noEmit` clean; `npm test` 336 pass, 0 fail (4 new). Mutation check: removing
+  the gate from `POST /playlists` and adding an unlisted route failed both new tests, naming each; reverted.
+  Frontend `npm run build` clean; `npm run lint` 8 warnings, same 8 as before the change. Walkthrough in
+  headless Chromium against a throwaway server (own DB, one generated tone, port 3100): guest sees Library /
+  Albums / Artists only, no hearts, no "Add to playlist", "Needs an account" on `/favorites` and `/playlists`,
+  zero 403s and no page errors; guest played to 0:25 of a 30 s track with no scrobble request, and a reload
+  restored the track from `/me/playback-state`. Control: a fresh account's play of the same track sent the
+  scrobble at the halfway mark and play count went to 1. Admin view unchanged. Not deployed to smol.
+
 ## 2026-09-28 — `GET /api/browse/shuffled`: the whole library in a seeded random order, a page at a time
 
 For the Android "shuffle all" and its endless queue: a queue of 200 songs ends, and the owner wants to hear

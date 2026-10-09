@@ -41,14 +41,19 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
  * Exit came to 785px inside a 721px bar, and the page scrolled sideways again —
  * the very fault this split exists to fix, moved rather than removed.
  */
-function navItemsFor(isAdmin: boolean): { primary: NavItem[]; overflow: NavItem[] } {
+function navItemsFor(isAdmin: boolean, isGuest: boolean): { primary: NavItem[]; overflow: NavItem[] } {
   return {
     primary: [
       { to: '/', label: 'Library', end: true },
       { to: '/albums', label: 'Albums' },
       { to: '/artists', label: 'Artists' },
-      { to: '/favorites', label: 'Favorites' },
-      { to: '/playlists', label: 'Playlists' },
+      // Guests are listen-only (A37).
+      ...(isGuest
+        ? []
+        : [
+            { to: '/favorites', label: 'Favorites' },
+            { to: '/playlists', label: 'Playlists' },
+          ]),
     ],
     overflow: [
       ...(isAdmin
@@ -151,7 +156,7 @@ export function AppShell() {
 
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { primary, overflow } = navItemsFor(Boolean(user?.isAdmin));
+  const { primary, overflow } = navItemsFor(Boolean(user?.isAdmin), Boolean(user?.isGuest));
   const current = activeIndex(primary, pathname);
 
   /**

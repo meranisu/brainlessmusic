@@ -5,7 +5,7 @@ import { parsePagination } from '../utils/pagination.js';
 const statsRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Querystring: { limit?: string; offset?: string } }>(
     '/stats/top-tracks',
-    { preHandler: fastify.authenticate },
+    { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
       const { limit, offset } = parsePagination(request.query);
       const tracks = listTopTracks(limit, offset);

@@ -136,6 +136,7 @@ export function LibraryFull() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const isAdmin = Boolean(user?.isAdmin);
+  const isGuest = Boolean(user?.isGuest);
 
   // Every filter lives in the URL: a filtered view is then a link —
   // bookmarkable, and still there after a refresh.
@@ -347,7 +348,7 @@ export function LibraryFull() {
             isAdmin={isAdmin}
             onEdit={() => setActiveTrack({ id: t.id, tab: 'tags' })}
             onDiagnostics={() => setActiveTrack({ id: t.id, tab: 'diagnostics' })}
-            onAddToPlaylist={() => setPlaylistTarget(t)}
+            onAddToPlaylist={isGuest ? undefined : () => setPlaylistTarget(t)}
             onToggleHidden={() => patchMutation.mutate({ id: t.id, patch: { hidden: !t.hidden } })}
             onToggleNotRecommended={() =>
               patchMutation.mutate({ id: t.id, patch: { notRecommended: !t.notRecommended } })

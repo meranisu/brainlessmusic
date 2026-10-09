@@ -5,7 +5,7 @@ import { parsePagination } from '../utils/pagination.js';
 const historyRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Querystring: { limit?: string; offset?: string } }>(
     '/me/history',
-    { preHandler: fastify.authenticate },
+    { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
       const { limit, offset } = parsePagination(request.query);
       const userId = request.user!.id;

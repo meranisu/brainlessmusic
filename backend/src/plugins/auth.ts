@@ -12,6 +12,7 @@ declare module 'fastify' {
     authenticate(request: FastifyRequest, reply: FastifyReply): Promise<void>;
     authenticateMedia(request: FastifyRequest, reply: FastifyReply): Promise<void>;
     requireAdmin(request: FastifyRequest, reply: FastifyReply): Promise<void>;
+    requireAccount(request: FastifyRequest, reply: FastifyReply): Promise<void>;
   }
   interface FastifyRequest {
     user?: AuthUser;
@@ -66,6 +67,17 @@ export function registerAuthDecorator(app: FastifyInstance): void {
     const user = request.user && findUserById(request.user.id);
     if (!user?.is_admin) {
       return reply.code(403).send({ error: 'Admin access required' });
+    }
+  });
+
+  // Guests are listen-only (A37): they browse, stream and keep their resume
+  // position, but anything that builds up personal data — playlists,
+  // favorites, play counts, history — needs a real account. Same shape as
+  // `requireAdmin`: runs after `authenticate` and re-reads the row.
+  app.decorate('requireAccount', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user && findUserById(request.user.id);
+    if (!user || user.kind === 'guest') {
+      return reply.code(403).send({ error: "Guests can't do that" });
     }
   });
 }

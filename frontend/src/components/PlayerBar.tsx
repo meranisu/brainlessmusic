@@ -332,6 +332,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const consecutiveLoadFailuresRef = useRef(0);
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  // Read by `scrobble`, which runs from listeners bound once on mount and
+  // would otherwise see the user as it was on the first render.
+  const isGuestRef = useRef(false);
+  isGuestRef.current = Boolean(user?.isGuest);
   const { showToast } = useToast();
   const favoriteIds = useFavoriteIds();
 
@@ -425,6 +429,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function scrobble(trackId: number, msPlayed: number) {
+    // Guest plays aren't counted (A37); the route would answer 403.
+    if (isGuestRef.current) return;
     try {
       await apiClient.post(`/tracks/${trackId}/scrobble`, { msPlayed });
       // Play counts show up in the library table and the track drawer, so let

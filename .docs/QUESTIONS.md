@@ -37,6 +37,9 @@ is never asked twice.
 | [Q20](#q20--where-does-the-theme-choice-live) | Where does the theme choice live? | 2026-09-11 | No — assumption stated |
 | [Q23](#q23--should-selecting-a-track-preview-it) | Should selecting a track preview it? | 2026-09-11 | No — assumption stated |
 | [Q30](#q30--should-cloudflare-access-sit-in-front-of-the-public-hostname) | Should Cloudflare Access sit in front of the public hostname? | 2026-09-21 | No — assumption stated |
+| [Q38](#q38--delete-guests-existing-playlists-and-favorites) | Delete guests' existing playlists and favorites? | 2026-10-09 | No — assumption stated |
+| [Q39](#q39--how-does-a-change-reach-smol) | How does a change reach smol? | 2026-10-09 | Yes, for A37 to take effect in production |
+| [Q40](#q40--should-the-stop-hook-see-edits-made-from-the-shell) | Should the Stop hook see edits made from the shell? | 2026-10-09 | No |
 
 ### Q2 — When does open registration get turned off?
 **Asked:** 2026-09-09 · **Blocking:** yes, at box 13's done-when
@@ -252,24 +255,6 @@ distinct future feature, not a corner cut silently.
 
 ---
 
-### Q29 — Should Android Phase 0 support guest entry, not just password login?
-**Asked:** 2026-09-18 · **Blocking:** no
-
-`.docs/process/android-phased-plan.md`'s Phase 0 was written before guest
-access shipped (2026-09-11) and only specs `POST /auth/login` (username +
-password). The web app's front door is now guest-entry-first, with password
-login demoted to an unadvertised `/login`.
-
-**Assumption I will build on: password login only, for now.** This is the
-owner's own device, not a friend's — Phase 0's done-when ("credentials
-persist across app restarts") reads as written for a real account, and guest
-entry has no persistent identity to restore on restart anyway. `AuthRepository`
-is structured so a `guestLogin()` method would be additive (same token shape,
-same `TokenProvider`/`SessionStore` plumbing), not a rework, if this turns out
-wrong. Say so if the Android app should offer a guest option too.
-
----
-
 ### Q30 — Should Cloudflare Access sit in front of the public hostname?
 **Asked:** 2026-09-21 · **Blocking:** no — assumption stated
 
@@ -302,11 +287,45 @@ database backups, which live in the same Docker volume as the database) off
 `smol`, so a dead disk takes both. Not a question — a gap; noted here so it
 is not lost.
 
+### Q38 — Delete guests' existing playlists and favorites?
+**Asked:** 2026-10-09 · **Blocking:** no — assumption stated
+
+Since [A37](#a37--guests-are-listen-only-what-do-they-keep-was-q37) guests can't reach playlists or favorites, but
+any a guest made before the change are still in the production database, unreachable.
+
+**Assumption: leave them.** They cost nothing and deleting is irreversible. Say so if they should be removed (a
+one-off delete on smol, after a backup).
+
+### Q39 — How does a change reach smol?
+**Asked:** 2026-10-09 · **Blocking:** yes, for A37 to take effect in production
+
+Production (`brainless-app` on smol) has no repeatable deploy procedure; the root `CLAUDE.md` says to ask before
+touching it. The guest limits (A37) are committed but the live site still lets guests do everything. Needed: who
+deploys, and how (pull and `docker compose up --build` on smol, or another way).
+
+### Q40 — Should the Stop hook see edits made from the shell?
+**Asked:** 2026-10-09 · **Blocking:** no
+
+`.claude/hooks/track-edits.mjs` records only Edit/Write/MultiEdit, so files changed by a shell command are missed
+by the Stop hook: on 2026-10-09 it reported a missing CHANGELOG entry that existed, and its type-check skipped
+shell-edited files. Fix: also read `git status` at Stop. Hook changes need the owner's OK.
+
 ---
 
 ---
 
 ## Answered
+
+### A37 — Guests are listen-only: what do they keep? *(was Q37)*
+**Answered:** 2026-10-09 · Guests browse (songs, albums, artists, genres once they exist), search, stream, and keep
+**resume where they left off**. **No** playlists, favorites, play counting or history, or top tracks. Settings are
+limited to player design and appearance. Overrides [A13](#a13--one-guest-identity-per-device-not-a-shared-house-account)'s
+per-guest favorites. Plan: [`.docs/features/guest-listen-only/planning.md`](features/guest-listen-only/planning.md).
+Nothing built yet.
+
+### A29 — Should Android support guest entry? *(was Q29)*
+**Answered:** 2026-10-09 · **No, login only.** The stated assumption stands: Android is for real accounts, guests
+use the web app.
 
 ### A35 — What is the design reference, and what should the app feel like? *(was Q35)*
 **Answered:** 2026-10-09 · **References:** beatmania IIDX, Sound Voltex, osu!, DJMAX Respect, maimai, CHUNITHM.

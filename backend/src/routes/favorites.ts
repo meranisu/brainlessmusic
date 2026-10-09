@@ -12,7 +12,7 @@ import { parsePagination } from '../utils/pagination.js';
 const favoritesRoute: FastifyPluginAsync = async (fastify) => {
   fastify.put<{ Params: { id: string } }>(
     '/tracks/:id/favorite',
-    { preHandler: fastify.authenticate },
+    { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
       const id = Number(request.params.id);
       if (!Number.isInteger(id) || !findTrackById(id)) {
@@ -26,7 +26,7 @@ const favoritesRoute: FastifyPluginAsync = async (fastify) => {
 
   fastify.delete<{ Params: { id: string } }>(
     '/tracks/:id/favorite',
-    { preHandler: fastify.authenticate },
+    { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
       const id = Number(request.params.id);
       if (!Number.isInteger(id) || !findTrackById(id)) {
@@ -40,13 +40,13 @@ const favoritesRoute: FastifyPluginAsync = async (fastify) => {
 
   // Registered before '/me/favorites' for readability; Fastify routes on the
   // full path either way.
-  fastify.get('/me/favorites/ids', { preHandler: fastify.authenticate }, async (request, reply) => {
+  fastify.get('/me/favorites/ids', { preHandler: [fastify.authenticate, fastify.requireAccount] }, async (request, reply) => {
     return reply.send({ trackIds: listFavoriteTrackIdsForUser(request.user!.id) });
   });
 
   fastify.get<{ Querystring: { limit?: string; offset?: string } }>(
     '/me/favorites',
-    { preHandler: fastify.authenticate },
+    { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
       const { limit, offset } = parsePagination(request.query);
       const userId = request.user!.id;

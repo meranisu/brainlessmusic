@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '../auth/AuthContext';
 import { apiClient, getToken } from '../lib/apiClient';
 import { useToast } from './ToastProvider';
 
@@ -11,6 +12,7 @@ const FAVORITE_IDS_KEY = ['favorites', 'ids'];
  * them, because they read the same query.
  */
 export function useFavoriteIds() {
+  const { user } = useAuth();
   const { data } = useQuery({
     queryKey: FAVORITE_IDS_KEY,
     queryFn: () => apiClient.get<{ trackIds: number[] }>('/me/favorites/ids'),
@@ -18,7 +20,8 @@ export function useFavoriteIds() {
     // The player provider wraps the login route too, so without this the
     // query fires unauthenticated on the login screen — a guaranteed 401,
     // and `request()` clears the stored token on any 401.
-    enabled: Boolean(getToken()),
+    // Guests have no favorites (A37), and the route answers them 403.
+    enabled: Boolean(getToken()) && user != null && !user.isGuest,
   });
 
   return new Set(data?.trackIds ?? []);
@@ -32,6 +35,7 @@ interface FavoriteButtonProps {
 }
 
 export function FavoriteButton({ trackId, isFavorited, className = '' }: FavoriteButtonProps) {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
 
@@ -67,6 +71,9 @@ export function FavoriteButton({ trackId, isFavorited, className = '' }: Favorit
       queryClient.invalidateQueries({ queryKey: ['favorites', 'list'] });
     },
   });
+
+  // Hidden until the user is known, so a guest never sees a heart flash in.
+  if (!user || user.isGuest) return null;
 
   return (
     <button

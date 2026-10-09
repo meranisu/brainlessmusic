@@ -4,6 +4,30 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `requireAccount` — `backend/src/plugins/auth.ts`
+**Date:** 2026-10-09
+**How added:** new feature (A37, guests are listen-only)
+**Purpose:** preHandler run after `authenticate`; re-reads the user and answers `403` when the row is missing or `kind = 'guest'`.
+**Side effects:** one user read per request on the routes it guards.
+**Before:** only `authenticate` and `requireAdmin` existed, so a guest could call every playlist, favorite, history, stats and scrobble route.
+**After:** guards 18 routes (playlists, favorites, history, top tracks, scrobble, passcode). `routes/guestAccess.test.ts` fails if a route's gate drifts from its table.
+
+**Function:** `RequireAccount` — `frontend/src/auth/RequireAccount.tsx` (new file)
+**Date:** 2026-10-09
+**How added:** new feature
+**Purpose:** route guard for `/favorites` and `/playlists/*`; shows a guest an inline "Needs an account" message instead of the page.
+**Side effects:** none.
+**Before:** guests could open both pages, whose requests would now get 403.
+**After:** guests see why; accounts see the page as before.
+
+**Function:** `FavoriteButton` / `useFavoriteIds()`, `TrackRowMenu`, `navItemsFor()`, `scrobble()` — `frontend/src/components/FavoriteButton.tsx`, `TrackRowMenu.tsx`, `AppShell.tsx`, `PlayerBar.tsx`
+**Date:** 2026-10-09
+**How added:** new feature
+**Purpose:** hide guest-blocked controls: no heart and no favorite-ids query for guests; "Add to playlist" only when the caller passes a handler (LibraryFull omits it for guests); no Favorites/Playlists nav links; the player's `scrobble` returns early for guests via `isGuestRef`.
+**Side effects:** guests make no favorites or scrobble requests.
+**Before:** every user saw and could use these.
+**After:** a guest sees browse and play controls only. `isGuestRef` exists because `scrobble` runs from listeners bound once on mount.
+
 **Function:** `seededShuffle(items, seed)` — `backend/src/services/shuffle.ts`
 **Date:** 2026-09-28
 **How added:** new feature (Android endless shuffle)

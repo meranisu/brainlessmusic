@@ -51,7 +51,7 @@ function loadOwnedPlaylist(
 const playlistsRoute: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Body: { name?: string } }>(
     '/playlists',
-    { preHandler: fastify.authenticate },
+    { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request: FastifyRequest<{ Body: { name?: string } }>, reply) => {
       const name = request.body?.name?.trim();
       if (!name) {
@@ -69,7 +69,7 @@ const playlistsRoute: FastifyPluginAsync = async (fastify) => {
 
   fastify.get(
     '/playlists',
-    { preHandler: fastify.authenticate },
+    { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
       const playlists = listPlaylistsForUser(request.user!.id);
       return reply.send({ playlists });
@@ -78,7 +78,7 @@ const playlistsRoute: FastifyPluginAsync = async (fastify) => {
 
   fastify.get<{ Params: { id: string } }>(
     '/playlists/:id',
-    { preHandler: fastify.authenticate },
+    { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
       const id = parseId(request.params.id);
       const playlist = loadOwnedPlaylist(id, request.user!.id, reply);
@@ -90,7 +90,7 @@ const playlistsRoute: FastifyPluginAsync = async (fastify) => {
 
   fastify.patch<{ Params: { id: string }; Body: { name?: string } }>(
     '/playlists/:id',
-    { preHandler: fastify.authenticate },
+    { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
       const id = parseId(request.params.id);
       const playlist = loadOwnedPlaylist(id, request.user!.id, reply);
@@ -108,7 +108,7 @@ const playlistsRoute: FastifyPluginAsync = async (fastify) => {
 
   fastify.delete<{ Params: { id: string } }>(
     '/playlists/:id',
-    { preHandler: fastify.authenticate },
+    { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
       const id = parseId(request.params.id);
       const playlist = loadOwnedPlaylist(id, request.user!.id, reply);
@@ -121,7 +121,7 @@ const playlistsRoute: FastifyPluginAsync = async (fastify) => {
 
   fastify.post<{ Params: { id: string }; Body: { trackId?: number } }>(
     '/playlists/:id/tracks',
-    { preHandler: fastify.authenticate },
+    { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
       const id = parseId(request.params.id);
       const playlist = loadOwnedPlaylist(id, request.user!.id, reply);
@@ -148,7 +148,7 @@ const playlistsRoute: FastifyPluginAsync = async (fastify) => {
 
   fastify.delete<{ Params: { id: string; trackId: string } }>(
     '/playlists/:id/tracks/:trackId',
-    { preHandler: fastify.authenticate },
+    { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
       const id = parseId(request.params.id);
       const playlist = loadOwnedPlaylist(id, request.user!.id, reply);
@@ -170,7 +170,7 @@ const playlistsRoute: FastifyPluginAsync = async (fastify) => {
 
   fastify.patch<{ Params: { id: string }; Body: { trackIds?: number[] } }>(
     '/playlists/:id/tracks/reorder',
-    { preHandler: fastify.authenticate },
+    { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
       const id = parseId(request.params.id);
       const playlist = loadOwnedPlaylist(id, request.user!.id, reply);

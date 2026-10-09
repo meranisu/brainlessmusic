@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { RequireAdmin } from './auth/RequireAdmin';
+import { RequireAccount } from './auth/RequireAccount';
 import { RequireAuth } from './auth/RequireAuth';
 import { AppShell } from './components/AppShell';
 
@@ -57,9 +58,11 @@ export function App() {
             <Route path="/albums/:id" element={<AlbumDetailPage />} />
             <Route path="/artists" element={<ArtistsPage />} />
             <Route path="/artists/:id" element={<ArtistDetailPage />} />
-            <Route path="/favorites" element={<FavoritesPage />} />
-            <Route path="/playlists" element={<PlaylistsPage />} />
-            <Route path="/playlists/:id" element={<PlaylistDetailPage />} />
+            <Route element={<RequireAccount />}>
+              <Route path="/favorites" element={<FavoritesPage />} />
+              <Route path="/playlists" element={<PlaylistsPage />} />
+              <Route path="/playlists/:id" element={<PlaylistDetailPage />} />
+            </Route>
             <Route path="/search" element={<SearchPage />} />
             <Route path="/options" element={<OptionsPage />} />
             {/* Folded into the Library's Full view, open to everyone — kept as a
