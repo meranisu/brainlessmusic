@@ -32,7 +32,7 @@ part of a year.
 
 | Phase | What it covers | Status | Checklist |
 |---|---|---|---|
-| 1. Plan | This doc; owner answers Q61–Q66 | In progress | [Phase 1](#phase-1-plan) |
+| 1. Plan | This doc; owner answers Q61–Q66 | Done | [Phase 1](#phase-1-plan) |
 | 2. Stats backend | Per-user stats endpoint; full listening time | Not started | [Phase 2](#phase-2-stats-backend) |
 | 3. Profile screen | Header, top songs/artists, liked, less often, playlists | Not started | [Phase 3](#phase-3-profile-screen) |
 | 4. Genres | Genre column, scanner, re-scan, genre stats and the Genres tab | Not started | [Phase 4](#phase-4-genres) |
@@ -48,7 +48,8 @@ can follow in any order.
 ## Phase 1: Plan
 
 - [x] Survey what exists (table above)
-- [ ] Owner answers [Q61](../../QUESTIONS.md)–Q66
+- [x] Owner answered A61–A64 (2026-10-11): "You" tab; real listening time from the next release; live daily mix;
+      Wrapped yearly from December. Q65 (edit playlists on Android) and Q66 (web) stay open on stated assumptions.
 
 ## Phase 2: Stats backend
 
@@ -57,14 +58,14 @@ can follow in any order.
       `play_history` (indexed on `user_id, played_at`), grouped by `track_id`.
 - [ ] Per-song detail, `GET /me/stats/tracks/:id`: plays, time listened, first and last play.
 - [ ] `GET /me/less-often` with track summaries (today only ids exist).
-- [ ] Full listening time (depends on Q62): the app keeps counting after the threshold and, when the track ends or is
-      skipped, sends the final amount. Backend: `PATCH` the play's `ms_played` (the scrobble returns the history id),
-      or a second endpoint. Old plays keep their partial value or get estimated, per Q62.
+- [ ] Full listening time (A62): the app keeps counting after the threshold and, when the track ends or is skipped,
+      sends the final amount. Backend: `PATCH` the play's `ms_played` (the scrobble returns the history id). Plays
+      from before this change count as a full play of the song (their stored `ms_played` stops at the threshold).
 - [ ] Tests for each, through `npm test`; route-gate table in `guestAccess.test.ts`.
 
 ## Phase 3: Profile screen
 
-- [ ] Where it lives (Q61).
+- [ ] A fourth bottom tab, "You" (A61), next to Library, Search and Settings.
 - [ ] Header: username, member since, total plays and hours.
 - [ ] Top songs and top artists, with a range switch (week / month / year / all time). Each song shows plays and time.
 - [ ] Liked songs: list and play. Needs a heart on Now Playing to like a song from the phone at all (Q65).
@@ -82,7 +83,7 @@ can follow in any order.
 
 ## Phase 5: Your mix
 
-- [ ] Server builds the mix (Q63): your most played and most recent songs, plus songs by the artists you play most
+- [ ] Server builds the mix, rebuilt daily and play-only, not saved as a playlist (A63): your most played and most recent songs, plus songs by the artists you play most
       that you haven't played much, never anything marked less often. About 50 songs.
 - [ ] Shown on the profile with a play button; plays through the normal queue.
 
@@ -91,7 +92,7 @@ can follow in any order.
 - [ ] `GET /me/wrapped/:year`: top songs, artists, genres, total minutes, busiest month, a song you found this year,
       longest listening day.
 - [ ] Full-screen story cards, tap or swipe through, in the app's colours and motion (DESIGN.md).
-- [ ] When it appears (Q64). No sharing to outside services: sharing links are out of scope.
+- [ ] Unlocks in December for that year; past years stay viewable (A64). No sharing to outside services: sharing links are out of scope.
 
 ## Phase 7: Walkthrough
 
