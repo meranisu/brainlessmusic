@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import fastifyStatic from '@fastify/static';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
@@ -17,7 +17,20 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 export function registerSpa(app: FastifyInstance, frontendPath: string): boolean {
   if (!frontendPath || !existsSync(join(frontendPath, 'index.html'))) return false;
 
-  app.register(fastifyStatic, { root: frontendPath, wildcard: false });
+  app.register(fastifyStatic, {
+    root: frontendPath,
+    wildcard: false,
+    // Off so the header below is the only Cache-Control sent.
+    cacheControl: false,
+    // Vite puts a content hash in every /assets/ filename, so those bytes never
+    // change under a URL and can be kept for a year. index.html is what points
+    // at the current hashes, so it must be revalidated every time or a deploy
+    // would leave browsers on the old build.
+    setHeaders: (reply, path) => {
+      const isHashedAsset = path.startsWith(join(frontendPath, 'assets') + sep);
+      reply.header('Cache-Control', isHashedAsset ? 'public, max-age=31536000, immutable' : 'no-cache');
+    },
+  });
 
   // Client-side routes like /albums/3 are not files on disk, so anything the
   // router didn't match falls through to index.html and React resolves it.

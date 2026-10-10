@@ -4,6 +4,28 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-10 — Covers and the web app stay in the browser cache
+
+From a performance check of production on smol. The server is idle (0% CPU, 73 MB), and Cloudflare already
+Brotli-compresses responses, so the cost that could be felt was browsers downloading the same files again.
+
+- **Cover URLs stay the same across reloads.** Every cover URL carries the media token in `?token=`, and the token
+  was kept only in memory, so each reload or new tab gave every cover a new URL and the browser fetched all of them
+  again. `getMediaToken()` (`frontend/src/lib/apiClient.ts`) now keeps it in `localStorage` (where the session token
+  already lives) until it is due for renewal, alongside the session token it was minted under. A token from another
+  session is ignored, so a second tab logging in as someone else never streams under the first user's token, and
+  `setToken()` deletes it on logout. URLs still change when the token renews (`MEDIA_TOKEN_TTL`, 2 h).
+- **Hashed build files cached for a year.** `@fastify/static` sent `public, max-age=0` for everything, which Cloudflare
+  stretched to 4 h. `registerSpa()` now sends `public, max-age=31536000, immutable` for files under `assets/` (their
+  names carry a content hash) and `no-cache` for everything else, so `index.html` is revalidated and a deploy still
+  reaches browsers on the next load.
+- **Verified:** backend `tsc --noEmit` clean; `npm test` 353/353 with a new `plugins/spa.test.ts` (a hashed asset gets
+  the year-long header; `/`, a client-side route falling back to `index.html`, and an unhashed root file get
+  `no-cache`). Frontend `npm run build` clean; `npm run lint` shows only existing warnings in other files. **Not run in a
+  browser**: the cover-cache behaviour after a reload was not checked by hand. Not deployed.
+
+---
+
 ## 2026-10-10 — CORS: same-origin by default
 
 The last minor finding from the security pass. `@fastify/cors` ran with `origin: true`, so any website could read API

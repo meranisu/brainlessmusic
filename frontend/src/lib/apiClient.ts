@@ -10,6 +10,7 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
 const TOKEN_STORAGE_KEY = 'brainlessmusic.token';
+const MEDIA_TOKEN_STORAGE_KEY = 'brainlessmusic.mediaToken';
 
 export class ApiError extends Error {
   status: number;
@@ -32,6 +33,7 @@ export function setToken(token: string | null): void {
   // A media token outlives the session token that minted it, so drop it here
   // too — otherwise a logged-out tab could still stream.
   cachedMediaToken = null;
+  localStorage.removeItem(MEDIA_TOKEN_STORAGE_KEY);
 }
 
 interface RequestOptions {
@@ -98,14 +100,38 @@ interface MediaTokenResponse {
   expiresAt: string;
 }
 
-let cachedMediaToken: { token: string; expiresAt: number } | null = null;
+interface StoredMediaToken {
+  token: string;
+  expiresAt: number;
+  // The session token it was minted under. Another tab logging in as someone
+  // else shares this storage, and must not stream under the old user's token.
+  session: string;
+}
+
+let cachedMediaToken: StoredMediaToken | null = null;
 let inFlightMediaToken: Promise<string> | null = null;
+
+// The token is part of every cover URL, so a fresh one per page load gave each
+// cover a new URL and the browser re-downloaded all of them. Keeping it across
+// reloads and tabs keeps the URLs, and so the browser cache, stable until it
+// has to be renewed.
+function loadStoredMediaToken(): StoredMediaToken | null {
+  try {
+    const raw = localStorage.getItem(MEDIA_TOKEN_STORAGE_KEY);
+    if (!raw) return null;
+    const stored = JSON.parse(raw) as StoredMediaToken;
+    return stored.session === getToken() ? stored : null;
+  } catch {
+    return null;
+  }
+}
 
 // Renew a little early so a token can't lapse between building a URL and the
 // browser actually requesting it.
 const MEDIA_TOKEN_RENEW_MARGIN_MS = 60_000;
 
 async function getMediaToken(): Promise<string> {
+  if (cachedMediaToken?.session !== getToken()) cachedMediaToken = loadStoredMediaToken();
   if (cachedMediaToken && cachedMediaToken.expiresAt - MEDIA_TOKEN_RENEW_MARGIN_MS > Date.now()) {
     return cachedMediaToken.token;
   }
@@ -114,7 +140,12 @@ async function getMediaToken(): Promise<string> {
   // onto one mint request.
   inFlightMediaToken ??= request<MediaTokenResponse>('/auth/media-token', { method: 'POST' })
     .then((res) => {
-      cachedMediaToken = { token: res.token, expiresAt: Date.parse(res.expiresAt) };
+      cachedMediaToken = { token: res.token, expiresAt: Date.parse(res.expiresAt), session: getToken() ?? '' };
+      try {
+        localStorage.setItem(MEDIA_TOKEN_STORAGE_KEY, JSON.stringify(cachedMediaToken));
+      } catch {
+        // Storage full or blocked: the in-memory copy still works for this tab.
+      }
       return res.token;
     })
     .finally(() => {

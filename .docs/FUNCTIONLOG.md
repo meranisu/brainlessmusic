@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `getMediaToken()`, `loadStoredMediaToken()`, `setToken()` — `frontend/src/lib/apiClient.ts`
+**Date:** 2026-10-10
+**How added:** performance
+**Purpose:** hands out the media token used in stream and cover URLs, reusing a stored one minted under the current session until it is due for renewal.
+**Side effects:** reads and writes `brainlessmusic.mediaToken` in `localStorage`; `setToken()` removes it.
+**Before:** the token lived only in memory, so every page load minted a new one and every cover URL changed.
+**After:** the token survives reloads and is shared by tabs on the same session, so cover URLs and the browser cache stay stable until renewal.
+
+**Function:** `registerSpa()` — `backend/src/plugins/spa.ts`
+**Date:** 2026-10-10
+**How added:** performance
+**Purpose:** serves the built web app and its `index.html` fallback.
+**Side effects:** none.
+**Before:** every file was sent with `public, max-age=0`.
+**After:** files under `assets/` get `public, max-age=31536000, immutable`; everything else gets `no-cache`.
+
 **Function:** CORS registration in `buildApp()` — `backend/src/app.ts`; `config.corsOrigins` — `backend/src/config.ts`
 **Date:** 2026-10-10
 **How added:** hardening
