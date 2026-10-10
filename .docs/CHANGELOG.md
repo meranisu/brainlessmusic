@@ -4,6 +4,13 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-10 — Android: debug builds get their own launcher icon
+
+- `src/debug/res/drawable/ic_launcher_background.xml` overrides the release background for debug builds only:
+  green instead of navy, with a yellow hazard band along the bottom. The foreground and monochrome layers are
+  shared, so the logo is the same. Combined with the `.debug` app ID and the "(debug)" label, the test app installed
+  next to the release one is easy to tell apart on the home screen. Themed (monochrome) icons look the same for both.
+
 ## 2026-10-10 — Android: black system bars after the splash; the A–Z rail is the scroll bar; Settings regrouped
 
 - **Black status and navigation bars in dark mode:** removing the splash (`SplashScreenViewProvider.remove()`)
