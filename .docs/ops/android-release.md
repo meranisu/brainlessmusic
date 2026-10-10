@@ -5,11 +5,23 @@ Release by `.github/workflows/android-release.yml` whenever a version tag is pus
 
 ## Cutting a release
 
+1. **Write the release notes first** (owner's standing request, 2026-10-10): `android/release-notes/vX.Y.Z.md`, in
+   plain words for the people installing it. A "What's new in this version" list of what changed in the Android app
+   since the last tag (`git log --oneline vPREV..HEAD -- android/`), plus anything they must do (uninstall first,
+   new permission). The workflow appends the install instructions. Commit it with the release.
+2. Push and tag:
+
 ```bash
 git push origin main
-git tag v0.2.0          # vMAJOR.MINOR.PATCH, always higher than the last
-git push origin v0.2.0
+git tag v0.2.1          # vMAJOR.MINOR.PATCH, always higher than the last
+git push origin v0.2.1
 ```
+
+If the notes file is missing, the workflow lists the Android commit subjects since the previous tag instead. That
+is a safety net, not the plan. To fix notes after publishing: edit the file, then
+`gh release edit vX.Y.Z --notes-file <file>`.
+
+**Dry run** (build and check the signed APK, publish nothing): `gh workflow run android-release.yml -f version=0.0.1`.
 
 The tag becomes `versionName` (`0.2.0`) and `versionCode` (`major*10000 + minor*100 + patch`, here `200`), so each
 release installs over the previous one. The run fails rather than publish if the secrets are missing or the APK is

@@ -4,6 +4,20 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-10 — Android release notes, newer workflow actions, and a dry run
+
+- **Release notes:** each GitHub Release now says what changed in the Android app. The workflow uses
+  `android/release-notes/<tag>.md` (written by hand per release; how-to in `.docs/ops/android-release.md`), or lists
+  the Android commits since the previous tag if the file is missing, and appends install instructions. The live
+  v0.2.0 release was edited to carry `android/release-notes/v0.2.0.md`.
+- **Actions updated:** `actions/checkout@v7`, `actions/setup-java@v6`, `gradle/actions/setup-gradle@v5` (all Node 24,
+  clearing the deprecation warnings). gradle/actions is held at v5: v6 moves caching into a proprietary component
+  under Gradle's terms of use, which is the owner's call to accept.
+- **Dry run:** `workflow_dispatch` builds and checks the signed APK for a given version without publishing.
+- **Verified:** see the dry-run result in the commit that follows this entry, or the Actions tab.
+
+---
+
 ## 2026-10-10 — Android releases are built, signed and published by GitHub Actions
 
 A44. Pushing a `vX.Y.Z` tag builds the APK, signs it with a real release key and attaches it to a GitHub Release.
