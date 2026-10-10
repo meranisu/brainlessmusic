@@ -73,7 +73,7 @@ private fun Scrollbar(
     var lastJump by remember { mutableIntStateOf(-1) }
     val density = LocalDensity.current
     val minThumbPx = with(density) { ThumbMinHeight.toPx() }
-    val thumbPx = (trackPx * visible.toFloat() / total).coerceIn(minThumbPx, trackPx.toFloat())
+    val thumbPx = thumbHeight(trackPx.toFloat(), visible, total, minThumbPx)
     val lastFirst = (total - visible).coerceAtLeast(1)
     val thumbTop = (trackPx - thumbPx) * (first.toFloat() / lastFirst).coerceIn(0f, 1f)
     // Quiet at rest, so it doesn't compete with the rows; full accent while in use.
@@ -129,3 +129,10 @@ private fun Scrollbar(
         )
     }
 }
+
+/**
+ * The thumb's share of the track, at least [minPx] so it stays grabbable, but never taller than the track. Not
+ * `coerceIn(minPx, trackPx)`: before the track is measured (1 px) or on a short one, that range is empty and throws.
+ */
+internal fun thumbHeight(trackPx: Float, visible: Int, total: Int, minPx: Float): Float =
+    (trackPx * visible / total).coerceAtLeast(minPx).coerceAtMost(trackPx)

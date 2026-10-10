@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-10 — Android: v0.3.1 crashed on opening the Library (scroll bar)
+
+- `ListScrollbar` clamped the thumb with `coerceIn(minThumb, trackPx)`. Before the track is measured (`trackPx` = 1)
+  that range is empty, and Kotlin throws, so the app died as soon as Songs, Albums or Artists drew. The height is now
+  `thumbHeight()`: at least the minimum, then at most the track, which never throws.
+- Verified: `ScrollbarThumbTest` (3 tests, incl. the unmeasured track) passes; `./gradlew assembleDebug` passes.
+  **Not run on a device** (none connected).
+
 ## 2026-10-10 — Android: splash icon is round on every phone
 
 - The splash showed the icon on a navy **square** on a Xiaomi (HyperOS) phone: the theme left the navy disc to the
