@@ -33,18 +33,6 @@ is never asked twice.
 | [Q5](#q5--tag-editing-scope) | Tag-editing scope | 2026-09-09 | No |
 | [Q27](#q27--should-uploads-let-you-pick-which-library-root-they-file-into) | Should uploads let you pick which library root they file into? | 2026-09-15 | No — assumption stated |
 | [Q30](#q30--should-cloudflare-access-sit-in-front-of-the-public-hostname) | Should Cloudflare Access sit in front of the public hostname? | 2026-09-21 | No — assumption stated |
-| [Q65](#q65--playlists-and-likes-on-android-view-only-or-edit-too) | Playlists and likes on Android: view only, or edit too? | 2026-10-11 | No, assumption stated |
-| [Q66](#q66--profile-on-the-web-too) | Profile on the web too? | 2026-10-11 | No, assumption stated |
-
-### Q65 — Playlists and likes on Android: view only, or edit too?
-**Asked:** 2026-10-11 · **Blocking:** no, assumption stated
-
-**Assumption:** Phase 3 lists and plays playlists, liked and less-often songs, and adds a heart on Now Playing so songs can be liked from the phone. Creating and editing playlists on Android comes later. [profile plan](features/profile-and-listening-stats/planning.md).
-
-### Q66 — Profile on the web too?
-**Asked:** 2026-10-11 · **Blocking:** no, assumption stated
-
-**Assumption:** Android first; the endpoints are shared, so the web can follow as its own piece. [profile plan](features/profile-and-listening-stats/planning.md).
 
 ### Q2 — When does open registration get turned off?
 **Asked:** 2026-09-09 · **Blocking:** yes, at box 13's done-when
@@ -130,6 +118,14 @@ database backups, which live in the same Docker volume as the database) off
 is not lost.
 
 ## Answered
+
+### A66 — The profile comes to the web too *(was Q66)*
+**Answered:** 2026-10-11 · **Both.** Android and the web each get the profile, Wrapped and the mix, over the same
+endpoints. [profile plan](features/profile-and-listening-stats/planning.md), Phase 7 (web).
+
+### A65 — Android creates and edits playlists *(was Q65)*
+**Answered:** 2026-10-11 · **Create and edit.** Android gets new playlist, rename, delete, add a song (from the song
+menu and Now Playing), remove and reorder, plus a heart to like songs. [profile plan](features/profile-and-listening-stats/planning.md), Phase 3.
 
 ### A64 — Wrapped shows up yearly, from December *(was Q64)*
 **Answered:** 2026-10-11 · **Yearly.** Unlocks in December for that year; past years stay viewable. [profile plan](features/profile-and-listening-stats/planning.md), Phase 6.
