@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** migration `0017_delete_guest_playlists_and_favorites.sql` — `backend/src/db/migrations/`
+**Date:** 2026-10-10
+**How added:** new feature (A38)
+**Purpose:** one-off data cleanup: deletes guest-owned `playlist_tracks`, `playlists` and `favorites` rows in one transaction.
+**Side effects:** DB deletes on every database it runs against (production at the next smol deploy). Irreversible except from a backup.
+**Before:** guests' pre-A37 playlists and favorites sat in the database, unreachable.
+**After:** none remain; accounts' rows and guest identities are untouched. Covered by `db/guestDataCleanup.test.ts`.
+
+**Function:** Stop hook changed-file detection — `.claude/hooks/stop-check.mjs`
+**Date:** 2026-10-10
+**How added:** bug fix (A40)
+**Purpose:** decides which files this turn touched, for the type-check and the CHANGELOG / schema-doc checks.
+**Side effects:** runs `git status --porcelain -uall -z` at the end of each turn.
+**Before:** only the Edit/Write/MultiEdit list; with no such edit the hook exited at once, so shell edits were never checked.
+**After:** the union of that list and the working tree's changed and untracked files. Uncommitted work from another agent can trigger an extra check, never a missed one.
+
 **Function:** `requireAccount` — `backend/src/plugins/auth.ts`
 **Date:** 2026-10-09
 **How added:** new feature (A37, guests are listen-only)

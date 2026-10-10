@@ -4,6 +4,30 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-10 — Delete guests' old playlists and favorites (migration 0017); Stop hook sees shell edits
+
+**A38:** guests were made listen-only on 2026-10-09 (A37), which left any playlists and favorites a guest had
+made before then unreachable. The owner chose to delete them.
+
+- **Migration** `0017_delete_guest_playlists_and_favorites.sql`: data only, no schema change. Deletes the
+  `playlist_tracks` of guest-owned playlists, then those `playlists`, then guest `favorites`, in one
+  transaction (same order as `pruneIdleGuests`; `playlist_tracks` has no cascade). Guests keep their identity
+  and resume position. It runs on smol at the next deploy (Q39), before that boot's backup, so the copy taken
+  before it is the previous daily backup.
+- **Test** `db/guestDataCleanup.test.ts`: seeds a guest and an account with one playlist (with a track) and one
+  favorite each; after the migration only the account's rows remain, no `playlist_tracks` row is orphaned, the
+  guest itself survives, and running it twice is harmless.
+
+**A40:** `.claude/hooks/stop-check.mjs` now also reads `git status` (modified, added and untracked files), not
+only the Edit/Write list from `track-edits.mjs`. On 2026-10-09 it reported a CHANGELOG entry missing that had
+been written from the shell, and its type-check skipped shell-edited files. Renames are parsed correctly
+(`-z` gives the old path as a separate entry).
+
+- **Verified:** backend `npm test` 339 pass, 0 fail (3 new); `npx tsc --noEmit` clean. Mutation: removing the
+  favorites `DELETE` from the migration failed the first new test; restored. Hook: run by hand with no
+  Edit/Write recorded and a shell-written migration plus no CHANGELOG entry, the new version exited 2 with the
+  CHANGELOG message and the previous version (`git show HEAD:`) exited 0; with `stop_hook_active` it exits 0.
+
 ## 2026-10-09 — Guests are listen-only: no playlists, favorites, play counts or history
 
 Owner decision A37: a guest browses, searches, streams and keeps "resume where you left off", and nothing that

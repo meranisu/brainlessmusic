@@ -74,8 +74,9 @@ guest.
 
 ## Open
 
-- Guests created before this change may already own playlists or favourites in the production database. The plan
-  leaves those rows in place but unreachable. Deleting them would be a separate, deliberate step.
+- ~~Guests' pre-existing playlists and favorites~~: resolved by A38 (2026-10-10). Migration `0017` deletes them at
+  the next deploy.
+- How this reaches smol: [Q39](../../QUESTIONS.md#q39--how-does-a-change-reach-smol), still open.
 
 ## Change Log
 

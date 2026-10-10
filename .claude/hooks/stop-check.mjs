@@ -13,13 +13,29 @@ try {
 
 const session = String(input.session_id ?? 'x').replace(/[^\w-]/g, '');
 const listFile = join(tmpdir(), `brainless-touched-${session}.txt`);
-if (!existsSync(listFile)) process.exit(0);
-
-const touched = [...new Set(readFileSync(listFile, 'utf8').split('\n').filter(Boolean))];
+const tracked = existsSync(listFile) ? readFileSync(listFile, 'utf8').split('\n').filter(Boolean) : [];
 rmSync(listFile, { force: true });
 if (input.stop_hook_active) process.exit(0); // second pass: never loop
 
 const root = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+
+// The PostToolUse list only sees Edit/Write/MultiEdit. Files changed from the shell (sed, a script) or by
+// another tool never reach it, so the working tree is read as well (Q40, 2026-10-10). This can include
+// uncommitted work that isn't this session's; the cost is an extra check, never a missed one.
+const status = spawnSync('git', ['status', '--porcelain', '-uall', '-z'], { cwd: root, encoding: 'utf8' });
+const dirty = [];
+if (status.status === 0) {
+  const entries = status.stdout.split('\0');
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    if (entry.length < 4) continue;
+    dirty.push(join(root, entry.slice(3)));
+    if (entry[0] === 'R' || entry[0] === 'C') i++; // the next entry is the old path, with no status prefix
+  }
+}
+
+const touched = [...new Set([...tracked, ...dirty])];
+if (touched.length === 0) process.exit(0);
 const has = (re) => touched.some((f) => re.test(f));
 const problems = [];
 

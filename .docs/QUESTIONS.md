@@ -37,9 +37,7 @@ is never asked twice.
 | [Q20](#q20--where-does-the-theme-choice-live) | Where does the theme choice live? | 2026-09-11 | No — assumption stated |
 | [Q23](#q23--should-selecting-a-track-preview-it) | Should selecting a track preview it? | 2026-09-11 | No — assumption stated |
 | [Q30](#q30--should-cloudflare-access-sit-in-front-of-the-public-hostname) | Should Cloudflare Access sit in front of the public hostname? | 2026-09-21 | No — assumption stated |
-| [Q38](#q38--delete-guests-existing-playlists-and-favorites) | Delete guests' existing playlists and favorites? | 2026-10-09 | No — assumption stated |
 | [Q39](#q39--how-does-a-change-reach-smol) | How does a change reach smol? | 2026-10-09 | Yes, for A37 to take effect in production |
-| [Q40](#q40--should-the-stop-hook-see-edits-made-from-the-shell) | Should the Stop hook see edits made from the shell? | 2026-10-09 | No |
 
 ### Q2 — When does open registration get turned off?
 **Asked:** 2026-09-09 · **Blocking:** yes, at box 13's done-when
@@ -287,15 +285,6 @@ database backups, which live in the same Docker volume as the database) off
 `smol`, so a dead disk takes both. Not a question — a gap; noted here so it
 is not lost.
 
-### Q38 — Delete guests' existing playlists and favorites?
-**Asked:** 2026-10-09 · **Blocking:** no — assumption stated
-
-Since [A37](#a37--guests-are-listen-only-what-do-they-keep-was-q37) guests can't reach playlists or favorites, but
-any a guest made before the change are still in the production database, unreachable.
-
-**Assumption: leave them.** They cost nothing and deleting is irreversible. Say so if they should be removed (a
-one-off delete on smol, after a backup).
-
 ### Q39 — How does a change reach smol?
 **Asked:** 2026-10-09 · **Blocking:** yes, for A37 to take effect in production
 
@@ -303,18 +292,25 @@ Production (`brainless-app` on smol) has no repeatable deploy procedure; the roo
 touching it. The guest limits (A37) are committed but the live site still lets guests do everything. Needed: who
 deploys, and how (pull and `docker compose up --build` on smol, or another way).
 
-### Q40 — Should the Stop hook see edits made from the shell?
-**Asked:** 2026-10-09 · **Blocking:** no
-
-`.claude/hooks/track-edits.mjs` records only Edit/Write/MultiEdit, so files changed by a shell command are missed
-by the Stop hook: on 2026-10-09 it reported a missing CHANGELOG entry that existed, and its type-check skipped
-shell-edited files. Fix: also read `git status` at Stop. Hook changes need the owner's OK.
+**Update 2026-10-10:** smol is out of the owner's reach until the friend who owns the box gets in touch. Waiting on
+that; nothing to do from this side. Pending on smol until then: A37 (guest limits) and migration `0017` (A38).
 
 ---
 
 ---
 
 ## Answered
+
+### A38 — Delete guests' existing playlists and favorites? *(was Q38)*
+**Answered:** 2026-10-10 · **Yes, delete them.** Done as migration `0017_delete_guest_playlists_and_favorites.sql`
+rather than a hand-run command on smol: it runs by itself at the next deploy ([Q39](#q39--how-does-a-change-reach-smol)),
+in one transaction, and is tested (`backend/src/db/guestDataCleanup.test.ts`). Guests keep their identity and resume
+position. See CHANGELOG 2026-10-10.
+
+### A40 — Should the Stop hook see edits made from the shell? *(was Q40)*
+**Answered:** 2026-10-10 · **Yes.** `.claude/hooks/stop-check.mjs` now adds the working tree's changed and untracked
+files (`git status`) to the Edit/Write list. Checked by hand: the old version passed a shell-written migration with no
+CHANGELOG entry, the new one flags it. See CHANGELOG 2026-10-10.
 
 ### A37 — Guests are listen-only: what do they keep? *(was Q37)*
 **Answered:** 2026-10-09 · Guests browse (songs, albums, artists, genres once they exist), search, stream, and keep
