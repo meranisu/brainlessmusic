@@ -229,17 +229,32 @@ export function LibraryFull() {
     onError: (err) => showToast(err instanceof ApiError ? err.message : 'Update failed', 'error'),
   });
 
+  const bulkHideMutation = useMutation({
+    mutationFn: ({ ids, hidden }: { ids: number[]; hidden: boolean }) =>
+      apiClient.patch<{ updated: number }>('/tracks', { ids, hidden }),
+    onSuccess: invalidateAfterMutation,
+    onError: (err) => showToast(err instanceof ApiError ? err.message : 'Update failed', 'error'),
+  });
+
+  // One request for any number of tracks; the server deletes what it can and lists the rest in `failed`.
   const deleteMutation = useMutation({
-    mutationFn: (ids: number[]) => Promise.all(ids.map((id) => apiClient.delete(`/tracks/${id}`))),
-    onSuccess: (_result, ids) => {
+    mutationFn: (ids: number[]) => apiClient.post<{ deleted: number[]; failed: number[] }>('/tracks/delete', { ids }),
+    onSuccess: ({ deleted, failed }) => {
       invalidateAfterMutation();
       setSelectedIds((prev) => {
         const next = new Set(prev);
-        ids.forEach((id) => next.delete(id));
+        deleted.forEach((id) => next.delete(id));
         return next;
       });
       setDeleteTargets(null);
-      showToast(ids.length === 1 ? 'Track deleted' : `${ids.length} tracks deleted`);
+      if (failed.length > 0) {
+        showToast(
+          `${deleted.length} deleted. ${failed.length} couldn't be removed from disk and are still selected.`,
+          'error',
+        );
+      } else {
+        showToast(deleted.length === 1 ? 'Track deleted' : `${deleted.length} tracks deleted`);
+      }
     },
     onError: (err) => showToast(err instanceof ApiError ? err.message : 'Delete failed', 'error'),
   });
@@ -387,13 +402,15 @@ export function LibraryFull() {
           <span className="font-medium text-accent-ink">{selectedIds.size} selected</span>
           <div className="ml-2 flex gap-1.5">
             <button
-              onClick={() => selectedTracks.forEach((t) => patchMutation.mutate({ id: t.id, patch: { hidden: true } }))}
+              onClick={() => bulkHideMutation.mutate({ ids: selectedTracks.map((t) => t.id), hidden: true })}
+              disabled={bulkHideMutation.isPending}
               className="btn-ghost btn-sm"
             >
               Hide
             </button>
             <button
-              onClick={() => selectedTracks.forEach((t) => patchMutation.mutate({ id: t.id, patch: { hidden: false } }))}
+              onClick={() => bulkHideMutation.mutate({ ids: selectedTracks.map((t) => t.id), hidden: false })}
+              disabled={bulkHideMutation.isPending}
               className="btn-ghost btn-sm"
             >
               Un-hide

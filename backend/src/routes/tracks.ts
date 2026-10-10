@@ -15,7 +15,15 @@ import {
 } from '../db/browse.js';
 import { findTrackArtworkId } from '../db/artwork.js';
 import { peaksForTrack } from '../services/waveform.js';
-import { deleteTrackRow, findTrackById, setLastStreamError, updateTrackFields, upsertTrack } from '../db/library.js';
+import {
+  deleteTrackRow,
+  findTrackById,
+  setLastStreamError,
+  setTrackFlags,
+  updateTrackFields,
+  upsertTrack,
+  type TrackRow,
+} from '../db/library.js';
 import { recordPlaybackFailure } from '../db/playbackFailures.js';
 import { findLibraryRootByPath } from '../db/libraryRoots.js';
 import { findUserById } from '../db/users.js';
@@ -102,6 +110,36 @@ interface TrackPatchBody {
   trackNumber?: number | null;
   hidden?: boolean;
   notRecommended?: boolean;
+}
+
+interface BulkFlagsBody {
+  ids?: unknown;
+  hidden?: unknown;
+  notRecommended?: unknown;
+}
+
+/** The most ids one bulk request may carry. Selection is of loaded rows, so this is far above any real use. */
+const MAX_BULK_IDS = 5000;
+
+/** Distinct positive integer ids, or an error message for a 400. */
+function parseBulkIds(ids: unknown): number[] | string {
+  if (!Array.isArray(ids) || ids.length === 0) return 'ids must be a non-empty array of track ids';
+  if (ids.length > MAX_BULK_IDS) return `ids may not exceed ${MAX_BULK_IDS} tracks`;
+  if (!ids.every((id) => Number.isInteger(id) && (id as number) > 0)) {
+    return 'ids must contain only positive integer track ids';
+  }
+  return [...new Set(ids as number[])];
+}
+
+/** Removes the file, then the row. A file that is already gone still loses its row; any other unlink error keeps it. */
+async function deleteTrackAndFile(track: TrackRow): Promise<NodeJS.ErrnoException | null> {
+  try {
+    await unlink(track.path);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') return err as NodeJS.ErrnoException;
+  }
+  deleteTrackRow(track.id);
+  return null;
 }
 
 const tracksRoute: FastifyPluginAsync = async (fastify) => {
@@ -202,6 +240,57 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
     },
   );
 
+  /** Bulk hide / not-recommended for the Full view's selection (A54). Ids that don't exist are skipped. */
+  fastify.patch<{ Body: BulkFlagsBody }>(
+    '/tracks',
+    { preHandler: [fastify.authenticate, fastify.requireAdmin] },
+    async (request, reply) => {
+      const body = request.body ?? {};
+      const ids = parseBulkIds(body.ids);
+      if (typeof ids === 'string') return reply.code(400).send({ error: ids });
+
+      const { hidden, notRecommended } = body;
+      if (hidden === undefined && notRecommended === undefined) {
+        return reply.code(400).send({ error: 'Nothing to change: send hidden and/or notRecommended' });
+      }
+      if ((hidden !== undefined && typeof hidden !== 'boolean') ||
+          (notRecommended !== undefined && typeof notRecommended !== 'boolean')) {
+        return reply.code(400).send({ error: 'hidden and notRecommended must be booleans' });
+      }
+
+      return reply.send({ updated: setTrackFlags(ids, { hidden, notRecommended }) });
+    },
+  );
+
+  /**
+   * Bulk delete (A54): POST, since a DELETE body is dropped by some proxies. Each track is removed like
+   * `DELETE /tracks/:id`; one that fails doesn't stop the rest, and comes back in `failed`.
+   */
+  fastify.post<{ Body: { ids?: unknown } }>(
+    '/tracks/delete',
+    { preHandler: [fastify.authenticate, fastify.requireAdmin] },
+    async (request, reply) => {
+      const ids = parseBulkIds(request.body?.ids);
+      if (typeof ids === 'string') return reply.code(400).send({ error: ids });
+
+      const deleted: number[] = [];
+      const failed: number[] = [];
+      for (const id of ids) {
+        const track = findTrackById(id);
+        if (!track) continue; // already gone counts as done, not as a failure
+        const err = await deleteTrackAndFile(track);
+        if (err) {
+          request.log.error({ err, trackId: id, path: track.path }, 'Failed to unlink track file on bulk delete');
+          failed.push(id);
+        } else {
+          deleted.push(id);
+        }
+      }
+
+      return reply.send({ deleted, failed });
+    },
+  );
+
   fastify.patch<{ Params: { id: string }; Body: TrackPatchBody }>(
     '/tracks/:id',
     { preHandler: [fastify.authenticate, fastify.requireAdmin] },
@@ -243,17 +332,11 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(404).send({ error: 'Track not found' });
       }
 
-      try {
-        await unlink(track.path);
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-          request.log.error({ err, trackId: id, path: track.path }, 'Failed to unlink track file on delete');
-          return reply.code(500).send({ error: 'Failed to delete track file from disk' });
-        }
-        // Already gone; remove the row anyway.
+      const err = await deleteTrackAndFile(track);
+      if (err) {
+        request.log.error({ err, trackId: id, path: track.path }, 'Failed to unlink track file on delete');
+        return reply.code(500).send({ error: 'Failed to delete track file from disk' });
       }
-
-      deleteTrackRow(id);
       return reply.code(204).send();
     },
   );

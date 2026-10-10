@@ -262,6 +262,27 @@ export function listMissingTracks(): MissingTrack[] {
     .all() as MissingTrack[];
 }
 
+/** Sets `hidden` and/or `not_recommended` on many tracks in one transaction. Returns how many rows matched. */
+export function setTrackFlags(
+  ids: number[],
+  flags: { hidden?: boolean; notRecommended?: boolean },
+): number {
+  const sets: string[] = [];
+  const params: Record<string, unknown> = {};
+  if (flags.hidden !== undefined) {
+    sets.push('hidden = @hidden');
+    params.hidden = flags.hidden ? 1 : 0;
+  }
+  if (flags.notRecommended !== undefined) {
+    sets.push('not_recommended = @notRecommended');
+    params.notRecommended = flags.notRecommended ? 1 : 0;
+  }
+  if (sets.length === 0 || ids.length === 0) return 0;
+
+  const update = db.prepare(`UPDATE tracks SET ${sets.join(', ')} WHERE id = @id`);
+  return db.transaction(() => ids.reduce((n, id) => n + update.run({ ...params, id }).changes, 0))();
+}
+
 /**
  * Deletes a track row and its favorites, less-often marks, playlist entries and history, dependents first: foreign keys are enforced
  * and none cascade. The file on disk is the caller's job.

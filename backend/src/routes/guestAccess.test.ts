@@ -76,6 +76,8 @@ const EXPECTED: Record<string, Gate> = {
   'DELETE /library/roots/:id': 'admin',
   'POST /library/roots/:id/scan': 'admin',
   'POST /library/scan': 'admin',
+  'PATCH /tracks': 'admin',
+  'POST /tracks/delete': 'admin',
   'DELETE /tracks/:id': 'admin',
   'PATCH /tracks/:id': 'admin',
   'POST /tracks/upload': 'admin',

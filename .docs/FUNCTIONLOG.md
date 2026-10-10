@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `setTrackFlags()` — `backend/src/db/library.ts`; `parseBulkIds()`, `deleteTrackAndFile()` and routes `PATCH /tracks`, `POST /tracks/delete` — `backend/src/routes/tracks.ts`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** bulk hide / not-recommended and bulk delete for the Library Full view's selection (A54).
+**Side effects:** `setTrackFlags` updates `tracks` in one transaction. `deleteTrackAndFile` unlinks the track's file,
+then calls `deleteTrackRow`; on any unlink error but `ENOENT` it leaves the row.
+**Before:** the web client sent one `PATCH`/`DELETE /tracks/:id` per selected row (`Promise.all`); the file-then-row
+step lived inline in `DELETE /tracks/:id`.
+**After:** one request per bulk action; `DELETE /tracks/:id` and `POST /tracks/delete` share `deleteTrackAndFile`.
+
 **Function:** `deleteLibraryRoot()` — `backend/src/db/libraryRoots.ts`; route `DELETE /library/roots/:id` in `backend/src/routes/library.ts`
 **Date:** 2026-10-11
 **How added:** new feature

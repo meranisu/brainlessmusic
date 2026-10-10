@@ -48,6 +48,8 @@ const ADMIN_ROUTES: Array<[method: 'GET' | 'POST' | 'PATCH' | 'DELETE', url: str
   ['POST', '/api/tracks/upload'],
   ['PATCH', '/api/tracks/1'],
   ['DELETE', '/api/tracks/1'],
+  ['PATCH', '/api/tracks'],
+  ['POST', '/api/tracks/delete'],
   ['PATCH', '/api/users/1'],
   ['GET', '/api/library/browse'],
 ];

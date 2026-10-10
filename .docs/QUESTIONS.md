@@ -159,7 +159,8 @@ identity keeps its own theme.
 ### A54 — Bulk hide and delete get a real endpoint *(was Q24)*
 **Answered:** 2026-10-10 · **Yes.** Replace the one-request-per-row bulk actions with a real batch endpoint. `/manage`
 was folded into the Library (A34), so the code to change is `frontend/src/components/LibraryFull.tsx:226` (hide) and
-`:232` (delete), both `Promise.all` over `/tracks/:id`. Not built yet.
+`:232` (delete), both `Promise.all` over `/tracks/:id`. Built 2026-10-11: `PATCH /tracks` and `POST /tracks/delete` (CHANGELOG
+2026-10-11).
 
 ### A53 — Selecting a track stays silent *(was Q23)*
 **Answered:** 2026-10-10 · **No preview.** Moving the selection plays nothing; `Enter` plays. This is how it shipped,
@@ -176,6 +177,11 @@ totals). `/manage` now lives inside the Library (A34), so that is where it goes.
 *database rows only*, together with their favorites, play history and playlist entries; the music files on disk are
 never touched. Built 2026-10-11: `deleteLibraryRoot` deletes each track through `deleteTrackRow`, and the Options
 dialog says so (CHANGELOG 2026-10-11).
+**Known edge (noted 2026-10-11, not handled):** if two registered roots overlap (one inside the other), a file under
+both belongs to whichever root scanned it last (`upsertTrack` overwrites `root_id`). Removing that root deletes the
+track even though the other root still holds the file; the other root's next scan adds it back as a new track, without
+its favorites or history. Fix if it ever matters: refuse overlapping roots in `POST /library/roots`, or reassign such
+tracks to the surviving root instead of deleting them.
 
 ### A50 — Very long tracks convert first like the rest *(was Q12)*
 **Answered:** 2026-10-10 · **Agreed.** Every track converts on first play, however long. An hour-long mix waits about

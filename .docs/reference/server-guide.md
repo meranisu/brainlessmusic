@@ -301,6 +301,7 @@ and a signed-in non-admin gets 403.
 - **Waveform**: `GET /tracks/:id/waveform` (peak amplitudes for the player's scrubber; decoded from the file on first request and cached on the row)
 - **Cover art**: `GET /tracks/:id/cover`, `GET /albums/:id/cover` (`?size=thumb` for ~256px; bearer header or `?token=` media token, `ETag`/`If-None-Match` supported)
 - **Upload**: `POST /tracks/upload` (multipart)
+- **Editing (admin)**: `PATCH /tracks/:id`, `DELETE /tracks/:id` (removes the file too); bulk `PATCH /tracks` (`{ ids, hidden?, notRecommended? }`) and `POST /tracks/delete` (`{ ids }`, returns `{ deleted, failed }`), up to 5000 ids
 - **Playlists**: `POST /playlists`, `GET /playlists`, `GET /playlists/:id`, `PATCH /playlists/:id`, `DELETE /playlists/:id`, `POST /playlists/:id/tracks`, `DELETE /playlists/:id/tracks/:trackId`, `PATCH /playlists/:id/tracks/reorder`
 - **Play tracking**: `POST /tracks/:id/scrobble`, `GET /me/history`, `GET /tracks/:id/history`, `GET /stats/top-tracks`
 - **Favorites**: `PUT /tracks/:id/favorite`, `DELETE /tracks/:id/favorite`, `GET /me/favorites`, `GET /me/favorites/ids`

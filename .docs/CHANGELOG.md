@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Bulk hide and delete in one request (A54)
+
+- Backend: `PATCH /tracks` (`{ ids, hidden?, notRecommended? }`, returns `{ updated }`) sets the flags on every listed
+  track in one transaction; unknown ids are skipped. `POST /tracks/delete` (`{ ids }`) deletes each track the same way
+  `DELETE /tracks/:id` does (file, then row with its favorites, playlist entries and history) and returns
+  `{ deleted, failed }`; a file that can't be removed keeps its row and lands in `failed` without stopping the rest.
+  POST rather than DELETE because some proxies drop a DELETE body. Both admin-only, up to 5000 distinct positive ids.
+  `DELETE /tracks/:id` now shares the file-then-row step (`deleteTrackAndFile`) with the bulk route.
+- Web, Library Full view: Hide / Un-hide on a selection is one request instead of one per row, and the buttons are
+  disabled while it runs. Delete (one track or many) uses `POST /tracks/delete`; if some files couldn't be removed,
+  the toast says how many and those stay selected.
+- Verified: new `routes/bulkTracks.test.ts` (flags set and skipped ids, 400s on bad input, delete with an
+  already-missing file, an unremovable one, an unknown id, favorites cleared, files gone); both routes added to the
+  admin gate tests and the route classification table. `npm test` 384/384, backend `tsc --noEmit` clean, frontend
+  `npm run build` and `npm run lint` (no new warnings). Not clicked through in the browser: no admin login here.
+
 ## 2026-10-11 — Removing a library root deletes its tracks (A51)
 
 - `DELETE /library/roots/:id` used to mark the root's tracks missing and keep them, detached, with their favorites
