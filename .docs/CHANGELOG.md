@@ -4,6 +4,31 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-10 — Rate limits count real visitors behind cloudflared; password login is rate-limited; dependency audit clean
+
+From a security pass against a 19-item checklist.
+
+- **Shared rate-limit window in production.** The limiters keyed on `request.ip`, but Fastify runs without
+  `trustProxy` and every public request reaches it from the `brainless-cloudflared` container. So all visitors shared
+  one window: 8 wrong passcodes from anyone locked passcode sign-in for everyone, and the guest-mint limit was one
+  budget for the whole internet. New `CLIENT_IP_HEADER` (`utils/clientIp.ts`): when set, the limiters count the
+  address in that header and fall back to the socket address if it is absent. `docker-compose.yml` sets
+  `cf-connecting-ip`, which Cloudflare overwrites on every request. Unset (local dev) behaves as before. Someone who
+  reaches port 3000 directly (LAN, Tailscale) can forge the header and choose their own window; noted in `config.ts`.
+- **`POST /auth/login` had no rate limit.** It now has its own limiter, `LOGIN_ATTEMPTS_PER_MINUTE` (default 10 per
+  IP), checked before bcrypt runs. A correct password clears that IP's window, the same as the passcode path.
+- **`npm audit`: 6 vulnerabilities (1 critical, 3 high) to 0.** `npm audit fix` updated `fastify`, `fast-uri`,
+  `music-metadata` and `brace-expansion` in the lockfile. The critical one (`tar`, through `@mapbox/node-pre-gyp`)
+  came from `bcrypt` 5, so `bcrypt` is now `^6.0.0`, which ships prebuilt binaries instead. The hash format is
+  unchanged (`$2b$`), so existing passwords still verify.
+- **Verified:** backend `tsc --noEmit` clean; `npm test` 343/343, including four new tests in
+  `routes/guestAuth.test.ts` (login limit, a correct password clears the window, two visitors behind the header get
+  separate windows, a forged header is ignored when none is configured). bcrypt 6 loaded and hashed inside
+  `node:22-bookworm-slim` (the Dockerfile's base) with this `node_modules` mounted. Not deployed to smol; the full
+  image was not rebuilt.
+
+---
+
 ## 2026-10-10 — Delete guests' old playlists and favorites (migration 0017); Stop hook sees shell edits
 
 **A38:** guests were made listen-only on 2026-10-09 (A37), which left any playlists and favorites a guest had

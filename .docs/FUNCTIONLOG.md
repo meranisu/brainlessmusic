@@ -4,6 +4,24 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `clientIp()` — `backend/src/utils/clientIp.ts`
+**Date:** 2026-10-10
+**How added:** hardening
+**Purpose:** the address a rate limiter counts against: the `config.clientIpHeader` header when one is configured and present, otherwise `request.ip`.
+**Side effects:** none.
+**Before:** nothing — new function. The limiters used `request.ip`, which behind cloudflared is always the tunnel container's address.
+**After:** used by the guest-mint, passcode and password limiters in `routes/auth.ts`.
+
+**Function:** `POST /auth/login` handler — `backend/src/routes/auth.ts`
+**Date:** 2026-10-10
+**How added:** hardening
+**Purpose:** password sign-in.
+**Side effects:** in-memory counter per client IP (`passwordLoginLimiter`).
+**Before:** unlimited attempts.
+**After:** `429` with `retry-after` past `config.loginAttemptsPerMinute` (default 10) attempts per IP per minute, checked before bcrypt; a correct password clears the IP's window.
+
+---
+
 **Function:** migration `0017_delete_guest_playlists_and_favorites.sql` — `backend/src/db/migrations/`
 **Date:** 2026-10-10
 **How added:** new feature (A38)

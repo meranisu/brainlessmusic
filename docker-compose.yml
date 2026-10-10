@@ -42,6 +42,10 @@ services:
       ALLOW_OPEN_REGISTRATION: ${ALLOW_OPEN_REGISTRATION:-true}
       ENTRY_CODE: ${ENTRY_CODE:-}
       TRANSCODE_PATH: /data/transcodes
+      # Public visitors arrive through the cloudflared service above, so the
+      # socket address is always that container's. Rate limits count the
+      # visitor's real address from Cloudflare's header instead.
+      CLIENT_IP_HEADER: ${CLIENT_IP_HEADER:-cf-connecting-ip}
 
 
       # Optional overrides; the image's defaults are usually right.

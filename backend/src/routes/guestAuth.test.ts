@@ -47,6 +47,8 @@ beforeEach(async () => {
     guestIdleDays: config.guestIdleDays,
     guestMintsPerHour: config.guestMintsPerHour,
     passcodeAttemptsPerMinute: config.passcodeAttemptsPerMinute,
+    loginAttemptsPerMinute: config.loginAttemptsPerMinute,
+    clientIpHeader: config.clientIpHeader,
     allowOpenRegistration: config.allowOpenRegistration,
   };
 });
@@ -428,5 +430,69 @@ describe('passcode sign-in', () => {
 
     const locked = await loginWithPasscode(admin.username, '4269');
     assert.equal(locked.statusCode, 429, 'even the right passcode waits once the budget is spent');
+  });
+});
+
+describe('password sign-in — limits', () => {
+  function loginWithPassword(username: string, password: string, headers: Record<string, string> = {}) {
+    return app.inject({ method: 'POST', url: '/api/auth/login', payload: { username, password }, headers });
+  }
+
+  it('rate-limits attempts per address', async () => {
+    config.loginAttemptsPerMinute = 3;
+    const admin = await createAdmin();
+
+    for (let i = 0; i < 3; i += 1) {
+      assert.equal((await loginWithPassword(admin.username, 'wrong')).statusCode, 401, `attempt ${i + 1} is merely wrong`);
+    }
+
+    const locked = await loginWithPassword(admin.username, PASSWORD);
+    assert.equal(locked.statusCode, 429, 'even the right password waits once the budget is spent');
+    assert.ok(Number(locked.headers['retry-after']) > 0, 'must say when to come back');
+  });
+
+  it('a correct password clears the window', async () => {
+    config.loginAttemptsPerMinute = 3;
+    const admin = await createAdmin();
+
+    await loginWithPassword(admin.username, 'wrong');
+    await loginWithPassword(admin.username, 'wrong');
+    assert.equal((await loginWithPassword(admin.username, PASSWORD)).statusCode, 200);
+
+    for (let i = 0; i < 3; i += 1) {
+      assert.equal((await loginWithPassword(admin.username, 'wrong')).statusCode, 401, `attempt ${i + 1} starts fresh`);
+    }
+  });
+});
+
+describe('rate limits behind a proxy', () => {
+  it('counts each visitor by the configured header, not the shared socket address', async () => {
+    config.clientIpHeader = 'cf-connecting-ip';
+    config.loginAttemptsPerMinute = 2;
+    const admin = await createAdmin();
+
+    const attempt = (ip: string) =>
+      app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { username: admin.username, password: 'wrong' },
+        headers: { 'cf-connecting-ip': ip },
+      });
+
+    assert.equal((await attempt('203.0.113.1')).statusCode, 401);
+    assert.equal((await attempt('203.0.113.1')).statusCode, 401);
+    assert.equal((await attempt('203.0.113.1')).statusCode, 429, 'the first visitor has spent their budget');
+    assert.equal((await attempt('203.0.113.2')).statusCode, 401, 'a second visitor is not locked out by the first');
+  });
+
+  it('ignores the header when none is configured', async () => {
+    config.clientIpHeader = '';
+    config.guestMintsPerHour = 1;
+
+    const mint = (ip: string) =>
+      app.inject({ method: 'POST', url: '/api/auth/guest', payload: {}, headers: { 'cf-connecting-ip': ip } });
+
+    assert.equal((await mint('203.0.113.1')).statusCode, 201);
+    assert.equal((await mint('203.0.113.2')).statusCode, 429, 'a forged header must not buy a fresh window');
   });
 });

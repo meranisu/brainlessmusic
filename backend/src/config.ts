@@ -36,6 +36,19 @@ export const config = {
   // password doesn't, so the thing standing between a guess and a login has to
   // be the rate limit rather than the code's own length.
   passcodeAttemptsPerMinute: Number(process.env.PASSCODE_ATTEMPTS_PER_MINUTE ?? 8),
+  // Password sign-in attempts one IP may make per minute. Looser than the
+  // passcode's because a password has the keyspace a passcode lacks; this is
+  // here so a script can't make unlimited guesses, not to make guessing hard.
+  loginAttemptsPerMinute: Number(process.env.LOGIN_ATTEMPTS_PER_MINUTE ?? 10),
+  // Request header that carries the visitor's real address when a proxy sits
+  // in front of this process. Unset means "use the socket address", which is
+  // right on a LAN. Behind cloudflared it is wrong: every request arrives from
+  // the cloudflared container, so every visitor would share one rate-limit
+  // window. Production sets `cf-connecting-ip`, which Cloudflare overwrites on
+  // every request, so a visitor coming through the tunnel cannot forge it.
+  // Someone reaching port 3000 directly (LAN, Tailscale) can send any value
+  // and pick their own window, which is the price of publishing that port.
+  clientIpHeader: (process.env.CLIENT_IP_HEADER ?? '').trim().toLowerCase(),
   libraryPath: process.env.LIBRARY_PATH ?? './library',
   uploadStagingPath: process.env.UPLOAD_STAGING_PATH ?? './data/upload-staging',
   // Extracted cover art, content-addressed. Safe to delete wholesale — a

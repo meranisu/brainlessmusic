@@ -17,6 +17,7 @@ import {
 import { hashPasscode, hashPassword, verifyPasscode, verifyPassword } from '../services/password.js';
 import { createRateLimiter } from '../services/rateLimit.js';
 import { signMediaToken, signToken, tokenExpiresAt } from '../services/token.js';
+import { clientIp } from '../utils/clientIp.js';
 
 interface Credentials {
   username: string;
@@ -37,6 +38,7 @@ const MINUTE_MS = 60 * 1000;
 
 const guestMintLimiter = createRateLimiter();
 const passcodeLoginLimiter = createRateLimiter();
+const passwordLoginLimiter = createRateLimiter();
 
 /**
  * Constant-time compare for a configured secret against something a stranger
@@ -89,7 +91,7 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
    * the network edge (roadmap box 13), with `ENTRY_CODE` as the backstop below.
    */
   fastify.post<{ Body: { code?: unknown } }>('/auth/guest', async (request, reply) => {
-    const rate = guestMintLimiter.check(request.ip, {
+    const rate = guestMintLimiter.check(clientIp(request), {
       limit: config.guestMintsPerHour,
       windowMs: HOUR_MS,
     });
@@ -185,6 +187,19 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
   );
 
   fastify.post<{ Body: Credentials }>('/auth/login', async (request, reply) => {
+    const ip = clientIp(request);
+    const rate = passwordLoginLimiter.check(ip, {
+      limit: config.loginAttemptsPerMinute,
+      windowMs: MINUTE_MS,
+    });
+
+    if (!rate.allowed) {
+      return reply
+        .code(429)
+        .header('retry-after', String(rate.retryAfterSeconds))
+        .send({ error: 'Too many tries — wait a moment' });
+    }
+
     const { username, password } = request.body ?? ({} as Credentials);
 
     if (!username || !password) {
@@ -200,19 +215,23 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       return reply.code(401).send({ error: 'invalid username or password' });
     }
 
+    // Same as the passcode path: a correct password clears this IP's window,
+    // so a household signing in one after another never trips it.
+    passwordLoginLimiter.clear(ip);
+
     const token = signToken({ id: user.id, username: user.username });
     return reply.send({ token });
   });
 
   /**
    * The arcade-card alternative to `/auth/login` — a username plus a short
-   * numeric passcode instead of a password. Rate-limited far more tightly
-   * than the password path (`passcodeAttemptsPerMinute`, default 8/minute per
-   * IP): a 4-8 digit code has nothing like a password's keyspace, so the
-   * limit is doing the work the code's own length can't.
+   * numeric passcode instead of a password. Rate-limited per IP
+   * (`passcodeAttemptsPerMinute`, default 8/minute): a 4-8 digit code has
+   * nothing like a password's keyspace, so the limit is doing the work the
+   * code's own length can't.
    */
   fastify.post<{ Body: PasscodeLogin }>('/auth/passcode-login', async (request, reply) => {
-    const rate = passcodeLoginLimiter.check(request.ip, {
+    const rate = passcodeLoginLimiter.check(clientIp(request), {
       limit: config.passcodeAttemptsPerMinute,
       windowMs: MINUTE_MS,
     });
@@ -243,9 +262,8 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       return reply.code(401).send({ error: 'invalid username or passcode' });
     }
 
-    // A correct passcode clears this IP's window, the same courtesy a correct
-    // password gets by never having counted against one at all.
-    passcodeLoginLimiter.clear(request.ip);
+    // A correct passcode clears this IP's window, as a correct password does.
+    passcodeLoginLimiter.clear(clientIp(request));
 
     const token = signToken({ id: user.id, username: user.username });
     return reply.send({ token });
