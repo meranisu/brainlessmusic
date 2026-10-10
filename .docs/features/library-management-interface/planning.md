@@ -222,6 +222,9 @@ a real bulk `PATCH`/`DELETE` backend endpoint (bulk actions still fire one
 request per selected track today), and a library-wide stats surface (total
 size, format breakdown). Neither was asked for; building either speculatively
 would cut against this project's own "prefer surfacing over building" rule.
+**2026-10-10:** the owner wants both after all —
+[A54](../../QUESTIONS.md#a54--bulk-hide-and-delete-get-a-real-endpoint-was-q24) (bulk endpoint) and
+[A52](../../QUESTIONS.md#a52--the-library-gets-a-stats-summary-was-q25) (stats). Not built yet.
 
 Full detail in `.docs/CHANGELOG.md` (2026-09-15 entry) and
 `.docs/FUNCTIONLOG.md`.

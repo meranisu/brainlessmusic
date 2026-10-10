@@ -74,9 +74,9 @@ preference, it is the measurement.
   and so on), so this phase is mostly a mechanical lift of those into tokens —
   that is the bulk of the work, and it is what makes every later theme cheap.
 - Ship at least two: the current blue, and a red one from the IIDX RED
-  reference. Scope of what a theme controls is [Q19](../../QUESTIONS.md#q19).
-- Persistence is [Q20](../../QUESTIONS.md#q20) — per-device, or carried with the
-  identity so a handoff brings it along.
+  reference. A theme controls colour only ([A48](../../QUESTIONS.md#a48--a-theme-controls-colour-only-was-q19)).
+- Persistence shipped per-device; [A55](../../QUESTIONS.md#a55--the-theme-follows-the-profile-was-q20) (2026-10-10)
+  moves it to the profile. Not built yet.
 - The backdrop, boot frame, band sweep and tap flash all hard-code blue and
   orange; they have to move to tokens in the same pass or a red theme will have
   blue furniture.
@@ -186,7 +186,7 @@ warnings.
 
 - Per-theme skins for the select screen.
 - Transition when the selection changes; transition into playback.
-- Whether selecting a track **previews** it is [Q23](../../QUESTIONS.md#q23).
+- Selecting a track does **not** preview it ([A53](../../QUESTIONS.md#a53--selecting-a-track-stays-silent-was-q23)).
 - (Added mid-phase, on request): the strip should be **draggable** with a
   mouse or a finger, not just wheel/keyboard.
 
@@ -249,6 +249,6 @@ a statement) fixed rather than suppressed.
 ## Open questions
 
 [Q18](../../QUESTIONS.md#q18) (blocking Phase 1) ·
-[Q19](../../QUESTIONS.md#q19) · [Q20](../../QUESTIONS.md#q20) ·
+[A48](../../QUESTIONS.md#a48--a-theme-controls-colour-only-was-q19) · [A55](../../QUESTIONS.md#a55--the-theme-follows-the-profile-was-q20) ·
 [Q21](../../QUESTIONS.md#q21) (blocking Phase 3) ·
-[Q22](../../QUESTIONS.md#q22) · [Q23](../../QUESTIONS.md#q23)
+[Q22](../../QUESTIONS.md#q22) · [A53](../../QUESTIONS.md#a53--selecting-a-track-stays-silent-was-q23)

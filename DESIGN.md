@@ -51,7 +51,7 @@ theme (Q45, `frontend/src/index.css:3-6`). Accent-coloured text on a card uses `
 - **Alternatives, chosen by the user:** Crimson (after IIDX RED), Void (near-black, accent only), Nord, Magenta (after
   osu!), Pastel (Material tonal). Each names its source in `theme.ts:6-13`. That stated source is their purpose, so
   Magenta's vivid and Pastel's soft palettes are intentional, not defaults.
-- A theme controls **colour only**. Layout and type stay the same (Q19, still open, colour-only recommended).
+- A theme controls **colour only**. Layout and type stay the same ([A48](.docs/QUESTIONS.md#a48--a-theme-controls-colour-only-was-q19), decided 2026-10-10).
 
 ## Typography
 

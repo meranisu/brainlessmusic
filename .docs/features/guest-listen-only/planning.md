@@ -74,9 +74,9 @@ guest.
 
 ## Open
 
-- ~~Guests' pre-existing playlists and favorites~~: resolved by A38 (2026-10-10). Migration `0017` deletes them at
-  the next deploy.
-- How this reaches smol: [Q39](../../QUESTIONS.md#q39--how-does-a-change-reach-smol), still open.
+- ~~Guests' pre-existing playlists and favorites~~: resolved by A38 (2026-10-10). Migration `0017` deleted them at
+  the 2026-10-10 deploy.
+- How this reaches smol: `./scripts/deploy.sh`, first run 2026-10-10 ([A47](../../QUESTIONS.md#a47--a-change-reaches-smol-through-scriptsdeploysh-was-q39)).
 
 ## Change Log
 

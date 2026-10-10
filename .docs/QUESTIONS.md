@@ -31,13 +31,8 @@ is never asked twice.
 | [Q2](#q2--when-does-open-registration-get-turned-off) | When does open registration get turned off? | 2026-09-09 | Yes, at box 13's done-when |
 | [Q4](#q4--room-sync-design-details) | Room-sync design details | 2026-09-09 | Not yet — v0.3 |
 | [Q5](#q5--tag-editing-scope) | Tag-editing scope | 2026-09-09 | No |
-| [Q10](#q10--gapless-playback) | Gapless playback | 2026-09-10 | No |
-| [Q12](#q12--does-the-first-play-wait-need-a-live-fallback-for-very-long-tracks) | Does the first-play wait need a live fallback for very long tracks? | 2026-09-10 | No |
-| [Q19](#q19--what-does-a-theme-control) | What does a theme control? | 2026-09-11 | Yes, at phase 2 |
-| [Q20](#q20--where-does-the-theme-choice-live) | Where does the theme choice live? | 2026-09-11 | No — assumption stated |
-| [Q23](#q23--should-selecting-a-track-preview-it) | Should selecting a track preview it? | 2026-09-11 | No — assumption stated |
+| [Q27](#q27--should-uploads-let-you-pick-which-library-root-they-file-into) | Should uploads let you pick which library root they file into? | 2026-09-15 | No — assumption stated |
 | [Q30](#q30--should-cloudflare-access-sit-in-front-of-the-public-hostname) | Should Cloudflare Access sit in front of the public hostname? | 2026-09-21 | No — assumption stated |
-| [Q39](#q39--how-does-a-change-reach-smol) | How does a change reach smol? | 2026-10-09 | Yes, for A37 to take effect in production |
 
 ### Q2 — When does open registration get turned off?
 **Asked:** 2026-09-09 · **Blocking:** yes, at box 13's done-when
@@ -77,154 +72,6 @@ centerpiece feature, so it deserves its own turn, not a paragraph here.
 Which fields are editable, whether batch-edit exists, and what undo/backup
 behaviour looks like when the edit writes back to the file on disk.
 
-### Q10 — Gapless playback
-**Asked:** 2026-09-10 · **Blocking:** no
-
-Opus pre-skip / LAME delay-padding handling. Raised in the 2026-09-10 backend
-playback review and still undecided — the only item from that review's
-"undecided" pair that has not since been built ([A9](#a9--resume-position--cross-device-playback-state)
-took the other).
-
----
-
-### Q12 — Does the first-play wait need a live fallback for very long tracks?
-**Asked:** 2026-09-10 · **Blocking:** no
-
-[A5](#a5--cold-cache-strategy-and-cache-sizing-for-box-24) chose convert-first,
-then serve. The wait scales with track length: measured ~96x realtime, so about
-**4.5 s for a 7-minute track** and roughly **37 s for an hour-long mix**. Four
-seconds of silence after pressing play is fine. Thirty-seven is not.
-
-Nothing in the library is long enough to hit this today, which is why it is not
-blocking.
-
-**Assumption being built on:** every track converts on first play, however long
-it is. If that bites, the fix is to reinstate the removed live `-ss` path for
-tracks over a threshold — they would start instantly and give up byte-range
-seeking, which is the right trade for a mix nobody scrubs precisely. The code
-is in `216aaf7^`.
-
----
-
-### Q19 — What does a theme control?
-**Asked:** 2026-09-11 · **Blocking:** at phase 2
-
-Narrow (**colour only** — palette swaps, same layout and type) or wide (colour
-*and* typography, border weights, corner radii, maybe the backdrop's pattern).
-
-Colour-only is a day's work and mechanical: lift today's hard-coded Tailwind
-colours into custom properties, then a theme is a list of values. Wide themes
-are a different project — every component grows a set of knobs, and each new
-theme is then a design exercise rather than a palette.
-
-**Recommendation: colour only for now**, with the token layer built so type and
-metrics *can* join later without re-touching every component.
-
-### Q20 — Where does the theme choice live?
-**Asked:** 2026-09-11 · **Blocking:** no
-
-`localStorage` (this browser only) or on the server against the user row (so it
-follows the identity, including across a handoff QR).
-
-**Assumption I will build on unless you say otherwise: `localStorage`.** A theme
-is a property of the screen you are looking at, not of who you are — a phone in
-a dark room and a desktop by a window can reasonably disagree. It also needs no
-migration, no endpoint and no round trip before the first paint, which matters
-because a theme that arrives late is a visible flash of the wrong colours.
-
-### A19 — A phone stacks the strip above the detail *(was Q22)*
-**Answered:** 2026-09-11, by what shipped · **Simple stacking**, not my own
-recommendation. I had recommended a slide-up sheet; the phase went a plainer
-route instead, and it is worth being honest that this is a downgrade in
-ambition rather than a considered alternative.
-
-On mobile (below `lg`), the grid collapses to one column and CSS `order`
-puts the strip first, the detail panel second — you scroll to it rather than
-it sliding over the strip. The strip keeps its own fixed height
-(`min(34rem, calc(100svh - 19rem))`), so it still reads as "the thing you are
-scrolling," and the detail panel is reached the ordinary way, by scrolling the
-page.
-
-Why not the sheet as planned: it is a second overlay system (on top of the
-numpad, Options panel and interstitial already in the app), and building it
-well — a drag handle, a dismiss gesture, focus trapping — was more than this
-phase's scope justified before anyone has used the plain version. If stacking
-reads as flat once there is a phone to actually test it on, the sheet is still
-the next move, and nothing here forecloses it.
-
-**Verified:** 390px shows the strip on top with no sideways scroll
-(`scrollWidth` 375 vs a 390 viewport), the detail panel is reachable by
-scrolling, and no console errors.
-
-### Q23 — Should selecting a track preview it?
-**Asked:** 2026-09-11 · **Blocking:** no
-
-In the reference, moving the selection starts the song's preview clip. It is a
-large part of why that screen feels alive.
-
-Against it here: no preview clips exist, so it would mean streaming the real
-track from its start on every arrow-key press — expensive over the network the
-roadmap is about to expose, and startling if someone is already listening to
-something else.
-
-**Assumption I will build on: no preview.** Selection is silent; `Enter` plays.
-If you want it later, the honest version is a debounce plus a decode of the
-first ~15 seconds, cached like the transcodes already are — worth its own box
-rather than a phase here.
-
----
-
-### Q24 — Does bulk hide/delete on `/manage` need a real bulk endpoint?
-**Asked:** 2026-09-15 · **Blocking:** no
-
-Today "bulk" hide/un-hide/delete on the admin track table fires one
-`PATCH`/`DELETE /tracks/:id` per selected row (`Promise.all` in
-`ManageTracksPage`), not a real batch endpoint. Fine at a handful of rows;
-noticeably slower and noisier in the network tab if someone ever selects
-hundreds at once.
-
-**Assumption I will build on: skip it for now.** This library is
-friends-scale, not enterprise-scale, and no one has hit this as an actual
-problem yet — building a batch endpoint speculatively is exactly what
-"prefer surfacing over building" argues against. Revisit if bulk selections
-in practice turn out to be large.
-
----
-
-### Q25 — Does `/manage` need a library-wide stats surface?
-**Asked:** 2026-09-15 · **Blocking:** no
-
-"See what music is in the library" could mean the searchable/sortable table
-itself (already true), or a dashboard-style summary — total tracks, total
-size on disk, format breakdown. The second is genuinely new backend work (no
-`GET /library/stats`-shaped endpoint exists), not something already sitting
-unexposed.
-
-**Assumption I will build on: not building it this pass.** The table already
-answers "what's in the library" for anything you'd search or filter for; a
-stats dashboard is a distinct, larger feature and not implied by "full
-sorting search and more." Say the word if you actually want the dashboard.
-
----
-
-### Q26 — Does removing a library root delete its tracks, or just mark them missing?
-**Asked:** 2026-09-15 · **Blocking:** no
-
-Multi-root library support means a root's *registration* can be removed
-independently of whether the drive/folder still has music on it. Deleting
-the registration could either hard-delete every track that came from that
-root, or leave them as permanently-missing rows (same treatment as a single
-file going missing today).
-
-**Assumption I will build on: mark missing, don't delete.** Consistent with
-this app's existing hide-vs-delete philosophy — removing a root's
-registration is an admin decision about *tracking* that folder, not a
-decision to destroy the track rows, their play history, or their favorites.
-Re-adding the same path later would make them reappear naturally through the
-normal reconcile.
-
----
-
 ### Q27 — Should uploads let you pick which library root they file into?
 **Asked:** 2026-09-15 · **Blocking:** no
 
@@ -235,21 +82,6 @@ destination (the original default root).
 are for folders that already hold music you want scanned in, not upload
 targets — a root picker on the upload UI is a separate, un-asked-for
 decision. Say so if you want uploads to target a chosen root instead.
-
----
-
-### Q28 — Indeterminate scan bar now, or real weighted progress later?
-**Asked:** 2026-09-15 · **Blocking:** no
-
-`POST /library/scan` is one blocking request with no incremental-progress
-reporting today. A true "234 of 5,000 files" bar needs an async job plus a
-status-polling endpoint — a materially bigger, separate piece of backend
-work than what was asked for.
-
-**Assumption I will build on: an indeterminate animated bar** (reusing the
-existing progress-bar visual from `UploadPage.tsx`, just without a real
-percentage) while the scan request is in flight. Real weighted progress is a
-distinct future feature, not a corner cut silently.
 
 ---
 
@@ -285,23 +117,61 @@ database backups, which live in the same Docker volume as the database) off
 `smol`, so a dead disk takes both. Not a question — a gap; noted here so it
 is not lost.
 
-### Q39 — How does a change reach smol?
-**Asked:** 2026-10-09 · **Blocking:** yes, for A37 to take effect in production
-
-Production (`brainless-app` on smol) has no repeatable deploy procedure; the root `CLAUDE.md` says to ask before
-touching it. The guest limits (A37) are committed but the live site still lets guests do everything. Needed: who
-deploys, and how (pull and `docker compose up --build` on smol, or another way).
-
-**Update 2026-10-10:** smol is out of the owner's reach until the friend who owns the box gets in touch. Waiting on
-that; nothing to do from this side. Pending on smol until then: A37 (guest limits) and migration `0017` (A38).
-
-**Update 2026-10-10 (later):** the owner asked for a script to run on the server, so the "how" is now
-`./scripts/deploy.sh` (see `.docs/ops/cloudflare-tunnel-deployment.md`, "Updating to a new version"). Still open
-until it has been run on smol once.
-
----
-
 ## Answered
+
+### A56 — Gapless playback gets built *(was Q10)*
+**Answered:** 2026-10-10 · **Yes.** Tracks should play back to back with no gap, which means handling the Opus pre-skip
+and the LAME delay/padding at track edges. Not built yet and not scheduled on the roadmap. It needs its own plan
+(`.docs/features/<name>/planning.md`), covering the web player and Android separately.
+
+### A55 — The theme follows the profile *(was Q20)*
+**Answered:** 2026-10-10 · **Stored per user on the server**, not per browser. This overrides the `localStorage`
+assumption that shipped (`frontend/src/lib/theme.ts:25`). Not built yet: needs a migration (with a
+`database-schema.md` update), an endpoint to read and set it, and a first-paint plan so the wrong colours don't flash
+while the profile loads (a local cached copy is the likely answer). Guests are user rows too (A13), so each guest
+identity keeps its own theme.
+
+### A54 — Bulk hide and delete get a real endpoint *(was Q24)*
+**Answered:** 2026-10-10 · **Yes.** Replace the one-request-per-row bulk actions with a real batch endpoint. `/manage`
+was folded into the Library (A34), so the code to change is `frontend/src/components/LibraryFull.tsx:226` (hide) and
+`:232` (delete), both `Promise.all` over `/tracks/:id`. Not built yet.
+
+### A53 — Selecting a track stays silent *(was Q23)*
+**Answered:** 2026-10-10 · **No preview.** Moving the selection plays nothing; `Enter` plays. This is how it shipped,
+so nothing changes.
+
+### A52 — The Library gets a stats summary *(was Q25)*
+**Answered:** 2026-10-10 · **Yes.** A library-wide summary: total tracks, total size on disk, format breakdown. Not built
+yet: no endpoint returns these today (the Control Center shows server health, disk and scan state, not library
+totals). `/manage` now lives inside the Library (A34), so that is where it goes.
+
+### A51 — Removing a library root deletes its tracks *(was Q26)*
+**Answered:** 2026-10-10 · **Delete the track rows**, not mark them missing. This overrides what shipped:
+`deleteLibraryRoot` (`backend/src/db/libraryRoots.ts:53`) detaches the tracks and keeps them. Read as deleting the
+*database rows only*, together with their favorites, play history and playlist entries; the music files on disk are
+never touched. Not built yet.
+
+### A50 — Very long tracks convert first like the rest *(was Q12)*
+**Answered:** 2026-10-10 · **Agreed.** Every track converts on first play, however long. An hour-long mix waits about
+37 s the first time; no live `-ss` fallback. The removed path is still in git (`216aaf7^`) if that ever changes.
+
+### A49 — The scan bar shows a count *(was Q28)*
+**Answered:** 2026-10-10 · **A moving bar with the number on it**, not an indeterminate one. Already built since the
+question was asked: each scanning root reports `scanProgress`, shown as "x of y files" with a bar in the Control
+Center (`frontend/src/pages/ControlCenterPage.tsx:120`) and as a status line on the Library
+(`frontend/src/pages/LibraryPage.tsx:36`). Nothing left to do.
+
+### A48 — A theme controls colour only *(was Q19)*
+**Answered:** 2026-10-10 · **Colour only, for now.** A theme swaps the palette; layout, type, border weights, corner
+radii and the backdrop pattern stay the same for every theme. The token layer should still leave room for type and
+metrics to join later without touching every component. Matches what shipped with music-select-and-themes
+(2026-09-14) and the rule in `DESIGN.md`.
+
+### A47 — A change reaches smol through `./scripts/deploy.sh` *(was Q39)*
+**Answered:** 2026-10-10 · **The owner runs `./scripts/deploy.sh` on smol.** First run done on 2026-10-10; the owner
+reports the changes went live. That run brought A37 (guest limits) and migration `0017` (A38) to production. How the
+script works: `.docs/ops/cloudflare-tunnel-deployment.md`, "Updating to a new version". Still the owner's job, run on
+smol; ask before touching it.
 
 ### A46 — How should the A–Z rail cover non-Latin titles? *(was Q46)*
 **Answered:** 2026-10-10 · **One entry per script the library has.** `getLetterIndex` (`backend/src/db/letterIndex.ts`)
@@ -339,7 +209,7 @@ Guests on Android get the listen-only cut of [A37](#a37--guests-are-listen-only-
 
 ### A38 — Delete guests' existing playlists and favorites? *(was Q38)*
 **Answered:** 2026-10-10 · **Yes, delete them.** Done as migration `0017_delete_guest_playlists_and_favorites.sql`
-rather than a hand-run command on smol: it runs by itself at the next deploy ([Q39](#q39--how-does-a-change-reach-smol)),
+rather than a hand-run command on smol: it ran at the first deploy ([A47](#a47--a-change-reaches-smol-through-scriptsdeploysh-was-q39)),
 in one transaction, and is tested (`backend/src/db/guestDataCleanup.test.ts`). Guests keep their identity and resume
 position. See CHANGELOG 2026-10-10.
 
@@ -437,6 +307,30 @@ free plan). Paired with a **Cloudflare Access** application in front of the
 tunnel's public hostname (email-allowlist login gate) as defense-in-depth,
 since this app's own auth was designed for a LAN and is now permanently
 internet-facing. Full walkthrough: `.docs/ops/cloudflare-tunnel-deployment.md`.
+
+### A19 — A phone stacks the strip above the detail *(was Q22)*
+**Answered:** 2026-09-11, by what shipped · **Simple stacking**, not my own
+recommendation. I had recommended a slide-up sheet; the phase went a plainer
+route instead, and it is worth being honest that this is a downgrade in
+ambition rather than a considered alternative.
+
+On mobile (below `lg`), the grid collapses to one column and CSS `order`
+puts the strip first, the detail panel second — you scroll to it rather than
+it sliding over the strip. The strip keeps its own fixed height
+(`min(34rem, calc(100svh - 19rem))`), so it still reads as "the thing you are
+scrolling," and the detail panel is reached the ordinary way, by scrolling the
+page.
+
+Why not the sheet as planned: it is a second overlay system (on top of the
+numpad, Options panel and interstitial already in the app), and building it
+well — a drag handle, a dismiss gesture, focus trapping — was more than this
+phase's scope justified before anyone has used the plain version. If stacking
+reads as flat once there is a phone to actually test it on, the sheet is still
+the next move, and nothing here forecloses it.
+
+**Verified:** 390px shows the strip on top with no sideways scroll
+(`scrollWidth` 375 vs a 390 viewport), the detail panel is reachable by
+scrolling, and no console errors.
 
 ### A17 — The top bar overflows, and floats *(was Q18)*
 **Answered:** 2026-09-11 · **Overflow menu.** Owner's choice, over a scrolling
@@ -670,8 +564,8 @@ Encode-to-cache-first means the data-saver path always serves a finished file,
 so seeking is an ordinary byte range and the `-ss` offset had no caller. It was
 removed in `216aaf7` (116 lines) rather than left as an unreachable branch. The
 "both" answer was not wrong when given — it was made obsolete by a measurement
-taken after it. Git keeps the removed path if [Q12](#q12--does-the-first-play-wait-need-a-live-fallback-for-very-long-tracks)
-ever needs it.
+taken after it. Git keeps the removed path; [A50](#a50--very-long-tracks-convert-first-like-the-rest-was-q12) decided it isn't
+needed.
 
 ### A3 — Where is ReplayGain applied?
 **Answered:** 2026-09-10 · **Client-side only.** The server stores and ships the

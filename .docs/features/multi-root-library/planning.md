@@ -35,6 +35,8 @@ non-blocking, all built to the stated default):
 - **Q26 — removing a root** detaches and marks its tracks missing; it does
   not delete them. Consistent with this app's existing hide-vs-delete
   philosophy — a registration decision isn't a decision to destroy music.
+  **Reversed 2026-10-10 by [A51](../../QUESTIONS.md#a51--removing-a-library-root-deletes-its-tracks-was-q26):**
+  removing a root deletes its track rows (not the files). Not built yet.
 - **Q27 — uploads** stay single-destination (the original default root).
   Extra roots are for scanning in collections that already exist there, not
   upload targets.
@@ -42,6 +44,8 @@ non-blocking, all built to the stated default):
   percentage. `POST /library/scan` is one blocking request with no
   incremental progress reporting; building that would mean an async job plus
   a status-polling backend — a materially bigger, separate feature.
+  **Since superseded:** scans now report `scanProgress` and show "x of y files"
+  ([A49](../../QUESTIONS.md#a49--the-scan-bar-shows-a-count-was-q28)).
 
 **What making a new drive visible requires, and can't be automated from
 inside the app:** a Docker bind-mount into the container plus a restart —

@@ -97,8 +97,8 @@ Hosting comes before the app, so there's a real server to point the phone at.
 
   **Note, 2026-10-10:** owner's quick phone check says the site works from outside, but the structured test wasn't
   run, so the box stays open. To do later, on mobile data: **(A)** log in, play a song, seek once; **(B)** in a private
-  tab, pick guest without a code. If B lets you straight in, `ENTRY_CODE` isn't set on smol, and setting it waits on
-  smol's owner ([Q39](../QUESTIONS.md#q39--how-does-a-change-reach-smol)). Also stale: the Cloudflare Access line above
+  tab, pick guest without a code. If B lets you straight in, `ENTRY_CODE` isn't set on smol, so set it in smol's env and
+  redeploy with `./scripts/deploy.sh` ([A47](../QUESTIONS.md#a47--a-change-reaches-smol-through-scriptsdeploysh-was-q39)). Also stale: the Cloudflare Access line above
   says it's "being built now", but [Q30](../QUESTIONS.md#q30--should-cloudflare-access-sit-in-front-of-the-public-hostname)
   keeps Access off.
 

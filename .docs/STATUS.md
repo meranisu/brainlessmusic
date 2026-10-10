@@ -17,7 +17,7 @@ Work the first unticked box there.
 
 | Area | State | Detail |
 |---|---|---|
-| Auth (JWT + bcrypt, guest entry, admin role, user management) | Built, verified | archive; A13–A16, A41–A43 (per-guest codes, Android guest button; not on smol, not tried on a phone) in QUESTIONS |
+| Auth (JWT + bcrypt, guest entry, admin role, user management) | Built, verified | archive; A13–A16, A41–A43 (per-guest codes, Android guest button; deployed to smol 2026-10-10, not tried on a phone) in QUESTIONS |
 | Library scanner, multi-root library, scheduled sync | Built, verified | [features/multi-root-library](features/multi-root-library/planning.md) |
 | Streaming (byte ranges, ETag caching, signed URLs) | Built, verified | archive |
 | Formats and transcoding (7 formats; `?quality=low` serves a cached converted copy) | Built, verified — roadmap box 24 | [features/formats-and-transcoding](features/formats-and-transcoding/planning.md) |
@@ -46,16 +46,15 @@ this section is a hint, not the source of truth. When these land, update the sch
 
 - **Backend:** custom Node.js/TypeScript (Fastify), not Navidrome — [history/backend-decision-history.md](history/backend-decision-history.md).
 - **Database:** SQLite, own schema, FTS5 + WAL.
-- **Auth:** JWT + bcrypt; guest entry replaces the login form, `/login` kept but unadvertised, `ENTRY_CODE` ships unset, `/signup` removed (A13–A16). Guests are listen-only since 2026-10-09: no playlists, favorites, play counts or history, enforced by `requireAccount` (A37; not yet on smol).
-- **Deployment:** Docker on a friend's Arch Linux PC (`smol`), reached via Cloudflare Tunnel at `music.nobrainmusic.my` since 2026-09-21; Cloudflare Access is still off (Q30) (A20/A21).
+- **Auth:** JWT + bcrypt; guest entry replaces the login form, `/login` kept but unadvertised, `ENTRY_CODE` ships unset, `/signup` removed (A13–A16). Guests are listen-only since 2026-10-09: no playlists, favorites, play counts or history, enforced by `requireAccount` (A37; on smol since the 2026-10-10 deploy).
+- **Deployment:** Docker on a friend's Arch Linux PC (`smol`), reached via Cloudflare Tunnel at `music.nobrainmusic.my` since 2026-09-21; updated by the owner running `./scripts/deploy.sh` on smol (A47); Cloudflare Access is still off (Q30) (A20/A21).
 - **Dev environment:** WSL2 for the backend, native Windows / Android Studio for the app — [process/dev-environment.md](process/dev-environment.md).
 - **Web vs Android:** Android is the listening client; web is the control room (management parity and beyond).
 
 ## Open questions
 
 The list is [QUESTIONS.md](QUESTIONS.md) — check it before asking anything. Blocking now: **Q2** (open exposure stays
-open until box 13's network-edge gate exists). Q19 is still listed open although the feature it blocked
-(music-select-and-themes) shipped 2026-09-14 — likely due to be moved to Answered.
+open until box 13's network-edge gate exists).
 
 ## Next
 
