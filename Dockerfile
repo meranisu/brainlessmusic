@@ -1,13 +1,7 @@
-# One image that serves both the API and the web app, so `docker compose up`
-# gives you something to open rather than an API you still have to host a
-# frontend against.
-#
-# Debian slim rather than Alpine on purpose: better-sqlite3 and bcrypt are
-# native modules with prebuilt binaries for glibc. On musl they are compiled
-# from source at install time, which needs a full toolchain in the image and
-# turns a fast build into a slow, fragile one. The extra ~40 MB is worth it.
+# One image serves the API and the web app.
+# Debian slim, not Alpine: better-sqlite3 and bcrypt ship glibc binaries and would compile from source on musl.
 
-# ---------- build the web app ----------
+# Build the web app.
 FROM node:22-bookworm-slim AS frontend
 
 WORKDIR /build/frontend
@@ -15,16 +9,12 @@ COPY frontend/package*.json ./
 RUN npm ci
 
 COPY frontend/ ./
-# Relative base URL => the app calls the API on its own origin, which is exactly
-# what it gets when served by the backend below. It has to carry the /api
-# prefix: the backend mounts its routes under API_PREFIX so they don't collide
-# with the SPA's own paths (/albums, /search and /health are both a page and an
-# endpoint), so an empty value here would send every request to the SPA
-# fallback instead of the API.
+# Relative base: the app calls the API on its own origin. Keep the /api prefix, or every request
+# lands on the SPA fallback (/albums, /search and /health are both pages and endpoints).
 ENV VITE_API_BASE_URL="/api"
 RUN npm run build
 
-# ---------- build the server ----------
+# Build the server.
 FROM node:22-bookworm-slim AS backend
 
 WORKDIR /build/backend
@@ -37,7 +27,7 @@ RUN npm run build
 # Drop dev dependencies from the tree that gets copied into the runtime image.
 RUN npm prune --omit=dev
 
-# ---------- runtime ----------
+# Runtime.
 FROM node:22-bookworm-slim AS runtime
 
 # ffmpeg is a hard runtime dependency, not a convenience: the `?quality=low`
@@ -55,9 +45,7 @@ COPY --from=backend /build/backend/dist ./dist
 COPY --from=backend /build/backend/package.json ./package.json
 COPY --from=frontend /build/frontend/dist ./public
 
-# Defaults point at the two volumes declared in compose. Everything here can be
-# overridden; JWT_SECRET deliberately has no default, because NODE_ENV is
-# production and the server refuses to boot without a real one.
+# Defaults match the compose volumes. JWT_SECRET has none on purpose: the server refuses to boot without a real one.
 ENV PORT=3000 \
     DB_PATH=/data/brainlessmusic.db \
     LIBRARY_PATH=/library \
@@ -66,9 +54,7 @@ ENV PORT=3000 \
     TRANSCODE_PATH=/data/transcodes \
     FRONTEND_PATH=/app/public
 
-# `node` is a non-root user that the base image already provides. The library
-# and data volumes must be writable by it — uploads are filed into the library,
-# and the database lives in /data.
+# `node` (non-root, from the base image) must be able to write both volumes: uploads go into the library.
 RUN mkdir -p /data /library && chown -R node:node /data /library
 USER node
 
@@ -79,7 +65,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-# Migrations run on every start: they are idempotent, and a container that
-# boots against a schema older than its code is a worse failure than a few
-# milliseconds of startup cost.
+# Migrations are idempotent, so they run on every start.
 CMD ["sh", "-c", "node dist/db/migrate.js && node dist/index.js"]

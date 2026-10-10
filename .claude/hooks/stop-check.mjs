@@ -19,9 +19,8 @@ if (input.stop_hook_active) process.exit(0); // second pass: never loop
 
 const root = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 
-// The PostToolUse list only sees Edit/Write/MultiEdit. Files changed from the shell (sed, a script) or by
-// another tool never reach it, so the working tree is read as well (Q40, 2026-10-10). This can include
-// uncommitted work that isn't this session's; the cost is an extra check, never a missed one.
+// PostToolUse only sees Edit/Write, so shell edits are caught by also reading the working tree (Q40).
+// That can include someone else's uncommitted work: an extra check, never a missed one.
 const status = spawnSync('git', ['status', '--porcelain', '-uall', '-z'], { cwd: root, encoding: 'utf8' });
 const dirty = [];
 if (status.status === 0) {

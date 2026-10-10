@@ -2,15 +2,10 @@
 # Updates production (brainless-app on smol) to the latest main.
 #
 #   ./scripts/deploy.sh            pull, back up the database, rebuild, restart, wait for healthy
-#   ./scripts/deploy.sh --force    same, even if there are no new commits (e.g. to rebuild after a .env change)
-#   ./scripts/deploy.sh rollback   go back to the image that was running before the last deploy
+#   ./scripts/deploy.sh --force    same, even with no new commits (e.g. after a .env change)
+#   ./scripts/deploy.sh rollback   go back to the image that ran before the last deploy
 #
-# Run it on the server, from anywhere inside the clone. It only ever touches the
-# brainless-app container; cloudflared keeps running throughout, so the site is
-# down only for the few seconds the new container takes to boot.
-#
-# One image holds both the API and the web app (see Dockerfile), so this updates
-# the backend and the frontend together. Migrations run on container start.
+# Run on the server from inside the clone. Only brainless-app restarts; cloudflared keeps running.
 
 set -euo pipefail
 
@@ -162,9 +157,7 @@ deploy() {
   docker compose build "$SERVICE"
 
   say "Restarting $SERVICE"
-  # --force-recreate: compose does not always notice that the tag now points
-  # at a new image (seen in testing after a rollback) and would leave the old
-  # container running while the health check below happily passes.
+  # --force-recreate: compose can miss that the tag moved (seen after a rollback) and keep the old container.
   docker compose up -d --no-deps --force-recreate "$SERVICE"
 
   say "Waiting for it to report healthy"
@@ -175,11 +168,8 @@ deploy() {
   [ "$(docker inspect -f '{{.Image}}' "$SERVICE")" = "$(docker image inspect -f '{{.Id}}' "$IMAGE")" ] \
     || fail "$SERVICE is healthy but still running the old image. Run: docker compose up -d --force-recreate $SERVICE"
 
-  # Remove only the one image this deploy made obsolete, never a blanket prune:
-  # other projects' images on this box are not ours. rmi refuses (harmlessly)
-  # if that image is still tagged or in use.
-  # After a rollback, local and previous are the same image, and the "replaced"
-  # one is the rollback target itself; skip it then.
+  # Remove only the image this deploy replaced, never a prune: other projects share this box.
+  # After a rollback the "replaced" image is the rollback target, so it's skipped.
   remove_image_unless "$replaced_image" "$PREVIOUS_IMAGE"
 
   say "Done. Now running $(git log -1 --format='%h %s')"
