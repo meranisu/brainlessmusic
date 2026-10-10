@@ -241,9 +241,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const isPhone = useIsPhone();
   // The provider wraps the whole router so playback survives navigation, so the bar hides itself on the title and
-  // account-select screens, where a leftover queue would peek out from under their cards.
+  // account-select screens, where a leftover queue would peek out from under their cards. The title screen is `/` while
+  // signed out; account select keeps `/login` through its post-sign-in steps (passcode setup, register).
   const { pathname } = useLocation();
-  const onAttractScreen = pathname.startsWith('/enter');
+  const { user } = useAuth();
+  const onAttractScreen = !user || pathname.startsWith('/login');
   // Derived, not stored: widening past `md` with the sheet open would otherwise strand the user with no controls.
   const isSheetOpen = isExpanded && isPhone;
 
@@ -266,7 +268,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // Back-to-back load failures, so auto-skip stops after one pass over a broken queue.
   const consecutiveLoadFailuresRef = useRef(0);
   const queryClient = useQueryClient();
-  const { user } = useAuth();
   // Read by `scrobble`, which runs from listeners bound once on mount and
   // would otherwise see the user as it was on the first render.
   const isGuestRef = useRef(false);

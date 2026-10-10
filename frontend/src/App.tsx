@@ -1,12 +1,11 @@
 import { lazy, Suspense } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { RequireAdmin } from './auth/RequireAdmin';
 import { RequireAccount } from './auth/RequireAccount';
 import { RequireAuth } from './auth/RequireAuth';
 import { AppShell } from './components/AppShell';
 
 // One chunk per route, so visitors download only the screens they reach (most never open the admin pages).
-const TitleScreenPage = lazy(() => import('./pages/TitleScreenPage').then((m) => ({ default: m.TitleScreenPage })));
 const AccountSelectPage = lazy(() =>
   import('./pages/AccountSelectPage').then((m) => ({ default: m.AccountSelectPage })),
 );
@@ -34,11 +33,12 @@ export function App() {
   return (
     <Suspense fallback={<p className="p-4 text-sm text-blue-300">Loading…</p>}>
       <Routes>
-        {/* The way in: title screen, then account select (password, passcode or guest). No hidden admin door. */}
-        <Route path="/enter" element={<TitleScreenPage />} />
-        <Route path="/enter/profile" element={<AccountSelectPage />} />
-        {/* The old sign-in page, now the account select's sign-in card; redirected for bookmarks. */}
-        <Route path="/login" element={<Navigate to="/enter/profile" replace />} />
+        {/* The way in: the title screen (at `/` while signed out, see RequireAuth), then account select (password,
+            passcode or guest). No hidden admin door. */}
+        <Route path="/login" element={<AccountSelectPage />} />
+        {/* The old addresses, kept for printed guest-code cards (`?code=`) and handoff links (`#t=`). */}
+        <Route path="/enter" element={<Moved to="/" />} />
+        <Route path="/enter/profile" element={<Moved to="/login" />} />
 
         <Route element={<RequireAuth />}>
           <Route element={<AppShell />}>
@@ -70,4 +70,10 @@ export function App() {
       </Routes>
     </Suspense>
   );
+}
+
+/** A redirect that keeps the query and the hash, which carry the guest code and the handoff token. */
+function Moved({ to }: { to: string }) {
+  const { search, hash } = useLocation();
+  return <Navigate to={{ pathname: to, search, hash }} replace />;
 }

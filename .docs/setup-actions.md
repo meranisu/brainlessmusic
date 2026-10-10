@@ -94,7 +94,7 @@ Everything after step 13 in v0.2 waits on this.
 **Rewritten 2026-09-11**, when guest entry replaced the login form. The old
 version of this section described `/signup` and how to close it; both are gone.
 
-- **The title screen (`/enter`)** is what anyone lands on. One button, no
+- **The title screen (`/` while signed out; `/enter` until 2026-10-10, A57)** is what anyone lands on. One button, no
   account, no password: pressing it mints a passwordless listener for *that
   device*. Two devices are two listeners, on purpose.
 - **Moving to a second device** — sign in on the first, then `This device` in

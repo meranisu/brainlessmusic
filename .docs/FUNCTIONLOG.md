@@ -4,6 +4,17 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `RequireAuth()`, `Moved()`, `TitleScreenPage.acceptHandoff()` — `frontend/src/auth/RequireAuth.tsx`, `frontend/src/App.tsx`, `frontend/src/pages/TitleScreenPage.tsx`
+**Date:** 2026-10-10
+**How added:** new feature
+**Purpose:** the title screen lives at `/` while signed out, account select at `/login`; the old `/enter` paths redirect.
+**Side effects:** none new.
+**Before:** `RequireAuth` redirected signed-out visits to `/enter`; account select was `/enter/profile`;
+`acceptHandoff` adopted the token in parallel with the exit animation.
+**After:** `RequireAuth` renders the (lazy) title screen at `/` and redirects other paths to `/`. `Moved` redirects
+`/enter` → `/` and `/enter/profile` → `/login`, keeping search and hash. `acceptHandoff` waits for the exit and sets
+the boot mark before adopting the token (clearing it on failure).
+
 **Function:** `LibraryBottomBar()`, `AppBottomBar()`, `LazyListState.scrollToTop()`, `LazyGridState.scrollToTop()` — `android/.../ui/navigation/`, `ui/library/LibraryScreen.kt`
 **Date:** 2026-10-10
 **How added:** new feature

@@ -171,7 +171,7 @@ export function AppShell() {
     markAtTitle();
     leaveThrough(
       { text: 'Thank you for using this system', detail: 'See you again' },
-      '/enter',
+      '/',
       logout,
     );
   }

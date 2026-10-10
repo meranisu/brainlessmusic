@@ -119,6 +119,12 @@ is not lost.
 
 ## Answered
 
+### A57 — What should the address bar show when signed out? *(was Q57)*
+**Answered:** 2026-10-10 · **Just the domain.** Signed out, `RequireAuth` renders the title screen at `/` itself (any
+other path redirects to `/`); account select is `/login`. `/enter` and `/enter/profile` redirect there keeping `?code=`
+and `#t=`, so printed guest-code cards and old handoff links still work. New guest-code links are `/login?code=`, new
+handoff links `/#t=`.
+
 ### A56 — Gapless playback gets built *(was Q10)*
 **Answered:** 2026-10-10 · **Yes.** Tracks should play back to back with no gap, which means handling the Opus pre-skip
 and the LAME delay/padding at track edges. Not built yet and not scheduled on the roadmap. It needs its own plan

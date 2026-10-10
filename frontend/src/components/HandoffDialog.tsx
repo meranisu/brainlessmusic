@@ -17,7 +17,7 @@ export function HandoffDialog({ onClose }: { onClose: () => void }) {
   useScrollLock();
 
   const token = getToken();
-  const link = token ? `${window.location.origin}/enter#t=${token}` : '';
+  const link = token ? `${window.location.origin}/#t=${token}` : '';
 
   useEffect(() => {
     if (!link) return;

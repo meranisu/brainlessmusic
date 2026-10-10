@@ -6,7 +6,7 @@ import { BrandMark } from '../components/BrandLockup';
 import { TitleScreenPanel } from '../components/TitleScreenPanel';
 import { useThemeCycle } from '../hooks/useThemeCycle';
 import { apiClient } from '../lib/apiClient';
-import { clearAtTitle, isAtTitle, markJustEntered } from '../lib/boot';
+import { clearAtTitle, consumeJustEntered, isAtTitle, markJustEntered } from '../lib/boot';
 import { arrivalDuration } from '../lib/interstitial';
 import { THEMES, type ThemeId } from '../lib/theme';
 import { ArrivalVeil } from '../components/ArcadeInterstitial';
@@ -79,7 +79,7 @@ export function TitleScreenPage() {
   // paints the ordinary enter button for a frame before switching.
   const [handoff, setHandoff] = useState<string | null>(tokenFromHash);
 
-  /** The veil after an Exit. `/enter` is outside the shell, so it plays its own; never on a cold load. */
+  /** The veil after an Exit. The title screen is outside the shell, so it plays its own; never on a cold load. */
   const [arriving, setArriving] = useState(() => isAtTitle() && arrivalDuration() > 0);
 
   useEffect(() => {
@@ -105,7 +105,7 @@ export function TitleScreenPage() {
     setIsLeaving(true);
 
     await delay(exitDuration());
-    navigate('/enter/profile', { replace: true });
+    navigate('/login', { replace: true });
   }
 
   async function acceptHandoff() {
@@ -114,12 +114,16 @@ export function TitleScreenPage() {
     setIsEntering(true);
     setIsLeaving(true);
 
+    // The title screen is `/` while signed out, so the app replaces it the moment `user` is set: finish the exit first,
+    // and mark the entry before signing in, since the shell reads the mark as it mounts.
+    await delay(exitDuration());
+    clearAtTitle();
+    markJustEntered();
     try {
-      await Promise.all([adoptToken(handoff), delay(exitDuration())]);
-      clearAtTitle();
-      markJustEntered();
+      await adoptToken(handoff);
       navigate('/', { replace: true });
     } catch {
+      consumeJustEntered();
       setIsLeaving(false);
       setError('That link has expired, or is not valid any more.');
       setHandoff(null);

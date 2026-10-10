@@ -7,7 +7,7 @@ export function prettyGuestCode(code: string): string {
 
 /** What the QR opens: the guest card on the title screen, code already typed in. */
 export function guestCodeLink(code: string): string {
-  return `${window.location.origin}/enter/profile?code=${code}`;
+  return `${window.location.origin}/login?code=${code}`;
 }
 
 const INK = '#080e28';

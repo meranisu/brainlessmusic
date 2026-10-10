@@ -4,6 +4,23 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-10 — Web: signed out, the address bar shows just the domain (no more `/enter`)
+
+- Owner's pick, A57. Signed out, `RequireAuth` renders the title screen at `/` itself, and any other path redirects to
+  `/`; account select moved from `/enter/profile` to `/login`. `/enter` and `/enter/profile` stay as redirects that
+  keep `?code=` and `#t=` (a small `Moved` route in `App.tsx`), because printed guest-code cards and old handoff links
+  point there. New links: guest codes `/login?code=` (`guestCodeCard.ts`), handoff `/#t=` (`HandoffDialog`). Exit and
+  the account select's idle timeout go to `/`. The title screen stays its own lazy chunk (now loaded from
+  `RequireAuth`).
+- Handoff timing: on `/` the app replaces the title screen the moment `user` is set, so `acceptHandoff` now plays the
+  exit and sets the boot mark *before* adopting the token, instead of in parallel; a bad token clears the mark again.
+- The player bar hides when signed out, or on `/login` (which keeps the route through passcode setup and register),
+  instead of on any `/enter…` path.
+- Verified in headless Chromium against Vite on :5180 and the local backend: `/`, `/albums` and `/enter` signed out
+  all show the title screen at `/`; `/enter/profile?code=ABCD` lands on `/login`; Enter → `/login`; guest → `/`;
+  Exit → title at `/`, and a reload stays there; handoff from both `/enter#t=` and `/#t=` signs in at `/`; a bad
+  token shows the error and leaves no boot mark; no page errors. `npm run build` and `npm run lint` clean.
+
 ## 2026-10-10 — Android: blank screen that ate every touch until the app was killed
 
 - Likely cause (not reproduced; no device attached): the system splash's exit fade removed the splash view in

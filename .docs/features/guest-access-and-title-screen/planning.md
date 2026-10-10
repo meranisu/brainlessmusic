@@ -147,6 +147,8 @@ poster scale, a band of information, and one instruction to press. Note that
 
 - [x] **Route `/enter`** replaces `/login` as the unauthenticated destination.
       `RequireAuth` redirects there; `/login` stays reachable by URL only.
+      *(2026-10-10, A57: the title screen is now `/` itself while signed out and account select is `/login`;
+      `/enter` and `/enter/profile` redirect, keeping `?code=` and `#t=`.)*
 - [x] **Logo at scale.** The lockup goes from `text-3xl` to roughly half the
       viewport — `clamp()` against `vw` *and* `vh` so a phone in landscape
       doesn't push the enter button off the fold.

@@ -139,7 +139,7 @@ export function AccountSelectPage() {
     if (!idleTimedOut) return;
     const done = setTimeout(() => {
       markAtTitle();
-      navigate('/enter', { replace: true });
+      navigate('/', { replace: true });
     }, interstitialDuration());
     return () => clearTimeout(done);
   }, [idleTimedOut, navigate]);

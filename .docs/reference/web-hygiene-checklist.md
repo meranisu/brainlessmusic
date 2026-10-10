@@ -17,7 +17,7 @@ ranking:
 - **Route-level code splitting** — `frontend/src/App.tsx` lazy-loads every page
   component via `React.lazy`, wrapped in a single `<Suspense>`. Previously the
   production build shipped one ~446 KB JS chunk regardless of route; the
-  pre-auth `/enter` screens and the four admin-only pages (`/manage`,
+  pre-auth title and account-select screens and the four admin-only pages (`/manage`,
   `/upload`, `/users`, `/health`) are the biggest win since most sessions never
   touch them. Matters for the README's own bike-trip/on-the-road mobile use
   case.
