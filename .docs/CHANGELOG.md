@@ -48,6 +48,28 @@ From a security pass against a 19-item checklist.
 
 ---
 
+## 2026-10-10 — `scripts/deploy.sh`: one-command update on the server
+
+Production had no repeatable way to update (Q39). `scripts/deploy.sh` runs on smol: it checks for a clean `main`,
+fetches, backs up the live DB with `db.backup()` to `/data/backups/pre-deploy/` (keeps 5), tags the running
+image `brainlessmusic:previous`, fast-forwards, builds, recreates only `brainless-app`, and waits for the
+Docker health check. `rollback` re-tags the previous image and recreates. Documented in
+`.docs/ops/cloudflare-tunnel-deployment.md` ("Updating to a new version").
+
+- **Bugs found while testing, fixed before commit:** (1) `docker compose up -d` did not recreate the
+  container after a rollback even though the tag pointed at a new image, so the deploy reported healthy against
+  the old container. Now `--force-recreate`, plus a check that the running image ID equals the built one.
+  (2) Removing the replaced image by ID deleted the rollback target when `local` and `previous` were the same
+  image; it now skips the image `previous` points at. It never runs a blanket image prune, so other projects'
+  images are left alone.
+- **Verified (local `brainless-app` only, not smol):** `--force` deploy, `rollback`, `--force` deploy in
+  sequence; after each, the running image matched the expected tag, the container was recreated, no dangling
+  images were left, and `/api/health` returned ok. Backup: 7 runs left 5 files; the newest opened and returned the
+  users count. Dirty tracked file: stopped with exit 1. No new commits: exits 0 with "Already up to date".
+  Not tested: a failing (unhealthy) deploy, or a real pull of new commits.
+
+---
+
 ## 2026-10-10 — Delete guests' old playlists and favorites (migration 0017); Stop hook sees shell edits
 
 **A38:** guests were made listen-only on 2026-10-09 (A37), which left any playlists and favorites a guest had

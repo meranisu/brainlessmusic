@@ -181,6 +181,37 @@ screen.
   accepted — restart it manually when power's back, no auto-recovery
   attempted beyond what's above.
 
+## Updating to a new version
+
+On the box, from inside the clone:
+
+```bash
+./scripts/deploy.sh             # pull main, back up the DB, rebuild, restart, wait for healthy
+./scripts/deploy.sh --force     # rebuild even with no new commits (e.g. after editing .env)
+./scripts/deploy.sh rollback    # go back to the image from before the last deploy
+```
+
+The first time, the script isn't on the box yet: run `git pull` once by hand, then use it from then on.
+
+What it does, in order: stops if the clone has local edits to tracked files, or isn't on `main`. It also stops if
+there's nothing new (unless `--force`). Then it takes a `db.backup()` copy of the live database to
+`/data/backups/pre-deploy/` inside the `brainless-data` volume (keeps the last 5; separate from the app's daily
+backups so their pruning never touches them), tags the running image `brainlessmusic:previous`, fast-forwards to
+`origin/main`, builds, recreates `brainless-app` only (cloudflared is not touched), and waits up to two minutes for
+the container's health check. Migrations run as the new container starts, after the backup. Frontend and
+backend ship together because they are one image.
+
+If the new version isn't healthy, it prints the last 40 log lines and the rollback command. `rollback` swaps the
+image back but does not undo migrations; for that, restore the pre-deploy copy.
+
+**Local edits block it on purpose.** If the box's `docker-compose.yml` was edited by hand (step 2 suggested
+deleting the `/mnt:/mnt:ro` line), the script stops and lists the file. Either undo the edit
+(`git checkout -- docker-compose.yml`; mounting an empty `/mnt` read-only is harmless on Linux) or get the change
+committed upstream.
+
+Tested 2026-10-10 against the local `brainless-app` only (deploy, rollback, deploy, local-edit guard); not yet
+run on smol.
+
 ## If something needs re-checking later
 
 - **Token compromised or rotating:** delete/recreate the tunnel in Zero

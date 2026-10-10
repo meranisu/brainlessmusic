@@ -295,6 +295,10 @@ deploys, and how (pull and `docker compose up --build` on smol, or another way).
 **Update 2026-10-10:** smol is out of the owner's reach until the friend who owns the box gets in touch. Waiting on
 that; nothing to do from this side. Pending on smol until then: A37 (guest limits) and migration `0017` (A38).
 
+**Update 2026-10-10 (later):** the owner asked for a script to run on the server, so the "how" is now
+`./scripts/deploy.sh` (see `.docs/ops/cloudflare-tunnel-deployment.md`, "Updating to a new version"). Still open
+until it has been run on smol once.
+
 ---
 
 ---
