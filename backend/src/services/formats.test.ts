@@ -10,15 +10,7 @@ import { computePeaks } from './waveform.js';
 
 const run = promisify(execFile);
 
-/**
- * Every format the library accepts, read with the real decoders rather than
- * asserted against a list.
- *
- * The point is the two things that silently differ per format and that nothing
- * else would catch: whether `music-metadata` can find a **duration** — the
- * waveform buckets are sized from it, so a null there draws nothing — and
- * whether the tag fallbacks hold for containers that carry no tags at all.
- */
+/** Every accepted format, read with the real decoders: is there a duration (waveforms need it), and do tag fallbacks hold? */
 
 interface Fixture {
   ext: string;
@@ -35,8 +27,7 @@ const FIXTURES: Fixture[] = [
   { ext: '.ogg', args: ['-c:a', 'libvorbis'], tagged: true },
   { ext: '.wav', args: ['-c:a', 'pcm_s16le'], tagged: true },
   { ext: '.opus', args: ['-c:a', 'libopus'], tagged: true },
-  // Raw ADTS: no container, so no tags and no cover — it leans entirely on the
-  // filename fallback, which is exactly what makes it worth a test.
+  // Raw ADTS has no tags or cover, so it relies on the filename fallback.
   { ext: '.aac', args: ['-c:a', 'aac', '-f', 'adts'], tagged: false },
 ];
 
@@ -119,13 +110,12 @@ describe('every accepted format', async () => {
     });
 
     it(`decodes ${ext} to waveform peaks`, { skip: !ffmpegAvailable }, async () => {
-      // ffmpeg, not music-metadata — a separate decoder that can fail
-      // independently for a container the tag reader handled fine.
+      // ffmpeg is a separate decoder and can fail where the tag reader didn't.
       const peaks = await computePeaks(join(library, `fixture${ext}`), DURATION_SECONDS);
       assert.ok(peaks.length > 0, `${ext} should produce peaks`);
       assert.ok(
         peaks.some((p) => p > 0),
-        `${ext} decoded to silence — the decode produced no signal`,
+        `${ext} decoded to silence`,
       );
     });
   }

@@ -9,11 +9,7 @@ import { hashPassword } from '../services/password.js';
 import { signToken } from '../services/token.js';
 import { makeTempDir, resetDatabase } from '../testing/harness.js';
 
-/**
- * `GET /library/browse` — the directory listing behind Options' "Browse…"
- * button. Admin gating is covered by `api.test.ts`'s route-coverage lists;
- * this file is the actual filesystem behavior.
- */
+/** `GET /library/browse`, the folder picker behind Options' "Browse…". Admin gating is in `api.test.ts`. */
 
 let app: FastifyInstance;
 let cleanup: () => Promise<void>;
@@ -156,10 +152,7 @@ describe('POST /library/roots', () => {
   it('accepts a folder that has at least one audio-extension file', async () => {
     const temp = await makeTempDir('root-with-music');
     try {
-      // Content doesn't need to be real audio — this is "does the folder
-      // contain candidates at all", the same thing `filesFound` already
-      // counts; whether each one's tags actually parse is a separate,
-      // per-file concern the scan already reports.
+      // Not real audio: this counts candidate files, like `filesFound`; tag parsing is the scan's concern.
       await writeFile(join(temp.path, 'track.mp3'), 'not real audio bytes');
 
       const res = await app.inject({

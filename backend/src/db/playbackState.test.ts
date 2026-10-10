@@ -6,12 +6,7 @@ import { clearPlaybackState, loadPlaybackState, savePlaybackState } from './play
 import { insertUser } from './users.js';
 import { resetDatabase } from '../testing/harness.js';
 
-/**
- * The saving is trivial; the loading is not. A queue is saved as ids and can be
- * loaded days later, by which time tracks in it may have been deleted or gone
- * missing from disk. Restoring someone into a track that cannot play is worse
- * than not restoring them, because it looks like the feature worked.
- */
+/** A saved queue may hold tracks deleted or missing by load time; restoring into one would look like a working resume. */
 
 let nextPath = 0;
 let rootId = 0;
@@ -69,7 +64,7 @@ describe('playback state', () => {
     assert.equal(loadPlaybackState(user.id)!.positionSeconds, 12.75);
   });
 
-  it('keeps exactly one row per user — the last write wins', () => {
+  it('keeps exactly one row per user, and the last write wins', () => {
     const user = makeUser();
     const a = addTrack('A');
     const b = addTrack('B');
@@ -105,8 +100,7 @@ describe('playback state', () => {
     markTracksMissing([b.id], '2026-09-10T00:00:00Z');
 
     const state = loadPlaybackState(user.id)!;
-    // B is gone, so C is now at index 1 — the listener stays on C, not on
-    // whatever happens to sit at the old index 2.
+    // B is gone, so C is now at index 1, and the listener stays on C.
     assert.deepEqual(state.queue.map((t) => t.id), [a.id, c.id]);
     assert.equal(state.queueIndex, 1);
     assert.equal(state.queue[state.queueIndex].id, c.id);
@@ -137,8 +131,7 @@ describe('playback state', () => {
     markTracksMissing([b.id], '2026-09-10T00:00:00Z');
 
     const state = loadPlaybackState(user.id)!;
-    // Partway through a queue, the next survivor is a better guess than its
-    // start — and the old position belongs to a track nobody is playing now.
+    // Partway through a queue, the next survivor beats going back to the start.
     assert.equal(state.queue[state.queueIndex].id, c.id);
     assert.equal(state.positionSeconds, 0);
   });

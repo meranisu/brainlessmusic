@@ -7,14 +7,8 @@ import { signToken } from '../services/token.js';
 import { resetDatabase } from '../testing/harness.js';
 
 /**
- * Guests are listen-only (A37). Two layers:
- *
- * 1. Every API route is classified by the gate it *actually* carries, read off
- *    its preHandlers as it registers, and compared with the table below. A new
- *    route fails here until someone decides who may call it, and a route that
- *    loses or gains a gate fails too — the table can't drift from the code.
- * 2. A guest token is refused on every account-only route and let through on
- *    every guest-allowed one, against the running app.
+ * Guests are listen-only (A37). Every route's gate is read off its preHandlers and checked against this table, so a
+ * new or changed route fails until classified; then a guest token is tried on each.
  */
 
 type Gate = 'public' | 'guest' | 'account' | 'admin' | 'custom';
@@ -26,8 +20,7 @@ const EXPECTED: Record<string, Gate> = {
   'POST /auth/passcode-login': 'public',
   'GET /auth/registration-status': 'public',
   'GET /health': 'public',
-  // Any signed-in user, guest included: browsing and listening (A37). `/admin/health` is here on purpose —
-  // the empty-library screen shows a guest that a scan is running (frontend LibraryEmptyState.tsx).
+  // Any signed-in user, guests included. `/admin/health` too: the empty-library screen shows a guest a running scan.
   'GET /admin/health': 'guest',
   'GET /albums': 'guest',
   'GET /albums/:id': 'guest',

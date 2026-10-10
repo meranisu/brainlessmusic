@@ -32,12 +32,8 @@ export interface TopTrack {
 }
 
 /**
- * Records a play and updates the track's denormalized play_count/last_played_at
- * in one transaction, so the two never drift out of sync.
- *
- * The transaction is built on first call rather than at module scope:
- * `db.transaction()` opens the connection, which would defeat the lazy
- * handle in `connection.ts` for anything that imports this file.
+ * Records a play and updates play_count/last_played_at in one transaction. Built on first call, since
+ * `db.transaction()` opens the connection.
  */
 let scrobbleTransaction: ((userId: number, trackId: number, msPlayed: number | null) => void) | null = null;
 
@@ -104,11 +100,7 @@ export function countHistoryForTrack(trackId: number): number {
   ).count;
 }
 
-/**
- * Play history for one track, across all users — this project is just the
- * owner + a couple of friends, so a shared listening log reads more useful
- * than per-user isolation here (unlike playlists, which stay private).
- */
+/** One track's history across all users: a shared log suits a server for a few friends. */
 export function listHistoryForTrack(
   trackId: number,
   limit: number,

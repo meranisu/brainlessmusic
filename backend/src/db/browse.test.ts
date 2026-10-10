@@ -18,15 +18,10 @@ import { addTrackToPlaylist, createPlaylist, getPlaylistDetail } from './playlis
 import { insertUser } from './users.js';
 import { resetDatabase } from '../testing/harness.js';
 
-/**
- * A track whose file is gone is noise in a listing and a `500` when clicked,
- * so browse surfaces leave it out. What must *not* disappear is anything a
- * person curated by hand — see the playlist case at the bottom.
- */
+/** Browse leaves out tracks whose file is gone, but never anything curated by hand (see the playlist case). */
 
 let nextPath = 0;
-// Foreign keys are enforced, so every track needs a real `library_roots`
-// row — set fresh in `beforeEach` below, since `resetDatabase()` clears it.
+// Foreign keys are enforced, so tracks need a real `library_roots` row; `resetDatabase()` clears it.
 let rootId = 0;
 
 function addTrack(title: string, artist: string, album: string | null) {
@@ -143,8 +138,7 @@ describe('search', () => {
   });
 
   it('does not return one on the short-query path either', () => {
-    // Under three characters falls back to LIKE, which the trigram index
-    // cannot answer — a separate query that needed the same filter.
+    // Under three characters is the LIKE fallback, a separate query that needs the same filter.
     const { present } = library();
 
     const results = searchLibrary('So');
@@ -166,10 +160,7 @@ describe('top tracks', () => {
 
 describe('what is deliberately NOT filtered', () => {
   it('keeps a gone track in the playlist someone put it in', () => {
-    // Two reasons. A playlist quietly losing a song is a worse surprise than
-    // a song that will not play, and `PATCH /playlists/:id/tracks/reorder`
-    // requires the client to send back exactly the playlist's current set —
-    // so hiding a row here would break drag-to-reorder for that playlist.
+    // Reorder requires the client to send back exactly the playlist's set, so hiding a row would break drag-to-reorder.
     const { present, missing } = library();
     const user = insertUser('listener', 'hash');
     const playlist = createPlaylist('Mine', user.id);

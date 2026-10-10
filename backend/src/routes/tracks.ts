@@ -43,47 +43,12 @@ import { fileIntoLibrary } from '../services/trackFiling.js';
 import { AUDIO_EXTENSIONS, extractTrackTags } from '../services/trackTags.js';
 import { parsePagination } from '../utils/pagination.js';
 
-/**
- * A day, revalidated after. Long enough that a whole evening of listening —
- * and every seek back inside a track — is served from the browser's cache;
- * short enough that replacing a file on disk cannot keep serving the old rip
- * for a week. Matches the waveform endpoint, which caches on the same
- * reasoning.
- */
+/** A day, then revalidate: covers an evening of seeks, and a replaced file stops serving within a day. */
 const CACHE_CONTROL = 'private, max-age=86400';
 
 /**
- * Whether this request should be served a converted copy, and which one.
- *
- * Four independent reasons to convert:
- *
- *  - **The client can't open the container at all.** WebKit — every browser on
- *    iOS, plus desktop Safari — has never supported Ogg, so a `.opus` or
- *    `.ogg` source needs re-encoding into `.m4a` before it plays there,
- *    regardless of bitrate. Checked first: serving a *smaller* file the
- *    client still can't decode fixes nothing, so this overrides a data-saver
- *    request rather than compounding with it.
- *  - **The client already tried and failed.** `?compat=1` is what the player
- *    sends on a retry after the *first* attempt raised a decode /
- *    unsupported-format `MediaError` — the one signal that a source genuinely
- *    didn't play, as opposed to the extension-based guess above. This is what
- *    covers every format that guess doesn't name explicitly (a mistagged
- *    file, a WebKit version with narrower codec support than assumed, etc.)
- *    without re-encoding every `.flac`/`.wav`/`.mp3` up front on the mere
- *    chance it needed it — the vast majority of which play on WebKit today
- *    and would only lose quality for nothing. Still gated on WebKit: a
- *    non-WebKit client has no reason to ask for this, and honouring it
- *    unconditionally would let a confused client force an unnecessary
- *    transcode.
- *  - **Data saver.** Only worth it when the source is far enough above the
- *    target to pay for a second lossy generation. A strict "above 64k" test
- *    would re-encode a 121 kbps Opus file for a measured 36% saving; lossless
- *    sources, which is what this feature is for, clear the bar easily. An
- *    unknown bitrate converts, since the alternative is guessing.
- *  - **Raw ADTS, always.** A `.aac` file carries no container and therefore no
- *    duration: measured 2026-09-10, a 25.0s file reports 37.9s to both ffprobe
- *    and Chrome, which scales the seek bar by half again. Remuxing to `.m4a`
- *    copies the frames untouched into a container that states the real length.
+ * Which converted copy to serve, if any: WebKit can't open Ogg (wins over data saver); `?compat=1` after a decode
+ * error on WebKit; data saver when the source is well above target; and raw ADTS `.aac` always, remuxed for a real length.
  */
 function variantFor(
   track: { path: string; bitrate: number | null },
@@ -145,11 +110,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
     { preHandler: fastify.authenticate },
     async (request, reply) => {
       const { limit, offset } = parsePagination(request.query);
-      // Re-read from the DB, same as `requireAdmin`, so a revoked role stops
-      // counting immediately. The Library's Full view is open to every user,
-      // so `?hidden=all|only` can't stay a query-string switch anyone can
-      // flip: hiding a track from the people it was hidden from is only real
-      // if the server enforces it, not the dropdown that isn't drawn for them.
+      // Re-read like `requireAdmin`. The Full view is open to all, so the server must enforce what non-admins see.
       const isAdmin = Boolean(findUserById(request.user!.id)?.is_admin);
       const options = {
         search: request.query.search,
@@ -182,9 +143,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(400).send({ error: `Unsupported file extension: ${ext || '(none)'}` });
       }
 
-      // Never trust the client-supplied filename beyond its extension — the
-      // staging filename is generated server-side to avoid path traversal or
-      // collisions.
+      // Only the client's extension is used; the staging name is generated, preventing traversal and collisions.
       await mkdir(config.uploadStagingPath, { recursive: true });
       const stagingPath = join(config.uploadStagingPath, `${randomUUID()}${ext}`);
 
@@ -203,15 +162,12 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
         const message = err instanceof Error ? err.message : String(err);
         request.log.warn({ err, filename: data.filename }, 'Uploaded file failed tag extraction');
         return reply.code(400).send({
-          error: 'Could not read audio tags — file may be corrupt or unsupported',
+          error: 'Could not read audio tags. The file may be corrupt or unsupported.',
           message,
         });
       }
 
-      // Uploads always file into the original configured folder, not
-      // whichever root happens to be scanned most recently — a root added
-      // for an existing external-drive collection is for scanning it in,
-      // not a destination the upload button can silently start writing to.
+      // Uploads go to the configured folder, never to a root added for scanning an existing drive.
       const defaultRoot = findLibraryRootByPath(config.libraryPath);
       if (!defaultRoot) {
         await unlink(stagingPath).catch(() => {});
@@ -294,8 +250,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
           request.log.error({ err, trackId: id, path: track.path }, 'Failed to unlink track file on delete');
           return reply.code(500).send({ error: 'Failed to delete track file from disk' });
         }
-        // File already gone — proceed to clean up the DB row anyway so the
-        // library converges to "gone" rather than being stuck.
+        // Already gone; remove the row anyway.
       }
 
       deleteTrackRow(id);
@@ -303,8 +258,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
     },
   );
 
-  // `authenticateMedia`, not `authenticate` — this is the one route a browser
-  // loads by URL alone, so it also accepts a scoped `?token=` media token.
+  // `authenticateMedia`: browsers load this by URL, so a `?token=` media token works too.
   fastify.get<{
     Params: { id: string };
     Querystring: { quality?: string; token?: string; compat?: string };
@@ -322,12 +276,8 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(404).send({ error: 'Track not found' });
       }
 
-      // Attached to every failure logged below — a served-fine file that a
-      // client still couldn't decode is invisible here (the bytes went out
-      // clean), so this identity is what turns "someone's stream broke" into
-      // "who, on what client" for the two failure modes this handler can
-      // actually see. See `/tracks/:id/playback-failure` for the client-side
-      // decode failure that this alone doesn't cover.
+      // Who, on what client, for every failure this handler sees. Client-side decode failures arrive via
+      // `/tracks/:id/playback-failure`.
       const logContext = {
         trackId: id,
         userId: request.user!.id,
@@ -356,11 +306,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
         });
       }
 
-      // Which bytes to serve: the file itself, or a converted copy of it.
-      //
-      // Everything past this point treats all three cases identically, because
-      // a cache entry *is* a file — which is the entire reason the cache
-      // exists. Ranges, `ETag`, `304` and a working scrubber come free.
+      // The file or a converted copy. A cache entry is a file, so ranges, ETags and 304s work the same either way.
       const variant = variantFor(
         track,
         request.query.quality === 'low',
@@ -379,9 +325,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
           serveStats = await stat(entry.path);
           contentType = variant.mimeType;
         } catch (err) {
-          // Refused rather than downgraded to the original: whoever asked for
-          // the small copy asked for a reason, and quietly sending ten times
-          // the bytes is the worse answer.
+          // Refused, not downgraded to the much larger original.
           if (err instanceof NoTranscodeSlotError) {
             request.log.warn({ ...logContext, variant: variant.id }, 'Refused a transcode: all slots busy');
             return reply
@@ -405,15 +349,10 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
         }
       }
 
-      // Reaching this point means the file (or its transcode) resolved fine —
-      // a flag left over from an earlier, possibly transient failure (a busy
-      // transcoder, a network blip) would otherwise say "broken" forever.
+      // It resolved, so clear a stale flag from an earlier, possibly transient, failure.
       if (track.last_stream_error) setLastStreamError(id, null);
 
-      // The bytes are a stable representation, so they get validators: a
-      // replayed track revalidates into a 304 instead of coming down the wire
-      // again. A cache entry's mtime moves when it is touched on read, which
-      // only ever invalidates a client copy early — never serves a stale one.
+      // Validators make a replay a 304. Touching a cache entry on read moves its mtime, which only invalidates early.
       const etag = buildETag(serveStats.size, serveStats.mtimeMs);
       reply.header('ETag', etag);
       reply.header('Last-Modified', serveStats.mtime.toUTCString());
@@ -433,13 +372,8 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(304).send();
       }
 
-      // A reconnecting player sends the offset it stopped at together with the
-      // validator it holds. If the file changed underneath, splicing new bytes
-      // onto old ones hands the decoder a corrupt stream — resend the whole
-      // thing instead.
-      // Node types unrecognised headers as possibly-repeated; `If-Range` is
-      // single-valued, and a client sending it twice has made no claim worth
-      // honouring.
+      // If the file changed since the client's validator, resend it whole rather than splice.
+      // `If-Range` is single-valued; a repeated one is ignored.
       const ifRange = request.headers['if-range'];
       const range = ifRangeAllowsRange(
         typeof ifRange === 'string' ? ifRange : undefined,
@@ -478,15 +412,8 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
   );
 
   /**
-   * Converts a track ahead of time, so that playing it later is a cache hit
-   * instead of a wait. The player calls this for the next track in its queue
-   * with the same `?quality=` it will stream with; the conversion is chosen by
-   * the same `variantFor()` as the stream route, so what gets warmed is exactly
-   * what will be asked for.
-   *
-   * Answers at once and converts in the background. `not-needed` means the
-   * track will be served as-is; `busy` means no spare slot, and the track will
-   * simply convert when played, as it did before this existed.
+   * Converts a track ahead of time with the same `variantFor()` the stream uses. Replies at once: `not-needed` means
+   * served as-is, `busy` means no spare slot and it converts on play.
    */
   fastify.post<{ Params: { id: string }; Querystring: { quality?: string } }>(
     '/tracks/:id/prepare',
@@ -517,18 +444,8 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
   );
 
   /**
-   * The one failure mode `/tracks/:id/stream` can never see: the bytes went
-   * out fine (200/206, no server-side error), but the element on the other
-   * end couldn't decode them anyway — a codec/container it doesn't support,
-   * a corrupt file, whatever. That happens entirely client-side, so without
-   * this the server has zero record of it: a friend's "it just skips" is
-   * otherwise unattributable to anyone.
-   *
-   * Fire-and-forget from the player on a load failure — see `PlayerBar.tsx`'s
-   * `describeStreamFailure`. Logged only (not fed into `recordStreamError`'s
-   * ring buffer, which backs `/admin/health` — that endpoint is deliberately
-   * identity-free for any signed-in user to read, per the comment on
-   * `/admin/health` itself).
+   * The failure the stream route can't see: bytes sent fine, but the client couldn't decode them. Logged only, not
+   * fed to `/admin/health`, which carries no identities.
    */
   fastify.post<{
     Params: { id: string };
@@ -590,9 +507,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
     },
   );
 
-  // Peaks for the scrubber. Computed on first request and cached on the row,
-  // so the first open of a track pays for the decode and every later one is a
-  // single column read.
+  // Scrubber peaks, computed on first request and cached on the row.
   fastify.get<{ Params: { id: string } }>(
     '/tracks/:id/waveform',
     { preHandler: fastify.authenticate },

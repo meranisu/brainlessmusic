@@ -17,14 +17,7 @@ import {
 
 const run = promisify(execFile);
 
-/**
- * The converted-copy cache.
- *
- * What is worth testing here is not "does ffmpeg work" but the four things
- * that fail quietly: a key that does not notice the source changed, a partial
- * file left looking complete, two requests racing to write the same path, and
- * eviction deleting something it did not create.
- */
+/** The quiet failures: a key that misses a changed source, a partial file that looks complete, racing writes, and eviction of foreign files. */
 
 async function hasFfmpeg(): Promise<boolean> {
   try {
@@ -51,7 +44,7 @@ describe('the transcode cache', async () => {
 
     originalPath = config.transcodePath;
     originalCap = config.transcodeCacheMaxMb;
-    // Only ever a directory this suite created — see .docs/CLAUDE.md.
+    // Only a directory this suite created (see .docs/CLAUDE.md).
     config.transcodePath = join(workspace, 'cache');
 
     if (!ffmpegAvailable) return;
@@ -191,8 +184,7 @@ describe('the transcode cache', async () => {
     });
 
     it('never deletes a file it did not create', { skip: !ffmpegAvailable }, async () => {
-      // Pointing TRANSCODE_PATH at a shared directory must not cost a stranger
-      // their files — the rule the backup pruner already follows.
+      // A shared TRANSCODE_PATH must not cost anyone else their files.
       const stats = await stat(source);
       await getOrCreate(source, stats, LOW_QUALITY_VARIANT);
       const bystander = join(config.transcodePath, 'someone-elses-notes.txt');

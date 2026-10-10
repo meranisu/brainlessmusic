@@ -9,9 +9,7 @@ const MIME_TYPES: Record<string, string> = {
   '.m4a': 'audio/mp4',
   '.ogg': 'audio/ogg',
   '.wav': 'audio/wav',
-  // Raw ADTS. It plays, but it carries no index, so byte-offset seeks land
-  // mid-frame — roadmap box 24 remuxes these to `.m4a` through the transcode
-  // cache, which is where scrubbing them becomes reliable.
+  // Raw ADTS has no index, so byte seeks land mid-frame; it is remuxed to `.m4a` (REMUX_M4A_VARIANT).
   '.aac': 'audio/aac',
 };
 
@@ -19,34 +17,18 @@ export function mimeTypeFor(filePath: string): string {
   return MIME_TYPES[extname(filePath).toLowerCase()] ?? 'application/octet-stream';
 }
 
-/** Source containers WebKit cannot demux at all, on any platform, at any
- *  bitrate — see `isWebKitOnlyClient` for why that makes them a special case
- *  rather than another data-saver-style downgrade. */
+/** Containers WebKit can't open at any bitrate; see `isWebKitOnlyClient`. */
 export const WEBKIT_INCOMPATIBLE_EXTENSIONS = new Set(['.opus', '.ogg']);
 
 /**
- * True for a browser that cannot open an Ogg container or bare Opus at all —
- * every browser on iOS (Safari, Chrome, Firefox, an in-app WebView) is
- * required by Apple to run on WebKit under the hood, and WebKit has never
- * shipped Ogg demuxing on any platform, desktop Safari included. A client
- * like this needs a different container, not a smaller one — dropping the
- * bitrate changes nothing about whether it can be opened.
- *
- * Sniffed from User-Agent because that is the only signal available: a plain
- * `<audio src>` sends no `Accept` header naming codecs, and probing playback
- * support would mean a round trip to the client before every stream request
- * just to answer a question the request line already carries the evidence
- * for.
+ * True for browsers that can't open Ogg or Opus: every iOS browser (Apple forces WebKit) and desktop Safari.
+ * Sniffed from User-Agent, since `<audio src>` sends no codec hints.
  */
 export function isWebKitOnlyClient(userAgent: string | undefined): boolean {
   if (!userAgent) return false;
-  // Every iOS browser: Apple forces them all onto WebKit, whatever engine
-  // their own User-Agent token otherwise claims (CriOS, FxiOS, EdgiOS and a
-  // bare WebView all still apply).
+  // Every iOS browser runs WebKit, whatever its UA token says (CriOS, FxiOS, EdgiOS, WebView).
   if (/iPad|iPhone|iPod/.test(userAgent)) return true;
-  // Desktop Safari specifically. Chrome, Chromium, Edge and Opera on macOS
-  // all carry "Safari/" in their own User-Agent for legacy compatibility, so
-  // it only counts once every non-WebKit engine has been ruled out.
+  // Desktop Safari: Chromium browsers also say "Safari/", so rule them out first.
   return /Safari\//.test(userAgent) && !/Chrome\/|Chromium\/|Edg\/|OPR\//.test(userAgent);
 }
 
@@ -55,11 +37,7 @@ export interface ByteRange {
   end: number;
 }
 
-/**
- * Parses a single `Range: bytes=...` header against a known file size.
- * Only single-range requests are supported (no multipart ranges) — sufficient
- * for seeking/scrubbing, which is the only real client use case here.
- */
+/** Parses one `Range: bytes=...` header; multipart ranges aren't supported, and seeking doesn't need them. */
 export function parseRange(
   rangeHeader: string | undefined,
   fileSize: number,
@@ -93,21 +71,10 @@ export function parseRange(
   return { start, end: Math.min(end, fileSize - 1) };
 }
 
-// ---------------------------------------------------------------------------
-// Cache validation
-//
-// Audio bytes are the largest thing this server sends and the least likely to
-// change: a track row keeps its path for life, and editing tags rewrites the
-// database, not the file. Without validators every replay of a song was a full
-// re-download — the single biggest avoidable cost on a metered connection.
-// ---------------------------------------------------------------------------
+// Cache validation. A track's file never changes under its row (tag edits touch
+// the database), so validators turn every replay into a 304 instead of a re-download.
 
-/**
- * A **strong** entity tag for a file, from its size and mtime — the same pair
- * nginx uses. Strong on purpose: a weak tag is not allowed to validate an
- * `If-Range`, so a weak one would silently disable resumable seeking, which is
- * the exact case this endpoint exists to serve.
- */
+/** A strong ETag from size and mtime, like nginx. Weak tags can't validate `If-Range`, which resumable seeking needs. */
 export function buildETag(fileSize: number, mtimeMs: number): string {
   return `"${fileSize.toString(16)}-${Math.floor(mtimeMs).toString(16)}"`;
 }
@@ -129,11 +96,7 @@ function parseETagList(header: string): string[] {
     .filter((tag) => tag.length > 0);
 }
 
-/**
- * Whether the client already holds this exact representation, per RFC 9110's
- * precedence: `If-None-Match` decides on its own when present, and
- * `If-Modified-Since` is only consulted in its absence.
- */
+/** RFC 9110 precedence: `If-None-Match` decides alone when present; `If-Modified-Since` only without it. */
 export function isNotModified(
   headers: { ifNoneMatch?: string; ifModifiedSince?: string },
   etag: string,
@@ -143,8 +106,7 @@ export function isNotModified(
 
   if (ifNoneMatch !== undefined) {
     if (ifNoneMatch.trim() === '*') return true;
-    // Weak comparison here — an `If-None-Match` match only has to mean
-    // "equivalent enough to reuse", not "byte-identical".
+    // Weak comparison: `If-None-Match` only needs "equivalent".
     const wanted = stripWeakPrefix(etag);
     return parseETagList(ifNoneMatch).some((tag) => stripWeakPrefix(tag) === wanted);
   }
@@ -158,15 +120,7 @@ export function isNotModified(
   return false;
 }
 
-/**
- * Whether a `Range` may be honoured given `If-Range`.
- *
- * A player that reconnects mid-track sends the range it left off at plus the
- * validator it had. If the file changed underneath, splicing new bytes into
- * the old ones hands the decoder a corrupt stream; the correct answer is to
- * ignore the range and resend the whole thing. No `If-Range` means the client
- * made no such claim, so the range stands.
- */
+/** Whether a `Range` stands under `If-Range`: if the file changed, resend it whole. No `If-Range` keeps the range. */
 export function ifRangeAllowsRange(
   ifRange: string | undefined,
   etag: string,
@@ -186,22 +140,13 @@ export function ifRangeAllowsRange(
   return mtimeSeconds(mtimeMs) === mtimeSeconds(asDate);
 }
 
-// ---------------------------------------------------------------------------
-// Transcoding
-// ---------------------------------------------------------------------------
+// Transcoding.
 
 /** The data-saver target, in bits per second, and as ffmpeg spells it. */
 export const LOW_QUALITY_BITRATE_BPS = 64_000;
 const LOW_QUALITY_BITRATE = `${LOW_QUALITY_BITRATE_BPS / 1000}k`;
 
-/**
- * Transcodes in flight.
- *
- * Every data-saver request starts a full-rate decode, so this is the one
- * endpoint where a handful of clients can saturate the box the rest of the app
- * runs on. The cap is a guard against runaway, not a routine path — with the
- * number of people this server has, reaching it means something is wrong.
- */
+/** Transcodes in flight. The cap guards the box against runaway encodes; reaching it means something is wrong. */
 let activeTranscodes = 0;
 
 function acquireTranscodeSlot(): boolean {
@@ -218,18 +163,12 @@ export function getActiveTranscodes(): number {
   return activeTranscodes;
 }
 
-// ---------------------------------------------------------------------------
-// Encoding to a file
-//
-// The cache path, as opposed to the live-stream path above. Everything here
-// produces a complete file on disk, which is what lets the stream route serve
-// a transcode with byte ranges, an ETag and a 304 — exactly as it serves an
-// original.
-// ---------------------------------------------------------------------------
+// Encoding to a file: the cache path. A complete file on disk is what lets a
+// transcode be served with byte ranges, an ETag and a 304, like an original.
 
 /** One thing the cache can hold for a track: a re-encode, or a re-containering. */
 export interface Variant {
-  /** Stable, and part of the cache key — changing it invalidates every entry. */
+  /** Part of the cache key; changing it invalidates every entry. */
   id: string;
   extension: string;
   mimeType: string;
@@ -238,10 +177,7 @@ export interface Variant {
 
 /** The data-saver copy. */
 export const LOW_QUALITY_VARIANT: Variant = {
-  // The trailing `c` is for constrained VBR, and the id had to change with the
-  // recipe: it is the cache key, so entries encoded the old way would otherwise
-  // keep being served with nothing to tell them apart. Old `opus64-*` files are
-  // simply never requested again and age out through the usual LRU eviction.
+  // `c` = constrained VBR. The id changed with the recipe because it is the cache key; old entries age out via LRU.
   id: 'opus64c',
   extension: '.ogg',
   mimeType: 'audio/ogg',
@@ -250,27 +186,14 @@ export const LOW_QUALITY_VARIANT: Variant = {
       .noVideo()
       .audioCodec('libopus')
       .audioBitrate(LOW_QUALITY_BITRATE)
-      // libopus reads `-b:a` as a VBR *target* and runs well over it: measured
-      // 2026-09-10, asking for 64k produced 74.3 kbps. Constrained VBR holds
-      // the number — 64.9 kbps on the same source. Worth 13% off the wire, and
-      // worth more than that for making the configured target mean what it
-      // says: `TRANSCODE_MIN_SOURCE_BITRATE_RATIO` is reasoned about in terms
-      // of 64k, and until this it was reasoning about a figure that never
-      // appeared.
+      // libopus treats `-b:a` as a loose VBR target (64k gave 74.3 kbps); constrained VBR holds it (64.9 kbps).
       .outputOptions(['-vbr', 'constrained'])
       .format('ogg'),
 };
 
 /**
- * Raw ADTS, put into a real container.
- *
- * `copy` rather than a re-encode: the AAC frames are kept byte for byte, so
- * this costs no quality and runs at I/O speed. It exists because raw ADTS
- * carries no duration — measured 2026-09-10, a 25.0s file reports 37.9s to
- * both ffprobe and Chrome, which scales the seek bar by 50% and makes valid
- * `?t=` offsets look out of range. An MP4 container carries the real one.
- * `+faststart` moves the index to the front so playback can begin before the
- * whole file has arrived.
+ * Raw ADTS copied, not re-encoded, into MP4, which carries a real duration (a 25 s ADTS file reports 37.9 s).
+ * `+faststart` lets playback begin before the file arrives.
  */
 export const REMUX_M4A_VARIANT: Variant = {
   id: 'm4a',
@@ -279,23 +202,11 @@ export const REMUX_M4A_VARIANT: Variant = {
   configure: (c) => c.noVideo().audioCodec('copy').outputOptions('-movflags', '+faststart').format('mp4'),
 };
 
-/** Bitrate for the WebKit-compatibility copy below. Chosen for "sounds like
- *  the source to nearly everyone," not for size — this variant exists to fix
- *  a browser that cannot open the container at all, not to trim bytes off one
- *  it already can. */
+/** Bitrate for the WebKit copy, chosen to sound like the source; this variant fixes playback, not size. */
 export const WEBKIT_COMPAT_BITRATE_BPS = 192_000;
 const WEBKIT_COMPAT_BITRATE = `${WEBKIT_COMPAT_BITRATE_BPS / 1000}k`;
 
-/**
- * Opus/Ogg re-encoded into an AAC-in-M4A container WebKit can actually open.
- *
- * Unlike `REMUX_M4A_VARIANT`, this re-encodes rather than copying frames:
- * Opus and AAC are different codecs, so there is nothing to carry over
- * byte-for-byte the way raw ADTS's AAC frames are. That makes this strictly
- * lossy on top of whatever loss the source already carries — acceptable here
- * because the alternative on a WebKit-only client is not "a smaller file",
- * it's "no playback at all".
- */
+/** Opus/Ogg re-encoded to AAC in M4A for WebKit. Lossy on top of lossy, but the alternative is no playback. */
 export const WEBKIT_COMPAT_VARIANT: Variant = {
   id: 'webkitcompat',
   extension: '.m4a',
@@ -317,14 +228,7 @@ export class NoTranscodeSlotError extends Error {
   }
 }
 
-/**
- * Encodes `sourcePath` to `destPath` and resolves when the file is complete.
- *
- * Holds a transcode slot for the whole encode, so the same ceiling that bounds
- * live transcodes bounds cache fills. A failure deletes whatever ffmpeg left
- * behind: a half-written file that nobody cleans up is worse than no file,
- * because the next reader cannot tell the difference.
- */
+/** Encodes to `destPath`, holding a transcode slot throughout. On failure the partial file is deleted. */
 export async function encodeToFile(
   sourcePath: string,
   destPath: string,

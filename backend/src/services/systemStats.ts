@@ -14,12 +14,7 @@ export interface SystemStats {
   /** Resident set size of this server process. */
   memoryBytes: number;
   heapUsedBytes: number;
-  /**
-   * This process only, as a share of one core (so it can pass 100 on a busy
-   * multi-core box). ffmpeg runs as a child process and is NOT included — a
-   * transcode is the biggest CPU cost the server has, and it will not show
-   * here; `activeTranscodes` on the health snapshot is the signal for that.
-   */
+  /** This process only, per core (can pass 100). Excludes ffmpeg; `activeTranscodes` shows that. */
   cpuPercent: number;
   disks: DiskUsage[];
   transcodeCache: { usedBytes: number; maxBytes: number };
@@ -33,11 +28,7 @@ let lastCpu = process.cpuUsage();
 let lastAt = performance.now();
 let lastPercent = 0;
 
-/**
- * CPU time is cumulative, so a percentage needs two readings. Each call
- * measures the stretch since the previous one; until there is a stretch worth
- * measuring it repeats the last answer instead of inventing one.
- */
+/** CPU % needs two readings; until a long enough stretch has passed, the last answer is repeated. */
 function sampleCpuPercent(): number {
   const now = performance.now();
   const elapsedMs = now - lastAt;

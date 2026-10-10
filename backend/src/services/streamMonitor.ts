@@ -17,15 +17,7 @@ export interface HealthSnapshot {
 const MAX_RECENT_ERRORS = 20;
 const RECENT_ERRORS_RETURNED = 10;
 
-/**
- * How recent an error has to be to still mean "degraded".
- *
- * Health was previously degraded if the list held anything at all, and the
- * list is only ever trimmed by length — so one missing file at boot left the
- * server reporting degraded forever, which is the same as reporting nothing.
- * The errors themselves stay listed past this window; they are useful history.
- * It is only the verdict that expires.
- */
+/** How recent an error must be to mean "degraded". Older errors stay listed as history; only the verdict expires. */
 const DEGRADED_WINDOW_MS = 15 * 60 * 1000;
 
 /** One open stream, with enough identity to answer "who is listening to what". */
@@ -79,7 +71,7 @@ export function getHealthSnapshot(now: number = Date.now()): HealthSnapshot {
   };
 }
 
-/** Test seam — the counters and the error ring are module state. */
+/** Test seam: the counters and the error ring are module state. */
 export function resetStreamMonitor(): void {
   activeSessions.clear();
   recentErrors.length = 0;

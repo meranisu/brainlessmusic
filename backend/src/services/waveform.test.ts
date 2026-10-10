@@ -8,13 +8,7 @@ import { WAVEFORM_BUCKETS, computePeaks, decodePeaks } from './waveform.js';
 
 const run = promisify(execFile);
 
-/**
- * A full-scale test tone.
- *
- * `volume=8` is not decoration: ffmpeg's `sine` source generates at 1/8 of full
- * scale, so without it every fixture peaks at 0.125 and the amplitude
- * assertions below pass or fail for the wrong reason.
- */
+/** A full-scale tone. ffmpeg's `sine` is 1/8 scale, so without `volume=8` every fixture peaks at 0.125. */
 const LOUD_TONE = (seconds: number): string[] => [
   '-loglevel', 'error', '-y',
   '-f', 'lavfi', '-i', `sine=frequency=440:duration=${seconds}`,

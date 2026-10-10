@@ -12,7 +12,7 @@ export interface PlaybackStateInput {
 }
 
 export interface PlaybackState {
-  /** Hydrated and filtered — unplayable tracks are already gone from this. */
+  /** Unplayable tracks are already removed. */
   queue: TrackSummary[];
   queueIndex: number;
   positionSeconds: number;
@@ -28,13 +28,7 @@ interface StateRow {
   updated_at: string;
 }
 
-/**
- * Replaces the user's state outright.
- *
- * An upsert rather than an insert because the row is the user: `user_id` is the
- * primary key, so there is exactly one, and whichever device wrote last is the
- * one that is right.
- */
+/** Replaces the user's state: one row per user, last write wins. */
 export function savePlaybackState(userId: number, state: PlaybackStateInput): void {
   db.prepare(
     `INSERT INTO playback_state (user_id, queue, queue_index, position_seconds, updated_at)
@@ -51,18 +45,7 @@ export function clearPlaybackState(userId: number): void {
   db.prepare('DELETE FROM playback_state WHERE user_id = ?').run(userId);
 }
 
-/**
- * The saved state, with the queue hydrated into real rows.
- *
- * Two things can have happened to a queue between saving and loading, and
- * neither may be allowed to restore something unplayable: a track can have been
- * deleted outright, and a track can have gone missing from disk (the browse
- * endpoints already hide those, and resuming into one would hand the listener a
- * player that cannot play). Both are dropped here, which means the stored index
- * has to be re-derived rather than reused.
- *
- * Returns `null` when there is nothing left worth restoring.
- */
+/** The saved state with deleted and missing tracks dropped and the index re-derived. `null` if nothing playable is left. */
 export function loadPlaybackState(userId: number): PlaybackState | null {
   const row = db
     .prepare(
@@ -90,10 +73,7 @@ export function loadPlaybackState(userId: number): PlaybackState | null {
     queueIndex = queue.findIndex((t) => t.id === currentId);
     positionSeconds = Math.max(0, row.position_seconds);
   } else {
-    // The track itself is gone. Resume at the next survivor rather than the
-    // first one — the listener was partway through a queue, and dropping them
-    // back at its start is a worse guess than moving them forward by one.
-    // Its position means nothing now, so it does not carry over.
+    // The current track is gone: move to the next survivor, at position 0.
     const nextId = savedIds.slice(savedIndex + 1).find((id) => playable.has(id));
     queueIndex = nextId == null ? 0 : queue.findIndex((t) => t.id === nextId);
     positionSeconds = 0;
@@ -108,7 +88,7 @@ export function loadPlaybackState(userId: number): PlaybackState | null {
   };
 }
 
-/** Tolerates anything the column might hold — a bad row loses the queue, not the request. */
+/** A bad row loses the queue, not the request. */
 function parseQueue(raw: string): number[] {
   try {
     const parsed: unknown = JSON.parse(raw);
@@ -124,13 +104,7 @@ function clampIndex(index: number, length: number): number {
   return Math.min(index, length - 1);
 }
 
-/**
- * The playable subset of the given ids, keyed by id.
- *
- * One query rather than one per track: a saved queue can be the whole library.
- * `missing_since IS NULL` is the same rule the browse queries apply, so a track
- * hidden from the library table cannot come back through a resumed queue.
- */
+/** The playable subset, in one query. `missing_since IS NULL` matches browse, so hidden tracks can't return via resume. */
 function fetchPlayable(ids: number[]): Map<number, TrackSummary> {
   const placeholders = ids.map(() => '?').join(',');
   const rows = db

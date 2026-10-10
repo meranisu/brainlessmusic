@@ -8,11 +8,7 @@ import { insertUser } from '../db/users.js';
 import { signToken } from '../services/token.js';
 import { resetDatabase } from '../testing/harness.js';
 
-/**
- * The rail is only correct if a jump lands on the first row of the letter it names — so the check
- * that matters is against the real listing (`GET /tracks?sort=title`), not against a hand-written
- * expectation of the order.
- */
+/** Checked against the real listing (`GET /tracks?sort=title`): a jump must land on the letter's first row. */
 
 let app: FastifyInstance;
 let token: string;
@@ -80,7 +76,7 @@ describe('GET /api/browse/letters', () => {
 
     assert.equal(body.total, 9);
     assert.equal(body.letters.length, 28);
-    // 1 Game, /dev/null, "burial" — none is a letter.
+    // 1 Game, /dev/null and "burial": none starts with a letter.
     assert.deepEqual(by.get('#'), { letter: '#', offset: 0, count: 3 });
     assert.deepEqual(by.get('A'), { letter: 'A', offset: 3, count: 2 });
     assert.deepEqual(by.get('B'), { letter: 'B', offset: 5, count: 1 });

@@ -5,18 +5,11 @@ import { db } from '../db/connection.js';
 import { runMigrations } from '../db/migrator.js';
 
 /**
- * Shared setup for tests that touch the database.
- *
- * The `npm test` script points DB_PATH, LIBRARY_PATH, ARTWORK_PATH and
- * UPLOAD_STAGING_PATH at `backend/.test-tmp/`, so no test can reach the real
- * library or database no matter what it imports. That matters more than it
- * sounds: `db/connection.ts` opens a database as a side effect of being
- * imported, so merely importing a module that transitively reaches `db/` is
- * enough to touch whatever DB_PATH points at. This has bitten the project
- * before (see .docs/CHANGELOG.md, 2026-09-08, cover art).
+ * Shared setup for database tests. `npm test` points every path at `backend/.test-tmp/`, so no import can reach the
+ * real library or database.
  */
 
-/** Child rows first — foreign keys are enforced (`better-sqlite3` enables them by default). */
+/** Child rows first: foreign keys are enforced. */
 const TABLES_IN_DELETION_ORDER = [
   'guest_codes',
   'server_settings',
@@ -53,17 +46,8 @@ export async function makeTempDir(prefix: string): Promise<{ path: string; clean
 }
 
 /**
- * Fails the run when the isolated test environment is not in force.
- *
- * Imported for its side effect at the top of every suite that touches the
- * database or the filesystem, so that running a file directly with
- * `tsx --test` — bypassing the paths `npm test` sets — stops immediately
- * instead of operating on the real library or database.
- *
- * This is not theoretical. On 2026-09-09 a version of `trackFiling.test.ts`
- * that deleted `config.libraryPath` was run directly, resolved LIBRARY_PATH to
- * the real music library, and destroyed it. The guard existed at the time and
- * was simply never called. It is now enforced at import, not by remembering.
+ * Fails fast outside `npm test`'s isolated paths. Imported by every suite that touches the db or disk, since a direct
+ * `tsx --test` run destroyed the real library on 2026-09-09.
  */
 export function assertIsolatedEnvironment(): void {
   const offenders = (

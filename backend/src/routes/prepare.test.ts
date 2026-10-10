@@ -34,10 +34,7 @@ async function waitForIdle(): Promise<void> {
   }
 }
 
-/**
- * `POST /tracks/:id/prepare`: converts the next queued track ahead of time,
- * without ever taking the slot a real play would need.
- */
+/** `POST /tracks/:id/prepare` converts ahead of time, never taking the slot a real play needs. */
 describe('preparing a track ahead of time', async () => {
   const ffmpegAvailable = await hasFfmpeg();
 

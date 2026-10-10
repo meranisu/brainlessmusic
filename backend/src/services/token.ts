@@ -6,11 +6,7 @@ export interface TokenUser {
   username: string;
 }
 
-/**
- * Marks a token as usable only for media URLs. Session tokens carry no
- * `scope` claim at all, so the two are never interchangeable in either
- * direction — see `verifySessionToken` / `verifyMediaToken`.
- */
+/** Media tokens carry this scope and session tokens carry none, so neither works as the other. */
 const MEDIA_SCOPE = 'media';
 
 export function signToken(user: TokenUser): string {
@@ -20,15 +16,8 @@ export function signToken(user: TokenUser): string {
 }
 
 /**
- * Short-lived token for URLs that a browser element loads on its own —
- * `<audio src>` and, later, `<img src>` for cover art — neither of which can
- * send an Authorization header.
- *
- * Deliberately narrower than a session token in both dimensions: it expires in
- * `MEDIA_TOKEN_TTL` (hours, not the session's days), and its `media` scope is
- * refused by `verifySessionToken`. So a stream URL that leaks the way URLs do
- * — browser history, a proxy access log, a screenshot, a shared link — cannot
- * be replayed against the rest of the API, and stops working shortly anyway.
+ * Short-lived token for `<audio src>` and `<img src>` URLs, which can't send headers. Expires in `MEDIA_TOKEN_TTL`
+ * and is refused as a session token, so a leaked URL can't reach the rest of the API.
  */
 export function signMediaToken(user: TokenUser): string {
   return jwt.sign({ sub: user.id, username: user.username, scope: MEDIA_SCOPE }, config.jwtSecret, {
@@ -36,10 +25,7 @@ export function signMediaToken(user: TokenUser): string {
   } as jwt.SignOptions);
 }
 
-/**
- * Verifies a token presented as an API bearer credential. Throws on anything
- * scoped — a media token must never buy API access.
- */
+/** Verifies an API bearer token. Throws on a media token. */
 export function verifySessionToken(token: string): TokenUser {
   const payload = jwt.verify(token, config.jwtSecret) as jwt.JwtPayload;
 
@@ -50,11 +36,7 @@ export function verifySessionToken(token: string): TokenUser {
   return { id: Number(payload.sub), username: payload.username as string };
 }
 
-/**
- * Verifies a token presented in a media URL's `?token=`. Throws on a session
- * token, so putting a long-lived credential in a URL is never the path of
- * least resistance for a client.
- */
+/** Verifies a URL `?token=`. Throws on a session token, so long-lived credentials stay out of URLs. */
 export function verifyMediaToken(token: string): TokenUser {
   const payload = jwt.verify(token, config.jwtSecret) as jwt.JwtPayload;
 

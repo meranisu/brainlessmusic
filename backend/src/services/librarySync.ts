@@ -5,19 +5,8 @@ import { replaceScanFailures } from '../db/scanFailures.js';
 import { reconcileMissingTracks, scanLibrary, type ReconcileSummary, type ScanSummary } from './scanner.js';
 
 /**
- * Keeping the database and the disk in agreement, on a timer.
- *
- * Two different jobs, deliberately on different schedules:
- *
- *  - **Reconciliation** stats the paths already in the database and flags the
- *    ones that have gone. It is cheap — one `stat` per track — and it is what
- *    catches rows quietly rotting into `500`s on the stream endpoint. It runs
- *    at boot and before every scheduled scan.
- *  - **A full scan** walks the library off disk and re-reads tags on every
- *    file. It is the expensive half and the only one that finds *new* music,
- *    so it runs on the interval and never at boot: in development the server
- *    restarts on every file save, and a full library walk per keystroke is not
- *    a thing anyone wants.
+ * Keeps database and disk in agreement. Reconciliation (one stat per track) runs at boot and before each scan; the
+ * full tag-reading scan finds new music and runs only on the interval, since dev restarts on every save.
  */
 
 export interface LibrarySyncResult {
@@ -25,26 +14,14 @@ export interface LibrarySyncResult {
   reconcile: ReconcileSummary;
 }
 
-/**
- * True while a sync is running, per root.
- *
- * A scan writes a row per file, so a scheduled run landing on top of an
- * admin's manual one would have both walking the same library and upserting
- * the same paths. The second caller is turned away rather than queued —
- * whatever it wanted to know, the run already in flight is about to find out.
- *
- * Keyed by root id rather than one shared flag: independent roots (separate
- * drives) have nothing to contend over, and a lock that treated them as one
- * would block every other root's scan for as long as the slowest drive's
- * scan happened to take.
- */
+/** Roots mid-sync. A second caller is turned away, not queued; per root, so separate drives don't block each other. */
 const running = new Set<number>();
 
 export function isLibrarySyncRunning(rootId: number): boolean {
   return running.has(rootId);
 }
 
-/** Whether any root is mid-sync — what a whole-server health check actually wants to know. */
+/** Whether any root is mid-sync. */
 export function isAnyLibrarySyncRunning(): boolean {
   return running.size > 0;
 }
@@ -54,25 +31,14 @@ export interface ScanProgress {
   total: number;
 }
 
-/**
- * Live file-count progress for a root's scan phase, keyed the same way as
- * `running`. Absent (not merely zero) for two different reasons an API
- * consumer needs to tell apart: no scan is running at all, or one is running
- * but is still inside `findAudioFiles`'s own walk, before a total file count
- * even exists to report. Cleared in the same `finally` that clears `running`,
- * so a finished scan doesn't leave a stale 100%-done entry behind for the
- * next poll to pick up.
- */
+/** Live scan progress per root. Absent means not scanning or still in the initial walk; cleared with `running`. */
 const scanProgress = new Map<number, ScanProgress>();
 
 export function getScanProgress(rootId: number): ScanProgress | null {
   return scanProgress.get(rootId) ?? null;
 }
 
-/**
- * Reconciles, and optionally scans first, one root. Returns `null` if that
- * root already has a sync in progress.
- */
+/** Reconciles one root, scanning first if asked. `null` if it is already syncing. */
 export async function syncLibrary(
   libraryRoot: string,
   rootId: number,
@@ -82,12 +48,7 @@ export async function syncLibrary(
   running.add(rootId);
 
   try {
-    // `scanLibrary` walks the directory outright and throws if it's gone
-    // (ENOENT from `readdir`) — unlike `reconcileMissingTracks` below, which
-    // already treats a vanished root as "nothing to mark", not a crash. A
-    // root that was fine when it was added can still disappear by the next
-    // scan (the drive it's on, unplugged), so this has to be checked here
-    // too rather than trusted from options.scan alone.
+    // `scanLibrary` throws ENOENT on a vanished root (an unplugged drive), so check before scanning.
     const rootIsReadable = await stat(libraryRoot).then(
       () => true,
       () => false,
@@ -134,16 +95,8 @@ function describe(label: string, result: LibrarySyncResult): string {
 }
 
 /**
- * Reconciles at boot, then scans and reconciles every
- * `libraryScanIntervalHours` — once per registered root, in sequence. Roots
- * are read fresh on every run rather than captured once at startup, so a
- * root added from the UI after boot is picked up by the very next tick
- * without a restart.
- *
- * A failure in one root is logged and the schedule continues to the next —
- * for the same reason backups work that way: a server that stops serving
- * music because it could not walk one directory has traded a small problem
- * for a large one. The timer is `unref`'d so it never holds the process open.
+ * Reconciles at boot, then scans every root in turn each `libraryScanIntervalHours`. Roots are re-read per run, so new
+ * ones are picked up without a restart. One root failing doesn't stop the rest. `unref`'d.
  */
 export function startLibrarySyncSchedule(log: Logger): NodeJS.Timeout | null {
   const runRoot = async (rootId: number, rootPath: string, label: string, withScan: boolean) => {
@@ -151,7 +104,7 @@ export function startLibrarySyncSchedule(log: Logger): NodeJS.Timeout | null {
       const result = await syncLibrary(rootPath, rootId, { scan: withScan });
 
       if (!result) {
-        log.info(`Library sync skipped for "${label}" — one is already running.`);
+        log.info(`Library sync skipped for "${label}": one is already running.`);
         return;
       }
 
@@ -167,7 +120,7 @@ export function startLibrarySyncSchedule(log: Logger): NodeJS.Timeout | null {
           `${result.reconcile.missingTotal} track${result.reconcile.missingTotal === 1 ? '' : 's'} ` +
             `in "${label}" have no file on disk` +
             (stranded > 0 ? `, ${stranded} of them outside ${rootPath}` : '') +
-            '. They are flagged, not deleted — see GET /api/library/missing.',
+            '. They are flagged, not deleted (see GET /api/library/missing).',
         );
       }
     } catch (err) {
@@ -181,8 +134,7 @@ export function startLibrarySyncSchedule(log: Logger): NodeJS.Timeout | null {
     }
   };
 
-  // Runs regardless of the flag below — a root list this app can query from
-  // `/library/roots` has to exist even with scheduled scanning turned off.
+  // Always runs: `/library/roots` needs a root even with scheduled scans off.
   ensureDefaultLibraryRoot(config.libraryPath);
 
   if (!config.libraryScanEnabled) {

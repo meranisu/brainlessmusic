@@ -3,15 +3,8 @@ import { parseFile } from 'music-metadata';
 import type { EmbeddedPicture } from './artwork.js';
 
 /**
- * What the library accepts. Every one of these is decoded by `music-metadata`
- * for tags and by ffmpeg for waveforms, and plays natively in Chrome on
- * desktop and Android — the only targets (iOS/Safari is out of scope, decided
- * 2026-09-10).
- *
- * `.wav` and `.aac` joined on 2026-09-10. Two things about them are worth
- * knowing at the call sites: WAV runs about 10 MB per minute, and raw ADTS
- * `.aac` usually carries no tags and no cover at all, so it leans entirely on
- * the filename fallback below.
+ * Accepted formats: tags via `music-metadata`, waveforms via ffmpeg. WAV is about 10 MB a minute, and raw ADTS `.aac`
+ * usually has no tags or cover, so it relies on the filename fallback.
  */
 export const AUDIO_EXTENSIONS = new Set(['.flac', '.opus', '.mp3', '.m4a', '.ogg', '.wav', '.aac']);
 
@@ -31,14 +24,8 @@ export interface TrackTags {
 }
 
 /**
- * Reads tags via music-metadata, applying the same fallbacks everywhere a file
- * gets tagged (scan or upload): missing title -> filename, missing artist ->
- * "Unknown Artist".
- *
- * `fileNamePath` supplies the name used for the missing-title fallback — it
- * defaults to `filePath` (meaningful for library/scanned files) but callers
- * reading a staged upload (named by a random id, not the user's filename)
- * should pass the original client-supplied filename instead.
+ * Reads tags with the shared fallbacks (title → filename, artist → "Unknown Artist"). Staged uploads have random names,
+ * so pass the client's filename as `fileNamePath`.
  */
 export async function extractTrackTags(
   filePath: string,

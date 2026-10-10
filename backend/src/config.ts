@@ -6,129 +6,60 @@ export const config = {
   dbPath: process.env.DB_PATH ?? './data/brainlessmusic.db',
   jwtSecret: process.env.JWT_SECRET ?? 'change-me',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
-  // Lifetime of the scoped tokens that ride in `<audio src>` / `<img src>`
-  // URLs. Long enough to outlast any single track (an expired token only
-  // breaks a later seek, never audio already streaming), short enough that a
-  // leaked URL stops working the same afternoon.
+  // Lifetime of `<audio src>` / `<img src>` tokens: outlasts a track, and a leaked URL dies the same afternoon.
   mediaTokenTtl: process.env.MEDIA_TOKEN_TTL ?? '2h',
-  // Shared code required to press "enter" on the title screen. **Unset is the
-  // default and the LAN posture**: the guest door is simply open, because
-  // reaching this server already means someone let you onto the network. Set
-  // it and every new device must type it once, after which its token persists
-  // and it is never asked again. This is the backstop for a genuinely public
-  // URL — not a substitute for the network-edge gate roadmap box 13 builds.
+  // Shared code for the title screen's "enter". Unset (the LAN default) leaves the guest door open. A backstop
+  // for a public URL, not a substitute for the network-edge gate (roadmap box 13).
   entryCode: process.env.ENTRY_CODE ?? '',
-  // Guest rows anyone can mint. The ceiling is not an attacker defence — it is
-  // a bound on how far a loop, or a curious friend, can grow the table before
-  // the door closes. Past it the server prunes idle guests and only then
-  // refuses.
+  // Bounds how far a loop or a curious friend can grow the guest table. Past it, idle guests are pruned, then refused.
   maxGuests: Number(process.env.MAX_GUESTS ?? 50),
-  // A guest untouched for this long is eligible to be pruned when the cap is
-  // reached — with its favorites, playlists, history and resume position,
-  // since nothing can ever log back into that row to claim them.
+  // An untouched guest this old may be pruned at the cap, with its data: nothing can log back into it.
   guestIdleDays: Number(process.env.GUEST_IDLE_DAYS ?? 90),
-  // New guests one IP may mint per hour — generous for the handful of real
-  // devices here and ruinous for enumeration, which is the only shape that
-  // matters.
+  // Guests one IP may mint per hour: generous for real devices, ruinous for enumeration.
   guestMintsPerHour: Number(process.env.GUEST_MINTS_PER_HOUR ?? 10),
-  // Passcode sign-in attempts one IP may make per minute. Tighter than most of
-  // this file's limits on purpose — a 4-8 digit passcode has a keyspace a
-  // password doesn't, so the thing standing between a guess and a login has to
-  // be the rate limit rather than the code's own length.
+  // Tight on purpose: a 4-8 digit passcode's small keyspace leaves the rate limit as the real guard.
   passcodeAttemptsPerMinute: Number(process.env.PASSCODE_ATTEMPTS_PER_MINUTE ?? 8),
-  // Password sign-in attempts one IP may make per minute. Looser than the
-  // passcode's because a password has the keyspace a passcode lacks; this is
-  // here so a script can't make unlimited guesses, not to make guessing hard.
+  // Looser than the passcode's; it stops unlimited scripted guesses.
   loginAttemptsPerMinute: Number(process.env.LOGIN_ATTEMPTS_PER_MINUTE ?? 10),
-  // Request header that carries the visitor's real address when a proxy sits
-  // in front of this process. Unset means "use the socket address", which is
-  // right on a LAN. Behind cloudflared it is wrong: every request arrives from
-  // the cloudflared container, so every visitor would share one rate-limit
-  // window. Production sets `cf-connecting-ip`, which Cloudflare overwrites on
-  // every request, so a visitor coming through the tunnel cannot forge it.
-  // Someone reaching port 3000 directly (LAN, Tailscale) can send any value
-  // and pick their own window, which is the price of publishing that port.
+  // Header with the visitor's real IP behind a proxy; unset uses the socket address (right on a LAN). Production
+  // sets `cf-connecting-ip`, which Cloudflare overwrites; a direct client on :3000 can still forge it.
   clientIpHeader: (process.env.CLIENT_IP_HEADER ?? '').trim().toLowerCase(),
-  // Other websites allowed to call the API from a browser, comma-separated
-  // (`https://example.com`, or `null` for a page opened from `file://`).
-  // Empty by default because nothing needs it: production serves the page and
-  // the API from one origin, and Vite's dev server proxies `/api`. The Android
-  // app is not a browser, so CORS never applies to it.
+  // Other origins allowed to call the API from a browser, comma-separated (`null` for `file://`). Empty by default:
+  // production is same-origin, and Vite proxies `/api` in dev.
   corsOrigins: (process.env.CORS_ORIGINS ?? '')
     .split(',')
     .map((origin) => origin.trim())
     .filter((origin) => origin !== ''),
   libraryPath: process.env.LIBRARY_PATH ?? './library',
   uploadStagingPath: process.env.UPLOAD_STAGING_PATH ?? './data/upload-staging',
-  // Extracted cover art, content-addressed. Safe to delete wholesale — a
-  // re-scan rebuilds it from the audio files.
+  // Extracted cover art, content-addressed. Safe to delete; a re-scan rebuilds it.
   artworkPath: process.env.ARTWORK_PATH ?? './data/artwork',
-  // Per file, not per request. Raised from 100 to 1024 on 2026-09-10, when the
-  // library gained FLAC and WAV: 100 MB is under a single hi-res track, so the
-  // old ceiling would have rejected legitimate files. The number is a guard
-  // against a slip — a whole album dragged in as one file, a wrong folder —
-  // rather than against an attacker, because `POST /tracks/upload` is
-  // admin-only. The web client uploads 3 at a time, so the real worst case is
-  // roughly three times this in staging at once; `UPLOAD_STAGING_PATH` needs
-  // to have the room, and a reverse proxy in front of this (step 13) will have
-  // its own body limit that must be raised to match or it rejects first.
+  // Per file. 1024 because one hi-res FLAC can exceed 100 MB. Staging needs about 3× this (the client uploads 3 at
+  // once), and a reverse proxy's own body limit must be raised to match.
   maxUploadSizeMb: Number(process.env.MAX_UPLOAD_SIZE_MB ?? 1024),
-  // Data-saver transcodes running at once. Each is a full-rate ffmpeg decode
-  // on the same machine that serves the app, so this is a ceiling, not a
-  // target: past it, `?quality=low` is refused rather than served as the
-  // full-size original, which would blow the data budget of the one person
-  // who explicitly asked not to.
+  // A ceiling on simultaneous ffmpeg encodes. Past it `?quality=low` is refused, never served as the full-size file.
   maxConcurrentTranscodes: Number(process.env.MAX_CONCURRENT_TRANSCODES ?? 2),
-  // Whether anyone who can reach the server may create their own account.
-  // Off means registration is admin-only (the first account is always allowed,
-  // or there would be no way to bootstrap one). Turning this on is a real
-  // exposure once the server is reachable from outside — index.ts warns at
-  // boot so it can't be on by accident.
-  //
-  // **Default flipped to false on 2026-09-11** (A16). It defaulted on so the
-  // `/signup` page would work; guest entry deleted that page's reason to
-  // exist, so the flag has no caller left and admin-only is the honest
-  // default. Note the deadlock break counts *accounts*, not guests — a server
-  // full of guests and no admin must still be claimable.
+  // Lets anyone create an account (index.ts warns at boot). Off by default since A16. The first account is always
+  // allowed, counted by accounts, not guests, so a server full of guests can still be claimed.
   allowOpenRegistration: process.env.ALLOW_OPEN_REGISTRATION === 'true',
-  // Scheduled SQLite backups. The default puts them beside the database, so
-  // they land inside the container's /data volume and survive a rebuild with
-  // no extra configuration. That protects against corruption, a bad migration
-  // and accidental deletion — not against losing the disk itself.
+  // Defaults beside the database, inside the /data volume. Covers corruption, bad migrations and deletion, not disk loss.
   backupEnabled: process.env.BACKUP_ENABLED !== 'false',
   backupPath: process.env.BACKUP_PATH ?? join(dirname(process.env.DB_PATH ?? './data/brainlessmusic.db'), 'backups'),
   backupIntervalHours: Number(process.env.BACKUP_INTERVAL_HOURS ?? 24),
   // Roughly two weeks of dailies. Each is the size of the database, which is
   // dominated by rows rather than audio, so this stays small.
   backupKeep: Number(process.env.BACKUP_KEEP ?? 14),
-  // Converted copies of tracks, content-addressed. Safe to delete wholesale —
-  // each missing entry costs one re-encode, the same bargain as the artwork
-  // cache. Sits beside it so both land in the container's /data volume.
+  // Converted tracks, content-addressed. Safe to delete; each missing entry costs one re-encode.
   transcodePath: process.env.TRANSCODE_PATH ?? './data/transcodes',
-  // Measured 0.57 MB per minute of audio at the data-saver setting, so a
-  // 1,000-track library is roughly 2.3 GB fully converted. Eviction is
-  // least-recently-used and runs after a write, which is the only moment the
-  // cache can grow. 0 disables the cap entirely.
+  // About 0.57 MB per minute at the data-saver rate (~2.3 GB per 1,000 tracks). LRU eviction after each write; 0 = no cap.
   transcodeCacheMaxMb: Number(process.env.TRANSCODE_CACHE_MAX_MB ?? 2048),
-  // Below this multiple of the target bitrate, converting cannot pay for
-  // itself and the original is served instead. A strict "at or below target"
-  // test would still re-encode a 121 kbps Opus source down to 64k for a
-  // measured 36% saving, paying a second lossy generation for it.
+  // Below this multiple of the target the original is served: re-encoding 121 kbps Opus to 64k saves only 36%.
   transcodeMinSourceBitrateRatio: Number(process.env.TRANSCODE_MIN_SOURCE_BITRATE_RATIO ?? 1.5),
-  // Keeping the database honest about what is actually on disk. The boot pass
-  // only stats known paths (cheap); the interval does the full tag-reading
-  // walk, which is why it isn't run at startup — `tsx watch` restarts on every
-  // save in development.
+  // Boot only stats known paths; the full tag-reading walk runs on the interval, since `tsx watch` restarts on every save.
   libraryScanEnabled: process.env.LIBRARY_SCAN_ENABLED !== 'false',
   libraryScanIntervalHours: Number(process.env.LIBRARY_SCAN_INTERVAL_HOURS ?? 12),
-  // Above this share of the library newly vanishing in a single sweep, the
-  // sweep refuses to mark anything. A library root that has not mounted yet is
-  // indistinguishable from one that was deleted, and this project has already
-  // lost its music once to that ambiguity — so the ambiguous case does nothing
-  // and says so, rather than guessing.
+  // Above this share newly missing in one sweep, nothing is marked: an unmounted root looks exactly like a deleted one.
   libraryMissingAbortRatio: Number(process.env.LIBRARY_MISSING_ABORT_RATIO ?? 0.5),
-  // Built frontend to serve alongside the API. Set in the container image so
-  // one process serves both; unset in local dev, where Vite serves the SPA on
-  // its own port and the API stays API-only.
+  // Built frontend served by the API. Set in the image; unset in dev, where Vite serves it.
   frontendPath: process.env.FRONTEND_PATH ?? '',
 };

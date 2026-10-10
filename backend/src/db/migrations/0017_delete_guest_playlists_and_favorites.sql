@@ -1,7 +1,5 @@
--- Guests are listen-only since A37 (2026-10-09), so playlists and favorites a
--- guest made before then can't be reached any more. A38: delete them. Same
--- order as pruneIdleGuests (db/users.ts): playlist_tracks has no cascade.
--- One transaction, so a failure part-way leaves nothing half-deleted.
+-- A38: guests are listen-only since A37, so delete playlists and favorites they made before. Same order as
+-- pruneIdleGuests (playlist_tracks has no cascade), in one transaction.
 BEGIN;
 
 DELETE FROM playlist_tracks

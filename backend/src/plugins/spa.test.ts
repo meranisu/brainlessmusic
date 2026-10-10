@@ -6,10 +6,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { makeTempDir } from '../testing/harness.js';
 import { registerSpa } from './spa.js';
 
-/**
- * Hashed build assets are cached for a year; everything else, index.html
- * above all, is revalidated so a deploy reaches browsers on the next load.
- */
+/** Hashed assets cache for a year; index.html revalidates so a deploy lands on the next load. */
 describe('SPA cache headers', () => {
   let app: FastifyInstance;
   let dir: Awaited<ReturnType<typeof makeTempDir>>;

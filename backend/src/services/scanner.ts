@@ -20,23 +20,15 @@ export interface ScanSummary {
   filesAdded: number;
   filesUpdated: number;
   filesFailed: number;
-  /** Subdirectories skipped because they couldn't be read — a Windows drive's
-   *  own `System Volume Information`/`$RECYCLE.BIN`, or anything else this
-   *  container's user lacks permission for. Not fatal to the scan; see
-   *  `findAudioFiles`. */
+  /** Subdirectories skipped as unreadable (e.g. `System Volume Information`). Not fatal; see `findAudioFiles`. */
   unreadableDirs: number;
   durationMs: number;
   failures: ScanFailure[];
 }
 
 /**
- * Walked by hand, one directory at a time, rather than a single
- * `readdir(root, { recursive: true })` — that form is all-or-nothing, and a
- * single unreadable subdirectory anywhere in the tree (a Windows drive's own
- * `System Volume Information` and `$RECYCLE.BIN` are both locked down by
- * permissions the container's user doesn't have, confirmed the hard way once
- * `/mnt` started being mountable whole) would throw and abort scanning the
- * entire drive instead of just skipping the one folder it can't see into.
+ * Walked one directory at a time: recursive `readdir` is all-or-nothing, and one locked folder (a Windows drive's
+ * `System Volume Information`) would abort the whole drive.
  */
 async function findAudioFiles(root: string): Promise<{ files: string[]; unreadableDirs: number }> {
   const files: string[] = [];
@@ -90,38 +82,15 @@ async function scanFile(filePath: string, rootId: number): Promise<ScanFileResul
   }
 }
 
-/** Called after each file is processed — `processed` includes the one that
- *  just finished, so `processed === total` means the scan's file loop is
- *  about to return. Files run concurrently (see `SCAN_CONCURRENCY`), so calls
- *  land in completion order, not the order `files` was walked in. */
+/** After each file; `processed` includes it. Files run concurrently, so calls arrive in completion order. */
 export type ScanProgressCallback = (processed: number, total: number) => void;
 
-/**
- * Each `scanFile` is I/O-bound — a `stat`, a `music-metadata` parse, and
- * (when the file has a cover) an artwork write — so running them one at a
- * time pays full round-trip latency per file for no reason. This mirrors the
- * batching `reconcileMissingTracks` already does for its own I/O-bound sweep,
- * just with a lower cap: parsing a file's tags is heavier than a bare `stat`,
- * so a higher number buys less overlap while costing more memory and fd
- * pressure from files mid-parse at once.
- */
+/** Files scanned at once. Tag parsing is I/O-bound but heavier than a stat, hence lower than reconcile's batch. */
 const SCAN_CONCURRENCY = 6;
 
 /**
- * Walks `libraryRoot` for supported audio files, reads tags via
- * music-metadata, and upserts each into the DB by path. Per-file failures
- * (corrupt/unparseable files) are logged and skipped rather than aborting
- * the whole scan.
- *
- * The root is a parameter rather than a read of `config.libraryPath` so the
- * directory being walked is visible at the call site — see the note on
- * `fileIntoLibrary`. `rootId` is which `library_roots` row this walk belongs
- * to, so every file it finds can be attributed back to it.
- *
- * `onProgress` is optional and fire-and-forget from this function's own
- * point of view — it exists so a caller (`librarySync.ts`) can expose *some*
- * live signal for what would otherwise be a single opaque await, not because
- * this function has any use for the number itself.
+ * Walks `libraryRoot`, reads tags and upserts each file by path; bad files are logged and skipped. The root is a
+ * parameter so the walked directory is visible at the call site. `onProgress` feeds librarySync's progress.
  */
 export async function scanLibrary(
   libraryRoot: string,
@@ -175,12 +144,7 @@ export interface ReconcileSummary {
   recovered: number;
   /** Rows flagged missing in total, including ones from earlier sweeps. */
   missingTotal: number;
-  /**
-   * Missing rows whose path is not under `libraryRoot` at all — leftovers from
-   * a library that used to live somewhere else. No scan of the current root
-   * can ever heal these, so they are worth calling out separately from a file
-   * that was simply deleted.
-   */
+  /** Missing rows outside `libraryRoot` entirely: leftovers no scan of this root can heal. */
   strandedOutsideRoot: number;
   /** Paths that exist but could not be read (permissions, I/O). Never marked. */
   unreadable: number;
@@ -192,15 +156,7 @@ export interface ReconcileSummary {
 /** Enough parallelism to hide I/O latency, few enough to not exhaust fds. */
 const STAT_CONCURRENCY = 32;
 
-/**
- * The guard needs an absolute floor as well as a ratio, or it protects small
- * libraries into uselessness: in a three-track library a single deleted file
- * is 33% and in a two-track library it is 50%, so a plain ratio would refuse
- * to record ordinary deletions on exactly the libraries where they are most
- * obvious. Below this count the ratio is not consulted — and it costs little,
- * because marking is reversible and self-healing, so being wrong about two
- * tracks is a flag that clears itself on the next sweep.
- */
+/** The guard's floor: below this many newly missing, the ratio isn't consulted (1 of 2 is already 50%). */
 const GUARD_MIN_NEWLY_MISSING = 3;
 
 async function pathIsMissing(path: string): Promise<'present' | 'missing' | 'unreadable'> {
@@ -208,34 +164,14 @@ async function pathIsMissing(path: string): Promise<'present' | 'missing' | 'unr
     await stat(path);
     return 'present';
   } catch (err) {
-    // Only "it is not there" counts. A permissions or I/O error means the file
-    // may well exist and we simply cannot see it, and marking on that would
-    // turn a mount hiccup into a library full of false gravestones.
+    // Only ENOENT counts as missing; a permission or I/O error may hide a file that exists.
     return (err as NodeJS.ErrnoException).code === 'ENOENT' ? 'missing' : 'unreadable';
   }
 }
 
 /**
- * Checks every track row against the filesystem and reconciles the
- * `missing_since` flag: stamped when a file has gone, cleared when it returns.
- *
- * It marks, it never deletes. The rows this exists to catch on the real
- * database point at `/mnt/wsl/music`, a tmpfs library root that was lost —
- * deleting them would take favorites and playlist entries with them, for files
- * that may still exist in a backup or on another disk. Flagging is reversible.
- *
- * **The guard is the point of the function, not a detail.** A library on a
- * mount that has not come up yet looks exactly like a library that was
- * deleted, and this project has already destroyed its music once by acting on
- * that ambiguity. So a sweep that would newly condemn both more than
- * `abortRatio` of the library and at least `GUARD_MIN_NEWLY_MISSING` tracks
- * refuses and changes nothing, on the grounds that losing half a library at
- * once is an infrastructure failure rather than someone tidying up. The next
- * sweep, once the mount is back, is a no-op.
- *
- * `rootId` scopes the guard and the set of rows judged to this root's own
- * tracks — with more than one root registered, a healthy root's ratio must
- * not be diluted (or tripped) by every other root's track count.
+ * Stamps `missing_since` on gone files, clears it on returned ones; never deletes. If a sweep would newly mark over
+ * `abortRatio` of this root's tracks (and at least the floor), it changes nothing: an unmounted drive looks deleted.
  */
 export async function reconcileMissingTracks(
   libraryRoot: string,
@@ -268,7 +204,7 @@ export async function reconcileMissingTracks(
   } catch {
     return {
       ...base,
-      aborted: `library root is unreadable (${libraryRoot}) — nothing was marked`,
+      aborted: `library root is unreadable (${libraryRoot}), so nothing was marked`,
       durationMs: Date.now() - start,
     };
   }
@@ -303,7 +239,7 @@ export async function reconcileMissingTracks(
       unreadable,
       aborted:
         `${newlyMissing.length} of ${rows.length} tracks went missing at once, over the ` +
-        `${Math.round(abortRatio * 100)}% limit — treating this as a storage failure, not a ` +
+        `${Math.round(abortRatio * 100)}% limit. Treating this as a storage failure, not a ` +
         'library change. Nothing was marked.',
       durationMs: Date.now() - start,
     };

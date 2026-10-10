@@ -12,17 +12,7 @@ describe('syncLibrary', () => {
     resetDatabase();
   });
 
-  /**
-   * Regression: found by hand while testing the multi-root feature — asking
-   * to rescan a root whose folder had been entirely removed (a drive
-   * unplugged, not just one file gone) threw an uncaught `ENOENT` straight
-   * out of `scanLibrary`'s `readdir`, a 500 rather than the same graceful
-   * "unreadable" outcome `reconcileMissingTracks` already handles on its own.
-   * A root with zero tracks can't reproduce this — `reconcileMissingTracks`
-   * returns early before ever statting the root when it has nothing to
-   * check — so this needs a track under the root first, same as the real
-   * scenario: a folder that had music in it, then stopped existing.
-   */
+  /** Regression: rescanning a root whose folder vanished threw ENOENT (a 500). Needs a track under the root to reproduce. */
   it('does not throw when scanning a root whose directory has vanished entirely', async () => {
     const temp = await makeTempDir('sync-vanish');
     const rootPath = join(temp.path, 'drive');

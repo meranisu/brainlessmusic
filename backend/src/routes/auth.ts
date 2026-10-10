@@ -41,12 +41,7 @@ const guestMintLimiter = createRateLimiter();
 const passcodeLoginLimiter = createRateLimiter();
 const passwordLoginLimiter = createRateLimiter();
 
-/**
- * Constant-time compare for a configured secret against something a stranger
- * supplied. Unequal lengths short-circuit, which leaks the length of the
- * configured code and nothing else — a fact worth far less than the timing
- * signal this removes.
- */
+/** Constant-time compare. Unequal lengths short-circuit, leaking only the code's length. */
 function secretMatches(provided: unknown, expected: string): boolean {
   if (typeof provided !== 'string' || expected === '') return false;
 
@@ -58,19 +53,8 @@ function secretMatches(provided: unknown, expected: string): boolean {
 
 const authRoute: FastifyPluginAsync = async (fastify) => {
   /**
-   * May an anonymous visitor create an account right now? Two ways to be yes:
-   * open registration is configured on, or there are no accounts yet. The
-   * empty case is not a policy choice but a deadlock break — admin-only
-   * registration plus no admin has no way out.
-   *
-   * Counts **accounts**, not rows: the first visitor to a fresh server presses
-   * "enter" and mints a guest, and if that closed the bootstrap window the
-   * server could never be claimed at all.
-   *
-   * Unauthenticated by design, and now nearly vestigial: the `/signup` page it
-   * was written for is gone. It survives because a fresh server still needs to
-   * say whether it can be claimed, and because `POST /auth/register` reads the
-   * same rule. It leaks one bit ("can I sign up here"), not worth protecting.
+   * Whether an anonymous visitor may create an account: open registration is on, or there are no accounts yet
+   * (counted without guests), which breaks the no-admin deadlock. `POST /auth/register` reads the same rule.
    */
   function isRegistrationOpen(): boolean {
     return config.allowOpenRegistration || countAccounts() === 0;
@@ -81,15 +65,8 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
   });
 
   /**
-   * The title screen's front door: no account, no password, no form. Mints a
-   * passwordless `users` row and signs the ordinary session token for it — the
-   * same token `/auth/login` returns, so every client path downstream (the
-   * media-token exchange included) needs no new branch.
-   *
-   * Unauthenticated by necessity; this *is* the way in. What that means, stated
-   * plainly because it is the whole security posture: on a server reachable
-   * from outside, anyone who can load the page can listen. The gate belongs at
-   * the network edge (roadmap box 13), with `ENTRY_CODE` as the backstop below.
+   * The guest door: mints a passwordless user and returns an ordinary session token. Public by necessity, so on an
+   * exposed server anyone can listen; the gate belongs at the network edge (box 13), `ENTRY_CODE` is the backstop.
    */
   fastify.post<{ Body: { code?: unknown } }>('/auth/guest', async (request, reply) => {
     const rate = guestMintLimiter.check(clientIp(request), {
@@ -101,14 +78,11 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       return reply
         .code(429)
         .header('retry-after', String(rate.retryAfterSeconds))
-        .send({ error: 'Too many guest sessions from this address — try again shortly' });
+        .send({ error: 'Too many guest sessions from this address. Try again shortly.' });
     }
 
-    // Two ways to close the door, either enough: the shared `ENTRY_CODE` env
-    // var (A15), or the admin toggle that asks for a per-guest code (A43).
-    // Neither set — the default, and the LAN posture — means the door is open.
-    // A shared-code match lets in any number of devices; a per-guest code is
-    // checked here and burnt below, once the cap says there is room.
+    // Closed by `ENTRY_CODE` (A15) or the admin's per-guest-code toggle (A43); neither set means open. The shared code
+    // admits any number of devices; a per-guest code is burnt below once the cap allows.
     const code = request.body?.code;
     const doorClosed = config.entryCode !== '' || guestCodesRequired();
     const sharedCodeOk = secretMatches(code, config.entryCode);
@@ -117,9 +91,7 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       return reply.code(401).send({ error: 'That code is not right' });
     }
 
-    // The ceiling is a bound on how far a loop can grow the table, not a
-    // defence — the rate limit above is that. Pruning runs only here, under
-    // pressure, so an idle guest on a quiet server is never collected.
+    // The cap bounds table growth; the rate limit is the defence. Pruning runs only here, under pressure.
     if (countGuests() >= config.maxGuests) {
       const pruned = pruneIdleGuests(config.guestIdleDays);
       if (pruned > 0) {
@@ -147,12 +119,7 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
     return reply.code(201).send({ token: signToken({ id: guest.id, username: guest.username }) });
   });
 
-  /**
-   * Composed by hand rather than as `preHandler: [authenticate, requireAdmin]`
-   * because the gate is conditional. `request.user` is the signal that
-   * `authenticate` succeeded: when it fails it has already sent a 401, and
-   * calling `requireAdmin` afterwards would try to send a second reply.
-   */
+  /** Gated by hand because the gate is conditional; on a failed `authenticate` the 401 is already sent. */
   fastify.post<{ Body: Credentials }>(
     '/auth/register',
     {
@@ -190,9 +157,7 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(409).send({ error: 'username already taken' });
       }
 
-      // Re-read rather than trusting the preHandler's count: this is what
-      // decides whether the new account gets admin, so it must be measured
-      // immediately before the insert.
+      // Measured right before the insert, since it decides whether the new account is admin.
       const isBootstrap = countAccounts() === 0;
 
       const passwordHash = await hashPassword(password);
@@ -214,7 +179,7 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       return reply
         .code(429)
         .header('retry-after', String(rate.retryAfterSeconds))
-        .send({ error: 'Too many tries — wait a moment' });
+        .send({ error: 'Too many tries. Wait a moment.' });
     }
 
     const { username, password } = request.body ?? ({} as Credentials);
@@ -225,9 +190,7 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
 
     const user = findUserByUsername(username);
 
-    // Refused before bcrypt, not by it. A guest's `password_hash` is '' and no
-    // hash can equal it, but "this row cannot log in" should be a fact the code
-    // states rather than a property of a comparison it happens to lose.
+    // Guests are refused before bcrypt, as a stated rule rather than a lost comparison.
     if (!user || user.kind === 'guest' || !(await verifyPassword(password, user.password_hash))) {
       return reply.code(401).send({ error: 'invalid username or password' });
     }
@@ -240,13 +203,7 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
     return reply.send({ token });
   });
 
-  /**
-   * The arcade-card alternative to `/auth/login` — a username plus a short
-   * numeric passcode instead of a password. Rate-limited per IP
-   * (`passcodeAttemptsPerMinute`, default 8/minute): a 4-8 digit code has
-   * nothing like a password's keyspace, so the limit is doing the work the
-   * code's own length can't.
-   */
+  /** Username plus a short numeric passcode. Rate-limited per IP (default 8/minute), since the code's keyspace is small. */
   fastify.post<{ Body: PasscodeLogin }>('/auth/passcode-login', async (request, reply) => {
     const rate = passcodeLoginLimiter.check(clientIp(request), {
       limit: config.passcodeAttemptsPerMinute,
@@ -257,7 +214,7 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       return reply
         .code(429)
         .header('retry-after', String(rate.retryAfterSeconds))
-        .send({ error: 'Too many tries — wait a moment' });
+        .send({ error: 'Too many tries. Wait a moment.' });
     }
 
     const { username, passcode } = request.body ?? ({} as PasscodeLogin);
@@ -286,7 +243,7 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
     return reply.send({ token });
   });
 
-  /** Creates or replaces the signed-in account's own passcode. Self-service only — see `/auth/passcode-login`'s doc comment for why a wrong one can't be told apart from a missing one. */
+  /** Creates or replaces the signed-in account's own passcode. */
   fastify.post<{ Body: { passcode?: unknown } }>(
     '/auth/passcode',
     { preHandler: [fastify.authenticate, fastify.requireAccount] },
@@ -313,9 +270,7 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       return reply.code(404).send({ error: 'user not found' });
     }
 
-    // The one place staleness is recorded. Every request would mean a write per
-    // streamed byte range; this fires once when a client wakes up, which is all
-    // a prune measured in days needs.
+    // The one place last-seen is written: once per client wake-up is enough for a prune measured in days.
     touchLastSeen(user.id);
 
     return reply.send({
@@ -327,9 +282,7 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
     });
   });
 
-  // Exchanges a session token for a short-lived media token the client can put
-  // in a `<audio src>` / `<img src>` URL. Callers should cache it until
-  // `expiresAt` rather than minting one per track.
+  // Swaps a session token for a short-lived media token for `<audio src>` / `<img src>`. Clients cache it until `expiresAt`.
   fastify.post('/auth/media-token', { preHandler: fastify.authenticate }, async (request, reply) => {
     const token = signMediaToken(request.user!);
     return reply.send({ token, expiresAt: new Date(tokenExpiresAt(token)).toISOString() });

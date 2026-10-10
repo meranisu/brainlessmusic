@@ -30,10 +30,7 @@ describe('getHealthSnapshot', () => {
   });
 
   it('recovers once the error falls outside the window', () => {
-    // The whole point of the fix: health was previously degraded if the error
-    // ring held anything at all, and the ring is only trimmed by length — so
-    // one missing file at boot pinned the server to "degraded" for its whole
-    // life, which is the same as reporting nothing at all.
+    // Health used to stay degraded forever after one boot-time error, since the ring is trimmed only by length.
     recordStreamError(1, 'Track file is missing from disk');
     assert.equal(getHealthSnapshot(Date.now() + 16 * MINUTE).status, 'ok');
   });

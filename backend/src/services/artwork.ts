@@ -29,12 +29,7 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   gif: 'image/gif',
 };
 
-/**
- * An artwork id is `<sha256>.<ext>` and nothing else. Ids reach this module
- * from the database, but they end up in a filesystem path, so the shape is
- * enforced rather than assumed — a stray `../` must never resolve outside the
- * artwork directory.
- */
+/** Artwork ids are `<sha256>.<ext>` only; they become file paths, so a stray `../` must never match. */
 const ARTWORK_ID_PATTERN = /^[a-f0-9]{64}\.(jpg|png|webp|gif)$/;
 
 export function isValidArtworkId(id: string): boolean {
@@ -55,14 +50,7 @@ async function exists(path: string): Promise<boolean> {
   }
 }
 
-/**
- * Writes a picture into the artwork cache and returns its id. Content-addressed,
- * so the same cover embedded across an album's tracks is stored once and a
- * re-scan is a no-op rather than a rewrite.
- *
- * Returns null for image types we don't serve, rather than storing something
- * a browser can't render.
- */
+/** Stores a picture content-addressed and returns its id; null for image types browsers can't render. */
 export async function storeArtwork(picture: EmbeddedPicture): Promise<string | null> {
   const ext = EXTENSION_BY_MIME[picture.format.toLowerCase()];
   if (!ext) return null;
@@ -87,14 +75,7 @@ export function artworkPathFor(id: string): string | null {
   return join(config.artworkPath, id);
 }
 
-/**
- * Path to a downscaled copy, generated on first request and cached beside the
- * original. Done with ffmpeg — already a hard dependency for transcoding — to
- * avoid pulling in an image library for one resize.
- *
- * Falls back to the full-size image if ffmpeg fails, so a thumbnail problem
- * degrades to a bigger download rather than a broken image.
- */
+/** A downscaled copy made with ffmpeg on first request and cached. Falls back to the full image if ffmpeg fails. */
 export async function thumbnailPathFor(id: string): Promise<string | null> {
   const source = artworkPathFor(id);
   if (!source) return null;
@@ -124,15 +105,7 @@ export async function thumbnailPathFor(id: string): Promise<string | null> {
   }
 }
 
-/**
- * Serves a cover for the `/tracks/:id/cover` and `/albums/:id/cover` routes.
- *
- * The artwork id is a content hash, which makes a perfect ETag: if the bytes
- * change the id changes, so a conditional request can be answered with a 304
- * without touching the disk. `?size=thumb` returns a ~256px copy — a track
- * list asking for fifty full-size covers is the difference between a snappy
- * page and megabytes of transfer.
- */
+/** Serves a cover. The id is a content hash, so it doubles as the ETag; `?size=thumb` gives ~256px. */
 export async function sendCover(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -158,9 +131,7 @@ export async function sendCover(
     return reply.code(404).send({ error: 'No cover art' });
   }
 
-  // A thumbnail is always re-encoded to JPEG; a full-size image keeps its
-  // original type. `thumbnailPathFor` can fall back to the original on an
-  // ffmpeg failure, so derive the type from the path actually being served.
+  // Thumbnails are JPEG; the fallback may serve the original, so the type follows the served path.
   reply.header('Content-Type', path.endsWith('.thumb.jpg') ? 'image/jpeg' : mimeTypeForArtwork(artworkId));
   return reply.send(createReadStream(path));
 }

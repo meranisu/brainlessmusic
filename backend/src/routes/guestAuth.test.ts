@@ -18,10 +18,7 @@ import { resetAllRateLimiters } from '../services/rateLimit.js';
 import { verifyMediaToken, verifySessionToken } from '../services/token.js';
 import { resetDatabase } from '../testing/harness.js';
 
-/**
- * Passwordless guest entry, and the arcade-style passcode sign-in that
- * replaced the hidden admin numpad.
- */
+/** Guest entry and passcode sign-in. */
 
 const PASSWORD = 'correct horse battery staple';
 
@@ -134,9 +131,7 @@ describe('guest entry', () => {
   });
 
   it('cannot be logged into with a password', async () => {
-    // A guest's hash is '' — this asserts the route refuses on `kind` before
-    // it ever reaches bcrypt, so the refusal does not depend on what
-    // bcrypt.compare happens to do with an empty hash.
+    // The route must refuse on `kind` before bcrypt sees the empty hash.
     const guest = insertGuest();
 
     for (const password of [' ', PASSWORD, 'guest', guest.username]) {
@@ -148,9 +143,7 @@ describe('guest entry', () => {
       assert.equal(res.statusCode, 401, `password ${JSON.stringify(password)} must be refused`);
     }
 
-    // An empty password is caught earlier, as a missing field — worth pinning
-    // so nobody later "fixes" it into a 401 and quietly changes what a blank
-    // form does for accounts too.
+    // A blank password is a missing field (400), for accounts too; pinned so it doesn't become a 401.
     const blank = await app.inject({
       method: 'POST',
       url: '/api/auth/login',
@@ -160,9 +153,7 @@ describe('guest entry', () => {
   });
 
   it('does not count toward "is this server claimed yet"', async () => {
-    // The deadlock this avoids: the first visitor to a fresh server presses
-    // enter, and if that closed the bootstrap window nobody could ever create
-    // the first admin.
+    // A guest on a fresh server must not close the bootstrap window for the first admin.
     config.allowOpenRegistration = false;
     await mintGuest();
 
@@ -209,7 +200,7 @@ describe('guest entry', () => {
   });
 });
 
-describe('guest entry — the entry code', () => {
+describe('guest entry: the entry code', () => {
   it('is open when ENTRY_CODE is unset', async () => {
     config.entryCode = '';
     assert.equal((await mintGuest()).statusCode, 201);
@@ -232,7 +223,7 @@ describe('guest entry — the entry code', () => {
   });
 });
 
-describe('guest entry — limits', () => {
+describe('guest entry: limits', () => {
   it('rate-limits one address', async () => {
     config.guestMintsPerHour = 3;
 
@@ -286,8 +277,7 @@ describe('guest entry — limits', () => {
 
     assert.equal(pruneIdleGuests(30), 1);
 
-    // Foreign keys are enforced, so orphans would have thrown rather than
-    // lingering — but assert the rows are actually gone, not merely unreferenced.
+    // Check the rows are gone, not just unreferenced.
     const states = db.prepare('SELECT COUNT(*) c FROM playback_state WHERE user_id = ?').get(guest.id) as {
       c: number;
     };
@@ -433,7 +423,7 @@ describe('passcode sign-in', () => {
   });
 });
 
-describe('password sign-in — limits', () => {
+describe('password sign-in: limits', () => {
   function loginWithPassword(username: string, password: string, headers: Record<string, string> = {}) {
     return app.inject({ method: 'POST', url: '/api/auth/login', payload: { username, password }, headers });
   }

@@ -9,11 +9,7 @@ import { insertLibraryRoot } from './libraryRoots.js';
 import { insertGuest, insertUser } from './users.js';
 import { resetDatabase } from '../testing/harness.js';
 
-/**
- * Migration 0017 (A38): guests' playlists and favorites go, accounts' stay.
- * The test database already has every migration applied, so the file is
- * re-run here against seeded rows; it is written to be safe to run again.
- */
+/** Migration 0017 (A38): guests' playlists and favorites go, accounts' stay. Re-run here; it is safe to run twice. */
 
 const MIGRATION = readFileSync(
   join(fileURLToPath(new URL('.', import.meta.url)), 'migrations', '0017_delete_guest_playlists_and_favorites.sql'),

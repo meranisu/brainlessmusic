@@ -12,8 +12,7 @@ describe('artwork id validation', () => {
   });
 
   it('rejects path traversal', () => {
-    // Ids come from the database, but they end up joined into a filesystem
-    // path — this is the guard that keeps a bad row from reading /etc/passwd.
+    // Artwork ids become file paths; this keeps a bad row from reading /etc/passwd.
     assert.equal(isValidArtworkId('../../../etc/passwd'), false);
     assert.equal(isValidArtworkId(`../${HASH}.jpg`), false);
     assert.equal(isValidArtworkId(`${HASH}/../../x.jpg`), false);

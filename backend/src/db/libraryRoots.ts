@@ -47,17 +47,8 @@ export function countTracksForRoot(id: number): number {
 }
 
 /**
- * Removing a root's *registration* is not a decision to destroy its music —
- * the tracks stay (favorites, playlists and history with them), just
- * detached from a root that no longer exists. Nothing here marks them
- * missing; the caller does that first, while `root_id` still says which
- * tracks those are (see `routes/library.ts`).
- *
- * The detach has to happen before the delete, in the same transaction:
- * foreign keys are enforced here (SQLite's own default is off, but
- * better-sqlite3's bundled build enables it), so deleting a root row while
- * tracks still reference it would fail outright rather than leave anything
- * dangling.
+ * Unregisters a root but keeps its tracks (detached, with their favorites and history). The caller marks them
+ * missing first. Detach happens before the delete, in one transaction, because foreign keys are enforced.
  */
 export function deleteLibraryRoot(id: number): void {
   db.transaction(() => {
@@ -67,12 +58,7 @@ export function deleteLibraryRoot(id: number): void {
   })();
 }
 
-/**
- * Seeds `library_roots` with the app's original single folder, and adopts
- * every track that predates this table into it. Safe to call on every boot —
- * a no-op once the table has any row at all — because a migration (pure SQL,
- * no env var access) can't do this seeding itself.
- */
+/** Seeds the original LIBRARY_PATH as a root and adopts older tracks. A no-op once any root exists; SQL can't read env. */
 export function ensureDefaultLibraryRoot(libraryPath: string): void {
   if (listLibraryRoots().length > 0) return;
 

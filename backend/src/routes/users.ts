@@ -14,14 +14,7 @@ interface UserPatchBody {
   password?: string;
 }
 
-/**
- * Admin user management. Everything here previously required SSH and a CLI
- * script (`npm run set-admin` / `set-password`), which is a poor way to
- * onboard a friend.
- *
- * Account *creation* lives on `POST /auth/register`, not here, so there is one
- * code path that creates a user and one place that decides who may.
- */
+/** Admin user management, so onboarding a friend needs no SSH. Creating accounts stays on `POST /auth/register`. */
 const usersRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get('/users', { preHandler: [fastify.authenticate, fastify.requireAdmin] }, async (_request, reply) => {
     return reply.send({ users: listUsers() });
@@ -40,9 +33,7 @@ const usersRoute: FastifyPluginAsync = async (fastify) => {
       const { isAdmin, password } = request.body ?? {};
 
       if (isAdmin === false && user.is_admin === 1 && countAdmins() <= 1) {
-        // Removing the last admin leaves an installation nobody can manage,
-        // recoverable only by running the CLI on the server. Refuse rather
-        // than let someone lock themselves out from a browser.
+        // The last admin can't be removed from a browser; recovery would need the CLI.
         return reply.code(409).send({ error: 'Cannot remove the last admin' });
       }
 

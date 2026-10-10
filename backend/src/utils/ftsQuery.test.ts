@@ -26,8 +26,7 @@ describe('buildMatchQuery', () => {
     assert.equal(buildMatchQuery('rock NEAR/2 roll'), '"rock" AND "NEAR/2" AND "roll"');
     assert.equal(buildMatchQuery('wildcard*'), '"wildcard*"');
     assert.equal(buildMatchQuery('^anchored'), '"^anchored"');
-    // `OR` is two characters, so this one leaves by the short-term door
-    // instead — still safe, just answered by LIKE rather than the index.
+    // `OR` is under three characters, so this goes to LIKE: still safe.
     assert.equal(buildMatchQuery('foo OR bar'), null);
   });
 

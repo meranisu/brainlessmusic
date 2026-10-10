@@ -1,16 +1,5 @@
--- Full-text search, replacing the LIKE '%x%' scans in db/browse.ts.
---
--- Tokenizer choice is the load-bearing decision here. The default `unicode61`
--- splits on whitespace and punctuation, which would break this library in two
--- ways: it can only match from the start of a token (so "eatles" finds
--- nothing), and Japanese text has no spaces, so an entire title becomes one
--- token and only a prefix of it is ever findable. `trigram` indexes every
--- 3-character run instead, giving true substring matching in any script — the
--- same thing LIKE '%x%' did, minus the full-table scan.
---
--- The cost: trigram cannot match a query shorter than 3 characters. Queries
--- that short fall back to LIKE in `searchLibrary()`, which matters most for
--- CJK, where a 2-character query is a perfectly ordinary thing to type.
+-- Full-text search with the trigram tokenizer: substring matches in any script (Japanese has no spaces for
+-- unicode61 to split on). Queries under 3 characters fall back to LIKE in `searchLibrary()`.
 
 CREATE VIRTUAL TABLE tracks_fts USING fts5(
   title,
@@ -41,9 +30,7 @@ INSERT INTO artists_fts (rowid, name) SELECT id, name FROM artists;
 
 INSERT INTO albums_fts (rowid, title) SELECT id, title FROM albums;
 
--- Triggers keep the index correct by construction rather than by remembering
--- to call something. Note the `OF <columns>` clauses: a scrobble updating
--- play_count, or the admin toggling `hidden`, must not touch the index.
+-- Triggers keep the index in sync. `OF <columns>` keeps play_count and `hidden` updates from touching it.
 
 CREATE TRIGGER tracks_fts_after_insert AFTER INSERT ON tracks BEGIN
   INSERT INTO tracks_fts (rowid, title, artist, album)
@@ -78,10 +65,7 @@ CREATE TRIGGER artists_fts_after_delete AFTER DELETE ON artists BEGIN
   DELETE FROM artists_fts WHERE rowid = old.id;
 END;
 
--- Nothing in the app renames an artist today — tag edits find-or-create and
--- repoint `tracks.artist_id`. This trigger exists so that a rename arriving by
--- any other route (a future feature, a manual fix) can't leave the name that
--- tracks_fts denormalises pointing at the old spelling.
+-- Nothing renames an artist today, but a rename from anywhere must not leave the old name in tracks_fts.
 CREATE TRIGGER artists_fts_after_update AFTER UPDATE OF name ON artists BEGIN
   DELETE FROM artists_fts WHERE rowid = old.id;
   INSERT INTO artists_fts (rowid, name) VALUES (new.id, new.name);

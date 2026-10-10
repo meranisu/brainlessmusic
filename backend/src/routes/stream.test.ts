@@ -26,14 +26,7 @@ async function hasFfmpeg(): Promise<boolean> {
   }
 }
 
-/**
- * The audio path, end to end over the real Fastify instance.
- *
- * The bytes are not real audio and do not need to be: nothing on this path
- * decodes them. It reads a file, answers conditional requests about it, and
- * slices byte ranges out of it — all of which is exactly as true of 4 KB of
- * filler as of a FLAC.
- */
+/** The audio path end to end. The bytes needn't be real audio: nothing here decodes them. */
 
 // Distinct per byte so a wrong slice is a failed assertion, not a coincidence.
 const BODY = Buffer.from(Array.from({ length: 4096 }, (_, i) => i % 251));
@@ -60,7 +53,7 @@ before(async () => {
 
 after(async () => {
   await app.close();
-  // Only what this suite created — see the testing rules in .docs/CLAUDE.md.
+  // Only what this suite created (see the testing rules in .docs/CLAUDE.md).
   await cleanup();
 });
 
@@ -173,9 +166,7 @@ describe('byte ranges', () => {
   });
 
   it('resends the whole file when If-Range no longer matches', async () => {
-    // A player reconnecting into a file that changed underneath must not get
-    // new bytes spliced onto the old ones — that is a corrupt stream, and it
-    // would arrive looking like a successful 206.
+    // New bytes spliced onto old ones would be a corrupt stream that looks like a good 206.
     const res = await app.inject({
       method: 'GET',
       url: streamUrl(),
@@ -201,9 +192,7 @@ describe('byte ranges', () => {
 
 describe('the data-saver path', () => {
   it('refuses rather than sending the full-size original when every slot is busy', async () => {
-    // Saturation is a guard, not a routine path, so it is forced here rather
-    // than by racing real transcodes. Serving the original instead would blow
-    // the data budget of the one caller who explicitly asked not to.
+    // Forced rather than raced. Falling back to the original would break the data saver's promise.
     const original = config.maxConcurrentTranscodes;
     config.maxConcurrentTranscodes = 0;
     try {
@@ -304,9 +293,7 @@ describe('WebKit compatibility for Ogg/Opus sources', async () => {
   });
 
   it('takes priority over a data-saver request instead of compounding with it', { skip: !ffmpegAvailable }, async () => {
-    // A smaller Ogg file is still an Ogg file an iPhone cannot open — the
-    // compatibility fix has to win outright, not stack a bitrate drop onto a
-    // container that was always going to fail.
+    // A smaller Ogg still won't open on an iPhone, so the compatibility fix must win outright.
     const res = await app.inject({
       method: 'GET',
       url: oggStreamUrl('&quality=low'),

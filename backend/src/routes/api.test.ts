@@ -12,12 +12,7 @@ import { hashPassword } from '../services/password.js';
 import { signMediaToken, signToken } from '../services/token.js';
 import { resetDatabase } from '../testing/harness.js';
 
-/**
- * Smoke tests over the real Fastify instance via `.inject()` — no socket, no
- * port. These cover the two things that would be worst to get wrong quietly:
- * a protected route that isn't actually protected, and an admin route a
- * non-admin can reach.
- */
+/** `.inject()` smoke tests for the worst quiet failures: an unprotected protected route, and an admin route open to others. */
 
 let app: FastifyInstance;
 let listener: string;
@@ -88,19 +83,14 @@ describe('open routes', () => {
   });
 
   it('leaves exactly the doors open that are meant to be', async () => {
-    // Unauthenticated by necessity — these are how someone gets in at all, so
-    // they can never appear in PROTECTED_ROUTES. Listed here so that an
-    // accidentally-open route is visible as a deliberate one, and so the count
-    // is something a reader can check rather than infer.
-    // Full behaviour lives in guestAuth.test.ts.
+    // The ways in are public by necessity; listed so an open route is visibly deliberate. See guestAuth.test.ts.
     for (const url of ['/api/auth/guest', '/api/auth/login', '/api/auth/passcode-login']) {
       const res = await app.inject({ method: 'POST', url, payload: {} });
       assert.notEqual(res.statusCode, 404, `${url} must exist`);
       assert.notEqual(res.statusCode, 403, `${url} must not be behind the admin gate`);
     }
 
-    // The guest door specifically must not want a bearer token — it is what
-    // *issues* them.
+    // The guest door issues tokens, so it must not want one.
     const guest = await app.inject({ method: 'POST', url: '/api/auth/guest', payload: {} });
     assert.notEqual(guest.statusCode, 401, 'the guest door cannot require a credential');
   });
@@ -115,9 +105,7 @@ describe('authentication', () => {
   });
 
   it('and those routes all actually exist', async () => {
-    // Without this, a typo in PROTECTED_ROUTES would make the test above pass
-    // for the wrong reason — a missing route is not a protected one. (It
-    // already caught one: /history is really /me/history.)
+    // A typo'd route would pass the test above for the wrong reason: missing isn't protected.
     for (const [method, url] of PROTECTED_ROUTES) {
       const res = await app.inject({
         method,
@@ -187,9 +175,7 @@ describe('authentication', () => {
 
 describe('token scope separation', () => {
   it('refuses a media token used as a bearer credential', async () => {
-    // Media tokens travel in URLs, so they end up in logs and history. If one
-    // could be replayed as a session credential, the short TTL would be the
-    // only thing between a leaked URL and full API access.
+    // Media tokens end up in logs; one must never work as a session credential.
     const mediaToken = signMediaToken({ id: findUserByUsername(listener)!.id, username: listener });
     const res = await app.inject({
       method: 'GET',
@@ -233,9 +219,7 @@ describe('admin gating', () => {
   });
 
   it('refuses admin routes to an anonymous caller with 401, not 403', async () => {
-    // Order matters: `authenticate` runs before `requireAdmin`, so a caller
-    // with no token must be told to authenticate rather than that they lack a
-    // role they could never have been checked for.
+    // `authenticate` runs first, so no token is a 401, not a 403.
     for (const [method, url] of ADMIN_ROUTES) {
       const res = await app.inject({ method, url, payload: method === 'PATCH' ? {} : undefined });
       assert.equal(res.statusCode, 401, `${method} ${url} should be 401 when anonymous`);
@@ -248,7 +232,7 @@ describe('admin gating', () => {
       url: '/api/tracks/999',
       headers: { authorization: `Bearer ${adminToken}` },
     });
-    // 404 because the track doesn't exist — the point is that it isn't 403.
+    // 404 because the track doesn't exist; the point is that it isn't 403.
     assert.equal(res.statusCode, 404);
   });
 
@@ -322,8 +306,7 @@ describe('hidden tracks', () => {
 describe('track ordering', () => {
   it('keeps an album in track order when sorting by album', async () => {
     const rootId = insertLibraryRoot('/library', null).id;
-    // Inserted out of order, and titled so alphabetical order differs from
-    // track order — a sort that only looks at the album title fails this.
+    // Out of order, and titled so alphabetical order differs from track order.
     for (const [title, trackNumber] of [['Zulu', 1], ['Alpha', 3], ['Mike', 2]] as const) {
       upsertTrack({
         path: `/library/${title}.mp3`,
@@ -349,9 +332,7 @@ describe('track ordering', () => {
 });
 
 describe('registration is admin-only', () => {
-  // Pinned rather than inherited: the shipped default is open registration,
-  // and a test that silently follows the default stops testing the gate the
-  // day someone changes it.
+  // Pinned, not inherited, so the test keeps testing the gate if the default changes.
   before(() => {
     config.allowOpenRegistration = false;
   });
@@ -444,9 +425,7 @@ describe('registration is admin-only', () => {
 
 
 describe('open registration', () => {
-  // The other posture: anyone who can reach the server may make themselves an
-  // account. Fine on a LAN, a real exposure once the server is public — so
-  // what it does and does not grant is worth pinning down.
+  // Open registration: pin down what it does and doesn't grant.
   before(() => {
     config.allowOpenRegistration = true;
   });

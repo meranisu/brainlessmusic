@@ -4,17 +4,8 @@ import { dirname } from 'node:path';
 import { config } from '../config.js';
 
 /**
- * The database handle, opened on first use rather than on import.
- *
- * This matters because `import` is not a passive act here: opening a
- * connection creates the file and its WAL sidecars. When that happened at
- * import time, merely importing any module that transitively reached `db/` —
- * a unit test for an unrelated pure function, say — touched whatever
- * `DB_PATH` pointed at. That has bitten this project twice (see
- * .docs/CHANGELOG.md, 2026-09-08 and 2026-09-09).
- *
- * Lazily opening it means a module can be imported, inspected and tested
- * without a database existing at all.
+ * Opened on first use, not on import: opening creates the file, and import-time opens have twice touched the real
+ * `DB_PATH` from unrelated tests (CHANGELOG 2026-09-08, 2026-09-09).
  */
 let instance: Database.Database | null = null;
 
@@ -27,7 +18,7 @@ export function getDb(): Database.Database {
   return instance;
 }
 
-/** True once a connection has actually been opened — used by tests. */
+/** True once a connection has been opened; for tests. */
 export function isDatabaseOpen(): boolean {
   return instance !== null;
 }
@@ -38,11 +29,7 @@ export function closeDb(): void {
   instance = null;
 }
 
-/**
- * A stand-in for the handle, so the ~90 existing `db.prepare(...)` call sites
- * need no change. Every property access resolves through `getDb()`, which is
- * what defers the connection.
- */
+/** Stands in for the handle so `db.prepare(...)` call sites stay unchanged; each access goes through `getDb()`. */
 export const db = new Proxy({} as Database.Database, {
   get(_target, property) {
     const real = getDb() as unknown as Record<string | symbol, unknown>;

@@ -47,16 +47,8 @@ async function moveFile(src: string, dest: string): Promise<void> {
 }
 
 /**
- * Moves a staged upload into <libraryRoot>/<Artist>/<Album>/<filename>,
- * sanitizing the artist/album folder names. Prefers the client's original
- * filename (sanitized) so the library tree reads naturally; falls back to
- * the tagged title when that name is empty/unusable. Never overwrites an
- * existing file — collisions get a " (2)", " (3)", ... suffix.
- *
- * `libraryRoot` is a parameter rather than a read of `config.libraryPath`
- * so the destination is always visible at the call site. This function writes
- * to the filesystem; a caller — a test especially — should never have to infer
- * where from an environment variable it didn't set.
+ * Moves an upload into <libraryRoot>/<Artist>/<Album>/<filename>, preferring the client's sanitized filename, else the
+ * title. Never overwrites: collisions get " (2)". The root is a parameter so the write target is visible at the call.
  */
 export async function fileIntoLibrary(
   libraryRoot: string,

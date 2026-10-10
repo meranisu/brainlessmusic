@@ -11,7 +11,7 @@ import { scanLibrary } from './scanner.js';
 
 const run = promisify(execFile);
 
-/** Generates a real audio file — the scanner's whole job is reading actual tags. */
+/** Generates a real audio file, since the scanner reads real tags. */
 async function makeAudio(
   path: string,
   tags: { title?: string; artist?: string; album?: string } = {},
@@ -36,17 +36,14 @@ async function hasFfmpeg(): Promise<boolean> {
 const count = (table: string): number =>
   (db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n;
 
-// Foreign keys are enforced, so every scanned track needs a real
-// `library_roots` row — set fresh in `beforeEach` below.
+// Foreign keys need a real `library_roots` row, set in `beforeEach`.
 let TEST_ROOT_ID = 0;
 
 describe('scanLibrary', async () => {
   let library = '';
   let cleanup: () => Promise<void> = async () => {};
 
-  // The scanner reads real files with real tags; without ffmpeg there is
-  // nothing meaningful to read, so skip rather than assert against fixtures
-  // that don't exist.
+  // No ffmpeg means no real files to read, so skip.
   const ffmpegAvailable = await hasFfmpeg();
 
   before(async () => {
@@ -76,8 +73,7 @@ describe('scanLibrary', async () => {
     await writeFile(join(library, 'notes.txt'), 'not audio');
     await writeFile(join(library, 'playlist.m3u'), 'not audio');
 
-    // A file with an audio extension that is not audio — must be reported as a
-    // failure without aborting the rest of the scan.
+    // Not audio despite the extension: reported as a failure, and the scan continues.
     await writeFile(join(library, 'corrupt.flac'), 'definitely not a FLAC');
   });
 
@@ -145,7 +141,7 @@ describe('scanLibrary', async () => {
     assert.equal(count('tracks'), 3);
   });
 
-  it('is idempotent — a re-scan updates rather than duplicates', { skip: !ffmpegAvailable }, async () => {
+  it('is idempotent: a re-scan updates rather than duplicates', { skip: !ffmpegAvailable }, async () => {
     const first = await scanLibrary(library, TEST_ROOT_ID);
     assert.equal(first.filesAdded, 3);
     assert.equal(first.filesUpdated, 0);
@@ -181,9 +177,7 @@ describe('scanLibrary', async () => {
       // `total` is known up front (the directory walk finishes before the
       // file loop starts) and never changes mid-scan.
       assert.ok(calls.every(([, total]) => total === summary.filesFound));
-      // Files run concurrently, so call order isn't file order — but the
-      // shared counter they increment still has to land on every value from
-      // 1 to the total, once each, by the time the scan resolves.
+      // Files run concurrently, but the shared counter must still hit every value 1..total once.
       const processedValues = calls.map(([processed]) => processed).sort((a, b) => a - b);
       assert.deepEqual(processedValues, Array.from({ length: summary.filesFound }, (_, i) => i + 1));
     },
@@ -206,9 +200,7 @@ describe('scanLibrary', async () => {
     'skips a subdirectory it cannot read instead of aborting the whole scan',
     { skip: !ffmpegAvailable },
     async () => {
-      // A Windows drive's own `System Volume Information`/`$RECYCLE.BIN`
-      // are exactly this: real, unreadable-by-this-user subdirectories
-      // sitting alongside real music once a whole drive is mounted in.
+      // Like a Windows drive's `System Volume Information` or `$RECYCLE.BIN`: unreadable folders beside real music.
       const temp = await makeTempDir('scan-locked');
       const root = insertLibraryRoot(temp.path, null).id;
       try {

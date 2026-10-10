@@ -44,15 +44,8 @@ export function buildApp() {
 
   registerAuthDecorator(app);
 
-  // Same-origin by default (see `config.corsOrigins`). `false` means no CORS
-  // headers at all, so a browser refuses any other site's script a response.
-  //
-  // `methods` must be listed explicitly — @fastify/cors v11's own default is
-  // 'GET,HEAD,POST' (confirmed in node_modules/@fastify/cors/index.js), not
-  // the full REST set. Without this, every PATCH/PUT/DELETE route (favorites,
-  // playlists, tracks) is silently blocked by the browser's CORS preflight —
-  // curl-based testing never surfaces it since CORS is browser-enforced only.
-  // Found 2026-09-03 via a real headless-Chromium PATCH /tracks/:id call.
+  // Same-origin by default (`config.corsOrigins`). `methods` must be explicit: @fastify/cors v11 defaults to
+  // GET,HEAD,POST, and the browser preflight then silently blocks every PATCH/PUT/DELETE.
   app.register(cors, {
     origin: config.corsOrigins.length > 0 ? config.corsOrigins : false,
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
@@ -65,13 +58,7 @@ export function buildApp() {
     },
   });
 
-  // Everything the API serves lives under /api.
-  //
-  // Not cosmetic: the web app has its own /albums, /artists, /playlists,
-  // /search and /health routes. Sharing one namespace means the API answers
-  // first and a browser navigating to /albums gets 401 JSON instead of the
-  // page. A prefix is what lets one origin serve both, which is what makes the
-  // container useful on its own and what step 13's TLS termination will front.
+  // The API lives under /api because the web app has its own /albums, /search and /health pages on the same origin.
   app.register(
     async (api) => {
       api.register(healthRoute);

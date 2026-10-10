@@ -3,10 +3,7 @@ import { getLetterIndex, type LetterScope } from '../db/letterIndex.js';
 
 const SCOPES = new Set<LetterScope>(['tracks', 'albums', 'artists']);
 
-/**
- * `GET /browse/letters?scope=tracks|albums|artists` — where each letter starts in that list, for a
- * client that pages and so cannot count for itself. See `db/letterIndex.ts`.
- */
+/** `GET /browse/letters?scope=tracks|albums|artists`: where each letter starts, for a paging client. See `db/letterIndex.ts`. */
 const lettersRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Querystring: { scope?: string } }>(
     '/browse/letters',

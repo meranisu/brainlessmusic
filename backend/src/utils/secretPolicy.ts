@@ -1,23 +1,9 @@
-/**
- * Boot-time vetting of `JWT_SECRET`.
- *
- * The signing secret is the whole of this server's authentication: anyone who
- * knows it can mint a valid token for any account, admin included, without
- * ever touching a password. A guessable secret is therefore not a
- * configuration wart — it is an unauthenticated admin login.
- *
- * Pure by design (no `config`, no `db/`) so it can be unit-tested and so the
- * policy can be read in one place without tracing environment lookups.
- */
+/** Boot-time check of `JWT_SECRET`, whose holder can mint any token, admin included. Pure, for testing. */
 
 /** The fallback in `config.ts`. It is committed to this repository, so it is public. */
 export const DEFAULT_JWT_SECRET = 'change-me';
 
-/**
- * HS256 keys should carry at least 256 bits of entropy. 32 characters is the
- * shortest thing that can plausibly do that, and it is exactly what the
- * suggested `randomBytes(32).toString('hex')` produces (64 hex characters).
- */
+/** HS256 wants 256 bits; 32 characters is the floor, and `randomBytes(32).toString('hex')` gives 64. */
 export const MIN_JWT_SECRET_LENGTH = 32;
 
 /** Environments where a weak secret is a warning rather than a refusal. */
@@ -30,14 +16,8 @@ export interface SecretProblem {
 }
 
 /**
- * Takes the raw environment values rather than `config`, because `config`
- * has already applied the fallback — by then "unset" and "set to the default"
- * are indistinguishable, and they deserve different wording.
- *
- * Fails closed: anything that isn't explicitly a development or test
- * environment is treated as a real deployment. Someone running `npm start` on
- * a VPS without setting NODE_ENV is precisely the case this exists to catch,
- * so an unset NODE_ENV must not be the lenient path.
+ * Takes raw env values, since `config` has already applied the fallback. Fails closed: only development or test is
+ * lenient, so an unset NODE_ENV on a VPS is caught.
  */
 export function inspectJwtSecret(
   secret: string | undefined,

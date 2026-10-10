@@ -23,14 +23,8 @@ function tags(overrides: Partial<TrackTags> = {}): TrackTags {
 }
 
 /**
- * These tests own every directory they touch.
- *
- * An earlier version of this file deleted `config.libraryPath` in `beforeEach`,
- * which is safe only while the isolated test environment is in force. Run
- * directly with `tsx --test` instead of through `npm test`, it resolved to the
- * real LIBRARY_PATH and removed it. A test must never delete a directory it did
- * not create — so `library` and `staging` below are freshly made per file, live
- * outside the repository, and are the only things ever removed.
+ * These tests own every directory they touch. An earlier version deleted `config.libraryPath`, and a direct
+ * `tsx --test` run removed the real library.
  */
 let library = '';
 let staging = '';
@@ -133,10 +127,7 @@ describe('fileIntoLibrary', () => {
   });
 
   it('falls back to the tagged title when the original name has no usable base', async () => {
-    // `....mp3` and `   .mp3` both leave nothing after sanitising the base.
-    // Not `.mp3` — Node reads that as a dotfile with no extension, so it never
-    // reaches here: the upload route rejects it, since `extname('.mp3')` is ''
-    // and so fails the AUDIO_EXTENSIONS check.
+    // Both sanitise to an empty base. (`.mp3` alone never gets here: its extname is '' and the route rejects it.)
     for (const name of ['....mp3', '   .mp3']) {
       const dest = await fileIntoLibrary(library, await stage('x.mp3'), name, tags({ title: 'Real Title' }));
       assert.equal(dest, join(library, 'An Artist', 'An Album', 'Real Title.mp3'), `for ${JSON.stringify(name)}`);

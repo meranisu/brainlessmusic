@@ -15,14 +15,8 @@ function shuffleArray<T>(items: T[]): T[] {
 const NO_ARTIST_KEY = '__none__';
 
 /**
- * Reorders tracks so the same artist doesn't play back-to-back wherever
- * mathematically possible. Groups by artist, then greedily interleaves by
- * always placing next from the largest remaining group that isn't the
- * artist just placed (the standard "reorganize string" approach) — this
- * guarantees zero adjacent same-artist pairs unless one artist makes up
- * more than half the set, in which case it minimizes rather than
- * eliminates violations. The input is pre-shuffled so both the order
- * within a group and tie-breaks between equal-size groups are randomized.
+ * Reorders so the same artist never plays back-to-back where possible: greedily take the largest remaining group
+ * that isn't the last artist ("reorganize string"). Pre-shuffled, so ties and in-group order are random.
  */
 export function smartShuffle(tracks: ShuffleTrack[]): number[] {
   const groups = new Map<string, number[]>();
@@ -50,7 +44,7 @@ export function smartShuffle(tracks: ShuffleTrack[]): number[] {
   return result;
 }
 
-/** A small, fast, seedable generator (mulberry32) — enough for shuffling, not for anything secret. */
+/** mulberry32: small, fast and seedable. Not for secrets. */
 function seededRandom(seed: number): () => number {
   let a = seed | 0;
   return () => {
@@ -61,12 +55,7 @@ function seededRandom(seed: number): () => number {
   };
 }
 
-/**
- * The same shuffle for the same seed, every time. That is what lets a client walk a shuffled
- * library in pages ("give me 200, then the next 200") without the server remembering anything:
- * each request re-derives the same order from the seed, so no track repeats until the whole
- * library has been played.
- */
+/** Same seed, same order, so a client can page through a shuffled library with no server state. */
 export function seededShuffle<T>(items: T[], seed: number): T[] {
   const random = seededRandom(seed);
   const result = [...items];

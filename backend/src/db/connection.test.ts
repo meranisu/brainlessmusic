@@ -4,19 +4,14 @@ import { describe, it } from 'node:test';
 import '../testing/harness.js'; // refuses to run outside the isolated test env
 import { config } from '../config.js';
 
-/**
- * The connection is opened on first use, not on import.
- *
- * This is the property that stops an unrelated unit test from creating or
- * touching a database simply by importing a module that reaches `db/`.
- */
+/** Importing `db/` must not open (or create) a database. */
 describe('lazy database connection', () => {
   it('does not open a connection merely by being imported', async () => {
     const { isDatabaseOpen } = await import('./connection.js');
     assert.equal(
       isDatabaseOpen(),
       false,
-      'importing db/connection.js must not open a handle — that is the whole point',
+      'importing db/connection.js must not open a handle',
     );
   });
 
@@ -56,8 +51,7 @@ describe('lazy database connection', () => {
   });
 
   it('proxies method calls with the right receiver', async () => {
-    // better-sqlite3's methods break if called with a detached `this`, so the
-    // proxy has to bind them — this is what would catch a regression there.
+    // better-sqlite3 methods break with a detached `this`, so the proxy must bind them.
     const { db } = await import('./connection.js');
     const row = db.prepare('SELECT 1 AS one').get() as { one: number };
     assert.equal(row.one, 1);

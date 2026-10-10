@@ -8,11 +8,7 @@ import { insertUser } from '../db/users.js';
 import { signToken } from '../services/token.js';
 import { resetDatabase } from '../testing/harness.js';
 
-/**
- * The route's job is to refuse nonsense and to keep two listeners apart.
- * Everything about *repairing* a stale queue is tested against the database
- * directly, in `db/playbackState.test.ts`.
- */
+/** The route refuses bad input and keeps listeners apart; stale-queue repair is tested in `db/playbackState.test.ts`. */
 
 let app: FastifyInstance;
 let aliceToken: string;
@@ -133,8 +129,7 @@ describe('playback state route', () => {
   });
 
   it('accepts a queue holding ids that no longer exist, and filters them on read', async () => {
-    // Saving is not the place to check — a track can vanish after the write
-    // just as easily as before it, so the read has to filter regardless.
+    // A track can vanish after the write too, so the read filters regardless.
     assert.equal((await put(aliceToken, { queue: [trackId, 999999], queueIndex: 0, positionSeconds: 5 })).statusCode, 204);
 
     const state = (await get(aliceToken)).json().state;

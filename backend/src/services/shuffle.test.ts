@@ -23,7 +23,7 @@ test('returns every track id exactly once', () => {
 });
 
 test('zero adjacent same-artist pairs on a balanced distribution', () => {
-  // 4 artists x 5 tracks each — no artist is anywhere near half the set.
+  // 4 artists × 5 tracks: no artist near half.
   const tracks: ShuffleTrack[] = [];
   for (let artistId = 1; artistId <= 4; artistId++) {
     for (let n = 0; n < 5; n++) {
@@ -38,9 +38,7 @@ test('zero adjacent same-artist pairs on a balanced distribution', () => {
 });
 
 test('minimizes (does not eliminate) violations on a skewed distribution', () => {
-  // 10 tracks from artist 1, 2 from artist 2 — artist 1 exceeds half of 12,
-  // so some adjacency is mathematically unavoidable, but it should be the
-  // theoretical minimum: dominant count - (rest + 1) = 10 - 3 = 7.
+  // Artist 1 has 10 of 12, so adjacency is unavoidable; the minimum is 10 - (2 + 1) = 7.
   const tracks: ShuffleTrack[] = [
     ...Array.from({ length: 10 }, (_, i) => ({ trackId: i, artistId: 1 })),
     { trackId: 100, artistId: 2 },

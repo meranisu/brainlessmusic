@@ -2,12 +2,7 @@ import '../db/migrate.js';
 import { hashPassword } from '../services/password.js';
 import { findUserByUsername, insertUser, setAdmin, setPasswordHash } from '../db/users.js';
 
-/**
- * Fixed accounts for the people actually using this server. Re-runnable on
- * purpose — a fresh install (or a wiped `/data` volume) gets these back with
- * one command, and running it again against an existing install just resets
- * the password/admin flag rather than failing on "already exists".
- */
+/** Fixed accounts for this server. Re-runnable: an existing user gets its password and admin flag reset. */
 const SEED_USERS = [
   { username: 'unskill', password: '6969', isAdmin: true },
   { username: 'meran', password: '6969', isAdmin: true },

@@ -112,9 +112,7 @@ export function isTrackInPlaylist(playlistId: number, trackId: number): boolean 
   );
 }
 
-/**
- * Appends a track at the end of the playlist (highest existing position + 1).
- */
+/** Appends a track at the end of the playlist. */
 export function addTrackToPlaylist(playlistId: number, trackId: number): number {
   const { maxPosition } = db
     .prepare('SELECT MAX(position) as maxPosition FROM playlist_tracks WHERE playlist_id = ?')
@@ -146,11 +144,7 @@ export function getPlaylistTrackIdsInOrder(playlistId: number): number[] {
   ).map((row) => row.trackId);
 }
 
-/**
- * Reassigns positions 0..N-1 to match the given track id order. Caller must
- * ensure `trackIds` is exactly the playlist's current track set (same
- * elements, no duplicates) before calling this.
- */
+/** Renumbers positions to `trackIds` order. The caller must check it is exactly the playlist's set. */
 export function reorderPlaylistTracks(playlistId: number, trackIds: number[]): void {
   const reorder = db.transaction(() => {
     trackIds.forEach((trackId, index) => {

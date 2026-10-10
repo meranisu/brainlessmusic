@@ -44,7 +44,7 @@ export function recordPlaybackFailure(input: PlaybackFailureInput): void {
 
 const DEFAULT_LIMIT = 100;
 
-/** Newest first — the ones worth looking at are always the most recent ones. */
+/** Newest first. */
 export function listRecentPlaybackFailures(limit = DEFAULT_LIMIT): PlaybackFailureEntry[] {
   return db
     .prepare(

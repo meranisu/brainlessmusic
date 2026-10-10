@@ -20,10 +20,7 @@ function parseId(raw: string): number | undefined {
   return Number.isInteger(id) ? id : undefined;
 }
 
-/**
- * Loads the playlist and checks ownership. Sends 404/403 itself and returns
- * undefined when the caller should stop; otherwise returns the playlist row.
- */
+/** Loads the playlist and checks ownership; on 404/403 it replies itself and returns undefined. */
 function loadOwnedPlaylist(
   id: number | undefined,
   userId: number,

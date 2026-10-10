@@ -24,11 +24,7 @@ function bearerFrom(request: FastifyRequest): string | undefined {
   return header?.startsWith('Bearer ') ? header.slice('Bearer '.length) : undefined;
 }
 
-/**
- * A valid signature only proves the token was issued, not that its user still
- * exists. Pruned guests and deleted accounts would otherwise keep listening
- * until the token expired (seven days by default).
- */
+/** A valid signature doesn't mean the user still exists; pruned or deleted users are refused before their token expires. */
 function rejectDeletedUser(request: FastifyRequest, reply: FastifyReply): FastifyReply | undefined {
   if (!findUserById(request.user!.id)) {
     request.user = undefined;
@@ -54,10 +50,8 @@ export function registerAuthDecorator(app: FastifyInstance): void {
     return rejectDeletedUser(request, reply);
   });
 
-  // For endpoints a browser element loads by URL alone (`<audio src>`, and
-  // cover art later). Accepts a normal bearer header first — that's what the
-  // Android client and curl use — and falls back to a `?token=` media token,
-  // which is the only credential type allowed to travel in a URL.
+  // For URLs a browser element loads (`<audio src>`, cover art): a bearer header first, else a `?token=` media token,
+  // the only credential allowed in a URL.
   app.decorate('authenticateMedia', async (request: FastifyRequest, reply: FastifyReply) => {
     const bearer = bearerFrom(request);
     const query = request.query as { token?: unknown } | undefined;
@@ -76,10 +70,7 @@ export function registerAuthDecorator(app: FastifyInstance): void {
     return rejectDeletedUser(request, reply);
   });
 
-  // Runs after `authenticate` (composed as [authenticate, requireAdmin] in
-  // route preHandlers) — re-reads is_admin from the DB rather than trusting
-  // the JWT payload, so a role revoked mid-session takes effect immediately
-  // instead of waiting for the token to expire.
+  // Runs after `authenticate` and re-reads is_admin, so a revoked role applies at once.
   app.decorate('requireAdmin', async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user && findUserById(request.user.id);
     if (!user?.is_admin) {
@@ -87,10 +78,8 @@ export function registerAuthDecorator(app: FastifyInstance): void {
     }
   });
 
-  // Guests are listen-only (A37): they browse, stream and keep their resume
-  // position, but anything that builds up personal data — playlists,
-  // favorites, play counts, history — needs a real account. Same shape as
-  // `requireAdmin`: runs after `authenticate` and re-reads the row.
+  // Guests are listen-only (A37): playlists, favorites, play counts and history need an account. Runs after
+  // `authenticate` and re-reads the row.
   app.decorate('requireAccount', async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user && findUserById(request.user.id);
     if (!user || user.kind === 'guest') {

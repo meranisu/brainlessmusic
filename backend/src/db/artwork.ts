@@ -1,10 +1,6 @@
 import { db } from './connection.js';
 
-/**
- * Resolves which image to serve for a track: its own embedded art if it has
- * any, otherwise its album's. The fallback is what makes a compilation look
- * right — tracks without their own art still show the album cover.
- */
+/** The track's own embedded art, else its album's. */
 export function findTrackArtworkId(trackId: number): string | undefined {
   const row = db
     .prepare(
@@ -30,11 +26,7 @@ export function setTrackArtwork(trackId: number, artworkId: string): void {
   db.prepare('UPDATE tracks SET artwork_id = ? WHERE id = ?').run(artworkId, trackId);
 }
 
-/**
- * First cover found among an album's tracks wins. Deliberately does not
- * overwrite: re-scanning shouldn't make an album's cover flip depending on
- * which file the walker reached last.
- */
+/** First cover found wins, so a re-scan never flips an album's cover. */
 export function setAlbumArtworkIfMissing(albumId: number, artworkId: string): void {
   db.prepare('UPDATE albums SET artwork_id = ? WHERE id = ? AND artwork_id IS NULL').run(
     artworkId,

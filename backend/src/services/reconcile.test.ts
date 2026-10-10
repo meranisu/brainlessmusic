@@ -7,12 +7,7 @@ import { insertLibraryRoot } from '../db/libraryRoots.js';
 import { makeTempDir, resetDatabase } from '../testing/harness.js';
 import { reconcileMissingTracks } from './scanner.js';
 
-/**
- * The sweep that keeps the database honest about what is on disk.
- *
- * Nothing here needs real audio — reconciliation only ever asks the
- * filesystem whether a path exists, so empty files are the whole fixture.
- */
+/** The disk sweep. It only asks whether paths exist, so empty files are enough. */
 
 let library = '';
 let cleanup: () => Promise<void> = async () => {};
@@ -20,7 +15,7 @@ let cleanup: () => Promise<void> = async () => {};
 before(async () => {
   const temp = await makeTempDir('reconcile');
   library = join(temp.path, 'library');
-  // Only what this suite created — see the testing rules in .docs/CLAUDE.md.
+  // Only what this suite created (see the testing rules in .docs/CLAUDE.md).
   cleanup = temp.cleanup;
   await mkdir(library, { recursive: true });
 });
@@ -29,12 +24,8 @@ after(async () => {
   await cleanup();
 });
 
-// Foreign keys are enforced, so every track needs a real `library_roots` row
-// — (re)created fresh in `beforeEach` below, since `resetDatabase()` clears
-// it. `rootId` only scopes which tracks a reconcile call considers; it plays
-// no part in the "inside vs. outside the walked directory" path-prefix check
-// the `strandedOutsideRoot` tests exercise, so `OTHER_ROOT_ID`'s registered
-// path doesn't need to be anywhere real.
+// Foreign keys need real `library_roots` rows, recreated in `beforeEach`. The roots' paths needn't exist:
+// `rootId` only scopes which tracks are considered.
 let TEST_ROOT_ID = 0;
 let OTHER_ROOT_ID = 0;
 
@@ -155,9 +146,7 @@ describe('reconcileMissingTracks', () => {
 
 describe('the reconciliation guard', () => {
   it('refuses to mark anything when the library root is unreadable', async () => {
-    // A mount that has not come up looks exactly like a library that was
-    // deleted. This project has already destroyed its music once by acting on
-    // that ambiguity, so the ambiguous case does nothing and says so.
+    // An unmounted library looks deleted; this project lost its music once acting on that, so nothing is marked.
     await addTrack('a.mp3');
     await addTrack('b.mp3');
 
@@ -193,11 +182,7 @@ describe('the reconciliation guard', () => {
   });
 
   it('applies the ratio only once enough tracks are involved', async () => {
-    // A plain ratio protects tiny libraries into uselessness — one deleted
-    // file out of two is 50%. Below the floor the ratio is not consulted, and
-    // the cost of being wrong is small: the flag is reversible and the next
-    // sweep clears it. The root-unreadable check above is what actually
-    // catches a vanished mount, whatever the library's size.
+    // Below the floor the ratio isn't consulted (1 of 2 is already 50%). A wrong flag is reversible.
     await addTrack('a.mp3');
     await addTrack('b.mp3');
     await rm(join(library, 'a.mp3'));
@@ -237,12 +222,7 @@ describe('multi-root scoping', () => {
   });
 
   it('does not dilute one root\'s guard ratio with another root\'s healthy tracks', async () => {
-    // Four tracks in the root being reconciled, all deleted — 100% of *this*
-    // root's tracks (and enough to clear GUARD_MIN_NEWLY_MISSING), which must
-    // trip the guard on its own. A dozen untouched tracks sitting in a
-    // different root must not water that ratio down — 4 of 16 total is only
-    // 25%, well under the 50% limit, which is exactly what a whole-DB (rather
-    // than per-root) ratio would wrongly compute here.
+    // All four of this root's tracks go: the guard must trip, though they are only 4 of 16 across all roots.
     const names = ['a.mp3', 'b.mp3', 'c.mp3', 'd.mp3'];
     for (const name of names) await addTrack(name, { rootId: TEST_ROOT_ID });
     for (let i = 0; i < 12; i++) await addTrack(`other-${i}.mp3`, { rootId: OTHER_ROOT_ID });

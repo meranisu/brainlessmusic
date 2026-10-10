@@ -91,16 +91,14 @@ export function findTrackById(id: number): TrackRow | undefined {
   return db.prepare('SELECT * FROM tracks WHERE id = ?').get(id) as TrackRow | undefined;
 }
 
-/** Batch lookup by id — single `IN (...)` query, not N+1. May return fewer rows than ids given. */
+/** One `IN (...)` query. May return fewer rows than ids. */
 export function findTracksByIds(ids: number[]): TrackRow[] {
   if (ids.length === 0) return [];
   const placeholders = ids.map(() => '?').join(',');
   return db.prepare(`SELECT * FROM tracks WHERE id IN (${placeholders})`).all(...ids) as TrackRow[];
 }
 
-/**
- * Insert or update (by path) a track, creating its artist/album rows as needed.
- */
+/** Inserts or updates a track by path, creating its artist and album as needed. */
 export function upsertTrack(input: TrackInput): TrackRow {
   const artist = input.artistName ? findOrCreateArtist(input.artistName) : null;
   const album = input.albumTitle
@@ -138,11 +136,7 @@ export function upsertTrack(input: TrackInput): TrackRow {
   return findTrackByPath(input.path)!;
 }
 
-/**
- * Applies a partial tag/visibility edit. Title/artist/album go through the
- * same find-or-create resolution as upsertTrack so renaming an artist here
- * behaves consistently with a re-scan.
- */
+/** Partial tag or visibility edit. Names resolve through the same find-or-create as a scan. */
 export function updateTrackFields(id: number, update: TrackFieldUpdate): TrackRow | undefined {
   const existing = findTrackById(id);
   if (!existing) return undefined;
@@ -190,12 +184,7 @@ export function setLastStreamError(id: number, message: string | null): void {
   db.prepare('UPDATE tracks SET last_stream_error = ? WHERE id = ?').run(message, id);
 }
 
-/**
- * Every track row and its path, for the sweep that checks them against disk.
- * Scoped to one root when given — a multi-root reconcile must judge each
- * root by its own tracks, not the whole library's, or one root's outage gets
- * diluted (or a healthy root's guard tripped) by every other root's count.
- */
+/** Every track path, for the disk sweep. Scope to one root, so each root's guard judges only its own tracks. */
 export function listTrackPaths(
   rootId?: number,
 ): { id: number; path: string; missing_since: string | null }[] {
@@ -209,11 +198,7 @@ export function listTrackPaths(
     .all() as { id: number; path: string; missing_since: string | null }[];
 }
 
-/**
- * Stamps a track as missing, leaving an existing stamp alone — `missing_since`
- * answers "since when", so re-running the sweep must not keep pushing the date
- * forward and make a months-old absence look like today's.
- */
+/** Marks tracks missing, keeping an existing stamp so the date still says "since when". */
 export function markTracksMissing(ids: number[], at: string): void {
   if (ids.length === 0) return;
   const statement = db.prepare(
@@ -250,12 +235,12 @@ export interface MissingTrack {
   path: string;
   missingSince: string;
   lastStreamError: string | null;
-  /** Null when the track's root was itself removed — see `deleteLibraryRoot`. */
+  /** Null when the track's root was removed (see `deleteLibraryRoot`). */
   rootId: number | null;
   rootLabel: string | null;
 }
 
-/** The dead rows, oldest absence first — a worklist for the owner to act on. */
+/** Missing tracks, oldest absence first. */
 export function listMissingTracks(): MissingTrack[] {
   return db
     .prepare(
@@ -278,13 +263,8 @@ export function listMissingTracks(): MissingTrack[] {
 }
 
 /**
- * Hard-deletes a track row and every row referencing it (favorites,
- * playlist entries, play history). better-sqlite3 enforces FK constraints
- * by default (`PRAGMA foreign_keys = ON` per connection) and none of these
- * FKs cascade, so dependents must be deleted first in this order or the
- * final `DELETE FROM tracks` throws a constraint error rather than orphaning
- * anything. Does NOT touch the file on disk — callers unlink it separately,
- * since that's an fs concern, not a DB one.
+ * Deletes a track row and its favorites, playlist entries and history, dependents first: foreign keys are enforced
+ * and none cascade. The file on disk is the caller's job.
  */
 export function deleteTrackRow(id: number): void {
   const cleanup = db.transaction((trackId: number) => {

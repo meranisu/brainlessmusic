@@ -142,7 +142,7 @@ describe('isWebKitOnlyClient', () => {
       ),
       true,
     );
-    // Chrome for iOS — still WebKit under the hood; Apple requires it.
+    // Chrome for iOS: still WebKit, as Apple requires.
     assert.equal(
       isWebKitOnlyClient(
         'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/125.0.6422.80 Mobile/15E148 Safari/604.1',

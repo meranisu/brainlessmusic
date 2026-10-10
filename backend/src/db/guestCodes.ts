@@ -27,10 +27,7 @@ export interface GuestCodeListing {
   status: 'active' | 'used' | 'expired';
 }
 
-/**
- * Upper-cases and drops everything outside the alphabet, so `abcd-efgh`,
- * `ABCD EFGH` and `ABCDEFGH` are the same code. Shown to people as `ABCD-EFGH`.
- */
+/** Upper-cases and drops non-alphabet characters, so `abcd-efgh` and `ABCDEFGH` match. Shown as `ABCD-EFGH`. */
 export function normalizeGuestCode(input: unknown): string {
   if (typeof input !== 'string') return '';
   return input.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -68,10 +65,8 @@ export function isRedeemableGuestCode(input: unknown): boolean {
 }
 
 /**
- * Mints a guest on an unused, unexpired code and burns the code, in one
- * transaction: two devices racing on the same code get one guest between them,
- * and a code that turns out to be spent leaves no orphan guest behind.
- * Returns undefined when the code is unknown, used or expired.
+ * Mints a guest and burns the code in one transaction, so racing devices get one guest and a spent code leaves no
+ * orphan. Undefined when the code is unknown, used or expired.
  */
 export const redeemGuestCode = db.transaction((input: unknown): UserRow | undefined => {
   const code = normalizeGuestCode(input);

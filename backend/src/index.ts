@@ -4,10 +4,7 @@ import { startBackupSchedule } from './services/backup.js';
 import { startLibrarySyncSchedule } from './services/librarySync.js';
 import { formatSecretProblem, inspectJwtSecret } from './utils/secretPolicy.js';
 
-// Checked here rather than in `config.ts` so it runs when the *server* boots,
-// not on every import: `npm run migrate` and the admin CLI scripts never sign
-// a token, and refusing to run them over a weak secret would be a confusing
-// failure with no security benefit.
+// Checked at server boot, not in config.ts, so `npm run migrate` and the CLI scripts (which never sign) still run.
 const secretProblem = inspectJwtSecret(process.env.JWT_SECRET, process.env.NODE_ENV);
 if (secretProblem) {
   const message = formatSecretProblem(secretProblem);
@@ -18,20 +15,15 @@ if (secretProblem) {
   console.warn(message);
 }
 
-// Open registration is a deliberate posture, not a default to drift into. It
-// is fine on a LAN; on a server reachable from outside it means anyone who
-// finds the login page can help themselves to an account. Say so every boot.
+// Open registration is fine on a LAN and an exposure on a public server, so it is announced every boot.
 if (config.allowOpenRegistration) {
   console.warn(
-    'Open registration is ON — anyone who can reach this server can create an account.\n' +
+    'Open registration is ON: anyone who can reach this server can create an account.\n' +
       'Set ALLOW_OPEN_REGISTRATION=false in backend/.env to make registration admin-only.',
   );
 }
 
-// The entry posture, said out loud every boot for the same reason as the line
-// above: it is a decision, and a decision nobody is reminded of is one that
-// gets drifted into. Since guest entry landed, this — not registration — is
-// how someone actually gets to the music.
+// The guest-door posture, announced every boot: since guest entry, this is how people reach the music.
 console.info(
   config.entryCode === ''
     ? 'Guest entry: OPEN unless per-guest codes are switched on (web Users page). Anyone who\n' +

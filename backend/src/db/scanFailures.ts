@@ -15,12 +15,7 @@ export interface ScanFailureEntry {
   createdAt: string;
 }
 
-/**
- * Swaps a root's failures for the set its latest scan found. Replaced rather
- * than appended: this answers "which files are broken right now", so a file
- * that has since been fixed must drop off and one that fails every scan must
- * not pile up a row per night.
- */
+/** Replaces a root's failures with its latest scan's, so fixed files drop off and repeat failures don't pile up. */
 export function replaceScanFailures(rootId: number, failures: ScanFailureInput[]): void {
   db.transaction(() => {
     db.prepare('DELETE FROM scan_failures WHERE root_id = ?').run(rootId);

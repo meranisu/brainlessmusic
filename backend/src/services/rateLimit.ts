@@ -1,15 +1,6 @@
 /**
- * A fixed-window counter, in memory, keyed by whatever the caller wants to
- * count — an IP for the guest door, an IP for the admin numpad.
- *
- * In memory on purpose. This process is the whole server, the windows are
- * seconds-to-minutes long, and a restart clearing the counters is not a
- * meaningful loss — the thing being defended against is a loop, not a
- * distributed attacker. Redis would be a dependency bought for nothing.
- *
- * Limits are passed at `check` time rather than at construction, so a config
- * value changed at runtime (or in a test) takes effect on the next request
- * instead of being frozen into the limiter when the route was registered.
+ * A fixed-window counter in memory, keyed by the caller (an IP for the guest door or passcode tries). Memory is enough
+ * against a loop on a single process. Limits are read at `check` time, so config changes apply immediately.
  */
 
 interface Window {
@@ -26,23 +17,19 @@ export interface RateLimitOptions {
 
 export interface RateLimitResult {
   allowed: boolean;
-  /** Whole seconds until the window resets — what a `Retry-After` header wants. Always at least 1. */
+  /** Whole seconds until reset, for `Retry-After`. At least 1. */
   retryAfterSeconds: number;
 }
 
 export interface RateLimiter {
   check(key: string, options: RateLimitOptions): RateLimitResult;
-  /** Forget one key's window — used after a success, so a correct code clears the failures before it. */
+  /** Forgets one key's window, so a success clears earlier failures. */
   clear(key: string): void;
   /** Forget everything. For tests; never called by the server. */
   reset(): void;
 }
 
-/**
- * Every limiter ever created, so a test can reset the lot without knowing
- * which modules built which. Module-level singletons otherwise leak state
- * between test cases in the same process.
- */
+/** Every limiter created, so tests can reset them all between cases. */
 const created: RateLimiter[] = [];
 
 export function createRateLimiter(): RateLimiter {
@@ -54,9 +41,7 @@ export function createRateLimiter(): RateLimiter {
       const existing = windows.get(key);
 
       if (!existing || existing.resetsAt <= now) {
-        // Sweep here rather than on a timer: the map only grows when requests
-        // arrive, so the moment a request arrives is the only moment it can
-        // need trimming, and a server nobody is using does no work.
+        // Swept on request: an idle server does no work.
         for (const [otherKey, window] of windows) {
           if (window.resetsAt <= now) windows.delete(otherKey);
         }

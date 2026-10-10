@@ -11,10 +11,7 @@ import { resetAllRateLimiters } from '../services/rateLimit.js';
 import { signToken } from '../services/token.js';
 import { resetDatabase } from '../testing/harness.js';
 
-/**
- * Per-guest entry codes (A42/A43): one use, 7 days, and an admin toggle that
- * decides whether the guest door asks for one.
- */
+/** Per-guest entry codes (A42/A43): one use, 7 days, and the admin toggle that requires them. */
 
 interface Listing {
   id: number;

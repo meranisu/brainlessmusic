@@ -5,7 +5,7 @@ export type LetterScope = 'tracks' | 'albums' | 'artists';
 export interface LetterEntry {
   /** `#` (digits, punctuation, anything that sorts before "a"), `A`–`Z`, or `…` (whatever sorts after "z": accents, CJK, kana). */
   letter: string;
-  /** Position of this bucket's first row in the scope's default listing — what a client jumps to. For an empty bucket, where its first row would be. */
+  /** Index of the bucket's first row in the default listing (where it would be, if empty). */
   offset: number;
   count: number;
 }
@@ -16,17 +16,8 @@ export interface LetterIndex {
 }
 
 /**
- * Where each letter starts in the list a client would otherwise page through.
- *
- * The lists sort by `COLLATE NOCASE`, which folds only ASCII case, so the order is: everything
- * below "a" (digits, quotes, most punctuation), then a–z, then everything above "z" (`{|}~`, and
- * every non-ASCII character). The buckets are cut on exactly those boundaries rather than on
- * "first letter of the title", because a bucket has to be a contiguous run of the sorted list or
- * a jump lands somewhere else. That is why Japanese titles sit under `…` after Z here, and why
- * they would be wrong under `#` (where the web rail puts them).
- *
- * The filters mirror what `GET /tracks`, `/albums` and `/artists` show by default — a count that
- * disagreed with the list would jump to the wrong row.
+ * Where each letter starts in a listing. `COLLATE NOCASE` folds only ASCII, so buckets follow the sort: below "a",
+ * a–z, then above "z" (non-ASCII, so Japanese sits after Z). Filters must match the default listings.
  */
 const SOURCES: Record<LetterScope, { from: string; where: string; column: string }> = {
   tracks: { from: 'tracks t', where: 't.missing_since IS NULL AND t.hidden = 0', column: 't.title' },
@@ -42,7 +33,7 @@ const SOURCES: Record<LetterScope, { from: string; where: string; column: string
   },
 };
 
-/** a..z, then "{" — the first character above "z". */
+/** a..z, then "{", the first character above "z". */
 const BOUNDARIES = [...'abcdefghijklmnopqrstuvwxyz', '{'];
 const LETTERS = ['#', ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ', '…'];
 

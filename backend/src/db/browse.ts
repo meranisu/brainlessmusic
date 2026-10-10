@@ -49,8 +49,7 @@ export interface TrackSummary {
   notRecommended: boolean;
   /** The file is gone from disk. Nothing can play it until it comes back. */
   missing: boolean;
-  /** Failed to stream last time it was tried — might well play fine now; see
-   *  `TrackDetail.lastStreamError` for the message behind this flag. */
+  /** Failed to stream last time; may play now. The message is `TrackDetail.lastStreamError`. */
   hasStreamError: boolean;
   playCount: number;
   dateAdded: string;
@@ -76,11 +75,7 @@ export interface ListTracksOptions {
   sort?: SortField;
   order?: SortOrder;
   hidden?: VisibilityFilter;
-  /**
-   * Tracks whose file is gone. Excluded by default — a row nobody can play is
-   * noise in a library listing, and clicking it is a `500`. `only` is how an
-   * admin finds them in the same UI as everything else.
-   */
+  /** Tracks whose file is gone. Excluded by default; `only` is how an admin finds them. */
   missing?: VisibilityFilter;
   notRecommended?: VisibilityFilter;
 }
@@ -161,14 +156,7 @@ const SORT_COLUMNS: Record<SortField, string> = {
   playCount: 't.play_count',
 };
 
-/**
- * What breaks a tie within the chosen sort. Without one, SQLite orders equal
- * keys arbitrarily — which is invisible in a table sorted by a mostly-unique
- * title, but scrambles an album into random track order when sorting by
- * album, and lets `LIMIT/OFFSET` paging repeat or skip rows at a page seam
- * because the tied rows aren't guaranteed to come back in the same order twice.
- * The final `t.id` makes every ordering total.
- */
+/** Tiebreak within a sort, ending in `t.id` so the order is total and LIMIT/OFFSET pages never repeat or skip rows. */
 const TRACK_ORDER = 't.track_number IS NULL, t.track_number, t.title COLLATE NOCASE, t.id';
 const SORT_TIEBREAKERS: Record<SortField, string> = {
   title: 't.id',
@@ -182,24 +170,17 @@ const SORT_TIEBREAKERS: Record<SortField, string> = {
 function visibilityClause(column: string, filter: VisibilityFilter | undefined): string | null {
   if (filter === 'only') return `${column} = 1`;
   if (filter === 'exclude') return `${column} = 0`;
-  return null; // 'all' or unset — no filter
+  return null; // 'all' or unset: no filter
 }
 
-/**
- * `missing_since` records a date rather than a flag, so it needs its own
- * clause builder — "present" is `IS NULL`, not `= 0`.
- */
+/** `missing_since` is a date, so "present" is `IS NULL`. */
 function nullabilityClause(column: string, filter: VisibilityFilter | undefined): string | null {
   if (filter === 'only') return `${column} IS NOT NULL`;
   if (filter === 'exclude') return `${column} IS NULL`;
-  return null; // 'all' or unset — no filter
+  return null; // 'all' or unset: no filter
 }
 
-/**
- * Shared WHERE-clause + params builder for listTracks/countTracks, so the
- * two stay in sync — pagination without a matching filtered count is a
- * classic source of an inconsistent total.
- */
+/** One WHERE builder for listTracks and countTracks, so the total always matches the filter. */
 function buildTrackFilter(options: ListTracksOptions): { where: string; params: unknown[] } {
   const clauses: string[] = [];
   const params: unknown[] = [];
@@ -212,8 +193,7 @@ function buildTrackFilter(options: ListTracksOptions): { where: string; params: 
       clauses.push('t.id IN (SELECT rowid FROM tracks_fts WHERE tracks_fts MATCH ?)');
       params.push(match);
     } else {
-      // Below the trigram floor — no index can answer a 1-2 character
-      // substring, so scan. Bounded by library size and rare in practice.
+      // Under the trigram floor no index can help, so scan.
       clauses.push('(t.title LIKE ? OR a.name LIKE ? OR al.title LIKE ?)');
       const pattern = `%${options.search.trim()}%`;
       params.push(pattern, pattern, pattern);
@@ -235,14 +215,7 @@ function buildTrackFilter(options: ListTracksOptions): { where: string; params: 
   };
 }
 
-/**
- * Artists and albums are only worth listing while something under them can
- * actually be played. When a library root goes away its artists and albums
- * would otherwise sit in the grid forever, opening onto nothing.
- *
- * The count and the list have to agree, or pagination reports a total it can
- * never reach — the same trap `buildTrackFilter` exists to avoid.
- */
+/** Lists only artists and albums with something playable; the count must use the same rule or paging breaks. */
 const HAS_PLAYABLE_TRACKS = 'HAVING COUNT(DISTINCT t.id) > 0';
 
 export function countArtists(): number {
@@ -347,8 +320,7 @@ export function listTracks(limit: number, offset: number, options: ListTracksOpt
   const { where, params } = buildTrackFilter(options);
   const sort = options.sort ?? 'title';
   const direction = options.order === 'desc' ? 'DESC' : 'ASC';
-  // Only the primary key flips with `order` — a descending album list still
-  // reads track 1 → N inside each album.
+  // Only the primary key follows `order`; tracks inside an album still read 1 → N.
   const orderBy = `${SORT_COLUMNS[sort]} ${direction}, ${SORT_TIEBREAKERS[sort]}`;
 
   const rows = db
@@ -365,7 +337,7 @@ export function getTrackSummaryById(id: number): TrackSummary | undefined {
   return row ? toTrackSummary(row) : undefined;
 }
 
-/** Batch lookup by id — single `IN (...)` query, not N+1. Order is not guaranteed to match `ids`. */
+/** One `IN (...)` query. Order doesn't follow `ids`. */
 export function getTrackSummariesByIds(ids: number[]): TrackSummary[] {
   if (ids.length === 0) return [];
   const placeholders = ids.map(() => '?').join(',');
@@ -425,21 +397,12 @@ export function getTrackDetailById(id: number): TrackDetail | undefined {
 
 const SEARCH_RESULT_LIMIT = 20;
 
-/**
- * Column weights for track relevance: a hit in the title outranks one in the
- * artist, which outranks one in the album. Without this, searching an album
- * name buries the track actually called that under its twelve siblings.
- */
+/** BM25 weights: title over artist over album, so an album-name search doesn't bury the track with that name. */
 const TRACK_BM25_WEIGHTS = '10.0, 5.0, 3.0';
 
 /**
- * Search across artists, albums and tracks, backed by the FTS5 trigram index
- * (migration 0008).
- *
- * Queries the index cannot answer — anything with a term under three
- * characters — fall back to the LIKE scan this replaced. That path is not
- * vestigial: a two-character CJK query is an ordinary thing to type, and
- * returning nothing for it would be a regression, not a limitation.
+ * FTS5 trigram search (migration 0008). A term under three characters falls back to LIKE, which a two-character
+ * CJK query needs.
  */
 export function searchLibrary(query: string): SearchResults {
   const match = buildMatchQuery(query);
@@ -498,10 +461,7 @@ function searchWithLike(query: string): SearchResults {
     )
     .all(pattern, SEARCH_RESULT_LIMIT) as AlbumSummary[];
 
-  // Matches title, artist and album, the same three fields the FTS index
-  // covers. Before FTS this path searched titles alone; leaving it that way
-  // would mean a two-character query quietly searched fewer fields than a
-  // three-character one, which is not something a user could predict.
+  // Same three fields as the FTS index, so a short query doesn't quietly search fewer.
   const tracks = (
     db
       .prepare(

@@ -9,15 +9,7 @@ import { hashPassword } from '../services/password.js';
 import { signToken } from '../services/token.js';
 import { resetDatabase } from '../testing/harness.js';
 
-/**
- * The size ceiling on `POST /tracks/upload`.
- *
- * Untested until 2026-09-10, which is the day it stopped being a number nobody
- * touches: the default went from 100 MB to 1 GB so hi-res FLAC and WAV fit, and
- * anything tunable needs its edge to be pinned down. A rejection must be a
- * clean `413`, and it must not leave the partial file behind in staging —
- * uploads that big would otherwise fill the disk one failure at a time.
- */
+/** The upload size ceiling: over it is a clean 413 that leaves no partial file in staging. */
 
 const LIMIT_MB = 1;
 const boundary = '----brainlessmusicuploadtest';

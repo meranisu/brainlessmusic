@@ -8,14 +8,7 @@ import {
   setGuestCodesRequired,
 } from '../db/guestCodes.js';
 
-/**
- * The admin "Guest access" panel on the web Users page (A42/A43): make a
- * one-use code per guest, see which were used by whom, and switch whether the
- * guest door asks for a code at all.
- *
- * `ENTRY_CODE` is reported as set or not, never returned: it lives in the
- * server's env file, and the panel only needs to say that a shared code also works.
- */
+/** The admin "Guest access" panel (A42/A43). `ENTRY_CODE` is reported as set or not, never returned. */
 const guestCodesRoute: FastifyPluginAsync = async (fastify) => {
   const adminOnly = { preHandler: [fastify.authenticate, fastify.requireAdmin] };
 

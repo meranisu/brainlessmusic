@@ -9,19 +9,13 @@ import { db } from '../db/connection.js';
 import { insertUser } from '../db/users.js';
 import { makeTempDir, resetDatabase } from '../testing/harness.js';
 
-/**
- * Roadmap step 14. The done-when is "you have restored from a backup at least
- * one time", so these tests do not stop at "a file appeared": each one either
- * reads the backup back as a database or restores from it and checks the rows
- * came with it.
- */
+/** Roadmap step 14: every test reads the backup back or restores from it, not just checks a file appeared. */
 
 let workDir: string;
 let cleanup: () => Promise<void>;
 
 before(async () => {
-  // Owned by this file, so the cleanup below can only ever delete a directory
-  // this test created — never a configured path.
+  // Owned by this file, so cleanup can only delete what this test made.
   ({ path: workDir, cleanup } = await makeTempDir('backup-test'));
 });
 
@@ -59,10 +53,7 @@ describe('backupDatabase', () => {
   });
 
   it('captures rows still sitting in the WAL, which a file copy would miss', async () => {
-    // The reason this module exists. In WAL mode a committed row can live in
-    // the -wal sidecar rather than the main file, so copying just the .db can
-    // silently produce a database missing recent writes. SQLite's backup API
-    // checkpoints into the copy; `cp` does not.
+    // In WAL mode a committed row can sit in the -wal sidecar; the backup API includes it, `cp` doesn't.
     insertUser('in-the-wal', 'hash');
 
     const { path } = await backupDatabase(caseDir);
@@ -78,9 +69,7 @@ describe('backupDatabase', () => {
 
       assert.deepEqual(names(proper), ['in-the-wal'], 'the backup must match the live database exactly');
 
-      // And the bare copy does not. It can lag the live database *or lead it*
-      // — deletes sitting in the WAL leave rows visible in the .db file that
-      // no longer exist — which is why `cp` is not a backup strategy here.
+      // A bare copy can lag or even lead the live database, so `cp` is no backup.
       assert.notDeepEqual(
         names(copied),
         names(proper),
@@ -92,7 +81,7 @@ describe('backupDatabase', () => {
     }
   });
 
-  it('restores into a working database — the roadmap done-when', async () => {
+  it('restores into a working database (the roadmap done-when)', async () => {
     insertUser('survivor', 'hash');
     const { path } = await backupDatabase(caseDir);
 
@@ -116,9 +105,7 @@ describe('backupDatabase', () => {
   });
 
   it('leaves exactly one file per backup, with no WAL sidecars', async () => {
-    // A backup that ships a `-wal` alongside it is a trap: restoring the
-    // `.db` while a stale sidecar sits next to it can corrupt the result, and
-    // retention only tracks `.db` files so the sidecars would pile up forever.
+    // A backup must ship no `-wal`: a stale sidecar can corrupt a restore, and retention ignores sidecars.
     insertUser('tidy', 'hash');
     await backupDatabase(caseDir);
 

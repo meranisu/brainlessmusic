@@ -9,12 +9,8 @@ import { deleteUser, insertGuest, insertUser, pruneIdleGuests } from './users.js
 import { resetDatabase } from '../testing/harness.js';
 
 /**
- * Foreign keys are enforced here and none of them cascade, so a table that
- * references tracks, users or roots silently blocks every path that deletes
- * one of those unless that path clears it first. These tests exist because
- * that is exactly the mistake that is easy to make when adding a log table:
- * the insert works, the list works, and the failure only shows up months
- * later when an admin deletes a broken track and gets a 500.
+ * Foreign keys don't cascade, so a log table referencing tracks, users or roots blocks their deletion unless that
+ * path clears it first. These catch the 500 that otherwise shows up months later.
  */
 
 let rootId = 0;

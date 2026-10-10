@@ -12,14 +12,7 @@ interface SaveBody {
   positionSeconds?: unknown;
 }
 
-/**
- * Rejects rather than coerces.
- *
- * A clamped index or a silently-truncated queue would resume someone at a
- * place they never were, which is worse than not resuming: it looks like the
- * feature worked. The client controls both values exactly, so anything outside
- * the range is a bug worth hearing about, not input worth rescuing.
- */
+/** Rejects rather than coerces: a clamped index would resume someone where they never were. */
 function validate(body: SaveBody): { queue: number[]; queueIndex: number; positionSeconds: number } | string {
   const { queue, queueIndex, positionSeconds } = body;
 
@@ -47,9 +40,7 @@ function validate(body: SaveBody): { queue: number[]; queueIndex: number; positi
 }
 
 const playbackStateRoute: FastifyPluginAsync = async (fastify) => {
-  // `state` is null rather than a 404 when nothing is saved: a listener who has
-  // never played anything is the normal first case, not a missing resource, and
-  // a 404 would make every fresh client log an error on startup.
+  // Nothing saved is `state: null`, not a 404, so a fresh client logs no error.
   fastify.get('/me/playback-state', { preHandler: fastify.authenticate }, async (request, reply) => {
     return reply.send({ state: loadPlaybackState(request.user!.id) });
   });
@@ -66,9 +57,7 @@ const playbackStateRoute: FastifyPluginAsync = async (fastify) => {
     },
   );
 
-  // Closing the player is a deliberate "I am done", so it has to erase the
-  // state as well. Leaving it behind means the next tab resumes a queue the
-  // listener already dismissed.
+  // Closing the player means "I'm done", so the saved state goes too.
   fastify.delete('/me/playback-state', { preHandler: fastify.authenticate }, async (request, reply) => {
     clearPlaybackState(request.user!.id);
     return reply.code(204).send();

@@ -2,37 +2,19 @@ import ffmpeg from 'fluent-ffmpeg';
 import { findTrackWaveform, setTrackWaveform } from '../db/waveform.js';
 import { findTrackById } from '../db/library.js';
 
-/**
- * Buckets stored per track. More than any scrubber draws, on purpose — the
- * client downsamples to whatever width it has, and re-deriving 44 bars from
- * 128 stored ones is free, while going the other way means decoding the file
- * again.
- */
+/** Buckets stored per track, more than any scrubber draws: downsampling is free, upsampling means decoding again. */
 export const WAVEFORM_BUCKETS = 128;
 
 /**
- * Decode rate.
- *
- * Fixed rather than native, so bucket sizes can be derived from the stored
- * duration alone. High rather than cheap, because resampling lowpasses on the
- * way down and the peak of a lowpassed signal is not the peak of the signal:
- * measured here, a full-scale 5 kHz tone reads 0.9998 decoded at 44.1 kHz and
- * 0.059 at 1 kHz. Decoding cheaply would have drawn anything bright — cymbals,
- * strings, most mixes — as near-silent. 44.1 kHz puts the filter above hearing,
- * where it costs the picture nothing.
+ * Fixed so buckets derive from the stored duration; 44.1 kHz because resampling lowpasses, and a 5 kHz tone reads
+ * 0.9998 at 44.1 kHz but 0.059 at 1 kHz.
  */
 const DECODE_RATE = 44100;
 
 /** Refuse to bucket anything implausible; a bad duration shouldn't allocate. */
 const MAX_DURATION_SECONDS = 6 * 60 * 60;
 
-/**
- * Peaks in flight, keyed by track id.
- *
- * Opening the player fires one request, and a reload fires another before the
- * first has finished. Without this, both would decode the same file and race
- * to write the same row.
- */
+/** Peaks in flight by track, so a reload during the first request doesn't decode twice. */
 const inFlight = new Map<number, Promise<number[] | null>>();
 
 function encodePeaks(peaks: number[]): string {
@@ -44,16 +26,8 @@ export function decodePeaks(encoded: string): number[] {
 }
 
 /**
- * Decodes `path` to mono 16-bit PCM and reduces it to `WAVEFORM_BUCKETS` peak
- * amplitudes, each 0-255.
- *
- * Buckets are sized from the duration the scanner recorded, so memory stays
- * flat no matter how long the track is — the alternative, buffering the whole
- * decode to count samples first, costs tens of megabytes on a long mix.
- *
- * That does mean trusting a stored duration. Samples arriving past the last
- * bucket are folded into it rather than dropped, so a duration that reads
- * short produces a slightly hot final bar instead of a truncated waveform.
+ * Decodes to mono PCM and reduces to `WAVEFORM_BUCKETS` peaks (0-255), sized from the stored duration to keep memory
+ * flat. Samples past the last bucket fold into it, so a short duration gives a hot last bar, not a cut waveform.
  */
 export function computePeaks(path: string, durationSeconds: number): Promise<number[]> {
   const totalSamples = Math.max(1, Math.floor(durationSeconds * DECODE_RATE));
@@ -114,14 +88,7 @@ export function computePeaks(path: string, durationSeconds: number): Promise<num
   });
 }
 
-/**
- * Peaks for a track, from the cache when they're there and from the file when
- * they aren't. Null means no waveform can be drawn — the track is gone, has no
- * usable duration, or ffmpeg couldn't read it.
- *
- * A failure is never cached. The usual cause is a file that has moved or is
- * still being copied, and both fix themselves.
- */
+/** Peaks from the cache or the file; null when none can be drawn. Failures aren't cached (usually a moving file). */
 export async function peaksForTrack(trackId: number): Promise<number[] | null> {
   const cached = findTrackWaveform(trackId);
   if (cached) return decodePeaks(cached);

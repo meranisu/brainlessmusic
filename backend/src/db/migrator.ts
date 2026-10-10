@@ -6,17 +6,11 @@ import { db } from './connection.js';
 const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), 'migrations');
 
 export interface MigrationOptions {
-  /** Suppress per-migration logging — used by the test harness, which runs this before every suite. */
+  /** No per-migration logging; the test harness runs this before every suite. */
   silent?: boolean;
 }
 
-/**
- * Applies every migration not yet recorded in `schema_migrations`, in filename
- * order. Idempotent: already-applied files are skipped.
- *
- * Extracted from the `migrate` CLI so tests can build a schema in-process
- * rather than shelling out to it.
- */
+/** Applies every migration not in `schema_migrations`, in filename order. Shared by the CLI and the tests. */
 export function runMigrations({ silent = false }: MigrationOptions = {}): string[] {
   db.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
