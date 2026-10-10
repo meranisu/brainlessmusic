@@ -24,6 +24,19 @@ function bearerFrom(request: FastifyRequest): string | undefined {
   return header?.startsWith('Bearer ') ? header.slice('Bearer '.length) : undefined;
 }
 
+/**
+ * A valid signature only proves the token was issued, not that its user still
+ * exists. Pruned guests and deleted accounts would otherwise keep listening
+ * until the token expired (seven days by default).
+ */
+function rejectDeletedUser(request: FastifyRequest, reply: FastifyReply): FastifyReply | undefined {
+  if (!findUserById(request.user!.id)) {
+    request.user = undefined;
+    return reply.code(401).send({ error: 'Invalid or expired token' });
+  }
+  return undefined;
+}
+
 export function registerAuthDecorator(app: FastifyInstance): void {
   app.decorate('authenticate', async (request: FastifyRequest, reply: FastifyReply) => {
     const token = bearerFrom(request);
@@ -37,6 +50,8 @@ export function registerAuthDecorator(app: FastifyInstance): void {
     } catch {
       return reply.code(401).send({ error: 'Invalid or expired token' });
     }
+
+    return rejectDeletedUser(request, reply);
   });
 
   // For endpoints a browser element loads by URL alone (`<audio src>`, and
@@ -57,6 +72,8 @@ export function registerAuthDecorator(app: FastifyInstance): void {
     } catch {
       return reply.code(401).send({ error: 'Invalid or expired token' });
     }
+
+    return rejectDeletedUser(request, reply);
   });
 
   // Runs after `authenticate` (composed as [authenticate, requireAdmin] in

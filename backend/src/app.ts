@@ -20,11 +20,26 @@ import shuffleRoute from './routes/shuffle.js';
 import statsRoute from './routes/stats.js';
 import tracksRoute from './routes/tracks.js';
 import usersRoute from './routes/users.js';
+import { redactUrl } from './utils/redactUrl.js';
 
 export const API_PREFIX = '/api';
 
 export function buildApp() {
-  const app = Fastify({ logger: true });
+  const app = Fastify({
+    logger: {
+      serializers: {
+        // Fastify's default request fields, with `?token=` hidden: stream and
+        // cover URLs carry a media token, and every request is logged.
+        req: (req) => ({
+          method: req.method,
+          url: redactUrl(req.url),
+          host: req.host,
+          remoteAddress: req.ip,
+          remotePort: req.socket?.remotePort,
+        }),
+      },
+    },
+  });
 
   registerAuthDecorator(app);
 

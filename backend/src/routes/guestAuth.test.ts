@@ -496,3 +496,15 @@ describe('rate limits behind a proxy', () => {
     assert.equal((await mint('203.0.113.2')).statusCode, 429, 'a forged header must not buy a fresh window');
   });
 });
+
+describe('tokens of deleted users', () => {
+  it('refuses a token whose user no longer exists', async () => {
+    const { token } = (await mintGuest()).json() as { token: string };
+    const me = () => app.inject({ method: 'GET', url: '/api/auth/me', headers: { authorization: `Bearer ${token}` } });
+    assert.equal((await me()).statusCode, 200);
+
+    db.prepare('DELETE FROM users WHERE id = ?').run(verifySessionToken(token).id);
+
+    assert.equal((await me()).statusCode, 401, 'a pruned guest must not keep listening until the token expires');
+  });
+});

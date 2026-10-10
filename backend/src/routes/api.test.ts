@@ -190,7 +190,7 @@ describe('token scope separation', () => {
     // Media tokens travel in URLs, so they end up in logs and history. If one
     // could be replayed as a session credential, the short TTL would be the
     // only thing between a leaked URL and full API access.
-    const mediaToken = signMediaToken({ id: 1, username: listener });
+    const mediaToken = signMediaToken({ id: findUserByUsername(listener)!.id, username: listener });
     const res = await app.inject({
       method: 'GET',
       url: '/api/tracks',
@@ -205,7 +205,7 @@ describe('token scope separation', () => {
   });
 
   it('accepts a media token in ?token= on a media route', async () => {
-    const mediaToken = signMediaToken({ id: 1, username: listener });
+    const mediaToken = signMediaToken({ id: findUserByUsername(listener)!.id, username: listener });
     const res = await app.inject({ method: 'GET', url: `/api/tracks/999/cover?token=${mediaToken}` });
     // 404 means the credential was accepted and the track simply doesn't exist;
     // a 401 would mean the media path is broken.

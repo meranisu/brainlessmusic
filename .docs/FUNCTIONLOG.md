@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `redactUrl()` — `backend/src/utils/redactUrl.ts`; `req` log serializer — `backend/src/app.ts`
+**Date:** 2026-10-10
+**How added:** hardening
+**Purpose:** replaces the `token` query value with `[redacted]` in each logged request URL.
+**Side effects:** none.
+**Before:** Fastify's default serializer logged stream and cover URLs with their media token.
+**After:** the same fields are logged, with the token hidden.
+
+**Function:** `rejectDeletedUser()` — `backend/src/plugins/auth.ts`
+**Date:** 2026-10-10
+**How added:** hardening
+**Purpose:** run at the end of `authenticate` and `authenticateMedia`; answers `401` and clears `request.user` when the token's user row no longer exists.
+**Side effects:** one user read per authenticated request.
+**Before:** a validly signed token worked until it expired, even after its user was pruned or deleted.
+**After:** the token stops working as soon as the row is gone.
+
 **Function:** `clientIp()` — `backend/src/utils/clientIp.ts`
 **Date:** 2026-10-10
 **How added:** hardening

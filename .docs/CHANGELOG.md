@@ -4,6 +4,25 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-10 — Media tokens hidden from request logs; deleted users' tokens refused
+
+The minor findings from the same security pass.
+
+- **Request log.** Fastify logs every request URL, and stream and cover URLs carry a media token in `?token=`.
+  `app.ts` now uses its own `req` serializer (Fastify's default fields), with the URL passed through `redactUrl()`.
+- **Deleted users kept access until their token expired.** `authenticate` and `authenticateMedia` only checked the
+  signature, so a pruned guest or a deleted account kept listen-only access for up to seven days.
+  Both now re-read the user and answer `401` when the row is gone. This adds one primary-key read per authenticated
+  request.
+- **Left as they are:** CORS `origin: true` (auth is a bearer header, not a cookie, so another site cannot borrow a
+  session), and the session token in `localStorage` (nothing in the frontend renders raw HTML).
+- **Verified:** backend `tsc --noEmit` clean; `npm test` 346/346 with a new `utils/redactUrl.test.ts` and a
+  deleted-user test in `routes/guestAuth.test.ts`. Six `api.test.ts` cases had signed media tokens for a hard-coded
+  user id 1 that does not exist in that file; they now use the real listener's id. The test run's own log output shows
+  `?token=[redacted]` on stream and cover URLs. Not deployed to smol.
+
+---
+
 ## 2026-10-10 — Rate limits count real visitors behind cloudflared; password login is rate-limited; dependency audit clean
 
 From a security pass against a 19-item checklist.
