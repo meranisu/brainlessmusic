@@ -344,7 +344,7 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
                 <span className="block truncate text-xs text-blue-400">{track.artist ?? 'Unknown Artist'}</span>
               </span>
               {i === 0 && (
-                <span className="font-display shrink-0 border border-orange-600 px-1.5 py-0.5 text-[0.65rem] font-extrabold uppercase tracking-[0.14em] text-orange-500">
+                <span className="font-display shrink-0 border border-orange-600 px-1.5 py-0.5 text-[0.65rem] font-extrabold uppercase tracking-[0.14em] text-accent-ink">
                   Next
                 </span>
               )}

@@ -35,7 +35,7 @@ export function LibraryEmptyState() {
       {user?.isAdmin ? (
         <p className="mt-1 text-sm text-blue-400">
           Add a folder in{' '}
-          <Link to="/options" className="text-orange-500 underline hover:text-orange-400">
+          <Link to="/options" className="text-accent-ink underline hover:text-orange-400">
             Options
           </Link>{' '}
           and it will show up here.

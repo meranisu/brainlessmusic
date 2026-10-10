@@ -45,7 +45,7 @@ function formatBytes(bytes: number): string {
 
 const STATUS_STYLES: Record<HealthSnapshot['status'], string> = {
   ok: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
-  degraded: 'bg-orange-600/10 text-orange-500 border-orange-600/30',
+  degraded: 'bg-orange-600/10 text-accent-ink border-orange-600/30',
 };
 
 function StatTile({ label, value, hint }: { label: string; value: string | number; hint?: string }) {

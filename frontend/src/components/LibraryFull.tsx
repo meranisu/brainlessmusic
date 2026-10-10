@@ -383,7 +383,7 @@ export function LibraryFull() {
 
       {isAdmin && selectedIds.size > 0 && (
         <div className="lf-bulk">
-          <span className="font-medium text-orange-500">{selectedIds.size} selected</span>
+          <span className="font-medium text-accent-ink">{selectedIds.size} selected</span>
           <div className="ml-2 flex gap-1.5">
             <button
               onClick={() => selectedTracks.forEach((t) => patchMutation.mutate({ id: t.id, patch: { hidden: true } }))}

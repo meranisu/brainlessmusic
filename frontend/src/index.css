@@ -3,6 +3,13 @@
 /* Text on an accent fill: the theme's deepest ground, which clears 4.5:1 on the accent in every theme (Q45). */
 @theme {
   --color-on-accent: var(--color-blue-950);
+  /* Accent as text on a card. The accent itself in every theme but the default, where orange-600 is 3.2:1 on blue-900. */
+  --color-accent-ink: var(--color-orange-600);
+}
+
+/* The accent lightened at its own hue until it clears 4.5:1 on a blue-900 card (4.59). `applyTheme` always sets "blue". */
+[data-theme='blue'] {
+  --color-accent-ink: oklch(76% 0.148 41.116);
 }
 
 /* Themes: redefining Tailwind's `--color-*` tokens under `[data-theme]` repaints everything; names are positional.
