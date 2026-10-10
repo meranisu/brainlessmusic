@@ -35,11 +35,11 @@ Nothing was built, run or tested for this review. The other review file from the
       two songs play, then tap Undo. The song lands before the current one, in both the shuffle order and the list
       order, and with repeat off it never plays. P2 makes this much more likely. Fix: clamp to at least the current
       play position + 1.
-- [ ] **P4. Stats responses for the You tab can land under the wrong range.** Checked. `YouViewModel.kt:56-73`: neither
+- [x] **P4. Stats responses for the You tab can land under the wrong range.** Fixed in 6ded2eb. Checked. `YouViewModel.kt:56-73`: neither
       `load()` nor `refresh()` cancels the previous request. Pull to refresh on Month, then tap Week. If the Month
       refresh returns last, Month's numbers show under the Week chip. Fix: keep one `Job` and cancel it, or drop a
       response whose range isn't the current one.
-- [ ] **P5. A refill from an old queue overwrites the new queue's source.** Checked. This is older code (677c732), not
+- [x] **P5. A refill from an old queue overwrites the new queue's source.** Fixed in 6ded2eb. Checked. This is older code (677c732), not
       these commits. `nextChunk` (`PlaybackController.kt:240-251`) writes `source` after its network call, so the
       write lands even when the `generation` check at `:220` later throws the items away. Play All Songs, then play an
       album before the refill returns. The All Songs cursor comes back, and when the album runs low it gets topped up
@@ -49,21 +49,21 @@ Nothing was built, run or tested for this review. The other review file from the
 
 ## Smaller
 
-- [ ] **P6. `/me/favorites` sends fewer fields than Android expects.** `backend/src/db/favorites.ts:44-51` returns
+- [x] **P6. `/me/favorites` sends fewer fields than Android expects.** Fixed in 6ded2eb. `backend/src/db/favorites.ts:44-51` returns
       `id, title, artist, album, duration, format, favoritedAt`. Android reads each entry as `TrackSummaryDto`
       (`ProfileDtos.kt:26`, `LibraryDtos.kt:54-70`), which also has `albumId`, `missing`, `hidden`, `playCount`, and
       `dateAdded: String` (non-null). Gson fills the gaps with zero or null values. Liked songs therefore have no `albumId`
       (no gapless), and `dateAdded` is null despite its non-null type. That's an NPE waiting for the first reader;
       nothing reads it today. Fix: return full `TrackSummary` rows (`getTrackSummariesByIds`), or give Android a DTO
       of its own.
-- [ ] **P7. `PATCH /me/history/:id` has no upper limit when the song's length is unknown.** `routes/history.ts:25`
+- [x] **P7. `PATCH /me/history/:id` has no upper limit when the song's length is unknown.** Fixed in 6ded2eb. `routes/history.ts:25`
       checks only `>= 0` and finite. `finishPlay` (`db/listeningStats.ts:174`) caps at the song's length only when
       `tracks.duration` isn't NULL. Something like `1e300` is stored, `SUM` overflows a `Long`, and that user's
       `/me/stats?range=all` fails to parse on Android from then on. Fix: reject anything over 24 h in ms.
-- [ ] **P8. You-tab counts go stale.** `YouViewModel.kt:66`'s KDoc says `refresh()` runs "coming back to the tab". Only
+- [x] **P8. You-tab counts go stale.** Fixed in 6ded2eb. `YouViewModel.kt:66`'s KDoc says `refresh()` runs "coming back to the tab". Only
       pull to refresh calls it (`YouScreen.kt:93`). Unlike three songs in Liked songs and go back, and the count is
       unchanged. Creating or deleting a playlist does the same. Fix: refresh when the screen resumes.
-- [ ] **P9. Playlist undo and drag race the remove** (`PlaylistDetailScreen.kt:155-177`).
+- [x] **P9. Playlist undo and drag race the remove** Fixed in 6ded2eb. (`PlaylistDetailScreen.kt:155-177`).
       - Undo runs add, then reorder. If the DELETE hasn't reached the server yet, the add gets a 409 (treated as
         success). The DELETE then lands, so the song is gone on the server but shown as restored.
       - Undo sends `orderBefore`, captured when the song was removed. Remove, drag, Undo, and the drag is silently
@@ -72,32 +72,32 @@ Nothing was built, run or tested for this review. The other review file from the
         calls `load()`, which can bring the removed song back if it returns before the DELETE.
       - Fix: run a playlist's edits one at a time (a queue or a mutex in the ViewModel), and build the undo order from
         the current list.
-- [ ] **P10. The like toggle races** (`SongActions.kt:67-70`, `ProfileRepository.kt:62-67`).
+- [x] **P10. The like toggle races** Fixed in 6ded2eb. (`SongActions.kt:67-70`, `ProfileRepository.kt:62-67`).
       - A double tap sends like and unlike unordered, so the server and the heart can disagree.
       - A `loadLikedIds()` that returns after an early tap overwrites that tap's optimistic change.
       - If `loadLikedIds()` failed, every heart on Liked songs is empty, and tapping one sends "like".
       - Fix: run the toggles one at a time per track, and retry or surface a failed load.
-- [ ] **P11. Playlist create, rename and delete fail silently.** See `PlaylistsScreen.kt:65` and
+- [x] **P11. Playlist create, rename and delete fail silently.** Fixed in 6ded2eb. See `PlaylistsScreen.kt:65` and
       `PlaylistDetailScreen.kt:137-147`. Separately, `create` navigates from a coroutine after the response, so if the
       user has moved on to Now Playing, the new playlist is pushed on top of it. Fix: show a Toast on failure, and only
       navigate if this screen is still resumed.
 
 ## Minor
 
-- [ ] **P12. The final listening time is probably lost on logout.** `SettingsViewModel.kt:131-132` calls `stop()`, which
+- [x] **P12. The final listening time is probably lost on logout.** Fixed in 6ded2eb. `SettingsViewModel.kt:131-132` calls `stop()`, which
       starts `finishPlay`, then immediately `logout()` clears the token. The interceptor probably runs after that, so
       the PATCH goes out without auth. Not confirmed by running it.
-- [ ] **P13. Shuffle All does nothing when every song is "less often" this pass** (`total: 0`).
+- [x] **P13. Shuffle All does nothing when every song is "less often" this pass** Fixed in 6ded2eb. (`total: 0`).
       `LibraryViewModel.shuffleAll` (`:150`) returns silently. Show a message, or fall back to the unfiltered pool.
-- [ ] **P14. Another app's controls can push `keys` out of step with the queue.** This is older than these commits. The
+- [x] **P14. Another app's controls can push `keys` out of step with the queue.** Fixed in 6ded2eb. This is older than these commits. The
       `MediaSession` (`PlaybackService.kt:49`) leaves `COMMAND_CHANGE_MEDIA_ITEMS` to controllers. `ForwardingPlayer`
       (`PlaybackController.kt:71-81`) sends `removeMediaItem`, `moveMediaItem` and `replaceMediaItem` straight to
       ExoPlayer, which skips `queue` and `keys`. Android Auto, Wear and other media apps can do this. Fix: drop
       the command in `onConnect`, or override those methods.
-- [ ] **P15. The swipe-away setting can be missed right after the service starts.** `PlaybackService.kt` starts the
+- [x] **P15. The swipe-away setting can be missed right after the service starts.** Fixed in 6ded2eb. `PlaybackService.kt` starts the
       field at `true`, and the DataStore value arrives asynchronously. A swipe-away within milliseconds of the start,
       with the setting off, keeps playing. Fix: read it once synchronously in `onCreate`.
-- [ ] **P16. A double tap on "Log out" can stack two Login screens.** This is older than these commits.
+- [x] **P16. A double tap on "Log out" can stack two Login screens.** Fixed in 6ded2eb. This is older than these commits.
       `SettingsViewModel.kt:129-135` has no in-flight guard. Fix: ignore a repeat call, or add `launchSingleTop`.
 
 Also noted, not worth a box:

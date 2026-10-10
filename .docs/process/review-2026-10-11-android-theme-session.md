@@ -32,11 +32,11 @@ Results at review time:
 
 ## Minor
 
-- [ ] **F3. Failed pull-to-refresh is silent.** `AlbumDetailViewModel.refresh()` (`:43-49`) and
+- [x] **F3. Failed pull-to-refresh is silent.** Fixed in 6ded2eb. `AlbumDetailViewModel.refresh()` (`:43-49`) and
       `ArtistDetailViewModel.refresh()` (`:38-44`) drop the failure: the spinner stops and the old content stays,
       with no message. The Library lists (`LibraryScreen.kt` `PagedContent`) behave the same when a refresh fails
       with items on screen. Fix: a short "Couldn't refresh" snackbar.
-- [ ] **F4. The in-app splash ignores the app's light/dark choice.** `SplashScreen.kt` paints `R.color.window_background`,
+- [x] **F4. The in-app splash ignores the app's light/dark choice.** Fixed in 6ded2eb. `SplashScreen.kt` paints `R.color.window_background`,
       which follows the phone's setting, not `ThemeMode`. It shows only when the session check outlasts the 1.2 s system
       splash. With the app forced to Dark and the phone on Light, that start is a light splash and then a dark app.
       The system splash can't know the app's setting, so the in-app one is the only part that can be fixed.

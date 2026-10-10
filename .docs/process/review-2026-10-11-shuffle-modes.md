@@ -19,18 +19,18 @@ are as of `2431cd0`, so check them before editing.
 
 ## Minor
 
-- [ ] **S3. The queue sheet says "· rediscover" on a fixed queue** (album, playlist, search), where Rediscover plays as
+- [x] **S3. The queue sheet says "· rediscover" on a fixed queue** Fixed in 6ded2eb. (album, playlist, search), where Rediscover plays as
   plain shuffle (`android/.../ui/playback/QueueSheet.kt:170-175`). Say "· shuffled" there, or say why.
-- [ ] **S4. Cycling modes during a library shuffle refetches on every press.** Off → Albums passes Shuffle and
+- [x] **S4. Cycling modes during a library shuffle refetches on every press.** Fixed in 6ded2eb. Off → Albums passes Shuffle and
   Rediscover, and each press drops what was coming and fetches a new batch (`cycleShuffle()` →
   `continueWithLibraryShuffle()`). Safe, just wasted requests. A short debounce before re-sourcing would do.
-- [ ] **S5. A tap with shuffle on still fetches 200 title-order songs, then discards them**
+- [x] **S5. A tap with shuffle on still fetches 200 title-order songs, then discards them** Fixed in 6ded2eb.
   (`android/.../ui/library/LibraryViewModel.kt:130-142`). Fetch one row, or skip the fetch when shuffle is on.
 
 ## Not from this session
 
 - **S6.** Shuffle turned on from the notification, Bluetooth or the lock screen sets `player.shuffleModeEnabled`
-  directly, bypassing `wantMode`: it uses ExoPlayer's plain random order, not the chosen mode. True before A77 too.
+  directly, bypassing `wantMode`: it uses ExoPlayer's plain random order, not the chosen mode. True before A77 too. Fixed in 6ded2eb.
 
 ## Checked and fine
 

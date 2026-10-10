@@ -41,8 +41,8 @@ Results at review time:
 - [ ] **G3. The request queue can be filled by strangers.** Low. 20 may wait at once, 5 per address per hour
       (`backend/src/routes/auth.ts:184`), so a few addresses can fill it and real requests are refused for up to
       24 hours. Cloudflare Access (A74) in front of the site closes it; otherwise consider a lower per-address limit
-      or a per-day one.
-- [ ] **G4. A guest can show up under an account's name in the codes list.** Low. The used-codes list shows only the
+      or a per-day one. Left as is: A74 (Cloudflare Access) closes it once switched on.
+- [x] **G4. A guest can show up under an account's name in the codes list.** Fixed in 6ded2eb. Low. The used-codes list shows only the
       display name (`frontend/src/components/GuestCodesPanel.tsx:240`, `c.usedByName ?? c.usedBy`), so a guest who
       calls itself "imran" reads as "imran". Fix: show the internal `guest-xxxxxx` name small next to it. Shared names
       between guests are allowed (A68); this is only about telling guests from accounts.
