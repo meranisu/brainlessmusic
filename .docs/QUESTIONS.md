@@ -33,6 +33,18 @@ is never asked twice.
 | [Q5](#q5--tag-editing-scope) | Tag-editing scope | 2026-09-09 | No |
 | [Q27](#q27--should-uploads-let-you-pick-which-library-root-they-file-into) | Should uploads let you pick which library root they file into? | 2026-09-15 | No — assumption stated |
 | [Q30](#q30--should-cloudflare-access-sit-in-front-of-the-public-hostname) | Should Cloudflare Access sit in front of the public hostname? | 2026-09-21 | No — assumption stated |
+| [Q65](#q65--playlists-and-likes-on-android-view-only-or-edit-too) | Playlists and likes on Android: view only, or edit too? | 2026-10-11 | No, assumption stated |
+| [Q66](#q66--profile-on-the-web-too) | Profile on the web too? | 2026-10-11 | No, assumption stated |
+
+### Q65 — Playlists and likes on Android: view only, or edit too?
+**Asked:** 2026-10-11 · **Blocking:** no, assumption stated
+
+**Assumption:** Phase 3 lists and plays playlists, liked and less-often songs, and adds a heart on Now Playing so songs can be liked from the phone. Creating and editing playlists on Android comes later. [profile plan](features/profile-and-listening-stats/planning.md).
+
+### Q66 — Profile on the web too?
+**Asked:** 2026-10-11 · **Blocking:** no, assumption stated
+
+**Assumption:** Android first; the endpoints are shared, so the web can follow as its own piece. [profile plan](features/profile-and-listening-stats/planning.md).
 
 ### Q2 — When does open registration get turned off?
 **Asked:** 2026-09-09 · **Blocking:** yes, at box 13's done-when
@@ -118,6 +130,20 @@ database backups, which live in the same Docker volume as the database) off
 is not lost.
 
 ## Answered
+
+### A64 — Wrapped shows up yearly, from December *(was Q64)*
+**Answered:** 2026-10-11 · **Yearly.** Unlocks in December for that year; past years stay viewable. [profile plan](features/profile-and-listening-stats/planning.md), Phase 6.
+
+### A63 — "Your mix" is a live mix that refreshes daily *(was Q63)*
+**Answered:** 2026-10-11 · **Live.** Shown on the profile, rebuilt daily, play-only; not written into playlists.
+[profile plan](features/profile-and-listening-stats/planning.md), Phase 5.
+
+### A62 — Time listened counts real listening from the next release *(was Q62)*
+**Answered:** 2026-10-11 · **Real time from now on.** The app reports how long a song actually played (after the
+scrobble threshold too); plays recorded before that are estimated as a full play of the song. [profile plan](features/profile-and-listening-stats/planning.md), Phase 2.
+
+### A61 — The profile is a new "You" tab *(was Q61)*
+**Answered:** 2026-10-11 · **A fourth bottom tab, "You",** next to Library, Search and Settings. [profile plan](features/profile-and-listening-stats/planning.md), Phase 3.
 
 ### A59 — What skeleton loading looks like *(was Q59)*
 **Answered:** 2026-10-11 · **A slow pulse, web first.** Flat placeholder blocks shaped like the real rows, cover tiles
