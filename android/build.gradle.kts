@@ -1,5 +1,4 @@
-// Top-level build file — declares plugins so submodules can apply them
-// without re-specifying versions, applies none itself.
+// Declares plugin versions for submodules; applies none itself.
 plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.kotlin.android) apply false

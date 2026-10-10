@@ -43,9 +43,8 @@ import kotlin.math.PI
 import kotlin.math.sin
 
 /**
- * The Now Playing progress bar in one of several looks ([SeekStyle]). [fraction] is 0..1 and
- * [onFraction] reports a touch or drag as 0..1; [onFinished] fires when the finger lifts, which is
- * when the caller actually seeks. [interactive] = false draws it for the Settings preview.
+ * The progress bar in a [SeekStyle]. [onFraction] reports touches as 0..1; [onFinished] fires on lift, when the
+ * caller seeks. [interactive] = false is the Settings preview.
  */
 @Composable
 fun SeekBar(
@@ -94,9 +93,7 @@ fun SeekBar(
     var widthPx by remember { mutableIntStateOf(1) }
     val f = fraction.coerceIn(0f, 1f)
 
-    // The gesture handlers below are started once and keep running. Capturing `onFraction`/`onFinished`
-    // directly would freeze the values they close over at the first composition — including the track's
-    // length — so after the track changed, a tap at 30% would seek to 30% of the *previous* track's length.
+    // The gesture handlers outlive recomposition; without these they'd seek using the first track's length.
     val latestOnFraction by rememberUpdatedState(onFraction)
     val latestOnFinished by rememberUpdatedState(onFinished)
 

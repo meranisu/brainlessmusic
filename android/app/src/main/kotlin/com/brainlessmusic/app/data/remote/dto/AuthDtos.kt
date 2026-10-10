@@ -1,7 +1,6 @@
 package com.brainlessmusic.app.data.remote.dto
 
-// Shapes confirmed by reading the live backend, not the (older) phased-plan
-// doc — see backend/src/routes/auth.ts and backend/src/routes/health.ts.
+// Shapes from backend/src/routes/auth.ts and health.ts, not the older phased-plan doc.
 
 data class HealthResponse(
     val status: String,

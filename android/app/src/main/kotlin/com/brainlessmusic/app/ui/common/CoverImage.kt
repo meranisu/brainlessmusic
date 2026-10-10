@@ -19,12 +19,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 
-/**
- * A cover-art thumbnail that always renders *something* — a plain disc icon
- * on a `null` URL (no active session yet), a load failure, or while loading
- * — rather than empty space, matching every other "art or placeholder" spot
- * in the project (see the web app's `library-player.html` cover fallback).
- */
+/** Cover art, or a disc icon when there is no URL, the load fails, or it is still loading. */
 @Composable
 fun CoverImage(
     url: String?,

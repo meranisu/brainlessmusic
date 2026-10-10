@@ -47,11 +47,7 @@ fun <T> LoadStateContent(
                 Text(emptyMessage, style = MaterialTheme.typography.bodyMedium)
             }
         } else {
-            // `modifier` carries the Scaffold's innerPadding — without it here,
-            // every caller's LazyColumn/LazyVerticalGrid renders from y=0 and
-            // slides under the TopAppBar. Boxing it constrains the space the
-            // content's own fillMaxSize() then fills, rather than the whole
-            // screen.
+            // `modifier` carries the Scaffold padding; without it lists slide under the TopAppBar.
             Box(modifier = modifier) {
                 content(state.data)
             }

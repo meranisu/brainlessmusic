@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Abstract mark: a disc with a waveform cut out of it, and a small satellite dot. Everything sits
-     inside the adaptive-icon safe zone (inner 66dp of 108dp). The waveform is a hole (even-odd), so the
-     background shows through it. -->
+<!-- A disc with a waveform cut out (even-odd) and a satellite dot, inside the adaptive-icon safe zone (66 of 108dp). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"

@@ -64,12 +64,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.brainlessmusic.app.BuildConfig
 import com.brainlessmusic.app.ui.common.BrandMark
 
-/**
- * The web app's title screen, translated: a beat-driven tile mosaic for a ground, a solid band carrying the
- * ringed mark and the two-tone wordmark, and corner readouts that say true things (version, whether the
- * server answered, which host). Every color is a [MaterialTheme] role, so it follows the wallpaper (Material
- * You) and the app's light/dark setting instead of the web's fixed navy and orange.
- */
+/** The web title screen in Material colors: beat mosaic, a solid band with the wordmark, and true corner readouts. */
 @Composable
 fun LoginScreen(
     onLoggedIn: (username: String) -> Unit,
@@ -264,10 +259,7 @@ private fun LoginForm(
     }
 }
 
-/**
- * Shown while the code-less try is in flight, then either gone (the door was open) or showing the code field.
- * Codes are typed as printed (`ABCD-EFGH`); the server ignores case and the dash.
- */
+/** Shown while the code-less try runs; the code field appears only if the door is closed. Case and dash are ignored. */
 @Composable
 private fun GuestForm(
     state: LoginUiState,
@@ -331,10 +323,7 @@ private fun GuestForm(
     }
 }
 
-/**
- * The band across the middle. Solid and high-contrast (the inverse surface), like the web's white band with
- * dark type, with the wordmark's accent taken from the inverse-primary role made for exactly this ground.
- */
+/** The middle band on the inverse surface, like the web's white band, with the accent from inverse-primary. */
 @Composable
 private fun TitleBand() {
     val scheme = MaterialTheme.colorScheme
@@ -388,7 +377,7 @@ private fun StatusReadout(check: ConnectionCheck, onRetry: () -> Unit, modifier:
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text("VER ${BuildConfig.VERSION_NAME}", style = hud(), color = scheme.onSurfaceVariant)
-        // Tapping re-checks — the same affordance as before, now wearing the web's costume.
+        // Tapping re-checks the server.
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier

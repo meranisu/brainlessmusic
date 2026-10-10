@@ -69,14 +69,10 @@ class LibraryRepository @Inject constructor(
     suspend fun savePlaybackState(trackIds: List<Int>, index: Int, positionSeconds: Double): Result<Unit> =
         callApi { it.savePlaybackState(SavePlaybackStateRequest(trackIds, index, positionSeconds)) }
 
-    /**
-     * Byte-range seekable, and authenticated by the bearer header ExoPlayer's
-     * OkHttp data source adds via the shared client — no `?token=` needed
-     * (backend/src/plugins/auth.ts `authenticateMedia`).
-     */
+    /** Seekable, and authenticated by the shared client's bearer header, so no `?token=` is needed. */
     fun streamUrl(trackId: Int): String? = mediaUrlProvider.current?.let { "${it}tracks/$trackId/stream" }
 
-    /** `null` while there's no active session — the cover just won't load, same as any other network failure. */
+    /** `null` with no session; the cover then fails to load like any network error. */
     fun albumCoverUrl(albumId: Int): String? = mediaUrlProvider.current?.let { "${it}albums/$albumId/cover" }
 
     /** Falls back server-side to the album's cover when the track has none of its own (see backend/src/routes/tracks.ts). */

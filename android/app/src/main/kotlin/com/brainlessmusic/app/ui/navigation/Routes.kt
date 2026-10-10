@@ -8,7 +8,7 @@ object Routes {
     const val ARTISTS = "artists"
     const val SEARCH = "search"
 
-    // Pushed on top of either — no bottom nav on these, a back arrow instead.
+    // Detail screens: no bottom nav, a back arrow instead.
     const val ARTIST_DETAIL = "artist/{artistId}"
     const val ALBUM_DETAIL = "album/{albumId}"
 

@@ -48,10 +48,7 @@ fun SearchScreen(
     val query by viewModel.query.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    // No TopAppBar here on purpose — a text field crammed into a TopAppBar's
-    // title slot comes out cramped and unstyled (it inherits none of the
-    // filled/rounded search-field look). A plain body-level TextField gets
-    // full control over size, shape and color instead.
+    // No TopAppBar: a text field in its title slot comes out cramped and unstyled.
     Scaffold(
         bottomBar = { AppBottomBar(navController) },
     ) { padding ->
@@ -154,7 +151,7 @@ private fun AlbumResultRow(album: AlbumSummaryDto, coverUrl: String?, onClick: (
 private fun TrackResultRow(track: TrackSummaryDto, onClick: () -> Unit) {
     ListItem(
         headlineContent = { Text(track.title) },
-        supportingContent = { Text(listOfNotNull(track.artist, track.album).joinToString(" — ")) },
+        supportingContent = { Text(listOfNotNull(track.artist, track.album).joinToString(" · ")) },
         trailingContent = { Text(formatDuration(track.duration), style = MaterialTheme.typography.bodySmall) },
         modifier = Modifier
             .fillMaxWidth()

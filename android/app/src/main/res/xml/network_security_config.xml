@@ -1,11 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  Release builds talk HTTPS only. The app's server is fixed at build time
-  (SERVER_URL in app/build.gradle.kts) and the public deployment terminates
-  TLS at Cloudflare's edge, so plain HTTP has no legitimate use here.
-  Debug builds override this file (src/debug/res/xml) to allow the HTTP dev
-  backend at http://10.0.2.2:3000.
--->
+<!-- Release builds are HTTPS-only; TLS ends at Cloudflare. Debug builds override this in src/debug for the HTTP dev backend. -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>

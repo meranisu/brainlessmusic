@@ -27,7 +27,7 @@ class AuthRepository @Inject constructor(
     private val serverConfig: ServerConfig,
 ) {
 
-    /** Prefill for the login screen — never the password, which is never stored. */
+    /** Prefill for the login screen. */
     suspend fun savedUsername(): String? = sessionStore.username.first()
 
     /** `GET /health` against the bound server; drives the green/red light on the login screen. */
@@ -53,10 +53,8 @@ class AuthRepository @Inject constructor(
     }
 
     /**
-     * The title screen's Guest button (A41). Mints a guest on the server, then asks `/auth/me` for the name it
-     * was given (`guest-xxxxxx`), so the session is stored the same way a login's is. The server answers 401 both
-     * when a code is needed and none was sent, and when the code is wrong; the caller tells those apart by
-     * whether it sent one, as the web title screen does.
+     * The Guest button (A41): mints a guest, then reads its name from `/auth/me`. The server answers 401 both for a
+     * missing code and a wrong one; the caller tells them apart by whether it sent one.
      */
     suspend fun enterAsGuest(code: String?): GuestEntryResult {
         val serverUrl = serverConfig.url
@@ -81,13 +79,7 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    /**
-     * Called once on cold start. A stored token is validated against
-     * `/auth/me` rather than trusted blindly — it may have been revoked, or
-     * the JWT secret may have rotated server-side (see
-     * `backend/src/utils/secretPolicy.ts`), and a token that merely *decodes*
-     * is not the same as one the server still honors.
-     */
+    /** Cold start: checks a stored token against `/auth/me`, since it may be revoked or signed with a rotated secret. */
     suspend fun restoreSession(): SessionRestoreResult {
         // Always the bound server: a session saved by a build pointing elsewhere (an old
         // quick tunnel, say) just fails /auth/me below and sends the listener to log in.

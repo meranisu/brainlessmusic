@@ -3,11 +3,7 @@ package com.brainlessmusic.app.playback
 import com.brainlessmusic.app.data.remote.dto.TrackSummaryDto
 import com.brainlessmusic.app.data.repository.LibraryRepository
 
-/**
- * Where a queue keeps coming from once its first batch runs low. A queue started from the song list would
- * otherwise stop after the 200 songs fetched up front; with a source, [PlaybackController] tops it up from
- * the library as the end approaches, so listening never runs dry until the library does.
- */
+/** Where a queue gets more tracks once its first batch runs low, so a 200-song start keeps going to the library's end. */
 sealed interface QueueSource {
     /** The songs list in title order, continuing from row [nextOffset]. Ends with the library. */
     data class Songs(val nextOffset: Int) : QueueSource

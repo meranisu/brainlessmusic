@@ -4,14 +4,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * The normalized base URL (`<server>/api/`, same value [ApiServiceFactory]
- * builds Retrofit against), held in memory so Compose screens can build
- * absolute cover-art URLs for Coil without each one reaching into
- * [com.brainlessmusic.app.data.local.SessionStore]. Kept in sync by
- * [com.brainlessmusic.app.data.repository.AuthRepository], the same way
- * [TokenProvider] is.
- */
+/** The `<server>/api/` base in memory, so screens can build cover-art URLs. Kept in sync by AuthRepository. */
 @Singleton
 class MediaUrlProvider @Inject constructor() {
     private val _baseUrl = MutableStateFlow<String?>(null)

@@ -1,7 +1,6 @@
 package com.brainlessmusic.app.data.remote.dto
 
-// Shapes confirmed by reading backend/src/db/browse.ts and the routes that
-// serve it — not the (older) phased-plan doc.
+// Shapes from backend/src/db/browse.ts and its routes, not the older phased-plan doc.
 
 data class ArtistSummaryDto(
     val id: Int,
@@ -51,7 +50,7 @@ data class AlbumDetailDto(
     val tracks: List<AlbumTrackDto>,
 )
 
-/** The lean shape browse/search endpoints return — not [com.brainlessmusic.app.data.remote.dto.AlbumTrackDto]'s even leaner one. */
+/** The lean track shape browse and search return. */
 data class TrackSummaryDto(
     val id: Int,
     val title: String,
@@ -83,7 +82,7 @@ data class ScrobbleResponse(
     val playCount: Int,
 )
 
-/** `GET /me/playback-state` — `state` is `null` (not a 404) when nothing has been saved yet. */
+/** `GET /me/playback-state`. `state` is `null`, not a 404, when nothing is saved. */
 data class PlaybackStateResponse(
     val state: PlaybackStateDto?,
 )
@@ -95,14 +94,14 @@ data class PlaybackStateDto(
     val positionSeconds: Double,
 )
 
-/** `PUT /me/playback-state` — ids only; the server rejects (rather than clamps) an out-of-range index. */
+/** `PUT /me/playback-state`. The server rejects an out-of-range index rather than clamping it. */
 data class SavePlaybackStateRequest(
     val queue: List<Int>,
     val queueIndex: Int,
     val positionSeconds: Double,
 )
 
-/** `GET /tracks` — the whole library, paged. */
+/** `GET /tracks`, paged. */
 data class TracksPageDto(
     val total: Int,
     val limit: Int,
@@ -110,7 +109,7 @@ data class TracksPageDto(
     val tracks: List<TrackSummaryDto>,
 )
 
-/** `GET /albums` — every album, paged. */
+/** `GET /albums`, paged. */
 data class AlbumsPageDto(
     val total: Int,
     val limit: Int,
@@ -118,7 +117,7 @@ data class AlbumsPageDto(
     val albums: List<AlbumSummaryDto>,
 )
 
-/** `GET /browse/shuffled` — the whole library in the random order fixed by [seed], one page of it. */
+/** `GET /browse/shuffled`: one page of the library in the order fixed by [seed]. */
 data class ShuffledTracksPageDto(
     val seed: Int,
     val total: Int,
@@ -127,7 +126,7 @@ data class ShuffledTracksPageDto(
     val tracks: List<TrackSummaryDto>,
 )
 
-/** `GET /browse/letters` — where each letter starts in a scope's default listing (backend/src/db/letterIndex.ts). */
+/** `GET /browse/letters`: where each letter starts in a listing (backend/src/db/letterIndex.ts). */
 data class LetterIndexDto(
     val scope: String,
     val total: Int,

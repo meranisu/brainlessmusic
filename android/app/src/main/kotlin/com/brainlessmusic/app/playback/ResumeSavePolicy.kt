@@ -11,17 +11,13 @@ data class ResumeSnapshot(
     val playing: Boolean,
 )
 
-/**
- * When to write the playback state to the server. Mirrors the web player's
- * rule (A9): on a track or queue change, on play/pause, and every 10 s while
- * playing. Pure, so it is unit-tested without a player or a clock.
- */
+/** When to save playback state, the web player's rule (A9): on track or queue change, play/pause, and every 10 s. */
 class ResumeSavePolicy(private val intervalMs: Long = SAVE_INTERVAL_MS) {
     private var last: ResumeSnapshot? = null
     private var lastSavedAt = 0L
 
     fun shouldSave(snapshot: ResumeSnapshot, nowMs: Long): Boolean {
-        // An empty queue is "nothing playing" (fresh launch, or logout) — never a reason to overwrite what is saved.
+        // An empty queue (fresh launch, logout) must never overwrite what is saved.
         if (snapshot.trackIds.isEmpty() || snapshot.trackIds.size > MAX_SAVED_QUEUE) return false
         val changed = snapshot != last
         val due = snapshot.playing && nowMs - lastSavedAt >= intervalMs

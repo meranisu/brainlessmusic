@@ -3,26 +3,14 @@ package com.brainlessmusic.app.playback
 import kotlin.random.Random
 
 /**
- * A shuffle that doesn't play the same artist twice in a row.
- *
- * The server's `POST /shuffle` (backend/src/services/shuffle.ts) does the same job by always taking
- * the largest remaining artist that isn't the one just played — which is tidy but predictable (two
- * artists strictly alternate). This picks at random, weighted by how many tracks each artist has left,
- * with one exception that keeps it correct: an artist holding more than half of what is left is
- * played now, or they would end up stranded at the tail with nothing to separate them.
- *
- * Runs on the phone rather than calling the server: it needs no round trip, works offline, has no
- * size limit, and the queue only knows artist names, not the ids the server shuffles by.
+ * A shuffle that avoids the same artist twice in a row: random, weighted by tracks left, except an artist holding
+ * over half of what's left goes now. Runs on the phone because the queue knows artist names, not the server's ids.
  */
 object SmartShuffle {
 
     /**
-     * A play order for tracks whose artists are [artistKeys] (index = position in the queue). [first], if
-     * given, is put at the front — the track the listener tapped or is already on. A `null` key is an
-     * unknown artist and is never treated as matching another unknown one.
-     *
-     * When one artist has more than half the tracks, adjacent repeats are unavoidable; they are kept as
-     * few as the greedy pass can manage rather than being an error.
+     * Play order for [artistKeys] (index = queue position), with [first] at the front. A `null` key never matches
+     * another; when one artist has over half the tracks, repeats are kept as few as possible.
      */
     fun order(artistKeys: List<String?>, first: Int? = null, random: Random = Random.Default): IntArray {
         val n = artistKeys.size

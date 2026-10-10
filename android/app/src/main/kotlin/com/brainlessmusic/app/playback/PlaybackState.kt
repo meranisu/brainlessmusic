@@ -14,7 +14,7 @@ data class QueueItem(
 
 enum class Repeat { OFF, ALL, ONE }
 
-/** What the player is actually receiving right now — read from ExoPlayer, not from the file's tags. */
+/** What the player is receiving now, read from ExoPlayer rather than the file's tags. */
 data class StreamInfo(
     val codec: String?,
     val sampleRateHz: Int?,

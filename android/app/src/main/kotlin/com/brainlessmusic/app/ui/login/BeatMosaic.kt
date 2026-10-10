@@ -26,13 +26,7 @@ private const val COLS = 6
 // only ever a soft pulse: on a phone held in the hand, a fast flash behind a form is tiring, not lively.
 private const val BEAT_MS = 800
 
-/**
- * The web title screen's backdrop: a grid of flat tiles in the theme's container colors, with a wavefront
- * that crosses it from the top-left once per beat and lights each tile toward the accent as it passes.
- * Colors come from [MaterialTheme.colorScheme], so it follows Material You and light/dark.
- *
- * Holds still when the system's animations are turned off.
- */
+/** The web title screen's tile mosaic, lit by a wavefront once per beat, in theme colors. Still when animations are off. */
 @Composable
 fun BeatMosaic(modifier: Modifier = Modifier) {
     val scheme = MaterialTheme.colorScheme

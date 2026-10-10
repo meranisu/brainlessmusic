@@ -1,10 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- The real theme is Compose's Material3 theme (ui/theme/Theme.kt).
-         This XML theme only covers the moment before Compose takes over —
-         the window background, so there is no flash of the wrong color.
-         Light here; values-night/themes.xml is the dark counterpart. Status
-         and navigation bars are made transparent by enableEdgeToEdge(). -->
+    <!-- Covers only the window background before Compose's theme (ui/theme/Theme.kt) takes over. Dark: values-night. -->
     <style name="Theme.BrainlessMusic" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/window_background</item>
     </style>

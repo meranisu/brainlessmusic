@@ -10,7 +10,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 enum class ThemeMode(val label: String) {
-    /** Follow the phone's own light/dark setting — the default. */
+    /** Follow the phone's light/dark setting (the default). */
     SYSTEM("System"),
     LIGHT("Light"),
     DARK("Dark"),

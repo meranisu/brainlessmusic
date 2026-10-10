@@ -43,15 +43,8 @@ private const val TAG = "PlaybackController"
 private const val TICK_MS = 500L
 
 /**
- * The one ExoPlayer in the app, held in-process. [PlaybackService] (Phase 3 of
- * `.docs/process/android-phased-plan.md`) wraps it in a MediaSession for the
- * notification, lock screen, headset buttons and background playback.
- *
- * Streams through the same authenticated [OkHttpClient] as Retrofit, so the
- * bearer header rides along on every range request and there is no
- * media-token exchange (the web app needs one because `<audio>` cannot set
- * headers; ExoPlayer can). Main-thread only, like ExoPlayer itself — callers
- * are ViewModels.
+ * The app's one ExoPlayer, wrapped in a MediaSession by [PlaybackService]. It streams through the authenticated
+ * [OkHttpClient], so range requests carry the bearer header. Main thread only.
  */
 @OptIn(UnstableApi::class)
 @Singleton
@@ -65,10 +58,7 @@ class PlaybackController @Inject constructor(
 
     private val player: ExoPlayer by lazy { buildPlayer() }
 
-    /**
-     * The player [PlaybackService] wraps in a MediaSession. It stays owned here — the UI and the
-     * service drive the same instance — so the service being killed never loses the queue.
-     */
+    /** Owned here and lent to [PlaybackService], so the service being killed never loses the queue. */
     val sessionPlayer: Player get() = player
 
     // Held for the life of the process: a connected controller is what keeps PlaybackService bound,
@@ -114,11 +104,7 @@ class PlaybackController @Inject constructor(
         loadQueue(items, startIndex, 0L, play = true, source)
     }
 
-    /**
-     * Puts a saved queue back at [positionMs] — paused unless [autoPlay]. A no-op
-     * if something is already queued: a listener who tapped a track while the
-     * saved state was still downloading must not have it replaced underneath them.
-     */
+    /** Restores a saved queue, paused unless [autoPlay]. A no-op if something is already queued. */
     fun restoreQueue(items: List<QueueItem>, startIndex: Int, positionMs: Long, autoPlay: Boolean) {
         if (queue.isNotEmpty()) return
         loadQueue(items, startIndex, positionMs, play = autoPlay)
@@ -163,11 +149,7 @@ class PlaybackController @Inject constructor(
         publish()
     }
 
-    /**
-     * ExoPlayer slots an inserted track into its shuffle order at random. To make it really play next,
-     * take the order as it now stands, move [inserted] to just after the current track (and after any
-     * earlier "Play next" tracks), and hand it back.
-     */
+    /** ExoPlayer shuffles an inserted track in at random; this moves it to play next, after earlier "Play next" tracks. */
     private fun placeNextInShuffleOrder(inserted: Int) {
         val sequence = shuffledSequence().toMutableList()
         sequence.remove(inserted)
@@ -333,7 +315,7 @@ class PlaybackController @Inject constructor(
         publish()
     }
 
-    /** Ends playback and empties the queue — logout must not leave the previous account's music running. */
+    /** Ends playback and empties the queue, so a logout doesn't leave the last account's music playing. */
     fun stop() {
         if (queue.isEmpty()) return
         player.stop()
@@ -403,7 +385,7 @@ class PlaybackController @Inject constructor(
             errorMessage = when (error.errorCode) {
                 PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
                 PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
-                -> "Network problem — check your connection."
+                -> "Network problem. Check your connection."
                 PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS -> "The server refused this track."
                 else -> "Couldn't play this track."
             }
@@ -436,7 +418,7 @@ class PlaybackController @Inject constructor(
     private fun scrobble() {
         val item = trackerItem ?: return
         val listened = tracker?.listenedMs ?: return
-        // A missed scrobble costs a statistic, not the music — never surface it.
+        // A missed scrobble costs a statistic, so it is never surfaced.
         scope.launch { libraryRepository.scrobble(item.trackId, listened) }
     }
 
@@ -481,10 +463,7 @@ class PlaybackController @Inject constructor(
         )
     }
 
-    /**
-     * The server stores whatever the tag reader called the codec ("MPEG 1 Layer 3", "flac", "Opus"); shown
-     * as the short names people know. Anything unrecognised is shown as it is.
-     */
+    /** Short names for the codec strings the tag reader stores ("MPEG 1 Layer 3" → "MP3"); unknown ones pass through. */
     private fun prettyFormat(raw: String): String {
         val f = raw.trim().lowercase()
         return when {

@@ -11,8 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
-// Dark-first, matching the web app's own dark-by-default design — a light
-// scheme exists for the system setting but isn't the app's primary identity.
+// Dark-first, like the web app. The light scheme exists for the system setting.
 private val DarkColors = darkColorScheme(
     primary = Orange500,
     onPrimary = Navy900,
@@ -37,13 +36,8 @@ private val LightColors = lightColorScheme(
 )
 
 /**
- * Material You: on Android 12+ (API 31), the color scheme is derived from
- * the device wallpaper via [dynamicDarkColorScheme]/[dynamicLightColorScheme]
- * rather than this app's own navy/orange palette — the whole point of
- * dynamic color is that it isn't a fixed brand identity. Devices below API
- * 31 have no wallpaper-extraction API at all, so they keep the static
- * [DarkColors]/[LightColors] scheme unconditionally; `dynamicColor` exists
- * as an opt-out for anyone who wants the brand palette even on 12+.
+ * On Android 12+ the scheme comes from the wallpaper (Material You); below that, the static navy and orange.
+ * `dynamicColor = false` keeps the brand palette on 12+.
  */
 @Composable
 fun BrainlessMusicTheme(

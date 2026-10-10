@@ -4,13 +4,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * The bearer token, held in memory so [AuthInterceptor] can read it
- * synchronously on the OkHttp dispatcher thread — no DataStore (disk) I/O on
- * every outgoing request. [com.brainlessmusic.app.data.repository.AuthRepository]
- * is the only writer, keeping this in sync with the encrypted copy in
- * [com.brainlessmusic.app.data.local.SessionStore].
- */
+/** The bearer token in memory, so [AuthInterceptor] never does disk I/O per request. AuthRepository is the only writer. */
 @Singleton
 class TokenProvider @Inject constructor() {
     private val _token = MutableStateFlow<String?>(null)
@@ -21,10 +15,7 @@ class TokenProvider @Inject constructor() {
             _token.value = value
         }
 
-    /**
-     * Whether the session belongs to a guest (A37: listen-only). Not persisted: it is set on every way in,
-     * including the cold-start restore, which reads it from `/auth/me`.
-     */
+    /** Whether the session is a guest's (A37: listen-only). Set on every way in, including the restore from `/auth/me`. */
     @Volatile
     var isGuest: Boolean = false
 }

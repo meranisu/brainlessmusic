@@ -31,13 +31,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.brainlessmusic.app.ui.common.CoverImage
 
 /**
- * Sits above the navigation bar (or alone, on detail screens); draws nothing until something is queued.
- *
- * Colored with the same role as [androidx.compose.material3.NavigationBar]'s own container
- * (`surfaceContainer`) so the two read as one block. It used `surface` plus a tonal overlay, which is a
- * visibly different tone. Alone on a detail screen it must also extend under the system navigation
- * bar ([extendUnderSystemBar]); above the app's own bar that bar already does, and doing it twice
- * would leave a gap.
+ * Above the navigation bar, in its `surfaceContainer` color so the two read as one. Draws nothing with an empty queue.
+ * Alone on a detail screen it extends under the system bar itself ([extendUnderSystemBar]).
  */
 @Composable
 fun MiniPlayer(

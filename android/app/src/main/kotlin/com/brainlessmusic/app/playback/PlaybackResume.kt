@@ -18,15 +18,8 @@ import javax.inject.Singleton
 private const val TAG = "PlaybackResume"
 
 /**
- * Resume-where-you-left-off, client side: keeps `PUT /me/playback-state` current
- * while music plays, and puts the saved queue back on the next launch.
- *
- * The server half (one row per user, last write wins) is the web player's, so
- * this also resumes a queue started on the web. Whether a restore starts
- * playing is [PlaybackSettings.autoPlayOnResume] — off, i.e. paused, by default.
- *
- * Logout deliberately does not clear the saved state: it belongs to the account
- * and follows it across devices, unlike the web player's explicit "close".
+ * Keeps `PUT /me/playback-state` current and restores the saved queue on launch, including one started on the web.
+ * Logout keeps the saved state: it belongs to the account.
  */
 @Singleton
 class PlaybackResume @Inject constructor(
@@ -49,7 +42,7 @@ class PlaybackResume @Inject constructor(
         }
     }
 
-    /** Fetches the saved state and queues it; call once a session exists. Failure is silent — there is simply nothing to resume. */
+    /** Fetches and queues the saved state once a session exists. Failure is silent. */
     suspend fun restore() {
         if (controller.state.value.hasQueue) return
         val saved = libraryRepository.loadPlaybackState().getOrNull() ?: return
@@ -63,7 +56,7 @@ class PlaybackResume @Inject constructor(
         )
     }
 
-    /** Writes now, whatever the policy says — for when the app leaves the foreground and the next 10 s tick may never come. */
+    /** Saves now, for when the app leaves the foreground before the next 10 s tick. */
     fun flush() = save()
 
     private fun save() {

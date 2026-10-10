@@ -10,21 +10,12 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * User-facing playback preferences. Lives in the same DataStore as
- * [SessionStore], but [SessionStore.clearCredentials] removes only its own
- * keys, so these survive a logout — a preference is about the person's taste,
- * not about the account.
- */
+/** Playback preferences. Kept through logout: [SessionStore.clearCredentials] removes only its own keys. */
 @Singleton
 class PlaybackSettings @Inject constructor(
     private val dataStore: DataStore<Preferences>,
 ) {
-    /**
-     * Whether reopening the app carries on playing the saved queue. Off by
-     * default: A9 in `.docs/QUESTIONS.md` restores paused, and music starting
-     * by itself on launch is the surprising direction.
-     */
+    /** Whether reopening the app plays the saved queue. Off by default: A9 restores paused. */
     val autoPlayOnResume: Flow<Boolean> = dataStore.data.map { it[AUTO_PLAY_ON_RESUME_KEY] ?: false }
 
     suspend fun setAutoPlayOnResume(enabled: Boolean) {

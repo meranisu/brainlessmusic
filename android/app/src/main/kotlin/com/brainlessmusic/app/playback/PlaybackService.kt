@@ -16,13 +16,8 @@ import java.util.concurrent.Executors
 import javax.inject.Inject
 
 /**
- * Phase 3: puts the app's one player behind a [MediaSession], which is what gives it the media
- * notification, the lock-screen controls, headset/Bluetooth buttons, and a foreground service
- * that keeps audio going with the screen off. Media3 posts the notification and moves this
- * service to the foreground itself while the player is playing.
- *
- * The player is owned by [PlaybackController], not by this service — the service only lends it to
- * the session — so if the system kills the service the queue survives and the next play reconnects.
+ * Puts the player behind a [MediaSession] for the notification, lock screen, headset buttons and screen-off playback.
+ * The player belongs to [PlaybackController], so a killed service never loses the queue.
  */
 @OptIn(UnstableApi::class)
 @AndroidEntryPoint
@@ -43,8 +38,7 @@ class PlaybackService : MediaSessionService() {
         )
         session = MediaSession.Builder(this, controller.sessionPlayer)
             .setSessionActivity(openApp)
-            // Cover art is behind the bearer token, which the default loader knows nothing about —
-            // without this the notification and lock screen would show no artwork.
+            // Cover art needs the bearer token; the default loader would show no artwork.
             .setBitmapLoader(
                 DataSourceBitmapLoader(
                     MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor()),

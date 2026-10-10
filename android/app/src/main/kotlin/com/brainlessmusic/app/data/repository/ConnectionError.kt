@@ -16,10 +16,10 @@ sealed interface ConnectionError {
     data class Unknown(val detail: String?) : ConnectionError
 }
 
-/** Shared by every repository that talks to the API — one place decides what a given failure means. */
+/** Decides what a failure means, for every repository. */
 fun classifyError(t: Throwable): ConnectionError = when (t) {
     is HttpException -> if (t.code() == 401) ConnectionError.Unauthorized else ConnectionError.Unknown("HTTP ${t.code()}")
-    // SSLException is an IOException subtype — must be checked before the generic IOException branch below.
+    // SSLException is an IOException, so it must come first.
     is SSLException -> ConnectionError.TlsError
     is UnknownHostException, is ConnectException, is SocketTimeoutException -> ConnectionError.Unreachable
     is IOException -> ConnectionError.Unreachable
@@ -34,7 +34,7 @@ fun ConnectionError.toMessage(): String = when (this) {
     ConnectionError.TlsError ->
         "The server's certificate couldn't be verified."
     ConnectionError.InvalidUrl ->
-        "That doesn't look like a valid server address — try something like http://10.0.2.2:3000."
+        "That doesn't look like a valid server address. Try something like http://10.0.2.2:3000."
     is ConnectionError.Unknown ->
         "Something went wrong" + (detail?.let { ": $it" } ?: ".")
 }

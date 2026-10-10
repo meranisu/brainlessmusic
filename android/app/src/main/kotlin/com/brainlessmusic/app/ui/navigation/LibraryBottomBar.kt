@@ -12,7 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 
-/** The two top-level destinations. Artist/album detail screens push on top of either and don't show this — they have their own back arrow instead. */
+/** The two top-level tabs. Detail screens push on top with a back arrow instead. */
 @Composable
 fun LibraryBottomBar(navController: NavHostController) {
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -34,7 +34,7 @@ fun LibraryBottomBar(navController: NavHostController) {
     }
 }
 
-/** A fixed anchor (`ARTISTS`) rather than a computed start destination — simple and correct for exactly two flat tabs; would need real bottom-nav-graph handling if a third tab or nested per-tab stacks ever show up. */
+/** Pops to the fixed `ARTISTS` anchor; fine for two flat tabs, not for nested per-tab stacks. */
 private fun NavHostController.navigateToTab(route: String) {
     if (currentDestination?.route == route) return
     navigate(route) {

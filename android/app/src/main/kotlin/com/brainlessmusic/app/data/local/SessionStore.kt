@@ -10,12 +10,7 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Persists what's needed to reconnect without asking again: the server URL,
- * the username (both plain — neither is a secret), and the JWT ([CryptoManager]
- * -encrypted before it lands here, decrypted only in memory). The password
- * itself is never stored anywhere, matching the phased plan.
- */
+/** Server URL and username in plain text, the JWT encrypted by [CryptoManager]. The password is never stored. */
 @Singleton
 class SessionStore @Inject constructor(
     private val dataStore: DataStore<Preferences>,
@@ -28,7 +23,7 @@ class SessionStore @Inject constructor(
         dataStore.edit { it[SERVER_URL_KEY] = url }
     }
 
-    /** Reads the currently stored token, decrypting it — `null` if none is stored. */
+    /** The stored token, decrypted, or `null` if there is none. */
     suspend fun readToken(): String? {
         val prefs = dataStore.data.first()
         val cipherText = prefs[TOKEN_CIPHER_KEY] ?: return null
@@ -46,7 +41,7 @@ class SessionStore @Inject constructor(
         }
     }
 
-    /** Drops the token (and username) but keeps the server URL — no reason to re-type it after a logout. */
+    /** Drops the token and username, keeps the server URL. */
     suspend fun clearCredentials() {
         dataStore.edit { prefs ->
             prefs.remove(USERNAME_KEY)

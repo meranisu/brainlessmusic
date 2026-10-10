@@ -7,12 +7,8 @@ import androidx.paging.PagingState
 class OffsetPage<T>(val items: List<T>, val total: Int)
 
 /**
- * Pages a server list by `limit`/`offset` and — the point of it — reports how many rows sit before and after
- * each slice, so the list knows its full length from the first page and can be scrolled to any row (the
- * alphabet rail jumping to "M") without loading everything before it. Unloaded rows show as placeholders
- * until their page arrives.
- *
- * [fetch] must not ask for more than the server allows per request (200); the pager's page size keeps it under.
+ * Pages by `limit`/`offset` and reports the rows before and after each slice, so the alphabet rail can jump to any row.
+ * [fetch] must stay within the server's 200-per-request cap.
  */
 class OffsetPagingSource<T : Any>(
     private val fetch: suspend (offset: Int, limit: Int) -> Result<OffsetPage<T>>,

@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- XML-level colors only, for the pre-Compose window background (theme
-         flash prevention). Everything Compose renders uses ui/theme/Color.kt
-         instead. Dark counterpart: values-night/colors.xml. -->
+    <!-- Pre-Compose window background only, to prevent a flash. Compose uses ui/theme/Color.kt. Dark: values-night. -->
     <color name="window_background">#F8FAFC</color>
 </resources>

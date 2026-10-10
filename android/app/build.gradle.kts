@@ -30,9 +30,8 @@ android {
         }
     }
 
-    // The release key (A44) lives outside the repo: locally in ~/.brainlessmusic-signing, and as GitHub Actions
-    // secrets for .github/workflows/android-release.yml. Without these env vars a release build falls back to
-    // the debug key, as it always did, so a local `assembleRelease` still works on any machine.
+    // The release key (A44) lives outside the repo, in ~/.brainlessmusic-signing and in Actions secrets.
+    // Without these env vars a release build falls back to the debug key.
     val releaseKeystore = System.getenv("BRAINLESS_KEYSTORE_PATH")?.takeIf { file(it).exists() }
     signingConfigs {
         if (releaseKeystore != null) {

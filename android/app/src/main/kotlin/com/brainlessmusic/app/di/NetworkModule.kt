@@ -19,8 +19,7 @@ object NetworkModule {
     @Singleton
     fun provideOkHttpClient(authInterceptor: AuthInterceptor): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
-            // BODY would log credentials in the /auth/login request — headers
-            // is enough to debug connectivity without that.
+            // BODY would log the password in /auth/login.
             level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.HEADERS else HttpLoggingInterceptor.Level.NONE
         }
         return OkHttpClient.Builder()

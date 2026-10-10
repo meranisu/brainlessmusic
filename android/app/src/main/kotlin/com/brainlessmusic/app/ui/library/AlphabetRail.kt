@@ -33,13 +33,8 @@ import androidx.compose.ui.unit.sp
 import com.brainlessmusic.app.data.remote.dto.LetterEntryDto
 
 /**
- * The A–Z strip down the right edge of a long list: tap or drag along it and the list jumps to that letter
- * at once, with a large letter shown while a finger is down. [letters] comes from `GET /browse/letters`, so
- * a jump lands on the right row even though most of the list has not been loaded yet. Letters with nothing
- * under them are dimmed but still jump (to where they would be).
- *
- * The root fills the area but draws only the strip and the bubble and takes no touches itself, so the list
- * underneath keeps scrolling normally. [topInset] keeps the strip clear of the floating tab bar.
+ * The A–Z strip on a long list. [letters] comes from `GET /browse/letters`, so a jump lands on rows not yet loaded.
+ * The root takes no touches, so the list underneath still scrolls; [topInset] clears the floating tab bar.
  */
 @Composable
 fun AlphabetRail(

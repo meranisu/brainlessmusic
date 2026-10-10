@@ -4,12 +4,7 @@ import okhttp3.Interceptor
 import okhttp3.Response
 import javax.inject.Inject
 
-/**
- * Attaches `Authorization: Bearer <token>` when one is held. `/health` and
- * `/auth/login` don't need it and ignore the header if present (confirmed
- * against backend/src/plugins/auth.ts — the decorator only runs on routes
- * that ask for it), so this stays unconditional rather than route-aware.
- */
+/** Adds the bearer token when one is held. Public routes ignore the header, so this needn't be route-aware. */
 class AuthInterceptor @Inject constructor(
     private val tokenProvider: TokenProvider,
 ) : Interceptor {

@@ -1,9 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  Debug builds only (overrides src/main): allow plain HTTP so a build can be
-  pointed at the WSL2/LAN dev backend with -PserverUrl=http://10.0.2.2:3000.
-  Release builds are HTTPS-only.
--->
+<!-- Debug builds only: allow plain HTTP for a dev backend (-PserverUrl=http://10.0.2.2:3000). Release is HTTPS-only. -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>

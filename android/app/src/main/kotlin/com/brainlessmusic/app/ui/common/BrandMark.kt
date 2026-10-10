@@ -16,10 +16,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-/**
- * The web app's ringed mark: an outline circle with an accent dot in the middle that breathes.
- * Drawn, not an image, so it scales cleanly and takes any colors.
- */
+/** The web app's ringed mark (outline circle, breathing accent dot), drawn so it scales and takes any colors. */
 @Composable
 fun BrandMark(ringColor: Color, dotColor: Color, size: Dp, animate: Boolean = true, modifier: Modifier = Modifier) {
     val pulse = if (animate) {

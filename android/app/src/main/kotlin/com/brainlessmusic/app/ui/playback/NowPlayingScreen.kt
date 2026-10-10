@@ -102,8 +102,7 @@ fun NowPlayingScreen(
                 .padding(padding)
                 .padding(horizontal = 24.dp),
         ) {
-            // The cover takes whatever height the controls below do not need, as large a square as fits — so a
-            // tall phone gets a big cover rather than a gap at the bottom, and a short one a smaller cover.
+            // The cover is the largest square that fits above the controls.
             Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 CoverImage(
                     url = current.coverUrl,
@@ -239,7 +238,7 @@ private fun TransportRow(state: PlaybackUiState, viewModel: PlaybackViewModel) {
     }
 }
 
-/** What plays after this — in play order, so with shuffle on it is the shuffled next. Tapping opens the queue. */
+/** What plays next, in play order (shuffled when shuffle is on). Tapping opens the queue. */
 @Composable
 private fun UpNextCard(next: QueueItem?, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Surface(

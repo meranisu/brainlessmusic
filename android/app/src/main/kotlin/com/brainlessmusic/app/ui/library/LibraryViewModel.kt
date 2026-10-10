@@ -106,7 +106,7 @@ class LibraryViewModel @Inject constructor(
 
     fun albumCoverUrl(albumId: Int): String? = libraryRepository.albumCoverUrl(albumId)
 
-    /** Queues the tapped song and the ones after it, in list order — and keeps adding from the library as the queue runs down. */
+    /** Queues the tapped song and the ones after it, topping up from the library as the queue runs down. */
     fun playSongsFrom(index: Int) {
         viewModelScope.launch {
             libraryRepository.getTracksPage(index, QUEUE_FROM_TAP).onSuccess { page ->
@@ -121,11 +121,7 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Plays the whole library in a random order: a seeded shuffle from the server, so each song comes up once
-     * before any repeats, and a fresh shuffle starts when a pass ends. Turns the player's shuffle on, so the
-     * batch on hand is also spread by artist.
-     */
+    /** Plays the library in a seeded server shuffle (each song once per pass), with player shuffle on to spread artists. */
     fun shuffleAll() {
         val seed = Random.nextInt(Int.MAX_VALUE)
         viewModelScope.launch {

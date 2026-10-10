@@ -24,10 +24,7 @@ import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
-/**
- * Paths are relative to whatever base URL [ApiServiceFactory] builds — always
- * ending in `/api/`, matching backend/src/app.ts's API_PREFIX.
- */
+/** Paths are relative to the `/api/` base [ApiServiceFactory] builds. */
 interface ApiService {
     @GET("health")
     suspend fun health(): HealthResponse
@@ -41,10 +38,7 @@ interface ApiService {
     @GET("auth/me")
     suspend fun me(): MeResponse
 
-    // 200 is the server's own hard cap (backend/src/utils/pagination.ts) —
-    // fetched as one page rather than built out as real infinite-scroll
-    // paging, since nothing in the phased plan's Phase 1 done-when asks for
-    // it and every library described in .docs/STATUS.md is well under it.
+    // One page at the server's 200 cap (backend/src/utils/pagination.ts); every library here is well under it.
     @GET("artists")
     suspend fun artists(@Query("limit") limit: Int = 200, @Query("offset") offset: Int = 0): ArtistsPageDto
 

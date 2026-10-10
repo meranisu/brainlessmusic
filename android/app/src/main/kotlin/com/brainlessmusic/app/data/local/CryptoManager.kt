@@ -12,14 +12,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * "Encrypted DataStore" for the JWT, built on the framework's own
- * AndroidKeyStore rather than pulling in `androidx.security.crypto`'s
- * EncryptedSharedPreferences — that's a different storage API (and the
- * phased plan explicitly rules out SharedPreferences), whereas this needs to
- * encrypt one string before [SessionStore] writes it into a DataStore
- * `Preferences` value. The AES key is generated inside hardware-backed
- * keystore and never leaves it — only ciphertext + IV are ever held in
- * memory or on disk.
+ * Encrypts the JWT with an AES key that never leaves the AndroidKeyStore, before [SessionStore] writes it to DataStore.
  */
 @Singleton
 class CryptoManager @Inject constructor() {

@@ -6,11 +6,7 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Test
 import kotlin.random.Random
 
-/**
- * The controller hands ExoPlayer the order from [SmartShuffle] through [DefaultShuffleOrder]. This pins the
- * assumption that makes that work — the array is "position in the shuffled sequence -> queue index" — so a
- * wrong reading of the API would fail here instead of showing up as "shuffle does nothing" on a phone.
- */
+/** Pins that [DefaultShuffleOrder]'s array means "shuffled position -> queue index", the reading the controller relies on. */
 class ShuffleOrderContractTest {
 
     @Test

@@ -94,7 +94,7 @@ fun SettingsScreen(
                         },
                     )
                 },
-                // The whole row toggles, not just the switch — a 48 dp target instead of a thumb-sized one.
+                // The whole row toggles, for a 48 dp target.
                 trailingContent = { Switch(checked = autoPlay, onCheckedChange = null) },
                 modifier = Modifier
                     .toggleable(value = autoPlay, role = Role.Switch, onValueChange = viewModel::setAutoPlayOnResume),

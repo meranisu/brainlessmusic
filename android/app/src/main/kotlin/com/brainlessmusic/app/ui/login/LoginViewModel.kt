@@ -66,10 +66,7 @@ class LoginViewModel @Inject constructor(
         _uiState.update { it.copy(mode = EntryMode.LOGIN, loginError = null) }
     }
 
-    /**
-     * Guest goes straight in when the server's guest door is open; only a 401 opens the code form. So on an open
-     * server one press is the whole flow, and the code field never shows.
-     */
+    /** Goes straight in when the guest door is open; only a 401 opens the code form. */
     fun chooseGuest(onEntered: (username: String) -> Unit) {
         _uiState.update { it.copy(mode = EntryMode.GUEST, guestError = null) }
         enterAsGuest(onEntered)

@@ -177,11 +177,7 @@ private fun LibraryTabBar(selected: LibraryTab, onSelect: (LibraryTab) -> Unit, 
     }
 }
 
-/**
- * Loading, error and empty states for a paged list; [content] draws it once there is something to show.
- * Only the first load is handled here — a later page that fails just leaves its placeholders, and
- * scrolling to them tries again.
- */
+/** Loading, error and empty states for a paged list's first load; a later page that fails retries on scroll. */
 @Composable
 private fun <T : Any> PagedContent(
     items: LazyPagingItems<T>,
@@ -219,7 +215,7 @@ private fun SongsTab(viewModel: LibraryViewModel, listState: LazyListState) {
     val scope = rememberCoroutineScope()
     RegisterRefresh(viewModel, items::refresh)
 
-    PagedContent(items, emptyMessage = "No songs yet — scan your library from the web app.") {
+    PagedContent(items, emptyMessage = "No songs yet. Scan your library from the web app.") {
         val firstVisible by remember { derivedStateOf { listState.firstVisibleItemIndex } }
         Box(Modifier.fillMaxSize()) {
             LazyColumn(
@@ -279,7 +275,7 @@ private fun AlbumsTab(viewModel: LibraryViewModel, navController: NavHostControl
     val scope = rememberCoroutineScope()
     RegisterRefresh(viewModel, items::refresh)
 
-    PagedContent(items, emptyMessage = "No albums yet — scan your library from the web app.") {
+    PagedContent(items, emptyMessage = "No albums yet. Scan your library from the web app.") {
         val firstVisible by remember { derivedStateOf { gridState.firstVisibleItemIndex } }
         Box(Modifier.fillMaxSize()) {
             LazyVerticalGrid(
@@ -345,7 +341,7 @@ private fun ArtistsTab(viewModel: LibraryViewModel, navController: NavHostContro
     val scope = rememberCoroutineScope()
     RegisterRefresh(viewModel, items::refresh)
 
-    PagedContent(items, emptyMessage = "No artists yet — scan your library from the web app.") {
+    PagedContent(items, emptyMessage = "No artists yet. Scan your library from the web app.") {
         val firstVisible by remember { derivedStateOf { listState.firstVisibleItemIndex } }
         Box(Modifier.fillMaxSize()) {
             LazyColumn(
@@ -386,7 +382,7 @@ private fun ArtistRow(artist: ArtistSummaryDto, onClick: () -> Unit) {
     )
 }
 
-/** The server does not read genre tags yet (no column, no scanner extraction, no endpoint) — see A22 in QUESTIONS.md. */
+/** The server doesn't read genre tags yet (A22). */
 @Composable
 private fun GenresTab() {
     Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {

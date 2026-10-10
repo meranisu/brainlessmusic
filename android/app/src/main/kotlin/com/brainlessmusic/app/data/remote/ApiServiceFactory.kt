@@ -7,14 +7,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Retrofit wants a fixed base URL at construction time, but the server
- * address is only known once the user types it into the server-config
- * screen — so instead of a Hilt-provided [ApiService] singleton, this is a
- * cached, rebuild-on-change factory. Rebuilding is cheap (no network I/O)
- * and only happens when the URL actually changes, so repeated calls with the
- * same URL — the common case, since it's typed once — reuse one instance.
- */
+/** Builds [ApiService] for a base URL and reuses it until the URL changes, since Retrofit fixes it at construction. */
 @Singleton
 class ApiServiceFactory @Inject constructor(
     private val okHttpClient: OkHttpClient,
@@ -46,12 +39,7 @@ class ApiServiceFactory @Inject constructor(
     }
 
     companion object {
-        /**
-         * `backend/src/app.ts` mounts everything under `/api` — the user
-         * types the bare server address (e.g. `http://10.0.2.2:3000`, the
-         * same form the backend's own dev docs use), this appends the
-         * prefix Retrofit's relative `@GET`/`@POST` paths expect.
-         */
+        /** Appends the `/api/` prefix the backend mounts every route under (`backend/src/app.ts`). */
         fun normalize(rawServerUrl: String): String {
             val trimmed = rawServerUrl.trim().trimEnd('/')
             return "$trimmed/api/"
