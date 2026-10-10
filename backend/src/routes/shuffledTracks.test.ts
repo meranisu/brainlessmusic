@@ -11,6 +11,7 @@ import { resetDatabase } from '../testing/harness.js';
 
 let app: FastifyInstance;
 let token: string;
+let userId: number;
 let rootId: number;
 
 before(async () => {
@@ -25,6 +26,7 @@ after(async () => {
 beforeEach(() => {
   resetDatabase();
   const user = insertUser('alice', 'hash');
+  userId = user.id;
   token = signToken({ id: user.id, username: user.username });
   rootId = insertLibraryRoot('/library', null).id;
 });
@@ -94,6 +96,70 @@ describe('GET /api/browse/shuffled', () => {
     const past = (await shuffled('seed=3&offset=100&limit=50')).json() as { total: number; tracks: unknown[] };
     assert.equal(past.total, 4);
     assert.equal(past.tracks.length, 0);
+  });
+
+  it('rejects an unknown mode or a malformed asOf', async () => {
+    addTracks(3);
+    for (const q of ['seed=1&mode=loud', 'seed=1&mode=rediscover&asOf=soon', 'seed=1&mode=rediscover&asOf=-5']) {
+      assert.equal((await shuffled(q)).statusCode, 400, q);
+    }
+  });
+
+  it('albums: plays whole albums in track order, every song once', async () => {
+    const add = (album: string | null, n: number, trackNumber: number | null) =>
+      upsertTrack({
+        path: `/library/${album}-${n}.mp3`,
+        title: `${album} ${n}`,
+        artistName: 'Band',
+        albumTitle: album,
+        albumYear: null,
+        trackNumber,
+        duration: 100,
+        format: 'MP3',
+        fileSize: 1000,
+        rootId,
+      }).id;
+    // Added out of order, so track order has to come from the numbers.
+    const a = [add('A', 3, 3), add('A', 1, 1), add('A', 2, 2)];
+    const b = [add('B', 2, 2), add('B', 1, 1)];
+    const single = add(null, 1, null);
+
+    for (const seed of [1, 2, 3, 4]) {
+      const body = (await shuffled(`seed=${seed}&mode=albums&limit=50`)).json() as { total: number; tracks: { id: number }[] };
+      const ids = body.tracks.map((t) => t.id);
+      assert.equal(body.total, 6);
+      assert.deepEqual([...ids].sort((x, y) => x - y), [...a, ...b, single].sort((x, y) => x - y));
+      const inOrder = (album: number[]) => {
+        const at = ids.indexOf(album[0]);
+        assert.deepEqual(ids.slice(at, at + album.length), album, `seed ${seed}: ${ids}`);
+      };
+      inOrder([a[1], a[2], a[0]]);
+      inOrder([b[1], b[0]]);
+    }
+  });
+
+  it('rediscover: songs not played for a long time come first, and later plays do not move them', async () => {
+    const ids = addTracks(40);
+    const recent = ids.slice(0, 20);
+    const play = db.prepare('INSERT INTO play_history (user_id, track_id, played_at) VALUES (?, ?, ?)');
+    for (const id of recent) play.run(userId, id, '2026-01-01 10:00:00');
+    const asOf = Date.parse('2026-01-01T12:00:00Z') / 1000;
+
+    let recentInFirstHalf = 0;
+    for (let seed = 1; seed <= 10; seed++) {
+      const body = (await shuffled(`seed=${seed}&mode=rediscover&asOf=${asOf}&limit=50`)).json() as { tracks: { id: number }[] };
+      const firstHalf = body.tracks.slice(0, 20).map((t) => t.id);
+      assert.equal(body.tracks.length, 40);
+      recentInFirstHalf += firstHalf.filter((id) => recent.includes(id)).length;
+    }
+    // Plain random would put about half of them there (100 of 200); weighted, far fewer.
+    assert.ok(recentInFirstHalf < 40, `recent songs in the first half: ${recentInFirstHalf} of 200`);
+
+    const order = async () =>
+      ((await shuffled(`seed=7&mode=rediscover&asOf=${asOf}&limit=50`)).json() as { tracks: { id: number }[] }).tracks.map((t) => t.id);
+    const before = await order();
+    play.run(userId, ids[39], '2026-01-01 13:00:00');
+    assert.deepEqual(await order(), before);
   });
 
   it('caps a page at the server-wide limit', async () => {

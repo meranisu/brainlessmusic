@@ -71,6 +71,12 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A77 — Both new shuffle modes: Rediscover and Albums *(was Q82)*
+**Answered:** 2026-10-11, in chat: "yes both, so the button shuffle has four types now". Read as: the Now Playing
+shuffle button cycles off → Shuffle → Rediscover → Albums, like repeat. Rediscover leans toward songs this user has
+not played for a long time or ever (`play_history`); Albums plays random albums, each in track order. Built in the
+2026-10-11 "Shuffle modes" CHANGELOG entry.
+
 ### A76 — Open registration is off, and the outside gate is Access *(was Q2)*
 **Answered:** 2026-10-11, by [A74](#a74--cloudflare-access-goes-in-front-of-the-public-hostname-was-q30). Q2 was to
 close once Q30 was answered either way. `ALLOW_OPEN_REGISTRATION=false` and `ENTRY_CODE` were set on smol on

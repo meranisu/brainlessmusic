@@ -65,3 +65,50 @@ export function seededShuffle<T>(items: T[], seed: number): T[] {
   }
   return result;
 }
+
+/**
+ * A seeded order where heavier items tend to come earlier (Efraimidis–Spirakis: sort by `u^(1/w)`). Every item is still
+ * in it once; weight only moves it forward. Same seed and weights, same order.
+ */
+export function seededWeightedOrder<T>(items: T[], weight: (item: T) => number, seed: number): T[] {
+  const random = seededRandom(seed);
+  return items
+    .map((item) => ({ item, key: Math.pow(random(), 1 / Math.max(weight(item), Number.MIN_VALUE)) }))
+    .sort((a, b) => b.key - a.key)
+    .map(({ item }) => item);
+}
+
+/** Rediscover's cap: a song unplayed for this long, or never played, is as far forward as a song gets. */
+export const REDISCOVER_MAX_DAYS = 365;
+
+/** Rediscover's weight for a song last played [daysAgo] days back (`null`: never): 1 for today, about 27 at the cap. */
+export function rediscoverWeight(daysAgo: number | null): number {
+  const days = daysAgo === null ? REDISCOVER_MAX_DAYS : Math.min(Math.max(daysAgo, 0), REDISCOVER_MAX_DAYS);
+  return 1 + days / 14;
+}
+
+export interface AlbumTrack {
+  id: number;
+  albumId: number | null;
+  trackNumber: number | null;
+}
+
+/**
+ * Albums in a seeded order, each played through in track order (unnumbered last, then by id). A track with no album
+ * is an album of its own.
+ */
+export function seededAlbumOrder(tracks: AlbumTrack[], seed: number): number[] {
+  const albums = new Map<string, AlbumTrack[]>();
+  for (const track of tracks) {
+    const key = track.albumId === null ? `track:${track.id}` : `album:${track.albumId}`;
+    const list = albums.get(key);
+    if (list) list.push(track);
+    else albums.set(key, [track]);
+  }
+  // Map keys keep first-seen order, and the input is in id order, so the seed alone fixes the result.
+  return seededShuffle([...albums.values()], seed).flatMap((album) =>
+    [...album]
+      .sort((a, b) => (a.trackNumber ?? Infinity) - (b.trackNumber ?? Infinity) || a.id - b.id)
+      .map((track) => track.id),
+  );
+}

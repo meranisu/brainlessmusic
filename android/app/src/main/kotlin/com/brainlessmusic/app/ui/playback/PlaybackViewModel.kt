@@ -38,7 +38,7 @@ class PlaybackViewModel @Inject constructor(
     fun next() = controller.skipToNext()
     fun previous() = controller.skipToPrevious()
     fun skipTo(index: Int) = controller.skipToIndex(index)
-    fun toggleShuffle() = controller.toggleShuffle()
+    fun cycleShuffle() = controller.cycleShuffle()
     fun cycleRepeat() = controller.cycleRepeat()
 
     fun removeFromQueue(index: Int): RemovedEntry? = controller.removeAt(index)

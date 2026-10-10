@@ -9,10 +9,23 @@ sealed interface QueueSource {
     data class Songs(val nextOffset: Int, val search: String? = null) : QueueSource
 
     /**
-     * The whole library in the order fixed by [seed]; when a pass ends a fresh seed starts the next, so it never stops.
-     * [skipTrackId] is the song the queue started from, left out of this pass so it does not come round again.
+     * The whole library in the order fixed by [seed] and [mode]; when a pass ends a fresh seed starts the next, so it
+     * never stops. [skipTrackId] is the song the queue started from, left out of this pass so it does not come round
+     * again. [asOf] (Unix seconds) is when the pass began, so Rediscover's order holds still while it plays.
      */
-    data class Shuffled(val seed: Int, val nextOffset: Int, val skipTrackId: Int? = null) : QueueSource
+    data class Shuffled(
+        val seed: Int,
+        val nextOffset: Int,
+        val skipTrackId: Int? = null,
+        val mode: ShuffleMode = ShuffleMode.SHUFFLE,
+        val asOf: Long = System.currentTimeMillis() / 1000,
+    ) : QueueSource {
+        companion object {
+            /** A new pass in [mode], with a fresh seed. */
+            fun fresh(mode: ShuffleMode, skipTrackId: Int? = null) =
+                Shuffled(kotlin.random.Random.nextInt(Int.MAX_VALUE), 0, skipTrackId, mode)
+        }
+    }
 }
 
 /** The unfiltered songs list in title order: shuffling a batch of it only mixes songs that share a first letter. */

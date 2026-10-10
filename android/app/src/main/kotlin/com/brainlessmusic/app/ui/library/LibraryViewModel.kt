@@ -31,7 +31,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import kotlin.random.Random
 
 enum class LibraryTab(val label: String, val letterScope: String?) {
     SONGS("Songs", "tracks"),
@@ -142,16 +141,19 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    /** Plays the library in a seeded server shuffle (each song once per pass), with player shuffle on to spread artists. */
+    /**
+     * Plays the library in a seeded server shuffle (each song once per pass), in the mode picked on the shuffle button
+     * (plain shuffle when it is off), with player shuffle on.
+     */
     fun shuffleAll() {
-        val seed = Random.nextInt(Int.MAX_VALUE)
+        val pass = QueueSource.Shuffled.fresh(playbackController.libraryShuffleMode())
         viewModelScope.launch {
-            libraryRepository.getShuffledPage(seed, 0, QUEUE_FROM_TAP).onSuccess { page ->
+            libraryRepository.getShuffledPage(pass.seed, pass.mode.apiName ?: "shuffle", pass.asOf, 0, QUEUE_FROM_TAP).onSuccess { page ->
                 if (page.tracks.isEmpty()) return@onSuccess
                 playbackController.playQueue(
                     items = page.tracks.map(libraryRepository::queueItem),
                     startIndex = 0,
-                    source = QueueSource.Shuffled(seed, page.tracks.size),
+                    source = pass.copy(nextOffset = page.tracks.size),
                     shuffle = true,
                 )
             }

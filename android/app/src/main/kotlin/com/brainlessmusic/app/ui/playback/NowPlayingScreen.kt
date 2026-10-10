@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -51,6 +53,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.brainlessmusic.app.playback.PlaybackUiState
 import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.playback.Repeat
+import com.brainlessmusic.app.playback.ShuffleMode
 import com.brainlessmusic.app.playback.StreamInfo
 import com.brainlessmusic.app.ui.common.CoverImage
 import com.brainlessmusic.app.ui.common.formatDuration
@@ -211,14 +214,26 @@ private fun TransportRow(state: PlaybackUiState, viewModel: PlaybackViewModel) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        // Lit while on, so the state reads at a glance without a label.
+        // Lit while on, and the icon changes per mode, like repeat; the queue sheet names the mode in words.
         IconButton(
-            onClick = viewModel::toggleShuffle,
+            onClick = viewModel::cycleShuffle,
             colors = IconButtonDefaults.iconButtonColors(
                 contentColor = if (state.shuffle) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             ),
         ) {
-            Icon(Icons.Filled.Shuffle, contentDescription = if (state.shuffle) "Shuffle on" else "Shuffle off")
+            Icon(
+                imageVector = when (state.shuffleMode) {
+                    ShuffleMode.OFF, ShuffleMode.SHUFFLE -> Icons.Filled.Shuffle
+                    ShuffleMode.REDISCOVER -> Icons.Filled.History
+                    ShuffleMode.ALBUMS -> Icons.Filled.Album
+                },
+                contentDescription = when (state.shuffleMode) {
+                    ShuffleMode.OFF -> "Shuffle off"
+                    ShuffleMode.SHUFFLE -> "Shuffle on"
+                    ShuffleMode.REDISCOVER -> "Rediscover: songs you have not played in a while first"
+                    ShuffleMode.ALBUMS -> "Album shuffle: random albums, in track order"
+                },
+            )
         }
         IconButton(onClick = viewModel::previous, enabled = state.hasPrevious || state.positionMs > 3_000) {
             Icon(Icons.Filled.SkipPrevious, contentDescription = "Previous", modifier = Modifier.size(36.dp))

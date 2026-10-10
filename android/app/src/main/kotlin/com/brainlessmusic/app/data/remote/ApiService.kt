@@ -89,7 +89,13 @@ interface ApiService {
     ): TracksPageDto
 
     @GET("browse/shuffled")
-    suspend fun shuffled(@Query("seed") seed: Int, @Query("limit") limit: Int, @Query("offset") offset: Int): ShuffledTracksPageDto
+    suspend fun shuffled(
+        @Query("seed") seed: Int,
+        @Query("mode") mode: String,
+        @Query("asOf") asOf: Long,
+        @Query("limit") limit: Int,
+        @Query("offset") offset: Int,
+    ): ShuffledTracksPageDto
 
     @GET("browse/letters")
     suspend fun letters(@Query("scope") scope: String): LetterIndexDto

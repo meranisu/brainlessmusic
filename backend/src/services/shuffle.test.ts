@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { seededShuffle, smartShuffle, type ShuffleTrack } from './shuffle.js';
+import { rediscoverWeight, seededAlbumOrder, seededShuffle, seededWeightedOrder, smartShuffle, type ShuffleTrack } from './shuffle.js';
 
 function adjacentSameArtistPairs(order: number[], tracks: ShuffleTrack[]): number {
   const artistById = new Map(tracks.map((t) => [t.trackId, t.artistId]));
@@ -109,4 +109,35 @@ test('seededShuffle: keeps every id exactly once, leaves the input alone, and re
 test('seededShuffle: handles empty and single-item lists', () => {
   assert.deepEqual(seededShuffle([], 1), []);
   assert.deepEqual(seededShuffle([9], 1), [9]);
+});
+
+test('seededWeightedOrder: same seed, same order; every item once', () => {
+  const items = Array.from({ length: 50 }, (_, i) => i);
+  const weight = (i: number) => (i % 2 === 0 ? 10 : 1);
+  const order = seededWeightedOrder(items, weight, 9);
+  assert.deepEqual(order, seededWeightedOrder(items, weight, 9));
+  assert.deepEqual([...order].sort((a, b) => a - b), items);
+});
+
+test('rediscoverWeight: grows with time since the last play, never-played is the cap', () => {
+  assert.equal(rediscoverWeight(0), 1);
+  assert.ok(rediscoverWeight(30) > rediscoverWeight(1));
+  assert.equal(rediscoverWeight(null), rediscoverWeight(365));
+  assert.equal(rediscoverWeight(5000), rediscoverWeight(365));
+  assert.equal(rediscoverWeight(-3), 1);
+});
+
+test('seededAlbumOrder: a track with no album stands alone; unnumbered tracks go last', () => {
+  const order = seededAlbumOrder(
+    [
+      { id: 1, albumId: 7, trackNumber: null },
+      { id: 2, albumId: 7, trackNumber: 2 },
+      { id: 3, albumId: null, trackNumber: null },
+      { id: 4, albumId: 7, trackNumber: 1 },
+    ],
+    5,
+  );
+  const at = order.indexOf(4);
+  assert.deepEqual(order.slice(at, at + 3), [4, 2, 1]);
+  assert.equal(order.length, 4);
 });

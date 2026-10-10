@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import com.brainlessmusic.app.playback.PlaybackUiState
 import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.playback.RemovedEntry
+import com.brainlessmusic.app.playback.ShuffleMode
 import com.brainlessmusic.app.ui.common.formatDuration
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
@@ -167,7 +168,12 @@ fun QueueSheet(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
-                    "${state.queue.size} track${if (state.queue.size == 1) "" else "s"}" + if (state.shuffle) " · shuffled" else "",
+                    "${state.queue.size} track${if (state.queue.size == 1) "" else "s"}" + when (state.shuffleMode) {
+                        ShuffleMode.OFF -> ""
+                        ShuffleMode.SHUFFLE -> " · shuffled"
+                        ShuffleMode.REDISCOVER -> " · rediscover"
+                        ShuffleMode.ALBUMS -> " · album shuffle"
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,

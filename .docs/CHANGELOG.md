@@ -4,6 +4,27 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Shuffle modes: Rediscover and Albums (A77); web app version 0.2.0
+
+- `GET /browse/shuffled` takes `mode=shuffle|rediscover|albums` (default `shuffle`, unchanged) and `asOf` (Unix
+  seconds, default now). `rediscover` is a seeded weighted order (Efraimidis–Spirakis): weight `1 + days/14` since this
+  user's last play, capped at 365 days, never-played at the cap, so a song played today has weight 1 and a forgotten
+  one about 27. Every song is still in the pass once. Plays after `asOf` are ignored, so playing a song mid-pass does
+  not reshuffle the pages still to come. `albums` shuffles albums by seed and plays each in track number order
+  (unnumbered last); a song with no album counts as its own album. "Less often" marks apply in every mode.
+- Android: the Now Playing shuffle button cycles off → Shuffle → Rediscover (history icon) → Albums (album icon),
+  like repeat. The queue sheet names the mode ("· rediscover", "· album shuffle"). The mode is saved across launches;
+  an old on/off setting reads as Shuffle. Library queues (shuffle all, a tapped song in Songs) ask the server for the
+  chosen mode; changing modes mid-way through a library shuffle replaces what was still coming from the library, and
+  keeps "Play next" songs. A fixed queue (album, playlist, search) plays its own songs in album order for Albums; it
+  has no play history on the phone, so Rediscover there is a plain shuffle.
+- Web app version 0.1.0 → 0.2.0 (`frontend/package.json`, shown on the title screen). It had not moved since the start.
+- Verified: backend `npm test` 418/418, with new route tests for both modes (rejecting a bad mode or `asOf`, whole
+  albums in track order, recently played songs pushed back, a later play not moving the order) and service tests.
+  Android `./gradlew compileDebugKotlin testDebugUnitTest` 42/42, including two new `AlbumShuffleTest` cases.
+  Frontend `npm run build` clean. Not run on a phone, emulator or the real server. The new modes need the backend
+  deployed on smol; until then an older server ignores `mode` and plays plain shuffle.
+
 ## 2026-10-11 — Android: shuffle after tapping a song covers the whole library
 
 - Bug: with shuffle on, tapping a song in Songs only shuffled songs starting with the same letter. The tap queued the

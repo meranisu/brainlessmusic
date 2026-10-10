@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `GET /browse/shuffled` (`mode`, `asOf`) — `backend/src/routes/shuffledTracks.ts`; `seededWeightedOrder()`, `rediscoverWeight()`, `seededAlbumOrder()` — `backend/src/services/shuffle.ts`; `listPlayableAlbumPlaces()`, `lastPlayedByUser()` — `backend/src/db/shuffledTracks.ts`; `ShuffleMode`, `AlbumShuffle.order()` — `android/.../playback/`; `PlaybackController.cycleShuffle()` (was `toggleShuffle()`), `applyShuffleOrder()` (was `applySmartShuffle()`), `libraryShuffleMode()`, `appendItems()`, `playQueue()`; `QueueSource.Shuffled` (`mode`, `asOf`, `fresh()`); `PlaybackSettings.shuffleMode`; `LibraryViewModel.shuffleAll()`; the Now Playing shuffle button and queue sheet subtitle
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** two more shuffle modes (A77): Rediscover (songs not played in a while first) and Albums (random albums in track order).
+**Side effects:** reads `play_history` per request in Rediscover mode; DataStore key `shuffle_mode` (the old `shuffle` boolean is read once as a fallback).
+**Before:** shuffle was on or off; the server shuffle had one order.
+**After:** as described in the 2026-10-11 "Shuffle modes" CHANGELOG entry.
+
 **Function:** `loadQueue()`, `toggleShuffle()`, `nextChunk()`, `maybeRefill()`, new `librarySource()` and `continueWithLibraryShuffle()` — `android/.../playback/PlaybackController.kt`; `QueueSource.Shuffled.skipTrackId`, `isLibraryInTitleOrder` — `playback/QueueSource.kt`
 **Date:** 2026-10-11
 **How added:** bug fix

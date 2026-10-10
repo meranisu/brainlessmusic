@@ -111,7 +111,8 @@ class PlaybackController @Inject constructor(
     private var errorMessage: String? = null
 
     // The listener's shuffle/repeat choice, applied to the player whenever a queue is loaded.
-    private var wantShuffle = false
+    private var wantMode = ShuffleMode.OFF
+    private val wantShuffle get() = wantMode != ShuffleMode.OFF
     private var wantRepeat = Player.REPEAT_MODE_OFF
 
     // Where the queue is topped up from as it runs low (see QueueSource). `generation` changes whenever the queue is
@@ -125,17 +126,22 @@ class PlaybackController @Inject constructor(
 
     init {
         scope.launch {
-            wantShuffle = settings.shuffle.first()
+            wantMode = settings.shuffleMode.first()
             wantRepeat = settings.repeatMode.first()
         }
         scope.launch { settings.transitions.collect { transitions = it } }
     }
 
-    /** Replaces the queue and starts playing [startIndex]. */
+    /** Replaces the queue and starts playing [startIndex]. [shuffle] true turns shuffle on (keeping its mode), false off. */
     fun playQueue(items: List<QueueItem>, startIndex: Int, source: QueueSource? = null, shuffle: Boolean? = null) {
-        if (shuffle != null && shuffle != wantShuffle) {
-            wantShuffle = shuffle
-            scope.launch { settings.setShuffle(shuffle) }
+        val mode = when (shuffle) {
+            null -> wantMode
+            true -> libraryShuffleMode()
+            false -> ShuffleMode.OFF
+        }
+        if (mode != wantMode) {
+            wantMode = mode
+            scope.launch { settings.setShuffleMode(mode) }
         }
         loadQueue(items, startIndex, 0L, play = true, source)
     }
@@ -171,7 +177,7 @@ class PlaybackController @Inject constructor(
         playNextPending = 0
         resetFades()
         player.setMediaItems(mediaItems, index, positionMs.coerceAtLeast(0))
-        if (wantShuffle) applySmartShuffle(first = index)
+        if (wantShuffle) applyShuffleOrder(first = index)
         player.prepare()
         if (play) playWithFade()
         beginTrack()
@@ -249,11 +255,13 @@ class PlaybackController @Inject constructor(
                 return page.tracks.map(libraryRepository::queueItem)
             }
             is QueueSource.Shuffled -> {
-                val page = libraryRepository.getShuffledPage(current.seed, current.nextOffset, REFILL_CHUNK).getOrNull() ?: return null
+                val page = libraryRepository
+                    .getShuffledPage(current.seed, current.mode.apiName ?: "shuffle", current.asOf, current.nextOffset, REFILL_CHUNK)
+                    .getOrNull() ?: return null
                 val next = current.nextOffset + page.tracks.size
                 // End of this pass: start another with a fresh seed rather than stopping.
                 source = if (page.tracks.isEmpty() || next >= page.total) {
-                    QueueSource.Shuffled(kotlin.random.Random.nextInt(Int.MAX_VALUE), 0)
+                    QueueSource.Shuffled.fresh(current.mode)
                 } else {
                     current.copy(nextOffset = next)
                 }
@@ -270,10 +278,15 @@ class PlaybackController @Inject constructor(
         repeat(items.size) { keys.add(nextKey++) }
         player.addMediaItems(mediaItems)
         if (player.shuffleModeEnabled) {
-            // ExoPlayer scatters new items through the shuffle order; put them back at the end instead.
+            // ExoPlayer scatters new items through the shuffle order; put them back at the end instead. A library
+            // album shuffle arrives in album order from the server already.
             val existing = shuffledSequence().filter { it < firstNew }
-            val keys = items.map { it.artist?.trim()?.lowercase()?.takeIf(String::isNotEmpty) }
-            val chunk = SmartShuffle.order(keys).map { firstNew + it }
+            val chunkOrder = when {
+                wantMode == ShuffleMode.ALBUMS && source is QueueSource.Shuffled -> items.indices.toList().toIntArray()
+                wantMode == ShuffleMode.ALBUMS -> AlbumShuffle.order(items.map { it.albumId }, items.map { it.trackNumber })
+                else -> SmartShuffle.order(items.map(::artistKey))
+            }
+            val chunk = chunkOrder.map { firstNew + it }
             player.setShuffleOrder(DefaultShuffleOrder((existing + chunk).toIntArray(), System.nanoTime()))
         }
         publish()
@@ -291,12 +304,24 @@ class PlaybackController @Inject constructor(
         return sequence
     }
 
-    /** Replaces ExoPlayer's random shuffle with [SmartShuffle]'s artist-spread order, starting from [first]. */
-    private fun applySmartShuffle(first: Int) {
+    /**
+     * Replaces ExoPlayer's random shuffle with the order [wantMode] asks for, starting from [first]: albums in track
+     * order, or [SmartShuffle]'s artist spread. A library album shuffle is in album order already, so it stays as is.
+     */
+    private fun applyShuffleOrder(first: Int) {
         if (queue.size < 2) return
-        val keys = queue.map { it.artist?.trim()?.lowercase()?.takeIf(String::isNotEmpty) }
-        player.setShuffleOrder(DefaultShuffleOrder(SmartShuffle.order(keys, first), System.nanoTime()))
+        val order = when {
+            wantMode == ShuffleMode.ALBUMS && source is QueueSource.Shuffled -> IntArray(queue.size) { it }
+            wantMode == ShuffleMode.ALBUMS -> AlbumShuffle.order(queue.map { it.albumId }, queue.map { it.trackNumber }, first)
+            else -> SmartShuffle.order(queue.map(::artistKey), first)
+        }
+        player.setShuffleOrder(DefaultShuffleOrder(order, System.nanoTime()))
     }
+
+    private fun artistKey(item: QueueItem): String? = item.artist?.trim()?.lowercase()?.takeIf(String::isNotEmpty)
+
+    /** The mode a library-wide shuffle plays in: the one picked on the button, or plain shuffle when it is off. */
+    fun libraryShuffleMode(): ShuffleMode = if (wantMode == ShuffleMode.OFF) ShuffleMode.SHUFFLE else wantMode
 
     fun togglePlayPause() {
         if (queue.isEmpty()) return
@@ -414,25 +439,30 @@ class PlaybackController @Inject constructor(
         publish()
     }
 
-    fun toggleShuffle() {
-        wantShuffle = !wantShuffle
+    /** Off, then Shuffle, Rediscover and Albums (A77). */
+    fun cycleShuffle() {
+        wantMode = wantMode.next()
         player.shuffleModeEnabled = wantShuffle
-        if (wantShuffle && source.isLibraryInTitleOrder) {
+        val current = source
+        if (queue.isNotEmpty() && wantShuffle &&
+            (current.isLibraryInTitleOrder || (current is QueueSource.Shuffled && current.mode != wantMode))
+        ) {
             continueWithLibraryShuffle()
         } else if (wantShuffle) {
-            applySmartShuffle(first = player.currentMediaItemIndex)
+            applyShuffleOrder(first = player.currentMediaItemIndex)
         }
-        scope.launch { settings.setShuffle(wantShuffle) }
+        val mode = wantMode
+        scope.launch { settings.setShuffleMode(mode) }
         publish()
     }
 
-    /** The whole library in a fresh seeded shuffle, without [from] in its first pass. */
-    private fun librarySource(from: QueueItem) =
-        QueueSource.Shuffled(kotlin.random.Random.nextInt(Int.MAX_VALUE), 0, skipTrackId = from.trackId)
+    /** The whole library shuffled the way [wantMode] says, without [from] in its first pass. */
+    private fun librarySource(from: QueueItem) = QueueSource.Shuffled.fresh(wantMode, skipTrackId = from.trackId)
 
     /**
-     * Shuffle turned on mid-way through the songs list in title order: the rest of that batch would only mix songs
-     * sharing a letter, so it goes, and the whole library shuffled follows the current song and any "Play next" ones.
+     * Shuffle turned on mid-way through the songs list in title order (the rest of that batch would only mix songs
+     * sharing a letter), or switched to another mode during a library shuffle: what was coming from the library goes,
+     * and the whole library in the new mode follows the current song and any "Play next" ones.
      */
     private fun continueWithLibraryShuffle() {
         val current = player.currentMediaItemIndex
@@ -776,6 +806,7 @@ class PlaybackController @Inject constructor(
             nextIndex = player.nextMediaItemIndex.takeIf { it != C.INDEX_UNSET } ?: -1,
             playOrder = if (player.shuffleModeEnabled && queue.isNotEmpty()) shuffledSequence() else emptyList(),
             shuffle = player.shuffleModeEnabled,
+            shuffleMode = if (player.shuffleModeEnabled) libraryShuffleMode() else ShuffleMode.OFF,
             repeat = when (player.repeatMode) {
                 Player.REPEAT_MODE_ALL -> Repeat.ALL
                 Player.REPEAT_MODE_ONE -> Repeat.ONE

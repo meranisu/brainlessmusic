@@ -40,8 +40,9 @@ class LibraryRepository @Inject constructor(
         callApi { it.albums(limit, offset) }
 
     /** A page of the whole library in the random order fixed by [seed]; the same seed always gives the same order. */
-    suspend fun getShuffledPage(seed: Int, offset: Int, limit: Int): Result<ShuffledTracksPageDto> =
-        callApi { it.shuffled(seed, limit, offset) }
+    /** [mode] is a [com.brainlessmusic.app.playback.ShuffleMode.apiName]; [asOf] is when the pass started, in Unix seconds. */
+    suspend fun getShuffledPage(seed: Int, mode: String, asOf: Long, offset: Int, limit: Int): Result<ShuffledTracksPageDto> =
+        callApi { it.shuffled(seed, mode, asOf, limit, offset) }
 
     suspend fun getArtistsPage(offset: Int, limit: Int): Result<ArtistsPageDto> =
         callApi { it.artists(limit, offset) }

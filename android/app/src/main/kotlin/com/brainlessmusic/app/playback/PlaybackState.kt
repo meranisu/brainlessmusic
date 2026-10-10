@@ -46,7 +46,9 @@ data class PlaybackUiState(
     val nextIndex: Int = -1,
     /** With shuffle on: queue indices in the order they will play (current track first). Empty otherwise. */
     val playOrder: List<Int> = emptyList(),
+    /** Whether the play order is shuffled; [shuffleMode] says which way. */
     val shuffle: Boolean = false,
+    val shuffleMode: ShuffleMode = ShuffleMode.OFF,
     val repeat: Repeat = Repeat.OFF,
     val stream: StreamInfo? = null,
 ) {
