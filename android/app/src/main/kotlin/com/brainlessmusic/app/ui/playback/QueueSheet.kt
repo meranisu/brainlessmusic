@@ -1,0 +1,331 @@
+package com.brainlessmusic.app.ui.playback
+
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.brainlessmusic.app.playback.PlaybackUiState
+import com.brainlessmusic.app.playback.QueueItem
+import com.brainlessmusic.app.playback.RemovedEntry
+import com.brainlessmusic.app.ui.common.formatDuration
+import kotlinx.coroutines.launch
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
+
+// Text in the sheet lines up with the player's 24 dp sides; ListItem adds its own 16 dp inside the row.
+private val SidePadding = 24.dp
+private val RowInset = SidePadding - 16.dp
+private val RowShape = RoundedCornerShape(12.dp)
+
+// Fixed rather than themed: red and blue read as "remove" and "less" in every colour theme, and the default theme's
+// accent is already orange.
+private val RemoveColor = Color(0xFFDC2626)
+private val LessOftenColor = Color(0xFF2563EB)
+
+/** One queue entry as the sheet lists it: [key] is stable across moves, [queueIndex] is where it sits now. */
+private data class QueueRow(val key: Long, val queueIndex: Int, val item: QueueItem)
+
+/**
+ * The queue, in play order. Swipe left to remove, right to play less often (accounts only), drag the handle to move,
+ * search to narrow it down. The playing track can't be swiped or searched away from its highlight.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun QueueSheet(
+    state: PlaybackUiState,
+    canPlayLessOften: Boolean,
+    onSkipTo: (Int) -> Unit,
+    onRemove: (Int) -> RemovedEntry?,
+    onPlayLessOften: (Int) -> RemovedEntry?,
+    onUndo: (RemovedEntry, lessOften: Boolean) -> Unit,
+    onMove: (from: Int, to: Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState()
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val latest by rememberUpdatedState(state)
+    var query by remember { mutableStateOf("") }
+
+    // With shuffle on, the list order is not the play order; show what will actually play, in that order.
+    val order = if (state.shuffle && state.playOrder.size == state.queue.size) state.playOrder else state.queue.indices.toList()
+    val fromState = order.mapNotNull { i -> state.keys.getOrNull(i)?.let { QueueRow(it, i, state.queue[i]) } }
+
+    // Dragging reorders this copy live; the player hears about it once, on drop.
+    var rows by remember { mutableStateOf(fromState) }
+    var dragFrom by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(fromState) { if (dragFrom == null) rows = fromState }
+
+    val searching = query.isNotBlank()
+    val shown = if (searching) {
+        val q = query.trim()
+        rows.filter { row ->
+            row.item.title.contains(q, ignoreCase = true) ||
+                row.item.artist?.contains(q, ignoreCase = true) == true ||
+                row.item.album?.contains(q, ignoreCase = true) == true
+        }
+    } else {
+        rows
+    }
+
+    // Opens on what is playing, not at the top of a long queue.
+    val currentPosition = rows.indexOfFirst { it.queueIndex == state.currentIndex }.coerceAtLeast(0)
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = (currentPosition - 1).coerceAtLeast(0))
+    val reorderState = rememberReorderableLazyListState(listState) { from, to ->
+        rows = rows.toMutableList().apply { add(to.index, removeAt(from.index)) }
+    }
+
+    fun act(key: Long, lessOften: Boolean) {
+        // By key, not index: the queue may have shifted since this row was drawn, and a swipe must only ever hit its own row.
+        val index = latest.keys.indexOf(key).takeIf { it >= 0 } ?: return
+        val removed = (if (lessOften) onPlayLessOften(index) else onRemove(index)) ?: return
+        scope.launch {
+            snackbar.currentSnackbarData?.dismiss()
+            val result = snackbar.showSnackbar(
+                message = if (lessOften) "You'll hear \"${removed.item.title}\" less often" else "Removed \"${removed.item.title}\"",
+                actionLabel = "Undo",
+                withDismissAction = false,
+            )
+            if (result == SnackbarResult.ActionPerformed) onUndo(removed, lessOften)
+        }
+    }
+
+    // Edge to edge, the fully open sheet runs under the status bar and the camera cutout. Pad the top by however much
+    // of the sheet is under it, so the handle and title clear it there without a gap when the sheet is half open.
+    val density = LocalDensity.current
+    val statusBarTop = WindowInsets.statusBars.getTop(density)
+    val sheetTop = runCatching { sheetState.requireOffset() }.getOrDefault(Float.MAX_VALUE)
+    val underStatusBar = with(density) { (statusBarTop - sheetTop).coerceAtLeast(0f).toDp() }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = {
+            Box(Modifier.padding(top = underStatusBar)) { BottomSheetDefaults.DragHandle() }
+        },
+    ) {
+        Box {
+            Column {
+                Text(
+                    "Queue",
+                    style = MaterialTheme.typography.titleMedium,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    "${state.queue.size} track${if (state.queue.size == 1) "" else "s"}" + if (state.shuffle) " · shuffled" else "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = { Text("Search the queue") },
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                    trailingIcon = if (searching) {
+                        {
+                            IconButton(onClick = { query = "" }) { Icon(Icons.Filled.Clear, contentDescription = "Clear search") }
+                        }
+                    } else {
+                        null
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(28.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = SidePadding, vertical = 12.dp),
+                )
+
+                if (searching && shown.isEmpty()) {
+                    Text(
+                        "Nothing in the queue matches.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().padding(24.dp).navigationBarsPadding(),
+                    )
+                }
+
+                LazyColumn(state = listState, modifier = Modifier.navigationBarsPadding()) {
+                    items(shown, key = { it.key }) { row ->
+                        ReorderableItem(reorderState, key = row.key, enabled = !searching) { isDragging ->
+                            val isCurrent = row.queueIndex == state.currentIndex
+                            val elevation by animateDpAsState(if (isDragging) 6.dp else 0.dp, label = "drag")
+                            QueueRowItem(
+                                row = row,
+                                isCurrent = isCurrent,
+                                canPlayLessOften = canPlayLessOften,
+                                elevation = elevation,
+                                onClick = { onSkipTo(row.queueIndex) },
+                                onRemove = { act(row.key, lessOften = false) },
+                                onPlayLessOften = { act(row.key, lessOften = true) },
+                                handle = if (searching) {
+                                    null
+                                } else {
+                                    {
+                                        Icon(
+                                            Icons.Filled.DragHandle,
+                                            contentDescription = "Drag to move",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.draggableHandle(
+                                                onDragStarted = { dragFrom = rows.indexOfFirst { it.key == row.key } },
+                                                onDragStopped = {
+                                                    val from = dragFrom
+                                                    val to = rows.indexOfFirst { it.key == row.key }
+                                                    dragFrom = null
+                                                    if (from != null && to >= 0 && from != to) onMove(from, to)
+                                                },
+                                            ),
+                                        )
+                                    }
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+            SnackbarHost(snackbar, modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun QueueRowItem(
+    row: QueueRow,
+    isCurrent: Boolean,
+    canPlayLessOften: Boolean,
+    elevation: androidx.compose.ui.unit.Dp,
+    onClick: () -> Unit,
+    onRemove: () -> Unit,
+    onPlayLessOften: () -> Unit,
+    handle: (@Composable () -> Unit)?,
+) {
+    val swipe = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            when (value) {
+                SwipeToDismissBoxValue.EndToStart -> onRemove()
+                SwipeToDismissBoxValue.StartToEnd -> onPlayLessOften()
+                SwipeToDismissBoxValue.Settled -> Unit
+            }
+            // The row leaves with the queue change; snapping back covers a removal that didn't happen.
+            false
+        },
+    )
+    SwipeToDismissBox(
+        state = swipe,
+        enableDismissFromStartToEnd = !isCurrent && canPlayLessOften,
+        enableDismissFromEndToStart = !isCurrent,
+        backgroundContent = { SwipeBackground(swipe.dismissDirection) },
+        modifier = Modifier.padding(horizontal = RowInset, vertical = 2.dp).clip(RowShape),
+    ) {
+        Surface(
+            shape = RowShape,
+            color = if (isCurrent) MaterialTheme.colorScheme.secondaryContainer else BottomSheetDefaults.ContainerColor,
+            shadowElevation = elevation,
+        ) {
+            ListItem(
+                headlineContent = {
+                    Text(
+                        row.item.title,
+                        fontWeight = if (isCurrent) FontWeight.Bold else null,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                supportingContent = row.item.artist?.let { artist -> { Text(artist, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
+                trailingContent = {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(formatDuration(row.item.durationSec), style = MaterialTheme.typography.bodySmall)
+                        handle?.invoke()
+                    }
+                },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                modifier = Modifier.clickable(onClick = onClick),
+            )
+        }
+    }
+}
+
+/** Red with a bin to remove, blue with a falling line for less often; the label says it too, not just the colour. */
+@Composable
+private fun SwipeBackground(direction: SwipeToDismissBoxValue) {
+    val (color, alignment) = when (direction) {
+        SwipeToDismissBoxValue.EndToStart -> RemoveColor to Alignment.CenterEnd
+        SwipeToDismissBoxValue.StartToEnd -> LessOftenColor to Alignment.CenterStart
+        SwipeToDismissBoxValue.Settled -> Color.Transparent to Alignment.Center
+    }
+    Box(
+        modifier = Modifier.fillMaxSize().background(color, RowShape).padding(horizontal = 20.dp),
+        contentAlignment = alignment,
+    ) {
+        when (direction) {
+            SwipeToDismissBoxValue.EndToStart -> SwipeLabel(Icons.Filled.Delete, "Remove", iconFirst = false)
+            SwipeToDismissBoxValue.StartToEnd -> SwipeLabel(Icons.AutoMirrored.Filled.TrendingDown, "Less often", iconFirst = true)
+            SwipeToDismissBoxValue.Settled -> Unit
+        }
+    }
+}
+
+@Composable
+private fun SwipeLabel(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, iconFirst: Boolean) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (iconFirst) Icon(icon, contentDescription = null, tint = Color.White)
+        Text(label, color = Color.White, style = MaterialTheme.typography.labelLarge)
+        if (!iconFirst) Icon(icon, contentDescription = null, tint = Color.White)
+    }
+}

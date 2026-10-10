@@ -119,6 +119,12 @@ is not lost.
 
 ## Answered
 
+### A60 — Swipe right on a queue row: play less often *(was Q60)*
+**Answered:** 2026-10-11 · **Play less often.** Per account (guests can't), stored in `less_often` (migration
+`0019`). The row also leaves the current queue, with Undo. Shuffle (`/browse/shuffled`) keeps a marked song in about
+one pass in four. Settings → Playback → "Songs you hear less" → Reset clears them all. Swipe left removes. Colours
+fixed per action: red remove, blue less often.
+
 ### A58 — Swiping the app away: stop the music or keep it? *(was Q58)*
 **Answered:** 2026-10-11 · **Make it a user setting.** Settings → Playback → "Keep playing when swiped away", on by
 default (the old behaviour, like other music apps). Off: swiping the app away from recents pauses and stops the

@@ -1,10 +1,14 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { getTrackSummariesByIds } from '../db/browse.js';
+import { keptThisPass, listLessOftenTrackIds } from '../db/lessOften.js';
 import { listPlayableTrackIds } from '../db/shuffledTracks.js';
 import { seededShuffle } from '../services/shuffle.js';
 import { parsePagination } from '../utils/pagination.js';
 
-/** `GET /browse/shuffled?seed=N&offset=&limit=`: the library in an order fixed by `seed`, re-derived per request. */
+/**
+ * `GET /browse/shuffled?seed=N&offset=&limit=`: the library in an order fixed by `seed`, re-derived per request. Songs
+ * this user marked "less often" are in about one pass (seed) in four.
+ */
 const shuffledTracksRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Querystring: { seed?: string; limit?: string; offset?: string } }>(
     '/browse/shuffled',
@@ -16,7 +20,9 @@ const shuffledTracksRoute: FastifyPluginAsync = async (fastify) => {
       }
       const { limit, offset } = parsePagination(request.query);
 
-      const order = seededShuffle(listPlayableTrackIds(), seed);
+      const lessOften = new Set(listLessOftenTrackIds(request.user!.id));
+      const pool = listPlayableTrackIds().filter((id) => !lessOften.has(id) || keptThisPass(id, seed));
+      const order = seededShuffle(pool, seed);
       const pageIds = order.slice(offset, offset + limit);
 
       // getTrackSummariesByIds does not keep the order it was given; put it back.

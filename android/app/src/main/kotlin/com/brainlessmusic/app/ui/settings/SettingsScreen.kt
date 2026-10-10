@@ -155,6 +155,7 @@ fun SettingsPageScreen(
 ) {
     val autoPlay by viewModel.autoPlayOnResume.collectAsStateWithLifecycle()
     val keepPlaying by viewModel.keepPlayingWhenSwipedAway.collectAsStateWithLifecycle()
+    val lessOftenReset by viewModel.lessOftenReset.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val colorTheme by viewModel.colorTheme.collectAsStateWithLifecycle()
     val seekStyle by viewModel.seekStyle.collectAsStateWithLifecycle()
@@ -273,6 +274,24 @@ fun SettingsPageScreen(
                             checked = keepPlaying,
                             onCheckedChange = viewModel::setKeepPlayingWhenSwipedAway,
                         )
+                        // Guests can't mark songs, so there is nothing to reset.
+                        if (!viewModel.isGuest) {
+                            Divider()
+                            Block(
+                                title = "Songs you hear less",
+                                detail = when (lessOftenReset) {
+                                    true -> "Done. Every song is back in shuffle as normal."
+                                    false -> "Couldn't reach the server. Try again."
+                                    null -> "Swipe a song right in the queue to hear it less. This puts them all back to normal."
+                                },
+                            ) {
+                                OutlinedButton(
+                                    onClick = viewModel::resetLessOften,
+                                    enabled = lessOftenReset != true,
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                                ) { Text("Reset") }
+                            }
+                        }
                     }
                     SettingsPage.ACCOUNT -> {
                         Block(

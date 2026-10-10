@@ -4,6 +4,24 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `markLessOften()`, `unmarkLessOften()`, `clearLessOften()`, `listLessOftenTrackIds()`, `keptThisPass()` — `backend/src/db/lessOften.ts`; routes in `backend/src/routes/lessOften.ts`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** per-account "play less often" marks (A60) and the shuffle rule that reads them.
+**Side effects:** writes `less_often`.
+**Before:** nothing — new functions. `GET /browse/shuffled` shuffled every playable track.
+**After:** `/browse/shuffled` drops a marked song from a pass unless `keptThisPass(id, seed)`.
+
+**Function:** `PlaybackController.removeAt()`, `restore()`, `move()`; `QueueSheet()` — `android/.../playback/PlaybackController.kt`, `ui/playback/QueueSheet.kt`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** edit the queue from the Now Playing sheet: remove, undo, reorder, search, play less often.
+**Side effects:** `playLessOften` calls `PUT /tracks/:id/less-often`; Undo calls `DELETE`.
+**Before:** the queue sheet only listed tracks and skipped to one on tap.
+**After:** `removeAt(index)` returns a `RemovedEntry` (item + play-order position) that `restore()` puts back;
+`move(from, to)` reorders in play order (shuffle order when shuffled). Each entry has a stable key in
+`PlaybackUiState.keys`.
+
 **Function:** `SettingsScreen()`, `SettingsPageScreen()`, `PageRow()`, `Card()` — `android/.../ui/settings/SettingsScreen.kt`
 **Date:** 2026-10-11
 **How added:** refactor

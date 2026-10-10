@@ -263,12 +263,13 @@ export function listMissingTracks(): MissingTrack[] {
 }
 
 /**
- * Deletes a track row and its favorites, playlist entries and history, dependents first: foreign keys are enforced
+ * Deletes a track row and its favorites, less-often marks, playlist entries and history, dependents first: foreign keys are enforced
  * and none cascade. The file on disk is the caller's job.
  */
 export function deleteTrackRow(id: number): void {
   const cleanup = db.transaction((trackId: number) => {
     db.prepare('DELETE FROM favorites WHERE track_id = ?').run(trackId);
+    db.prepare('DELETE FROM less_often WHERE track_id = ?').run(trackId);
     db.prepare('DELETE FROM playlist_tracks WHERE track_id = ?').run(trackId);
     db.prepare('DELETE FROM play_history WHERE track_id = ?').run(trackId);
     db.prepare('DELETE FROM playback_failures WHERE track_id = ?').run(trackId);

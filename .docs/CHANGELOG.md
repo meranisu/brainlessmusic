@@ -4,6 +4,29 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Queue sheet redesign, and "play less often" (A60)
+
+- Backend: migration `0019` adds `less_often` (per account, like `favorites`). `PUT`/`DELETE /tracks/:id/less-often`,
+  `GET /me/less-often/ids`, `DELETE /me/less-often`, accounts only. `GET /browse/shuffled` keeps a marked song in a
+  pass only when `keptThisPass(id, seed)` (about one seed in four, fixed per seed so every page of a pass agrees).
+  User deletes (`deleteUser`, `pruneIdleGuests`) and `deleteTrackRow` clear it first. Tests in
+  `routes/lessOften.test.ts` (mark/unmark, per account, guest 403, cleanup on delete, ~1 in 4 over 400 seeds) and
+  the route-gate table; `npm test` 379/379, `tsc --noEmit` clean.
+- Android queue sheet (`ui/playback/QueueSheet.kt`, replaces the one in `NowPlayingScreen`):
+  - Fully open, the sheet ran under the status bar and camera cutout. The drag handle is now padded by however much
+    of the sheet is under the status bar, so there is no gap when it's half open.
+  - Swipe left removes (red, bin icon), swipe right plays less often (blue, falling-line icon; accounts only, and
+    the row leaves this queue too). Both show an Undo snackbar; Undo puts the song back at its place in play order
+    and takes the mark off. The playing track can't be swiped.
+  - Drag the handle to move a song; with shuffle on it moves in the shuffle order. Controller: `removeAt`, `restore`,
+    `move`, and a stable key per queue entry (`PlaybackUiState.keys`) so a song queued twice is still two rows.
+  - Search box filters by title, artist or album (dragging off while searching). Centred "Queue" title with the
+    count under it; text lines up with the player's 24 dp sides.
+  - Settings → Playback has "Songs you hear less" → Reset, for accounts.
+  - New dependency `sh.calvin.reorderable:reorderable:2.4.3` for drag-to-reorder.
+- Verified by the CI debug build; not run on a device here (none attached), so the swipe feel, drag and the notch
+  padding are untested by me.
+
 ## 2026-10-11 — Android: Settings split into pages
 
 - Owner's ask: Settings is now a short list (Appearance, Playback, Account, each with an icon, what's set now and a

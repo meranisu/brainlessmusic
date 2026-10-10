@@ -4,12 +4,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.brainlessmusic.app.data.local.AppearanceSettings
 import com.brainlessmusic.app.data.local.SeekStyle
+import com.brainlessmusic.app.data.repository.AuthRepository
+import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.PlaybackUiState
+import com.brainlessmusic.app.playback.RemovedEntry
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /** A thin per-screen handle on the app-wide [PlaybackController]; the player itself outlives every screen. */
@@ -17,7 +21,12 @@ import javax.inject.Inject
 class PlaybackViewModel @Inject constructor(
     private val controller: PlaybackController,
     appearance: AppearanceSettings,
+    private val libraryRepository: LibraryRepository,
+    authRepository: AuthRepository,
 ) : ViewModel() {
+
+    /** Guests are listen-only (A37), so they get remove but not "play less often". */
+    val canPlayLessOften: Boolean = !authRepository.isGuest
 
     val state: StateFlow<PlaybackUiState> = controller.state
 
@@ -31,4 +40,20 @@ class PlaybackViewModel @Inject constructor(
     fun skipTo(index: Int) = controller.skipToIndex(index)
     fun toggleShuffle() = controller.toggleShuffle()
     fun cycleRepeat() = controller.cycleRepeat()
+
+    fun removeFromQueue(index: Int): RemovedEntry? = controller.removeAt(index)
+    fun moveInQueue(from: Int, to: Int) = controller.move(from, to)
+
+    /** Undo for [removeFromQueue] and [playLessOften]; the latter also takes the mark back off. */
+    fun undoRemove(entry: RemovedEntry, lessOften: Boolean) {
+        controller.restore(entry)
+        if (lessOften) viewModelScope.launch { libraryRepository.setLessOften(entry.item.trackId, false) }
+    }
+
+    /** Out of this queue, and into fewer shuffle passes from now on (A60). A failed call is not retried. */
+    fun playLessOften(index: Int): RemovedEntry? {
+        val entry = controller.removeAt(index) ?: return null
+        viewModelScope.launch { libraryRepository.setLessOften(entry.item.trackId, true) }
+        return entry
+    }
 }

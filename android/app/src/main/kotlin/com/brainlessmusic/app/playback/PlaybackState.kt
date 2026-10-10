@@ -28,6 +28,8 @@ data class StreamInfo(
 
 data class PlaybackUiState(
     val queue: List<QueueItem> = emptyList(),
+    /** One stable key per [queue] entry, for list keys and drag-to-reorder. */
+    val keys: List<Long> = emptyList(),
     val currentIndex: Int = -1,
     val isPlaying: Boolean = false,
     val isBuffering: Boolean = false,
@@ -49,3 +51,6 @@ data class PlaybackUiState(
     val hasQueue: Boolean get() = queue.isNotEmpty()
     val next: QueueItem? get() = queue.getOrNull(nextIndex)
 }
+
+/** A queue entry taken out by [PlaybackController.removeAt], and where it was in play order, for Undo. */
+data class RemovedEntry(val item: QueueItem, val playPosition: Int)

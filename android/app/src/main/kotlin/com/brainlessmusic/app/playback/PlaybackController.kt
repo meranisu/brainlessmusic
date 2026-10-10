@@ -66,6 +66,10 @@ class PlaybackController @Inject constructor(
     private var sessionController: ListenableFuture<MediaController>? = null
 
     private val queue = mutableListOf<QueueItem>()
+
+    // One key per queue entry, kept in step with [queue], so the same song queued twice is still two rows to the UI.
+    private val keys = mutableListOf<Long>()
+    private var nextKey = 0L
     private val _state = MutableStateFlow(PlaybackUiState())
     val state: StateFlow<PlaybackUiState> = _state.asStateFlow()
 
@@ -117,6 +121,8 @@ class PlaybackController @Inject constructor(
 
         queue.clear()
         queue.addAll(items)
+        keys.clear()
+        repeat(items.size) { keys.add(nextKey++) }
         this.source = source
         generation++
         errorMessage = null
@@ -143,6 +149,7 @@ class PlaybackController @Inject constructor(
         // After the current track and after anything already queued with "Play next".
         val at = (player.currentMediaItemIndex + 1 + playNextPending).coerceAtMost(queue.size)
         queue.add(at, item)
+        keys.add(at, nextKey++)
         player.addMediaItem(at, mediaItem)
         if (player.shuffleModeEnabled) placeNextInShuffleOrder(at)
         playNextPending++
@@ -219,6 +226,7 @@ class PlaybackController @Inject constructor(
         val mediaItems = items.map { toMediaItem(it) ?: return }
         val firstNew = queue.size
         queue.addAll(items)
+        repeat(items.size) { keys.add(nextKey++) }
         player.addMediaItems(mediaItems)
         if (player.shuffleModeEnabled) {
             // ExoPlayer scatters new items through the shuffle order; put them back at the end instead.
@@ -295,6 +303,68 @@ class PlaybackController @Inject constructor(
         if (!player.isPlaying) player.play()
     }
 
+    /** Queue indices in the order they play: the shuffle order with shuffle on, else the list order. */
+    private fun playOrder(): List<Int> = if (player.shuffleModeEnabled) shuffledSequence() else queue.indices.toList()
+
+    /**
+     * Takes the entry at queue [index] out. Not the playing one: that is skipped, not removed. Returns what [restore]
+     * needs to put it back for Undo, or `null` if nothing was removed.
+     */
+    fun removeAt(index: Int): RemovedEntry? {
+        if (index !in queue.indices || index == player.currentMediaItemIndex) return null
+        val position = playOrder().indexOf(index)
+        val item = queue.removeAt(index)
+        keys.removeAt(index)
+        player.removeMediaItem(index)
+        // Hand edits make the "Play next" run meaningless; the next one goes straight after the current track.
+        playNextPending = 0
+        publish()
+        maybeRefill()
+        return RemovedEntry(item, position)
+    }
+
+    /** Puts a [removeAt] entry back where it was in play order (as near as the queue now allows). */
+    fun restore(entry: RemovedEntry) {
+        val mediaItem = toMediaItem(entry.item) ?: return
+        if (queue.isEmpty()) {
+            playQueue(listOf(entry.item), 0)
+            return
+        }
+        if (player.shuffleModeEnabled) {
+            val at = queue.size
+            queue.add(entry.item)
+            keys.add(nextKey++)
+            player.addMediaItem(mediaItem)
+            // ExoPlayer shuffles the new item in at random; put it back at its old spot in the play order.
+            val sequence = shuffledSequence().toMutableList()
+            sequence.remove(at)
+            sequence.add(entry.playPosition.coerceIn(0, sequence.size), at)
+            player.setShuffleOrder(DefaultShuffleOrder(sequence.toIntArray(), System.nanoTime()))
+        } else {
+            val at = entry.playPosition.coerceIn(0, queue.size)
+            queue.add(at, entry.item)
+            keys.add(at, nextKey++)
+            player.addMediaItem(at, mediaItem)
+        }
+        publish()
+    }
+
+    /** Moves the entry at play-order position [from] to [to]: the list order, or the shuffle order with shuffle on. */
+    fun move(from: Int, to: Int) {
+        if (from == to || from !in queue.indices || to !in queue.indices) return
+        if (player.shuffleModeEnabled) {
+            val sequence = shuffledSequence().toMutableList()
+            sequence.add(to, sequence.removeAt(from))
+            player.setShuffleOrder(DefaultShuffleOrder(sequence.toIntArray(), System.nanoTime()))
+        } else {
+            queue.add(to, queue.removeAt(from))
+            keys.add(to, keys.removeAt(from))
+            player.moveMediaItem(from, to)
+        }
+        playNextPending = 0
+        publish()
+    }
+
     fun toggleShuffle() {
         wantShuffle = !wantShuffle
         player.shuffleModeEnabled = wantShuffle
@@ -321,6 +391,7 @@ class PlaybackController @Inject constructor(
         player.stop()
         player.clearMediaItems()
         queue.clear()
+        keys.clear()
         source = null
         generation++
         playNextPending = 0
@@ -428,6 +499,7 @@ class PlaybackController @Inject constructor(
             ?: 0L
         _state.value = PlaybackUiState(
             queue = queue.toList(),
+            keys = keys.toList(),
             currentIndex = if (queue.isEmpty()) -1 else player.currentMediaItemIndex,
             isPlaying = player.isPlaying,
             isBuffering = player.playbackState == Player.STATE_BUFFERING,

@@ -13,7 +13,7 @@ SQLite (`better-sqlite3`), WAL journal mode. Confirmed live against `backend/dat
 | `PRAGMA foreign_keys` | **`ON`** (confirmed live) — `better-sqlite3`'s per-connection default, not set explicitly anywhere in `backend/src/`. See [Discrepancy 1](#1-foreign-keys-are-enforced-not-off) |
 | `PRAGMA integrity_check` | `ok` (2026-09-03) |
 | `PRAGMA foreign_key_check` | no violations (2026-09-03) |
-| Domain tables | `users`, `artists`, `albums`, `tracks`, `playlists`, `playlist_tracks`, `play_history`, `favorites`, `guest_codes` (+ `server_settings`, see its section) |
+| Domain tables | `users`, `artists`, `albums`, `tracks`, `playlists`, `playlist_tracks`, `play_history`, `favorites`, `less_often`, `guest_codes` (+ `server_settings`, see its section) |
 | Infrastructure tables | `schema_migrations` (migration bookkeeping only, not domain data) |
 
 ## Entity relationships
@@ -238,6 +238,20 @@ have no other way to be reclaimed. It runs only when `POST /auth/guest` hits
 **PK:** composite `(user_id, track_id)` — a track can only be favorited once per user; `starTrack()`/`unstarTrack()` are both idempotent (`INSERT OR IGNORE` / plain `DELETE`), a deliberate toggle-style choice.
 **Indexes:** `idx_favorites_user_id`, plus the composite PK's own auto index.
 
+### `less_often`
+
+Songs an account swiped right in the Android queue to hear less (A60). Added in `0019`.
+
+| Column | Type | Null? | Default | Notes |
+|---|---|---|---|---|
+| `user_id` | INTEGER | NOT NULL | — | **PK (composite, 1 of 2)**, **FK → `users.id`**, `ON DELETE NO ACTION` |
+| `track_id` | INTEGER | NOT NULL | — | **PK (composite, 2 of 2)**, **FK → `tracks.id`**, `ON DELETE NO ACTION` |
+| `created_at` | TEXT | NOT NULL | `datetime('now')` | |
+
+**PK:** composite `(user_id, track_id)`; mark and unmark are idempotent, like favorites. Accounts only (guests get 403).
+**Read by:** `GET /browse/shuffled`, which keeps a marked song in a pass only when `keptThisPass(trackId, seed)` (about
+one seed in four, `db/lessOften.ts`). No extra index: every read is by `user_id`, the PK's leading column.
+
 ### `playback_failures`
 
 | Column | Type | Null? | Default | Notes |
@@ -319,6 +333,8 @@ Written by `backend/src/db/migrate.ts` on every `npm run migrate` — not someth
 | `play_history` | `track_id` | `tracks` | `NO ACTION` | `deleteTrackRow()` — deletes `play_history` rows first |
 | `favorites` | `user_id` | `users` | `NO ACTION` | nothing deletes users today |
 | `favorites` | `track_id` | `tracks` | `NO ACTION` | `deleteTrackRow()` — deletes `favorites` rows first |
+| `less_often` | `user_id` | `users` | `NO ACTION` | `pruneIdleGuests()` and `deleteUser()` — delete `less_often` rows first |
+| `less_often` | `track_id` | `tracks` | `NO ACTION` | `deleteTrackRow()` — deletes `less_often` rows first |
 | `playback_failures` | `user_id` | `users` | `NO ACTION` | `pruneIdleGuests()` and `deleteUser()` (`db/users.ts`) — delete `playback_failures` rows first |
 | `playback_failures` | `track_id` | `tracks` | `NO ACTION` | `deleteTrackRow()` — deletes `playback_failures` rows first |
 | `scan_failures` | `root_id` | `library_roots` | `NO ACTION` | `deleteLibraryRoot()` (`db/libraryRoots.ts`) — deletes `scan_failures` rows first |
@@ -421,11 +437,13 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | `0015_create_playback_failures.sql` | `playback_failures` + `idx_playback_failures_created_at`, `idx_playback_failures_user_id` — who hit a track that wouldn't play |
 | `0016_create_scan_failures.sql` | `scan_failures` + `idx_scan_failures_root_id` — files the last scan of each root couldn't read |
 | `0017_delete_guest_playlists_and_favorites.sql` | Data only, no schema change: deletes `playlist_tracks`, `playlists` and `favorites` rows owned by `kind = 'guest'` users, in one transaction |
+| `0019_create_less_often.sql` | `less_often` (composite PK), per-account "play less often" marks |
 
 ## Change log
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-10-11 | Migration `0019_create_less_often.sql` — `less_often`; new table section, relationship rows, migration row. Written from the migration SQL and the test run, not introspected from the live DB | A60: swiping a song right in the Android queue plays it less often in shuffle. User and track deletes clear it first, like `favorites` |
 | 2026-10-10 | Comments only in migrations `0007`–`0018` (antislop pass): shortened, and `0011`'s stale "this database does not set `PRAGMA foreign_keys`" corrected to match [Discrepancy 1](#1-foreign-keys-are-enforced-not-off). No SQL changed; no table section needs updating | Comment cleanup; verified by diffing the files with comments stripped |
 | 2026-10-10 | Migration `0018_create_guest_codes.sql` — `guest_codes`, `server_settings`; new table sections and relationship row. Written from the migration SQL and the test run (applied to a scratch DB), not introspected from the live DB | A42/A43: one-use per-guest codes made on the web Users page, and the admin toggle that closes the guest door. FKs to `users` are nulled, not cascaded, by `deleteUser`/`pruneIdleGuests` |
 | 2026-10-10 | Migration `0017_delete_guest_playlists_and_favorites.sql`. No tables or columns change. | A38: guests are listen-only since A37, so their old playlists and favorites were unreachable; the owner chose to delete them. Runs before the server's boot backup on smol (`migrate.js` precedes `index.js`), so the copy taken before it is the previous daily backup |

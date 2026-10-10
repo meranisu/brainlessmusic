@@ -110,6 +110,7 @@ export function pruneIdleGuests(idleDays: number): number {
       ).run(id);
       db.prepare('DELETE FROM playlists WHERE owner_id = ?').run(id);
       db.prepare('DELETE FROM favorites WHERE user_id = ?').run(id);
+      db.prepare('DELETE FROM less_often WHERE user_id = ?').run(id);
       db.prepare('DELETE FROM play_history WHERE user_id = ?').run(id);
       db.prepare('DELETE FROM playback_state WHERE user_id = ?').run(id);
       db.prepare('DELETE FROM playback_failures WHERE user_id = ?').run(id);
@@ -190,6 +191,7 @@ export function deleteUser(id: number): boolean {
     ).run(userId);
     db.prepare('DELETE FROM playlists WHERE owner_id = ?').run(userId);
     db.prepare('DELETE FROM favorites WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM less_often WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM play_history WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM playback_state WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM playback_failures WHERE user_id = ?').run(userId);

@@ -12,9 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
@@ -32,15 +29,11 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,10 +41,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -176,7 +167,16 @@ fun NowPlayingScreen(
     }
 
     if (showQueue) {
-        QueueSheet(state = state, onSkipTo = viewModel::skipTo, onDismiss = { showQueue = false })
+        QueueSheet(
+            state = state,
+            canPlayLessOften = viewModel.canPlayLessOften,
+            onSkipTo = viewModel::skipTo,
+            onRemove = viewModel::removeFromQueue,
+            onPlayLessOften = viewModel::playLessOften,
+            onUndo = viewModel::undoRemove,
+            onMove = viewModel::moveInQueue,
+            onDismiss = { showQueue = false },
+        )
     }
 }
 
@@ -330,46 +330,6 @@ private fun StreamReadout(stream: StreamInfo?, modifier: Modifier = Modifier) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun QueueSheet(state: PlaybackUiState, onSkipTo: (Int) -> Unit, onDismiss: () -> Unit) {
-    // With shuffle on, the list order is not the play order; show what will actually play, in that order.
-    val order = if (state.shuffle && state.playOrder.size == state.queue.size) state.playOrder else state.queue.indices.toList()
-    val currentPosition = order.indexOf(state.currentIndex).coerceAtLeast(0)
-
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
-        Text(
-            "Queue · ${state.queue.size} track${if (state.queue.size == 1) "" else "s"}" + if (state.shuffle) " · shuffled" else "",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-        )
-        // Opens on what is playing, not at the top of a long queue.
-        val listState = rememberLazyListState(initialFirstVisibleItemIndex = (currentPosition - 1).coerceAtLeast(0))
-        LazyColumn(state = listState, modifier = Modifier.navigationBarsPadding()) {
-            itemsIndexed(order, key = { position, queueIndex -> "$position-${state.queue[queueIndex].trackId}" }) { _, queueIndex ->
-                val item = state.queue[queueIndex]
-                val isCurrent = queueIndex == state.currentIndex
-                ListItem(
-                    headlineContent = {
-                        Text(
-                            item.title,
-                            fontWeight = if (isCurrent) FontWeight.Bold else null,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    },
-                    supportingContent = item.artist?.let { artist -> { Text(artist, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
-                    trailingContent = { Text(formatDuration(item.durationSec), style = MaterialTheme.typography.bodySmall) },
-                    colors = ListItemDefaults.colors(
-                        containerColor = if (isCurrent) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
-                    ),
-                    modifier = Modifier.clickable { onSkipTo(queueIndex) },
                 )
             }
         }

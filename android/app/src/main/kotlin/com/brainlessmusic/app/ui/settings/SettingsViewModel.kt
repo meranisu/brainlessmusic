@@ -8,6 +8,7 @@ import com.brainlessmusic.app.data.local.PlaybackSettings
 import com.brainlessmusic.app.data.local.SeekStyle
 import com.brainlessmusic.app.data.local.ThemeMode
 import com.brainlessmusic.app.data.repository.AuthRepository
+import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.playback.PlaybackController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -23,7 +24,17 @@ class SettingsViewModel @Inject constructor(
     private val appearance: AppearanceSettings,
     private val authRepository: AuthRepository,
     private val playbackController: PlaybackController,
+    private val libraryRepository: LibraryRepository,
 ) : ViewModel() {
+
+    /** `null` until the reset is tried, then whether it worked. */
+    private val _lessOftenReset = kotlinx.coroutines.flow.MutableStateFlow<Boolean?>(null)
+    val lessOftenReset: StateFlow<Boolean?> = _lessOftenReset
+
+    /** Every song swiped to "less often" goes back into shuffle as normal (A60). */
+    fun resetLessOften() {
+        viewModelScope.launch { _lessOftenReset.value = libraryRepository.clearLessOften().isSuccess }
+    }
 
     val autoPlayOnResume: StateFlow<Boolean> = settings.autoPlayOnResume
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)

@@ -18,9 +18,11 @@ coroutines = "1.8.1"
 coil = "2.7.0"
 media3 = "1.4.1"
 paging = "3.3.2"
+reorderable = "2.4.3"
 junit = "4.13.2"
 
 [libraries]
+reorderable = { group = "sh.calvin.reorderable", name = "reorderable", version.ref = "reorderable" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }

@@ -48,6 +48,8 @@ const EXPECTED: Record<string, Gate> = {
   'POST /auth/passcode': 'account',
   'GET /me/favorites': 'account',
   'GET /me/favorites/ids': 'account',
+  'GET /me/less-often/ids': 'account',
+  'DELETE /me/less-often': 'account',
   'GET /me/history': 'account',
   'GET /playlists': 'account',
   'POST /playlists': 'account',
@@ -60,6 +62,8 @@ const EXPECTED: Record<string, Gate> = {
   'GET /stats/top-tracks': 'account',
   'DELETE /tracks/:id/favorite': 'account',
   'PUT /tracks/:id/favorite': 'account',
+  'DELETE /tracks/:id/less-often': 'account',
+  'PUT /tracks/:id/less-often': 'account',
   'GET /tracks/:id/history': 'account',
   'POST /tracks/:id/scrobble': 'account',
   // Admin only (A14).

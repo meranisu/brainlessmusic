@@ -18,6 +18,7 @@ import com.brainlessmusic.app.data.remote.dto.SearchResultsDto
 import com.brainlessmusic.app.data.remote.dto.ShuffledTracksPageDto
 import com.brainlessmusic.app.data.remote.dto.TracksPageDto
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
@@ -79,4 +80,14 @@ interface ApiService {
     // Answers 204 with no body.
     @PUT("me/playback-state")
     suspend fun savePlaybackState(@Body body: SavePlaybackStateRequest)
+
+    // "Play less often" (A60). All answer 204 or a body nobody reads; Unit discards it.
+    @PUT("tracks/{id}/less-often")
+    suspend fun markLessOften(@Path("id") id: Int)
+
+    @DELETE("tracks/{id}/less-often")
+    suspend fun unmarkLessOften(@Path("id") id: Int)
+
+    @DELETE("me/less-often")
+    suspend fun clearLessOften()
 }

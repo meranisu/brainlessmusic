@@ -17,6 +17,7 @@ const TABLES_IN_DELETION_ORDER = [
   'scan_failures',
   'play_history',
   'favorites',
+  'less_often',
   'playback_state',
   'playlist_tracks',
   'playlists',
