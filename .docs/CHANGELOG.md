@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-10 — Control center: "Now playing" lists real listeners, phone included
+
+- The table was built from open stream connections. Both players download a whole file in seconds and close the
+  connection, so a listener vanished almost at once: the owner, playing on the Android app and the web at the same
+  time, saw "Nobody is listening."
+- Now built from the `PUT /me/playback-state` saves both clients already send every 10 s while playing
+  (`playerCheckedIn` / `listListeners` in `services/streamMonitor.ts`). A player missing three check-ins (30 s) drops off.
+  Entries are keyed by user and User-Agent, so one account on a phone and a browser shows twice; the new Device column
+  reads "Android app" for OkHttp and "Web" otherwise. Closing the player (`DELETE`) removes that device.
+- New optional `playing` field on the save. Web and Android send it, so a pause drops the listener at once. The
+  current Android release doesn't send it and still shows up, but lingers up to 30 s after a pause.
+- `GET /admin/control-center` returns `listeners` in place of `activeSessions`. `/admin/health`'s `activeStreams`
+  count is unchanged.
+- Verified: `npm test` (374 pass), backend `tsc --noEmit`, frontend `npm run build`, `npm run lint` (existing warnings
+  only), `./gradlew compileDebugKotlin`. **Not checked in a browser or on a device**, and not deployed to smol.
+
 ## 2026-10-10 — Web: gap between the More menu's items
 
 - The More dropdown stacked its links flush, so a hovered row's highlight touched the active page's (e.g. Users and

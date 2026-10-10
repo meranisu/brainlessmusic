@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `playerCheckedIn()`, `playerClosed()`, `listListeners()`, `clientLabel()` — `backend/src/services/streamMonitor.ts`
+**Date:** 2026-10-10
+**How added:** bug fix
+**Purpose:** in-memory list of players that checked in within `LISTENER_TTL_MS` (30 s), for the control center's Now playing.
+**Side effects:** module state, cleared by `resetStreamMonitor()`.
+**Before:** did not exist; Now playing used `listActiveSessions()` (open streams), which empty seconds into a song.
+**After:** new. Called from `PUT` / `DELETE /me/playback-state`; `GET /admin/control-center` returns `listeners`.
+
 **Function:** `NavOverflow()` — `frontend/src/components/NavOverflow.tsx`
 **Date:** 2026-10-10
 **How added:** bug fix
