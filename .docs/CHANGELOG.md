@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-10 — Android: blank screen that ate every touch until the app was killed
+
+- Likely cause (not reproduced; no device attached): the system splash's exit fade removed the splash view in
+  `withEndAction`, which `ViewPropertyAnimator` skips when the animation is cancelled, e.g. the app sent to the
+  background mid-fade. The splash view then stayed over the whole app, blank and taking every touch; leaving and
+  returning didn't help, only killing the process did. `MainActivity` now removes it from an `AnimatorListenerAdapter`
+  on end *or* cancel, plus a main-thread fallback 300 ms after the fade, whichever comes first (guarded to run once).
+
 ## 2026-10-10 — Android: tapping Library again scrolls to the top; logo beside the Library title
 
 - Tapping the bottom bar's current tab now calls `onReselect` (`LibraryBottomBar`, passed through `AppBottomBar`)

@@ -1,9 +1,13 @@
 package com.brainlessmusic.app
 
 import android.Manifest
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -64,14 +68,25 @@ class MainActivity : ComponentActivity() {
             startViewModel.resolvedRoute.value == null && SystemClock.uptimeMillis() - launchedAt < SPLASH_HOLD_MAX_MS
         }
         splash.setOnExitAnimationListener { provider ->
+            // The splash view sits over the whole app and takes every touch, so it must go however the fade ends.
+            // `withEndAction` skips a cancelled fade (app sent to the background mid-fade), which left a blank screen
+            // that only killing the app cleared. Hence end or cancel, plus a timed fallback; whichever comes first.
+            var removed = false
+            fun remove() {
+                if (removed) return
+                removed = true
+                provider.remove()
+                splashGone = true
+            }
             provider.view.animate()
                 .alpha(0f)
                 .setDuration(SPLASH_FADE_MS)
-                .withEndAction {
-                    provider.remove()
-                    splashGone = true
-                }
+                .setListener(object : AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: Animator) = remove()
+                    override fun onAnimationCancel(animation: Animator) = remove()
+                })
                 .start()
+            Handler(Looper.getMainLooper()).postDelayed(::remove, SPLASH_FADE_MS + SPLASH_REMOVE_GRACE_MS)
         }
         askForNotificationsOnFirstPlayback()
         // Read once, synchronously (two tiny preferences): otherwise every cold start would paint one frame in the
@@ -127,3 +142,4 @@ class MainActivity : ComponentActivity() {
 
 private const val SPLASH_HOLD_MAX_MS = 1_200L
 private const val SPLASH_FADE_MS = 200L
+private const val SPLASH_REMOVE_GRACE_MS = 300L
