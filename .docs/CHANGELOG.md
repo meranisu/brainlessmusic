@@ -4,6 +4,15 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-10 — Android: tapping Library again scrolls to the top; logo beside the Library title
+
+- Tapping the bottom bar's current tab now calls `onReselect` (`LibraryBottomBar`, passed through `AppBottomBar`)
+  instead of doing nothing. The Library uses it to scroll the open tab (Songs, Albums or Artists) back to the top.
+  From deep in a long list it jumps to row 20 (40 on the grid) first, so the animation is short. Search and Settings
+  ignore it for now.
+- The Library title has the app's mark beside it: `ic_logo.xml`, the launcher foreground cropped to the disc and its
+  dot, at 28 dp in its own colours.
+
 ## 2026-10-10 — Letter rail: one entry per script instead of one `…` for everything non-Latin
 
 - `GET /api/browse/letters` (`backend/src/db/letterIndex.ts`) now splits what sorts after "z" by script: `À`

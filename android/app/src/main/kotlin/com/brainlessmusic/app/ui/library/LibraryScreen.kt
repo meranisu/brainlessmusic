@@ -2,6 +2,7 @@ package com.brainlessmusic.app.ui.library
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -9,8 +10,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -61,11 +62,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -81,6 +83,7 @@ import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
+import com.brainlessmusic.app.R
 import com.brainlessmusic.app.data.remote.dto.AlbumSummaryDto
 import com.brainlessmusic.app.data.remote.dto.ArtistSummaryDto
 import com.brainlessmusic.app.data.remote.dto.TrackSummaryDto
@@ -117,8 +120,29 @@ fun LibraryScreen(
     val artistsState = rememberLazyListState()
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Library") }) },
-        bottomBar = { AppBottomBar(navController) },
+        topBar = {
+            TopAppBar(
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Image(painterResource(R.drawable.ic_logo), contentDescription = null, modifier = Modifier.size(28.dp))
+                        Text("Library")
+                    }
+                },
+            )
+        },
+        // Library tapped again: the open tab goes back to its top.
+        bottomBar = {
+            AppBottomBar(navController, onReselect = {
+                scope.launch {
+                    when (tab) {
+                        LibraryTab.SONGS -> songsState.scrollToTop()
+                        LibraryTab.ALBUMS -> albumsState.scrollToTop()
+                        LibraryTab.ARTISTS -> artistsState.scrollToTop()
+                        LibraryTab.GENRES -> Unit
+                    }
+                }
+            })
+        },
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             when (tab) {
@@ -159,6 +183,17 @@ fun LibraryScreen(
             )
         }
     }
+}
+
+// From deep in a long list, jump most of the way first so the animation is a short glide, not a long scroll.
+private suspend fun LazyListState.scrollToTop() {
+    if (firstVisibleItemIndex > 20) scrollToItem(20)
+    animateScrollToItem(0)
+}
+
+private suspend fun LazyGridState.scrollToTop() {
+    if (firstVisibleItemIndex > 40) scrollToItem(40)
+    animateScrollToItem(0)
 }
 
 /**

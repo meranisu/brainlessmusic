@@ -4,6 +4,15 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `LibraryBottomBar()`, `AppBottomBar()`, `LazyListState.scrollToTop()`, `LazyGridState.scrollToTop()` — `android/.../ui/navigation/`, `ui/library/LibraryScreen.kt`
+**Date:** 2026-10-10
+**How added:** new feature
+**Purpose:** tapping the current bottom tab again scrolls the Library's open tab to the top.
+**Side effects:** none.
+**Before:** tapping the current tab did nothing.
+**After:** both take `onReselect: () -> Unit = {}`, called when the selected item is tapped; `LibraryScreen` scrolls
+the open tab's list with the private `scrollToTop()` helpers.
+
 **Function:** `getLetterIndex()` — `backend/src/db/letterIndex.ts`
 **Date:** 2026-10-10
 **How added:** materially changed

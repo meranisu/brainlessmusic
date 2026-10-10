@@ -5,11 +5,11 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import com.brainlessmusic.app.ui.playback.MiniPlayer
 
-/** The mini player stacked on the navigation bar, for the top-level tabs. */
+/** The mini player stacked on the navigation bar, for the top-level tabs. [onReselect]: the current tab tapped again. */
 @Composable
-fun AppBottomBar(navController: NavHostController) {
+fun AppBottomBar(navController: NavHostController, onReselect: () -> Unit = {}) {
     Column {
         MiniPlayer(onClick = { navController.navigate(Routes.NOW_PLAYING) }, extendUnderSystemBar = false)
-        LibraryBottomBar(navController)
+        LibraryBottomBar(navController, onReselect)
     }
 }

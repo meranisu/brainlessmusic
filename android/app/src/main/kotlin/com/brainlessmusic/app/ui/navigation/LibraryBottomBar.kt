@@ -13,28 +13,28 @@ import androidx.compose.runtime.getValue
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 
-/** The three top-level tabs. Detail screens push on top with a back arrow instead. */
+/** The three top-level tabs. Detail screens push on top with a back arrow instead. Tapping the current tab calls [onReselect]. */
 @Composable
-fun LibraryBottomBar(navController: NavHostController) {
+fun LibraryBottomBar(navController: NavHostController, onReselect: () -> Unit = {}) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
 
     NavigationBar {
         NavigationBarItem(
             selected = currentRoute == Routes.ARTISTS,
-            onClick = { navController.navigateToTab(Routes.ARTISTS) },
+            onClick = { if (currentRoute == Routes.ARTISTS) onReselect() else navController.navigateToTab(Routes.ARTISTS) },
             icon = { Icon(Icons.Filled.LibraryMusic, contentDescription = null) },
             label = { Text("Library") },
         )
         NavigationBarItem(
             selected = currentRoute == Routes.SEARCH,
-            onClick = { navController.navigateToTab(Routes.SEARCH) },
+            onClick = { if (currentRoute == Routes.SEARCH) onReselect() else navController.navigateToTab(Routes.SEARCH) },
             icon = { Icon(Icons.Filled.Search, contentDescription = null) },
             label = { Text("Search") },
         )
         NavigationBarItem(
             selected = currentRoute == Routes.SETTINGS,
-            onClick = { navController.navigateToTab(Routes.SETTINGS) },
+            onClick = { if (currentRoute == Routes.SETTINGS) onReselect() else navController.navigateToTab(Routes.SETTINGS) },
             icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
             label = { Text("Settings") },
         )
