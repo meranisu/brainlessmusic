@@ -95,6 +95,13 @@ Hosting comes before the app, so there's a real server to point the phone at.
 
   *Done when:* you load the web app on mobile data and it plays — **and someone who has the URL but was never let onto the network gets nothing.*
 
+  **Note, 2026-10-10:** owner's quick phone check says the site works from outside, but the structured test wasn't
+  run, so the box stays open. To do later, on mobile data: **(A)** log in, play a song, seek once; **(B)** in a private
+  tab, pick guest without a code. If B lets you straight in, `ENTRY_CODE` isn't set on smol, and setting it waits on
+  smol's owner ([Q39](../QUESTIONS.md#q39--how-does-a-change-reach-smol)). Also stale: the Cloudflare Access line above
+  says it's "being built now", but [Q30](../QUESTIONS.md#q30--should-cloudflare-access-sit-in-front-of-the-public-hostname)
+  keeps Access off.
+
 - [x] **12. Docker image** (ops). — **done 2026-09-09**, verified by 16 HTTP + 12 browser checks against the production build; the `docker build` itself is unverified (sandbox networking) — run `docker compose up --build` to confirm. Required moving the API under `/api`, since the web app has its own `/albums`, `/search` and `/health` routes. Dockerfile + compose, ffmpeg in the image, volumes for the library and the DB, healthcheck wired to `/health`.
   *Done when:* `docker compose up` on the home server serves your library.
 
