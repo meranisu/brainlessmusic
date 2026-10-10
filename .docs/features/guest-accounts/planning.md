@@ -123,6 +123,44 @@ flight.
 - [x] Waiting screen polls the request; survives the app going to the background
 - [x] Rename in Settings
 
+## Open issues from review (2026-10-11)
+
+A code review of commits `ab544c0`, `4332b58` and `98b110c` found these, from reading the code; none is fixed yet.
+Backend, web and Android v0.3.11 are already live, so 1 is exposed on production now. Fixing 1 or 2 needs a smol
+redeploy (`./scripts/deploy.sh`, run by the owner).
+
+**Fix first**
+
+1. **Old one-use codes became reusable logins (live on smol).** `0022` left `used_at`/`used_by` on codes redeemed
+   before it, so `stateOf()` (`backend/src/db/guestCodes.ts:82-87`) treats them as `bound`: anyone with an old code,
+   card or QR link signs in as that guest. Fix: migration `0023` nulling `used_by` on codes used before `0022` (they
+   have no `guest_code_signins` row and no `guest_code_requests.code_id` pointing at them). Their guests keep their
+   existing device token.
+2. **Collect is one-shot.** `collectGuestCodeRequest()` (`backend/src/db/guestCodeRequests.ts:143`) marks the row
+   `collected` before the device has the answer; any later collect is a 404. A lost response leaves a guest nobody is
+   signed in as. Fix: let the same secret collect again for a few minutes.
+3. **Web polls overlap.** The `setInterval` poll (`frontend/src/pages/AccountSelectPage.tsx:238`) doesn't wait for the
+   last request, so a later 404 can drop the approval an earlier poll just got. Fix: chain polls (wait, then schedule
+   the next). Android's loop is already sequential.
+
+**Smaller bugs**
+
+4. Options `NameSection` (`frontend/src/pages/OptionsPage.tsx:542`) sticks on "Saving…" when a save leaves the shown
+   name unchanged (an account clearing its name; extra spaces collapsed). Reset `isSaving` on success too.
+5. `listGuestCodes()` marks a code `used` while its guest row exists, ignoring the `GUEST_IDLE_DAYS` cut-off that
+   sign-in applies, so the admin card shows dead codes as working.
+6. The pending-request cap (20) is global while the rate limit is per IP, so a few addresses can fill the queue and
+   refuse real requests for 24 hours. Add a per-IP pending cap.
+
+**Tidy-ups**
+
+7. The collect route's JSDoc sits above the cancel route (`backend/src/routes/auth.ts:194`); move it back.
+8. The approve route copies the "prune at the cap" check from `makeRoomForGuest()` and drops its log line; share one
+   helper.
+9. `listGuestCodes()` runs one sign-in query per code (N+1), and the card refetches every 15 s; use one query with
+   `ROW_NUMBER() OVER (PARTITION BY code_id)`.
+10. `formatDateTime()` copies `formatDate()`'s SQLite-UTC parsing (`frontend/src/lib/format.ts`); share a parse helper.
+
 ## Phase 5: Walkthrough
 
 - [ ] Request on the web, approve, sign in on Android with the code: same history and resume position on both

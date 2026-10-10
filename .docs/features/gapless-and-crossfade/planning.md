@@ -120,4 +120,5 @@ assuming.
 | 2026-10-11 | Plan, 5, 6 | A71 to A73: all three fades, each optional; album switch | Owner answers | Yes |
 | 2026-10-11 | 4, 5 | Fades use `audio.volume` ramps, not Web Audio gain nodes; Phases 4 and 5 built together | Routing playback through an `AudioContext` makes it silent whenever the context is suspended or the stream is cross-origin, for no gain: iOS ignores volume either way, so fades there are off regardless | Yes |
 | 2026-10-11 | 6 | Crossfade keeps the session on the main player and moves the *old* song to a tail player | Handing the MediaSession between players mid-song is what made this the bulk of the work; this way the session never changes player | Yes |
+| 2026-10-11 | 5, 6 | Review found join and fade races, and that A72 mostly doesn't apply: R3, R4 and R6 to R16 in [the review](../../process/session-review-2026-10-11.md) | Code review of 9a8d781 and 3248c01 | Yes; fix before Phase 7 |
 | 2026-10-11 | 2 | Measured decoders in headless Chromium and Firefox; the join itself could not be measured headless | Fake audio output gave unstable stall numbers (17 to 170 ms) | Yes; Phase 7 listening decides |

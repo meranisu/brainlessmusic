@@ -17,7 +17,7 @@ Work the first unticked box there.
 
 | Area | State | Detail |
 |---|---|---|
-| Auth (JWT + bcrypt, guest entry, admin role, user management) | Built, verified | archive; A13–A16, A41–A43 (per-guest codes, Android guest button; deployed to smol 2026-10-10, not tried on a phone) in QUESTIONS |
+| Auth (JWT + bcrypt, guest entry, admin role, user management) | Built, verified; guest accounts (A67–A70) live on smol and in Android v0.3.11 (2026-10-11), **10 review issues open, one live on production** | archive; A13–A16, A41–A43, A67–A70 in QUESTIONS; [features/guest-accounts](features/guest-accounts/planning.md#open-issues-from-review-2026-10-11) |
 | Library scanner, multi-root library, scheduled sync | Built, verified | [features/multi-root-library](features/multi-root-library/planning.md) |
 | Streaming (byte ranges, ETag caching, signed URLs) | Built, verified | archive |
 | Formats and transcoding (7 formats; `?quality=low` serves a cached converted copy) | Built, verified — roadmap box 24 | [features/formats-and-transcoding](features/formats-and-transcoding/planning.md) |
@@ -62,5 +62,7 @@ The list is [QUESTIONS.md](QUESTIONS.md) — check it before asking anything. Bl
 2. **Android Phase 2 — on-device check** (box 17): run the checklist on the POCO F5. Phase 3 (box 18) is built too and needs the same phone check; Home + playlists come next (A22).
 3. Commit or finish the failure-logging work above.
 4. v0.3 starts with the room-sync spec (box 21) — spec before code.
+5. Fix the 2026-10-11 review findings, R1 to R5 first:
+   [process/session-review-2026-10-11.md](process/session-review-2026-10-11.md).
 
 The current unticked boxes are authoritative in the roadmap; if this list disagrees with it, the roadmap wins.
