@@ -130,8 +130,17 @@ export function AccountSelectPage() {
   const [pendingPasscodeSetup, setPendingPasscodeSetup] = useState<User | null>(null);
   const [showCreatePasscode, setShowCreatePasscode] = useState(false);
 
-  const [guestNeedsCode, setGuestNeedsCode] = useState(false);
-  const [guestCode, setGuestCode] = useState('');
+  // A guest code arrives in the link an admin shared (`?code=`, from the
+  // Users page QR card): show the code field already filled, so entering is
+  // one press. Read once, then dropped from the address bar so a reload or a
+  // copied URL does not carry a spent code around.
+  const [linkedGuestCode] = useState(() => new URLSearchParams(window.location.search).get('code') ?? '');
+  const [guestNeedsCode, setGuestNeedsCode] = useState(linkedGuestCode !== '');
+  const [guestCode, setGuestCode] = useState(linkedGuestCode);
+
+  useEffect(() => {
+    if (linkedGuestCode) window.history.replaceState(window.history.state, '', window.location.pathname);
+  }, [linkedGuestCode]);
   const [guestError, setGuestError] = useState<string | null>(null);
   const [isEnteringGuest, setIsEnteringGuest] = useState(false);
 

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
+import { GuestCodesPanel } from '../components/GuestCodesPanel';
 import { useToast } from '../components/ToastProvider';
 import { useScrollLock } from '../hooks/useScrollLock';
 import { ApiError, apiClient } from '../lib/apiClient';
@@ -151,6 +152,8 @@ export function UsersPage() {
           Admins can upload, edit tags, delete tracks, and manage these accounts. Everyone else can listen.
         </p>
       </form>
+
+      <GuestCodesPanel />
 
       {isLoading && <p className="text-sm text-blue-300">Loading users…</p>}
       {isError && <p className="text-sm text-red-400">Could not load users.</p>}

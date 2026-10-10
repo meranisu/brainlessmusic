@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { config } from '../config.js';
+import { guestCodesRequired, isRedeemableGuestCode, redeemGuestCode } from '../db/guestCodes.js';
 import {
   clearPasscodeById,
   countAccounts,
@@ -103,8 +104,16 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
         .send({ error: 'Too many guest sessions from this address — try again shortly' });
     }
 
-    // Unset (the default, and the LAN posture) means the door is open.
-    if (config.entryCode !== '' && !secretMatches(request.body?.code, config.entryCode)) {
+    // Two ways to close the door, either enough: the shared `ENTRY_CODE` env
+    // var (A15), or the admin toggle that asks for a per-guest code (A43).
+    // Neither set — the default, and the LAN posture — means the door is open.
+    // A shared-code match lets in any number of devices; a per-guest code is
+    // checked here and burnt below, once the cap says there is room.
+    const code = request.body?.code;
+    const doorClosed = config.entryCode !== '' || guestCodesRequired();
+    const sharedCodeOk = secretMatches(code, config.entryCode);
+
+    if (doorClosed && !sharedCodeOk && !isRedeemableGuestCode(code)) {
       return reply.code(401).send({ error: 'That code is not right' });
     }
 
@@ -124,8 +133,16 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       }
     }
 
-    const guest = insertGuest();
-    request.log.info(`Minted guest ${guest.username}`);
+    let guest;
+    if (doorClosed && !sharedCodeOk) {
+      guest = redeemGuestCode(code);
+      // Spent by a racing device between the check above and here.
+      if (!guest) return reply.code(401).send({ error: 'That code is not right' });
+      request.log.info(`Minted guest ${guest.username} on a guest code`);
+    } else {
+      guest = insertGuest();
+      request.log.info(`Minted guest ${guest.username}`);
+    }
 
     return reply.code(201).send({ token: signToken({ id: guest.id, username: guest.username }) });
   });

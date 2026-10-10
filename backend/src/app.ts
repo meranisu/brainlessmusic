@@ -20,6 +20,7 @@ import shuffleRoute from './routes/shuffle.js';
 import statsRoute from './routes/stats.js';
 import tracksRoute from './routes/tracks.js';
 import usersRoute from './routes/users.js';
+import guestCodesRoute from './routes/guestCodes.js';
 import { redactUrl } from './utils/redactUrl.js';
 
 export const API_PREFIX = '/api';
@@ -89,6 +90,7 @@ export function buildApp() {
       api.register(lettersRoute);
       api.register(shuffledTracksRoute);
       api.register(usersRoute);
+      api.register(guestCodesRoute);
     },
     { prefix: API_PREFIX },
   );

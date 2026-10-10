@@ -1,5 +1,6 @@
 package com.brainlessmusic.app.ui.login
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
@@ -24,6 +25,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
@@ -31,6 +33,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -49,6 +52,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -76,6 +80,8 @@ fun LoginScreen(
     var entered by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { entered = true }
     val focus = LocalFocusManager.current
+    // System back steps out of a form to the two buttons, rather than leaving the app.
+    BackHandler(enabled = state.mode != EntryMode.CHOOSE) { viewModel.backToChoice() }
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         BeatMosaic()
@@ -116,62 +122,32 @@ fun LoginScreen(
                             modifier = Modifier.padding(20.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp),
                         ) {
-                            OutlinedTextField(
-                                value = state.username,
-                                onValueChange = viewModel::onUsernameChange,
-                                label = { Text("Username") },
-                                singleLine = true,
-                                shape = RoundedCornerShape(16.dp),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-
-                            OutlinedTextField(
-                                value = state.password,
-                                onValueChange = viewModel::onPasswordChange,
-                                label = { Text("Password") },
-                                singleLine = true,
-                                shape = RoundedCornerShape(16.dp),
-                                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-                                keyboardActions = KeyboardActions(onDone = {
-                                    focus.clearFocus()
-                                    if (canLogin(state)) viewModel.login(onLoggedIn)
-                                }),
-                                trailingIcon = {
-                                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                        Icon(
-                                            imageVector = if (passwordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                            contentDescription = if (passwordVisible) "Hide password" else "Show password",
-                                        )
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-
-                            state.loginError?.let {
-                                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                            }
-
-                            Button(
-                                onClick = { viewModel.login(onLoggedIn) },
-                                enabled = canLogin(state),
-                                modifier = Modifier.fillMaxWidth().height(56.dp),
-                            ) {
-                                if (state.isLoggingIn) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(22.dp),
-                                        strokeWidth = 2.dp,
-                                        color = MaterialTheme.colorScheme.onPrimary,
-                                    )
-                                } else {
-                                    Text(
-                                        "LOG IN",
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = FontWeight.SemiBold,
-                                        letterSpacing = 2.sp,
-                                    )
-                                }
+                            when (state.mode) {
+                                EntryMode.CHOOSE -> ChooseEntry(
+                                    onLogin = viewModel::chooseLogin,
+                                    onGuest = { viewModel.chooseGuest(onLoggedIn) },
+                                )
+                                EntryMode.LOGIN -> LoginForm(
+                                    state = state,
+                                    passwordVisible = passwordVisible,
+                                    onTogglePassword = { passwordVisible = !passwordVisible },
+                                    onBack = viewModel::backToChoice,
+                                    onUsernameChange = viewModel::onUsernameChange,
+                                    onPasswordChange = viewModel::onPasswordChange,
+                                    onSubmit = {
+                                        focus.clearFocus()
+                                        if (canLogin(state)) viewModel.login(onLoggedIn)
+                                    },
+                                )
+                                EntryMode.GUEST -> GuestForm(
+                                    state = state,
+                                    onBack = viewModel::backToChoice,
+                                    onCodeChange = viewModel::onGuestCodeChange,
+                                    onSubmit = {
+                                        focus.clearFocus()
+                                        if (canEnterGuest(state)) viewModel.enterAsGuest(onLoggedIn)
+                                    },
+                                )
                             }
                         }
                     }
@@ -195,6 +171,165 @@ fun LoginScreen(
 
 private fun canLogin(state: LoginUiState) =
     !state.isLoggingIn && state.username.isNotBlank() && state.password.isNotBlank()
+
+private fun canEnterGuest(state: LoginUiState) =
+    !state.isEnteringGuest && (!state.guestNeedsCode || state.guestCode.isNotBlank())
+
+/** The first thing on the card: two ways in, account first because this app is mostly for accounts. */
+@Composable
+private fun ChooseEntry(onLogin: () -> Unit, onGuest: () -> Unit) {
+    Button(onClick = onLogin, modifier = Modifier.fillMaxWidth().height(56.dp)) {
+        Text("LOG IN", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, letterSpacing = 2.sp)
+    }
+    OutlinedButton(onClick = onGuest, modifier = Modifier.fillMaxWidth().height(56.dp)) {
+        Text("GUEST", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, letterSpacing = 2.sp)
+    }
+    Text(
+        "Guests can listen and search. Playlists, favorites and play counts need an account.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun BackRow(label: String, onBack: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = onBack) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+        }
+        Text(label, style = MaterialTheme.typography.titleMedium)
+    }
+}
+
+@Composable
+private fun LoginForm(
+    state: LoginUiState,
+    passwordVisible: Boolean,
+    onTogglePassword: () -> Unit,
+    onBack: () -> Unit,
+    onUsernameChange: (String) -> Unit,
+    onPasswordChange: (String) -> Unit,
+    onSubmit: () -> Unit,
+) {
+    BackRow("Log in", onBack)
+
+    OutlinedTextField(
+        value = state.username,
+        onValueChange = onUsernameChange,
+        label = { Text("Username") },
+        singleLine = true,
+        shape = RoundedCornerShape(16.dp),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
+        modifier = Modifier.fillMaxWidth(),
+    )
+
+    OutlinedTextField(
+        value = state.password,
+        onValueChange = onPasswordChange,
+        label = { Text("Password") },
+        singleLine = true,
+        shape = RoundedCornerShape(16.dp),
+        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+        keyboardActions = KeyboardActions(onDone = { onSubmit() }),
+        trailingIcon = {
+            IconButton(onClick = onTogglePassword) {
+                Icon(
+                    imageVector = if (passwordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                    contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                )
+            }
+        },
+        modifier = Modifier.fillMaxWidth(),
+    )
+
+    state.loginError?.let {
+        Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+    }
+
+    Button(
+        onClick = onSubmit,
+        enabled = canLogin(state),
+        modifier = Modifier.fillMaxWidth().height(56.dp),
+    ) {
+        if (state.isLoggingIn) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(22.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.onPrimary,
+            )
+        } else {
+            Text("LOG IN", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, letterSpacing = 2.sp)
+        }
+    }
+}
+
+/**
+ * Shown while the code-less try is in flight, then either gone (the door was open) or showing the code field.
+ * Codes are typed as printed (`ABCD-EFGH`); the server ignores case and the dash.
+ */
+@Composable
+private fun GuestForm(
+    state: LoginUiState,
+    onBack: () -> Unit,
+    onCodeChange: (String) -> Unit,
+    onSubmit: () -> Unit,
+) {
+    BackRow("Guest", onBack)
+
+    if (state.guestNeedsCode) {
+        Text(
+            "This server asks for a guest code. Get one from the person who runs it.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        OutlinedTextField(
+            value = state.guestCode,
+            onValueChange = onCodeChange,
+            label = { Text("Guest code") },
+            placeholder = { Text("ABCD-EFGH") },
+            singleLine = true,
+            shape = RoundedCornerShape(16.dp),
+            textStyle = MaterialTheme.typography.titleMedium.copy(fontFamily = FontFamily.Monospace, letterSpacing = 2.sp),
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Characters,
+                autoCorrectEnabled = false,
+                keyboardType = KeyboardType.Ascii,
+                imeAction = ImeAction.Done,
+            ),
+            keyboardActions = KeyboardActions(onDone = { onSubmit() }),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+
+    state.guestError?.let {
+        Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+    }
+
+    if (state.guestNeedsCode || state.guestError != null) {
+        Button(
+            onClick = onSubmit,
+            enabled = canEnterGuest(state),
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+        ) {
+            if (state.isEnteringGuest) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(22.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                )
+            } else {
+                Text("ENTER", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, letterSpacing = 2.sp)
+            }
+        }
+    } else {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
+            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+            Spacer(Modifier.size(12.dp))
+            Text("Letting you in…", style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
 
 /**
  * The band across the middle. Solid and high-contrast (the inverse surface), like the web's white band with

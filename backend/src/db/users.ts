@@ -154,6 +154,7 @@ export function pruneIdleGuests(idleDays: number): number {
       db.prepare('DELETE FROM play_history WHERE user_id = ?').run(id);
       db.prepare('DELETE FROM playback_state WHERE user_id = ?').run(id);
       db.prepare('DELETE FROM playback_failures WHERE user_id = ?').run(id);
+      db.prepare('UPDATE guest_codes SET used_by = NULL WHERE used_by = ?').run(id);
       db.prepare('DELETE FROM users WHERE id = ?').run(id);
     }
   });
@@ -240,6 +241,8 @@ export function deleteUser(id: number): boolean {
     db.prepare('DELETE FROM play_history WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM playback_state WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM playback_failures WHERE user_id = ?').run(userId);
+    db.prepare('UPDATE guest_codes SET used_by = NULL WHERE used_by = ?').run(userId);
+    db.prepare('UPDATE guest_codes SET created_by = NULL WHERE created_by = ?').run(userId);
     return db.prepare('DELETE FROM users WHERE id = ?').run(userId).changes > 0;
   });
   return purge(id);

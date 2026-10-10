@@ -301,9 +301,28 @@ until it has been run on smol once.
 
 ---
 
----
-
 ## Answered
+
+### A44 — Publish the APK on GitHub, built and signed automatically *(was Q44)*
+**Answered:** 2026-10-10 · **Automatic.** A real release keystore, kept out of the repo (held locally and as GitHub
+Actions secrets), and a workflow that builds, signs and attaches the APK to a GitHub Release on each version tag.
+Per-guest codes should be on before the first public APK, since anyone who installs it can press Guest.
+
+### A43 — Per-guest codes: one use, 7 days, door toggled on the panel *(was Q42)*
+**Answered:** 2026-10-10 · **Both recommended options.** A code lets one device in once, and expires unused after
+7 days. Whether the guest door needs a code at all is an admin toggle on the same web panel, stored in the database,
+**default off** (LAN posture unchanged). `ENTRY_CODE` keeps working as a shared code alongside.
+
+### A42 — The guest-code panel shows random per-guest codes, as text and QR *(was unnumbered, 2026-10-10)*
+**Answered:** 2026-10-10 · Asked in chat without an ID (a ledger slip, corrected here). An admin-only "Guest access"
+card on the web `/users` page. **Show, don't edit** the server setting, but codes are **random per guest**, not one
+shared `ENTRY_CODE`. Sharing is **both**: copy as text, and download an image with a QR code (link with the code
+filled in) and the code printed under it. Details settled in [A43](#a43--per-guest-codes-one-use-7-days-door-toggled-on-the-panel).
+
+### A41 — Android gets a guest button after all *(was Q41)*
+**Answered:** 2026-10-10 · **Yes.** Reverses [A29](#a29--should-android-support-guest-entry). The Android title
+screen gets two buttons, **Log in** (the form) and **Guest** (an entry-code form, skipped when no code is needed).
+Guests on Android get the listen-only cut of [A37](#a37--guests-are-listen-only-what-do-they-keep).
 
 ### A38 — Delete guests' existing playlists and favorites? *(was Q38)*
 **Answered:** 2026-10-10 · **Yes, delete them.** Done as migration `0017_delete_guest_playlists_and_favorites.sql`
@@ -324,6 +343,7 @@ per-guest favorites. Plan: [`.docs/features/guest-listen-only/planning.md`](feat
 Nothing built yet.
 
 ### A29 — Should Android support guest entry? *(was Q29)*
+**Superseded 2026-10-10 by [A41](#a41--android-gets-a-guest-button-after-all).**
 **Answered:** 2026-10-09 · **No, login only.** The stated assumption stands: Android is for real accounts, guests
 use the web app.
 

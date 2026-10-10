@@ -5,7 +5,9 @@ import com.brainlessmusic.app.data.remote.ApiServiceFactory
 import com.brainlessmusic.app.data.remote.MediaUrlProvider
 import com.brainlessmusic.app.data.remote.ServerConfig
 import com.brainlessmusic.app.data.remote.TokenProvider
+import com.brainlessmusic.app.data.remote.dto.GuestRequest
 import com.brainlessmusic.app.data.remote.dto.LoginRequest
+import retrofit2.HttpException
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -40,12 +42,42 @@ class AuthRepository @Inject constructor(
         return runCatching {
             val response = apiServiceFactory.get(validated).login(LoginRequest(username, password))
             tokenProvider.current = response.token
+            tokenProvider.isGuest = false
             mediaUrlProvider.current = ApiServiceFactory.normalize(validated)
             sessionStore.saveSession(validated, username, response.token)
             Unit
         }.recoverCatching {
             tokenProvider.current = null
             throw ConnectionException(classifyError(it))
+        }
+    }
+
+    /**
+     * The title screen's Guest button (A41). Mints a guest on the server, then asks `/auth/me` for the name it
+     * was given (`guest-xxxxxx`), so the session is stored the same way a login's is. The server answers 401 both
+     * when a code is needed and none was sent, and when the code is wrong; the caller tells those apart by
+     * whether it sent one, as the web title screen does.
+     */
+    suspend fun enterAsGuest(code: String?): GuestEntryResult {
+        val serverUrl = serverConfig.url
+        return try {
+            val api = apiServiceFactory.get(serverUrl)
+            val response = api.guest(GuestRequest(code?.trim()?.takeIf { it.isNotEmpty() }))
+            tokenProvider.current = response.token
+            val me = api.me()
+            tokenProvider.isGuest = me.isGuest
+            mediaUrlProvider.current = ApiServiceFactory.normalize(serverUrl)
+            sessionStore.saveSession(serverUrl, me.username, response.token)
+            GuestEntryResult.Entered(me.username)
+        } catch (e: Exception) {
+            tokenProvider.current = null
+            tokenProvider.isGuest = false
+            when ((e as? HttpException)?.code()) {
+                401 -> GuestEntryResult.CodeRejected
+                429 -> GuestEntryResult.Failed("Too many tries from here. Wait a little.")
+                503 -> GuestEntryResult.Failed("This server is full right now.")
+                else -> GuestEntryResult.Failed(classifyError(e).toMessage())
+            }
         }
     }
 
@@ -66,7 +98,10 @@ class AuthRepository @Inject constructor(
         mediaUrlProvider.current = ApiServiceFactory.normalize(serverUrl)
         return runCatching { apiServiceFactory.get(serverUrl).me() }
             .fold(
-                onSuccess = { SessionRestoreResult.Restored(it.username) },
+                onSuccess = {
+                    tokenProvider.isGuest = it.isGuest
+                    SessionRestoreResult.Restored(it.username)
+                },
                 onFailure = {
                     tokenProvider.current = null
                     mediaUrlProvider.current = null
@@ -76,11 +111,22 @@ class AuthRepository @Inject constructor(
             )
     }
 
+    /** True when the signed-in session is a guest's, whose identity lives only in this device's stored token. */
+    val isGuest: Boolean get() = tokenProvider.isGuest
+
     suspend fun logout() {
         tokenProvider.current = null
+        tokenProvider.isGuest = false
         mediaUrlProvider.current = null
         sessionStore.clearCredentials()
     }
+}
+
+sealed interface GuestEntryResult {
+    data class Entered(val username: String) : GuestEntryResult
+    /** 401: a code is needed and none was sent, or the one sent is wrong, used or expired. */
+    data object CodeRejected : GuestEntryResult
+    data class Failed(val message: String) : GuestEntryResult
 }
 
 /** Carries a classified [ConnectionError] through a [Result.failure] without losing the classification to a generic exception. */

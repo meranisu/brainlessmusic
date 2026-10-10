@@ -4,6 +4,7 @@ import com.brainlessmusic.app.data.remote.dto.AlbumDetailDto
 import com.brainlessmusic.app.data.remote.dto.AlbumsPageDto
 import com.brainlessmusic.app.data.remote.dto.ArtistDetailDto
 import com.brainlessmusic.app.data.remote.dto.ArtistsPageDto
+import com.brainlessmusic.app.data.remote.dto.GuestRequest
 import com.brainlessmusic.app.data.remote.dto.HealthResponse
 import com.brainlessmusic.app.data.remote.dto.LetterIndexDto
 import com.brainlessmusic.app.data.remote.dto.LoginRequest
@@ -33,6 +34,9 @@ interface ApiService {
 
     @POST("auth/login")
     suspend fun login(@Body body: LoginRequest): LoginResponse
+
+    @POST("auth/guest")
+    suspend fun guest(@Body body: GuestRequest): LoginResponse
 
     @GET("auth/me")
     suspend fun me(): MeResponse

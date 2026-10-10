@@ -3,6 +3,7 @@ package com.brainlessmusic.app.data.repository
 import com.brainlessmusic.app.data.remote.ApiService
 import com.brainlessmusic.app.data.remote.ApiServiceFactory
 import com.brainlessmusic.app.data.remote.MediaUrlProvider
+import com.brainlessmusic.app.data.remote.TokenProvider
 import com.brainlessmusic.app.data.remote.ServerConfig
 import com.brainlessmusic.app.data.remote.dto.AlbumDetailDto
 import com.brainlessmusic.app.data.remote.dto.AlbumsPageDto
@@ -24,6 +25,7 @@ class LibraryRepository @Inject constructor(
     private val apiServiceFactory: ApiServiceFactory,
     private val serverConfig: ServerConfig,
     private val mediaUrlProvider: MediaUrlProvider,
+    private val tokenProvider: TokenProvider,
 ) {
 
     suspend fun getArtists(): Result<List<ArtistSummaryDto>> =
@@ -55,8 +57,11 @@ class LibraryRepository @Inject constructor(
     suspend fun search(query: String): Result<SearchResultsDto> =
         callApi { it.search(query) }
 
-    suspend fun scrobble(trackId: Int, msPlayed: Long): Result<Unit> =
-        callApi { it.scrobble(trackId, ScrobbleRequest(msPlayed)) }.map { }
+    /** Guests are listen-only (A37): the server refuses their plays, so they are not sent at all. */
+    suspend fun scrobble(trackId: Int, msPlayed: Long): Result<Unit> {
+        if (tokenProvider.isGuest) return Result.success(Unit)
+        return callApi { it.scrobble(trackId, ScrobbleRequest(msPlayed)) }.map { }
+    }
 
     suspend fun loadPlaybackState(): Result<PlaybackStateDto?> =
         callApi { it.playbackState().state }

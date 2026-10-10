@@ -328,3 +328,22 @@ export interface UserSummary {
   isAdmin: boolean;
   createdAt: string;
 }
+
+/** One per-guest entry code on the admin panel (A42/A43). Dates are SQLite UTC strings. */
+export interface GuestCode {
+  id: number;
+  code: string;
+  createdAt: string;
+  expiresAt: string;
+  usedAt: string | null;
+  usedBy: string | null;
+  status: 'active' | 'used' | 'expired';
+}
+
+export interface GuestCodesSnapshot {
+  /** The admin toggle: does the guest door ask for a code? */
+  required: boolean;
+  /** Whether the shared `ENTRY_CODE` is set on the server. Its value is never sent. */
+  sharedCodeSet: boolean;
+  codes: GuestCode[];
+}

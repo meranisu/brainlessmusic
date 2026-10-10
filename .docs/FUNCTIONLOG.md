@@ -4,6 +4,62 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `createGuestCode()`, `redeemGuestCode()`, `isRedeemableGuestCode()`, `listGuestCodes()`, `deleteGuestCode()`, `guestCodesRequired()`, `setGuestCodesRequired()`, `normalizeGuestCode()` — `backend/src/db/guestCodes.ts`
+**Date:** 2026-10-10
+**How added:** new feature
+**Purpose:** per-guest entry codes (A42/A43): make, redeem once, list with status and who used them, revoke; read and set the admin toggle that closes the guest door.
+**Side effects:** writes `guest_codes` and `server_settings`; `redeemGuestCode()` also inserts a guest `users` row in the same transaction.
+**Before:** nothing — new functions. The only code was the shared `ENTRY_CODE` env var.
+**After:** admins can hand out one-use codes and close the door from the web.
+
+**Function:** `POST /auth/guest` handler — `backend/src/routes/auth.ts`
+**Date:** 2026-10-10
+**How added:** new feature
+**Purpose:** mints a guest session; now also accepts a per-guest code when the door is closed.
+**Side effects:** inserts a guest; burns a per-guest code when one is used.
+**Before:** the door was closed only by `ENTRY_CODE`, and only that shared code opened it.
+**After:** closed by `ENTRY_CODE` or the admin toggle; opened by the shared code (any number of times) or a per-guest code (once).
+
+**Function:** `guestCodesRoute` (`GET/POST /guest-codes`, `PUT /guest-codes/settings`, `DELETE /guest-codes/:id`) — `backend/src/routes/guestCodes.ts`
+**Date:** 2026-10-10
+**How added:** new feature
+**Purpose:** admin API behind the web "Guest access" card.
+**Side effects:** DB writes through `db/guestCodes.ts`.
+**Before:** nothing — new routes.
+**After:** admin-only; reports whether `ENTRY_CODE` is set without returning it.
+
+**Function:** `deleteUser()`, `pruneIdleGuests()` — `backend/src/db/users.ts`
+**Date:** 2026-10-10
+**How added:** new feature
+**Purpose:** remove a user and everything that points at them.
+**Side effects:** now also nulls `guest_codes.used_by` (both) and `guest_codes.created_by` (`deleteUser`).
+**Before:** a user named on a guest code could not be deleted (foreign key).
+**After:** the code row stays, without the name.
+
+**Function:** `GuestCodesPanel` — `frontend/src/components/GuestCodesPanel.tsx`; `downloadGuestCodeCard()`, `guestCodeLink()`, `prettyGuestCode()` — `frontend/src/lib/guestCodeCard.ts`
+**Date:** 2026-10-10
+**How added:** new feature
+**Purpose:** the admin card on `/users`, and the PNG guest pass (QR plus the code in large type).
+**Side effects:** API calls to `/guest-codes`; clipboard writes; a file download.
+**Before:** nothing — new.
+**After:** admins share codes as text, link or image.
+
+**Function:** guest code prefill in `AccountSelectPage` — `frontend/src/pages/AccountSelectPage.tsx`
+**Date:** 2026-10-10
+**How added:** new feature
+**Purpose:** a QR link (`/enter/profile?code=`) opens the guest card with the code field shown and filled.
+**Side effects:** removes `?code=` from the address bar with `history.replaceState`.
+**Before:** the code field appeared only after a 401.
+**After:** a shared link is one press to enter.
+
+**Function:** `AuthRepository.enterAsGuest()`, `LoginViewModel.chooseGuest()` / `enterAsGuest()`, `LoginScreen` entry modes, `LibraryRepository.scrobble()`, `TokenProvider.isGuest` — `android/app/src/main/kotlin/com/brainlessmusic/app/`
+**Date:** 2026-10-10
+**How added:** new feature
+**Purpose:** Android Log in / Guest buttons (A41), the guest code form, and guest listen-only behaviour (A37).
+**Side effects:** `POST /auth/guest` then `GET /auth/me`; stores the session like a login; scrobbles are skipped for guests.
+**Before:** Android was login-only (A29).
+**After:** guests can enter from the phone; logging out as a guest asks first.
+
 **Function:** `warm()` — `backend/src/services/transcodeCache.ts`; `POST /tracks/:id/prepare` — `backend/src/routes/tracks.ts`
 **Date:** 2026-10-10
 **How added:** performance

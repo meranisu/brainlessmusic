@@ -38,6 +38,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -85,6 +89,27 @@ fun LibraryScreen(
     val albumsState = rememberLazyGridState()
     val artistsState = rememberLazyListState()
 
+    var confirmingGuestLogout by remember { mutableStateOf(false) }
+
+    if (confirmingGuestLogout) {
+        AlertDialog(
+            onDismissRequest = { confirmingGuestLogout = false },
+            title = { Text("Leave as guest?") },
+            text = {
+                Text("This phone forgets this guest, including where you left off. Getting back in may need a new guest code.")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmingGuestLogout = false
+                    viewModel.logout(onLoggedOut)
+                }) { Text("Leave") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmingGuestLogout = false }) { Text("Stay") }
+            },
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -96,7 +121,9 @@ fun LibraryScreen(
                     IconButton(onClick = { navController.navigate(Routes.SETTINGS) }) {
                         Icon(Icons.Filled.Settings, contentDescription = "Settings")
                     }
-                    IconButton(onClick = { viewModel.logout(onLoggedOut) }) {
+                    IconButton(onClick = {
+                        if (viewModel.isGuest) confirmingGuestLogout = true else viewModel.logout(onLoggedOut)
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Log out")
                     }
                 },

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.brainlessmusic.app.data.remote.ServerConfig
 import com.brainlessmusic.app.data.repository.AuthRepository
 import com.brainlessmusic.app.data.repository.ConnectionException
+import com.brainlessmusic.app.data.repository.GuestEntryResult
 import com.brainlessmusic.app.data.repository.toMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,6 +17,9 @@ import javax.inject.Inject
 
 enum class ConnectionCheck { IDLE, CHECKING, SUCCESS, FAILED }
 
+/** The card under the title band: two buttons first, then the form for whichever was pressed (A41). */
+enum class EntryMode { CHOOSE, LOGIN, GUEST }
+
 data class LoginUiState(
     val serverHost: String = "",
     val username: String = "",
@@ -24,6 +28,12 @@ data class LoginUiState(
     val connectionError: String? = null,
     val isLoggingIn: Boolean = false,
     val loginError: String? = null,
+    val mode: EntryMode = EntryMode.CHOOSE,
+    /** Learnt from a 401 on a code-less try, like the web: the server does not advertise that it wants one. */
+    val guestNeedsCode: Boolean = false,
+    val guestCode: String = "",
+    val isEnteringGuest: Boolean = false,
+    val guestError: String? = null,
 )
 
 @HiltViewModel
@@ -50,6 +60,55 @@ class LoginViewModel @Inject constructor(
 
     fun onPasswordChange(value: String) {
         _uiState.update { it.copy(password = value, loginError = null) }
+    }
+
+    fun chooseLogin() {
+        _uiState.update { it.copy(mode = EntryMode.LOGIN, loginError = null) }
+    }
+
+    /**
+     * Guest goes straight in when the server's guest door is open; only a 401 opens the code form. So on an open
+     * server one press is the whole flow, and the code field never shows.
+     */
+    fun chooseGuest(onEntered: (username: String) -> Unit) {
+        _uiState.update { it.copy(mode = EntryMode.GUEST, guestError = null) }
+        enterAsGuest(onEntered)
+    }
+
+    fun backToChoice() {
+        _uiState.update {
+            it.copy(mode = EntryMode.CHOOSE, password = "", loginError = null, guestError = null, guestCode = "")
+        }
+    }
+
+    fun onGuestCodeChange(value: String) {
+        _uiState.update { it.copy(guestCode = value, guestError = null) }
+    }
+
+    fun enterAsGuest(onEntered: (username: String) -> Unit) {
+        val state = _uiState.value
+        if (state.isEnteringGuest) return
+        val code = state.guestCode.takeIf { state.guestNeedsCode && it.isNotBlank() }
+        viewModelScope.launch {
+            _uiState.update { it.copy(isEnteringGuest = true, guestError = null) }
+            when (val result = authRepository.enterAsGuest(code)) {
+                is GuestEntryResult.Entered -> {
+                    _uiState.update { it.copy(isEnteringGuest = false, guestCode = "") }
+                    onEntered(result.username)
+                }
+                GuestEntryResult.CodeRejected -> _uiState.update {
+                    it.copy(
+                        isEnteringGuest = false,
+                        guestNeedsCode = true,
+                        guestError = if (code != null) "That code is not right, or it was already used." else null,
+                    )
+                }
+                is GuestEntryResult.Failed -> {
+                    _uiState.update { it.copy(isEnteringGuest = false, guestError = result.message) }
+                    checkServer()
+                }
+            }
+        }
     }
 
     fun checkServer() {

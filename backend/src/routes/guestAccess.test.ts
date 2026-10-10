@@ -85,6 +85,10 @@ const EXPECTED: Record<string, Gate> = {
   'GET /users': 'admin',
   'DELETE /users/:id': 'admin',
   'PATCH /users/:id': 'admin',
+  'GET /guest-codes': 'admin',
+  'POST /guest-codes': 'admin',
+  'PUT /guest-codes/settings': 'admin',
+  'DELETE /guest-codes/:id': 'admin',
   // Gated by hand: open while the users table is empty, admin-only after (A16).
   'POST /auth/register': 'custom',
 };

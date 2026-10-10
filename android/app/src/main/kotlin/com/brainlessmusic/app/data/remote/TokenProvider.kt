@@ -20,4 +20,11 @@ class TokenProvider @Inject constructor() {
         set(value) {
             _token.value = value
         }
+
+    /**
+     * Whether the session belongs to a guest (A37: listen-only). Not persisted: it is set on every way in,
+     * including the cold-start restore, which reads it from `/auth/me`.
+     */
+    @Volatile
+    var isGuest: Boolean = false
 }

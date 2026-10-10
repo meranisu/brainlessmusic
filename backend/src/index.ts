@@ -34,10 +34,11 @@ if (config.allowOpenRegistration) {
 // how someone actually gets to the music.
 console.info(
   config.entryCode === ''
-    ? 'Guest entry: OPEN. Anyone who can reach this server can press "enter" and listen.\n' +
-        '  Correct on a LAN. Before exposing it (roadmap box 13), put a gate at the network\n' +
-        '  edge, or set ENTRY_CODE in backend/.env as a backstop.'
-    : 'Guest entry: requires ENTRY_CODE.',
+    ? 'Guest entry: OPEN unless per-guest codes are switched on (web Users page). Anyone who\n' +
+        '  can reach this server can otherwise press "enter" and listen. Correct on a LAN. Before\n' +
+        '  exposing it (roadmap box 13), put a gate at the network edge, and turn on per-guest\n' +
+        '  codes or set ENTRY_CODE in backend/.env as a backstop.'
+    : 'Guest entry: requires ENTRY_CODE (or a per-guest code).',
 );
 
 const app = buildApp();

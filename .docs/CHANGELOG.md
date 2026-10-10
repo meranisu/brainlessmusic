@@ -4,6 +4,42 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-10 — Per-guest codes, and a Guest button on Android
+
+Owner decisions A41–A43 (`.docs/QUESTIONS.md`). An admin makes a one-use code for each guest on the web Users page
+and shares it as text or as a QR image; the Android title screen gets **Log in** and **Guest** buttons.
+
+- **Migration `0018_create_guest_codes.sql`:** `guest_codes` (code, creator, expiry, who used it and when) and
+  `server_settings` (key/value; first key `guest_codes_required`). Schema doc updated.
+- **`db/guestCodes.ts`:** 8-character codes from an alphabet without 0/O/1/I/L, typed with or without the dash and in
+  any case. `redeemGuestCode()` mints the guest and burns the code in one transaction, so two devices racing on one
+  code get one guest. Codes expire after 7 days unused.
+- **`POST /auth/guest`:** the door is closed when `ENTRY_CODE` is set **or** the new admin toggle is on (default off,
+  so the LAN stays open). With the door closed, the shared `ENTRY_CODE` still works for any number of devices, and a
+  per-guest code works once. Unknown, used, expired and revoked codes all answer 401, the same as before.
+- **Admin routes** `GET/POST /guest-codes`, `PUT /guest-codes/settings`, `DELETE /guest-codes/:id` (added to the
+  `guestAccess.test.ts` gate table). The shared `ENTRY_CODE` is reported as set or not, never returned.
+- **`deleteUser` / `pruneIdleGuests`** clear `guest_codes` references first, since foreign keys are enforced and none
+  cascade.
+- **Web:** a "Guest access" card on `/users` (`GuestCodesPanel.tsx`): the toggle, New guest code, and per code Copy code,
+  Copy link, Download image (a PNG with the QR, the code in large type, the host and the expiry; `lib/guestCodeCard.ts`)
+  and Revoke, plus the last 30 days of used and expired codes. The guest card on `/enter/profile` reads `?code=` from
+  the QR link, shows it filled in, and drops it from the address bar.
+- **Android:** the login card starts with LOG IN and GUEST buttons. Guest tries with no code first and only shows the
+  code field on a 401, like the web. Guests skip scrobbles (A37), and logging out as a guest asks first, because it
+  forgets that guest for good. `TokenProvider.isGuest` is set on every way in, including the cold-start restore.
+- **Verified:** backend `tsc --noEmit` clean; `npm test` 369/369, with a new `routes/guestCodes.test.ts` (open by
+  default, refusal with the toggle on, one use per code with the used-by name, expired, revoked, the shared code still
+  working and never returned, admin-only, a non-boolean toggle refused, pruning and deleting users who appear on
+  codes, input normalising). Frontend `npm run build` clean; lint adds nothing new. A scratch backend (own DB on
+  :3199, serving the built frontend) was driven with curl and Playwright: toggle off and on, new code, both copy
+  buttons (clipboard checked), image download (opened and looked at), Tab order, 360 px width with no overflow,
+  revoke, and a fresh browser opening the copied link, finding the code filled in and entering as a guest, with no
+  console errors. Android `assembleDebug` and `testDebugUnitTest` pass. **Not run on a phone**: the Android title
+  screen and guest flow were built but not used on a device. Not deployed.
+
+---
+
 ## 2026-10-10 — The next track is converted while the current one plays
 
 The first play of a track that needs converting (data saver, or an Ogg/Opus file on Safari) waited for the whole

@@ -12,6 +12,12 @@ data class LoginRequest(
     val password: String,
 )
 
+/** `POST /auth/guest`. [code] is left out of the JSON when null (Gson skips nulls); the server only reads it when the guest door is closed. */
+data class GuestRequest(
+    val code: String?,
+)
+
+/** Shared by `/auth/login` and `/auth/guest`: both hand back an ordinary session token. */
 data class LoginResponse(
     val token: String,
 )

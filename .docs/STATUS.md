@@ -17,7 +17,7 @@ Work the first unticked box there.
 
 | Area | State | Detail |
 |---|---|---|
-| Auth (JWT + bcrypt, guest entry, admin role, user management) | Built, verified | archive; A13–A16 in QUESTIONS |
+| Auth (JWT + bcrypt, guest entry, admin role, user management) | Built, verified | archive; A13–A16, A41–A43 (per-guest codes, Android guest button; not on smol, not tried on a phone) in QUESTIONS |
 | Library scanner, multi-root library, scheduled sync | Built, verified | [features/multi-root-library](features/multi-root-library/planning.md) |
 | Streaming (byte ranges, ETag caching, signed URLs) | Built, verified | archive |
 | Formats and transcoding (7 formats; `?quality=low` serves a cached converted copy) | Built, verified — roadmap box 24 | [features/formats-and-transcoding](features/formats-and-transcoding/planning.md) |

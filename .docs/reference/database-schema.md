@@ -13,7 +13,7 @@ SQLite (`better-sqlite3`), WAL journal mode. Confirmed live against `backend/dat
 | `PRAGMA foreign_keys` | **`ON`** (confirmed live) — `better-sqlite3`'s per-connection default, not set explicitly anywhere in `backend/src/`. See [Discrepancy 1](#1-foreign-keys-are-enforced-not-off) |
 | `PRAGMA integrity_check` | `ok` (2026-09-03) |
 | `PRAGMA foreign_key_check` | no violations (2026-09-03) |
-| Domain tables | `users`, `artists`, `albums`, `tracks`, `playlists`, `playlist_tracks`, `play_history`, `favorites` |
+| Domain tables | `users`, `artists`, `albums`, `tracks`, `playlists`, `playlist_tracks`, `play_history`, `favorites`, `guest_codes` (+ `server_settings`, see its section) |
 | Infrastructure tables | `schema_migrations` (migration bookkeeping only, not domain data) |
 
 ## Entity relationships
@@ -272,6 +272,31 @@ have no other way to be reclaimed. It runs only when `POST /auth/guest` hits
 **The current set, not a history:** `replaceScanFailures()` (`db/scanFailures.ts`, called from `syncLibrary()` after a scan that actually ran) swaps a root's rows for the latest scan's, so a fixed file drops off and a file failing every scan doesn't accumulate. A reconcile-only pass does not touch it.
 **Deletion order matters:** `deleteLibraryRoot()` deletes the root's `scan_failures` rows first.
 
+### `guest_codes`
+
+| Column | Type | Null? | Default | Notes |
+|---|---|---|---|---|
+| `id` | INTEGER | — | — | **PK**, autoincrement |
+| `code` | TEXT | NOT NULL | — | **UNIQUE**; 8 characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789`, stored without the dash |
+| `created_by` | INTEGER | NULL | — | **FK → `users.id`**, `ON DELETE NO ACTION`; the admin who made it, nulled by `deleteUser()` |
+| `created_at` | TEXT | NOT NULL | `datetime('now')` | |
+| `expires_at` | TEXT | NOT NULL | — | `created_at + 7 days`; only matters while unused |
+| `used_at` | TEXT | NULL | — | set when redeemed; a code is used at most once |
+| `used_by` | INTEGER | NULL | — | **FK → `users.id`**, `ON DELETE NO ACTION`; the guest it minted, nulled by `deleteUser()` and `pruneIdleGuests()` |
+
+**FKs:** `created_by`, `used_by → users.id` (`NO ACTION`).
+**Indexes:** unique index on `code` (auto).
+**Per-guest entry codes (A42/A43):** `redeemGuestCode()` (`db/guestCodes.ts`) inserts the guest and stamps `used_at`/`used_by` in one transaction. Rows are kept after use so the admin panel can say who came in on which code; the panel lists the last 30 days.
+
+### `server_settings`
+
+| Column | Type | Null? | Default | Notes |
+|---|---|---|---|---|
+| `key` | TEXT | — | — | **PK** |
+| `value` | TEXT | NOT NULL | — | |
+
+Admin switches set from the web instead of an env var. A missing row means the default. Keys: `guest_codes_required` (`'1'` / `'0'`, default off).
+
 ### `schema_migrations` (infrastructure, not domain data)
 
 | Column | Type | Null? | Default | Notes |
@@ -297,6 +322,7 @@ Written by `backend/src/db/migrate.ts` on every `npm run migrate` — not someth
 | `playback_failures` | `user_id` | `users` | `NO ACTION` | `pruneIdleGuests()` and `deleteUser()` (`db/users.ts`) — delete `playback_failures` rows first |
 | `playback_failures` | `track_id` | `tracks` | `NO ACTION` | `deleteTrackRow()` — deletes `playback_failures` rows first |
 | `scan_failures` | `root_id` | `library_roots` | `NO ACTION` | `deleteLibraryRoot()` (`db/libraryRoots.ts`) — deletes `scan_failures` rows first |
+| `guest_codes` | `created_by`, `used_by` | `users` | `NO ACTION` | `deleteUser()` nulls both; `pruneIdleGuests()` nulls `used_by` (`db/users.ts`) |
 
 ## Discrepancies / things worth knowing
 
@@ -400,6 +426,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-10-10 | Migration `0018_create_guest_codes.sql` — `guest_codes`, `server_settings`; new table sections and relationship row. Written from the migration SQL and the test run (applied to a scratch DB), not introspected from the live DB | A42/A43: one-use per-guest codes made on the web Users page, and the admin toggle that closes the guest door. FKs to `users` are nulled, not cascaded, by `deleteUser`/`pruneIdleGuests` |
 | 2026-10-10 | Migration `0017_delete_guest_playlists_and_favorites.sql`. No tables or columns change. | A38: guests are listen-only since A37, so their old playlists and favorites were unreachable; the owner chose to delete them. Runs before the server's boot backup on smol (`migrate.js` precedes `index.js`), so the copy taken before it is the previous daily backup |
 | 2026-09-28 | Migrations `0015_create_playback_failures.sql` and `0016_create_scan_failures.sql` — `playback_failures`, `scan_failures`; new table sections, relationship rows and migration history. **`0013`/`0014` are still missing from the migration list above** (found while adding these; not backfilled here) | Control Center: durable playback-failure log and per-root file-integrity list. Both tables reference `users`/`tracks`/`library_roots` with enforced, non-cascading FKs, so `deleteTrackRow`, `pruneIdleGuests`, `deleteUser` and `deleteLibraryRoot` were extended to clear them first |
 | 2026-09-11 | Migration `0012_add_user_kind.sql` — `users.kind`, `users.last_seen_at`, `idx_users_kind_last_seen`; `users` section, ERD and relationship notes updated. Also **backfilled `0011` into the migration list**, which had been missing since it landed on 2026-09-10 | Passwordless guest entry. A `kind` column rather than a sentinel `password_hash`: `''` is a value `bcrypt.compare` will happily be asked about, so "this row cannot log in" would have lived in whoever remembered to check it — a column lets `/auth/login` refuse before it reaches a hash at all. Applied to the live database against `data/brainlessmusic.pre-0012-backup-2026-09-11T00-42-55.db`; `imran` (id 13) came through as `kind = 'account'` and `integrity_check` returned ok |

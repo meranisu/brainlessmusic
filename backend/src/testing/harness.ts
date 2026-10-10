@@ -18,6 +18,8 @@ import { runMigrations } from '../db/migrator.js';
 
 /** Child rows first — foreign keys are enforced (`better-sqlite3` enables them by default). */
 const TABLES_IN_DELETION_ORDER = [
+  'guest_codes',
+  'server_settings',
   'playback_failures',
   'scan_failures',
   'play_history',
