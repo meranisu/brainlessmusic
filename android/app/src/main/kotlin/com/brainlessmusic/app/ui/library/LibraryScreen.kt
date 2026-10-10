@@ -1,5 +1,6 @@
 package com.brainlessmusic.app.ui.library
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -59,6 +60,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -316,7 +318,13 @@ private fun <T : Any> PagedContent(
             // Spins from the pull until the reload settles; Paging always passes through Loading on a refresh.
             var pulled by remember { mutableStateOf(false) }
             val reloading = refresh is LoadState.Loading
-            LaunchedEffect(reloading) { if (!reloading) pulled = false }
+            val context = LocalContext.current
+            LaunchedEffect(reloading) {
+                if (reloading) return@LaunchedEffect
+                // The old rows stay up on a failed refresh, so without this it looks like it worked.
+                if (pulled && refresh is LoadState.Error) Toast.makeText(context, "Couldn't refresh. Check your connection.", Toast.LENGTH_SHORT).show()
+                pulled = false
+            }
             val pullState = rememberPullToRefreshState()
             PullToRefreshBox(
                 isRefreshing = pulled,
@@ -341,6 +349,7 @@ private fun <T : Any> PagedContent(
 
 @Composable
 private fun SongsTab(viewModel: LibraryViewModel, listState: LazyListState) {
+    val context = LocalContext.current
     val items = viewModel.songs.collectAsLazyPagingItems()
     val letters by viewModel.letters.collectAsStateWithLifecycle()
     val filter by viewModel.songFilter.collectAsStateWithLifecycle()
@@ -378,7 +387,7 @@ private fun SongsTab(viewModel: LibraryViewModel, listState: LazyListState) {
             )
             // Plays everything, not just what is on screen: the server shuffles the whole library.
             FloatingActionButton(
-                onClick = viewModel::shuffleAll,
+                onClick = { viewModel.shuffleAll { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() } },
                 shape = CircleShape,
                 modifier = Modifier.align(Alignment.BottomEnd).padding(end = ListEndPadding + 8.dp, bottom = 16.dp),
             ) {

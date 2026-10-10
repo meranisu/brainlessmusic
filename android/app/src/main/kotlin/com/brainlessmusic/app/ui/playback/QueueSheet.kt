@@ -174,7 +174,8 @@ fun QueueSheet(
                     "${state.queue.size} track${if (state.queue.size == 1) "" else "s"}" + when (state.shuffleMode) {
                         ShuffleMode.OFF -> ""
                         ShuffleMode.SHUFFLE -> " · shuffled"
-                        ShuffleMode.REDISCOVER -> " · rediscover"
+                        // A fixed queue (album, playlist, search) has no play history to go on, so it plays shuffled.
+                        ShuffleMode.REDISCOVER -> if (state.fromLibrary) " · rediscover" else " · shuffled"
                         ShuffleMode.ALBUMS -> " · album shuffle"
                     },
                     style = MaterialTheme.typography.bodySmall,

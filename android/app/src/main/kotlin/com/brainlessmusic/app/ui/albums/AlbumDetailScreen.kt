@@ -31,6 +31,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -67,6 +69,7 @@ fun AlbumDetailScreen(
     }
     val playback by viewModel.playback.collectAsStateWithLifecycle()
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     val title = when (val s = state) {
         is LoadState.Content -> s.data.title
         else -> "Album"
@@ -96,7 +99,10 @@ fun AlbumDetailScreen(
                 SkeletonListRows(lead = SkeletonLead.NUMBER, trailing = true, header = { SkeletonAlbumHeader() })
             },
         ) { album: AlbumDetailDto ->
-            PullToRefreshBox(isRefreshing = refreshing, onRefresh = viewModel::refresh) {
+            PullToRefreshBox(
+                isRefreshing = refreshing,
+                onRefresh = { viewModel.refresh { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() } },
+            ) {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     item { AlbumHeader(album, coverUrl = viewModel.coverUrl()) }
                     itemsIndexed(album.tracks, key = { _, track -> track.id }) { index, track ->

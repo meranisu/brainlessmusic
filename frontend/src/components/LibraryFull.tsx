@@ -223,6 +223,14 @@ export function LibraryFull() {
     void queryClient.invalidateQueries({ queryKey: ['tracks'] });
   }
 
+  function deselect(ids: number[]) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.delete(id));
+      return next;
+    });
+  }
+
   const patchMutation = useMutation({
     mutationFn: ({ id, patch }: { id: number; patch: Partial<TrackSummary> }) =>
       apiClient.patch(`/tracks/${id}`, patch),
@@ -233,20 +241,26 @@ export function LibraryFull() {
   const bulkHideMutation = useMutation({
     mutationFn: ({ ids, hidden }: { ids: number[]; hidden: boolean }) =>
       apiClient.patch<{ updated: number }>('/tracks', { ids, hidden }),
-    onSuccess: invalidateAfterMutation,
+    // Hidden rows leave the list; still selected, a second click would send `ids: []` and get a 400.
+    onSuccess: (_result, { ids }) => {
+      invalidateAfterMutation();
+      deselect(ids);
+    },
     onError: (err) => showToast(err instanceof ApiError ? err.message : 'Update failed', 'error'),
   });
 
   // One request for any number of tracks; the server deletes what it can and lists the rest in `failed`.
   const deleteMutation = useMutation({
     mutationFn: (ids: number[]) => apiClient.post<{ deleted: number[]; failed: number[] }>('/tracks/delete', { ids }),
-    onSuccess: ({ deleted, failed }) => {
+    onSuccess: ({ deleted, failed }, ids) => {
       invalidateAfterMutation();
-      setSelectedIds((prev) => {
-        const next = new Set(prev);
-        deleted.forEach((id) => next.delete(id));
-        return next;
-      });
+      // Favorites and playlists list deleted tracks until they refetch.
+      void queryClient.invalidateQueries({ queryKey: ['favorites'] });
+      void queryClient.invalidateQueries({ queryKey: ['playlists'] });
+      void queryClient.invalidateQueries({ queryKey: ['playlist'] });
+      // Everything but `failed`: ids the server skipped as already gone are gone too.
+      const stillThere = new Set(failed);
+      deselect(ids.filter((id) => !stillThere.has(id)));
       setDeleteTargets(null);
       if (failed.length > 0) {
         showToast(

@@ -11,6 +11,7 @@ import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.queueItem
 import com.brainlessmusic.app.ui.common.LoadState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -53,8 +54,13 @@ class YouViewModel @Inject constructor(
         load()
     }
 
+    // One stats request at a time. A newer one cancels the older, so a slow Month answer can't land under Week.
+    private var statsJob: Job? = null
+
     fun load() {
-        viewModelScope.launch {
+        statsJob?.cancel()
+        statsJob = viewModelScope.launch {
+            _refreshing.value = false
             _state.value = LoadState.Loading
             profile.stats(_range.value).fold(
                 onSuccess = { _state.value = LoadState.Content(it) },
@@ -63,13 +69,27 @@ class YouViewModel @Inject constructor(
         }
     }
 
-    /** Pull to refresh, and coming back to the tab: what is shown stays up while it reloads. */
+    /** Pull to refresh: what is shown stays up while it reloads. */
     fun refresh() {
         if (isGuest) return
-        viewModelScope.launch {
-            _refreshing.value = true
-            profile.stats(_range.value).onSuccess { _state.value = LoadState.Content(it) }
-            _refreshing.value = false
+        reload(showSpinner = true)
+    }
+
+    /** Coming back to the tab: counts may have changed elsewhere (a song unliked, a playlist made). No spinner. */
+    fun onResume() {
+        if (isGuest || _state.value !is LoadState.Content) return
+        reload(showSpinner = false)
+    }
+
+    private fun reload(showSpinner: Boolean) {
+        statsJob?.cancel()
+        statsJob = viewModelScope.launch {
+            _refreshing.value = showSpinner
+            try {
+                profile.stats(_range.value).onSuccess { _state.value = LoadState.Content(it) }
+            } finally {
+                _refreshing.value = false
+            }
         }
     }
 

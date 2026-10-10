@@ -49,6 +49,8 @@ data class PlaybackUiState(
     /** Whether the play order is shuffled; [shuffleMode] says which way. */
     val shuffle: Boolean = false,
     val shuffleMode: ShuffleMode = ShuffleMode.OFF,
+    /** The queue is a library shuffle from the server. Otherwise it is fixed, and Rediscover there is a plain shuffle. */
+    val fromLibrary: Boolean = false,
     val repeat: Repeat = Repeat.OFF,
     val stream: StreamInfo? = null,
 ) {

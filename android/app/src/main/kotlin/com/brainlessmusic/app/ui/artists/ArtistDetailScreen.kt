@@ -23,6 +23,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -46,6 +48,7 @@ fun ArtistDetailScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     val title = when (val s = state) {
         is LoadState.Content -> s.data.name
         else -> "Artist"
@@ -73,7 +76,10 @@ fun ArtistDetailScreen(
             loadingLabel = "Loading artist",
             skeleton = { SkeletonAlbumGrid() },
         ) { detail: ArtistDetailDto ->
-            PullToRefreshBox(isRefreshing = refreshing, onRefresh = viewModel::refresh) {
+            PullToRefreshBox(
+                isRefreshing = refreshing,
+                onRefresh = { viewModel.refresh { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() } },
+            ) {
                 LazyVerticalGrid(
                     modifier = Modifier.fillMaxSize(),
                     columns = GridCells.Adaptive(minSize = 140.dp),

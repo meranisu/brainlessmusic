@@ -287,14 +287,24 @@ export function setTrackFlags(
  * Deletes a track row and its favorites, less-often marks, playlist entries and history, dependents first: foreign keys are enforced
  * and none cascade. The file on disk is the caller's job.
  */
+/** Every table with rows that point at a track. Both deletes below clear these first. */
+const TRACK_CHILD_TABLES = ['favorites', 'less_often', 'playlist_tracks', 'play_history', 'playback_failures'] as const;
+
 export function deleteTrackRow(id: number): void {
   const cleanup = db.transaction((trackId: number) => {
-    db.prepare('DELETE FROM favorites WHERE track_id = ?').run(trackId);
-    db.prepare('DELETE FROM less_often WHERE track_id = ?').run(trackId);
-    db.prepare('DELETE FROM playlist_tracks WHERE track_id = ?').run(trackId);
-    db.prepare('DELETE FROM play_history WHERE track_id = ?').run(trackId);
-    db.prepare('DELETE FROM playback_failures WHERE track_id = ?').run(trackId);
+    for (const table of TRACK_CHILD_TABLES) db.prepare(`DELETE FROM ${table} WHERE track_id = ?`).run(trackId);
     db.prepare('DELETE FROM tracks WHERE id = ?').run(trackId);
   });
   cleanup(id);
+}
+
+/**
+ * Every track of one root, with its child rows, in a handful of statements however many tracks there are (removing a
+ * large folder used to prepare six per track). The caller's transaction makes it all-or-nothing.
+ */
+export function deleteTrackRowsOfRoot(rootId: number): void {
+  for (const table of TRACK_CHILD_TABLES) {
+    db.prepare(`DELETE FROM ${table} WHERE track_id IN (SELECT id FROM tracks WHERE root_id = ?)`).run(rootId);
+  }
+  db.prepare('DELETE FROM tracks WHERE root_id = ?').run(rootId);
 }

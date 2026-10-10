@@ -38,6 +38,8 @@ export function FavoritesPage() {
       artist: t.artist,
       duration: t.duration,
       format: t.format,
+      albumId: t.albumId,
+      trackNumber: t.trackNumber,
     })) ?? [];
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;

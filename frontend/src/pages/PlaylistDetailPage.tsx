@@ -112,6 +112,8 @@ export function PlaylistDetailPage() {
     artist: t.artist,
     duration: t.duration,
     format: t.format,
+    albumId: t.albumId,
+    trackNumber: t.trackNumber,
   }));
 
   function handleDrop(targetIndex: number) {

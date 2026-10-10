@@ -29,6 +29,9 @@ export function AlbumDetailPage() {
       artist: data.artistName,
       duration: t.duration,
       format: t.format,
+      // Lets the player keep joins inside the album gapless (A72).
+      albumId: data.id,
+      trackNumber: t.trackNumber,
     })) ?? [];
 
   if (isLoading) {

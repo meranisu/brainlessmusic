@@ -57,6 +57,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -79,6 +81,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import javax.inject.Inject
@@ -87,7 +91,8 @@ private val RowShape = RoundedCornerShape(12.dp)
 private val RemoveColor = Color(0xFFDC2626)
 
 /** A song taken out of a playlist, and the order to put back on Undo. */
-data class RemovedPlaylistTrack(val track: PlaylistTrackDto, val orderBefore: List<Int>)
+/** A swiped-away song and the row it was on, for Undo. */
+data class RemovedPlaylistTrack(val track: PlaylistTrackDto, val index: Int)
 
 @HiltViewModel
 class PlaylistDetailViewModel @Inject constructor(
@@ -132,35 +137,59 @@ class PlaylistDetailViewModel @Inject constructor(
         durationSec = track.duration,
         coverUrl = libraryRepository.trackCoverUrl(track.id),
         format = track.format,
+        albumId = track.albumId,
+        trackNumber = track.trackNumber,
     )
 
-    fun rename(name: String) {
-        viewModelScope.launch {
-            profile.renamePlaylist(playlistId, name).onSuccess { renamed ->
-                current()?.let { _state.value = LoadState.Content(it.copy(name = renamed.name)) }
-            }
+    // This playlist's saves, one at a time and in order. A remove, an Undo and a drag otherwise race on the server:
+    // an add could land before its own remove, or a reorder be judged against a song set that is about to change.
+    private val edits = Mutex()
+
+    private fun edit(block: suspend () -> Unit) {
+        viewModelScope.launch { edits.withLock { block() } }
+    }
+
+    /** [onFailed] gets a short line to show. */
+    fun rename(name: String, onFailed: (String) -> Unit) {
+        edit {
+            profile.renamePlaylist(playlistId, name).fold(
+                onSuccess = { renamed -> current()?.let { _state.value = LoadState.Content(it.copy(name = renamed.name)) } },
+                onFailure = { onFailed("Couldn't rename the playlist. Try again.") },
+            )
         }
     }
 
-    fun delete(onDeleted: () -> Unit) {
-        viewModelScope.launch { profile.deletePlaylist(playlistId).onSuccess { onDeleted() } }
+    fun delete(onDeleted: () -> Unit, onFailed: (String) -> Unit) {
+        edit {
+            profile.deletePlaylist(playlistId).fold(
+                onSuccess = { onDeleted() },
+                onFailure = { onFailed("Couldn't delete the playlist. Try again.") },
+            )
+        }
     }
 
     /** Shown at once, saved in the background; a failed save reloads what the server has. */
     fun remove(trackId: Int): RemovedPlaylistTrack? {
         val playlist = current() ?: return null
-        val track = playlist.tracks.firstOrNull { it.id == trackId } ?: return null
-        val before = playlist.tracks.map { it.id }
+        val index = playlist.tracks.indexOfFirst { it.id == trackId }.takeIf { it >= 0 } ?: return null
         _state.value = LoadState.Content(playlist.copy(tracks = playlist.tracks.filter { it.id != trackId }))
-        viewModelScope.launch { profile.removeFromPlaylist(playlistId, trackId).onFailure { load() } }
-        return RemovedPlaylistTrack(track, before)
+        edit { profile.removeFromPlaylist(playlistId, trackId).onFailure { load() } }
+        return RemovedPlaylistTrack(playlist.tracks[index], index)
     }
 
-    /** Adds the song back (it lands at the end) and restores the order it had. */
+    /**
+     * Puts the song back on its old row of the list as it is now, so a drag made since the remove is kept. On the
+     * server it is added (at the end), then the order is set.
+     */
     fun undoRemove(removed: RemovedPlaylistTrack) {
-        viewModelScope.launch {
-            if (profile.addToPlaylist(playlistId, removed.track.id) == AddToPlaylistResult.FAILED) return@launch load()
-            profile.reorderPlaylist(playlistId, removed.orderBefore).fold(
+        val playlist = current() ?: return
+        if (playlist.tracks.any { it.id == removed.track.id }) return
+        val tracks = playlist.tracks.toMutableList().apply { add(removed.index.coerceIn(0, size), removed.track) }
+        _state.value = LoadState.Content(playlist.copy(tracks = tracks))
+        val order = tracks.map { it.id }
+        edit {
+            if (profile.addToPlaylist(playlistId, removed.track.id) == AddToPlaylistResult.FAILED) return@edit load()
+            profile.reorderPlaylist(playlistId, order).fold(
                 onSuccess = { _state.value = LoadState.Content(it) },
                 onFailure = { load() },
             )
@@ -172,9 +201,7 @@ class PlaylistDetailViewModel @Inject constructor(
         val playlist = current() ?: return
         val byId = playlist.tracks.associateBy { it.id }
         _state.value = LoadState.Content(playlist.copy(tracks = trackIds.mapNotNull { byId[it] }))
-        viewModelScope.launch {
-            profile.reorderPlaylist(playlistId, trackIds).onFailure { load() }
-        }
+        edit { profile.reorderPlaylist(playlistId, trackIds).onFailure { load() } }
     }
 }
 
@@ -192,9 +219,13 @@ fun PlaylistDetailScreen(
     var renaming by remember { mutableStateOf(false) }
     var confirmingDelete by remember { mutableStateOf(false) }
     val playlist = (state as? LoadState.Content)?.data
+    val context = LocalContext.current
+    val showFailure: (String) -> Unit = { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
 
     if (renaming && playlist != null) {
-        PlaylistNameDialog("Rename playlist", "Rename", playlist.name, viewModel::rename) { renaming = false }
+        PlaylistNameDialog("Rename playlist", "Rename", playlist.name, { name -> viewModel.rename(name, showFailure) }) {
+            renaming = false
+        }
     }
     if (confirmingDelete && playlist != null) {
         AlertDialog(
@@ -204,7 +235,7 @@ fun PlaylistDetailScreen(
             confirmButton = {
                 TextButton(onClick = {
                     confirmingDelete = false
-                    viewModel.delete(onBack)
+                    viewModel.delete(onBack, showFailure)
                 }) { Text("Delete") }
             },
             dismissButton = { TextButton(onClick = { confirmingDelete = false }) { Text("Keep") } },

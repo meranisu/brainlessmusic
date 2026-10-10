@@ -26,7 +26,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.brainlessmusic.app.data.remote.dto.PlaylistSummaryDto
@@ -61,8 +65,13 @@ class PlaylistsViewModel @Inject constructor(
         }
     }
 
-    fun create(name: String, onCreated: (Int) -> Unit) {
-        viewModelScope.launch { profile.createPlaylist(name).onSuccess { onCreated(it.id) } }
+    fun create(name: String, onCreated: (Int) -> Unit, onFailed: (String) -> Unit) {
+        viewModelScope.launch {
+            profile.createPlaylist(name).fold(
+                onSuccess = { onCreated(it.id) },
+                onFailure = { onFailed("Couldn't make the playlist. Try again.") },
+            )
+        }
     }
 }
 
@@ -76,6 +85,8 @@ fun PlaylistsScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var naming by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     androidx.compose.runtime.LaunchedEffect(Unit) { viewModel.load() }
 
     if (naming) {
@@ -83,7 +94,15 @@ fun PlaylistsScreen(
             title = "New playlist",
             confirmLabel = "Create",
             initial = "",
-            onConfirm = { name -> viewModel.create(name, onOpenPlaylist) },
+            onConfirm = { name ->
+                viewModel.create(
+                    name,
+                    // Answered after the request: open it only if this screen is still the one showing, or the new
+                    // playlist would be pushed on top of wherever the user went meanwhile.
+                    onCreated = { id -> if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) onOpenPlaylist(id) },
+                    onFailed = { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() },
+                )
+            },
             onDismiss = { naming = false },
         )
     }

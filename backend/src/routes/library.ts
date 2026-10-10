@@ -1,5 +1,5 @@
 import { readdir, stat } from 'node:fs/promises';
-import { dirname, isAbsolute, relative, resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import type { FastifyPluginAsync } from 'fastify';
 import { listMissingTracks } from '../db/library.js';
 import { getLibraryStats } from '../db/libraryStats.js';
@@ -12,6 +12,7 @@ import {
 } from '../db/libraryRoots.js';
 import { findUserById } from '../db/users.js';
 import { getScanProgress, isLibrarySyncRunning, syncLibrary } from '../services/librarySync.js';
+import { isInside } from '../utils/paths.js';
 
 interface AddRootBody {
   path: string;
@@ -21,13 +22,9 @@ interface AddRootBody {
 /** Listings past this are truncated; virtual folders like `/proc` can return thousands of entries. */
 const MAX_BROWSE_ENTRIES = 500;
 
-/** Whether one folder is the other or inside it. Both must already be `resolve()`d. */
+/** Whether one folder is the other or inside it. */
 function overlaps(a: string, b: string): boolean {
-  const inside = (child: string, parent: string) => {
-    const rel = relative(parent, child);
-    return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
-  };
-  return inside(a, b) || inside(b, a);
+  return isInside(a, b) || isInside(b, a);
 }
 
 const libraryRoute: FastifyPluginAsync = async (fastify) => {
@@ -191,7 +188,6 @@ const libraryRoute: FastifyPluginAsync = async (fastify) => {
     }
   });
 
-  // Tracks whose file is gone. Flagged, never deleted; deletion is per track via `DELETE /tracks/:id`.
   // Any signed-in user, guests too: the Full view shows it to everyone (A34). Hidden tracks count only for an admin.
   fastify.get('/library/stats', { preHandler: fastify.authenticate }, async (request, reply) => {
     const isAdmin = Boolean(findUserById(request.user!.id)?.is_admin);

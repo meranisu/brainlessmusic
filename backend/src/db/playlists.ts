@@ -19,6 +19,9 @@ export interface PlaylistTrack {
   title: string;
   artist: string | null;
   album: string | null;
+  /** With `trackNumber`, lets a player keep a join inside an album gapless (A72). */
+  albumId: number | null;
+  trackNumber: number | null;
   duration: number | null;
   format: string | null;
   position: number;
@@ -64,6 +67,8 @@ export function getPlaylistDetail(id: number): PlaylistDetail | undefined {
          t.title as title,
          a.name as artist,
          al.title as album,
+         t.album_id as albumId,
+         t.track_number as trackNumber,
          t.duration as duration,
          t.format as format,
          pt.position as position

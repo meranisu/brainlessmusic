@@ -1,5 +1,5 @@
 import { db } from './connection.js';
-import type { TrackSummary } from './browse.js';
+import { getTrackSummariesByIds, type TrackSummary } from './browse.js';
 
 export interface FavoriteTrack extends TrackSummary {
   favoritedAt: string;
@@ -39,23 +39,20 @@ export function listFavoritesForUser(
   limit: number,
   offset: number,
 ): FavoriteTrack[] {
-  return db
+  const page = db
     .prepare(
-      `SELECT
-         t.id as id,
-         t.title as title,
-         a.name as artist,
-         al.title as album,
-         t.duration as duration,
-         t.format as format,
-         f.created_at as favoritedAt
-       FROM favorites f
-       JOIN tracks t ON t.id = f.track_id
-       LEFT JOIN artists a ON a.id = t.artist_id
-       LEFT JOIN albums al ON al.id = t.album_id
-       WHERE f.user_id = ?
-       ORDER BY f.created_at DESC, f.track_id DESC
+      `SELECT track_id as id, created_at as favoritedAt
+       FROM favorites
+       WHERE user_id = ?
+       ORDER BY created_at DESC, track_id DESC
        LIMIT ? OFFSET ?`,
     )
-    .all(userId, limit, offset) as FavoriteTrack[];
+    .all(userId, limit, offset) as { id: number; favoritedAt: string }[];
+  // Full summaries, as `FavoriteTrack` promises: Android reads each as a `TrackSummaryDto`, and the players need
+  // `albumId` and `trackNumber` (A72).
+  const byId = new Map(getTrackSummariesByIds(page.map((row) => row.id)).map((track) => [track.id, track]));
+  return page.flatMap((row) => {
+    const track = byId.get(row.id);
+    return track ? [{ ...track, favoritedAt: row.favoritedAt }] : [];
+  });
 }

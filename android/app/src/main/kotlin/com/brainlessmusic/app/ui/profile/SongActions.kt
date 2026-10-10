@@ -65,8 +65,15 @@ class SongActionsViewModel @Inject constructor(
     }
 
     fun toggleLike(trackId: Int) {
-        val liked = trackId in likedIds.value
-        viewModelScope.launch { profile.setLiked(trackId, !liked) }
+        viewModelScope.launch {
+            // An empty heart before the liked set ever loaded may be a liked song: load it first, or this would "like"
+            // what is already liked.
+            if (!profile.likesLoaded) {
+                profile.loadLikedIds()
+                if (!profile.likesLoaded) return@launch
+            }
+            profile.setLiked(trackId, trackId !in likedIds.value)
+        }
     }
 
     fun loadPlaylists() {

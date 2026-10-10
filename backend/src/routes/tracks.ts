@@ -25,7 +25,7 @@ import {
   type TrackRow,
 } from '../db/library.js';
 import { recordPlaybackFailure } from '../db/playbackFailures.js';
-import { findLibraryRootByPath } from '../db/libraryRoots.js';
+import { findLibraryRootByPath, listLibraryRoots } from '../db/libraryRoots.js';
 import { findUserById } from '../db/users.js';
 import { countHistoryForTrack, listHistoryForTrack, recordScrobble } from '../db/plays.js';
 import {
@@ -50,6 +50,7 @@ import { persistArtwork } from '../services/artworkIngest.js';
 import { fileIntoLibrary } from '../services/trackFiling.js';
 import { AUDIO_EXTENSIONS, extractTrackTags } from '../services/trackTags.js';
 import { parsePagination } from '../utils/pagination.js';
+import { isInside } from '../utils/paths.js';
 
 /** A day, then revalidate: covers an evening of seeks, and a replaced file stops serving within a day. */
 const CACHE_CONTROL = 'private, max-age=86400';
@@ -133,6 +134,10 @@ function parseBulkIds(ids: unknown): number[] | string {
 
 /** Removes the file, then the row. A file that is already gone still loses its row; any other unlink error keeps it. */
 async function deleteTrackAndFile(track: TrackRow): Promise<NodeJS.ErrnoException | null> {
+  // Only ever a file inside a registered folder: a bad row must not become an unlink anywhere on the disk.
+  if (!listLibraryRoots().some((root) => isInside(track.path, root.path))) {
+    return Object.assign(new Error(`"${track.path}" is outside every library folder`), { code: 'EOUTSIDE' });
+  }
   try {
     await unlink(track.path);
   } catch (err) {

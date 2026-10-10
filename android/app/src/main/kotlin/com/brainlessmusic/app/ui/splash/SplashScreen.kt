@@ -1,5 +1,6 @@
 package com.brainlessmusic.app.ui.splash
 
+import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.Image
@@ -22,6 +23,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -52,8 +57,21 @@ fun SplashScreen(
         showProgress = true
     }
 
+    // The app's light/dark choice, not the phone's: `window_background` resolves by the phone's, which shows a light
+    // splash before a dark app when the app is set to Dark (and the other way round).
+    val appIsDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val ground = remember(appIsDark, configuration) {
+        val night = Configuration(configuration).apply {
+            uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
+                (if (appIsDark) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO)
+        }
+        Color(context.createConfigurationContext(night).getColor(R.color.window_background))
+    }
+
     Box(
-        modifier = Modifier.fillMaxSize().background(colorResource(R.color.window_background)),
+        modifier = Modifier.fillMaxSize().background(ground),
         contentAlignment = Alignment.Center,
     ) {
         Box(

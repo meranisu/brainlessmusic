@@ -66,18 +66,21 @@ export function formatScanStatus(scanning: boolean, progress: { processed: numbe
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   const units = ['KB', 'MB', 'GB', 'TB'];
+  // Judged on the rounded figure, so 99.96 KB shows "100 KB" (not "100.0") and 1023.9 KB moves up to "1.0 MB".
+  const shown = (v: number) => (v >= 99.95 ? v.toFixed(0) : v.toFixed(1));
   let value = bytes / 1024;
   let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
+  while (Number(shown(value)) >= 1024 && unit < units.length - 1) {
     value /= 1024;
     unit++;
   }
-  return `${value >= 100 ? value.toFixed(0) : value.toFixed(1)} ${units[unit]}`;
+  return `${shown(value)} ${units[unit]}`;
 }
 
 /** A library's total length: whole hours once there are any (`162 h`), minutes below that (`48 min`). */
 export function formatTotalLength(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
   if (hours > 0) return `${hours.toLocaleString()} h`;
-  return `${Math.round(seconds / 60)} min`;
+  // A library under half a minute long still has something in it.
+  return `${seconds > 0 ? Math.max(1, Math.round(seconds / 60)) : 0} min`;
 }

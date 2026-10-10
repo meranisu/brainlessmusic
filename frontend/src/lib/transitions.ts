@@ -58,7 +58,10 @@ export function saveTransitionPrefs(prefs: TransitionPrefs): void {
   }
 }
 
-/** True when `next` directly follows `current` on the same album, so A72 keeps the join gapless. */
+/**
+ * True when `next` directly follows `current` on the same album, so A72 keeps the join gapless. There are no disc
+ * numbers, so a same-album step back to track 1 counts too: that is disc 2 starting over.
+ */
 export function isNextOnAlbum(
   current: { albumId?: number | null; trackNumber?: number | null },
   next: { albumId?: number | null; trackNumber?: number | null },
@@ -67,7 +70,7 @@ export function isNextOnAlbum(
     current.albumId != null &&
     current.albumId === next.albumId &&
     current.trackNumber != null &&
-    next.trackNumber === current.trackNumber + 1
+    (next.trackNumber === current.trackNumber + 1 || (next.trackNumber === 1 && current.trackNumber > 1))
   );
 }
 

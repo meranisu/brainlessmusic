@@ -13,6 +13,13 @@ class TransitionPrefsTest {
     }
 
     @Test
+    fun aStepBackToTrackOneOfTheSameAlbumCountsAsTheNextDisc() {
+        assertTrue(isNextOnAlbum(albumId = 7, trackNumber = 12, nextAlbumId = 7, nextTrack = 1))
+        assertFalse(isNextOnAlbum(albumId = 7, trackNumber = 1, nextAlbumId = 7, nextTrack = 1))
+        assertFalse(isNextOnAlbum(albumId = 7, trackNumber = 12, nextAlbumId = 8, nextTrack = 1))
+    }
+
+    @Test
     fun anotherAlbumOrASkippedTrackDoesNot() {
         assertFalse(isNextOnAlbum(7, 3, 8, 4))
         assertFalse(isNextOnAlbum(7, 3, 7, 5))

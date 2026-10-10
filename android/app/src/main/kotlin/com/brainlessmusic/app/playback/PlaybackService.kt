@@ -3,6 +3,7 @@ package com.brainlessmusic.app.playback
 import android.app.PendingIntent
 import android.content.Intent
 import androidx.annotation.OptIn
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSourceBitmapLoader
 import androidx.media3.datasource.okhttp.OkHttpDataSource
@@ -16,7 +17,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import java.util.concurrent.Executors
 import javax.inject.Inject
@@ -56,7 +59,23 @@ class PlaybackService : MediaSessionService() {
                     OkHttpDataSource.Factory(okHttpClient),
                 ),
             )
+            .setCallback(object : MediaSession.Callback {
+                // Other apps (Android Auto, Wear, media controllers) can't edit the queue: those calls would reach
+                // ExoPlayer directly and leave the app's own queue and row keys out of step with it.
+                override fun onConnect(
+                    session: MediaSession,
+                    controller: MediaSession.ControllerInfo,
+                ): MediaSession.ConnectionResult {
+                    val result = super.onConnect(session, controller)
+                    val commands = result.availablePlayerCommands.buildUpon()
+                        .remove(Player.COMMAND_CHANGE_MEDIA_ITEMS)
+                        .build()
+                    return MediaSession.ConnectionResult.accept(result.availableSessionCommands, commands)
+                }
+            })
             .build()
+        // Read once now, so a swipe-away in the service's first moments sees the real setting, not the default.
+        keepPlayingWhenSwipedAway = runBlocking { settings.keepPlayingWhenSwipedAway.first() }
         scope.launch { settings.keepPlayingWhenSwipedAway.collect { keepPlayingWhenSwipedAway = it } }
     }
 

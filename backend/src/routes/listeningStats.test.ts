@@ -114,6 +114,8 @@ describe('listening stats', () => {
 
     assert.equal((await call('PATCH', `/me/history/${playId}`, otherToken, { msPlayed: 1 })).statusCode, 404);
     assert.equal((await call('PATCH', `/me/history/${playId}`, token, { msPlayed: -1 })).statusCode, 400);
+    // Over a day: refused, since a song with no known length has nothing else to cap it.
+    assert.equal((await call('PATCH', `/me/history/${playId}`, token, { msPlayed: 1e300 })).statusCode, 400);
     assert.equal((await call('PATCH', '/me/history/99999', token, { msPlayed: 1 })).statusCode, 404);
   });
 

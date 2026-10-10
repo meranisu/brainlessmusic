@@ -3,14 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { usePlayer } from '../components/PlayerBar';
 import { DataSaverIcon } from '../components/icons';
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { HandoffDialog } from '../components/HandoffDialog';
 import { LibraryBrowseDialog } from '../components/LibraryBrowseDialog';
 import { Numpad } from '../components/Numpad';
 import { useToast } from '../components/ToastProvider';
 import { ApiError, apiClient } from '../lib/apiClient';
 import { formatScanStatus } from '../lib/format';
-import { applyTheme, loadTheme, THEMES, type ThemeId } from '../lib/theme';
+import { applyTheme, isTheme, loadTheme, THEMES, type ThemeId } from '../lib/theme';
 import { FADE_LENGTHS, type BetweenSongs, type TransitionPrefs } from '../lib/transitions';
 import type { AddLibraryRootResponse, LibraryRoot, LibraryRootListResponse, LibraryRootScanResult } from '../types/api';
 
@@ -185,8 +185,11 @@ function LibrarySection() {
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ['library-roots'] });
-    // Found or missing tracks change the Library views too.
+    // Found or missing tracks change the Library views too, and a removed folder's tracks leave favorites and playlists.
     queryClient.invalidateQueries({ queryKey: ['tracks'] });
+    queryClient.invalidateQueries({ queryKey: ['favorites'] });
+    queryClient.invalidateQueries({ queryKey: ['playlists'] });
+    queryClient.invalidateQueries({ queryKey: ['playlist'] });
   }
 
   const addRoot = useMutation({
@@ -246,7 +249,7 @@ function LibrarySection() {
                 {root.scanning
                   ? formatScanStatus(root.scanning, root.scanProgress)
                   : root.status === 'ok'
-                    ? `${root.trackCount} tracks`
+                    ? `${root.trackCount} ${root.trackCount === 1 ? 'track' : 'tracks'}`
                     : 'Unreachable'}
               </span>
               <div className="flex shrink-0 gap-1.5">
@@ -322,8 +325,9 @@ function LibrarySection() {
               Remove "{removeTarget.label || removeTarget.path}"?
             </h2>
             <p className="mb-4 text-xs text-blue-400">
-              This takes its {removeTarget.trackCount} tracks out of the library, with their
-              favorites, playlist entries and play history. You can't undo it. The music files stay
+              {removeTarget.trackCount === 0
+                ? 'It has no tracks in the library, so nothing else changes.'
+                : `This takes its ${removeTarget.trackCount === 1 ? 'one track' : `${removeTarget.trackCount} tracks`} out of the library, with their favorites, playlist entries and play history.`} You can't undo it. The music files stay
               on disk, so adding the folder again scans them back in as new tracks.
             </p>
             <div className="flex justify-end gap-2">
@@ -357,14 +361,17 @@ export function OptionsPage() {
   const [showHandoff, setShowHandoff] = useState(false);
   const [showPasscodeNumpad, setShowPasscodeNumpad] = useState(false);
   const [isClearingPasscode, setIsClearingPasscode] = useState(false);
-  /* From storage, so the swatch is right on first paint; index.html already set the attribute. */
-  const [theme, setTheme] = useState<ThemeId>(loadTheme);
+  /* The pick made here, else the profile's (which may load after this page first paints), else the browser's copy. */
+  const [picked, setPicked] = useState<ThemeId | null>(null);
+  const theme: ThemeId = picked ?? (isTheme(user?.theme) ? user.theme : loadTheme());
+  // Saves run one after another, so quick clicks can't land out of order and leave an earlier pick saved.
+  const themeSaveRef = useRef<Promise<unknown>>(Promise.resolve());
 
   function chooseTheme(id: ThemeId) {
     applyTheme(id);
-    setTheme(id);
-    apiClient
-      .put('/me/theme', { theme: id })
+    setPicked(id);
+    themeSaveRef.current = themeSaveRef.current
+      .then(() => apiClient.put('/me/theme', { theme: id }))
       .catch(() => showToast('Theme changed here, but not saved to your profile. Try again later.', 'error'));
   }
 

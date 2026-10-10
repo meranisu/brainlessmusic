@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import retrofit2.HttpException
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -47,23 +49,42 @@ class ProfileRepository @Inject constructor(
     val likedIds: StateFlow<Set<Int>> = _likedIds.asStateFlow()
     private var likedLoaded = false
 
+    /** Whether [likedIds] came from the server. Until it has, an empty heart may just mean "not loaded". */
+    val likesLoaded: Boolean get() = likedLoaded
+
+    // Like and unlike calls go out one at a time, in tap order, so a double tap can't reach the server reversed.
+    private val likeMutex = Mutex()
+    // Taps the server hasn't answered yet. A liked set that loads meanwhile keeps them on top, rather than undoing them.
+    private val pendingLikes = HashMap<Int, Boolean>()
+
     suspend fun stats(range: StatsRange): Result<UserStatsDto> = callApi { it.stats(range.query, TOP_LIMIT) }
 
     /** Loads the liked set once per process; [force] reloads it (pull to refresh, a new login). */
     suspend fun loadLikedIds(force: Boolean = false) {
         if (isGuest || (likedLoaded && !force)) return
         callApi { it.favoriteIds() }.onSuccess {
-            _likedIds.value = it.trackIds.toSet()
+            val pending = pendingLikes.toMap()
+            _likedIds.value = it.trackIds.toSet() + pending.filterValues { liked -> liked }.keys -
+                pending.filterValues { liked -> !liked }.keys
             likedLoaded = true
         }
     }
 
-    /** Flips the heart at once and puts it back if the server says no. */
+    /**
+     * Flips the heart at once, then tells the server, after any earlier taps. If the server says no, the set is reloaded:
+     * with taps queued, putting back just this one could undo a later one.
+     */
     suspend fun setLiked(trackId: Int, liked: Boolean): Result<Unit> {
         if (isGuest) return Result.success(Unit)
+        pendingLikes[trackId] = liked
         _likedIds.update { if (liked) it + trackId else it - trackId }
-        return callApi { if (liked) it.like(trackId) else it.unlike(trackId) }
-            .onFailure { _likedIds.update { ids -> if (liked) ids - trackId else ids + trackId } }
+        val result = likeMutex.withLock { callApi { if (liked) it.like(trackId) else it.unlike(trackId) } }
+        if (pendingLikes[trackId] == liked) pendingLikes.remove(trackId)
+        if (result.isFailure) {
+            pendingLikes.remove(trackId)
+            loadLikedIds(force = true)
+        }
+        return result
     }
 
     suspend fun likedPage(offset: Int, limit: Int): Result<FavoritesPageDto> = callApi { it.favorites(limit, offset) }
@@ -99,6 +120,7 @@ class ProfileRepository @Inject constructor(
     /** Forgets the liked set, for logout, so the next account doesn't see the last one's hearts. */
     fun clear() {
         _likedIds.value = emptySet()
+        pendingLikes.clear()
         likedLoaded = false
     }
 

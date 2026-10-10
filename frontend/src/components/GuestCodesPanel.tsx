@@ -237,7 +237,13 @@ export function GuestCodesPanel() {
                   <li key={c.id} className="py-2.5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="truncate font-medium text-white">{c.usedByName ?? c.usedBy}</p>
+                        <p className="truncate font-medium text-white">
+                          {c.usedByName ?? c.usedBy}
+                          {/* The guest's own login name, so one calling itself "imran" can't pass as that account. */}
+                          {c.usedByName && c.usedBy && c.usedByName !== c.usedBy && (
+                            <span className="ml-1.5 font-mono text-xs font-normal text-blue-400">{c.usedBy}</span>
+                          )}
+                        </p>
                         <p className="text-xs text-blue-300">
                           <span className="font-mono select-all">{prettyGuestCode(c.code)}</span>
                           {' · '}

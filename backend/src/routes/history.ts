@@ -3,6 +3,9 @@ import { finishPlay } from '../db/listeningStats.js';
 import { countHistoryForUser, listHistoryForUser } from '../db/plays.js';
 import { parsePagination } from '../utils/pagination.js';
 
+/** The longest one play can be, in ms. */
+const MAX_PLAY_MS = 24 * 60 * 60 * 1000;
+
 const historyRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Querystring: { limit?: string; offset?: string } }>(
     '/me/history',
@@ -22,8 +25,9 @@ const historyRoute: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       const id = Number(request.params.id);
       const ms = request.body?.msPlayed;
-      if (typeof ms !== 'number' || !Number.isFinite(ms) || ms < 0) {
-        return reply.code(400).send({ error: 'msPlayed must be a non-negative number' });
+      // Capped at a day: with no known song length nothing else limits it, and a huge value overflows the stats' sums.
+      if (typeof ms !== 'number' || !Number.isFinite(ms) || ms < 0 || ms > MAX_PLAY_MS) {
+        return reply.code(400).send({ error: 'msPlayed must be between 0 and 86400000 (one day)' });
       }
       if (!Number.isInteger(id) || !finishPlay(request.user!.id, id, Math.floor(ms))) {
         return reply.code(404).send({ error: 'Play not found' });

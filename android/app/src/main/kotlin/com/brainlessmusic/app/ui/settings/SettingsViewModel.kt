@@ -126,9 +126,14 @@ class SettingsViewModel @Inject constructor(
     /** A guest's identity lives only in this phone's stored token, so logging out is forgetting it for good. */
     val isGuest: Boolean get() = authRepository.isGuest
 
+    // A second tap while the first logout runs would stack a second Login screen.
+    private var loggingOut = false
+
     fun logout(onLoggedOut: () -> Unit) {
+        if (loggingOut) return
+        loggingOut = true
         viewModelScope.launch {
-            playbackController.stop()
+            playbackController.stopAndFlush()
             authRepository.logout()
             profileRepository.clear()
             onLoggedOut()

@@ -1,5 +1,5 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { useCallback, useMemo, useState } from 'react';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { ArcadeSelect } from '../components/ArcadeSelect';
@@ -33,6 +33,15 @@ function SimpleLibrary() {
     enabled: Boolean(user?.isAdmin),
     refetchInterval: (query) => (query.state.data?.roots.some((r) => r.scanning) ? SCAN_POLL_MS : false),
   });
+
+  // A scan that ends while this page is open adds or drops tracks: refresh the lists and the totals line.
+  const queryClient = useQueryClient();
+  const anyScanning = rootsData?.roots.some((r) => r.scanning) ?? false;
+  const wasScanningRef = useRef(false);
+  useEffect(() => {
+    if (wasScanningRef.current && !anyScanning) void queryClient.invalidateQueries({ queryKey: ['tracks'] });
+    wasScanningRef.current = anyScanning;
+  }, [anyScanning, queryClient]);
 
   const scanStatus = useMemo(() => {
     const scanningRoots = rootsData?.roots.filter((r) => r.scanning) ?? [];

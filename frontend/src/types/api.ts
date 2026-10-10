@@ -305,6 +305,8 @@ export interface PlaylistTrack {
   title: string;
   artist: string | null;
   album: string | null;
+  albumId: number | null;
+  trackNumber: number | null;
   duration: number | null;
   format: string | null;
   position: number;

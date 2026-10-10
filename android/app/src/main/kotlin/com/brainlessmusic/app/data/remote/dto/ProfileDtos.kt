@@ -41,6 +41,9 @@ data class PlaylistTrackDto(
     val duration: Double?,
     val format: String?,
     val position: Int,
+    // Null from a server older than these fields.
+    val albumId: Int? = null,
+    val trackNumber: Int? = null,
 )
 
 data class PlaylistDetailDto(val id: Int, val name: String, val createdAt: String, val tracks: List<PlaylistTrackDto>)

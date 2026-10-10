@@ -1,5 +1,5 @@
 import { db } from './connection.js';
-import { deleteTrackRow } from './library.js';
+import { deleteTrackRowsOfRoot } from './library.js';
 
 export interface LibraryRootRow {
   id: number;
@@ -53,8 +53,7 @@ export function countTracksForRoot(id: number): number {
  */
 export function deleteLibraryRoot(id: number): void {
   db.transaction(() => {
-    const tracks = db.prepare('SELECT id FROM tracks WHERE root_id = ?').all(id) as { id: number }[];
-    for (const track of tracks) deleteTrackRow(track.id);
+    deleteTrackRowsOfRoot(id);
     db.prepare('DELETE FROM scan_failures WHERE root_id = ?').run(id);
     db.prepare('DELETE FROM library_roots WHERE id = ?').run(id);
   })();

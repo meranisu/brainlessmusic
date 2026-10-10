@@ -93,7 +93,9 @@ describe('PATCH /tracks', () => {
 describe('POST /tracks/delete', () => {
   it('deletes files and rows (with favorites), skips unknown ids, and reports a file it could not remove', async () => {
     const temp = await makeTempDir('bulk-delete');
+    const outside = await makeTempDir('bulk-delete-outside');
     try {
+      insertLibraryRoot(temp.path, null);
       const fileA = join(temp.path, 'a.mp3');
       const fileB = join(temp.path, 'b.mp3');
       await writeFile(fileA, 'x');
@@ -107,12 +109,17 @@ describe('POST /tracks/delete', () => {
       const gone = track(join(temp.path, 'already-gone.mp3'));
       const s = track(stuck);
       const kept = track(join(temp.path, 'kept.mp3'));
+      // A row pointing outside every library folder: its file is never touched.
+      const strayFile = join(outside.path, 'stray.mp3');
+      await writeFile(strayFile, 'x');
+      const stray = track(strayFile);
       starTrack(adminId, a.id);
       starTrack(adminId, kept.id);
 
-      const res = await send('POST', '/api/tracks/delete', { ids: [a.id, b.id, gone.id, s.id, 999999] });
+      const res = await send('POST', '/api/tracks/delete', { ids: [a.id, b.id, gone.id, s.id, stray.id, 999999] });
       assert.equal(res.statusCode, 200);
-      assert.deepEqual(res.json(), { deleted: [a.id, b.id, gone.id], failed: [s.id] });
+      assert.deepEqual(res.json(), { deleted: [a.id, b.id, gone.id], failed: [s.id, stray.id] });
+      await access(strayFile); // throws if it was removed
 
       for (const id of [a.id, b.id, gone.id]) assert.equal(findTrackById(id), undefined);
       assert.ok(findTrackById(s.id), 'a track whose file could not be removed keeps its row');
@@ -122,6 +129,7 @@ describe('POST /tracks/delete', () => {
       await assert.rejects(access(fileB));
     } finally {
       await temp.cleanup();
+      await outside.cleanup();
     }
   });
 

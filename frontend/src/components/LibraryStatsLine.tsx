@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '../auth/AuthContext';
 import { apiClient } from '../lib/apiClient';
 import { formatBytes, formatTotalLength } from '../lib/format';
 import type { LibraryStats } from '../types/api';
@@ -8,8 +9,10 @@ import type { LibraryStats } from '../types/api';
  * readout, not a row of stat cards (DESIGN.md, "Never"). Keyed under `tracks` so every track mutation refreshes it.
  */
 export function LibraryStatsLine() {
+  const { user } = useAuth();
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['tracks', 'stats'],
+    // Per user: the hidden count is admin-only, so a guest must never be shown an admin's cached answer.
+    queryKey: ['tracks', 'stats', user?.id],
     queryFn: () => apiClient.get<LibraryStats>('/library/stats'),
   });
 

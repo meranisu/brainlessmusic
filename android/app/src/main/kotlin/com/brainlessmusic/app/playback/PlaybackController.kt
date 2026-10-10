@@ -35,6 +35,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -77,6 +78,37 @@ class PlaybackController @Inject constructor(
             override fun seekToNextMediaItem() = skipWithFade { player.seekToNextMediaItem() }
             override fun seekToPrevious() = skipWithFade { player.seekToPrevious() }
             override fun seekToPreviousMediaItem() = skipWithFade { player.seekToPreviousMediaItem() }
+
+            // Seeks from the lock screen, notification or Bluetooth: a song end planned from the old position no longer
+            // fits (a fade-out would leave the rest silent, a crossfade tail would play the wrong part).
+            override fun setShuffleModeEnabled(shuffleModeEnabled: Boolean) = setShuffleFromSession(shuffleModeEnabled)
+
+            // A STOP from a headset or another app: nothing scheduled (a skip's jump, a pause fade, a crossfade tail)
+            // may act after it.
+            override fun stop() {
+                fadeAction++
+                pendingJump = null
+                pausing = false
+                resetFades()
+                super.stop()
+            }
+
+            override fun seekTo(positionMs: Long) {
+                resetFades()
+                super.seekTo(positionMs)
+            }
+            override fun seekTo(mediaItemIndex: Int, positionMs: Long) {
+                resetFades()
+                super.seekTo(mediaItemIndex, positionMs)
+            }
+            override fun seekBack() {
+                resetFades()
+                super.seekBack()
+            }
+            override fun seekForward() {
+                resetFades()
+                super.seekForward()
+            }
         }
     }
 
@@ -89,6 +121,10 @@ class PlaybackController @Inject constructor(
     private var crossfadeJob: Job? = null
     // Bumped by every pause, play and skip, so a fade that lands late can tell it was overtaken.
     private var fadeAction = 0
+    // A skip still fading out the old song. A second skip, a pause or a play runs it at once rather than dropping it.
+    private var pendingJump: (() -> Unit)? = null
+    // A pause fading out: the player still plays until the fade ends, and a PLAY then must bring it back.
+    private var pausing = false
 
     // Held for the life of the process: a connected controller is what keeps PlaybackService bound,
     // and Media3 moves the bound service to the foreground while audio is playing.
@@ -107,6 +143,8 @@ class PlaybackController @Inject constructor(
     // The current play's id once its scrobble answers; the final listening time goes to it (A62).
     private var playId: Deferred<Int?>? = null
     private var lastTickAt = 0L
+    // The newest final-listening-time report, so logout can wait for it.
+    private var lastFinish: Job? = null
     private var tickerJob: Job? = null
     private var errorMessage: String? = null
 
@@ -123,6 +161,9 @@ class PlaybackController @Inject constructor(
 
     // Tracks added with "Play next" that have not started yet, so a second one lands after the first, not before it.
     private var playNextPending = 0
+
+    // A library re-source waiting for the shuffle mode to settle (see `setShuffleMode`).
+    private var resourceJob: Job? = null
 
     init {
         scope.launch {
@@ -222,17 +263,22 @@ class PlaybackController @Inject constructor(
 
     /** When the queue is running low and has a [source], fetch the next batch and add it to the end. */
     private fun maybeRefill() {
-        if (source == null || refilling || queue.isEmpty() || tracksRemaining() > REFILL_WHEN_REMAINING) return
+        val from = source
+        if (from == null || refilling || queue.isEmpty() || tracksRemaining() > REFILL_WHEN_REMAINING) return
         refilling = true
         val startedFor = generation
         scope.launch {
             var appended = false
             try {
-                val more = nextChunk()
-                // The queue was replaced or stopped while this was on its way: it belongs to nothing now.
-                if (startedFor == generation && !more.isNullOrEmpty()) {
-                    appendItems(more)
-                    appended = true
+                val chunk = nextChunk(from)
+                // The queue was replaced or stopped while this was on its way: its items and its next source belong to
+                // nothing now, and must not overwrite the new queue's source (or bring back a cleared one).
+                if (chunk != null && startedFor == generation) {
+                    source = chunk.next
+                    if (chunk.items.isNotEmpty()) {
+                        appendItems(chunk.items)
+                        appended = true
+                    }
                 }
             } finally {
                 refilling = false
@@ -244,37 +290,39 @@ class PlaybackController @Inject constructor(
         }
     }
 
-    /** The next batch from [source], advancing it; `null` when the source is spent or the request failed. */
-    private suspend fun nextChunk(): List<QueueItem>? {
-        when (val current = source) {
-            null -> return null
+    /** A batch from a [QueueSource], and where the next one comes from (`null`: the source is spent). */
+    private class Chunk(val items: List<QueueItem>, val next: QueueSource?)
+
+    /** The next batch from [current]; `null` when the request failed. Pure: the caller decides whether to keep it. */
+    private suspend fun nextChunk(current: QueueSource): Chunk? {
+        when (current) {
             is QueueSource.Songs -> {
                 val page = libraryRepository.getTracksPage(current.nextOffset, REFILL_CHUNK, current.search).getOrNull() ?: return null
                 val next = current.nextOffset + page.tracks.size
-                source = if (page.tracks.isEmpty() || next >= page.total) null else current.copy(nextOffset = next)
-                return page.tracks.map(libraryRepository::queueItem)
+                return Chunk(
+                    page.tracks.map(libraryRepository::queueItem),
+                    if (page.tracks.isEmpty() || next >= page.total) null else current.copy(nextOffset = next),
+                )
             }
             is QueueSource.Shuffled -> {
                 current.albumRest?.let { rest ->
                     // The album the queue started in comes first, then the pass. With nothing left of it (the last
                     // track, or a failed fetch), the pass starts now.
-                    source = current.copy(albumRest = null)
+                    val pass = current.copy(albumRest = null)
                     val album = libraryRepository.getAlbumDetail(rest.albumId).getOrNull()
                     val after = album?.tracks?.indexOfFirst { it.id == rest.afterTrackId } ?: -1
                     val items = album?.tracks?.drop(after + 1)?.map { libraryRepository.queueItem(album, it) }.orEmpty()
-                    return items.ifEmpty { nextChunk() }
+                    return if (items.isEmpty()) nextChunk(pass) else Chunk(items, pass)
                 }
                 val page = libraryRepository
                     .getShuffledPage(current.seed, current.mode.apiName ?: "shuffle", current.asOf, current.nextOffset, REFILL_CHUNK)
                     .getOrNull() ?: return null
                 val next = current.nextOffset + page.tracks.size
-                // End of this pass: start another with a fresh seed rather than stopping.
-                source = if (page.tracks.isEmpty() || next >= page.total) {
-                    QueueSource.Shuffled.fresh(current.mode)
-                } else {
-                    current.copy(nextOffset = next)
-                }
-                return page.tracks.filter { it.id != current.skipTrackId }.map(libraryRepository::queueItem)
+                return Chunk(
+                    page.tracks.filter { it.id != current.skipTrackId }.map(libraryRepository::queueItem),
+                    // End of this pass: start another with a fresh seed rather than stopping.
+                    if (page.tracks.isEmpty() || next >= page.total) QueueSource.Shuffled.fresh(current.mode) else current.copy(nextOffset = next),
+                )
             }
         }
     }
@@ -453,20 +501,40 @@ class PlaybackController @Inject constructor(
     }
 
     /** Off, then Shuffle, Rediscover and Albums (A77). */
-    fun cycleShuffle() {
-        wantMode = wantMode.next()
+    fun cycleShuffle() = setShuffleMode(wantMode.next())
+
+    /**
+     * Shuffle turned on or off from outside the app (notification, lock screen, Bluetooth). On means the mode last
+     * picked, not ExoPlayer's own random order.
+     */
+    private fun setShuffleFromSession(enabled: Boolean) {
+        if (enabled == wantShuffle) return
+        setShuffleMode(if (enabled) libraryShuffleMode() else ShuffleMode.OFF)
+    }
+
+    private fun setShuffleMode(mode: ShuffleMode) {
+        wantMode = mode
         player.shuffleModeEnabled = wantShuffle
-        val current = source
-        if (queue.isNotEmpty() && wantShuffle &&
-            (current.isLibraryInTitleOrder || (current is QueueSource.Shuffled && current.mode != wantMode))
-        ) {
-            continueWithLibraryShuffle()
+        resourceJob?.cancel()
+        if (needsLibraryResource()) {
+            // Cycling Off → Albums passes two other modes; re-sourcing on each press would drop and fetch a batch every
+            // time. Only the mode that is still chosen after a short pause gets its batch.
+            resourceJob = scope.launch {
+                delay(RESOURCE_DEBOUNCE_MS)
+                if (needsLibraryResource()) continueWithLibraryShuffle()
+            }
         } else if (wantShuffle) {
             applyShuffleOrder(first = player.currentMediaItemIndex)
         }
-        val mode = wantMode
         scope.launch { settings.setShuffleMode(mode) }
         publish()
+    }
+
+    /** The library is what's playing, but not in the order [wantMode] asks for. */
+    private fun needsLibraryResource(): Boolean {
+        val current = source
+        return queue.isNotEmpty() && wantShuffle &&
+            (current.isLibraryInTitleOrder || (current is QueueSource.Shuffled && current.mode != wantMode))
     }
 
     /** The whole library shuffled the way [wantMode] says, without [from] in its first pass. */
@@ -518,6 +586,9 @@ class PlaybackController @Inject constructor(
     /** Ends playback and empties the queue, so a logout doesn't leave the last account's music playing. */
     fun stop() {
         if (queue.isEmpty()) return
+        fadeAction++
+        pendingJump = null
+        pausing = false
         resetFades()
         player.stop()
         player.clearMediaItems()
@@ -536,7 +607,12 @@ class PlaybackController @Inject constructor(
 
     /** Play, with the short fade in when it's on (A71). */
     private fun playWithFade() {
+        // Car and Bluetooth devices send PLAY on connect: while already playing, with nothing fading out, it is a no-op
+        // (a dip in the volume, or a skip or fade-out cancelled, otherwise).
+        if (player.isPlaying && pendingJump == null && !pausing) return
         fadeAction++
+        pausing = false
+        runPendingJump()
         if (transitions.fadeOnPause) {
             ramps.set(player, 0f)
             player.play()
@@ -550,29 +626,48 @@ class PlaybackController @Inject constructor(
     /** Pause, after the short fade out when it's on. A song still fading out in the tail stops at once. */
     private fun pauseWithFade() {
         val action = ++fadeAction
+        // Mid-skip: land on the new song, then pause.
+        runPendingJump()
         resetFades(keepVolume = true)
         if (!transitions.fadeOnPause || !player.isPlaying) {
+            pausing = false
             player.pause()
             ramps.set(player, 1f)
             return
         }
-        ramps.rampTo(player, 0f, SHORT_FADE_MS) { if (action == fadeAction) player.pause() }
+        pausing = true
+        ramps.rampTo(player, 0f, SHORT_FADE_MS) {
+            if (action != fadeAction) return@rampTo
+            pausing = false
+            player.pause()
+        }
     }
 
     /** A skip the user asked for: fade out, [jump], fade back in. Auto-advance never comes through here. */
     private fun skipWithFade(jump: () -> Unit) {
         val action = ++fadeAction
+        pausing = false
+        // A second Next while the first is still fading: the first jump happens now, so both count.
+        runPendingJump()
         resetFades(keepVolume = true)
         if (!transitions.fadeOnPause || !player.isPlaying) {
             ramps.set(player, 1f)
             jump()
             return
         }
+        pendingJump = jump
         ramps.rampTo(player, 0f, SHORT_FADE_MS) {
             if (action != fadeAction) return@rampTo
+            pendingJump = null
             jump()
             ramps.rampTo(player, 1f, SHORT_FADE_MS)
         }
+    }
+
+    private fun runPendingJump() {
+        val jump = pendingJump ?: return
+        pendingJump = null
+        jump()
     }
 
     /**
@@ -726,6 +821,17 @@ class PlaybackController @Inject constructor(
 
         override fun onPlaybackStateChanged(playbackState: Int) = publish()
 
+        // Unplugged headphones, a call or another app's audio. `onIsPlayingChanged` alone misses these right after a
+        // crossfade's hand-off, while the main player buffers. Ramps run on wall-clock time, so a song-end fade-out
+        // would also finish during the call and leave the rest silent; the ticker plans it again after.
+        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            if (!playWhenReady && !pausing) resetFades()
+        }
+
+        override fun onPlaybackSuppressionReasonChanged(playbackSuppressionReason: Int) {
+            if (playbackSuppressionReason != Player.PLAYBACK_SUPPRESSION_REASON_NONE) resetFades()
+        }
+
         override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) = publish()
 
         override fun onRepeatModeChanged(repeatMode: Int) = publish()
@@ -809,7 +915,16 @@ class PlaybackController @Inject constructor(
         val pending = playId ?: return
         val listened = tracker?.listenedMs ?: return
         if (final) playId = null
-        scope.launch { pending.await()?.let { libraryRepository.finishPlay(it, listened) } }
+        lastFinish = scope.launch { pending.await()?.let { libraryRepository.finishPlay(it, listened) } }
+    }
+
+    /**
+     * [stop], then waits (briefly) for the last play's final listening time to reach the server. Logout calls this
+     * before forgetting the token; otherwise that report would go out with no auth and be lost.
+     */
+    suspend fun stopAndFlush() {
+        stop()
+        withTimeoutOrNull(FLUSH_TIMEOUT_MS) { lastFinish?.join() }
     }
 
     private fun publish() {
@@ -831,6 +946,7 @@ class PlaybackController @Inject constructor(
             playOrder = if (player.shuffleModeEnabled && queue.isNotEmpty()) shuffledSequence() else emptyList(),
             shuffle = player.shuffleModeEnabled,
             shuffleMode = if (player.shuffleModeEnabled) libraryShuffleMode() else ShuffleMode.OFF,
+            fromLibrary = source is QueueSource.Shuffled,
             repeat = when (player.repeatMode) {
                 Player.REPEAT_MODE_ALL -> Repeat.ALL
                 Player.REPEAT_MODE_ONE -> Repeat.ONE
@@ -904,6 +1020,12 @@ class PlaybackController @Inject constructor(
 
     private companion object {
         const val RESTART_THRESHOLD_MS = 3_000L
+
+        /** The longest logout waits for the last listening-time report. */
+        const val FLUSH_TIMEOUT_MS = 3_000L
+
+        /** How long the shuffle mode must stay put before a library shuffle is re-sourced for it. */
+        const val RESOURCE_DEBOUNCE_MS = 600L
 
         /** The pause, play and skip fade (A71). */
         const val SHORT_FADE_MS = 150L

@@ -4,6 +4,45 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Review fixes, second pass: player overlaps, playlists and favorites, Android queue and profile
+
+From the 2026-10-11 reviews: R3, R4, R6-R21, P4-P16, S3-S6, F1, F3, F4, G4, and several "plausible" items.
+- Backend: `/me/favorites` returns full track summaries (P6), and playlist tracks carry `albumId` and `trackNumber`
+  (R7). `PATCH /me/history/:id` refuses more than a day (P7). Removing a folder deletes its tracks in six set-based
+  statements instead of six per track. Bulk and single track delete never unlink a file outside every library folder
+  (it counts as failed). New `utils/paths.ts` (`isInside`), shared with the overlap check from the first pass.
+- Web player: a pause or play during a skip's fade finishes the skip instead of dropping it, and closing the player
+  bumps the fade action (R9); a skip clears a timed gapless start (R10); a pause fading out stops a song end from
+  starting and, if the song runs out mid-fade, lands paused on the next one (R11); repeat-one preloads again after each
+  loop (R12); an `AbortError` from the incoming element no longer reloads the old queue (R4). The album, playlist and
+  favorites pages pass `albumId` and `trackNumber` (R6, R7). Same-album step back to track 1 counts as the next track,
+  for disc 2 (R8, both clients). Timers and ramps are cleared on unmount.
+- Web pages: bulk Hide and Delete clear what they acted on from the selection (R17, R18); removing a folder or bulk
+  deleting refreshes favorites and playlists (R19); the theme picker shows the profile's theme and saves picks in order
+  (R20); "one track"/"no tracks" wording in Options (R21); stats line refetches when a scan ends and is keyed by user;
+  `formatBytes` and `formatTotalLength` edge cases. Guest codes list shows a guest's login name next to a display name
+  that differs (G4).
+- Android player: seeks from the session reset fades (R13); a second Next during a skip's fade counts (R14); PLAY while
+  already playing is ignored (R15); a pause from outside (call, headphones, focus loss) drops song-end fades and the
+  crossfade tail, also right after a hand-off (R3, R16); a session STOP cancels pending fades. A refill for a replaced
+  queue no longer overwrites the new queue's source (P5). Shuffle from the notification uses the chosen mode (S6);
+  cycling modes during a library shuffle waits 600 ms before re-sourcing (S4); a tap with shuffle on fetches one row
+  (S5); the queue sheet says "shuffled", not "rediscover", on a fixed queue (S3). Other apps can't edit the queue
+  (`COMMAND_CHANGE_MEDIA_ITEMS` removed, P14). The swipe-away setting is read once at service start (P15).
+- Android screens: You tab cancels an older stats request and refreshes on resume (P4, P8); playlist edits run one at a
+  time and Undo keeps a drag made since (P9); likes go out in tap order and survive a liked-set load (P10); playlist
+  create, rename and delete say when they fail, and create opens the playlist only if its screen is still showing
+  (P11); logout waits up to 3 s for the last listening time (P12) and ignores a second tap (P16); Shuffle All says why
+  when there is nothing to play (P13); failed pull-to-refresh says so (F3); the in-app splash follows the app's
+  light/dark choice (F4).
+- Not done, needs an owner or a device: F2 (waits on Q79), F5 (with the next AGP upgrade), G2 (revoke old printed
+  codes), G3 (closed by Cloudflare Access, A74, once switched on); the iOS lock-screen and remaining Android crossfade
+  edge cases from the "plausible" lists; empty albums and artists left after deletes.
+- Verified: backend `npm test` 423/423 (new: favorites and playlist fields, a file outside every folder, a 1e300
+  `msPlayed`). Frontend `npm run build` clean, `npm run lint` no new warnings. Android
+  `./gradlew compileDebugKotlin testDebugUnitTest` passed (new disc-boundary test). Not run in a browser, on a phone or
+  on smol.
+
 ## 2026-10-11 — Review fixes: overlapping library folders, lost guest approvals, shuffle order, theme on logout
 
 From the 2026-10-11 reviews (R1, R2, R5, G1, S1, S2, F1, P1-P3).

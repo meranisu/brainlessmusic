@@ -132,8 +132,11 @@ class LibraryViewModel @Inject constructor(
      */
     fun playSongsFrom(index: Int, row: SongListRow) {
         val filter = row.filter
+        // With shuffle on, the unfiltered list plays the tapped song and then the library shuffled (see `loadQueue`), so
+        // the rest of a title-order batch would only be thrown away.
+        val count = if (filter == null && playbackController.state.value.shuffle) 1 else QUEUE_FROM_TAP
         viewModelScope.launch {
-            libraryRepository.getTracksPage(index, QUEUE_FROM_TAP, filter).onSuccess { page ->
+            libraryRepository.getTracksPage(index, count, filter).onSuccess { page ->
                 if (page.tracks.isEmpty()) return@onSuccess
                 val next = index + page.tracks.size
                 playbackController.playQueue(
@@ -149,11 +152,15 @@ class LibraryViewModel @Inject constructor(
      * Plays the library in a seeded server shuffle (each song once per pass), in the mode picked on the shuffle button
      * (plain shuffle when it is off), with player shuffle on.
      */
-    fun shuffleAll() {
+    fun shuffleAll(onNothing: (String) -> Unit) {
         val pass = QueueSource.Shuffled.fresh(playbackController.libraryShuffleMode())
         viewModelScope.launch {
             libraryRepository.getShuffledPage(pass.seed, pass.mode.apiName ?: "shuffle", pass.asOf, 0, QUEUE_FROM_TAP).onSuccess { page ->
-                if (page.tracks.isEmpty()) return@onSuccess
+                if (page.tracks.isEmpty()) {
+                    // Every song is sitting this pass out ("less often"), or there are none: say so, don't do nothing.
+                    onNothing("Nothing to shuffle this time. Songs you hear less often sit some shuffles out.")
+                    return@onSuccess
+                }
                 playbackController.playQueue(
                     items = page.tracks.map(libraryRepository::queueItem),
                     startIndex = 0,

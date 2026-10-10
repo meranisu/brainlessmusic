@@ -20,6 +20,10 @@ data class TransitionPrefs(
     val keepAlbumsGapless: Boolean = true,
 )
 
-/** True when [nextAlbumId]/[nextTrack] directly follows on the same album. */
+/**
+ * True when [nextAlbumId]/[nextTrack] directly follows on the same album. There are no disc numbers, so a same-album
+ * step back to track 1 counts too: that is disc 2 starting over.
+ */
 fun isNextOnAlbum(albumId: Int?, trackNumber: Int?, nextAlbumId: Int?, nextTrack: Int?): Boolean =
-    albumId != null && albumId == nextAlbumId && trackNumber != null && nextTrack == trackNumber + 1
+    albumId != null && albumId == nextAlbumId && trackNumber != null &&
+        (nextTrack == trackNumber + 1 || (nextTrack == 1 && trackNumber > 1))

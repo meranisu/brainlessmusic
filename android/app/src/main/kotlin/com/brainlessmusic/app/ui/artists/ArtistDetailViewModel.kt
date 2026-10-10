@@ -35,10 +35,14 @@ class ArtistDetailViewModel @Inject constructor(
     }
 
     /** Pull to refresh: what is shown stays up while it reloads, and stays if the reload fails. */
-    fun refresh() {
+    /** [onFailed] gets a short line to show: the old content stays up, so a failure would otherwise look like success. */
+    fun refresh(onFailed: (String) -> Unit) {
         viewModelScope.launch {
             _refreshing.value = true
-            libraryRepository.getArtistDetail(artistId).onSuccess { _state.value = LoadState.Content(it) }
+            libraryRepository.getArtistDetail(artistId).fold(
+                onSuccess = { _state.value = LoadState.Content(it) },
+                onFailure = { onFailed("Couldn't refresh. Check your connection.") },
+            )
             _refreshing.value = false
         }
     }
