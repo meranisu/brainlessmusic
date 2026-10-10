@@ -1,17 +1,24 @@
 package com.brainlessmusic.app.ui.library
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -30,7 +37,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -50,10 +57,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -79,15 +92,17 @@ import com.brainlessmusic.app.ui.navigation.AppBottomBar
 import com.brainlessmusic.app.ui.navigation.Routes
 import kotlinx.coroutines.launch
 
-// The floating tab bar covers the top of the list, so every list starts this far down.
+// The floating header (tabs, or the search field) covers the top of the list, so every list starts this far down.
 private val TabBarClearance = 68.dp
 
-// The Songs filter floats under the tab bar, so the Songs list starts further down again.
-private val FilterTop = TabBarClearance - 4.dp
-private val SongsClearance = TabBarClearance + 52.dp
+// The tab pill, the search field and the round buttons beside them share one height, so swapping them doesn't jump.
+private val HeaderHeight = 48.dp
 
 // Room on the right for the alphabet rail, so a row's duration isn't drawn under it.
 private val RailWidth = 28.dp
+
+// Rows end before the rail and the scroll bar beside it.
+private val ListEndPadding = RailWidth + ScrollbarWidth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,6 +111,10 @@ fun LibraryScreen(
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
     val tab by viewModel.tab.collectAsStateWithLifecycle()
+    val filter by viewModel.songFilter.collectAsStateWithLifecycle()
+    // Survives rotation; reopens if a filter is still applied when the screen comes back.
+    var searching by rememberSaveable { mutableStateOf(filter.isNotBlank()) }
+    val scope = rememberCoroutineScope()
 
     // Hoisted so each tab keeps its scroll position while another is showing.
     val songsState = rememberLazyListState()
@@ -113,12 +132,84 @@ fun LibraryScreen(
                 LibraryTab.ARTISTS -> ArtistsTab(viewModel, navController, artistsState)
                 LibraryTab.GENRES -> GenresTab()
             }
-            LibraryTabBar(
-                selected = tab,
-                onSelect = viewModel::selectTab,
-                modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp),
+            // Rows still scroll under the pills, but fade out first, so their text doesn't show between and beside them.
+            val background = MaterialTheme.colorScheme.background
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(TabBarClearance)
+                    .background(Brush.verticalGradient(0f to background, 0.8f to background, 1f to Color.Transparent)),
+            )
+            LibraryHeader(
+                tab = tab,
+                onSelectTab = viewModel::selectTab,
+                searching = searching,
+                filter = filter,
+                onOpenSearch = {
+                    // The filter narrows Songs only, so searching from another tab goes to Songs.
+                    viewModel.selectTab(LibraryTab.SONGS)
+                    searching = true
+                },
+                onFilterChange = { text ->
+                    viewModel.setSongFilter(text)
+                    scope.launch { songsState.scrollToItem(0) }
+                },
+                onCloseSearch = {
+                    searching = false
+                    if (filter.isNotEmpty()) {
+                        viewModel.setSongFilter("")
+                        scope.launch { songsState.scrollToItem(0) }
+                    }
+                },
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp, start = 16.dp, end = 16.dp),
             )
         }
+    }
+}
+
+/**
+ * The tab pill with a round search button beside it. Search swaps the pill for a field with a round close button,
+ * which brings the tabs back and drops the filter. System back closes it too.
+ */
+@Composable
+private fun LibraryHeader(
+    tab: LibraryTab,
+    onSelectTab: (LibraryTab) -> Unit,
+    searching: Boolean,
+    filter: String,
+    onOpenSearch: () -> Unit,
+    onFilterChange: (String) -> Unit,
+    onCloseSearch: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    BackHandler(enabled = searching, onBack = onCloseSearch)
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (searching) {
+            SongFilterField(text = filter, onChange = onFilterChange, modifier = Modifier.weight(1f))
+            HeaderButton(Icons.Filled.Close, "Close search", onCloseSearch)
+        } else {
+            LibraryTabBar(selected = tab, onSelect = onSelectTab)
+            HeaderButton(Icons.Filled.Search, "Search songs", onOpenSearch)
+        }
+    }
+}
+
+/** Round, in the pill's colours and border, so it reads as part of the same bar. */
+@Composable
+private fun HeaderButton(icon: ImageVector, description: String, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        modifier = Modifier.size(HeaderHeight),
+    ) {
+        Box(contentAlignment = Alignment.Center) { Icon(icon, contentDescription = description) }
     }
 }
 
@@ -126,25 +217,29 @@ fun LibraryScreen(
 @Composable
 private fun LibraryTabBar(selected: LibraryTab, onSelect: (LibraryTab) -> Unit, modifier: Modifier = Modifier) {
     Surface(
-        modifier = modifier,
+        modifier = modifier.height(HeaderHeight),
         shape = CircleShape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     ) {
-        Row(modifier = Modifier.padding(4.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(
+            modifier = Modifier.padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             LibraryTab.entries.forEach { tab ->
                 val isSelected = tab == selected
                 Surface(
                     shape = CircleShape,
                     color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
                     contentColor = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.selectable(selected = isSelected, role = Role.Tab, onClick = { onSelect(tab) }),
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .selectable(selected = isSelected, role = Role.Tab, onClick = { onSelect(tab) }),
                 ) {
-                    Text(
-                        text = tab.label,
-                        style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
-                    )
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 14.dp)) {
+                        Text(text = tab.label, style = MaterialTheme.typography.labelLarge)
+                    }
                 }
             }
         }
@@ -219,60 +314,72 @@ private fun SongsTab(viewModel: LibraryViewModel, listState: LazyListState) {
     val filtering = filter.isNotBlank()
     val scope = rememberCoroutineScope()
 
-    Box(Modifier.fillMaxSize()) {
-        PagedContent(
-            items,
-            emptyMessage = if (filtering) "No songs match \"${filter.trim()}\"." else "No songs yet. Scan your library from the web app.",
-            onRefresh = { viewModel.reloadLetters(LibraryTab.SONGS) },
-            topInset = SongsClearance,
-        ) {
-            val firstVisible by remember { derivedStateOf { listState.firstVisibleItemIndex } }
-            Box(Modifier.fillMaxSize()) {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(top = SongsClearance, end = RailWidth),
-                ) {
-                    items(count = items.itemCount, key = items.itemKey { it.id }) { index ->
-                        val song = items[index]
-                        if (song != null) SongRow(song, onClick = { viewModel.playSongsFrom(index) }) else PlaceholderRow()
-                    }
+    PagedContent(
+        items,
+        emptyMessage = if (filtering) "No songs match \"${filter.trim()}\"." else "No songs yet. Scan your library from the web app.",
+        onRefresh = { viewModel.reloadLetters(LibraryTab.SONGS) },
+        topInset = TabBarClearance,
+    ) {
+        val firstVisible by remember { derivedStateOf { listState.firstVisibleItemIndex } }
+        Box(Modifier.fillMaxSize()) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(top = TabBarClearance, end = ListEndPadding),
+            ) {
+                items(count = items.itemCount, key = items.itemKey { it.id }) { index ->
+                    val song = items[index]
+                    if (song != null) SongRow(song, onClick = { viewModel.playSongsFrom(index) }) else PlaceholderRow()
                 }
-                // The letters index the whole library, so they would point at the wrong rows of a filtered list.
-                if (!filtering) {
-                    AlphabetRail(
-                        letters = letters[LibraryTab.SONGS].orEmpty(),
-                        firstVisibleIndex = firstVisible,
-                        onJump = { scope.launch { listState.scrollToItem(it) } },
-                        topInset = SongsClearance,
-                    )
-                }
-                // Plays everything, not just what is on screen: the server shuffles the whole library.
-                ExtendedFloatingActionButton(
-                    onClick = viewModel::shuffleAll,
-                    icon = { Icon(Icons.Filled.Shuffle, contentDescription = null) },
-                    text = { Text("Shuffle all") },
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(end = RailWidth + 12.dp, bottom = 16.dp),
+            }
+            // The letters index the whole library, so they would point at the wrong rows of a filtered list.
+            val songLetters = letters[LibraryTab.SONGS].orEmpty()
+            val showRail = !filtering && songLetters.isNotEmpty()
+            if (showRail) {
+                AlphabetRail(
+                    letters = songLetters,
+                    firstVisibleIndex = firstVisible,
+                    onJump = { scope.launch { listState.scrollToItem(it) } },
+                    topInset = TabBarClearance,
                 )
             }
+            ListScrollbar(
+                state = listState,
+                onJump = { scope.launch { listState.scrollToItem(it) } },
+                topInset = TabBarClearance,
+                modifier = Modifier.align(Alignment.CenterEnd).padding(end = if (showRail) RailWidth else 0.dp),
+            )
+            // Plays everything, not just what is on screen: the server shuffles the whole library.
+            FloatingActionButton(
+                onClick = viewModel::shuffleAll,
+                shape = CircleShape,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = ListEndPadding + 8.dp, bottom = 16.dp),
+            ) {
+                Icon(Icons.Filled.Shuffle, contentDescription = "Shuffle all")
+            }
         }
-        SongFilterField(
-            text = filter,
-            onChange = { text ->
-                viewModel.setSongFilter(text)
-                scope.launch { listState.scrollToItem(0) }
-            },
-            modifier = Modifier.align(Alignment.TopCenter).padding(top = FilterTop, start = 16.dp, end = 16.dp),
-        )
     }
 }
 
-/** Floats like the tab bar above it. Narrows the Songs list by title, artist or album, on the server. */
+/** Takes the tab bar's place while searching. Narrows the Songs list by title, artist or album, on the server. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SongFilterField(text: String, onChange: (String) -> Unit, modifier: Modifier = Modifier) {
     val focusManager = LocalFocusManager.current
+    // Closing the keyboard with back leaves the field focused and its cursor blinking; let it go with the keyboard.
+    val imeVisible = WindowInsets.isImeVisible
+    LaunchedEffect(imeVisible) { if (!imeVisible) focusManager.clearFocus() }
+    // Opening search is a request to type, so the keyboard comes up with the field, but not again on rotation.
+    val focusRequester = remember { FocusRequester() }
+    var focusedOnce by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (!focusedOnce) {
+            focusedOnce = true
+            focusRequester.requestFocus()
+        }
+    }
     Surface(
-        modifier = modifier.fillMaxWidth().height(48.dp),
+        modifier = modifier.height(HeaderHeight),
         shape = CircleShape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
@@ -291,7 +398,10 @@ private fun SongFilterField(text: String, onChange: (String) -> Unit, modifier: 
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
-                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Filter songs" },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester)
+                        .semantics { contentDescription = "Filter songs" },
                 )
             }
             if (text.isNotEmpty()) {
@@ -342,7 +452,7 @@ private fun AlbumsTab(viewModel: LibraryViewModel, navController: NavHostControl
             LazyVerticalGrid(
                 state = gridState,
                 columns = GridCells.Adaptive(minSize = 140.dp),
-                contentPadding = PaddingValues(start = 12.dp, end = 12.dp + RailWidth, top = TabBarClearance + 4.dp, bottom = 12.dp),
+                contentPadding = PaddingValues(start = 12.dp, end = 4.dp + ListEndPadding, top = TabBarClearance + 4.dp, bottom = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.fillMaxSize(),
@@ -360,11 +470,18 @@ private fun AlbumsTab(viewModel: LibraryViewModel, navController: NavHostControl
                     }
                 }
             }
+            val albumLetters = letters[LibraryTab.ALBUMS].orEmpty()
             AlphabetRail(
-                letters = letters[LibraryTab.ALBUMS].orEmpty(),
+                letters = albumLetters,
                 firstVisibleIndex = firstVisible,
                 onJump = { scope.launch { gridState.scrollToItem(it) } },
                 topInset = TabBarClearance,
+            )
+            GridScrollbar(
+                state = gridState,
+                onJump = { scope.launch { gridState.scrollToItem(it) } },
+                topInset = TabBarClearance,
+                modifier = Modifier.align(Alignment.CenterEnd).padding(end = if (albumLetters.isEmpty()) 0.dp else RailWidth),
             )
         }
     }
@@ -411,7 +528,7 @@ private fun ArtistsTab(viewModel: LibraryViewModel, navController: NavHostContro
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = TabBarClearance, end = RailWidth),
+                contentPadding = PaddingValues(top = TabBarClearance, end = ListEndPadding),
             ) {
                 items(count = items.itemCount, key = items.itemKey { it.id }) { index ->
                     val artist = items[index]
@@ -422,11 +539,18 @@ private fun ArtistsTab(viewModel: LibraryViewModel, navController: NavHostContro
                     }
                 }
             }
+            val artistLetters = letters[LibraryTab.ARTISTS].orEmpty()
             AlphabetRail(
-                letters = letters[LibraryTab.ARTISTS].orEmpty(),
+                letters = artistLetters,
                 firstVisibleIndex = firstVisible,
                 onJump = { scope.launch { listState.scrollToItem(it) } },
                 topInset = TabBarClearance,
+            )
+            ListScrollbar(
+                state = listState,
+                onJump = { scope.launch { listState.scrollToItem(it) } },
+                topInset = TabBarClearance,
+                modifier = Modifier.align(Alignment.CenterEnd).padding(end = if (artistLetters.isEmpty()) 0.dp else RailWidth),
             )
         }
     }

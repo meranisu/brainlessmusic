@@ -20,8 +20,17 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
   its own login. Release builds are unchanged (`app-release.apk`, which the release workflow reads).
 - Verified with `aapt2 dump badging` on both APKs after `assembleDebug` and `assembleRelease`.
 
-## 2026-10-10 — Android: keyboard no longer shoves the login card off screen; Library header fade
+## 2026-10-10 — Android: keyboard no longer shoves the login card off screen; Library header, search and scroll bars
 
+- **Library header:** the always-on Songs filter field is gone. A round search button sits beside the tab pill
+  (same colour, 1 dp outline, 48 dp tall like the pill). Tapping it swaps the pill for the search field, focused
+  with the keyboard up, plus a round close button. Close (or system back) brings the tabs back and clears the
+  filter. Search from Albums or Artists switches to Songs, since the filter narrows Songs only. Every list now
+  starts at the same height, because the field no longer adds a second row.
+- **Shuffle all** is an icon-only round FAB (label kept for TalkBack).
+- **Scroll bars** (`ListScrollbar.kt`) on Songs, Albums and Artists: a 4 dp thumb in a 16 dp touch strip just
+  inside the A–Z rail, or at the edge while filtering (the rail hides then). Drag or tap to jump; Paging's
+  placeholders make the full length reachable. Dim at rest, full while scrolling, accent while dragged.
 - **Keyboard:** `MainActivity` now declares `windowSoftInputMode="adjustResize"`. Without it the window panned up
   *and* the login form's `imePadding()` applied, so the card was cut off with a gap above the keyboard and the
   Log in button out of reach.
