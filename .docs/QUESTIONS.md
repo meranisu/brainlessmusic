@@ -146,7 +146,8 @@ scrobble threshold too); plays recorded before that are estimated as a full play
 and headers, pulsing over four beats (1.6 s) and still under reduced motion. Held back 300 ms so fast loads never
 flash. Screens: Library (Simple and Full), artists, albums, album and artist detail, playlists, playlist detail,
 search and favorites. The owner confirmed favorites stays.
-Web is built (`frontend/src/components/Skeleton.tsx`). Android is next, through `LoadStateContent`.
+Web is built (`frontend/src/components/Skeleton.tsx`). Android is built too (`ui/common/Skeleton.kt`), on the screens it
+has: Library Songs, Albums and Artists, album and artist detail, and search. It has no playlists or favorites yet.
 
 ### A60 — Swipe right on a queue row: play less often *(was Q60)*
 **Answered:** 2026-10-11 · **Play less often.** Per account (guests can't), stored in `less_often` (migration

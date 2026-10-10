@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `Skeleton()`, `SkeletonBlock()`, `SkeletonListRows()`, `SkeletonAlbumGrid()`, `SkeletonAlbumHeader()`, `LoadStateContent()`, `PagedContent()` — `android/.../ui/common/Skeleton.kt`, `ui/common/LoadStateContent.kt`, `ui/library/LibraryScreen.kt`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** loading states shaped like the screen they stand in for, as on the web (A59).
+**Side effects:** none.
+**Before:** `LoadStateContent` and the Library's `PagedContent` showed a centred `CircularProgressIndicator`.
+**After:** both take a `skeleton` and `loadingLabel`; `Skeleton` adds the 300 ms hold, the pulse and the TalkBack
+label. `LoadStateContent` without a skeleton still shows the spinner. Used by the Library tabs, album and artist
+detail and search.
+
 **Function:** `setTrackFlags()` — `backend/src/db/library.ts`; `parseBulkIds()`, `deleteTrackAndFile()` and routes `PATCH /tracks`, `POST /tracks/delete` — `backend/src/routes/tracks.ts`
 **Date:** 2026-10-11
 **How added:** new feature

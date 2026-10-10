@@ -36,7 +36,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -88,6 +87,9 @@ import com.brainlessmusic.app.data.remote.dto.AlbumSummaryDto
 import com.brainlessmusic.app.data.remote.dto.ArtistSummaryDto
 import com.brainlessmusic.app.data.remote.dto.TrackSummaryDto
 import com.brainlessmusic.app.ui.common.CoverImage
+import com.brainlessmusic.app.ui.common.Skeleton
+import com.brainlessmusic.app.ui.common.SkeletonAlbumGrid
+import com.brainlessmusic.app.ui.common.SkeletonListRows
 import com.brainlessmusic.app.ui.common.formatDuration
 import com.brainlessmusic.app.ui.navigation.AppBottomBar
 import com.brainlessmusic.app.ui.navigation.Routes
@@ -276,8 +278,9 @@ private fun LibraryTabBar(selected: LibraryTab, onSelect: (LibraryTab) -> Unit, 
 }
 
 /**
- * Loading, error and empty states for a paged list's first load; a later page that fails retries on scroll. A loaded
- * list refreshes on a pull down, with the spinner below whatever floats over the list's top ([topInset]).
+ * Loading, error and empty states for a paged list's first load; a later page that fails retries on scroll. The
+ * first load shows [skeleton], read out as [loadingLabel]. A loaded list refreshes on a pull down, with the spinner
+ * below whatever floats over the list's top ([topInset]).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -286,12 +289,13 @@ private fun <T : Any> PagedContent(
     emptyMessage: String,
     onRefresh: () -> Unit,
     topInset: Dp,
+    loadingLabel: String,
+    skeleton: @Composable () -> Unit,
     content: @Composable () -> Unit,
 ) {
     val refresh = items.loadState.refresh
     when {
-        refresh is LoadState.Loading && items.itemCount == 0 ->
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        refresh is LoadState.Loading && items.itemCount == 0 -> Skeleton(loadingLabel) { skeleton() }
 
         refresh is LoadState.Error && items.itemCount == 0 ->
             Column(
@@ -348,6 +352,10 @@ private fun SongsTab(viewModel: LibraryViewModel, listState: LazyListState) {
         emptyMessage = if (filtering) "No songs match \"${filter.trim()}\"." else "No songs yet. Scan your library from the web app.",
         onRefresh = { viewModel.reloadLetters(LibraryTab.SONGS) },
         topInset = TabBarClearance,
+        loadingLabel = "Loading songs",
+        skeleton = {
+            SkeletonListRows(trailing = true, contentPadding = PaddingValues(top = TabBarClearance, end = ListEndPadding))
+        },
     ) {
         Box(Modifier.fillMaxSize()) {
             LazyColumn(
@@ -465,12 +473,14 @@ private fun AlbumsTab(viewModel: LibraryViewModel, navController: NavHostControl
         emptyMessage = "No albums yet. Scan your library from the web app.",
         onRefresh = { viewModel.reloadLetters(LibraryTab.ALBUMS) },
         topInset = TabBarClearance,
+        loadingLabel = "Loading albums",
+        skeleton = { SkeletonAlbumGrid(contentPadding = AlbumGridPadding) },
     ) {
         Box(Modifier.fillMaxSize()) {
             LazyVerticalGrid(
                 state = gridState,
                 columns = GridCells.Adaptive(minSize = 140.dp),
-                contentPadding = PaddingValues(start = 12.dp, end = 4.dp + ListEndPadding, top = TabBarClearance + 4.dp, bottom = 12.dp),
+                contentPadding = AlbumGridPadding,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.fillMaxSize(),
@@ -497,6 +507,9 @@ private fun AlbumsTab(viewModel: LibraryViewModel, navController: NavHostControl
         }
     }
 }
+
+/** Shared by the grid and its skeleton, so the placeholder covers sit where the real ones will. */
+private val AlbumGridPadding = PaddingValues(start = 12.dp, end = 4.dp + ListEndPadding, top = TabBarClearance + 4.dp, bottom = 12.dp)
 
 @Composable
 private fun AlbumCard(album: AlbumSummaryDto, coverUrl: String?, onClick: () -> Unit) {
@@ -533,6 +546,8 @@ private fun ArtistsTab(viewModel: LibraryViewModel, navController: NavHostContro
         emptyMessage = "No artists yet. Scan your library from the web app.",
         onRefresh = { viewModel.reloadLetters(LibraryTab.ARTISTS) },
         topInset = TabBarClearance,
+        loadingLabel = "Loading artists",
+        skeleton = { SkeletonListRows(contentPadding = PaddingValues(top = TabBarClearance, end = ListEndPadding)) },
     ) {
         Box(Modifier.fillMaxSize()) {
             LazyColumn(

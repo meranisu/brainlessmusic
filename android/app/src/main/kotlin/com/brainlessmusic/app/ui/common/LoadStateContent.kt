@@ -14,7 +14,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-/** The loading/error/empty boilerplate every browsing screen needs, once. */
+/**
+ * The loading/error/empty boilerplate every browsing screen needs, once. With a [skeleton], loading shows that shape
+ * of the screen (read out as [loadingLabel]); without one, a spinner.
+ */
 @Composable
 fun <T> LoadStateContent(
     state: LoadState<T>,
@@ -22,11 +25,17 @@ fun <T> LoadStateContent(
     modifier: Modifier = Modifier,
     isEmpty: (T) -> Boolean = { false },
     emptyMessage: String = "Nothing here yet.",
+    loadingLabel: String = "Loading",
+    skeleton: (@Composable () -> Unit)? = null,
     content: @Composable (T) -> Unit,
 ) {
     when (state) {
-        is LoadState.Loading -> Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
+        is LoadState.Loading -> if (skeleton != null) {
+            Skeleton(loadingLabel, modifier) { skeleton() }
+        } else {
+            Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
         }
 
         is LoadState.Error -> Column(

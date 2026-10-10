@@ -43,6 +43,9 @@ import com.brainlessmusic.app.data.remote.dto.AlbumTrackDto
 import com.brainlessmusic.app.ui.common.CoverImage
 import com.brainlessmusic.app.ui.common.LoadState
 import com.brainlessmusic.app.ui.common.LoadStateContent
+import com.brainlessmusic.app.ui.common.SkeletonAlbumHeader
+import com.brainlessmusic.app.ui.common.SkeletonLead
+import com.brainlessmusic.app.ui.common.SkeletonListRows
 import com.brainlessmusic.app.ui.common.formatDuration
 import com.brainlessmusic.app.ui.playback.MiniPlayer
 
@@ -80,6 +83,10 @@ fun AlbumDetailScreen(
             modifier = Modifier.padding(padding),
             isEmpty = { it.tracks.isEmpty() },
             emptyMessage = "This album has no tracks.",
+            loadingLabel = "Loading album",
+            skeleton = {
+                SkeletonListRows(lead = SkeletonLead.NUMBER, trailing = true, header = { SkeletonAlbumHeader() })
+            },
         ) { album: AlbumDetailDto ->
             PullToRefreshBox(isRefreshing = refreshing, onRefresh = viewModel::refresh) {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {

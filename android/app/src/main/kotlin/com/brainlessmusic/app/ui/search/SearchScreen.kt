@@ -35,6 +35,7 @@ import com.brainlessmusic.app.data.remote.dto.SearchResultsDto
 import com.brainlessmusic.app.data.remote.dto.TrackSummaryDto
 import com.brainlessmusic.app.ui.common.CoverImage
 import com.brainlessmusic.app.ui.common.LoadStateContent
+import com.brainlessmusic.app.ui.common.SkeletonListRows
 import com.brainlessmusic.app.ui.common.formatDuration
 import com.brainlessmusic.app.ui.navigation.AppBottomBar
 import com.brainlessmusic.app.ui.navigation.Routes
@@ -86,6 +87,8 @@ fun SearchScreen(
                 modifier = Modifier.fillMaxSize(),
                 isEmpty = { it.artists.isEmpty() && it.albums.isEmpty() && it.tracks.isEmpty() },
                 emptyMessage = if (query.isBlank()) "Search your library." else "No matches for \"$query\".",
+                loadingLabel = "Searching",
+                skeleton = { SkeletonListRows(rows = 8, trailing = true) },
             ) { results: SearchResultsDto ->
                 LazyColumn {
                     if (results.artists.isNotEmpty()) {

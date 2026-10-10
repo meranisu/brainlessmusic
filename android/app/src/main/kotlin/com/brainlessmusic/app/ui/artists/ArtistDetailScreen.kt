@@ -33,6 +33,7 @@ import com.brainlessmusic.app.data.remote.dto.ArtistDetailDto
 import com.brainlessmusic.app.ui.common.CoverImage
 import com.brainlessmusic.app.ui.common.LoadState
 import com.brainlessmusic.app.ui.common.LoadStateContent
+import com.brainlessmusic.app.ui.common.SkeletonAlbumGrid
 import com.brainlessmusic.app.ui.playback.MiniPlayer
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,6 +70,8 @@ fun ArtistDetailScreen(
             modifier = Modifier.padding(padding),
             isEmpty = { it.albums.isEmpty() },
             emptyMessage = "This artist has no albums.",
+            loadingLabel = "Loading artist",
+            skeleton = { SkeletonAlbumGrid() },
         ) { detail: ArtistDetailDto ->
             PullToRefreshBox(isRefreshing = refreshing, onRefresh = viewModel::refresh) {
                 LazyVerticalGrid(

@@ -4,6 +4,18 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android: skeleton loading on the browse screens
+
+- A59, matching the web: the first load of the Library's Songs, Albums and Artists tabs, album and artist detail, and
+  search shows placeholder rows, album tiles and the album header instead of a centred spinner. New
+  `ui/common/Skeleton.kt` (`Skeleton`, `SkeletonBlock`, `SkeletonListRows`, `SkeletonAlbumGrid`,
+  `SkeletonAlbumHeader`). `LoadStateContent` takes an optional `skeleton` and `loadingLabel` (no skeleton keeps the
+  spinner); the Library's `PagedContent` takes them too. Bars use `outlineVariant`, so they show in light and dark
+  schemes and Material You. One pulse every 1.6 s (the web's four beats), held back 300 ms then faded in; with system
+  animations off, no pulse and no fade. TalkBack reads one polite label ("Loading albums") and skips the blocks. The
+  album grid's padding moved into `AlbumGridPadding` so the grid and its skeleton share it.
+- Verified: `./gradlew assembleDebug`. Not run on a device or emulator here (none attached).
+
 ## 2026-10-11 — Bulk hide and delete in one request (A54)
 
 - Backend: `PATCH /tracks` (`{ ids, hidden?, notRecommended? }`, returns `{ updated }`) sets the flags on every listed
