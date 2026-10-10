@@ -65,9 +65,10 @@ class PlaybackResume @Inject constructor(
         if (ids.isEmpty() || ids.size > MAX_SAVED_QUEUE || state.currentIndex !in ids.indices) return
         val index = state.currentIndex
         val seconds = state.positionMs / 1000.0
+        val playing = state.isPlaying
         scope.launch {
             saveLock.withLock {
-                libraryRepository.savePlaybackState(ids, index, seconds)
+                libraryRepository.savePlaybackState(ids, index, seconds, playing)
                     .onFailure { Log.w(TAG, "Couldn't save playback state", it) }
             }
         }

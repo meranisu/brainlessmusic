@@ -5,6 +5,7 @@ import { buildApp } from '../app.js';
 import { upsertTrack } from '../db/library.js';
 import { insertLibraryRoot } from '../db/libraryRoots.js';
 import { insertUser } from '../db/users.js';
+import { listListeners, resetStreamMonitor } from '../services/streamMonitor.js';
 import { signToken } from '../services/token.js';
 import { resetDatabase } from '../testing/harness.js';
 
@@ -26,6 +27,7 @@ after(async () => {
 
 beforeEach(() => {
   resetDatabase();
+  resetStreamMonitor();
 
   const alice = insertUser('alice', 'hash');
   const bob = insertUser('bob', 'hash');
@@ -65,6 +67,16 @@ function get(token: string) {
 }
 
 describe('playback state route', () => {
+  it('counts a save as a listening check-in, and a pause as leaving', async () => {
+    await put(aliceToken, { queue: [trackId], queueIndex: 0, positionSeconds: 3 });
+    assert.deepEqual(
+      listListeners().map((l) => [l.username, l.trackTitle]),
+      [['alice', 'A']],
+    );
+    await put(aliceToken, { queue: [trackId], queueIndex: 0, positionSeconds: 4, playing: false });
+    assert.deepEqual(listListeners(), []);
+  });
+
   it('reports null rather than 404 before anything has been played', async () => {
     const res = await get(aliceToken);
     assert.equal(res.statusCode, 200);

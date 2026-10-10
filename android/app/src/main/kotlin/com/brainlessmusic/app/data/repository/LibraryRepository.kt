@@ -66,8 +66,8 @@ class LibraryRepository @Inject constructor(
     suspend fun loadPlaybackState(): Result<PlaybackStateDto?> =
         callApi { it.playbackState().state }
 
-    suspend fun savePlaybackState(trackIds: List<Int>, index: Int, positionSeconds: Double): Result<Unit> =
-        callApi { it.savePlaybackState(SavePlaybackStateRequest(trackIds, index, positionSeconds)) }
+    suspend fun savePlaybackState(trackIds: List<Int>, index: Int, positionSeconds: Double, playing: Boolean): Result<Unit> =
+        callApi { it.savePlaybackState(SavePlaybackStateRequest(trackIds, index, positionSeconds, playing)) }
 
     /** Seekable, and authenticated by the shared client's bearer header, so no `?token=` is needed. */
     fun streamUrl(trackId: Int): String? = mediaUrlProvider.current?.let { "${it}tracks/$trackId/stream" }

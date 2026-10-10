@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-10 — Web: gap between the More menu's items
+
+- The More dropdown stacked its links flush, so a hovered row's highlight touched the active page's (e.g. Users and
+  Control Center read as one block). Each group of links in `NavOverflow` is now a `flex flex-col gap-1` column, so
+  rows keep 4px apart. The phone-only group above the divider gets the same gap.
+- Verified: `npm run build` passes; `npm run lint` shows only the three existing warnings. **Not checked in a
+  browser.**
+
 ## 2026-10-10 — antislop pass: copy, glows, contrast, touch targets, title HUD, comments, README
 
 - **Copy:** em dashes used as connectors in user-facing strings (toasts, empty states, tooltips, dialogs, API error

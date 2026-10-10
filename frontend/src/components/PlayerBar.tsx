@@ -761,12 +761,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [user, stop]);
 
   // Newest values, reachable from long-lived listeners without re-binding them.
-  const stateRef = useRef({ queue, index });
-  stateRef.current = { queue, index };
+  const stateRef = useRef({ queue, index, isPlaying });
+  stateRef.current = { queue, index, isPlaying };
 
   const persistState = useCallback(() => {
     const audio = audioRef.current;
-    const { queue: tracks, index: at } = stateRef.current;
+    const { queue: tracks, index: at, isPlaying: playing } = stateRef.current;
     if (!audio || !tracks[at]) return;
 
     void apiClient
@@ -774,6 +774,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         queue: tracks.map((t) => t.id),
         queueIndex: at,
         positionSeconds: audio.currentTime,
+        playing,
       })
       .catch(() => {
         // Losing a position costs the resume, not the music.

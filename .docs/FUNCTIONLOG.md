@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `NavOverflow()` — `frontend/src/components/NavOverflow.tsx`
+**Date:** 2026-10-10
+**How added:** bug fix
+**Purpose:** the nav bar's More dropdown.
+**Side effects:** none.
+**Before:** menu links stacked with no space, so adjacent hover/active highlights merged.
+**After:** each link group is wrapped in a `flex flex-col gap-1` column.
+
 **Function:** `useThemeCycle()` — `frontend/src/hooks/useThemeCycle.ts`
 **Date:** 2026-10-10
 **How added:** new feature

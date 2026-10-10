@@ -93,19 +93,24 @@ export function NavOverflow({ overflow, primary, isOpen, onToggle, onClose, clas
                 divider only appears when both groups are on screen. */}
               {primary.length > 0 && (
                 <div className="lg:hidden">
-                  {primary.map((item) => (
-                    <NavLink key={item.to} to={item.to} end={item.end} onClick={onClose} className={itemClass}>
-                      {item.label}
-                    </NavLink>
-                  ))}
+                  <div className="flex flex-col gap-1">
+                    {primary.map((item) => (
+                      <NavLink key={item.to} to={item.to} end={item.end} onClick={onClose} className={itemClass}>
+                        {item.label}
+                      </NavLink>
+                    ))}
+                  </div>
                   <div className="my-2 border-t border-blue-800" />
                 </div>
               )}
-              {overflow.map((item) => (
-                <NavLink key={item.to} to={item.to} end={item.end} onClick={onClose} className={itemClass}>
-                  {item.label}
-                </NavLink>
-              ))}
+              {/* A gap so neighbouring highlights (hover next to the active page) read as two rows. */}
+              <div className="flex flex-col gap-1">
+                {overflow.map((item) => (
+                  <NavLink key={item.to} to={item.to} end={item.end} onClick={onClose} className={itemClass}>
+                    {item.label}
+                  </NavLink>
+                ))}
+              </div>
             </div>
           </div>
         </>

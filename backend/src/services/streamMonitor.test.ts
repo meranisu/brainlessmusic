@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
 import {
+  LISTENER_TTL_MS,
   getHealthSnapshot,
   listActiveSessions,
+  listListeners,
+  playerCheckedIn,
+  playerClosed,
   recordStreamError,
   resetStreamMonitor,
   streamEnded,
@@ -86,5 +90,48 @@ describe('listActiveSessions', () => {
     const id = streamStarted(listener(1));
     streamEnded(id);
     assert.deepEqual(listActiveSessions(), []);
+  });
+});
+
+describe('listListeners', () => {
+  const PHONE = 'okhttp/4.12.0';
+  const BROWSER = 'Mozilla/5.0 (Windows NT 10.0) Edg/130.0';
+  const checkIn = (userAgent: string, trackId: number, now: number, playing = true) =>
+    playerCheckedIn(
+      { userId: 1, username: 'imran', userAgent, trackId, trackTitle: `Track ${trackId}`, positionSeconds: 5, playing },
+      now,
+    );
+
+  it('lists one account on a phone and a browser as two listeners', () => {
+    checkIn(PHONE, 1, 1000);
+    checkIn(BROWSER, 2, 2000);
+    assert.deepEqual(
+      listListeners(2000).map((l) => [l.client, l.trackTitle]),
+      [
+        ['Android app', 'Track 1'],
+        ['Web', 'Track 2'],
+      ],
+    );
+  });
+
+  it('keeps "since" across check-ins on the same track and resets it on a new one', () => {
+    checkIn(PHONE, 1, 1000);
+    checkIn(PHONE, 1, 11_000);
+    assert.equal(listListeners(11_000)[0].since, new Date(1000).toISOString());
+    checkIn(PHONE, 2, 21_000);
+    assert.equal(listListeners(21_000)[0].since, new Date(21_000).toISOString());
+  });
+
+  it('forgets a player that stopped checking in', () => {
+    checkIn(PHONE, 1, 1000);
+    assert.deepEqual(listListeners(1000 + LISTENER_TTL_MS), []);
+  });
+
+  it('drops a player on pause or close', () => {
+    checkIn(PHONE, 1, 1000);
+    checkIn(PHONE, 1, 2000, false);
+    checkIn(BROWSER, 1, 2000);
+    playerClosed(1, BROWSER);
+    assert.deepEqual(listListeners(2000), []);
   });
 });

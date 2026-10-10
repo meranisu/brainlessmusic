@@ -240,29 +240,31 @@ export function ControlCenterPage() {
           )}
 
           <Section
-            title={`Now playing (${center?.activeSessions.length ?? data.activeStreams})`}
-            description="Streams open right now. One listener can hold several while the player buffers or seeks."
+            title={`Now playing (${center?.listeners.length ?? 0})`}
+            description="Players that checked in within the last 30 seconds. One account on a phone and a browser shows twice."
           >
             <div className="card overflow-hidden">
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-blue-800">
                   <tr className="text-xs uppercase tracking-wide text-blue-400">
                     <th className="px-4 py-2.5 font-medium">Listener</th>
+                    <th className="px-4 py-2.5 font-medium">Device</th>
                     <th className="px-4 py-2.5 font-medium">Track</th>
                     <th className="px-4 py-2.5 font-medium">Since</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-blue-800/60">
-                  {center?.activeSessions.map((s) => (
-                    <tr key={s.id}>
-                      <td className="px-4 py-2.5 text-blue-200">{s.username}</td>
-                      <td className="px-4 py-2.5 text-blue-100">{s.trackTitle}</td>
+                  {center?.listeners.map((l) => (
+                    <tr key={`${l.userId}-${l.client}-${l.since}`}>
+                      <td className="px-4 py-2.5 text-blue-200">{l.username}</td>
+                      <td className="px-4 py-2.5 whitespace-nowrap text-blue-200">{l.client}</td>
+                      <td className="px-4 py-2.5 text-blue-100">{l.trackTitle}</td>
                       <td className="px-4 py-2.5 whitespace-nowrap text-blue-200">
-                        {new Date(s.startedAt).toLocaleTimeString()}
+                        {new Date(l.since).toLocaleTimeString()}
                       </td>
                     </tr>
                   ))}
-                  {(center?.activeSessions.length ?? 0) === 0 && <EmptyRow colSpan={3}>Nobody is listening.</EmptyRow>}
+                  {(center?.listeners.length ?? 0) === 0 && <EmptyRow colSpan={4}>Nobody is listening.</EmptyRow>}
                 </tbody>
               </table>
             </div>

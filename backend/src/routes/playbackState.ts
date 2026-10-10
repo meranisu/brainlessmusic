@@ -5,11 +5,15 @@ import {
   loadPlaybackState,
   savePlaybackState,
 } from '../db/playbackState.js';
+import { findTrackById } from '../db/library.js';
+import { playerCheckedIn, playerClosed } from '../services/streamMonitor.js';
 
 interface SaveBody {
   queue?: unknown;
   queueIndex?: unknown;
   positionSeconds?: unknown;
+  /** Optional, newer clients only. Feeds the control center, not the saved state. */
+  playing?: unknown;
 }
 
 /** Rejects rather than coerces: a clamped index would resume someone where they never were. */
@@ -52,7 +56,23 @@ const playbackStateRoute: FastifyPluginAsync = async (fastify) => {
       const result = validate(request.body ?? {});
       if (typeof result === 'string') return reply.code(400).send({ error: result });
 
-      savePlaybackState(request.user!.id, result);
+      const user = request.user!;
+      savePlaybackState(user.id, result);
+
+      // These saves double as the "still listening" heartbeat for the control center.
+      const trackId = result.queue[result.queueIndex];
+      const track = findTrackById(trackId);
+      if (track) {
+        playerCheckedIn({
+          userId: user.id,
+          username: user.username,
+          userAgent: request.headers['user-agent'],
+          trackId,
+          trackTitle: track.title,
+          positionSeconds: result.positionSeconds,
+          playing: request.body?.playing !== false,
+        });
+      }
       return reply.code(204).send();
     },
   );
@@ -60,6 +80,7 @@ const playbackStateRoute: FastifyPluginAsync = async (fastify) => {
   // Closing the player means "I'm done", so the saved state goes too.
   fastify.delete('/me/playback-state', { preHandler: fastify.authenticate }, async (request, reply) => {
     clearPlaybackState(request.user!.id);
+    playerClosed(request.user!.id, request.headers['user-agent']);
     return reply.code(204).send();
   });
 };

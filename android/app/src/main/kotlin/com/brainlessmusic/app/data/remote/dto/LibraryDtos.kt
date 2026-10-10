@@ -99,6 +99,8 @@ data class SavePlaybackStateRequest(
     val queue: List<Int>,
     val queueIndex: Int,
     val positionSeconds: Double,
+    /** Not saved; tells the control center a pause means "stopped listening". */
+    val playing: Boolean,
 )
 
 /** `GET /tracks`, paged. */

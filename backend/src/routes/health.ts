@@ -3,7 +3,7 @@ import { countMissingTracks } from '../db/library.js';
 import { listRecentPlaybackFailures } from '../db/playbackFailures.js';
 import { countScanFailures, listScanFailures } from '../db/scanFailures.js';
 import { isAnyLibrarySyncRunning } from '../services/librarySync.js';
-import { getHealthSnapshot, listActiveSessions } from '../services/streamMonitor.js';
+import { getHealthSnapshot, listListeners } from '../services/streamMonitor.js';
 import { getSystemStats } from '../services/systemStats.js';
 
 const healthRoute: FastifyPluginAsync = async (fastify) => {
@@ -32,7 +32,7 @@ const healthRoute: FastifyPluginAsync = async (fastify) => {
     { preHandler: [fastify.authenticate, fastify.requireAdmin] },
     async () => ({
       system: await getSystemStats(),
-      activeSessions: listActiveSessions(),
+      listeners: listListeners(),
       scanFailures: listScanFailures(),
       scanFailureCount: countScanFailures(),
     }),

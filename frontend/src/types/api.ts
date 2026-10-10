@@ -109,14 +109,15 @@ export interface PlaybackFailureEntry {
   createdAt: string;
 }
 
-/** One open stream: who is listening to what. */
-export interface ActiveSession {
-  id: number;
+/** A player that checked in within the last 30 s: who is listening to what, and on which device. */
+export interface Listener {
   userId: number;
   username: string;
+  client: string;
   trackId: number;
   trackTitle: string;
-  startedAt: string;
+  positionSeconds: number;
+  since: string;
 }
 
 export interface DiskUsage {
@@ -148,7 +149,7 @@ export interface ScanFailureEntry {
 
 export interface ControlCenterSnapshot {
   system: SystemStats;
-  activeSessions: ActiveSession[];
+  listeners: Listener[];
   scanFailures: ScanFailureEntry[];
   scanFailureCount: number;
 }

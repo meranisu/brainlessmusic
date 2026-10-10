@@ -37,6 +37,73 @@ let nextSessionId = 1;
 const activeSessions = new Map<number, ActiveSession>();
 const recentErrors: StreamErrorEntry[] = [];
 
+/**
+ * A player that checked in through `PUT /me/playback-state`. Open streams alone can't answer "who is listening":
+ * both clients fetch a whole file in seconds and close the connection, so a stream lasts far shorter than the song.
+ */
+export interface Listener {
+  userId: number;
+  username: string;
+  client: string;
+  trackId: number;
+  trackTitle: string;
+  positionSeconds: number;
+  /** When this device started the current track, as far as the server saw. */
+  since: string;
+}
+
+/** Players check in every 10 s while playing; three missed check-ins means gone. */
+export const LISTENER_TTL_MS = 30 * 1000;
+
+// Keyed by user and User-Agent, so one account on a phone and a browser shows twice.
+const listeners = new Map<string, Listener & { lastSeenAt: number }>();
+
+export function clientLabel(userAgent: string | undefined): string {
+  return userAgent && /okhttp/i.test(userAgent) ? 'Android app' : 'Web';
+}
+
+/** `playing: false` removes the player at once; an older client that never sends it counts as playing. */
+export function playerCheckedIn(
+  info: Omit<Listener, 'client' | 'since'> & { userAgent: string | undefined; playing: boolean },
+  now: number = Date.now(),
+): void {
+  const key = `${info.userId}\n${info.userAgent ?? ''}`;
+  if (!info.playing) {
+    listeners.delete(key);
+    return;
+  }
+  const previous = listeners.get(key);
+  const since =
+    previous && previous.trackId === info.trackId && now - previous.lastSeenAt < LISTENER_TTL_MS
+      ? previous.since
+      : new Date(now).toISOString();
+  listeners.set(key, {
+    userId: info.userId,
+    username: info.username,
+    client: clientLabel(info.userAgent),
+    trackId: info.trackId,
+    trackTitle: info.trackTitle,
+    positionSeconds: info.positionSeconds,
+    since,
+    lastSeenAt: now,
+  });
+}
+
+/** Closing the player on any device drops that device. */
+export function playerClosed(userId: number, userAgent: string | undefined): void {
+  listeners.delete(`${userId}\n${userAgent ?? ''}`);
+}
+
+/** Players heard from within the TTL, oldest listen first. */
+export function listListeners(now: number = Date.now()): Listener[] {
+  const live: Listener[] = [];
+  for (const [key, { lastSeenAt, ...listener }] of listeners) {
+    if (now - lastSeenAt >= LISTENER_TTL_MS) listeners.delete(key);
+    else live.push(listener);
+  }
+  return live.sort((a, b) => a.since.localeCompare(b.since));
+}
+
 /** Returns the handle to pass to `streamEnded` when the connection closes. */
 export function streamStarted(info: Omit<ActiveSession, 'id' | 'startedAt'>): number {
   const id = nextSessionId++;
@@ -74,5 +141,6 @@ export function getHealthSnapshot(now: number = Date.now()): HealthSnapshot {
 /** Test seam: the counters and the error ring are module state. */
 export function resetStreamMonitor(): void {
   activeSessions.clear();
+  listeners.clear();
   recentErrors.length = 0;
 }
