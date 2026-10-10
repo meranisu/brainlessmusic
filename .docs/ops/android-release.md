@@ -22,6 +22,11 @@ If the notes file is missing, the workflow lists the Android commit subjects sin
 is a safety net, not the plan. To fix notes after publishing: edit the file, then
 `gh release edit vX.Y.Z --notes-file <file>`.
 
+**Debug build on GitHub** (no release, no tag): `gh workflow run android-debug.yml` (add
+`-f server_url=...` for another backend), then `gh run download --name brainlessmusic-debug`. It builds
+`brainlessmusic-debug.apk`, kept 14 days as a run artifact. The secret `ANDROID_DEBUG_KEYSTORE_BASE64` (this machine's
+`~/.android/debug.keystore`) makes CI and local debug builds share a key, so each installs over the last.
+
 **Dry run** (build and check the signed APK, publish nothing): `gh workflow run android-release.yml -f version=0.0.1`.
 
 The tag becomes `versionName` (`0.2.0`) and `versionCode` (`major*10000 + minor*100 + patch`, here `200`), so each

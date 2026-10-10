@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-10 — CI: Android debug build workflow
+
+- `.github/workflows/android-debug.yml`, run by hand (Actions tab or `gh workflow run android-debug.yml`): builds
+  `brainlessmusic-debug.apk` on GitHub, optionally against another backend (`server_url`), and keeps it 14 days as a
+  run artifact. It publishes nothing. It exists because local Gradle builds keep getting OOM-killed here.
+- Signs with the secret `ANDROID_DEBUG_KEYSTORE_BASE64` (this machine's debug key) when set, so CI and local debug
+  builds install over each other. Without it, it warns and uses a one-off key.
+
 ## 2026-10-10 — Android: debug builds are their own app
 
 - Debug builds are named "brainlessmusic (debug)" (`src/debug/res/values/strings.xml`), use the app ID
