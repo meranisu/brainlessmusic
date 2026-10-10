@@ -7,8 +7,14 @@ import com.brainlessmusic.app.data.remote.dto.ArtistDetailDto
 import com.brainlessmusic.app.data.remote.dto.ArtistsPageDto
 import com.brainlessmusic.app.data.remote.dto.FavoriteIdsDto
 import com.brainlessmusic.app.data.remote.dto.FavoritesPageDto
+import com.brainlessmusic.app.data.remote.dto.DisplayNameRequest
+import com.brainlessmusic.app.data.remote.dto.DisplayNameResponse
 import com.brainlessmusic.app.data.remote.dto.FinishPlayRequest
+import com.brainlessmusic.app.data.remote.dto.GuestCodeRequestBody
+import com.brainlessmusic.app.data.remote.dto.GuestCodeRequestCreated
 import com.brainlessmusic.app.data.remote.dto.GuestRequest
+import com.brainlessmusic.app.data.remote.dto.GuestRequestSecret
+import com.brainlessmusic.app.data.remote.dto.GuestRequestStatus
 import com.brainlessmusic.app.data.remote.dto.HealthResponse
 import com.brainlessmusic.app.data.remote.dto.LessOftenPageDto
 import com.brainlessmusic.app.data.remote.dto.LetterIndexDto
@@ -50,6 +56,20 @@ interface ApiService {
 
     @GET("auth/me")
     suspend fun me(): MeResponse
+
+    // "Request a code" (A67): queue it, poll it, or withdraw it. The poll answers 404 once collected or unknown.
+    @POST("auth/guest/requests")
+    suspend fun requestGuestCode(@Body body: GuestCodeRequestBody): GuestCodeRequestCreated
+
+    @POST("auth/guest/requests/{id}/collect")
+    suspend fun collectGuestCodeRequest(@Path("id") id: Int, @Body body: GuestRequestSecret): GuestRequestStatus
+
+    // Answers 204 with no body.
+    @POST("auth/guest/requests/{id}/cancel")
+    suspend fun cancelGuestCodeRequest(@Path("id") id: Int, @Body body: GuestRequestSecret)
+
+    @PUT("me/name")
+    suspend fun setDisplayName(@Body body: DisplayNameRequest): DisplayNameResponse
 
     // One page at the server's 200 cap (backend/src/utils/pagination.ts); every library here is well under it.
     @GET("artists")

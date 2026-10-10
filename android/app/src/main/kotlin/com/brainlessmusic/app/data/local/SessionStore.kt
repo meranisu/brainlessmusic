@@ -18,6 +18,34 @@ class SessionStore @Inject constructor(
 ) {
     val serverUrl: Flow<String?> = dataStore.data.map { it[SERVER_URL_KEY] }
     val username: Flow<String?> = dataStore.data.map { it[USERNAME_KEY] }
+    /** What the server calls this user (A68), for Settings. Null until the first sign-in after A68. */
+    val displayName: Flow<String?> = dataStore.data.map { it[DISPLAY_NAME_KEY] }
+
+    suspend fun saveDisplayName(name: String) {
+        dataStore.edit { it[DISPLAY_NAME_KEY] = name }
+    }
+
+    /** A "Request a code" waiting for the admin (A67), kept so a restarted app keeps waiting instead of asking again. */
+    suspend fun readPendingGuestRequest(): Pair<Int, String>? {
+        val prefs = dataStore.data.first()
+        val id = prefs[PENDING_REQUEST_ID_KEY]?.toIntOrNull() ?: return null
+        val secret = prefs[PENDING_REQUEST_SECRET_KEY] ?: return null
+        return id to secret
+    }
+
+    suspend fun savePendingGuestRequest(id: Int, secret: String) {
+        dataStore.edit {
+            it[PENDING_REQUEST_ID_KEY] = id.toString()
+            it[PENDING_REQUEST_SECRET_KEY] = secret
+        }
+    }
+
+    suspend fun clearPendingGuestRequest() {
+        dataStore.edit {
+            it.remove(PENDING_REQUEST_ID_KEY)
+            it.remove(PENDING_REQUEST_SECRET_KEY)
+        }
+    }
 
     suspend fun saveServerUrl(url: String) {
         dataStore.edit { it[SERVER_URL_KEY] = url }
@@ -45,6 +73,7 @@ class SessionStore @Inject constructor(
     suspend fun clearCredentials() {
         dataStore.edit { prefs ->
             prefs.remove(USERNAME_KEY)
+            prefs.remove(DISPLAY_NAME_KEY)
             prefs.remove(TOKEN_CIPHER_KEY)
             prefs.remove(TOKEN_IV_KEY)
         }
@@ -53,6 +82,9 @@ class SessionStore @Inject constructor(
     private companion object {
         val SERVER_URL_KEY = stringPreferencesKey("server_url")
         val USERNAME_KEY = stringPreferencesKey("username")
+        val DISPLAY_NAME_KEY = stringPreferencesKey("display_name")
+        val PENDING_REQUEST_ID_KEY = stringPreferencesKey("pending_guest_request_id")
+        val PENDING_REQUEST_SECRET_KEY = stringPreferencesKey("pending_guest_request_secret")
         val TOKEN_CIPHER_KEY = stringPreferencesKey("token_cipher")
         val TOKEN_IV_KEY = stringPreferencesKey("token_iv")
     }

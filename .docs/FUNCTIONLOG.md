@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `AuthRepository.enterAsGuest(code, name)`, `requestGuestCode()`, `pollGuestRequest()`, `cancelGuestRequest()`, `setDisplayName()`, `adopt()` — `android/.../data/repository/AuthRepository.kt`; `LoginViewModel.chooseGuest()`, `requestCode()`, `startPolling()`, `stopWaiting()`, `continueWithHandedCode()` — `ui/login/LoginViewModel.kt`; `GuestForm`, `RequestStatus`, `HandedCode` — `ui/login/LoginScreen.kt`; `SessionStore` pending-request and display-name keys; `SettingsViewModel.rename()`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** guest accounts on Android (A67-A70): name, code, request and wait, the code handed over once, renaming.
+**Side effects:** DataStore keys `display_name`, `pending_guest_request_id`, `pending_guest_request_secret`; polling `POST /auth/guest/requests/:id/collect` every 3 s while waiting; cancel on stop.
+**Before:** Guest tried to enter at once and showed a code field only after a 401; no names.
+**After:** as described in the 2026-10-11 "Guest accounts on Android" CHANGELOG entry.
+
 **Function:** `AccountSelectPage` guest card (`requestCode()`, `stopWaiting()`, the request poll effect, `continueWithHandedCode()`), `loadPendingRequest()` / `savePendingRequest()` — `frontend/src/pages/AccountSelectPage.tsx`; `GuestCodesPanel`, `RevokeGuestDialog` — `frontend/src/components/GuestCodesPanel.tsx`; `NameSection` — `frontend/src/pages/OptionsPage.tsx`; `enterAsGuest({ code, name })`, `setDisplayName()` — `frontend/src/auth/AuthContext.tsx`; `formatDateTime()`, `describeDevice()` — `frontend/src/lib/format.ts`; `cancelGuestCodeRequest()` and `POST /auth/guest/requests/:id/cancel` — `backend/src/db/guestCodeRequests.ts`, `backend/src/routes/auth.ts`
 **Date:** 2026-10-11
 **How added:** new feature

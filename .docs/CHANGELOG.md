@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Guest accounts on Android (A67-A70)
+
+- The Guest button now opens a form instead of trying to enter at once: an optional name ("Leave it blank and you're
+  Guest plus a number"), "I have a code" to show the code field, ENTER, and "Request a code". The name and
+  `platform: "android"` go with `POST /auth/guest`, so the admin's sign-in log says Android.
+- Request a code: the phone waits with a spinner and polls every 3 seconds from the view model. The request id and
+  secret are saved in DataStore, so closing and reopening the app resumes the wait on the Guest form. On approval the
+  phone is signed in and shows its code once (`ABCD-EFGH`, selectable), with START LISTENING and Copy code. Denied,
+  expired and lost requests each say so, with BACK. Stop waiting, or system back, withdraws the request
+  (`POST /auth/guest/requests/:id/cancel`). If signing in fails after approval, the code is put in the form.
+- Names: `/auth/me`'s `displayName` is stored after every sign-in and session restore. Settings → Account shows it,
+  with a "Your name" field (`PUT /me/name`; clear and save for the default). The guest log-out warning and Account
+  text now say a guest code gets you back in.
+- Verified: `./gradlew compileDebugKotlin` clean, with no warnings in the changed files; `./gradlew testDebugUnitTest`
+  40/40 (no test covers the login screen). Not run on a phone or emulator, and not tried against the server yet.
+
 ## 2026-10-11 — Contrast check of `blue-400` small text
 
 - Measured every theme's real tokens (the default theme overrides Tailwind's `blue-400` at `frontend/src/index.css:276`):

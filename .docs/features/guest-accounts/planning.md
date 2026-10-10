@@ -19,7 +19,7 @@ Owner idea, 2026-10-11. Decided the same day:
 | 1. Plan | What changes from A13/A43, data shape, endpoints | Done | [Phase 1](#phase-1-plan) |
 | 2. Structure | Migration, code reuse, requests queue, name, revoke | Done (local; not deployed) | [Phase 2](#phase-2-structure) |
 | 3. Interior (web) | Guest form with name and request button, admin queue | Done (local; not deployed) | [Phase 3](#phase-3-interior-web) |
-| 4. Interior (Android) | Same guest form on the title screen's Guest button | Not started | [Phase 4](#phase-4-interior-android) |
+| 4. Interior (Android) | Same guest form on the title screen's Guest button | Built; compiles; not run on a phone | [Phase 4](#phase-4-interior-android) |
 | 5. Walkthrough | Use it on both clients; docs; deploy | Not started | [Phase 5](#phase-5-walkthrough) |
 
 ---
@@ -119,9 +119,9 @@ flight.
 
 ## Phase 4: Interior (Android)
 
-- [ ] Guest form on the title screen's Guest button (`ui/login/LoginScreen.kt`) with the same three parts
-- [ ] Waiting screen polls the request; survives the app going to the background
-- [ ] Rename in Settings
+- [x] Guest form on the title screen's Guest button (`ui/login/LoginScreen.kt`) with the same three parts
+- [x] Waiting screen polls the request; survives the app going to the background
+- [x] Rename in Settings
 
 ## Phase 5: Walkthrough
 
@@ -143,3 +143,4 @@ flight.
 | 2026-10-11 | Structure | A typed code that isn't right is a 401 even with the door open | Otherwise a typo quietly mints a stranger instead of the guest the person meant | Yes |
 | 2026-10-11 | Structure | Added `POST /auth/guest/requests/:id/cancel` | Found while using the web flow: "Stop waiting" left a request in the admin queue that nobody would collect | Yes |
 | 2026-10-11 | Interior (web) | New hint text uses `blue-300`, not `blue-400` | `blue-400` small text is 3.93:1 on the default card, below AA; the older uses elsewhere are untouched | Yes |
+| 2026-10-11 | Interior (Android) | Guest no longer tries to enter on the first tap; it opens the form | The name field has to come first, as on the web | Yes |

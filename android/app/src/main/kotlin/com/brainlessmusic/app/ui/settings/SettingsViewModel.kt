@@ -99,6 +99,30 @@ class SettingsViewModel @Inject constructor(
     val username: StateFlow<String?> = flow { emit(authRepository.savedUsername()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    /** What the server calls this user (A68), as last seen. */
+    val displayName: StateFlow<String?> = authRepository.displayName
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** `null` while idle or saving; then the outcome of the last rename, for the line under the field. */
+    private val _renameResult = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    val renameResult: StateFlow<String?> = _renameResult
+
+    private val _isRenaming = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val isRenaming: StateFlow<Boolean> = _isRenaming
+
+    /** Blank resets it: a guest gets a new `Guest 1234`, an account its username. */
+    fun rename(name: String) {
+        if (_isRenaming.value) return
+        viewModelScope.launch {
+            _isRenaming.value = true
+            _renameResult.value = authRepository.setDisplayName(name).fold(
+                onSuccess = { "Saved." },
+                onFailure = { "Couldn't reach the server. Try again." },
+            )
+            _isRenaming.value = false
+        }
+    }
+
     /** A guest's identity lives only in this phone's stored token, so logging out is forgetting it for good. */
     val isGuest: Boolean get() = authRepository.isGuest
 

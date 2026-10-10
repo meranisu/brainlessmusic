@@ -5,9 +5,14 @@ import com.brainlessmusic.app.data.remote.ApiServiceFactory
 import com.brainlessmusic.app.data.remote.MediaUrlProvider
 import com.brainlessmusic.app.data.remote.ServerConfig
 import com.brainlessmusic.app.data.remote.TokenProvider
+import com.brainlessmusic.app.data.remote.dto.DisplayNameRequest
+import com.brainlessmusic.app.data.remote.dto.GuestCodeRequestBody
 import com.brainlessmusic.app.data.remote.dto.GuestRequest
+import com.brainlessmusic.app.data.remote.dto.GuestRequestSecret
 import com.brainlessmusic.app.data.remote.dto.LoginRequest
+import com.brainlessmusic.app.data.remote.dto.MeResponse
 import retrofit2.HttpException
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -30,6 +35,9 @@ class AuthRepository @Inject constructor(
     /** Prefill for the login screen. */
     suspend fun savedUsername(): String? = sessionStore.username.first()
 
+    /** What the server calls this user (A68), as last seen. */
+    val displayName: Flow<String?> = sessionStore.displayName
+
     /** `GET /health` against the bound server; drives the green/red light on the login screen. */
     suspend fun testConnection(): Result<Unit> =
         runCatching {
@@ -45,6 +53,8 @@ class AuthRepository @Inject constructor(
             tokenProvider.isGuest = false
             mediaUrlProvider.current = ApiServiceFactory.normalize(validated)
             sessionStore.saveSession(validated, username, response.token)
+            // Only for Settings' name; a failure here doesn't undo the login.
+            runCatching { sessionStore.saveDisplayName(nameOf(apiServiceFactory.get(validated).me())) }
             Unit
         }.recoverCatching {
             tokenProvider.current = null
@@ -53,24 +63,21 @@ class AuthRepository @Inject constructor(
     }
 
     /**
-     * The Guest button (A41): mints a guest, then reads its name from `/auth/me`. The server answers 401 both for a
-     * missing code and a wrong one; the caller tells them apart by whether it sent one.
+     * The Guest form (A41, A67-A69). A new guest is named [name] (blank: `Guest 1234`); a code already in use signs in
+     * as its guest and the name is ignored. The server answers 401 both for a missing code and a wrong one; the
+     * caller tells them apart by whether it sent one.
      */
-    suspend fun enterAsGuest(code: String?): GuestEntryResult {
+    suspend fun enterAsGuest(code: String?, name: String): GuestEntryResult {
         val serverUrl = serverConfig.url
         return try {
             val api = apiServiceFactory.get(serverUrl)
-            val response = api.guest(GuestRequest(code?.trim()?.takeIf { it.isNotEmpty() }))
-            tokenProvider.current = response.token
-            val me = api.me()
-            tokenProvider.isGuest = me.isGuest
-            mediaUrlProvider.current = ApiServiceFactory.normalize(serverUrl)
-            sessionStore.saveSession(serverUrl, me.username, response.token)
-            GuestEntryResult.Entered(me.username)
+            val response = api.guest(GuestRequest(code?.trim()?.takeIf { it.isNotEmpty() }, name.trim()))
+            GuestEntryResult.Entered(adopt(serverUrl, response.token))
         } catch (e: Exception) {
             tokenProvider.current = null
             tokenProvider.isGuest = false
             when ((e as? HttpException)?.code()) {
+                400 -> GuestEntryResult.Failed("Names can be up to 32 characters.")
                 401 -> GuestEntryResult.CodeRejected
                 429 -> GuestEntryResult.Failed("Too many tries from here. Wait a little.")
                 503 -> GuestEntryResult.Failed("This server is full right now.")
@@ -78,6 +85,88 @@ class AuthRepository @Inject constructor(
             }
         }
     }
+
+    /** Stores [token] as this phone's session and returns the display name `/auth/me` gives it. */
+    private suspend fun adopt(serverUrl: String, token: String): String {
+        tokenProvider.current = token
+        val me = apiServiceFactory.get(serverUrl).me()
+        tokenProvider.isGuest = me.isGuest
+        mediaUrlProvider.current = ApiServiceFactory.normalize(serverUrl)
+        sessionStore.saveSession(serverUrl, me.username, token)
+        sessionStore.saveDisplayName(nameOf(me))
+        return nameOf(me)
+    }
+
+    suspend fun hasPendingGuestRequest(): Boolean = sessionStore.readPendingGuestRequest() != null
+
+    /** "Request a code" (A67): queues a request for the admin and keeps its id and secret on this phone. */
+    suspend fun requestGuestCode(name: String): GuestRequestResult =
+        try {
+            val created = apiServiceFactory.get(serverConfig.url).requestGuestCode(GuestCodeRequestBody(name.trim()))
+            sessionStore.savePendingGuestRequest(created.id, created.secret)
+            GuestRequestResult.Waiting
+        } catch (e: Exception) {
+            GuestRequestResult.Failed(
+                when ((e as? HttpException)?.code()) {
+                    400 -> "Names can be up to 32 characters."
+                    429 -> "You have asked a few times already. Try again in an hour."
+                    503 -> "Too many requests are waiting for the admin. Try again later."
+                    else -> classifyError(e).toMessage()
+                },
+            )
+        }
+
+    /** One poll of the waiting request. An approval signs this phone in; every final answer forgets the request. */
+    suspend fun pollGuestRequest(): GuestRequestPoll {
+        val (id, secret) = sessionStore.readPendingGuestRequest() ?: return GuestRequestPoll.Gone
+        val serverUrl = serverConfig.url
+        val status = try {
+            apiServiceFactory.get(serverUrl).collectGuestCodeRequest(id, GuestRequestSecret(secret))
+        } catch (e: Exception) {
+            if ((e as? HttpException)?.code() == 404) {
+                sessionStore.clearPendingGuestRequest()
+                return GuestRequestPoll.Gone
+            }
+            return GuestRequestPoll.Unreachable
+        }
+
+        if (status.status == "pending") return GuestRequestPoll.Pending
+        sessionStore.clearPendingGuestRequest()
+        return when (status.status) {
+            "approved" -> {
+                val token = status.token ?: return GuestRequestPoll.Gone
+                val code = status.code ?: ""
+                try {
+                    GuestRequestPoll.Approved(code, adopt(serverUrl, token))
+                } catch (e: Exception) {
+                    // The token is spent, but the code still works through the Guest form.
+                    tokenProvider.current = null
+                    tokenProvider.isGuest = false
+                    GuestRequestPoll.ApprovedSignInFailed(code)
+                }
+            }
+            "denied" -> GuestRequestPoll.Denied
+            "expired" -> GuestRequestPoll.Expired
+            else -> GuestRequestPoll.Gone
+        }
+    }
+
+    /** "Stop waiting": withdraws the request so the admin isn't asked about it. A failure is fine; it expires anyway. */
+    suspend fun cancelGuestRequest() {
+        val (id, secret) = sessionStore.readPendingGuestRequest() ?: return
+        sessionStore.clearPendingGuestRequest()
+        runCatching { apiServiceFactory.get(serverConfig.url).cancelGuestCodeRequest(id, GuestRequestSecret(secret)) }
+    }
+
+    /** Renames the signed-in user (A68) and returns the name the server settled on. */
+    suspend fun setDisplayName(name: String): Result<String> =
+        runCatching {
+            val saved = apiServiceFactory.get(serverConfig.url).setDisplayName(DisplayNameRequest(name.trim())).displayName
+            sessionStore.saveDisplayName(saved)
+            saved
+        }.recoverCatching {
+            throw ConnectionException(classifyError(it))
+        }
 
     /** Cold start: checks a stored token against `/auth/me`, since it may be revoked or signed with a rotated secret. */
     suspend fun restoreSession(): SessionRestoreResult {
@@ -92,7 +181,8 @@ class AuthRepository @Inject constructor(
             .fold(
                 onSuccess = {
                     tokenProvider.isGuest = it.isGuest
-                    SessionRestoreResult.Restored(it.username)
+                    sessionStore.saveDisplayName(nameOf(it))
+                    SessionRestoreResult.Restored(nameOf(it))
                 },
                 onFailure = {
                     tokenProvider.current = null
@@ -114,11 +204,33 @@ class AuthRepository @Inject constructor(
     }
 }
 
+private fun nameOf(me: MeResponse): String = me.displayName ?: me.username
+
 sealed interface GuestEntryResult {
-    data class Entered(val username: String) : GuestEntryResult
+    /** [name] is the display name: the one typed, `Guest 1234`, or the existing guest's when the code had one. */
+    data class Entered(val name: String) : GuestEntryResult
     /** 401: a code is needed and none was sent, or the one sent is wrong, used or expired. */
     data object CodeRejected : GuestEntryResult
     data class Failed(val message: String) : GuestEntryResult
+}
+
+sealed interface GuestRequestResult {
+    data object Waiting : GuestRequestResult
+    data class Failed(val message: String) : GuestRequestResult
+}
+
+sealed interface GuestRequestPoll {
+    data object Pending : GuestRequestPoll
+    /** The poll itself failed; keep waiting. */
+    data object Unreachable : GuestRequestPoll
+    data object Denied : GuestRequestPoll
+    /** Nobody answered within a day, or the approval was revoked before this phone collected it. */
+    data object Expired : GuestRequestPoll
+    /** Unknown, already collected, or nothing stored: the request is no longer open. */
+    data object Gone : GuestRequestPoll
+    /** Signed in. [code] is shown once, for the guest's other devices. */
+    data class Approved(val code: String, val name: String) : GuestRequestPoll
+    data class ApprovedSignInFailed(val code: String) : GuestRequestPoll
 }
 
 /** Carries a classified [ConnectionError] through a [Result.failure] without losing the classification to a generic exception. */

@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -38,6 +39,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,7 +49,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -77,8 +84,11 @@ fun LoginScreen(
     var entered by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { entered = true }
     val focus = LocalFocusManager.current
-    // System back steps out of a form to the two buttons, rather than leaving the app.
-    BackHandler(enabled = state.mode != EntryMode.CHOOSE) { viewModel.backToChoice() }
+    // System back steps out of a form to the two buttons, rather than leaving the app. Once a request is approved the
+    // phone is signed in, so back carries on into the app instead.
+    BackHandler(enabled = state.mode != EntryMode.CHOOSE || state.handedCode != null) {
+        if (state.handedCode != null) viewModel.continueWithHandedCode(onLoggedIn) else viewModel.backToChoice()
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         BeatMosaic()
@@ -121,7 +131,7 @@ fun LoginScreen(
                             when (state.mode) {
                                 EntryMode.CHOOSE -> ChooseEntry(
                                     onLogin = viewModel::chooseLogin,
-                                    onGuest = { viewModel.chooseGuest(onLoggedIn) },
+                                    onGuest = viewModel::chooseGuest,
                                 )
                                 EntryMode.LOGIN -> LoginForm(
                                     state = state,
@@ -135,15 +145,39 @@ fun LoginScreen(
                                         if (canLogin(state)) viewModel.login(onLoggedIn)
                                     },
                                 )
-                                EntryMode.GUEST -> GuestForm(
-                                    state = state,
-                                    onBack = viewModel::backToChoice,
-                                    onCodeChange = viewModel::onGuestCodeChange,
-                                    onSubmit = {
-                                        focus.clearFocus()
-                                        if (canEnterGuest(state)) viewModel.enterAsGuest(onLoggedIn)
-                                    },
-                                )
+                                EntryMode.GUEST -> {
+                                    // Locals: `state` is a delegated property, so its fields don't smart-cast.
+                                    val handedCode = state.handedCode
+                                    val requestState = state.requestState
+                                    when {
+                                    handedCode != null -> HandedCode(
+                                        name = state.handedName,
+                                        code = handedCode,
+                                        onContinue = { viewModel.continueWithHandedCode(onLoggedIn) },
+                                    )
+                                    requestState != null -> RequestStatus(
+                                        state = requestState,
+                                        unreachable = state.requestUnreachable,
+                                        onStop = viewModel::stopWaiting,
+                                        onDismiss = viewModel::dismissRequest,
+                                    )
+                                    else -> GuestForm(
+                                        state = state,
+                                        onBack = viewModel::backToChoice,
+                                        onNameChange = viewModel::onGuestNameChange,
+                                        onCodeChange = viewModel::onGuestCodeChange,
+                                        onShowCode = viewModel::showCodeField,
+                                        onRequest = {
+                                            focus.clearFocus()
+                                            viewModel.requestCode()
+                                        },
+                                        onSubmit = {
+                                            focus.clearFocus()
+                                            if (canEnterGuest(state)) viewModel.enterAsGuest(onLoggedIn)
+                                        },
+                                    )
+                                    }
+                                }
                             }
                         }
                     }
@@ -260,27 +294,45 @@ private fun LoginForm(
     }
 }
 
-/** Shown while the code-less try runs; the code field appears only if the door is closed. Case and dash are ignored. */
+/** A name, then a code or a request (A67-A69). Case and dash in the code are ignored. */
 @Composable
 private fun GuestForm(
     state: LoginUiState,
     onBack: () -> Unit,
+    onNameChange: (String) -> Unit,
     onCodeChange: (String) -> Unit,
+    onShowCode: () -> Unit,
+    onRequest: () -> Unit,
     onSubmit: () -> Unit,
 ) {
     BackRow("Guest", onBack)
 
+    Text(
+        "A guest code lets you back in as the same guest on any device.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+
+    OutlinedTextField(
+        value = state.guestName,
+        onValueChange = onNameChange,
+        label = { Text("Name (optional)") },
+        supportingText = { Text("Leave it blank and you're Guest plus a number.") },
+        singleLine = true,
+        shape = RoundedCornerShape(16.dp),
+        keyboardOptions = KeyboardOptions(
+            capitalization = KeyboardCapitalization.Words,
+            imeAction = if (state.guestNeedsCode) ImeAction.Next else ImeAction.Done,
+        ),
+        keyboardActions = KeyboardActions(onDone = { onSubmit() }),
+        modifier = Modifier.fillMaxWidth(),
+    )
+
     if (state.guestNeedsCode) {
-        Text(
-            "This server asks for a guest code. Get one from the person who runs it.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
         OutlinedTextField(
             value = state.guestCode,
             onValueChange = onCodeChange,
             label = { Text("Guest code") },
-            placeholder = { Text("ABCD-EFGH") },
             singleLine = true,
             shape = RoundedCornerShape(16.dp),
             textStyle = MaterialTheme.typography.titleMedium.copy(fontFamily = FontFamily.Monospace, letterSpacing = 2.sp),
@@ -299,30 +351,111 @@ private fun GuestForm(
         Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
     }
 
-    if (state.guestNeedsCode || state.guestError != null) {
-        Button(
-            onClick = onSubmit,
-            enabled = canEnterGuest(state),
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-        ) {
-            if (state.isEnteringGuest) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(22.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                )
+    Button(
+        onClick = onSubmit,
+        enabled = canEnterGuest(state),
+        modifier = Modifier.fillMaxWidth().height(56.dp),
+    ) {
+        if (state.isEnteringGuest) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(22.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.onPrimary,
+            )
+        } else {
+            Text("ENTER", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, letterSpacing = 2.sp)
+        }
+    }
+
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (!state.guestNeedsCode) {
+            TextButton(onClick = onShowCode, modifier = Modifier.weight(1f).height(48.dp)) { Text("I have a code") }
+        }
+        TextButton(
+            onClick = onRequest,
+            enabled = !state.isRequesting,
+            modifier = Modifier.weight(1f).height(48.dp),
+        ) { Text(if (state.isRequesting) "Asking…" else "Request a code") }
+    }
+}
+
+/** Waiting for the admin, or the answer that ended the wait. */
+@Composable
+private fun RequestStatus(state: RequestState, unreachable: Boolean, onStop: () -> Unit, onDismiss: () -> Unit) {
+    Text(
+        if (state == RequestState.WAITING) "Waiting for the admin" else "Request closed",
+        style = MaterialTheme.typography.titleMedium,
+    )
+    Text(
+        when (state) {
+            RequestState.WAITING -> if (unreachable) {
+                "Lost touch with the server. Still trying."
             } else {
-                Text("ENTER", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, letterSpacing = 2.sp)
+                "Your request is in. Keep the app open and you go straight in once the admin approves it."
             }
+            RequestState.DENIED -> "The admin turned this request down."
+            RequestState.EXPIRED -> "Nobody answered this request within a day."
+            RequestState.GONE -> "This request is no longer open."
+        },
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+    )
+    if (state == RequestState.WAITING) {
+        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+        OutlinedButton(onClick = onStop, modifier = Modifier.fillMaxWidth().height(56.dp)) {
+            Text("Stop waiting")
         }
     } else {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
-            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-            Spacer(Modifier.size(12.dp))
-            Text("Letting you in…", style = MaterialTheme.typography.bodyMedium)
+        Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth().height(56.dp)) {
+            Text("BACK", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, letterSpacing = 2.sp)
         }
     }
 }
+
+/** After approval: this phone is signed in, and the code is shown once for the guest's other devices. */
+@Composable
+private fun HandedCode(name: String, code: String, onContinue: () -> Unit) {
+    val clipboard = LocalClipboardManager.current
+    var copied by remember { mutableStateOf(false) }
+
+    Text(if (name.isNotEmpty()) "You're in, $name" else "You're in", style = MaterialTheme.typography.titleMedium)
+    Text(
+        "This is your guest code. Type it in the browser or on another phone to listen as the same guest there. " +
+            "The admin can look it up if you lose it.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    SelectionContainer {
+        Text(
+            prettyCode(code),
+            style = MaterialTheme.typography.headlineSmall.copy(fontFamily = FontFamily.Monospace, letterSpacing = 3.sp),
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+    if (copied) {
+        Text(
+            "Copied.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+        )
+    }
+    Button(onClick = onContinue, modifier = Modifier.fillMaxWidth().height(56.dp)) {
+        Text("START LISTENING", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, letterSpacing = 2.sp)
+    }
+    OutlinedButton(
+        onClick = {
+            clipboard.setText(AnnotatedString(prettyCode(code)))
+            copied = true
+        },
+        modifier = Modifier.fillMaxWidth().height(48.dp),
+    ) { Text("Copy code") }
+}
+
+/** `ABCD-EFGH`, the way the admin's card prints it. */
+private fun prettyCode(code: String): String =
+    if (code.length == 8) "${code.take(4)}-${code.drop(4)}" else code
 
 /** The middle band on the inverse surface, like the web's white band, with the accent from inverse-primary. */
 @Composable

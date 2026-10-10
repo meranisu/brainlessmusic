@@ -40,6 +40,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -52,6 +53,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -163,6 +165,9 @@ fun SettingsPageScreen(
     val colorTheme by viewModel.colorTheme.collectAsStateWithLifecycle()
     val seekStyle by viewModel.seekStyle.collectAsStateWithLifecycle()
     val username by viewModel.username.collectAsStateWithLifecycle()
+    val displayName by viewModel.displayName.collectAsStateWithLifecycle()
+    val renameResult by viewModel.renameResult.collectAsStateWithLifecycle()
+    val isRenaming by viewModel.isRenaming.collectAsStateWithLifecycle()
     var confirmingGuestLogout by remember { mutableStateOf(false) }
     val darkTheme = when (themeMode) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
@@ -175,7 +180,10 @@ fun SettingsPageScreen(
             onDismissRequest = { confirmingGuestLogout = false },
             title = { Text("Leave as guest?") },
             text = {
-                Text("This phone forgets this guest, including where you left off. Getting back in may need a new guest code.")
+                Text(
+                    "This phone forgets this guest. If you came in with a guest code, you can use it to get back in; " +
+                        "without one, this guest is gone.",
+                )
             },
             confirmButton = {
                 TextButton(onClick = {
@@ -343,8 +351,12 @@ fun SettingsPageScreen(
                     }
                     SettingsPage.ACCOUNT -> {
                         Block(
-                            title = if (viewModel.isGuest) "Guest" else username ?: "Logged in",
-                            detail = if (viewModel.isGuest) "Listening without an account." else "Logged in on this phone.",
+                            title = displayName ?: username ?: if (viewModel.isGuest) "Guest" else "Logged in",
+                            detail = if (viewModel.isGuest) {
+                                "Listening as a guest. If you came in with a guest code, type it on another device to listen there as the same guest."
+                            } else {
+                                "Logged in on this phone as ${username ?: "this account"}."
+                            },
                         ) {
                             OutlinedButton(
                                 onClick = { if (viewModel.isGuest) confirmingGuestLogout = true else viewModel.logout(onLoggedOut) },
@@ -352,6 +364,26 @@ fun SettingsPageScreen(
                             ) {
                                 Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null)
                                 Text("Log out", modifier = Modifier.padding(start = 8.dp))
+                            }
+                        }
+                        Divider()
+                        // Keyed on the saved name, so the field resets to it after a save or a sign-in elsewhere.
+                        key(displayName) {
+                            var nameField by remember { mutableStateOf(displayName ?: "") }
+                            Block(title = "Your name", detail = "Shown when you sign in, and to the admin. Clear it and save to go back to the default.") {
+                                OutlinedTextField(
+                                    value = nameField,
+                                    onValueChange = { nameField = it.take(32) },
+                                    singleLine = true,
+                                    label = { Text("Name") },
+                                    supportingText = renameResult?.let { { Text(it) } },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                OutlinedButton(
+                                    onClick = { viewModel.rename(nameField) },
+                                    enabled = !isRenaming && nameField.trim() != (displayName ?: ""),
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                                ) { Text(if (isRenaming) "Saving…" else "Save name") }
                             }
                         }
                     }
