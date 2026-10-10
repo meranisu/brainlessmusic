@@ -86,7 +86,7 @@ export function TrackDetailDrawer({ trackId, initialTab, onClose }: TrackDetailD
           {data && (
             <button
               onClick={() => playTrack(data)}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-600 text-white transition-colors hover:bg-orange-500"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-600 text-on-accent transition-colors hover:bg-orange-500"
               aria-label="Preview"
             >
               <PlayIcon />
@@ -146,7 +146,7 @@ export function TrackDetailDrawer({ trackId, initialTab, onClose }: TrackDetailD
                   disabled={!isAdmin}
                   className="accent-orange-600"
                 />
-                Hidden — excluded from browsing and streaming
+                Hidden: excluded from browsing and streaming
               </label>
               <label className="flex items-center gap-2 text-sm text-blue-100">
                 <input
@@ -156,7 +156,7 @@ export function TrackDetailDrawer({ trackId, initialTab, onClose }: TrackDetailD
                   disabled={!isAdmin}
                   className="accent-orange-600"
                 />
-                Not recommended — skipped by shuffle/radio, still playable directly
+                Not recommended: skipped by shuffle and radio, still playable directly
               </label>
 
               {isAdmin ? (
@@ -185,7 +185,7 @@ export function TrackDetailDrawer({ trackId, initialTab, onClose }: TrackDetailD
               <DiagnosticRow
                 label="Last stream error"
                 value={data.lastStreamError ?? 'None'}
-                valueClassName={data.lastStreamError ? 'text-red-400' : undefined}
+                valueClassName={data.lastStreamError ? 'text-red-300' : undefined}
               />
               <DiagnosticRow
                 label="File on disk"
@@ -194,7 +194,7 @@ export function TrackDetailDrawer({ trackId, initialTab, onClose }: TrackDetailD
                     ? `Missing since ${new Date(data.missingSince).toLocaleString()}`
                     : 'Present'
                 }
-                valueClassName={data.missingSince ? 'text-red-400' : undefined}
+                valueClassName={data.missingSince ? 'text-red-300' : undefined}
               />
             </div>
           )}

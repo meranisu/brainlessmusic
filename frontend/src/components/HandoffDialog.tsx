@@ -5,18 +5,8 @@ import { useScrollLock } from '../hooks/useScrollLock';
 import { getToken } from '../lib/apiClient';
 
 /**
- * Hands this browser's identity to another device.
- *
- * There is no endpoint behind this: the token being handed over is the one the
- * client already holds, so asking the server to repeat it back would be a round
- * trip to learn something it just used. (An earlier draft of the plan specified
- * `GET /auth/handoff` for this; it turned out to have nothing to do.)
- *
- * It exists because guest identities are per-device by design ([A13]). That is
- * the right default — nobody wants a friend's pause moving their resume
- * position — but it costs the thing that shipped the day before: the phone and
- * the desktop are different listeners, so neither resumes what the other
- * paused. This is the deliberate way to make them the same listener.
+ * Hands this browser's identity to another device, from the token already held (no endpoint). Guests are per-device by
+ * design (A13); this is how a phone and a desktop become the same listener.
  */
 export function HandoffDialog({ onClose }: { onClose: () => void }) {
   const { user, logout } = useAuth();
@@ -44,9 +34,7 @@ export function HandoffDialog({ onClose }: { onClose: () => void }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Clipboard access needs a secure context, and this app is plain HTTP on
-      // a LAN — so this is the expected path, not the exceptional one. The link
-      // is selectable below either way.
+      // Clipboard needs a secure context and the LAN is plain HTTP, so this is the usual path; the link stays selectable.
       setCopied(false);
     }
   }
@@ -57,7 +45,7 @@ export function HandoffDialog({ onClose }: { onClose: () => void }) {
         <h2 className="text-sm font-semibold text-white">Use this account on another device</h2>
         <p className="mt-2 text-xs text-blue-300">
           Scan this on the other device, or open the link there. It will pick up your queue and
-          resume position — you'll be the same listener on both.
+          resume position, and you'll be the same listener on both.
         </p>
 
         <div className="mt-4 flex justify-center">
@@ -70,14 +58,13 @@ export function HandoffDialog({ onClose }: { onClose: () => void }) {
           )}
         </div>
 
-        {/* Selectable, because clipboard writes need HTTPS and this runs on a
-            LAN over plain HTTP — "copy" is the convenience, not the mechanism. */}
+        {/* Selectable, since copying needs HTTPS. */}
         <p className="mt-3 break-all rounded-md border border-blue-800 bg-blue-950/60 px-3 py-2 text-[0.65rem] leading-relaxed text-blue-400 select-all">
           {link}
         </p>
 
         <p className="mt-3 rounded-md border border-orange-600/40 bg-orange-600/10 px-3 py-2 text-xs text-orange-200">
-          Anyone who gets this link becomes you here. Treat it like a password — it is one.
+          Anyone who gets this link becomes you here. Treat it like a password, because it is one.
         </p>
 
         <div className="mt-4 flex justify-between gap-2">
@@ -95,7 +82,7 @@ export function HandoffDialog({ onClose }: { onClose: () => void }) {
               <>
                 <p className="text-xs text-red-300">
                   This browser is the only thing holding this listener. Forget it and the favorites,
-                  playlists and resume position on it are gone for good — there is no password to
+                  playlists and resume position on it are gone for good. There is no password to
                   sign back in with.
                 </p>
                 <div className="mt-3 flex justify-end gap-2">

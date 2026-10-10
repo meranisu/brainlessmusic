@@ -12,41 +12,20 @@ import { formatScanStatus } from '../lib/format';
 import { loadLibraryView, saveLibraryView, type LibraryView } from '../lib/libraryView';
 import type { LibraryRootListResponse, TrackListResponse, TrackSummary } from '../types/api';
 
-/** How often to re-poll `/library/roots` while a scan is running, so the
- *  strip's own status line moves along with it. Admin-only and only while
- *  something is actually scanning — see `scanStatus` below — so this never
- *  runs for a guest or an idle library. */
+/** Roots re-poll interval while a scan runs; admin only, and only while scanning. */
 const SCAN_POLL_MS = 2000;
 
-/**
- * The server caps a page at 200 (`MAX_LIMIT` in `backend/src/utils/pagination.ts`).
- * Asking for exactly that is deliberate: the strip is a continuous list and
- * every round trip is a stall in the middle of scrolling, so the right number
- * of requests is the smallest the server will allow.
- */
+/** The server's per-page cap (`MAX_LIMIT`); fewer round trips mean fewer stalls while scrolling. */
 const PAGE_SIZE = 200;
 
-/**
- * The library as a music select — the "Simple" side of the toggle.
- *
- * What is here is what you need to choose something to listen to. Sorting,
- * the filters, the per-row flags and the admin bulk actions live in the
- * "Full" view (`LibraryFull`), one toggle away; trying to keep them here would
- * have produced a screen that was neither a listening surface nor a
- * management one (A18 in the questions ledger).
- */
+/** The Simple view: just what you need to choose something to listen to. Sorting, filters and admin tools are in Full (A18). */
 function SimpleLibrary() {
   const { user } = useAuth();
   const { playQueue } = usePlayer();
   const favoriteIds = useFavoriteIds();
   const [selected, setSelected] = useState(0);
 
-  // `/library/roots` is admin-only server-side (it exposes real filesystem
-  // paths), so this is skipped entirely for anyone else rather than firing a
-  // request that can only 403. Polls only while something is scanning —
-  // `refetchInterval` reads the *last fetched* data to decide the next
-  // delay, so a scan that starts or finishes between polls is caught within
-  // one interval either way, and an idle library polls a grand total of once.
+  // Admin only (it exposes filesystem paths). Polls only while a scan runs; an idle library fetches once.
   const { data: rootsData } = useQuery({
     queryKey: ['library', 'roots', 'scan-status'],
     queryFn: () => apiClient.get<LibraryRootListResponse>('/library/roots'),
@@ -57,9 +36,7 @@ function SimpleLibrary() {
   const scanStatus = useMemo(() => {
     const scanningRoots = rootsData?.roots.filter((r) => r.scanning) ?? [];
     if (scanningRoots.length === 0) return '';
-    // Only summed across roots that have a count yet — one root deep into
-    // its walk and another still listing directories shouldn't make the
-    // number look like it went backwards.
+    // Summed only over roots with a count yet, so the number never seems to go backwards.
     const withProgress = scanningRoots.filter((r) => r.scanProgress);
     if (withProgress.length === 0) return formatScanStatus(true, null);
     const processed = withProgress.reduce((n, r) => n + (r.scanProgress?.processed ?? 0), 0);
@@ -88,20 +65,12 @@ function SimpleLibrary() {
     [data],
   );
 
-  /**
-   * Pulls the next page when the selection nears the end of what is loaded.
-   *
-   * Guarded on `hasNextPage` *and* `isFetchingNextPage`: the strip calls this
-   * on every selection change while it is near the tail, so without the second
-   * guard a single flick of the wheel would fire several identical requests
-   * before the first came back.
-   */
+  /** Loads the next page near the end. The `isFetchingNextPage` guard stops a wheel flick firing duplicates. */
   const loadMore = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  /** Missing files are filtered out of the queue rather than skipped at
-   *  playback — queueing one stalls the queue on a 500 partway through. */
+  /** Missing files are left out of the queue, since one stalls it on a 500. */
   const play = useCallback(
     (index: number) => {
       const track = tracks[index];
@@ -139,15 +108,7 @@ function SimpleLibrary() {
   );
 }
 
-/**
- * The Library page: the arcade select (Simple) or the album-grouped table
- * (Full), for every signed-in user.
- *
- * The choice is per device (`localStorage`, Simple by default). `?view=` beats
- * the stored choice so a link — including the old `/manage` redirect — lands on
- * the view it names, and the toggle writes both, so the address bar and the
- * saved preference never disagree after a click.
- */
+/** Simple or Full, per device (Simple by default). `?view=` wins so links land right; the toggle writes both. */
 export function LibraryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const paramView = searchParams.get('view');

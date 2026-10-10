@@ -1,5 +1,5 @@
 interface WordmarkColumnProps {
-  /** Type size — any CSS length. Sets the column's width as well as its height. */
+  /** Type size, any CSS length. Sets the column's width and height. */
   size: string;
   /** Beats one full pass takes. Give sibling columns co-prime values. */
   beats: number;
@@ -7,22 +7,14 @@ interface WordmarkColumnProps {
   offset?: number;
   /** Outline color. Omit to draw the column solid, in the lockup's two tones. */
   stroke?: string;
-  /** Where the column sits — `left-[18%]`, `right-[2%]`, and so on. */
+  /** Position, e.g. `left-[18%]`. */
   className?: string;
-  /**
-   * Climb downward instead of up. Counter-scrolling neighbours are what make a
-   * flat field of type read as two planes passing each other rather than as
-   * one sheet sliding.
-   */
+  /** Climb downward. Counter-scrolling neighbours read as two planes passing. */
   reverse?: boolean;
 }
 
-/**
- * One instance of the sideways wordmark. Hollow keeps whatever is behind it
- * visible through the letterforms, so the layer underneath keeps its depth
- * instead of being papered over. Flat color only, no blur or glow.
- */
-/** The lockup itself — hollow if given a stroke, two-tone if not. */
+/** One sideways wordmark. Hollow, so the layer behind stays visible. Flat color, no blur or glow. */
+/** The lockup: hollow with a stroke, two-tone without. */
 function Lettering({ stroke }: { stroke?: string }) {
   if (!stroke) {
     return (
@@ -36,8 +28,7 @@ function Lettering({ stroke }: { stroke?: string }) {
     <span
       className="text-transparent"
       style={{
-        // Stroke in em, not px — at these sizes a fixed hairline would
-        // vanish on a large display.
+        // In em: a fixed hairline would vanish at these sizes.
         WebkitTextStrokeWidth: '0.012em',
         WebkitTextStrokeColor: stroke,
       }}
@@ -58,16 +49,7 @@ function Word({ size, stroke }: { size: string; stroke?: string }) {
   );
 }
 
-/**
- * One screen-width run of the lockup, laid out along the line.
- *
- * `REPEATS` has to be enough that a single run is wider than the viewport,
- * because the seamless loop below shifts by exactly one run and any shortfall
- * shows as a gap crossing the screen. It holds at any window size without
- * measuring anything, because the type is sized in `vw`: a wider screen gets
- * proportionally wider letters, so the number of them it takes to cross stays
- * put.
- */
+/** Copies per run. A run must be wider than the viewport for the loop to be seamless; `vw` type keeps that true. */
 const REPEATS = 8;
 
 function WordRun({ size, stroke }: { size: string; stroke?: string }) {
@@ -93,16 +75,7 @@ function WordRun({ size, stroke }: { size: string; stroke?: string }) {
   );
 }
 
-/**
- * A column of the wordmark set on its side, climbing forever. Used at poster
- * scale on the title screen and dialled right down as ambient texture behind
- * the app frame.
- *
- * The pass length is in beats rather than seconds, so every column shares the
- * `--beat` clock with the rest of the screen. Sibling columns want co-prime
- * beat counts and an offset — matching laps read as a loop, mismatched ones
- * read as endless.
- */
+/** A sideways wordmark column climbing forever, timed in beats. Siblings want co-prime beat counts and an offset. */
 export function WordmarkColumn({
   size,
   beats,
@@ -113,8 +86,7 @@ export function WordmarkColumn({
 }: WordmarkColumnProps) {
   return (
     <div className={`absolute top-0 bottom-0 ${className}`}>
-      {/* Two copies, and the loop shifts by exactly one of them — so the seam
-          lands on an identical frame whatever the type happens to measure. */}
+      {/* Two copies; the loop shifts by exactly one, so the seam is an identical frame. */}
       <div
         className="animate-wordmark-scroll"
         style={{
@@ -131,7 +103,7 @@ export function WordmarkColumn({
 }
 
 interface WordmarkBandProps {
-  /** Type size — any CSS length. */
+  /** Type size, any CSS length. */
   size: string;
   /** Beats one full pass takes. Give sibling bands co-prime values. */
   beats: number;
@@ -139,26 +111,15 @@ interface WordmarkBandProps {
   offset?: number;
   /** Outline color. Omit to draw solid, in the lockup's two tones. */
   stroke?: string;
-  /** Where the band sits vertically — `top-[22%]`, `bottom-[8%]`, and so on. */
+  /** Vertical position, e.g. `top-[22%]`. */
   className?: string;
   /** Travel left-to-right instead of right-to-left. */
   reverse?: boolean;
 }
 
 /**
- * The wordmark crawling sideways across the screen, the way a marquee does.
- *
- * The columns were the whole backdrop until now, and a field of vertical type
- * has a grain but no direction — the eye reads it as texture and stops
- * noticing. A band that travels the full width gives it something to follow,
- * which is the difference between a patterned wall and a screen that is doing
- * something. Two of them at different heights, speeds and directions, so they
- * cross rather than march.
- *
- * Set in the same hollow outline as the columns and masked by the same
- * `.shell-backdrop` rule, so it is at its faintest exactly where the content
- * column sits and only fully itself out in the gutters. A band that crossed a
- * track list at full strength would be a bug, not decoration.
+ * The wordmark crawling sideways like a marquee, so the field has a direction to follow. Same hollow outline and
+ * `.shell-backdrop` mask as the columns, so it is faintest over the content.
  */
 export function WordmarkBand({
   size,
@@ -170,9 +131,7 @@ export function WordmarkBand({
 }: WordmarkBandProps) {
   return (
     <div className={`absolute right-0 left-0 overflow-hidden ${className}`}>
-      {/* `w-max` so the pair is as wide as its contents rather than as wide as
-          the screen — the -50% shift is only seamless if the two copies are
-          the sole thing being measured. */}
+      {/* `w-max`, so the -50% shift measures only the two copies. */}
       <div
         className="animate-wordmark-crawl flex w-max"
         style={{

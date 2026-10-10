@@ -1,17 +1,8 @@
 const BOOT_FLAG_KEY = 'brainlessmusic.justEntered';
 
 /**
- * The app's opening sequence is a one-shot, and this is the shot.
- *
- * `AppShell` mounts on every reload and stays mounted across route changes, so
- * "animate on mount" would replay a 1.2-second assembly every time the tab is
- * refreshed. The title screen sets this immediately before navigating; the
- * shell reads it once and clears it.
- *
- * `sessionStorage` rather than router state, which is lost on a reload but
- * *kept* when the user navigates back — exactly backwards from what is wanted
- * here. And rather than `localStorage`, which would replay the boot in a brand
- * new tab that never saw the title screen.
+ * Marks a fresh entry so the opening sequence plays once, not on every reload. The title screen sets it; the shell
+ * reads and clears it. `sessionStorage`: router state survives Back, and `localStorage` would replay in new tabs.
  */
 export function markJustEntered(): void {
   try {
@@ -36,22 +27,8 @@ export function consumeJustEntered(): boolean {
 const TITLE_HOLD_KEY = 'brainlessmusic.atTitle';
 
 /**
- * Set by the header's Exit, and read by the title screen's redirect.
- *
- * That redirect exists so a signed-in tab cannot land on the attract screen by
- * accident — which makes deliberately going there the one case it gets wrong.
- * This is how the title screen tells the two apart.
- *
- * Exit is emphatically **not** a log out. A guest has no password to come back
- * with, so dropping the token would not be an exit, it would be a deletion: the
- * row, its favorites, its playlists and its history, gone with no way to ask
- * for them back. Exit leaves the token exactly where it was and changes nothing
- * but which screen is showing.
- *
- * `sessionStorage` for the same reason `justEntered` uses it — a new tab should
- * open into the app, not onto a title screen it never asked for — but unlike
- * that flag this one is not self-clearing, because a reload while standing on
- * the title screen should leave you standing on the title screen.
+ * Set by Exit and the account select's idle timeout, so the title screen doesn't redirect a signed-in tab into the
+ * app. `sessionStorage`, and not self-clearing, so a reload on the title screen stays there.
  */
 export function markAtTitle(): void {
   try {

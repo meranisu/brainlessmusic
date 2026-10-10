@@ -1,25 +1,11 @@
 import { useEffect } from 'react';
 
 /**
- * Freeze the document behind a modal overlay for as long as the calling
- * component is mounted (or `enabled` stays true).
- *
- * `overflow: hidden` on its own is not enough: iOS Safari keeps
- * touch-scrolling the page underneath regardless. Pinning the body with
- * `position: fixed` at a negative offset is the technique that holds
- * everywhere, at the cost of having to put the scroll position back by hand
- * when the last lock lifts.
- *
- * Pinning the body also collapses the document height, so the scrollbar
- * disappears and the page reflows by its width. `html { scrollbar-gutter:
- * stable }` in index.css reserves that space permanently, which is why there
- * is no measure-and-pad dance here.
+ * Freezes the page behind a modal while mounted. Pins the body with `position: fixed` (iOS ignores `overflow: hidden`)
+ * and restores the scroll after; `scrollbar-gutter: stable` in index.css prevents the reflow.
  */
 
-// Locks are reference-counted at module scope rather than per-component: a
-// confirm dialog opened on top of the track drawer must not unfreeze the page
-// when only the dialog closes. The first lock records where we were, the last
-// one puts us back.
+// Reference-counted at module scope, so closing a dialog over the drawer doesn't unfreeze the page.
 let lockCount = 0;
 let savedScrollY = 0;
 

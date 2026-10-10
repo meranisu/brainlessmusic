@@ -29,7 +29,7 @@ export function ArtistsPage() {
       </div>
 
       {isLoading && <p className="text-sm text-blue-300">Loading artists…</p>}
-      {isError && <p className="text-sm text-red-400">Could not load artists.</p>}
+      {isError && <p className="text-sm text-red-300">Could not load artists.</p>}
 
       {data && data.artists.length === 0 && <LibraryEmptyState />}
 

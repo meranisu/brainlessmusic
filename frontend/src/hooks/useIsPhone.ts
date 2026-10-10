@@ -4,15 +4,7 @@ import { useEffect, useState } from 'react';
 // gets the phone layout, so this and `md:` must stay in step.
 const PHONE_QUERY = '(max-width: 767px)';
 
-/**
- * True while the viewport is narrow enough for the phone layout.
- *
- * Most of the app switches layouts with `md:` classes alone, which is the right
- * tool when only appearance changes. This exists for the cases where behaviour
- * changes too — a sheet that should not stay open once there is room for the
- * full player, a page that should not stay frozen behind it — because CSS can
- * hide an element but cannot tell React it is gone.
- */
+/** True at phone width, for behaviour changes CSS can't express (an element `md:` hides is still mounted). */
 export function useIsPhone(): boolean {
   const [isPhone, setIsPhone] = useState(() => window.matchMedia(PHONE_QUERY).matches);
 

@@ -50,7 +50,7 @@ export function TrackRowMenu({
           e.stopPropagation();
           setOpen((o) => !o);
         }}
-        className="rounded-md px-2 py-1 text-blue-300 hover:bg-blue-700 hover:text-blue-100"
+        className="tap-target rounded-md px-2 py-1 text-blue-300 hover:bg-blue-700 hover:text-blue-100"
         aria-label={`Actions for ${track.title}`}
       >
         ⋮
@@ -68,7 +68,7 @@ export function TrackRowMenu({
                 {track.notRecommended ? 'Mark recommended' : 'Mark not recommended'}
               </MenuItem>
               <div className="my-1 border-t border-blue-700" />
-              <MenuItem onClick={runAndClose(onDelete)} className="text-red-400">
+              <MenuItem onClick={runAndClose(onDelete)} className="text-red-300">
                 Delete
               </MenuItem>
             </>

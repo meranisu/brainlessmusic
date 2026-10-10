@@ -29,7 +29,7 @@ export function ConfirmDeleteDialog({ titles, isDeleting, onConfirm, onCancel }:
           ))}
         </ul>
         <p className="mb-4 text-xs text-blue-400">
-          This removes the file from disk and the database entry. Permanent — there's no undo.
+          This removes the file from disk and the database entry. There's no undo.
         </p>
         <div className="flex justify-end gap-2">
           <button onClick={onCancel} className="btn-secondary btn-sm">

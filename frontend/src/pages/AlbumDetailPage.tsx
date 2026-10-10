@@ -20,8 +20,7 @@ export function AlbumDetailPage() {
     enabled: Number.isInteger(albumId),
   });
 
-  // Album tracks carry no artist of their own — it belongs to the album, so
-  // the player gets it from there.
+  // Album tracks carry no artist; the player takes the album's.
   const queue: QueueTrack[] =
     data?.tracks.map((t) => ({
       id: t.id,
@@ -32,7 +31,7 @@ export function AlbumDetailPage() {
     })) ?? [];
 
   if (isLoading) return <p className="text-sm text-blue-300">Loading album…</p>;
-  if (isError || !data) return <p className="text-sm text-red-400">Could not load that album.</p>;
+  if (isError || !data) return <p className="text-sm text-red-300">Could not load that album.</p>;
 
   return (
     <div className="flex flex-col gap-6">

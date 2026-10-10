@@ -5,7 +5,7 @@ import { PasscodePad } from './PasscodePad';
 const CLOSE_MS = 160;
 
 interface NumpadProps {
-  /** What this dialog is for — "Enter passcode", "Create a passcode", and so on. */
+  /** What the dialog is for, e.g. "Enter passcode". */
   title: string;
   /** Continue stays disabled below this many digits. */
   minLength?: number;
@@ -13,27 +13,13 @@ interface NumpadProps {
   submitLabel?: string;
   /** Label shown on the button while `onSubmit` is in flight. */
   submittingLabel?: string;
-  /**
-   * Does the actual work — a network call, typically. Throw to show an error
-   * (the thrown `Error`'s `message` is what's displayed) and clear the
-   * entry; resolve to signal success.
-   */
+  /** Does the work. Throw to show the error's message and clear the entry; resolve for success. */
   onSubmit: (code: string) => Promise<void>;
   onSuccess: () => void;
   onDismiss: () => void;
 }
 
-/**
- * A numeric keypad dialog — first built for the admin entry code, now the
- * shared shape behind every short-code entry in the app (passcode sign-in,
- * creating or changing a passcode). The interaction is generic; the caller's
- * `onSubmit` is the only thing that actually knows what the code is for.
- *
- * Built as a keypad rather than a text input on purpose: this is the one
- * control on the screen that has to work with a thumb on a phone and a mouse
- * on a desktop, and a numeric `<input>` summons a keyboard that covers half
- * the screen it is standing on.
- */
+/** A keypad dialog for every short-code entry. A keypad, not an input, so no phone keyboard covers the screen. */
 export function Numpad({
   title,
   minLength = 1,
@@ -49,12 +35,7 @@ export function Numpad({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
 
-  /**
-   * Plays the exit before telling the parent to unmount, because the parent
-   * unmounting is what removes this from the DOM — there is nothing left to
-   * animate afterwards. The panel and its backdrop leave together; a dialog
-   * that vanishes while its ground fades reads as a crash rather than a close.
-   */
+  /** Plays the exit before the parent unmounts this; panel and backdrop leave together. */
   const dismiss = useCallback(() => {
     setIsClosing(true);
     setTimeout(onDismiss, CLOSE_MS);
@@ -86,10 +67,7 @@ export function Numpad({
     await submit();
   }
 
-  // The grid is drawn for a thumb, but a desktop with a keyboard attached
-  // shouldn't be forced to click through it one digit at a time. Scoped to
-  // this component's lifetime, so it never competes with input elsewhere —
-  // the numpad is a full-screen modal and the only thing on screen while it's up.
+  // Digits from a physical keyboard too. Safe because the numpad is a full-screen modal.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (isSubmitting) return;
@@ -126,8 +104,7 @@ export function Numpad({
           {title}
         </p>
 
-        {/* The code itself is never echoed — a keypad held up at arm's length
-            in a room with other people is the normal case, not the exception. */}
+        {/* Never echoed: a keypad is often held up in a room with others. */}
         <PasscodePad
           code={code}
           maxLength={maxLength}

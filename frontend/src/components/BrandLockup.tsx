@@ -1,20 +1,10 @@
 interface BrandLockupProps {
-  /**
-   * The small tracked-caps line above the wordmark. Pages pass their own
-   * context here ("Create an account"); the product descriptor is the
-   * fallback for anywhere that has nothing more specific to say.
-   */
+  /** The small caps line above the wordmark; pages pass their own context, else the product descriptor. */
   eyebrow?: string;
   className?: string;
 }
 
-/**
- * The ringed mark. Sizing and ring color come from the caller so it can sit on
- * either ground; the dot stays orange, the one accent that reads on both.
- *
- * Drawn rather than imported as an image — it's two circles, so an SVG/PNG
- * would only cost a request and go fuzzy when scaled.
- */
+/** The ringed mark, drawn as two circles. The caller sets size and ring color; the dot stays orange. */
 export function BrandMark({ className = '' }: { className?: string }) {
   return (
     <span aria-hidden className={`flex shrink-0 items-center justify-center rounded-full ${className}`}>
@@ -24,10 +14,7 @@ export function BrandMark({ className = '' }: { className?: string }) {
   );
 }
 
-/**
- * The two-tone wordmark. The caller sets the size and the color of
- * "brainless"; "music" keeps the accent whatever ground it lands on.
- */
+/** The two-tone wordmark. The caller colors "brainless"; "music" keeps the accent. */
 export function Wordmark({ className = '' }: { className?: string }) {
   return (
     <span className={`font-brand font-bold tracking-tight ${className}`}>
@@ -36,11 +23,7 @@ export function Wordmark({ className = '' }: { className?: string }) {
   );
 }
 
-/**
- * The full lockup — mark, eyebrow, wordmark — as the auth screens use it.
- * Built for a light ground; the app header composes the same two pieces at
- * small size in its own colors.
- */
+/** Mark, eyebrow and wordmark for the light-ground auth screens. */
 export function BrandLockup({ eyebrow = 'Self-hosted · Personal audio', className = '' }: BrandLockupProps) {
   return (
     <div className={`flex items-center gap-4 ${className}`}>

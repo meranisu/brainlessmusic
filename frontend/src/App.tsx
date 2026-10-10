@@ -5,11 +5,7 @@ import { RequireAccount } from './auth/RequireAccount';
 import { RequireAuth } from './auth/RequireAuth';
 import { AppShell } from './components/AppShell';
 
-// Lazy-loaded per route: each page ships as its own chunk instead of one
-// monolithic bundle, so a visitor only downloads the screens they actually
-// reach — this matters most for the /enter screens (loaded by every visitor
-// before they've even logged in) and the admin-only pages that most accounts
-// never open at all.
+// One chunk per route, so visitors download only the screens they reach (most never open the admin pages).
 const TitleScreenPage = lazy(() => import('./pages/TitleScreenPage').then((m) => ({ default: m.TitleScreenPage })));
 const AccountSelectPage = lazy(() =>
   import('./pages/AccountSelectPage').then((m) => ({ default: m.AccountSelectPage })),
@@ -38,17 +34,10 @@ export function App() {
   return (
     <Suspense fallback={<p className="p-4 text-sm text-blue-300">Loading…</p>}>
       <Routes>
-        {/* The way in: the title screen, then the account select screen it
-            hands off to — sign in (password or a bound passcode) or continue
-            as a guest, all reachable typed directly too, since hiding a route
-            in a bundle hides nothing. There is no hidden admin door any more:
-            an account is protected by what it actually holds. */}
+        {/* The way in: title screen, then account select (password, passcode or guest). No hidden admin door. */}
         <Route path="/enter" element={<TitleScreenPage />} />
         <Route path="/enter/profile" element={<AccountSelectPage />} />
-        {/* `/login` was the old standalone sign-in screen, folded into the
-            account select screen's sign-in card. Redirected rather than
-            removed, so anything that had it bookmarked still lands somewhere
-            useful. */}
+        {/* The old sign-in page, now the account select's sign-in card; redirected for bookmarks. */}
         <Route path="/login" element={<Navigate to="/enter/profile" replace />} />
 
         <Route element={<RequireAuth />}>
@@ -65,14 +54,13 @@ export function App() {
             </Route>
             <Route path="/search" element={<SearchPage />} />
             <Route path="/options" element={<OptionsPage />} />
-            {/* Folded into the Library's Full view, open to everyone — kept as a
-                redirect so bookmarks and the old nav link still land somewhere. */}
+            {/* Now the Library's Full view; redirected for bookmarks and the old nav link. */}
             <Route path="/manage" element={<Navigate to="/?view=full" replace />} />
             <Route element={<RequireAdmin />}>
               <Route path="/upload" element={<UploadPage />} />
               <Route path="/users" element={<UsersPage />} />
               <Route path="/control-center" element={<ControlCenterPage />} />
-              {/* The page's old name — kept so a bookmark or a link someone sent still lands. */}
+              {/* The page's old name, kept for bookmarks. */}
               <Route path="/health" element={<Navigate to="/control-center" replace />} />
             </Route>
           </Route>

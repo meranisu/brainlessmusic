@@ -50,7 +50,7 @@ function ToggleRow({ label, detail, icon, checked, onChange }: ToggleRowProps) {
 
 const STATUS_STYLES: Record<LibraryRoot['status'], string> = {
   ok: 'text-blue-300',
-  unreachable: 'text-red-400',
+  unreachable: 'text-red-300',
 };
 
 function summarize(result?: LibraryRootScanResult): string | null {
@@ -60,26 +60,14 @@ function summarize(result?: LibraryRootScanResult): string | null {
   if (filesAdded > 0) parts.push(`${filesAdded} new`);
   if (filesUpdated > 0) parts.push(`${filesUpdated} updated`);
   if (parts.length === 0) parts.push('No changes found');
-  // Not fatal to the scan (a Windows drive's own System Volume Information,
-  // say), but worth saying — otherwise a folder that looks emptier than
-  // expected reads as a bug rather than a permission this container's user
-  // was never going to have.
+  // Not fatal (e.g. System Volume Information), but said, so a sparse folder isn't mistaken for a bug.
   if (unreadableDirs > 0) {
     parts.push(`${unreadableDirs} folder${unreadableDirs === 1 ? '' : 's'} couldn't be read`);
   }
   return parts.join(', ');
 }
 
-/**
- * Admin-only. Registering a folder here is what lets the scan/missing-file
- * machinery (already built — see `backend/src/services/librarySync.ts`) see
- * it at all; this section is entirely a UI over endpoints that otherwise sit
- * unreachable behind a admin-only gate with nothing calling them.
- *
- * Polls the same way `HealthPage` already polls `/admin/health` — plain
- * `refetchInterval`, no new pattern — so an in-progress scan (this admin's
- * own, or the scheduled one) is reflected here without a manual refresh.
- */
+/** Admin-only library folders, the UI over librarySync's root endpoints. Polls like the Control Center does. */
 function LibrarySection() {
   const { showToast } = useToast();
   const queryClient = useQueryClient();
@@ -96,8 +84,7 @@ function LibrarySection() {
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ['library-roots'] });
-    // A newly-found or newly-missing track changes what the arcade select
-    // and the Library's Full view show — not just this list.
+    // Found or missing tracks change the Library views too.
     queryClient.invalidateQueries({ queryKey: ['tracks'] });
   }
 
@@ -130,7 +117,7 @@ function LibrarySection() {
     onSuccess: () => {
       invalidate();
       setRemoveTarget(null);
-      showToast('Folder removed — its tracks are kept, flagged missing');
+      showToast('Folder removed. Its tracks are kept and flagged missing.');
     },
     onError: (err) => showToast(err instanceof ApiError ? err.message : 'Could not remove that folder', 'error'),
   });
@@ -169,7 +156,7 @@ function LibrarySection() {
                 >
                   Rescan
                 </button>
-                <button onClick={() => setRemoveTarget(root)} className="btn-ghost btn-sm text-red-400!">
+                <button onClick={() => setRemoveTarget(root)} className="btn-ghost btn-sm text-red-300!">
                   Remove
                 </button>
               </div>
@@ -208,7 +195,7 @@ function LibrarySection() {
         </button>
       </form>
       <p className="mt-2 text-xs text-blue-400">
-        The path is read from inside this server's own container — a drive that isn't already
+        The path is read from inside this server's own container. A drive that isn't already
         mounted into it (see <code className="text-blue-300">docker-compose.yml</code>) won't be
         visible here yet, however real it is on the host.
       </p>
@@ -234,8 +221,8 @@ function LibrarySection() {
               Remove "{removeTarget.label || removeTarget.path}"?
             </h2>
             <p className="mb-4 text-xs text-blue-400">
-              Nothing on disk is touched. Its tracks stay in the database — flagged missing, with
-              their favorites, playlists and history intact — rather than being deleted.
+              Nothing on disk is touched. Its tracks stay in the database, flagged missing, with
+              their favorites, playlists and history intact.
             </p>
             <div className="flex justify-end gap-2">
               <button onClick={() => setRemoveTarget(null)} className="btn-secondary btn-sm">
@@ -257,22 +244,8 @@ function LibrarySection() {
 }
 
 /**
- * The options screen.
- *
- * A page rather than a dropdown, which is the arcade shape: a cabinet's option
- * screen is somewhere you *go*, announced by a plate, not a tray that unrolls
- * from a button. The plate is `ArcadeInterstitial`, played by the shell on the
- * way here.
- *
- * What lives here is what had nowhere better to be. **Data saver** was in the
- * player bar, which only renders while something is playing — so the one
- * control that decides how much of someone's data a track costs was unreachable
- * at exactly the moment anybody would want to set it, before pressing play.
- *
- * Themes live here too, and cost the rest of the app nothing: Tailwind 4
- * compiles `bg-blue-900` to `var(--color-blue-900)`, so a theme is a block of
- * variable overrides and not a single component knows one exists. See
- * `lib/theme.ts`.
+ * The options screen, a page announced by the interstitial. Holds data saver (the player bar only renders while
+ * playing) and themes.
  */
 export function OptionsPage() {
   const { user, logout, setPasscode, clearPasscode } = useAuth();
@@ -282,10 +255,7 @@ export function OptionsPage() {
   const [showHandoff, setShowHandoff] = useState(false);
   const [showPasscodeNumpad, setShowPasscodeNumpad] = useState(false);
   const [isClearingPasscode, setIsClearingPasscode] = useState(false);
-  /* Initialised from storage rather than an effect, so the selected swatch is
-     correct on the first paint instead of flicking to it afterwards. The
-     document attribute is already set — the inline script in `index.html` did
-     it before React ran — so this is only the component catching up. */
+  /* From storage, so the swatch is right on first paint; index.html already set the attribute. */
   const [theme, setTheme] = useState<ThemeId>(loadTheme);
 
   function chooseTheme(id: ThemeId) {
@@ -304,15 +274,8 @@ export function OptionsPage() {
         <h2 className="mb-3 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-blue-400">
           Theme
         </h2>
-        {/* The swatches are drawn with each theme's own variables via
-            `data-swatch`, so they cannot drift from what choosing one actually
-            does — a hand-picked preview colour is a second source of truth that
-            is wrong the moment a palette is tuned. */}
-        {/* A radiogroup, not three toggle buttons. `aria-pressed` says "this
-            control is on", which is true of a switch and false of a choice —
-            it would announce three independent on/off states for what is one
-            mutually exclusive setting, and a screen reader would never say how
-            many options there are or which of them this is. */}
+        {/* Swatches paint from each theme's own variables (`data-swatch`), so they can't drift. */}
+        {/* A radiogroup, not toggle buttons: `aria-pressed` would announce independent on/off states. */}
         <div role="radiogroup" aria-label="Theme" className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           {THEMES.map((option) => (
             <button
@@ -384,10 +347,7 @@ export function OptionsPage() {
         )}
       </section>
 
-      {/* Passcodes are the arcade-card alternative to a password, from the
-          account-select screen — self-service only, so this is the one place
-          to create, change or drop one. Guests have no password either, so
-          there is nothing here for them to bind a passcode to. */}
+      {/* Passcodes are self-service only, so this is where they're managed. Guests have none. */}
       {user && !user.isGuest && (
         <section className="mt-7">
           <h2 className="mb-3 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-blue-400">
@@ -396,7 +356,7 @@ export function OptionsPage() {
           <div className="rounded-lg border border-blue-800 bg-blue-900/60 p-4">
             <p className="text-sm text-blue-100">
               {user.hasPasscode
-                ? 'A passcode is set — sign in with it instead of your password.'
+                ? 'A passcode is set. Sign in with it instead of your password.'
                 : 'No passcode set. Sign-in still needs your password.'}
             </p>
             <div className="mt-3 flex gap-2">

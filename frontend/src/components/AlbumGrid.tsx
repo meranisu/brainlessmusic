@@ -2,10 +2,7 @@ import { Link } from 'react-router-dom';
 import type { AlbumSummary } from '../types/api';
 import { CoverArt } from './CoverArt';
 
-/**
- * Shared by the albums index and an artist's page, so an album reads the same
- * wherever you meet it.
- */
+/** Shared by the albums index and artist pages. */
 export function AlbumGrid({ albums, showArtist = true }: { albums: AlbumSummary[]; showArtist?: boolean }) {
   if (albums.length === 0) {
     return <p className="text-sm text-blue-300">No albums yet.</p>;

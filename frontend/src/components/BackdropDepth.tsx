@@ -1,13 +1,6 @@
 import { WordmarkBand, WordmarkColumn } from './WordmarkColumn';
 
-/**
- * The two layers that give the backdrop depth without adding any more type.
- *
- * The wordmark columns and bands are all the same *kind* of thing — flat text
- * sliding — so however many are added, the field reads as one plane with a lot
- * happening on it. Depth needs things that are not type: something with
- * curvature, and something with parallax.
- */
+/** Depth without more type: something curved (the ring) and something with parallax (the motes). */
 
 const RING_BANDS = [
   // inset, tilt on X, how long one turn takes in beats, and how bright.
@@ -18,20 +11,8 @@ const RING_BANDS = [
 ];
 
 /**
- * A tilted orange ring turning on the right, behind everything.
- *
- * Real 3D rather than a spinning image: the stage carries a `perspective`, each
- * band is a circle tilted back on X, and the whole assembly turns on Y. That is
- * what makes the near edge of a band pass visibly closer than its far edge —
- * a flat circle rotated in 2D just spins, and reads as a loading spinner.
- *
- * The bands turn at co-prime beat counts, so the ring never resolves into a
- * single rigid object and never returns to a pose you have already seen.
- *
- * Orange, and the only orange in the backdrop. It is the app's accent — the
- * underline, the boot frame, the enter button — so putting it at the very back
- * of the picture ties the moving field to the furniture in front of it instead
- * of leaving two unrelated colour schemes on screen.
+ * A tilted orange ring turning in real 3D, so its near edge passes closer than its far one. Bands turn at co-prime beat
+ * counts and never repeat a pose. The backdrop's only orange, tying it to the accent.
  */
 export function SpinRing() {
   return (
@@ -56,16 +37,7 @@ export function SpinRing() {
   );
 }
 
-/**
- * Where each circle sits, how big it is, how long it takes to drift, and how
- * far into that drift it starts.
- *
- * Written out rather than generated, for a reason that cost a bug elsewhere in
- * this app: `Math.random()` in a component body is re-rolled on every render
- * and twice over under StrictMode, so the field would reshuffle itself whenever
- * anything above it re-rendered. A fixed table is also tunable — a generated
- * one can only be re-rolled and hoped over.
- */
+/** Fixed positions and timings: `Math.random()` in render would reshuffle on every render. */
 const MOTES = [
   { left: '6%', size: '7rem', beats: 151, delay: -20, alpha: 0.1, drift: '2.5rem' },
   { left: '17%', size: '3.5rem', beats: 97, delay: -61, alpha: 0.14, drift: '-3rem' },
@@ -77,17 +49,7 @@ const MOTES = [
   { left: '91%', size: '3rem', beats: 89, delay: -15, alpha: 0.15, drift: '-2rem' },
 ];
 
-/**
- * Circles drifting upward at different rates.
- *
- * The parallax the columns provide is one-dimensional — everything travels the
- * same axis at different speeds. These move on two, sideways as well as up, and
- * that second axis is what stops the field reading as a set of sliding blinds.
- *
- * Hollow, like the wordmarks, so whatever is behind them stays visible through
- * the middle and the layers keep their transparency rather than stacking into
- * an opaque wash.
- */
+/** Hollow circles drifting up and sideways; the second axis keeps the columns from reading as sliding blinds. */
 export function FloatingMotes() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -111,68 +73,25 @@ export function FloatingMotes() {
 }
 
 /**
- * Two tiers, at different sizes and speeds, running in opposite directions.
- *
- * That is the whole trick: a single sheet of scrolling type reads as a sheet
- * of scrolling type. Two of them passing each other at different rates reads
- * as depth, and costs nothing extra — the near tier is bigger, brighter and
- * quicker, which is what "nearer" means to an eye.
- *
- * Beat counts are co-prime so no two columns ever line up and the field never
- * visibly loops. Every duration is in beats rather than seconds, so this keeps
- * time with the title screen and the player.
- *
- * Three sizes rather than two. With only a far and a near tier the field reads
- * as two planes; a middle one turns it into a gradient of distance, and it is
- * the cheapest way to make the same number of elements look like more depth.
+ * Three tiers of type at different sizes and speeds; the near one bigger, brighter and quicker. Durations are co-prime
+ * beat counts, so columns never line up and keep time with the title screen.
  */
 const FAR_SIZE = 'clamp(2.5rem, 8vh, 5vw)';
 const MID_SIZE = 'clamp(3.5rem, 12.5vh, 8vw)';
 const NEAR_SIZE = 'clamp(5.5rem, 20vh, 13vw)';
 
-/* Named in CSS rather than written here, so a theme can reach them. A colour
-   inlined in a component is a colour no `[data-theme]` selector can override,
-   which is precisely how a red theme ends up with a blue backdrop. The values
-   and the reasoning for them live on `:root` in `index.css`. */
+/* Defined in CSS (`:root` in `index.css`) so themes can override them. */
 const FAR_STROKE = 'var(--backdrop-far)';
 const MID_STROKE = 'var(--backdrop-mid)';
 const NEAR_STROKE = 'var(--backdrop-near)';
 
-/**
- * The crawling bands. Sized between the two column tiers so they belong to the
- * same field rather than sitting in front of it, and stroked at the far tier's
- * weight — they cross the whole screen, including the part with the reading on
- * it, so they are the layer that can least afford to be loud.
- */
+/** The crawling bands, sized between the tiers and stroked faint: they cross the reading area. */
 const BAND_SIZE = 'clamp(3.5rem, 13vh, 8vw)';
 const BAND_STROKE = 'var(--backdrop-band)';
 
 /**
- * The app's moving backdrop. Full-bleed since 2026-09-11; it used to be two
- * columns confined to the gutters and hidden below `2xl`, for the good reason
- * that decoration behind a data table is a bug rather than a feature.
- *
- * Going full-bleed keeps that constraint and answers it with a mask instead of
- * a breakpoint: `.shell-backdrop` holds the middle of the screen — where the
- * content column actually sits — at a fraction of the strength it has in the
- * gutters. Motion is visible everywhere, and loudest where there is nothing to
- * read. The measured cost to a track row is in the change log; it is under a
- * unit of colour per channel.
- *
- * Below `md` the inner columns drop out. A phone has no gutters, so every
- * column there is behind the text, and three of them is clutter rather than
- * depth.
- *
- * Shared by `AppShell` and `AccountSelectPage` — both are screens with a
- * column of readable content in the middle and nothing else to say about
- * their background, which is exactly what this was built for.
- *
- * `vivid` loosens the centre mask that normally holds the backdrop down
- * behind readable content (see `.shell-backdrop` in index.css). `AppShell`
- * sits a dense track list on top of it and needs that restraint; the account
- * select screen has two cards and a lot of open ground, and can afford the
- * backdrop being the more obviously "alive" thing it was always animating to
- * be.
+ * The moving backdrop, full-bleed, with a mask (`.shell-backdrop`) dimming the content column. Inner columns drop
+ * below `md`. Shared by AppShell and AccountSelectPage; `vivid` loosens the mask.
  */
 export function ShellBackdrop({ vivid = false }: { vivid?: boolean }) {
   return (
@@ -185,7 +104,7 @@ export function ShellBackdrop({ vivid = false }: { vivid?: boolean }) {
       {/* Deepest. Behind every piece of type, and the only orange back here. */}
       <SpinRing />
 
-      {/* Far tier — small, faint, slow, climbing. */}
+      {/* Far tier: small, faint, slow, climbing. */}
       <WordmarkColumn className="left-[-3%]" size={FAR_SIZE} beats={128} stroke={FAR_STROKE} />
       <WordmarkColumn
         className="left-[43%] hidden lg:block"
@@ -196,7 +115,7 @@ export function ShellBackdrop({ vivid = false }: { vivid?: boolean }) {
       />
       <WordmarkColumn className="right-[-3%]" size={FAR_SIZE} beats={113} offset={-17} stroke={FAR_STROKE} />
 
-      {/* Middle tier — the one that turns two planes into a sense of distance. */}
+      {/* Middle tier. */}
       <WordmarkColumn
         className="left-[9%] hidden xl:block"
         size={MID_SIZE}
@@ -217,7 +136,7 @@ export function ShellBackdrop({ vivid = false }: { vivid?: boolean }) {
           front of some columns and behind others. */}
       <FloatingMotes />
 
-      {/* Near tier — larger, brighter, quicker, and falling against the rest. */}
+      {/* Near tier: larger, brighter, quicker, falling. */}
       <WordmarkColumn
         className="left-[19%] hidden md:block"
         size={NEAR_SIZE}
@@ -234,16 +153,8 @@ export function ShellBackdrop({ vivid = false }: { vivid?: boolean }) {
         reverse
       />
 
-      {/* Two bands crossing the columns, in opposite directions and at
-          different heights. The columns give the field a grain; a grain has no
-          direction, and after a few seconds the eye stops reading it as motion
-          at all. Something travelling the full width is what it follows.
-
-          Placed high and low on purpose — off the vertical middle, where the
-          content sits and where a line crossing the reading would be a bug
-          rather than decoration. Every beat count in this backdrop is co-prime
-          with every other (128/97/113/83/103/67/53/149/181, and the ring's
-          340/289/233/181), so nothing ever comes back into step. */}
+      {/* Two bands crossing in opposite directions, placed high and low to stay off the content. All beat counts
+          here are co-prime, so nothing comes back into step. */}
       <WordmarkBand
         className="top-[14%]"
         size={BAND_SIZE}

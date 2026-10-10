@@ -15,7 +15,7 @@ export function ArtistDetailPage() {
   });
 
   if (isLoading) return <p className="text-sm text-blue-300">Loading artist…</p>;
-  if (isError || !data) return <p className="text-sm text-red-400">Could not load that artist.</p>;
+  if (isError || !data) return <p className="text-sm text-red-300">Could not load that artist.</p>;
 
   return (
     <div className="flex flex-col gap-6">
@@ -28,8 +28,7 @@ export function ArtistDetailPage() {
         </p>
       </div>
 
-      {/* The artist is already the page's subject — repeating it on every card
-          would be noise. */}
+      {/* The artist is the page's subject, so cards don't repeat it. */}
       <AlbumGrid albums={data.albums} showArtist={false} />
     </div>
   );

@@ -2,15 +2,9 @@ export interface User {
   id: number;
   username: string;
   isAdmin: boolean;
-  /**
-   * Minted by the account-select screen's guest card rather than signed into.
-   * Has no password and cannot be logged back into once its token is gone —
-   * which is why Options offers a guest a handoff (carry the identity to
-   * another device, or deliberately discard it) before Exit ends the session
-   * the same way it does for a real account.
-   */
+  /** A guest: no password, so once its token is gone it can't be reached. Options offers a handoff first. */
   isGuest: boolean;
-  /** Whether this account has a passcode bound to it — the arcade-card-PIN alternative to a password. Never true for a guest. */
+  /** Whether the account has a passcode. Never true for a guest. */
   hasPasscode: boolean;
 }
 
@@ -23,17 +17,16 @@ export interface TrackSummary {
   format: string | null;
   hidden: boolean;
   notRecommended: boolean;
-  /** The file is gone from disk — nothing can play this until it comes back. */
+  /** The file is gone from disk. */
   missing: boolean;
-  /** Failed to stream last time it was tried — might well play fine now; see
-   *  `TrackDetail.lastStreamError` for the message behind this flag. */
+  /** Failed to stream last time; may play now. See `TrackDetail.lastStreamError`. */
   hasStreamError: boolean;
   playCount: number;
   dateAdded: string;
 }
 
 export interface PlaybackState {
-  /** Already filtered server-side — anything unplayable is gone from this. */
+  /** Unplayable tracks already removed server-side. */
   queue: TrackSummary[];
   queueIndex: number;
   positionSeconds: number;
@@ -101,13 +94,7 @@ export interface HealthSnapshot {
   librarySyncRunning: boolean;
 }
 
-/**
- * Unlike `StreamErrorEntry` above, this names names — who hit it and from
- * what client — which is why it lives behind its own admin-only endpoint
- * rather than folded into `/admin/health`. `source: 'client'` is a player
- * that received bytes fine but couldn't decode them (a codec/container
- * issue); `'server'` is the stream route refusing to serve bytes at all.
- */
+/** Names who failed and on which client, so it's admin-only. 'client' = decode failure; 'server' = the stream refused. */
 export interface PlaybackFailureEntry {
   id: number;
   trackId: number;
@@ -122,7 +109,7 @@ export interface PlaybackFailureEntry {
   createdAt: string;
 }
 
-/** One open stream — who is listening to what, right now. */
+/** One open stream: who is listening to what. */
 export interface ActiveSession {
   id: number;
   userId: number;
@@ -142,7 +129,7 @@ export interface DiskUsage {
 export interface SystemStats {
   memoryBytes: number;
   heapUsedBytes: number;
-  /** The server process only, as a share of one core — ffmpeg is not counted. */
+  /** The server process only, per core; ffmpeg isn't counted. */
   cpuPercent: number;
   disks: DiskUsage[];
   transcodeCache: { usedBytes: number; maxBytes: number };
@@ -175,9 +162,7 @@ export interface LibraryRoot {
   status: 'ok' | 'unreachable';
   trackCount: number;
   scanning: boolean;
-  /** `null` while `scanning` is true covers "still walking the folder tree,
-   *  no file count to report yet" as well as "not scanning at all" — the
-   *  `scanning` flag is what tells those two apart. */
+  /** `null` when not scanning or still walking folders; `scanning` tells them apart. */
   scanProgress: { processed: number; total: number } | null;
 }
 
@@ -247,7 +232,7 @@ export interface ArtistDetail extends ArtistSummary {
   albums: AlbumSummary[];
 }
 
-/** Album track rows omit the artist — it's the album's, carried on the parent. */
+/** Album track rows omit the artist, which is the album's. */
 export interface AlbumTrack {
   id: number;
   title: string;
@@ -315,7 +300,7 @@ export interface PlaylistDetail {
   tracks: PlaylistTrack[];
 }
 
-/** `GET /search?q=` — results grouped by kind, each list capped server-side. */
+/** `GET /search?q=`: results by kind, each capped server-side. */
 export interface SearchResults {
   artists: ArtistSummary[];
   albums: AlbumSummary[];

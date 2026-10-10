@@ -21,8 +21,7 @@ function extOf(filename: string): string {
   return i === -1 ? '' : filename.slice(i).toLowerCase();
 }
 
-// fetch() has no upload-progress event — XHR is the only way to show a
-// per-file progress bar for a multipart upload in the browser.
+// XHR, because fetch() has no upload-progress event.
 function uploadWithProgress(file: File, onProgress: (pct: number) => void): Promise<TrackSummary> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -155,12 +154,12 @@ export function UploadPage() {
                 </div>
                 {item.status === 'success' && (
                   <span className="shrink-0 text-xs text-blue-300">
-                    {item.result?.title} — {item.result?.artist}
+                    {item.result?.title} · {item.result?.artist}
                   </span>
                 )}
                 {item.status === 'error' && (
                   <>
-                    <span className="shrink-0 text-xs text-red-400">{item.error}</span>
+                    <span className="shrink-0 text-xs text-red-300">{item.error}</span>
                     <button onClick={() => retry(item)} className="btn-secondary btn-sm shrink-0">
                       Retry
                     </button>

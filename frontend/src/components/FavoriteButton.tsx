@@ -5,22 +5,14 @@ import { useToast } from './ToastProvider';
 
 const FAVORITE_IDS_KEY = ['favorites', 'ids'];
 
-/**
- * The set of favorited track ids, fetched once and shared by every view that
- * shows a heart. One cache entry keeps the library table, album pages and the
- * player bar in agreement — a heart toggled in one place lights up in all of
- * them, because they read the same query.
- */
+/** Favorited ids, one shared query, so a heart toggled anywhere lights up everywhere. */
 export function useFavoriteIds() {
   const { user } = useAuth();
   const { data } = useQuery({
     queryKey: FAVORITE_IDS_KEY,
     queryFn: () => apiClient.get<{ trackIds: number[] }>('/me/favorites/ids'),
     staleTime: 30_000,
-    // The player provider wraps the login route too, so without this the
-    // query fires unauthenticated on the login screen — a guaranteed 401,
-    // and `request()` clears the stored token on any 401.
-    // Guests have no favorites (A37), and the route answers them 403.
+    // The provider also wraps the login route, where this would 401 and clear the token. Guests get 403 (A37).
     enabled: Boolean(getToken()) && user != null && !user.isGuest,
   });
 

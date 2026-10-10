@@ -45,20 +45,15 @@ export type QueueTrack = Pick<TrackSummary, 'id' | 'title' | 'artist' | 'duratio
 
 export type RepeatMode = 'off' | 'all' | 'one';
 
-/** Treat "previous" within this many seconds as "restart the track" — the
- *  convention every music player uses. */
+/** "Previous" within this many seconds restarts the track. */
 const RESTART_THRESHOLD_SECONDS = 3;
 
 const SEEK_STEP_SECONDS = 5;
 
-/** A play counts once you've heard half the track, or four minutes of it —
- *  whichever comes first. Same rule Last.fm has used for two decades, so the
- *  numbers mean roughly what people already expect them to mean. */
+/** A play counts at half the track or four minutes, whichever is first (Last.fm's rule). */
 const SCROBBLE_CAP_SECONDS = 240;
 
-/** Only count time actually heard. A jump larger than this is a seek (or a
- *  buffering skip), not playback — dragging the scrubber to the end of a
- *  track shouldn't record it as listened to. */
+/** A jump bigger than this is a seek, not listening. */
 const MAX_PLAYBACK_DELTA_SECONDS = 2;
 
 /** How often the position is pushed while playing. */
@@ -75,9 +70,7 @@ interface PlayProgress {
   scrobbled: boolean;
 }
 
-/** How long to wait for a source to announce itself before giving up on it —
- *  a stalled connection fires neither `loadedmetadata` nor `error`, and
- *  without a ceiling that hangs the loading spinner forever. */
+/** A stalled source fires neither `loadedmetadata` nor `error`; give up after this. */
 const METADATA_TIMEOUT_MS = 15_000;
 
 interface StreamFailureInfo {
@@ -92,14 +85,7 @@ interface StreamFailureInfo {
 
 const EMPTY_FAILURE_INFO: StreamFailureInfo = { detail: '' };
 
-/**
- * A load failure, carrying whatever diagnostic could be recovered alongside
- * the human-readable message — this is what turns a report of "it just
- * skips" into something actionable without needing console access on the
- * device that failed (a phone, most of the time), and what lets a decode
- * failure trigger one silent retry through the WebKit-compat transcode
- * before bothering the listener with a toast at all.
- */
+/** A load failure with diagnostics, so "it just skips" is debuggable and a decode error can retry through compat once. */
 class StreamLoadError extends Error {
   readonly info: StreamFailureInfo;
   constructor(message: string, info: StreamFailureInfo = EMPTY_FAILURE_INFO) {
@@ -108,20 +94,12 @@ class StreamLoadError extends Error {
   }
 }
 
-/** MediaError codes worth retrying through the compat transcode for — a
- *  container/codec WebKit won't open, or a decode failure that a different
- *  encode of the same audio might not hit. A network or abort error would
- *  just fail the same way again. */
+/** MediaError codes worth one retry through the compat transcode; network and abort errors would just repeat. */
 function isRetryableMediaError(code: number | undefined): boolean {
   return code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED || code === MediaError.MEDIA_ERR_DECODE;
 }
 
-/**
- * Best-effort diagnostics for a playback failure. Combines the native
- * `MediaError` (network vs. decode vs. unsupported-format — indistinguishable
- * from the toast text alone otherwise) with a second, tiny ranged request
- * that reads back the `Content-Type` the server actually sent.
- */
+/** Failure diagnostics: the `MediaError` plus a tiny ranged request that reads back the served `Content-Type`. */
 async function describeStreamFailure(audio: HTMLAudioElement, url: string): Promise<StreamFailureInfo> {
   const parts: string[] = [];
   const mediaErrorCode = audio.error?.code;
@@ -138,18 +116,13 @@ async function describeStreamFailure(audio: HTMLAudioElement, url: string): Prom
       parts.push(`served as ${served.mimeType}`);
     }
   } catch {
-    // Best effort — the failure still reports with whatever was gathered above.
+    // Best effort; the failure reports with what was gathered.
   }
 
   return { mediaErrorCode, contentType, detail: parts.length > 0 ? ` (${parts.join('; ')})` : '' };
 }
 
-/**
- * Resolves once the element knows enough about a newly-assigned source to be
- * seeked into. Rejects on a load failure — or on a timeout, for a connection
- * that neither loads nor errors out — rather than hanging, so a swap that
- * cannot happen surfaces instead of leaving the player stuck on "loading".
- */
+/** Resolves once a new source can be seeked; rejects on error or timeout rather than hang on "loading". */
 function waitForMetadata(audio: HTMLAudioElement): Promise<void> {
   return new Promise((resolve, reject) => {
     const cleanup = () => {
@@ -178,18 +151,14 @@ function waitForMetadata(audio: HTMLAudioElement): Promise<void> {
 }
 
 function scrobbleThresholdMs(durationSeconds: number): number {
-  // No usable duration yet — fall back to the cap, and let `loadedmetadata`
-  // tighten it once the browser knows how long the track really is.
+  // No duration yet: use the cap until `loadedmetadata` tightens it.
   if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return SCROBBLE_CAP_SECONDS * 1000;
   return Math.min(durationSeconds / 2, SCROBBLE_CAP_SECONDS) * 1000;
 }
 
 const VOLUME_STORAGE_KEY = 'brainlessmusic.volume';
 
-/** Loud by default (1) rather than guessing at a "safe" lower number — a
- *  fresh browser profile has never told us anything about what this person
- *  considers too loud, and full volume is what every other player defaults
- *  to as well. */
+/** Full volume (1) by default, like every other player. */
 function loadVolumePreference(): number {
   try {
     const raw = localStorage.getItem(VOLUME_STORAGE_KEY);
@@ -216,17 +185,14 @@ export interface PlayerContextValue {
   current: QueueTrack | null;
   isPlaying: boolean;
   isLoading: boolean;
-  /** Playback stalled mid-track and is expected to resume on its own —
-   *  distinct from `isLoading`, which covers the initial fetch and disables
-   *  the transport; this doesn't. */
+  /** Stalled mid-track and expected to recover; unlike `isLoading`, the transport stays enabled. */
   isBuffering: boolean;
   currentTime: number;
   duration: number;
   repeat: RepeatMode;
   isShuffled: boolean;
   dataSaver: boolean;
-  /** 0 to 1. Muting sets this to 0 rather than tracking a separate flag —
-   *  one number is the whole state, and "muted" is just `volume === 0`. */
+  /** 0 to 1. Muted is just `volume === 0`. */
   volume: number;
   /** What the server actually sent, e.g. `OPUS · 64k`. Null until probed. */
   servedLabel: string | null;
@@ -265,73 +231,39 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [isShuffled, setIsShuffled] = useState(false);
   const [dataSaver, setDataSaverState] = useState(loadDataSaverPreference);
   const [volume, setVolumeState] = useState(loadVolumePreference);
-  // What to restore to on unmute — the volume the moment *before* it was
-  // last set to 0, not a fixed number. A ref because it's read once, on the
-  // next toggle, never during render.
+  // The volume just before muting, restored on unmute.
   const preMuteVolumeRef = useRef(volume || 1);
   const [served, setServed] = useState<ServedStream | null>(null);
   const [isScrubbing, setIsScrubbing] = useState(false);
-  // True while playback has stalled mid-track (a `waiting` event) rather than
-  // at the initial load `isLoading` already covers — shown without disabling
-  // the transport, since the audio is expected to resume on its own.
+  // A mid-track stall (`waiting`), shown without disabling the transport.
   const [isBuffering, setIsBuffering] = useState(false);
   // Phone only: the bar collapses to a strip and this opens the full view.
   const [isExpanded, setIsExpanded] = useState(false);
   const isPhone = useIsPhone();
-  // `PlayerProvider` wraps the whole router, not just `AppShell` — on
-  // purpose, so playback survives a navigation instead of being torn down
-  // and rebuilt — but that means the bar would otherwise render right
-  // through the title/account-select screens' own full-screen interstitial
-  // cards too, since those live outside `AppShell` and know nothing about
-  // this bar to layer themselves above it. The attract screens are the one
-  // place a signed-in identity's leftover queue shouldn't be visible anyway:
-  // arriving as a fresh profile with someone else's last-played track
-  // peeking out from under a "Welcome, <name>" card reads as a bug, not a
-  // feature, no matter whose queue it actually is.
+  // The provider wraps the whole router so playback survives navigation, so the bar hides itself on the title and
+  // account-select screens, where a leftover queue would peek out from under their cards.
   const { pathname } = useLocation();
   const onAttractScreen = pathname.startsWith('/enter');
-  // Only the phone strip can open the sheet, and only the sheet can close it —
-  // so a window that grows past `md` mid-playback would otherwise strand the
-  // user with a hidden sheet, no strip, and nothing left to press. Deriving the
-  // open state instead of storing it means widening hands the desktop bar back
-  // and narrowing returns them to where they were.
+  // Derived, not stored: widening past `md` with the sheet open would otherwise strand the user with no controls.
   const isSheetOpen = isExpanded && isPhone;
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   // The pre-shuffle order, so turning shuffle off restores it rather than
   // leaving the queue permanently scrambled.
   const originalQueueRef = useRef<QueueTrack[] | null>(null);
-  // Listening progress for the current play, kept in a ref so the audio
-  // element's long-lived listeners always see live values without re-binding
-  // on every timeupdate.
+  // In a ref so the long-lived audio listeners see live values.
   const progressRef = useRef<PlayProgress | null>(null);
-  // True while a quality swap is reassigning `src`. Reassigning resets the
-  // element's clock to 0, and painting that would flick the scrubber back to
-  // the start for the ~300 ms until the seek lands.
+  // True while a quality swap resets `src`, so the scrubber doesn't flick to 0 before the seek lands.
   const swappingRef = useRef(false);
-  // Mirrors `isScrubbing` for the long-lived `timeupdate` listener below, which
-  // closes over its state at mount and never re-binds. Without it, playback's
-  // own position updates keep landing on top of the value the drag just set,
-  // fighting the pointer and making the thumb appear stuck or delayed.
+  // Mirrors `isScrubbing` for the mount-time `timeupdate` listener, which would otherwise fight the drag.
   const scrubbingRef = useRef(false);
-  // Mirrors `isPlaying` for the same reason — the mount effect's error
-  // listener needs to know whether to resume playback after a reconnect
-  // without capturing a stale value from the render it was created in.
+  // Mirrors `isPlaying` for the mount-time error listener.
   const isPlayingRef = useRef(false);
-  // True once the current source has actually started producing audio (a
-  // `playing` event). An error before that point is `load()`'s own failure
-  // to report — see its catch block — so the reconnect logic below only
-  // reacts to a source that *was* working and then broke.
+  // Set on `playing`. Earlier errors belong to `load()`; reconnect only handles a source that worked and broke.
   const hasStartedRef = useRef(false);
-  // Identifies the most recent `load()` call, the same "latest wins" pattern
-  // `swapRef` below uses for quality swaps. A rapid skip can leave an
-  // abandoned call still awaiting a fetch when a newer one starts; each
-  // checks its own snapshot against this before writing state, so the loser
-  // can't flip `isLoading` off or toast an error for a track already left.
+  // Latest `load()` wins: an abandoned call checks this before writing state or toasting.
   const loadTokenRef = useRef(0);
-  // A streak of back-to-back `load()` failures, so auto-skipping past a bad
-  // track (see `load()`'s catch block) gives up after one pass over the
-  // queue instead of skipping forever through a fully broken library.
+  // Back-to-back load failures, so auto-skip stops after one pass over a broken queue.
   const consecutiveLoadFailuresRef = useRef(0);
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -354,14 +286,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const audio = new Audio();
-    // Buffer as aggressively as the browser allows whenever this tab does
-    // have network priority — a backgrounded tab still gets deprioritized
-    // fetches regardless (that part isn't something this can override), but
-    // there's no reason to leave any headroom on the table while foregrounded.
+    // Buffer as much as the browser allows while foregrounded.
     audio.preload = 'auto';
-    // Read fresh rather than closing over the `volume` state — this effect
-    // only ever runs once, at mount, so it must not appear to depend on a
-    // value that can change afterward.
+    // Read fresh: this effect runs once, at mount.
     audio.volume = loadVolumePreference();
     audioRef.current = audio;
 
@@ -369,8 +296,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       // Mid-swap the clock is briefly 0 and means nothing: not a position to
       // show, and not time anybody listened to.
       if (swappingRef.current) return;
-      // Audio keeps playing under a drag, so this still counts as listened —
-      // only the on-screen position is held still, at wherever the pointer is.
+      // Audio plays on under a drag, so it still counts as listened.
       recordListenedTime(audio.currentTime);
       if (!scrubbingRef.current) setCurrentTime(audio.currentTime);
     };
@@ -391,12 +317,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       consecutiveLoadFailuresRef.current = 0;
       setIsBuffering(false);
     };
-    // Fires for anything that stops the *current* source mid-stream: a
-    // dropped connection, a decode error, an expired media token (the ?token=
-    // baked into `src` is a snapshot — a seek issued after it lapses 401s).
-    // `load()` and the quality swap in `setDataSaver` both own their own
-    // errors already (see their catch blocks), so this only reacts to a
-    // source that had genuinely started playing and then broke.
+    // A source that was playing and broke: dropped connection, decode error, or a lapsed `?token=` on seek.
+    // `load()` and the quality swap handle their own errors.
     const onError = () => {
       if (swappingRef.current || !hasStartedRef.current) return;
       hasStartedRef.current = false;
@@ -441,8 +363,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       void queryClient.invalidateQueries({ queryKey: ['tracks'] });
       void queryClient.invalidateQueries({ queryKey: ['track', trackId] });
     } catch {
-      // A missed scrobble costs a statistic, not the music. Never interrupt
-      // playback — or nag the listener — over one.
+      // A missed scrobble costs a statistic; never interrupt playback for it.
     }
   }
 
@@ -463,16 +384,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }
 
   /**
-   * One silent attempt to pick a broken stream back up where it left off,
-   * fired by the `error` listener above when a source that was already
-   * playing dies mid-track. Reassigns `src` (which mints a fresh media
-   * token, so an expired one is a case this fixes for free) and reseeks —
-   * the same reassign-and-reseek shape `setDataSaver`'s quality swap already
-   * uses below, for the same reason: `progressRef` is left alone, so the
-   * same listen continues rather than starting a new one.
-   *
-   * Failure here is the real, reportable kind — nothing else is watching for
-   * it — so this is the one place that gives up out loud.
+   * One silent attempt to resume a stream that died mid-track: reassign `src` (fresh media token) and reseek, keeping
+   * `progressRef` so the same listen continues. Failure here is reported.
    */
   async function reconnect(track: QueueTrack, resumeAt: number, wasPlaying: boolean) {
     const audio = audioRef.current;
@@ -491,9 +404,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       try {
         await attempt(false);
       } catch (err) {
-        // One silent retry through the WebKit-compat transcode for a decode /
-        // unsupported-format failure — see `load()` for why this isn't
-        // limited to the `.opus`/`.ogg` extensions the server guesses at.
+        // One silent retry through the compat transcode (see `load()`).
         if (err instanceof StreamLoadError && isRetryableMediaError(err.info.mediaErrorCode)) {
           await attempt(true);
         } else {
@@ -511,7 +422,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         contentType: info.contentType,
         detail: err instanceof Error ? err.message : String(err),
       });
-      showToast(`Playback stopped — couldn't reconnect to "${track.title}"${info.detail}`, 'error');
+      showToast(`Playback stopped. Couldn't reconnect to "${track.title}"${info.detail}`, 'error');
     }
   }
 
@@ -520,16 +431,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const track = tracks[at];
     if (!audio || !track) return;
 
-    // "Latest wins": a rapid skip can leave this call still awaiting a fetch
-    // once a newer one has started. Checked again after every await so a
-    // loser never overwrites what the winner already put on screen.
+    // Latest wins: re-checked after every await so an abandoned call never overwrites the newer one.
     const token = ++loadTokenRef.current;
     hasStartedRef.current = false;
 
     setIsLoading(true);
     setCurrentTime(0);
-    // A fresh play — including repeat-one starting the same track again, which
-    // is a second listen and should scrobble a second time.
+    // A fresh play, including repeat-one, which scrobbles again.
     progressRef.current = {
       trackId: track.id,
       listenedMs: 0,
@@ -537,15 +445,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       thresholdMs: scrobbleThresholdMs(track.duration ?? 0),
       scrobbled: false,
     };
-    // Fall back to the duration the scanner recorded — some Ogg/Opus streams
-    // don't report a usable duration until fully buffered.
+    // The scanned duration, since some Ogg/Opus streams report none until fully buffered.
     setDuration(track.duration ?? 0);
 
-    // `audio.play()` itself rejects when the source turns out to be
-    // undecodable — the common case here, since a fresh `at`-index load never
-    // waits on `waitForMetadata` unless it also has to seek. Wrapped so that
-    // path gets the same `StreamLoadError` diagnostics `waitForMetadata`'s own
-    // `error` listener produces, rather than a bare, undiagnosable `DOMException`.
+    // `play()` rejects on an undecodable source; wrapped so that path gets `StreamLoadError` diagnostics too.
     async function attempt(forceCompat: boolean): Promise<void> {
       const url = await buildStreamUrl(track.id, dataSaver ? 'low' : undefined, forceCompat);
       if (token !== loadTokenRef.current) return;
@@ -555,9 +458,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         await waitForMetadata(audio!);
         if (token !== loadTokenRef.current) return;
         audio!.currentTime = resumeAt;
-        // Restoring is not listening. Anchoring here stops the jump up from 0
-        // being counted as time heard, which would scrobble a track nobody
-        // has played yet.
+        // Restoring isn't listening: anchor here so the jump from 0 isn't counted.
         if (progressRef.current) progressRef.current.lastTime = resumeAt;
         setCurrentTime(resumeAt);
       }
@@ -578,10 +479,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         await attempt(false);
       } catch (err) {
         if (token !== loadTokenRef.current) return;
-        // One silent retry through the WebKit-compat transcode before this
-        // becomes a user-visible skip — see the comment on `variantFor` in
-        // the backend for why this covers every format, not just the ones
-        // guessed by extension.
+        // One silent retry through the compat transcode before skipping, for any format (see `variantFor`).
         if (err instanceof StreamLoadError && isRetryableMediaError(err.info.mediaErrorCode)) {
           await attempt(true);
         } else {
@@ -598,21 +496,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         detail: err instanceof Error ? err.message : String(err),
       });
 
-      // A queue with one bad file shouldn't go silent — skip past it the same
-      // way `next()` would, rather than stopping dead on the track that broke.
-      // Capped at one pass over the queue so a fully broken library gives up
-      // instead of skipping forever.
+      // Skip past a bad file like `next()` would, capped at one pass over the queue.
       const nextIndex = at < tracks.length - 1 ? at + 1 : repeat === 'all' && tracks.length > 0 ? 0 : -1;
       consecutiveLoadFailuresRef.current += 1;
       const failureCount = consecutiveLoadFailuresRef.current;
 
       if (nextIndex >= 0 && failureCount <= tracks.length) {
-        // Each failure here resolves near-instantly (no network wait), so a
-        // queue with several bad tracks in a row can fire this within a
-        // couple of seconds — past the first two, that's no longer new
-        // information, just more toasts stacking on top of each other.
+        // Failures arrive in quick succession; after two, more toasts add nothing.
         if (failureCount <= 2) {
-          showToast(`Skipped — "${track.title}" could not be played${info.detail}`, 'error');
+          showToast(`Skipped "${track.title}": it could not be played${info.detail}`, 'error');
         }
         goTo(nextIndex);
         return;
@@ -621,7 +513,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       consecutiveLoadFailuresRef.current = 0;
       showToast(
         tracks.length > 1
-          ? `Couldn't play any track in the queue — ${failureCount} skipped${info.detail}`
+          ? `Couldn't play any track in the queue (${failureCount} skipped)${info.detail}`
           : (err instanceof Error ? `${err.message}${info.detail}` : `Could not play ${track.title}`),
         'error',
       );
@@ -632,16 +524,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }
 
   /**
-   * Flipping the toggle applies to what is playing right now, not just to the
-   * next track — a control that appears to do nothing for the next four
-   * minutes reads as broken.
-   *
-   * The converted copy is warmed *before* the element is touched. Making one
-   * takes seconds on a cold cache (measured 2026-09-10: 5.7 s for a 172 s
-   * track), and the copy already playing stays perfectly good throughout, so
-   * swapping first would spend that entire wait in silence — the loudest
-   * possible way to answer a button press. Waiting first means the music never
-   * stops and the swap itself is instant.
+   * Data saver applies to the playing track. The converted copy is warmed first (5.7 s cold for a 172 s track) while
+   * the original keeps playing, so the swap itself is instant.
    */
   const swapRef = useRef<{ token: number; abort: AbortController | null }>({ token: 0, abort: null });
 
@@ -659,9 +543,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const token = swapRef.current.token + 1;
     swapRef.current = { token, abort: controller };
 
-    // Captured once the swap actually starts touching `audio.src`, so a
-    // failure past that point can put the previous, known-working source
-    // back instead of leaving the element on the copy that just failed.
+    // Set once `src` is touched, so a failure can restore the working source.
     let previousSrc: string | null = null;
     let resumeAt = 0;
     let wasPlaying = false;
@@ -677,8 +559,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (token !== swapRef.current.token) return;
       if (!served) throw new Error('The converted copy could not be prepared');
 
-      // Read the position *after* the wait, not before it — the track kept
-      // playing, so the spot to land on has moved.
+      // Read after the wait: the track kept playing.
       resumeAt = audio.currentTime;
       wasPlaying = !audio.paused;
       previousSrc = audio.src;
@@ -688,9 +569,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       audio.src = url;
       await waitForMetadata(audio);
       audio.currentTime = resumeAt;
-      // The same listen continues across the swap, so `progressRef` is left
-      // alone and this is not a second scrobble. Re-anchoring `lastTime` stops
-      // the jump back up to `resumeAt` from being counted as time heard.
+      // The same listen continues; re-anchor so the jump to `resumeAt` isn't counted.
       if (progressRef.current) progressRef.current.lastTime = resumeAt;
       setCurrentTime(resumeAt);
       swappingRef.current = false;
@@ -700,22 +579,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         swappingRef.current = false;
         return; // superseded, not failed
       }
-      // An abort is not a refusal. It means either a second press took over,
-      // or the page is going away mid-request — reverting the preference on
-      // the way out would quietly undo a choice the listener did make.
+      // An abort (a newer press, or the page leaving) isn't a refusal, so the preference stays.
       if (err instanceof DOMException && err.name === 'AbortError') {
         swappingRef.current = false;
         return;
       }
 
-      // Otherwise put the toggle back rather than leaving it claiming a
-      // quality that is not being served: the readout is built from this flag,
-      // so a stale one would make the player misreport itself.
+      // Revert the toggle, since the readout is built from it.
       setDataSaverState(!enabled);
       saveDataSaverPreference(!enabled);
 
-      // Nothing to restore if `src` was never touched — the original was
-      // never disturbed, so the toast below is already true as-is.
+      // `src` untouched means the original still plays.
       let restored = !reassigned;
       if (reassigned && previousSrc) {
         try {
@@ -733,21 +607,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       swappingRef.current = false;
 
       if (restored) {
-        showToast('Could not switch quality — still playing the original', 'error');
+        showToast('Could not switch quality. Still playing the original.', 'error');
       } else {
-        // The restore attempt failed too — don't claim playback continued
-        // when it didn't.
+        // The restore failed too, so don't claim playback continued.
         setIsPlaying(false);
-        showToast("Playback stopped — couldn't switch quality or recover the original stream", 'error');
+        showToast("Playback stopped. Couldn't switch quality or recover the original stream.", 'error');
       }
     } finally {
       if (token === swapRef.current.token) setIsLoading(false);
     }
   }
 
-  /** Applied to the element immediately rather than through the effect
-   *  below — a slider mid-drag fires this many times a second, and there's
-   *  no reason to wait a render round trip to actually change the level. */
+  /** Set on the element directly; a dragged slider fires many times a second. */
   function setVolume(next: number) {
     const clamped = Math.min(Math.max(next, 0), 1);
     setVolumeState(clamped);
@@ -805,9 +676,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const audio = audioRef.current;
     if (!audio || !current) return;
     if (audio.paused) {
-      // Rejects if `src` is the broken tail end of a failed reconnect — the
-      // `error` listener above already reported that once; a second toast
-      // for the same cause would just be noise.
+      // A broken `src` after a failed reconnect was already reported once.
       void audio.play().catch(() => {});
     } else audio.pause();
   }
@@ -818,12 +687,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const max = duration || audio.duration || 0;
     const target = Math.min(Math.max(seconds, 0), max);
     audio.currentTime = target;
-    // A mid-stream failure (see the `error` listener in the mount effect)
-    // reconnects at `progressRef.current.lastTime`, which otherwise only
-    // catches up on the next `timeupdate` tick. Without this, an error
-    // landing in that gap — a backgrounded tab is exactly where a stall is
-    // most likely — would resume from wherever the track was *before* this
-    // seek instead of where it was asked to go.
+    // Keep the reconnect point current until the next `timeupdate`, or an error now resumes from before the seek.
     if (progressRef.current) progressRef.current.lastTime = target;
     setCurrentTime(target);
   }
@@ -845,15 +709,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // Server-side smart shuffle — it avoids putting the same artist
-      // back-to-back, which a plain client-side sort can't do without the
-      // artist ids.
+      // Server-side, because avoiding back-to-back artists needs artist ids.
       const { tracks } = await apiClient.post<{ tracks: TrackSummary[] }>('/shuffle', {
         trackIds: queue.map((t) => t.id),
       });
 
-      // Keep whatever is playing exactly where it is — reordering the queue
-      // shouldn't interrupt the current track.
+      // The playing track stays put.
       const rest = current ? tracks.filter((t) => t.id !== current.id) : tracks;
       const reordered = current ? [current, ...rest] : rest;
 
@@ -885,14 +746,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setIsExpanded(false);
   }, []);
 
-  /**
-   * Closing the player is a deliberate "I am done", so it erases the saved
-   * position too — otherwise the next tab resumes a queue already dismissed.
-   *
-   * Kept apart from `stop` because logging out must NOT erase it. Both used to
-   * be the same call, and sharing it would mean a token expiring quietly threw
-   * away the position the feature exists to keep.
-   */
+  /** Closing the player means "I'm done", so the saved position goes too. Separate from `stop`: logout must keep it. */
   const stopAndForget = useCallback(() => {
     stop();
     void apiClient.delete('/me/playback-state').catch(() => {
@@ -901,10 +755,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     });
   }, [stop]);
 
-  // The queue belongs to the session. Logging out — or having a token expire
-  // out from under us — has to take the audio with it, or the bar keeps
-  // playing the previous user's library over the login screen. This is `stop`,
-  // not `stopAndForget`: the position should be waiting when you come back.
+  // Logout or an expired token stops the audio (`stop`, keeping the saved position).
   useEffect(() => {
     if (!user) stop();
   }, [user, stop]);
@@ -929,9 +780,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       });
   }, []);
 
-  // Three moments, because none of them covers the others: a tick while
-  // playing (a crash or a killed tab loses at most one interval), the moment
-  // playback stops or moves to another track, and the page being hidden.
+  // Saved on a tick while playing, on stop or track change, and when the page is hidden.
   useEffect(() => {
     if (!isPlaying) return;
     const timer = window.setInterval(persistState, SAVE_INTERVAL_MS);
@@ -944,9 +793,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [currentId, isPlaying, persistState]);
 
   useEffect(() => {
-    // `visibilitychange` rather than `beforeunload`: the latter does not fire
-    // reliably on a phone, which is exactly where a tab gets killed in the
-    // background.
+    // `beforeunload` doesn't fire reliably on phones; `visibilitychange` does.
     const onHide = () => {
       if (document.visibilityState === 'hidden') persistState();
     };
@@ -966,11 +813,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (restoredRef.current) return;
     restoredRef.current = true; // set before awaiting, so a re-run cannot double-load
 
-    // Deliberately no `cancelled` flag. StrictMode invokes this twice: a
-    // cleanup that cancelled the first call would throw away the only fetch
-    // that ran, because the second call bails on the ref above. The guard
-    // that actually matters is `audio.src` below — if anything is loaded by
-    // the time this resolves, the listener got there first and wins.
+    // No `cancelled` flag: under StrictMode it would discard the only fetch that ran. The `audio.src` check guards.
     void apiClient
       .get<{ state: PlaybackState | null }>('/me/playback-state')
       .then(async ({ state }) => {
@@ -980,10 +823,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         originalQueueRef.current = state.queue;
         setQueue(state.queue);
         setIndex(state.queueIndex);
-        // Paused, deliberately. Browsers block autoplay without a gesture, so
-        // "resume and play" would silently do nothing on a phone — the one
-        // place it would matter most. Restore the state; let the play button
-        // do the rest.
+        // Restored paused: browsers block autoplay without a gesture.
         await load(state.queue, state.queueIndex, false, state.positionSeconds);
       })
       .catch(() => {
@@ -1019,14 +859,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queue, index, repeat, dataSaver]);
 
-  // Lock-screen and notification transport. Without this the OS only knows
-  // that "a tab is playing audio": no title, no artwork, no skip buttons —
-  // on a phone that is most of the difference between a browser tab and
-  // something that behaves like a music player.
-  //
-  // The API is secure-context only, so `navigator.mediaSession` is simply
-  // absent over plain http:// on a LAN address. The guard keeps that a missing
-  // nicety rather than a crash; reach the app over https to see any of it.
+  // Lock-screen and notification controls. Secure-context only, so absent over plain http on a LAN.
   useEffect(() => {
     if (!('mediaSession' in navigator)) return;
     const session = navigator.mediaSession;
@@ -1036,10 +869,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Artwork needs a media token, so it can only arrive a beat later. Set the
-    // text straight away so the notification is never blank, then replace the
-    // whole MediaMetadata once the cover resolves — `artwork` is read at
-    // assignment, so mutating the object already handed over would not take.
+    // Text first so the notification is never blank; the whole MediaMetadata is replaced once the cover's token resolves.
     const base = { title: current.title, artist: current.artist ?? '' };
     session.metadata = new MediaMetadata(base);
 
@@ -1058,16 +888,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, [current]);
 
-  // Kept apart from the metadata above because these close over the transport:
-  // they have to re-bind whenever the queue position or repeat mode changes,
-  // where the metadata only ever depends on the track itself.
+  // Separate from the metadata: these handlers re-bind on queue position and repeat changes.
   useEffect(() => {
     if (!('mediaSession' in navigator) || !current) return;
     const session = navigator.mediaSession;
 
-    // Which actions exist varies by platform, and browsers throw on the ones
-    // they don't implement. One unsupported action must not take the rest of
-    // the transport down with it.
+    // Browsers throw on unsupported actions; one must not break the rest.
     const set = (action: MediaSessionAction, handler: MediaSessionActionHandler | null) => {
       try {
         session.setActionHandler(action, handler);
@@ -1125,17 +951,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         });
       }
     } catch {
-      // Older browsers expose no position state at all — the play/pause icon
-      // above still works, only the scrubber is missing.
+      // Older browsers have no position state; only the scrubber is missing.
     }
   }, [current, isPlaying, currentTime, duration]);
 
-  // What the server actually sent, which is not always what was asked for:
-  // the backend refuses to downgrade a source that is already at or below the
-  // target bitrate. Kept in its own request because an `<audio>` element
-  // exposes no response headers at all; on a cache miss it costs nothing extra,
-  // since the element is fetching the same variant and the backend's in-flight
-  // map collapses the two into one transcode.
+  // What the server actually sent (`<audio>` exposes no headers). The backend's in-flight map dedupes this with the
+  // element's own fetch.
   useEffect(() => {
     setServed(null);
     if (!current) return;
@@ -1154,11 +975,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current?.id, dataSaver]);
 
-  // Convert the track that plays next while this one is playing, so a cold
-  // data-saver (or Safari Ogg) track starts at once instead of after its
-  // conversion. Delayed so that skipping through a queue doesn't start one
-  // conversion per skipped track, and so this track's own conversion, if it
-  // has one, gets the slot first. Follows the same rule as `onEnded` above.
+  // Converts the next track while this one plays, after a delay so skipping doesn't start one per track.
   const upNext =
     repeat === 'one' ? null : (queue[index + 1] ?? (repeat === 'all' && queue.length > 1 ? queue[0] : null));
 
@@ -1250,9 +1067,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             className="absolute inset-x-0 top-0 h-0.5 origin-left bg-orange-600"
             style={{ transform: `scaleX(${effectiveDuration ? currentTime / effectiveDuration : 0})` }}
           />
-          {/* Two sibling buttons rather than one nested in the other: a control
-              inside a control is invalid, and screen readers announce only the
-              outer one. */}
+          {/* Sibling buttons: a control inside a control is invalid. */}
           <button
             onClick={() => setIsExpanded(true)}
             className="flex min-w-0 flex-1 items-center gap-3 text-left"
@@ -1394,7 +1209,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 className={`player-pill h-9 w-9 ${isShuffled ? 'is-active' : ''}`}
                 aria-pressed={isShuffled}
                 aria-label="Shuffle"
-                title="Smart shuffle — avoids the same artist back-to-back"
+                title="Smart shuffle: avoids the same artist back-to-back"
               >
                 <ShuffleIcon className="h-4 w-4" />
               </button>
@@ -1411,7 +1226,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 className={`player-pill h-9 w-9 ${dataSaver ? 'is-active' : ''}`}
                 aria-pressed={dataSaver}
                 aria-label="Data saver"
-                title="Data saver — stream a smaller copy, re-encoded once and kept"
+                title="Data saver: stream a smaller copy, re-encoded once and kept"
               >
                 <DataSaverIcon className="h-4 w-4" />
               </button>

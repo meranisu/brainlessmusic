@@ -15,12 +15,7 @@ const MUTED = '#4a5578';
 const WIDTH = 600;
 const HEIGHT = 820;
 
-/**
- * A printable card for one guest code: the QR for a phone camera, and the code
- * in large letters for anyone typing it in (the Android app has no camera
- * entry, and a printed card outlives the link). Light ground regardless of
- * theme, because it is for scanning and printing, not for the app's screen.
- */
+/** A printable card for a guest code: a QR and the code in large letters. Light ground, for printing. */
 export async function downloadGuestCodeCard(code: string, expiresLabel: string): Promise<void> {
   const canvas = document.createElement('canvas');
   canvas.width = WIDTH;

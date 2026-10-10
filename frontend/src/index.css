@@ -1,23 +1,14 @@
 @import "tailwindcss";
 
-/* ── Themes ───────────────────────────────────────────────────────────────
-   A theme is a block of variables, not a sweep through components.
+/* Text on an accent fill: the theme's deepest ground, which clears 4.5:1 on the accent in every theme (Q45). */
+@theme {
+  --color-on-accent: var(--color-blue-950);
+}
 
-   Tailwind 4 compiles `bg-blue-900` to `background-color: var(--color-blue-900)`,
-   so redefining that variable under `[data-theme]` repaints every component in
-   the app without any of them knowing a theme exists.
-
-   The cost is that the scale names stop describing hues: in `red`,
-   `--color-blue-900` is a dark wine. They are positional now — `blue-950` is
-   the deepest ground, `blue-300` is muted text, `orange-600` is the accent. The
-   alternative was renaming every colour class in the app, which is the sweep
-   this approach exists to avoid.
-
-   Outside `@layer base` deliberately. Tailwind's own `--color-*` definitions
-   live in a layer, and an override from inside the same layer would be fighting
-   source order rather than winning on specificity. */
+/* Themes: redefining Tailwind's `--color-*` tokens under `[data-theme]` repaints everything; names are positional.
+   Outside `@layer base`, so overrides win on specificity rather than source order. */
 [data-theme='red'] {
-  /* Ground and structure — dark wine through to warm off-white. */
+  /* Ground and structure: dark wine to warm off-white. */
   --color-blue-950: oklch(19% 0.055 18);
   --color-blue-900: oklch(25.5% 0.08 19);
   --color-blue-800: oklch(32% 0.1 20);
@@ -29,17 +20,14 @@
   --color-blue-200: oklch(88% 0.05 55);
   --color-blue-100: oklch(94.5% 0.03 65);
 
-  /* Accent. Pushed to gold so it separates from a red ground — orange on
-     crimson is a tonal shift, not an accent. */
+  /* Accent pushed to gold; orange on crimson is a tonal shift, not an accent. */
   --color-orange-600: oklch(76% 0.165 78);
   --color-orange-500: oklch(81% 0.16 82);
   --color-orange-400: oklch(86% 0.14 86);
   --color-orange-300: oklch(90% 0.11 90);
   --color-orange-200: oklch(94% 0.08 94);
 
-  /* Danger, moved out of the theme's own hue. A destructive button in crimson
-     on crimson is indistinguishable from an ordinary one, which is the one
-     place a theme must not be allowed to reach. */
+  /* Danger moved out of the theme's hue, so a destructive button never blends into crimson. */
   --color-red-900: oklch(32% 0.15 340);
   --color-red-800: oklch(40% 0.19 340);
   --color-red-700: oklch(48% 0.23 341);
@@ -61,9 +49,7 @@
   --bar-sheen: oklch(80% 0.07 45 / 0.16);
 }
 
-/* Near-black, with the accent doing all the work. The point of having a third
-   is that two themes look like a choice between two moods; three looks like a
-   setting. */
+/* Near-black, with the accent doing all the work. */
 [data-theme='void'] {
   --color-blue-950: oklch(15% 0.012 265);
   --color-blue-900: oklch(21% 0.015 265);
@@ -88,9 +74,7 @@
   --bar-sheen: oklch(80% 0.02 265 / 0.13);
 }
 
-/* Flat and desaturated, after the Nord palette (Polar Night through Snow
-   Storm for ground and structure, Aurora's orange/yellow for the accent,
-   Aurora's red for danger) — everything low-chroma, nothing neon. */
+/* After the Nord palette: Polar Night to Snow Storm ground, Aurora orange accent, Aurora red danger. Low chroma. */
 [data-theme='nord'] {
   --color-blue-950: oklch(18% 0.02 240);
   --color-blue-900: oklch(23% 0.022 240);
@@ -132,9 +116,7 @@
   --bar-sheen: oklch(80% 0.03 220 / 0.14);
 }
 
-/* Vivid and flat, after osu! — a near-black plum ground with the accent
-   scale doing the one thing this theme is about. Danger is pushed to a true
-   orange-red so a destructive button never reads as "more pink". */
+/* After osu!: a near-black plum ground and a vivid pink accent. Danger is a true orange-red, not "more pink". */
 [data-theme='pink'] {
   --color-blue-950: oklch(14% 0.02 330);
   --color-blue-900: oklch(19% 0.03 335);
@@ -174,10 +156,7 @@
   --bar-sheen: oklch(86% 0.13 5 / 0.16);
 }
 
-/* Soft and rounded, after Material Design's pastel tonal palettes — low
-   chroma throughout, a lavender-mauve ground and a soft coral accent rather
-   than a saturated one. Danger is a clear, more saturated red so it does not
-   read as just another pastel. */
+/* After Material's pastel tonal palettes: lavender ground, soft coral accent, and a clearly saturated danger red. */
 [data-theme='pastel'] {
   --color-blue-950: oklch(20% 0.025 300);
   --color-blue-900: oklch(26% 0.03 300);
@@ -217,25 +196,8 @@
   --bar-sheen: oklch(89% 0.02 300 / 0.14);
 }
 
-/* ── Theme cycling (pre-login only) ──────────────────────────────────────
-   `useThemeCycle` (frontend/src/hooks/useThemeCycle.ts) advances `data-theme`
-   on a timer while the title screen or login page is mounted. A plain custom
-   property does not know how to interpolate between two values — swapping
-   `data-theme` would just cut every color instantly, the same way a manual
-   pick in Options does today. `@property` teaches the browser that a given
-   variable holds a `<color>` (or, for the two raw "R G B" channel triples
-   below, a space-separated list of numbers), which is what lets the
-   `transition` further down actually fade instead of snap.
-
-   `inherits: true` on every one of these is not optional: `@property`
-   defaults to `false`, and getting it wrong would silently stop the variable
-   from reaching anything past `:root` — every themed color in the app flows
-   through inheritance from here.
-
-   `initial-value` is required by the spec for a non-universal syntax and is
-   only ever used before a real rule applies; the values below are today's
-   default (blue) theme — Tailwind's own stock palette plus this file's own
-   `:root` block — so registering these makes no visual decision of its own. */
+/* Theme cycling (pre-login). `@property` registers each token as a `<color>` so `data-theme` changes can fade.
+   `inherits: true` is required or tokens stop at `:root`; `initial-value` is the default theme and decides nothing. */
 @property --color-blue-950 { syntax: '<color>'; inherits: true; initial-value: oklch(28.2% .091 267.935); }
 @property --color-blue-900 { syntax: '<color>'; inherits: true; initial-value: oklch(37.9% .146 265.522); }
 @property --color-blue-800 { syntax: '<color>'; inherits: true; initial-value: oklch(42.4% .199 265.638); }
@@ -270,21 +232,12 @@
 @property --backdrop-band { syntax: '<color>'; inherits: true; initial-value: rgba(59, 130, 246, 0.17); }
 @property --bar-sheen { syntax: '<color>'; inherits: true; initial-value: rgba(147, 197, 253, 0.14); }
 
-/* Raw "R G B" channel triples, not colors — consumed elsewhere in this file
-   as `rgb(var(--x) / alpha)`. `<number>+` is a space-separated list of
-   numbers; registering it lets the backdrop's ring and motes fade with every
-   other token instead of snapping. If a browser doesn't support this syntax
-   the rule is simply invalid and ignored — those two just snap while every
-   other token still fades, nothing breaks. */
+/* "R G B" triples used as `rgb(var(--x) / alpha)`. Browsers without `<number>+` support just snap these two. */
 @property --backdrop-ring { syntax: '<number>+'; inherits: true; initial-value: 234 88 12; }
 @property --backdrop-mote { syntax: '<number>+'; inherits: true; initial-value: 147 197 253; }
 
-/* Set by `useThemeCycle` for as long as the title screen or login page is
-   mounted and reduced motion isn't requested — never by a manual pick in
-   Options, which stays instant. Transitioning the properties themselves,
-   once, here, is enough: every element that reads one via
-   `var(--color-blue-900)` etc. repaints on its own as the value moves, with
-   no per-element transition needed anywhere else in the app. */
+/* Set only by `useThemeCycle` (not reduced motion), so manual picks stay instant. Transitioning the tokens here
+   repaints every element that reads them. */
 :root[data-theme-cycling] {
   transition:
     --color-blue-950 4s ease, --color-blue-900 4s ease, --color-blue-800 4s ease,
@@ -303,25 +256,17 @@
 }
 
 @layer base {
-  /* One tempo for the whole title screen. 0.4s is 150 BPM — the pocket the
-     reference genre sits in, and slow enough to sit behind a form. Every
-     animation on the login screen derives from it, so nothing drifts. */
+  /* One tempo for the title screen: 0.4s is 150 BPM. Every login-screen animation derives from it. */
   :root {
     --beat: 0.4s;
 
-    /* The default theme's values, and the contract every theme overrides.
-       Anything a theme needs to change has to be named here first — a colour
-       written straight into a rule is a colour no theme can reach, which is
-       how a red theme ends up with blue furniture.
-
-       `--color-white` is Tailwind's own token — `text-white` already compiles
-       to `color: var(--color-white)` — so overriding it here reaches every
-       `text-white`/`bg-white` in the app the same way `--color-blue-*` reaches
-       every `bg-blue-900`, with no component sweep needed. Left at true white
-       for this, the reference theme; other themes give it a whisper of their
-       own hue so the brightest text in the app doesn't sit outside the
-       palette it's supposedly part of. */
+    /* The default theme and the contract every theme overrides: a colour written straight into a rule no theme can
+       reach. `--color-white` is Tailwind's own token, so this also reaches every `text-white`. */
     --color-white: #fff;
+    /* Tailwind's blue-400 is 3.94:1 on a `.card`; 5 points lighter clears 4.5. */
+    /* Tailwind's orange-600, 2.9 points lighter, so dark text on it clears 4.5 (Q45). */
+    --color-orange-600: oklch(67.5% 0.222 41.116);
+    --color-blue-400: oklch(75.7% 0.165 254.624);
     --app-ground: #080e28;
     --backdrop-far: rgba(59, 130, 246, 0.15);
     --backdrop-mid: rgba(96, 165, 250, 0.17);
@@ -335,10 +280,7 @@
   }
 
   html {
-    /* Reserve the scrollbar's gutter at all times. Opening a modal pins the
-       body (see useScrollLock), which collapses the document height — without
-       a reserved gutter the whole page would jump sideways by the scrollbar's
-       width every time a dialog opened. */
+    /* Reserve the scrollbar gutter, or pinning the body for a modal (useScrollLock) shifts the page sideways. */
     scrollbar-gutter: stable;
   }
 
@@ -347,27 +289,23 @@
   }
   ::selection {
     background-color: var(--color-orange-600);
-    color: var(--color-white);
+    color: var(--color-on-accent);
   }
 }
 
 @layer components {
-  /* Brand wordmark typeface — Fredoka (Google Fonts), loaded in index.html. */
+  /* Wordmark typeface: Fredoka, loaded in index.html. */
   .font-brand {
     font-family: 'Fredoka', ui-sans-serif, system-ui, sans-serif;
   }
 
-  /* Display face for a track title at size — Barlow Condensed (Google Fonts).
-     Narrow and heavy, which is what carries the player's title without
-     shouting it: a third of this library has mixed-script titles, and
-     uppercasing those capitalises only their Latin half. The weight does the
-     work that `text-transform` would have done badly. */
+  /* Track titles at size: Barlow Condensed. Weight carries the title, since uppercasing breaks mixed-script titles. */
   .font-display {
     font-family: 'Barlow Condensed', ui-sans-serif, system-ui, sans-serif;
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-md bg-orange-600 text-sm font-medium text-white transition-colors hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md bg-orange-600 text-sm font-medium text-on-accent transition-colors hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-secondary {
     @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-blue-700 bg-blue-900 text-sm font-medium text-blue-100 transition-colors hover:border-blue-500 hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50;
@@ -383,6 +321,16 @@
   }
   .btn-sm {
     @apply px-2.5 py-1.5 text-xs;
+  }
+
+  /* A thumb needs about 44px; a mouse doesn't, so dense desktop rows keep their size. */
+  @media (pointer: coarse) {
+    .btn-sm,
+    .btn-md,
+    .tap-target {
+      min-height: 2.75rem;
+      min-width: 2.75rem;
+    }
   }
 
   /* Flat by design: solid border swap on focus, no ring/glow. */
@@ -403,25 +351,19 @@
     @apply inline-flex items-center rounded-full bg-blue-800 px-2 py-0.5 text-xs font-medium text-blue-200;
   }
   .badge-caution {
-    @apply inline-flex items-center rounded-full bg-orange-600 px-2 py-0.5 text-xs font-medium text-white;
+    @apply inline-flex items-center rounded-full bg-orange-600 px-2 py-0.5 text-xs font-medium text-on-accent;
   }
   .badge-admin {
-    @apply inline-flex items-center rounded-full border border-orange-500 bg-orange-600 px-2 py-0.5 text-xs font-medium text-white;
+    @apply inline-flex items-center rounded-full border border-orange-500 bg-orange-600 px-2 py-0.5 text-xs font-medium text-on-accent;
   }
-  /* A fault, not a setting — red, where `hidden` and `not recommended` are
-     choices someone made and get neutral/caution. */
+  /* A fault, so red; `hidden` and `not recommended` are choices and get neutral or caution. */
   .badge-danger {
     @apply inline-flex items-center rounded-full bg-red-900 px-2 py-0.5 text-xs font-medium text-red-200;
   }
 }
 
-/* Login title panel — a vertically-scrolling mosaic of flat navy squares
-   plus a halftone dot-matrix silhouette, confined to the right half of the
-   screen, matching the reference's composition technique (side panel of
-   scrolling geometric graphics behind a wide horizontal content band). Own
-   shape (an abstract soundwave silhouette, not the reference's), own
-   colors, own markup — no beatmania/BEMANI/Konami branding, marks, or
-   wordmark reproduced anywhere here. Pure flat color — no blur/glow. */
+/* Login title panel: a scrolling mosaic in the right half, after the reference's side-panel composition. Own shapes
+   and colours, no beatmania/BEMANI/Konami marks. Flat colour, no blur or glow. */
 @layer utilities {
   /* Ten bars per pass of the mosaic. Expressed in beats rather than seconds
      so changing the tempo above moves the scroll with it. */
@@ -429,30 +371,21 @@
     animation: mosaic-scroll calc(var(--beat, 0.4s) * 40) linear infinite;
   }
 
-  /* The wordmark columns climb faster than the mosaic under them — nearer
-     things move more, which is the only thing making two flat planes read as
-     depth. Each column sets its own duration and start offset inline, so the
-     two never line up and the pair reads as endless rather than looping. */
+  /* Columns climb faster than the mosaic for depth; each sets its own duration and offset inline. */
   .animate-wordmark-scroll {
     animation-name: mosaic-scroll;
     animation-timing-function: linear;
     animation-iteration-count: infinite;
   }
 
-  /* Bands that cross the screen rather than climb it. The columns give the
-     backdrop its vertical grain; these give it a direction the eye can follow
-     all the way from one edge to the other, which is what actually reads as
-     "alive" behind a static table. */
+  /* Bands crossing the screen, giving the eye a direction to follow. */
   .animate-wordmark-crawl {
     animation-name: wordmark-crawl;
     animation-timing-function: linear;
     animation-iteration-count: infinite;
   }
 
-  /* A single orange segment running the length of the content band's top and
-     bottom edges. Masked to die out roughly where the band's own white does,
-     so it reads as part of the banner instead of a stray line adrift in the
-     mosaic. */
+  /* An orange segment along the content band's edges, masked to end where the band's white does. */
   .band-sweep {
     position: absolute;
     left: 0;
@@ -467,18 +400,13 @@
     mask-image: var(--sweep-mask, linear-gradient(to right, black 62%, transparent 94%));
   }
 
-  /* The app header's edge. Thinner, and fading at both ends rather than
-     dissolving to the right — there is no mosaic up here for it to dissolve
-     into, so a one-sided fade would just look lopsided. */
+  /* The header's edge: thinner, fading at both ends. */
   .band-sweep-rail {
     height: 3px;
     --sweep-mask: linear-gradient(to right, transparent 0%, black 14%, black 86%, transparent 100%);
   }
 
-  /* The travelling segment is a child moved by `transform`, not a background
-     slid with `background-position`. Background positions are repainted on the
-     main thread and land on whole pixels, which is what made the line stutter
-     as it set off; a transform is composited and moves in sub-pixels. */
+  /* Moved with `transform`, not `background-position`, which repaints on whole pixels and stuttered. */
   .band-sweep::after {
     content: "";
     position: absolute;
@@ -486,8 +414,7 @@
     bottom: 0;
     left: 0;
     width: 42%;
-    /* A solid core rather than a soft blip — the ramps only occupy the outer
-       third at each end, so most of the segment reads at full strength. */
+    /* A solid core; the ramps take only the outer third at each end. */
     background-image: linear-gradient(
       to right,
       transparent 0%,
@@ -504,8 +431,7 @@
     animation-direction: var(--sweep-direction, normal);
   }
 
-  /* Different rates, and opposite directions — two lines at the same pace
-     would read as one line duplicated. */
+  /* Different rates and directions, so the two don't read as one line copied. */
   .band-sweep-top {
     top: 0;
     --sweep-duration: calc(var(--beat, 0.4s) * 12);
@@ -517,10 +443,7 @@
     --sweep-direction: reverse;
   }
 
-  /* Each tile carries its own --beat-offset (a negative fraction of a beat,
-     set from its position in the grid), so the same one-bar keyframe reaches
-     each tile a moment later than the last — a wavefront crossing the grid
-     once per beat rather than every tile blinking at once. */
+  /* Each tile's negative --beat-offset (from its grid position) turns one keyframe into a wavefront per beat. */
   .beat-tile {
     position: relative;
   }
@@ -535,9 +458,7 @@
   }
 }
 
-/* One bar: the downbeat burns orange, the three beats after it flash blue.
-   Colour only ever changes while the tile is fully transparent, so the two
-   never smear into each other. */
+/* One bar: the downbeat burns orange, the next three flash blue. Colour changes only while transparent. */
 @keyframes tile-ignite {
   0% {
     background-color: var(--color-orange-600);
@@ -577,9 +498,7 @@
   }
 }
 
-/* Starts one segment-width off the left edge and finishes a full rail-width
-   past it, so it clears both ends whatever its own width happens to be —
-   `%` measures the segment, `cqw` measures the rail. */
+/* From one segment off the left to a full rail past it: `%` measures the segment, `cqw` the rail. */
 @keyframes band-sweep {
   from {
     transform: translateX(-100%);
@@ -598,10 +517,7 @@
   }
 }
 
-/* The horizontal counterpart, for the bands that cross the app behind the
-   content. Same -50% trick: two identical copies sit side by side and the pair
-   shifts by exactly one of them, so the seam always lands on a frame identical
-   to the one before it and the loop has no visible join. */
+/* Two copies side by side shift by one, so the loop has no visible join. */
 @keyframes wordmark-crawl {
   from {
     transform: translateX(0);
@@ -611,17 +527,9 @@
   }
 }
 
-/* ── Title screen: the logo, and the one instruction ──────────────────────
-   The reference is an arcade attract screen: type at poster scale, a band of
-   information, and a single thing to press. These three animations are all
-   the screen does beyond the mosaic panel already behind it — deliberately,
-   because a title screen that never settles is a title screen nobody can read.
-*/
+/* Title screen: the logo and the one instruction. Three animations, so the screen can settle and be read. */
 
-/* Arrives once and stops. A permanent loop on something this large demands
-   attention forever; an entrance hands it over and then gets out of the way.
-   Transform and opacity only, so it composites instead of relaying out type
-   that may be eight rem tall. */
+/* Arrives once and stops. Transform and opacity only, so tall type composites instead of relaying out. */
 .title-entrance {
   animation: title-entrance calc(var(--beat, 0.4s) * 3) cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -637,11 +545,8 @@
   }
 }
 
-/* A highlight crossing the letterforms every eight bars. Drawn as a second
-   copy of the type clipped to the glyphs, so it lights the letters themselves
-   rather than sweeping a bar across the banner they sit on. White, because the
-   wordmark is near-black on a white band — the sheen has to be lighter than
-   the type, not lighter than the ground. */
+/* A glint across the letterforms every eight bars: a second copy of the type clipped to the glyphs. White, since the
+   wordmark is dark on a white band. */
 .title-sheen-host {
   position: relative;
   display: inline-block;
@@ -662,9 +567,7 @@
   animation: title-sheen calc(var(--beat, 0.4s) * 32) linear infinite;
 }
 
-/* Only the pass itself is visible; the rest of the cycle parks the gradient
-   off the end of the text, which is what turns a continuous sweep into an
-   occasional glint. */
+/* The gradient parks off the text for most of the cycle, so the sweep is an occasional glint. */
 @keyframes title-sheen {
   0% {
     background-position: 180% 0;
@@ -675,11 +578,7 @@
   }
 }
 
-/* The content band. On a phone the white has to run almost the full width:
-   the panel behind is decoration, and decoration underneath a wordmark that is
-   already touching both margins reads as a rendering fault, not as depth.
-   Only from `md` up, where the type has room to end well short of the panel,
-   does the dissolve become the effect it is meant to be. */
+/* On a phone the white runs nearly full width; the dissolve into the panel starts at `md`. */
 .title-band {
   background: linear-gradient(to right, white 0%, white 88%, transparent 100%);
 }
@@ -690,21 +589,10 @@
   }
 }
 
-/* ── The numpad ────────────────────────────────────────────────────────────
-   In and out. The panel arrives with the ground it sits on rather than after
-   it, and leaves the same way — a dialog that vanishes while its backdrop
-   fades reads as a crash. */
-/* The floating top bar.
-   Taller than the old welded band — an arcade frame is a thing with presence,
-   not a hairline — and given a minimum height rather than padding alone so the
-   bar does not change height between a page with a search box and one without.
-   The inner shadow is what sells "panel" over "rectangle": a single light edge
-   along the top, the way a bevelled frame catches a light above it. */
+/* The floating top bar. A minimum height keeps it steady with or without search; the inset light edge reads as a bevel. */
 .shell-bar {
   min-height: 4rem;
-  box-shadow:
-    inset 0 1px 0 var(--bar-sheen),
-    0 10px 30px -12px rgba(2, 6, 23, 0.9);
+  box-shadow: inset 0 1px 0 var(--bar-sheen);
 }
 
 @media (min-width: 640px) {
@@ -713,14 +601,10 @@
   }
 }
 
-/* The menus that hang off the bar — More, and Options. Same arrival as the
-   numpad's, because they are the same gesture: a surface that was not there a
-   moment ago, appearing under the thing you pressed. */
+/* The More and Options menus, arriving like the numpad. */
 .options-panel {
   animation: numpad-panel-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  /* Centred by default, for the More menu, which is centred under its button.
-     The Options panel hangs off the bar's right edge and overrides it below, so
-     each grows out of the control that opened it rather than from thin air. */
+  /* Grows from under the More button; Options overrides it to grow from the bar's right edge. */
   transform-origin: top center;
 }
 
@@ -732,11 +616,7 @@
   animation: numpad-panel-in 160ms ease-in reverse both;
 }
 
-/* ── The card between screens ─────────────────────────────────────────────
-   Exit and Options both leave through one of these: a line of type at size,
-   held, then a fade to black. The screen underneath is still mounted behind it
-   — the overlay is opaque, so nothing has to be torn down to play this, and if
-   the navigation fails the app is simply still there. */
+/* The card between screens: type, a hold, then black. The app stays mounted behind the opaque overlay. */
 .interstitial {
   animation: interstitial-ground 200ms ease-out both;
 }
@@ -756,14 +636,8 @@
   animation: interstitial-blackout 320ms ease-in 1100ms both;
 }
 
-/* The page arriving, under the veil that is lifting off it.
-   Runs the same length as the veil so the two finish together — content that
-   settles before the black is gone looks like it was waiting, and content still
-   moving afterwards looks like it was late.
-
-   The transform is dropped to `none` at the end (`both` keeps the final
-   keyframe), so `main` does not leave a containing block behind that would
-   reparent any `position: fixed` dialog rendered inside it. */
+/* The page rising under the lifting veil, the same length so both finish together. Ends at `transform: none` so
+   `main` doesn't trap `position: fixed` dialogs. */
 .page-enter {
   animation: page-enter 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -779,9 +653,7 @@
   }
 }
 
-/* The other half: black lifting off the page you arrived on. Eased out rather
-   than linear, so it thins fastest at the start and the page is legible well
-   before the veil is technically gone. */
+/* The black lifting off the new page, eased out so it's legible early. */
 .arrival-veil {
   animation: arrival-veil 520ms ease-out both;
 }
@@ -804,8 +676,7 @@
   }
 }
 
-/* In, held, out — one keyframe rather than two animations, so the hold is a
-   property of the curve and cannot drift out of step with the fade. */
+/* In, held, out as one keyframe, so the hold can't drift from the fade. */
 @keyframes interstitial-line {
   0% {
     opacity: 0;
@@ -834,22 +705,8 @@
   }
 }
 
-/* ── The music select ─────────────────────────────────────────────────────
-   List on the right, the chosen one written large on the left.
-
-   The whole block is capped to one definite height — `svh` rather than `vh`
-   so a phone's collapsing address bar does not leave the bottom rows under
-   the player — and everything below that cap divides it up with flexbox
-   instead of sizing itself from content. That is the one rule that keeps the
-   *document* from ever growing past the viewport: no descendant here is
-   allowed a content-driven height, so none of them can push this block, and
-   therefore the page, taller than the room actually available. Anything that
-   doesn't fit (a long "now playing" panel, a huge list) scrolls inside its
-   own box instead. The 14.5rem subtracted is the header, the page's own
-   vertical padding and the player bar's reserved strip, and the rest is the
-   Simple/Full toggle row above it (`--library-toolbar-h`) — all fixed by
-   Tailwind classes or the rule below, not measured, so it has to stay in
-   step with them by hand. */
+/* The music select. Capped to one `svh` height (14.5rem = header, padding, player strip; plus the toolbar), and
+   nothing inside sizes from content, so the page never scrolls; overflow scrolls inside its own box. */
 .arcade-select {
   display: flex;
   flex-direction: column;
@@ -862,35 +719,24 @@
   .arcade-select {
     flex-direction: row;
     align-items: stretch;
-    /* Wider than the stacked-mobile gap — the detail panel's own scrollbar
-       (see `.arcade-detail` below) sits right at its border on this side,
-       and the tighter gap read as the strip crowding it. */
+    /* Wider here, so the detail panel's scrollbar doesn't crowd the strip. */
     gap: 2rem;
   }
 }
 
-/* Grows to fill whatever the detail panel (mobile) or the row (desktop)
-   leaves it — `min-height: 0` is required for a flex item to shrink below
-   its content size at all, which is what lets this actually respect the
-   cap above instead of forcing the column past it. */
+/* Fills what's left; `min-height: 0` lets a flex item shrink below its content. */
 .arcade-rail-col {
   display: flex;
   flex: 1 1 0%;
   flex-direction: column;
   min-height: 0;
-  /* The one that actually matters at desktop width: `.arcade-select` is a
-     row there, and without this a flex item won't shrink below its content's
-     natural size — which for a column full of `white-space: nowrap` row
-     titles is "however wide the longest title is," not 26rem. A long enough
-     title (a real library, not short test titles) forces this column wide
-     and starves `.arcade-detail` next to it down to nothing. */
+  /* Without this, nowrap titles set the column's minimum width and starve `.arcade-detail`. */
   min-width: 0;
 }
 
 @media (min-width: 1024px) {
   .arcade-rail-col {
-    /* Fixed width on desktop, matching the old grid track — shrinks before it
-       would force the row wider than the viewport, never grows past it. */
+    /* 26rem on desktop; shrinks rather than widen the row past the viewport. */
     flex: 0 1 26rem;
   }
 }
@@ -898,25 +744,17 @@
 .arcade-detail {
   position: relative;
   min-height: 0;
-  /* The one part of this layout whose content genuinely varies (title length,
-     how many facts there are) — rather than trying to bound it exactly, it
-     gets to scroll on its own so a long one can never be the thing that makes
-     the page scroll. */
+  /* The one part whose content varies, so it scrolls on its own. */
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--color-blue-700) transparent;
-  /* A browser draws the scrollbar at the border edge regardless of padding
-     elsewhere, so this is what keeps it off the text it's scrolling once it
-     actually shows up — not decorative spacing, the one gap that's load
-     bearing here. */
+  /* Keeps the scrollbar off the text. */
   padding-right: 0.6rem;
 }
 
 @media (max-width: 1023.98px) {
   .arcade-detail {
-    /* Stacked below the strip on a phone — capped so a long detail panel
-       can't crowd the strip down to nothing before either even gets the
-       chance to shrink. */
+    /* Stacked under the strip on a phone, capped so it can't crowd the strip. */
     flex: 0 1 40%;
   }
 }
@@ -927,40 +765,29 @@
   }
 }
 
-/* The panel: the scrolling viewport and its own status line share one
-   border/background/radius, so the count reads as part of the instrument
-   rather than a caption floating underneath it. */
+/* The scrolling viewport and its status line share one panel. */
 .arcade-strip {
   display: flex;
   flex-direction: column;
-  /* No height of its own — `flex: 1 1 0%` takes exactly what `.arcade-rail-col`
-     has left, which is what makes this "a bit longer" wherever the viewport
-     has the room and shorter where it doesn't, instead of a number picked
-     once and wrong for most screens. */
+  /* Takes exactly what `.arcade-rail-col` leaves. */
   flex: 1 1 0%;
   min-height: 0;
   border-radius: 0.75rem;
   border: 1px solid var(--color-blue-800);
   background-color: color-mix(in oklab, var(--color-blue-900) 55%, transparent);
   overflow: hidden;
-  /* A slow breathing glow rather than a static frame — the same orange the
-     cursor and the launch flash already use, so the panel reads as part of
-     the same live instrument instead of a plain box around it. Slow (10
-     beats, ~4s) and gentle on purpose: this runs continuously behind
-     whatever else is happening in the strip, so it has to be the kind of
-     motion that recedes rather than one that competes for attention. */
-  animation: arcade-strip-glow calc(var(--beat, 0.4s) * 10) ease-in-out infinite;
+  /* The border breathes toward the cursor's orange over 10 beats: slow enough
+     to recede behind the strip. Border only, no glow (A35). */
+  animation: arcade-strip-breathe calc(var(--beat, 0.4s) * 10) ease-in-out infinite;
 }
 
-@keyframes arcade-strip-glow {
+@keyframes arcade-strip-breathe {
   0%,
   100% {
     border-color: var(--color-blue-800);
-    box-shadow: 0 0 0 0 transparent;
   }
   50% {
     border-color: color-mix(in oklab, var(--color-orange-600) 55%, var(--color-blue-800));
-    box-shadow: 0 0 16px 1px color-mix(in oklab, var(--color-orange-600) 28%, transparent);
   }
 }
 
@@ -969,14 +796,10 @@
   flex: 1 1 0%;
   min-height: 0;
   overflow: hidden;
-  /* Vertical panning is the strip's own gesture (drag the rail), not the
-     page's — without this a touch drag on the strip fights the browser's own
-     scroll handling instead of reaching the pointer handlers cleanly. */
+  /* The strip owns vertical drags; otherwise touch fights the browser's scroll. */
   touch-action: none;
   cursor: grab;
-  /* Dragging the rail is a press-and-move on the same text-bearing rows the
-     strip renders, so without this every drag starts by highlighting a title
-     instead of moving the list. */
+  /* Otherwise every drag starts by selecting a title's text. */
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
@@ -984,8 +807,7 @@
 
 .arcade-strip-viewport:active {
   cursor: grabbing;
-  /* Fades the ends so entries arrive and leave rather than being clipped by a
-     hard edge — which is what makes a bounded list feel like a long one. */
+  /* Faded ends make a bounded list feel long. */
   -webkit-mask-image: linear-gradient(
     to bottom,
     transparent 0,
@@ -996,8 +818,7 @@
   mask-image: linear-gradient(to bottom, transparent 0, #000 14%, #000 86%, transparent 100%);
 }
 
-/* The strip's own footer, not a caption sitting below the panel — same
-   family as the rows above it, just quieter and set off by a seam. */
+/* The strip's footer, quieter than the rows and set off by a seam. */
 .arcade-strip-footer {
   display: flex;
   align-items: baseline;
@@ -1011,9 +832,7 @@
   color: var(--color-blue-400);
 }
 
-/* Pushed to the right by its own margin rather than the row's
-   `justify-content`, so the count still lands on the right with nothing
-   else on the line — the scan status is the one that comes and goes. */
+/* Its own margin keeps the count right-aligned when the scan status is absent. */
 .arcade-strip-footer-count {
   margin-left: auto;
 }
@@ -1026,12 +845,10 @@
   color: var(--color-orange-400);
 }
 
-/* The cursor is a fixed band; the list travels under it. That inversion is the
-   whole layout — a highlight that moves down a static list is a file browser. */
+/* The cursor is a fixed band and the list travels under it. */
 .arcade-cursor {
   position: absolute;
-  /* `top` comes in as an inline style, in px — it tracks the list's resting
-     offset, which steps away from dead centre at either end of it. */
+  /* `top` is inline, in px, following the list's resting offset. */
   right: 0;
   left: 0;
   z-index: 1;
@@ -1047,10 +864,7 @@
   pointer-events: none;
 }
 
-/* A one-shot confirm flash on the cursor band when a track actually starts
-   playing — selecting is silent (Q23), so this is the only visual acknowledgment
-   that the button press landed, and it is what makes "play" read as a distinct,
-   decisive action rather than the same gesture as moving the cursor one more row. */
+/* A one-shot flash when a track starts playing. Selecting is silent (Q23), so this is play's only visual confirm. */
 .arcade-launch-flash {
   position: absolute;
   inset: 0;
@@ -1062,10 +876,7 @@
   animation: arcade-launch var(--beat, 0.4s) cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* The letter rail — one pointer surface the whole height of the strip, not
-   27 individually-hit-tested buttons. Above the cursor band and the rows
-   (z-index 2 vs the cursor's 1) so a tap or drag here always reaches the
-   rail before anything underneath it does. */
+/* The letter rail: one pointer surface the strip's height, above the cursor (z-index 2) so it always gets the tap. */
 .arcade-alpha-index {
   position: absolute;
   top: 0.5rem;
@@ -1116,10 +927,7 @@
   }
 }
 
-/* The empty-library "scanning" bar. No real percentage exists to show — a
-   full scan is one blocking request with no progress reporting — so this is
-   honestly indeterminate: a segment sweeping the track, not a number climbing
-   toward one it would have to guess at. */
+/* The empty-library scan bar, indeterminate because a full scan reports no percentage. */
 .scan-sweep {
   animation: scan-sweep calc(var(--beat, 0.4s) * 4) ease-in-out infinite;
 }
@@ -1140,9 +948,7 @@
   will-change: transform;
 }
 
-/* No transition while a drag is live — the rail must track the pointer
-   exactly, not ease toward it a frame behind. The 260ms settle above comes
-   back the instant the drag ends and this class is removed. */
+/* No transition mid-drag, so the rail tracks the pointer exactly. */
 .arcade-rail.is-dragging {
   transition: none;
 }
@@ -1162,10 +968,7 @@
     padding-inline 220ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* `role="option"` rows are reached via the listbox's own focus and
-   `aria-activedescendant`, not individually tabbed to — but a focus ring is
-   still worth painting on the strip itself, since a listbox that never shows
-   where keyboard focus landed is unusable for the people this is for. */
+/* Rows use `aria-activedescendant`, so the focus ring goes on the strip itself. */
 .arcade-strip:focus-visible {
   outline: 2px solid var(--color-orange-500);
   outline-offset: 2px;
@@ -1175,15 +978,13 @@
   color: var(--color-blue-100);
 }
 
-/* The selected row steps forward — brighter, and pushed in from the edge, so
-   the cursor band reads as holding something rather than framing empty space. */
+/* The selected row steps forward: brighter and pushed in from the edge. */
 .arcade-row.is-selected {
   padding-inline-start: 1.6rem;
   color: var(--color-white);
 }
 
-/* Room for the letter rail along the right edge, only when it's actually
-   showing — a small library keeps the row's normal, symmetric padding. */
+/* Room for the letter rail, only when it shows. */
 .arcade-rail.has-alpha-index .arcade-row {
   padding-inline-end: 1.85rem;
 }
@@ -1192,8 +993,7 @@
   opacity: 0.45;
 }
 
-/* Failed to stream last time, not necessarily unplayable now — a lighter
-   touch than `.is-missing`, which is a certainty rather than a past failure. */
+/* Failed to stream last time; lighter than `.is-missing`, which is certain. */
 .arcade-row.has-stream-error:not(.is-missing) .arcade-row-title {
   text-decoration: underline dotted;
   text-decoration-color: var(--color-orange-500);
@@ -1232,21 +1032,14 @@
   text-transform: uppercase;
 }
 
-/* The detail panel re-keys on the selected track, so this replays per change —
-   the panel answering the strip rather than quietly swapping its contents. */
+/* Re-keyed per selected track, so this replays on each change. */
 .arcade-detail-inner {
   position: relative;
   z-index: 1;
   animation: arcade-detail-in 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* A faint, blurred echo of the cover art, sized to the panel's full
-   (stretched) height rather than the text's — the panel's height comes from
-   the strip beside it, not from its own content, so without this it's just
-   dead air below the button on anything taller than a phone. Absolutely
-   positioned against `.arcade-detail` itself: it fills whatever height that
-   box already is, so it can never be the thing that makes the box (and so
-   the page) grow. */
+/* A faint blurred cover filling the panel, whose height comes from the strip. Absolute, so it can't grow the box. */
 .arcade-detail-glow {
   position: absolute;
   inset: 0;
@@ -1262,9 +1055,7 @@
   pointer-events: none;
 }
 
-/* Art beside the title block instead of stacked above it — the same
-   information in less height, which is what leaves the stat row below room
-   to breathe without the panel running out of content halfway down. */
+/* Art beside the title block, saving height for the stat row. */
 .arcade-detail-head {
   display: flex;
   gap: 1.25rem;
@@ -1284,9 +1075,7 @@
   }
 }
 
-/* Small cards instead of a plain definition list — the same facts, read
-   faster and with room for a track to actually flag something (a missing
-   file gets its own colour instead of blending into the rest). */
+/* Small cards for the facts, so a missing file can get its own colour. */
 .arcade-stat-row {
   margin-top: 1.75rem;
   display: flex;
@@ -1322,9 +1111,7 @@
   color: var(--color-orange-400);
 }
 
-/* Other tracks by the same artist — a shortcut into the strip's own list
-   rather than new content, so it earns its place in the same family as the
-   stat cards above it instead of reading as a bolted-on widget. */
+/* More by the same artist: a shortcut into the strip, styled like the stat cards. */
 .arcade-detail-more {
   margin-top: 1.75rem;
   min-width: 0;
@@ -1390,10 +1177,7 @@
   }
 }
 
-/* Each swatch paints itself from the palette it represents, rather than from a
-   hand-picked preview colour — a second source of truth is wrong the moment a
-   palette is tuned. The three stripes are ground, accent and muted text, which
-   between them are most of what a theme changes. */
+/* Each swatch paints from its own palette (ground, accent, muted text), so a tuned theme can't drift from its preview. */
 .theme-swatch {
   width: 2.25rem;
   height: 2.25rem;
@@ -1449,9 +1233,7 @@
   --swatch-line: oklch(42% 0.04 300);
 }
 
-/* A tooltip that does not wait. The native `title` attribute takes about a
-   second to appear, which is long enough that an icon-only control reads as
-   unlabelled — and icon-only is exactly what these two became. */
+/* An instant tooltip; `title` takes about a second, leaving icon-only controls unlabelled. */
 .tip {
   position: relative;
 }
@@ -1516,11 +1298,7 @@
   }
 }
 
-/* The enter button, pulsing the way PRESS START blinks — but in colour rather
-   than opacity. Fading the button fades its label with it, and a control whose
-   text drops below readable contrast every two seconds is a worse button than
-   one that does not blink at all. Swapping between two oranges keeps white
-   text at full strength on every frame. */
+/* The enter button blinks like PRESS START, by swapping between two oranges: fading would drop its text's contrast. */
 .enter-blink {
   animation: enter-blink calc(var(--beat, 0.4s) * 4) ease-in-out infinite;
 }
@@ -1535,47 +1313,16 @@
   }
 }
 
-/* The app's backdrop is full-bleed, which means it passes behind the content
-   column as well as through the gutters. A breakpoint used to keep it away
-   from the text; a mask does the same job without hiding it on the screens
-   most people actually use.
+/* Full-bleed backdrop, masked to a fifth of its strength over the content column. Stops are `calc(50% ± 36rem)`
+   (half of page-shell's 72rem) so the dim band is exactly the column at any width; below 72rem it's dim throughout. */
+/* The backdrop's depth layers: the ring behind everything, motes among the type, columns and bands in front. */
 
-   Alpha in a mask multiplies what is drawn, so this is not "hide the middle" —
-   it is "hold the middle at a fifth". Motion stays visible across the whole
-   width and is loudest where there is nothing to read.
-
-   **The stops are `calc(50% ± 36rem)`, not percentages.** 36rem is half of
-   `page-shell`'s 72rem cap, so the dim band is exactly the content column at
-   every viewport width — which percentages cannot be, because the gutters are
-   5% of a 1280px window and 20% of a 1920px one. The first version used 26%
-   and measured 12/255 behind the page heading on a 1440px screen, where the
-   heading sits at 11% and was still inside the bright end of the ramp. Below
-   72rem the calc goes negative and clamps to 0, so a phone — which has no
-   gutters — is dim throughout, which is the right answer there.
-
-   The vertical ramp does the same for the sticky header and the player bar,
-   the two places a moving letterform behind small text is most obvious. */
-/* ── The backdrop's depth layers ──────────────────────────────────────────
-   The ring sits behind everything, the motes drift among the type, and the
-   columns and bands run in front. Three kinds of thing rather than three
-   densities of one, which is what actually reads as depth. */
-
-/* A darker ground than `blue-950`, so the moving layers stand out by contrast
-   rather than by being turned up. That distinction matters: raising their own
-   opacity costs legibility everywhere they pass behind text, and dropping the
-   floor costs nothing — the type, the cards and the bar all sit on their own
-   colours and are unaffected. */
+/* Darker than `blue-950`, so the moving layers stand out without raising their own opacity behind text. */
 .app-ground {
   background-color: var(--app-ground);
 }
 
-/* Pushed far enough right that its *centre* clears the content column.
-   Measured: at `right: -12%` on a 1440px window the ring centred at x≈1148,
-   inside the 144–1296 band the mask dims to protect reading — so the brightest
-   part of it was also the part being hidden. Out here the arc sweeps through
-   the gutter, where the mask is at full strength and it can actually be seen,
-   and most of the circle is off-screen, which is what the reference does with
-   its geometry anyway. */
+/* Far enough right that the ring's centre clears the dimmed content band (at -12% it centred at x≈1148 of 1440). */
 .spin-ring-stage {
   position: absolute;
   top: 50%;
@@ -1601,10 +1348,7 @@
   transform-style: preserve-3d;
 }
 
-/* Tilted back on X and turning on Y — the combination is the whole effect. A
-   circle rotated only in the plane of the screen just spins, and reads as a
-   loading indicator; tilted, its near edge passes closer than its far edge and
-   the eye takes it for a ring in space. */
+/* Tilted on X and turning on Y; rotated only in-plane, a circle reads as a loading spinner. */
 .spin-ring-band {
   position: absolute;
   border-radius: 50%;
@@ -1634,9 +1378,7 @@
   animation-iteration-count: infinite;
 }
 
-/* Two axes. The columns all travel one, which reads as sliding blinds however
-   many are added; the sideways component is what makes this a field rather
-   than a set of lanes. */
+/* Two axes, so the motes read as a field rather than lanes. */
 @keyframes mote-drift {
   from {
     transform: translate3d(0, 0, 0);
@@ -1679,27 +1421,17 @@
   mask-composite: intersect;
 }
 
-/* The account select screen's variant — same mask shape, a much lighter
-   touch. There is no dense text column to protect here, just two cards with
-   air around them, so the backdrop can actually read as the moving thing it
-   is instead of a near-flat wash. Two classes on one element for specificity
-   over the base rule above, rather than relying on source order. */
+/* The account select's lighter mask: two cards, no dense text to protect. Two classes for specificity. */
 .shell-backdrop.shell-backdrop-vivid {
   --backdrop-dim: rgba(0, 0, 0, 0.55);
 }
 
-/* ── Leaving the title screen ─────────────────────────────────────────────
-   820ms, and three things happening at once on three different planes: the
-   band collapses the way a CRT loses its picture, the logo comes at the
-   camera, and the panel behind them both opens out to fill what they leave.
-   One number drives all of it. */
+/* Leaving the title screen: 820ms. The band collapses like a CRT, the logo comes at the camera, and the panel opens. */
 :root {
   --exit: 820ms;
 }
 
-/* The band. Squashes to a bright line, holds for a frame, then goes — the
-   order a CRT actually does it in. `scaleY` on a fixed-height element, so
-   nothing around it reflows while it happens. */
+/* Squash to a bright line, hold a frame, then go. `scaleY` on a fixed height, so nothing reflows. */
 .title-exit-band {
   transform-origin: center;
   animation: crt-off var(--exit) cubic-bezier(0.5, 0, 0.75, 0) forwards;
@@ -1714,8 +1446,7 @@
     transform: scaleY(0.012);
     filter: brightness(2.4);
   }
-  /* The line lingers a moment at full brightness. Collapsing straight through
-     to nothing loses the effect entirely — the pause is the effect. */
+  /* The pause at full brightness is the effect. */
   58% {
     transform: scaleY(0.012) scaleX(1);
     filter: brightness(2.4);
@@ -1731,20 +1462,12 @@
   }
 }
 
-/* The logo does not collapse with the band. It keeps going forward and past
-   the camera, which is the whole reason the two read as separate planes
-   rather than as one picture being switched off. */
+/* The logo keeps going past the camera, so it reads as a separate plane. */
 .title-exit-logo {
   animation: logo-approach var(--exit) cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 
-/* The colour change is not decoration. The wordmark is near-black because it
-   was drawn to sit on a white band — and the band is collapsing out from under
-   it. Left alone it spends the second half of the zoom as dark type on a dark
-   mosaic. It lightens as the band goes, timed to cross over while the band is
-   still bright enough to hide the transition: white before the band has left
-   would be white on white. The accent half stays orange, which reads on both
-   grounds, which is why it is the accent. */
+/* The dark wordmark lightens as its white band collapses, crossing over while the band still hides it. */
 @keyframes logo-approach {
   0% {
     transform: scale(1);
@@ -1765,9 +1488,7 @@
   }
 }
 
-/* What the other two leave behind. The panel is half the screen at rest; it
-   opens to all of it, so the last frame before black is the background rather
-   than the furniture that was standing in front of it. */
+/* The panel opens to full width, so the background is the last thing before black. */
 .title-exit-panel {
   animation: panel-open var(--exit) cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
@@ -1787,8 +1508,7 @@
   }
 }
 
-/* Everything ends on black, and stays there until the next screen paints —
-   without this the app would flash through whatever the body colour is. */
+/* Holds black until the next screen paints, or the body colour flashes. */
 .title-exit-blackout {
   animation: blackout var(--exit) ease-in forwards;
 }
@@ -1803,10 +1523,7 @@
   }
 }
 
-/* ── Arriving in the app ──────────────────────────────────────────────────
-   1,150ms of assembly, played once per entry and never on a reload. Every
-   stage is a delay off this one base, so the running order is legible here
-   instead of being scattered across the components. */
+/* Arriving in the app: 1,150ms of assembly, once per entry, never on reload. Every stage is a delay off one base. */
 :root {
   --boot: 1150ms;
 }
@@ -1826,18 +1543,12 @@
   }
 }
 
-/* Each nav button arrives on its own beat rather than the row arriving as a
-   block. That difference — a machine naming its parts, versus a container
-   fading in — is the entire point of the sequence. */
+/* Each nav button arrives on its own beat rather than the row as a block. */
 .boot-nav > * {
   animation: boot-rise 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Tightened on 2026-09-11, from a tail that reached 780ms. These delays hide
-   content that has already loaded, so every millisecond of them is a
-   millisecond the app is blank for no reason — and the last stage is the one
-   holding the track list. The staircase still reads; it just stops being
-   something you wait through. `AppShell`'s BOOT_MS is the backstop. */
+/* Kept short: these delays hide content that has already loaded. `AppShell`'s BOOT_MS is the backstop. */
 .boot-nav > *:nth-child(1) { animation-delay: 120ms; }
 .boot-nav > *:nth-child(2) { animation-delay: 165ms; }
 .boot-nav > *:nth-child(3) { animation-delay: 210ms; }
@@ -1855,18 +1566,11 @@
 .boot-account { animation-delay: 460ms; }
 .boot-content { animation-delay: 480ms; }
 
-/* One lap of the frame, then gone. An SVG rect with `pathLength: 1` means the
-   dash maths is in units of "the whole perimeter" rather than in pixels, so it
-   holds at any window size without being measured — and unlike four absolutely
-   positioned divs it follows the corner radius for free. */
+/* One lap of the frame. `pathLength: 1` sizes the dash by perimeter and the rect follows the corner radius. */
 .boot-frame {
   position: fixed;
   inset: 0;
-  /* `inset: 0` is not enough on an `<svg>`. Unlike a div, it has intrinsic
-     sizing from its viewBox, so with no explicit width/height it lays itself
-     out square — 1265x1265 in a 1280x800 window, with three quarters of the
-     lap happening off the bottom of the screen. Measured, not guessed: the
-     first version of this was invisible for exactly that reason. */
+  /* An `<svg>` with `inset: 0` alone lays out square (1265×1265 in a 1280×800 window). */
   width: 100%;
   height: 100%;
   z-index: 40;
@@ -1874,10 +1578,7 @@
 }
 
 .boot-frame rect {
-  /* Geometry in CSS rather than as attributes, so the percentages resolve
-     against the element box and the inset can be expressed in pixels. Inset by
-     1px because a stroke straddles its edge — at x=0 half of it would be
-     clipped away by the viewport. */
+  /* Geometry in CSS so percentages resolve against the box. Inset 1px, or the viewport clips half the stroke. */
   x: 1px;
   y: 1px;
   width: calc(100% - 2px);
@@ -1906,23 +1607,10 @@
   }
 }
 
-/* ── Changing tabs ────────────────────────────────────────────────────────
-   Built on `document.startViewTransition`, reached through React Router's
-   `viewTransition` prop. Available because Chrome and Android are the only
-   targets (A1), and it is the reason this whole effect is stylesheet and not a
-   state machine holding two pages in the DOM at once. */
+/* Changing tabs, via `document.startViewTransition` (React Router's `viewTransition`). Chrome and Android only (A1). */
 
-/* The underline that travels. Only the active tab renders one, so exactly one
-   element carries this name at a time — which is the rule
-   `view-transition-name` imposes, and the reason this had to stop being an
-   `::after`: a pseudo-element cannot be named, and a name that appears twice
-   disables the transition for everything. */
-/* One shape for everything standing in the bar's navigation row.
-   The tabs were `px-3 py-4 text-sm` and "More" was a `btn-sm` at `text-xs` with
-   half the padding, which put two different kinds of thing side by side in a
-   row that is meant to read as one strip of controls. Same height, same type,
-   same padding, same hover — the only difference left between them is that one
-   opens a menu. */
+/* The travelling underline. A `view-transition-name` must be unique, which is why it's an element, not `::after`. */
+/* One shape for the nav row: tabs and More share height, type, padding and hover. */
 .nav-tab {
   position: relative;
   display: inline-flex;
@@ -1946,10 +1634,7 @@
   background-color: color-mix(in oklab, var(--color-orange-500) 12%, transparent);
 }
 
-/* The orange on hover is the *same* mark the active tab wears, drawn from the
-   middle out — so hovering reads as "this is what you are about to pick"
-   rather than as an unrelated highlight. Suppressed on the active tab, which
-   already has the real one and does not want two stacked. */
+/* The hover mark is the active tab's underline drawn from the middle, so it reads as "about to pick". Not on the active tab. */
 .nav-tab::after {
   content: '';
   position: absolute;
@@ -1987,9 +1672,7 @@
   view-transition-name: nav-underline;
 }
 
-/* The old and new underline are the same element as far as the transition is
-   concerned, so the browser tweens position and width between the two tabs
-   for nothing — which is the single cheapest thing that reads as "menu". */
+/* One element to the transition, so the browser tweens its position and width between tabs. */
 ::view-transition-group(nav-underline) {
   animation-duration: 260ms;
   animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
@@ -1999,11 +1682,7 @@
   view-transition-name: page;
 }
 
-/* Direction comes from `data-nav-dir` on the root, set on the click that
-   started the navigation: rightward along the bar sends the old page out to
-   the left and brings the new one in from the right, and leftward reverses it.
-   A uniform transition reads as a fade; a directional one reads as a place you
-   moved to. */
+/* Direction from `data-nav-dir`, set on click: moving right sends the old page left. */
 ::view-transition-old(page) {
   animation: 180ms cubic-bezier(0.4, 0, 1, 1) both page-out-forward;
 }
@@ -2048,19 +1727,13 @@
   }
 }
 
-/* Everything that is not `page` or `nav-underline` belongs to `root`, and
-   between two tabs that is the header, the player bar and the backdrop — all
-   identical across the change. Cross-fading identical pixels costs a
-   composite and can make the moving backdrop stutter for the duration, so
-   root simply swaps. */
+/* `root` (header, player bar, backdrop) is identical across tabs, so it swaps instead of cross-fading. */
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation: none;
 }
 
-/* The mark's dot breathes — a slow fade out and back, never all the way to
-   invisible so the ring never reads as empty. Paired with the mosaic behind
-   it, the login screen has one calm heartbeat rather than two competing ones. */
+/* The mark's dot breathes, never fully out, so the ring never looks empty. */
 @layer utilities {
   .animate-brand-pulse {
     animation: brand-pulse 3s ease-in-out infinite;
@@ -2077,11 +1750,7 @@
   }
 }
 
-/* ── Account select: two cards, one choice ────────────────────────────────
-   The heading and the two cards arrive one after another rather than as a
-   block, the same "machine naming its parts" idea `.boot-nav` uses on the way
-   into the app — reusing that section's `boot-rise` keyframe rather than a
-   near-identical second one. */
+/* Account select: heading and cards arrive one after another, reusing `boot-rise`. */
 .profile-stage-1 {
   animation: boot-rise 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -2094,21 +1763,13 @@
   animation: boot-rise 320ms cubic-bezier(0.16, 1, 0.3, 1) 320ms both;
 }
 
-/* The "create a new profile" teaser, stacked below the guest card — one
-   more beat in the same cascade rather than arriving with it. */
+/* The "create a new profile" card, one beat later. */
 .profile-stage-3b {
   animation: boot-rise 320ms cubic-bezier(0.16, 1, 0.3, 1) 440ms both;
 }
 
-/* A light chasing round the frame, arcade-panel style — the two cards are
-   the only furniture on this screen and were reading as flat rectangles next
-   to the moving backdrop behind them. The ring is a `::before`, not a border
-   on the card itself: a `conic-gradient` masked down to a hairline is how a
-   rotating gradient becomes an *outline* instead of a filled shape, and the
-   mask needs its own layer to punch the card's interior out of. `--angle` is
-   `@property`-registered the same way the theme colours are, so the browser
-   can tween a custom property instead of jumping between conic-gradient
-   snapshots. */
+/* A light chasing round each card's frame: a conic gradient masked to a hairline on `::before`. `--angle` is
+   registered with `@property` so it can be animated. */
 @property --angle {
   syntax: '<angle>';
   inherits: false;
@@ -2153,12 +1814,8 @@
 }
 
 /**
- * The card that was picked keeps going: it zooms in and fades to black,
- * `--commit` long (mirrored in `AccountSelectPage.tsx` as `COMMIT_MS`, the
- * same JS/CSS split the title screen's `--exit` uses). The request behind it
- * runs at the same time rather than after — the card animating and the
- * network settling race each other, and whichever is slower decides when the
- * welcome card takes over.
+ * The picked card zooms and fades to black over `--commit` (`COMMIT_MS` in AccountSelectPage.tsx), racing the request;
+ * the slower one decides when the welcome card appears.
  */
 :root {
   --commit: 420ms;
@@ -2179,10 +1836,7 @@
   }
 }
 
-/* The card that was *not* picked, and the heading above both — they have
-   nothing left to say once a choice is made, so they simply get out of the
-   way rather than sitting there disabled. Quicker than the winner's zoom, so
-   the eye has already settled on the one card by the time it also goes. */
+/* The unpicked card and the heading get out of the way, faster than the winner's zoom. */
 .profile-card-recede {
   animation: profile-recede 240ms ease-in forwards;
 }
@@ -2196,10 +1850,7 @@
   }
 }
 
-/* The register card doesn't rise into place like the others — it grows,
-   reading as "this is now the main event" rather than one more card joining
-   the two that are already there. Timed to start right as the grid's own
-   `.profile-card-recede` (240ms) finishes fading it out, so nothing overlaps. */
+/* The register card grows in as the grid's 240ms fade-out ends. */
 .profile-card-grow-in {
   animation: profile-grow-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -2215,8 +1866,7 @@
   }
 }
 
-/* Someone who has asked their OS for less motion gets a steady dot and a
-   still grid. The mosaic keeps its shading — only the movement stops. */
+/* Reduced motion: a steady dot and a still grid; the mosaic keeps its shading. */
 @media (prefers-reduced-motion: reduce) {
   .animate-brand-pulse,
   .animate-mosaic-scroll,
@@ -2233,9 +1883,7 @@
     animation: none;
   }
 
-  /* The numpad still needs to arrive and leave — it is a dialog, and one that
-     appears with no transition at all is jarring in a different way. Reduced
-     to a plain opacity step with no movement. */
+  /* The numpad still fades in and out, without movement. */
   .numpad-scrim,
   .numpad-panel,
   .numpad-scrim.is-closing,
@@ -2246,17 +1894,14 @@
     animation-timing-function: linear;
   }
 
-  /* Opacity only — `numpad-scrim-in` is the fade with no movement in it. */
+  /* Opacity only. */
   .numpad-panel,
   .options-panel,
   .options-panel.is-closing {
     animation-name: numpad-scrim-in;
   }
 
-  /* The interstitial is skipped outright rather than shortened: `interstitialDuration()`
-     returns 0, so the navigation happens immediately and this overlay is never
-     on screen long enough to animate. These rules exist for the frame or two it
-     may still be mounted — no movement, no hold, nothing to wait through. */
+  /* `interstitialDuration()` returns 0, so this overlay is skipped; these cover the frame it may still be mounted. */
   .interstitial,
   .interstitial-text,
   .interstitial-detail,
@@ -2266,8 +1911,7 @@
     transform: none;
   }
 
-  /* Never mounted under reduced motion — `arrivalDuration()` returns 0 — but
-     if it ever is, it must not sit there as an opaque black sheet. */
+  /* Never mounted under reduced motion; if it is, it must not stay an opaque sheet. */
   .arrival-veil {
     animation: none;
     opacity: 0;
@@ -2280,9 +1924,7 @@
     transform: none;
   }
 
-  /* The strip jumps to the selection instead of gliding, and the detail panel
-     swaps rather than rising. The selection still moves — this is about how it
-     gets there, not whether it does. */
+  /* The strip jumps instead of gliding and the detail panel swaps; the selection still moves. */
   .arcade-rail,
   .arcade-row,
   .arcade-cursor {
@@ -2301,9 +1943,7 @@
     transform: none;
   }
 
-  /* No flash to play under reduced motion, and no residual sheet left behind
-     either — the play action already has a non-visual confirm (the player bar
-     mounts/updates), so this cue is pure motion with nothing to fall back to. */
+  /* No flash: the player bar updating already confirms the play. */
   .arcade-launch-flash {
     animation: none;
     opacity: 0;
@@ -2319,30 +1959,15 @@
     transition: none;
   }
 
-  /* React Router calls `startViewTransition` regardless, so the transition
-     still happens — it just has nothing to animate, and the new page is
-     simply there. `!important` because the pseudo-element rules above set
-     `animation` as a shorthand, and a longhand cannot override a shorthand
-     from a later-but-lower-specificity rule otherwise. */
+  /* The view transition still runs with nothing to animate. `!important`, since the rules above use the shorthand. */
   ::view-transition-group(*),
   ::view-transition-old(*),
   ::view-transition-new(*) {
     animation: none !important;
   }
 
-  /* These animate *in* from invisible, and cancelling them outright is exactly
-     right: the hidden state lives only inside the keyframes, never in a base
-     rule, so an element with no animation renders at its ordinary full
-     opacity. (`animation-duration: 1ms` would also work and was what this did
-     first — but it leaves the delays in place, and a nav button that appears
-     600ms late is still a nav button that is missing when someone reaches for
-     it.)
-
-     `:nth-child(n)` is not decoration. The staggered delays above are
-     `.boot-nav > *:nth-child(N)`, and a plain `.boot-nav > *` here loses to
-     them on specificity — which is precisely the bug this replaced, where half
-     the top bar stayed invisible under reduced motion. Matching their
-     specificity and coming later in the file is what makes this win. */
+  /* These animate in from invisible, so `none` shows them at full opacity. `:nth-child(n)` matches the staggered
+     delays' specificity; a plain selector lost and left half the bar hidden. */
   .boot-stage,
   .boot-nav > *:nth-child(n),
   .title-entrance,
@@ -2354,10 +1979,7 @@
     animation: none;
   }
 
-  /* The exit keeps a token duration rather than being cancelled: its `forwards`
-     fill is what lands the screen on black, and the sequence still has to end,
-     just immediately. Same reasoning for the winning profile card — it still
-     has to reach `opacity: 0` for the welcome card to take over cleanly. */
+  /* A token duration, not none: the `forwards` fill lands the screen on black (and the picked card at opacity 0). */
 
   .title-exit-band,
   .title-exit-logo,
@@ -2368,35 +1990,19 @@
     animation-duration: 1ms;
   }
 
-  /* The chase round the card frame stops rather than being collapsed to a
-     token duration — it has no `forwards` fill for anything downstream to
-     depend on, so there is nothing to reach. A full conic gradient already
-     draws a complete ring at any single angle, so freezing it costs nothing
-     visually; it just stops sweeping. */
+  /* Stopped outright: nothing depends on its end state, and a frozen conic gradient still draws a ring. */
   .profile-card-glow::before {
     animation: none;
   }
 
-  /* The entrance is the one exception to "animation: none": cancelling it
-     outright would leave the element at the keyframe's `from` — faded out and
-     offset — so it is collapsed to its finished state instead. */
+  /* Collapsed to the finished state; `none` would leave it at the faded-out `from`. */
   .title-entrance {
     animation-duration: 1ms;
   }
 }
 
-/* ── Player deck: the desktop bar, restyled as a control panel ────────────
-   The original bar was a plain rounded-md/btn-ghost row — the same furniture
-   as a settings form, sitting under a screen whose whole point is to look
-   like an arcade cabinet. This reuses the vocabulary the library strip
-   already established (the breathing glow, `--beat`, `.font-display`) rather
-   than inventing a second visual language for the same app. */
-/* No `position` here on purpose — both places this is used already carry
-   Tailwind's `fixed`, which is itself a positioned value and works as the
-   containing block `::before` needs. Setting `relative` here is unlayered
-   CSS and would win the cascade over the layered `fixed` utility outright,
-   silently dropping the bar out of `position: fixed` and off the bottom of
-   the screen — exactly what happened the first time this was written. */
+/* Player deck: the desktop bar as a control panel, reusing the strip's vocabulary (`--beat`, `.font-display`). */
+/* No `position` here: the elements carry Tailwind's `fixed`, and unlayered `relative` would override it. */
 .player-deck {
   overflow: hidden;
   background: linear-gradient(
@@ -2406,9 +2012,7 @@
   );
 }
 
-/* A thin marquee line rather than a static border — the cabinet-light
-   sweep the strip's own glow is a slower cousin of. Kept to opacity so it
-   never fights the orange progress fill sitting just underneath it. */
+/* A thin marquee sweep along the top edge, opacity only so it doesn't fight the progress fill. */
 .player-deck::before {
   content: '';
   position: absolute;
@@ -2419,8 +2023,7 @@
   pointer-events: none;
 }
 
-/* The phone strip already has a real, meaningful progress line sitting in
-   this same top edge — the decorative sweep would just double it up. */
+/* The phone strip has a real progress line here, so no sweep. */
 .player-deck.no-sweep::before {
   display: none;
 }
@@ -2441,9 +2044,7 @@
   letter-spacing: 0.01em;
 }
 
-/* The transport: two flat icon buttons flanking one large, tactile play
-   button — a cabinet's own three-button layout rather than a media player's
-   thin row. */
+/* Two flat transport buttons flanking one large play button, like a cabinet's three. */
 .player-transport-btn {
   display: flex;
   align-items: center;
@@ -2465,9 +2066,7 @@
   transform: scale(0.9);
 }
 
-/* A pressable button, not a flat icon — the bevel is the bottom shadow, and
-   pressing it flattens by moving the button down into its own shadow rather
-   than just recoloring. */
+/* The bevel is the bottom edge; pressing moves the button down into it. */
 .player-play-btn {
   position: relative;
   display: flex;
@@ -2476,10 +2075,8 @@
   border-radius: 999px;
   border: 2px solid color-mix(in oklab, var(--color-orange-300) 35%, var(--color-orange-600));
   background: linear-gradient(180deg, var(--color-orange-500), var(--color-orange-600));
-  color: var(--color-white);
-  box-shadow:
-    0 3px 0 color-mix(in oklab, black 40%, var(--color-orange-600)),
-    0 5px 12px rgba(0, 0, 0, 0.35);
+  color: var(--color-on-accent);
+  box-shadow: 0 3px 0 color-mix(in oklab, black 40%, var(--color-orange-600));
   transition: transform 90ms ease, box-shadow 90ms ease;
 }
 
@@ -2489,22 +2086,14 @@
 
 .player-play-btn:active:not(:disabled) {
   transform: translateY(2px);
-  box-shadow:
-    0 1px 0 color-mix(in oklab, black 40%, var(--color-orange-600)),
-    0 2px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 1px 0 color-mix(in oklab, black 40%, var(--color-orange-600));
 }
 
 .player-play-btn:disabled {
   opacity: 0.6;
 }
 
-/* One pulse ring while actually playing — the same "confirm the press
-   landed" idea as the strip's launch flash, sustained instead of one-shot
-   since this button stays relevant for as long as the track does. Its own
-   class rather than folded into `.player-play-btn`, so the Now Playing
-   sheet's differently-styled (hollow-ring) play button can opt into just the
-   pulse without inheriting this one's solid bevel. Needs `position: relative`
-   on whatever it's applied to. */
+/* A pulse ring while playing. Its own class so the Now Playing button can use it without the bevel. Needs `position: relative`. */
 .pulse-ring.is-playing::after {
   content: '';
   position: absolute;
@@ -2527,9 +2116,7 @@
   }
 }
 
-/* Shuffle / repeat / data saver / mute: one family of round icon toggles
-   replacing the old text `btn-ghost` row, so "on" reads as a lit cabinet
-   button (an orange glow) instead of a color swap on a label. */
+/* Shuffle, repeat, data saver and mute as round toggles; "on" is an orange border and fill. */
 .player-pill {
   display: flex;
   align-items: center;
@@ -2554,18 +2141,10 @@
   border-color: var(--color-orange-500);
   background: color-mix(in oklab, var(--color-orange-600) 24%, var(--color-blue-900));
   color: var(--color-orange-300);
-  box-shadow: 0 0 10px 0 color-mix(in oklab, var(--color-orange-600) 40%, transparent);
 }
 
-/* The seek bar: a segmented meter standing in for the plain browser range
-   track, in the same spirit as the Now Playing waveform — a decorative
-   ladder underneath an invisible native range that still owns drag,
-   keyboard and screen-reader behaviour. */
-/* The outer box is what the range input positions itself against, and it
-   does NOT clip — the knob is taller than the ladder pill it rides on and
-   needs room to stick out top and bottom. `.player-meter-track` inside it is
-   the pill itself: same size as before, `overflow: hidden` and all, just no
-   longer the thing the input's thumb has to also fit inside. */
+/* The seek bar: a segmented ladder under an invisible native range that keeps drag, keyboard and screen-reader support. */
+/* Doesn't clip, so the taller knob can stick out; `.player-meter-track` is the clipped pill. */
 .player-meter-outer {
   position: relative;
   display: flex;
@@ -2591,12 +2170,9 @@
     color-mix(in oklab, var(--color-orange-600) 65%, var(--color-blue-500)),
     var(--color-orange-500)
   );
-  box-shadow: 0 0 10px 1px color-mix(in oklab, var(--color-orange-600) 50%, transparent);
 }
 
-/* Tick marks painted over both the filled and unfilled portions, so the
-   whole bar reads as a row of lit/unlit segments rather than one continuous
-   fill — the ladder look this is going for. */
+/* Tick marks over the fill, so the bar reads as lit and unlit segments. */
 .player-meter-track::after {
   content: '';
   position: absolute;
@@ -2611,12 +2187,7 @@
   pointer-events: none;
 }
 
-/* Sits over the decorative ladder, its own track and fill made fully
-   transparent so the ladder underneath does the talking — but the thumb
-   stays real and visible, so there is still a knob to grab rather than a
-   bar that only ever reacts to a click. Taller than the ladder itself
-   (which is a slim 0.55rem) so the knob has somewhere to sit without being
-   clipped top and bottom. */
+/* Transparent track and fill over the ladder, with a real thumb; taller than the 0.55rem ladder so the knob isn't clipped. */
 .player-meter-range {
   appearance: none;
   -webkit-appearance: none;
@@ -2649,9 +2220,7 @@
   border-radius: 999px;
   border: none;
   background: var(--color-orange-500);
-  box-shadow:
-    0 0 0 2px var(--color-blue-950),
-    0 0 8px 1px color-mix(in oklab, var(--color-orange-600) 65%, transparent);
+  box-shadow: 0 0 0 2px var(--color-blue-950);
 }
 
 .player-meter-range::-moz-range-thumb {
@@ -2660,15 +2229,10 @@
   border: none;
   border-radius: 999px;
   background: var(--color-orange-500);
-  box-shadow:
-    0 0 0 2px var(--color-blue-950),
-    0 0 8px 1px color-mix(in oklab, var(--color-orange-600) 65%, transparent);
+  box-shadow: 0 0 0 2px var(--color-blue-950);
 }
 
-/* Unlayered rules win the cascade over any Tailwind utility on the same
-   element regardless of specificity, so the JSX's `disabled:cursor-not-allowed`
-   utility can never actually beat the plain `cursor: pointer` above — this is
-   the only way to make the disabled state change the cursor. */
+/* Unlayered rules beat Tailwind utilities, so the disabled cursor has to be set here. */
 .player-meter-range:disabled {
   cursor: not-allowed;
 }
@@ -2695,13 +2259,8 @@
   }
 }
 
-/* ── Library: the Simple / Full toggle and the Full view ────────────────────
-   In `@layer components`, unlike the `.arcade-*` rules above, on purpose: these
-   are put on elements that also carry Tailwind utilities (`hidden`, `w-8`,
-   `text-right`, `pl-4`…) which must be able to override the padding, width and
-   text-align set here. An unlayered rule beats every layered utility
-   regardless of specificity, which would make those utilities silently do
-   nothing. */
+/* Library Simple/Full toggle and Full view. In `@layer components`, unlike `.arcade-*`, so utilities on the same
+   elements can still override padding, width and alignment. */
 :root {
   /* The toggle row above the Library, including the gap under it. Both the
      arcade select and the Full panel subtract it from their fixed height. */
@@ -2743,12 +2302,10 @@
 
   .library-view-option[aria-pressed='true'] {
     background-color: var(--color-orange-600);
-    color: var(--color-white);
-    box-shadow: 0 0 10px 0 color-mix(in oklab, var(--color-orange-600) 45%, transparent);
+    color: var(--color-on-accent);
   }
 
-  /* A fixed-height panel that scrolls inside itself — the same rule the arcade
-     select follows, so switching views never makes the page grow a scrollbar. */
+  /* Scrolls inside a fixed-height panel, like the arcade select. */
   .lf {
     display: flex;
     flex-direction: column;
@@ -2848,16 +2405,16 @@
   }
 
   /* The playing track, painted the way the reference player paints its
-     selection: a solid orange bar, white text. */
+     selection: a solid orange bar, dark text. */
   .lf-row.is-current,
   .lf-row.is-current:hover {
-    background-color: color-mix(in oklab, var(--color-orange-600) 82%, var(--color-blue-900));
+    background-color: var(--color-orange-600);
   }
 
   .lf-row.is-current .lf-td,
   .lf-row.is-current .lf-muted,
   .lf-row.is-current .lf-num {
-    color: var(--color-white);
+    color: var(--color-on-accent);
   }
 
   .lf-group-head td {
@@ -2894,9 +2451,7 @@
     color: var(--color-orange-500);
   }
 
-  /* The cover sits beside its rows and spans them. Its box is absolutely
-     positioned so it contributes no height — a table cell that did would
-     stretch a one-track album's single row to the height of the cover. */
+  /* Absolute, so the cover adds no height and doesn't stretch a one-track album's row. */
   .lf-cover-cell {
     position: relative;
     width: 7.25rem;

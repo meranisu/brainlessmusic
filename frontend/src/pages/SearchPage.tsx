@@ -64,7 +64,7 @@ export function SearchPage() {
         </p>
       </div>
 
-      {isError && <p className="text-sm text-red-400">Search failed.</p>}
+      {isError && <p className="text-sm text-red-300">Search failed.</p>}
 
       {data && total === 0 && (
         <p className="text-sm text-blue-300">

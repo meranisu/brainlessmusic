@@ -29,7 +29,7 @@ export function AlbumsPage() {
       </div>
 
       {isLoading && <p className="text-sm text-blue-300">Loading albums…</p>}
-      {isError && <p className="text-sm text-red-400">Could not load albums.</p>}
+      {isError && <p className="text-sm text-red-300">Could not load albums.</p>}
 
       {data && data.total === 0 && <LibraryEmptyState />}
       {data && data.total > 0 && <AlbumGrid albums={data.albums} />}

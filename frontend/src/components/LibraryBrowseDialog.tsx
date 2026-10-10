@@ -6,21 +6,13 @@ import type { BrowseDirResponse } from '../types/api';
 import { ArrowUpIcon, FolderIcon } from './icons';
 
 interface LibraryBrowseDialogProps {
-  /** Where to start browsing — the path already typed, if any. */
+  /** Where to start; the path already typed, if any. */
   initialPath?: string;
   onSelect: (path: string) => void;
   onCancel: () => void;
 }
 
-/**
- * Browses the *container's* filesystem, not the client's — a native OS folder
- * picker can't help here: browsers never hand back a picked folder's real
- * path, and the path this app wants is one inside the container anyway,
- * which the admin's own device has no view into regardless.
- *
- * Cancel (or Escape, or the backdrop) leaves the caller's path field exactly
- * as it was; only "Use this folder" writes anything back.
- */
+/** Browses the container's filesystem; an OS picker never returns a real path. Cancel leaves the field untouched. */
 export function LibraryBrowseDialog({ initialPath, onSelect, onCancel }: LibraryBrowseDialogProps) {
   const [currentPath, setCurrentPath] = useState(initialPath?.trim() || '/');
 

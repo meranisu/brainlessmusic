@@ -5,10 +5,7 @@ import { PasswordInput } from './PasswordInput';
 const MIN_PASSWORD_LENGTH = 8;
 
 interface RegisterFormProps {
-  /**
-   * Does the actual work — register, then sign in as the new account. Throw
-   * to show an error (the thrown `Error`'s `message` is what's displayed).
-   */
+  /** Registers, then signs in. Throw to show the error's message. */
   onSubmit: (input: { username: string; password: string }) => Promise<User>;
   onSuccess: (user: User) => void;
   onCancel: () => void;
@@ -17,17 +14,8 @@ interface RegisterFormProps {
 }
 
 /**
- * "Create a new profile" — a save-file sign-in card, but for an account that
- * doesn't exist yet. Rendered inline in place of the two-card grid (see
- * `AccountSelectPage`'s `showRegister` branch) rather than as a dialog over
- * it, the same way the passcode-setup prompt takes over the page instead of
- * popping up on top of it.
- *
- * No passcode field here — a fresh account has no passcode either way, and
- * `AccountSelectPage` already has a step for that: on success it runs
- * through the exact same "want a faster way back in?" prompt a first
- * password login gets, rather than this form asking the same question a
- * second way.
+ * "Create a new profile", inline in place of the two-card grid. No passcode field: on success the page offers the
+ * same passcode prompt a first login gets.
  */
 export function RegisterForm({ onSubmit, onSuccess, onCancel, disabled, className = '' }: RegisterFormProps) {
   const [username, setUsername] = useState('');

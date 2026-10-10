@@ -118,7 +118,7 @@ function RootScan({ root }: { root: LibraryRoot }) {
   if (root.scanning) {
     return (
       <UsageBar
-        label={`${name} — scanning`}
+        label={`${name}: scanning`}
         fraction={progress && progress.total > 0 ? progress.processed / progress.total : 0}
         detail={
           progress
@@ -133,7 +133,7 @@ function RootScan({ root }: { root: LibraryRoot }) {
     <div className="card flex items-baseline justify-between gap-3 p-4">
       <p className="text-sm text-white">
         {name}
-        {root.status === 'unreachable' && <span className="ml-2 text-xs text-red-400">unreachable</span>}
+        {root.status === 'unreachable' && <span className="ml-2 text-xs text-red-300">unreachable</span>}
       </p>
       <p className="text-xs text-blue-300">
         {root.trackCount.toLocaleString()} tracks ·{' '}
@@ -193,8 +193,8 @@ export function ControlCenterPage() {
         <div className="card flex items-center justify-center py-16 text-sm text-blue-300">Loading…</div>
       )}
       {isError && (
-        <div className="card flex items-center justify-center py-16 text-sm text-red-400">
-          Couldn't reach the server — that's a "down" signal in itself.
+        <div className="card flex items-center justify-center py-16 text-sm text-red-300">
+          Couldn't reach the server, which is a "down" signal in itself.
         </div>
       )}
 
@@ -288,7 +288,7 @@ export function ControlCenterPage() {
 
           <Section
             title="File integrity"
-            description="Files the last scan of each folder couldn't read — truncated, corrupt, or a tag block the reader chokes on. Replaced by each scan, so a fixed file drops off."
+            description="Files the last scan of each folder couldn't read: truncated, corrupt, or a tag block the reader chokes on. Replaced by each scan, so a fixed file drops off."
           >
             <div className="card overflow-hidden">
               <table className="w-full text-left text-sm">
@@ -340,7 +340,7 @@ export function ControlCenterPage() {
                       <td className="px-4 py-2.5 text-blue-100">{e.message}</td>
                     </tr>
                   ))}
-                  {data.recentErrors.length === 0 && <EmptyRow colSpan={3}>No errors recently — good sign.</EmptyRow>}
+                  {data.recentErrors.length === 0 && <EmptyRow colSpan={3}>No errors recently.</EmptyRow>}
                 </tbody>
               </table>
             </div>
@@ -348,7 +348,7 @@ export function ControlCenterPage() {
 
           <Section
             title="Playback failures"
-            description="Who hit a track that wouldn't play, and why — a track a listener's device couldn't decode is invisible to the stream errors above, since the server served it fine."
+            description="Who hit a track that wouldn't play, and why. A track a listener's device couldn't decode is invisible to the stream errors above, since the server served it fine."
           >
             <div className="card overflow-hidden">
               <table className="w-full text-left text-sm">

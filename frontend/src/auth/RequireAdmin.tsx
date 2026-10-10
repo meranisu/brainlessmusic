@@ -1,11 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 
-/**
- * Unlike RequireAuth, this doesn't redirect — it renders an inline message.
- * A non-admin landing on an admin-only route (e.g. via a stale bookmark)
- * should see why they can't get in, not silently bounce to a different page.
- */
+/** Shows a message instead of redirecting, so a non-admin on a stale bookmark sees why. */
 export function RequireAdmin() {
   const { user } = useAuth();
 

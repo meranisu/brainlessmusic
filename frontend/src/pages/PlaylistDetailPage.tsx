@@ -70,10 +70,7 @@ export function PlaylistDetailPage() {
     onError: (err) => showToast(err instanceof Error ? err.message : 'Could not remove track', 'error'),
   });
 
-  // The reordered list is held in the query cache rather than component state,
-  // so there's no second copy of the order to keep in sync — the drag writes
-  // the new order optimistically and the request either confirms it or the
-  // rollback puts the old one back.
+  // The order lives in the query cache: written optimistically, confirmed or rolled back by the request.
   const reorderMutation = useMutation({
     mutationFn: (trackIds: number[]) =>
       apiClient.patch<PlaylistDetail>(`/playlists/${playlistId}/tracks/reorder`, { trackIds }),
@@ -99,7 +96,7 @@ export function PlaylistDetailPage() {
   });
 
   if (isLoading) return <p className="text-sm text-blue-300">Loading playlist…</p>;
-  if (isError || !data) return <p className="text-sm text-red-400">Could not load that playlist.</p>;
+  if (isError || !data) return <p className="text-sm text-red-300">Could not load that playlist.</p>;
 
   const queue: QueueTrack[] = data.tracks.map((t) => ({
     id: t.id,
@@ -236,7 +233,7 @@ export function PlaylistDetailPage() {
                   <td className="py-2.5 pr-4" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => removeMutation.mutate(track.id)}
-                      className="text-blue-400 transition-colors hover:text-red-400"
+                      className="tap-target text-blue-400 transition-colors hover:text-red-300"
                       aria-label={`Remove ${track.title} from playlist`}
                       title="Remove from playlist"
                     >

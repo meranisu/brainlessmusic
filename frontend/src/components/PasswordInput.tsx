@@ -8,16 +8,11 @@ interface PasswordInputProps {
   autoComplete?: string;
   required?: boolean;
   disabled?: boolean;
-  /** Applied to the wrapper, not the input — for margin utilities like `mb-4`. */
+  /** Applied to the wrapper, for margins like `mb-4`. */
   className?: string;
 }
 
-/**
- * A password `<input>` with a show/hide toggle — every account-select
- * password field used to be a dead end if you mistyped it somewhere you
- * couldn't glance at the screen to check, since there was no way to confirm
- * what you'd actually typed short of clearing the field and starting over.
- */
+/** A password input with a show/hide toggle. */
 export function PasswordInput({
   id,
   value,

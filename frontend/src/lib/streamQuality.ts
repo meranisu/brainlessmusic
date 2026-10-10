@@ -1,22 +1,8 @@
-/**
- * The data-saver preference, and a way to find out what the server actually
- * sent back.
- *
- * The two are deliberately separate. Asking for the small copy is not the same
- * as getting one: the backend declines the downgrade when a source is already
- * at or below the target bitrate (a 42 kbps Opus file would only get bigger),
- * so "data saver is on" and "this track is being served small" are different
- * facts. Showing the request as though it were the result would be a readout
- * that lies on exactly the files the rule exists to protect.
- */
+/** The data-saver preference, and what the server actually sent, which differs when it declines a pointless downgrade. */
 
 const DATA_SAVER_KEY = 'brainlessmusic.dataSaver';
 
-/**
- * A per-device preference, not a per-account one: the phone on mobile data
- * wants it and the desktop on the LAN does not, and they share a login. That
- * makes it `localStorage` rather than anything the server stores.
- */
+/** Per device, in `localStorage`: the phone on mobile data and the desktop on the LAN share a login. */
 export function loadDataSaverPreference(): boolean {
   try {
     return localStorage.getItem(DATA_SAVER_KEY) === 'true';
@@ -54,16 +40,8 @@ const FORMAT_LABELS: Record<string, string> = {
 };
 
 /**
- * Asks the stream endpoint for a single byte, purely to read the headers.
- *
- * A 206 carries both facts we want — `Content-Type` is the format that came
- * out of the variant decision, and `Content-Range` ends in the total size of
- * that representation. Neither is reachable from an `<audio>` element, which
- * exposes no headers at all, so this is a separate request or nothing.
- *
- * It is cheap even on a cache miss: the audio element is fetching the same
- * variant at the same moment, and the backend's in-flight map collapses the
- * two into one transcode.
+ * Requests one byte to read `Content-Type` and the total size, which `<audio>` doesn't expose. Cheap: the backend's
+ * in-flight map shares the transcode with the element's own fetch.
  */
 export async function probeServedStream(
   url: string,
@@ -73,10 +51,7 @@ export async function probeServedStream(
   if (!res.ok) return null;
 
   const mimeType = (res.headers.get('Content-Type') ?? '').split(';')[0].trim();
-  // A 206 states the total after the slash of "bytes 0-0/3487232". A 200 does
-  // not, and a 200 is a real answer here: the response can come from the
-  // browser's own cache, which need not honour the range on a repeat request.
-  // Reading only Content-Range meant a cache hit looked like a failure.
+  // A 206 gives the total after the slash; a 200 from the browser cache doesn't, and is still a valid answer.
   const fromRange = Number(res.headers.get('Content-Range')?.split('/')[1]);
   const fromLength = Number(res.headers.get('Content-Length'));
   const total = Number.isFinite(fromRange) && fromRange > 0 ? fromRange : fromLength;
@@ -85,11 +60,7 @@ export async function probeServedStream(
   return { mimeType, bytes: total };
 }
 
-/**
- * A short readout like `OPUS · 64k`. The bitrate is measured from the bytes
- * actually on the wire rather than read off a tag, so it stays honest for the
- * remuxed and re-encoded copies where the source's own numbers no longer apply.
- */
+/** A readout like `OPUS · 64k`, measured from the bytes on the wire, so it is right for converted copies. */
 export function describeServed(served: ServedStream, durationSeconds: number): string {
   const label = FORMAT_LABELS[served.mimeType] ?? served.mimeType.replace(/^audio\//, '').toUpperCase();
   if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) return label;
@@ -98,13 +69,7 @@ export function describeServed(served: ServedStream, durationSeconds: number): s
   return `${label} · ${kbps}k`;
 }
 
-/**
- * Turns a native `MediaError` into the one piece of information a remote bug
- * report never includes on its own: whether the element gave up because the
- * network dropped or because it couldn't decode what arrived. Safari raises
- * `MEDIA_ERR_SRC_NOT_SUPPORTED` for a container/codec it won't play, which
- * looks identical to a dropped connection from the toast text alone.
- */
+/** Network drop or decode failure, from a `MediaError`; the toast text alone can't tell them apart. */
 export function describeMediaError(error: MediaError | null | undefined): string | null {
   if (!error) return null;
   switch (error.code) {

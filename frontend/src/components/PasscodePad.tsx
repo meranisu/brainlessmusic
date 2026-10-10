@@ -1,7 +1,7 @@
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
 interface PasscodePadProps {
-  /** Digits entered so far — never rendered as text, only as a dot count. */
+  /** Digits so far, shown only as dots. */
   code: string;
   maxLength: number;
   disabled?: boolean;
@@ -10,18 +10,8 @@ interface PasscodePadProps {
 }
 
 /**
- * The digit grid + dots display at the center of every passcode entry —
- * factored out of `Numpad` so the sign-in card can drop the same keypad in
- * below its username field instead of opening a dialog over it. No keyboard
- * handling here: `Numpad` is a full-screen modal with nothing else to type
- * into, so global keydown capture is safe there; inlined next to a username
- * field, it would steal digits meant for that field instead.
- *
- * Sized deliberately small: inlined next to a username field (rather than
- * floating over everything the way the modal version used to), this has to
- * share the viewport with the rest of the card instead of owning the whole
- * screen — a full-size keypad here was what pushed the sign-in card past the
- * fold and forced a page scroll to reach the submit button.
+ * The digit grid and dots, shared by `Numpad` and the inline sign-in card. No key capture: inline, it would steal
+ * digits from the username field. Small, so the sign-in card fits without scrolling.
  */
 export function PasscodePad({ code, maxLength, disabled = false, onPress, onBackspace }: PasscodePadProps) {
   return (

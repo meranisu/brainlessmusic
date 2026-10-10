@@ -7,11 +7,7 @@ import { useToast } from './ToastProvider';
 
 const GUEST_CODES_KEY = ['guest-codes'];
 
-/**
- * Admin "Guest access" card on the Users page (A42/A43): one-use codes, one
- * per guest, shared as text or as a QR card, plus the switch that decides
- * whether the guest door asks for a code at all.
- */
+/** The admin "Guest access" card (A42/A43): one-use codes shared as text or a QR card, and the require-a-code switch. */
 export function GuestCodesPanel() {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
@@ -105,7 +101,7 @@ export function GuestCodesPanel() {
       </div>
 
       {isLoading && <p className="text-sm text-blue-300">Loading codes…</p>}
-      {isError && <p className="text-sm text-red-400">Could not load guest codes.</p>}
+      {isError && <p className="text-sm text-red-300">Could not load guest codes.</p>}
 
       {data && (
         <>
@@ -147,7 +143,7 @@ export function GuestCodesPanel() {
                       type="button"
                       onClick={() => revokeMutation.mutate(c.id)}
                       disabled={revokeMutation.isPending}
-                      className="btn-ghost btn-sm text-red-400!"
+                      className="btn-ghost btn-sm text-red-300!"
                     >
                       Revoke
                     </button>

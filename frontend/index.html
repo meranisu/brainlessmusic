@@ -8,7 +8,7 @@
     <!-- Matches the favicon's navy background and the default ('blue') theme,
          so the browser chrome doesn't clash before a saved theme is read. -->
     <meta name="theme-color" content="#172554" />
-    <meta name="description" content="brainlessmusic — a private, self-hosted music streaming server." />
+    <meta name="description" content="brainlessmusic: a private, self-hosted music streaming server." />
     <meta property="og:title" content="brainlessmusic" />
     <meta property="og:description" content="A private, self-hosted music streaming server." />
     <meta property="og:image" content="/og-image.png" />
@@ -17,15 +17,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@800&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet" />
     <title>brainlessmusic</title>
-    <!--
-      Applies the saved theme before the first paint.
-
-      Inline and blocking on purpose. Doing it in React means one frame of the
-      default palette before the real one arrives, and a whole-page colour
-      change on load is the most visible kind of flash there is. Kept to a few
-      bytes and wrapped, because storage access throws outright in a browser
-      set to block site data, and a theme is never worth a blank page.
-    -->
+    <!-- Applies the saved theme before first paint, to avoid a full-page flash. Wrapped: storage can throw when blocked. -->
     <script>
       try {
         var t = localStorage.getItem('brainlessmusic.theme');

@@ -24,7 +24,7 @@ import { TrackRowMenu } from './TrackRowMenu';
 /** The server allows up to 200; the panel scrolls, so a smaller page keeps the
  *  first paint quick and the next one arrives before the bottom does. */
 const PAGE_SIZE = 100;
-/** Album order is what makes grouped blocks — cover, header, rows — possible. */
+/** Album order is what makes grouped blocks possible. */
 const DEFAULT_SORT: SortField = 'album';
 const DEFAULT_ORDER: SortOrder = 'asc';
 const DEFAULT_HIDDEN: VisibilityFilter = 'exclude';
@@ -34,8 +34,7 @@ const DEFAULT_MISSING: VisibilityFilter = 'exclude';
 const SEARCH_DEBOUNCE_MS = 300;
 /** How close to the bottom of the panel, in px, before the next page is asked for. */
 const LOAD_AHEAD_PX = 480;
-/** Row height and the cover block's, in rem — `.lf-td`'s height in the stylesheet
- *  has to match `ROW_REM`. */
+/** Row height in rem; must match `.lf-td` in the stylesheet. */
 const ROW_REM = 2.4;
 const COVER_BLOCK_REM = 9;
 
@@ -94,9 +93,7 @@ interface SortHeaderProps {
   align?: 'right';
 }
 
-/** Module scope on purpose: a component defined inside another's render is a
- *  new type every render, so React would remount — and drop focus from — the
- *  very button whose click triggered the render. */
+/** Module scope: defined inside a render, React would remount it and drop focus from the clicked button. */
 function SortHeader({ field, label, activeSort, order, onSort, className = '', align }: SortHeaderProps) {
   const isActive = activeSort === field;
   return (
@@ -116,21 +113,11 @@ function SortHeader({ field, label, activeSort, order, onSort, className = '', a
 }
 
 const selectClass =
-  'min-w-0 flex-1 basis-36 rounded-md border border-blue-700 bg-blue-950 px-2.5 py-1.5 text-sm text-blue-100 outline-none transition-colors hover:border-blue-400 focus:border-orange-600/60';
+  'min-w-0 flex-1 basis-36 rounded-md border border-blue-700 bg-blue-950 px-2.5 py-1.5 text-sm text-blue-100 outline-none transition-colors hover:border-blue-400 focus:border-orange-500';
 
 /**
- * The library as a dense, album-grouped table — the "Full" side of the
- * Library page's Simple / Full toggle, and the old `/manage` screen's
- * replacement.
- *
- * Open to every signed-in user. What differs for a non-admin is drawn, not
- * trusted: no checkboxes, no bulk bar, no edit/hide/delete in the row menu, no
- * hidden-tracks filter. The drawing is tidiness; the enforcement is on the
- * server (`PATCH`/`DELETE /tracks/:id` are admin-only, and `GET /tracks`
- * clamps `hidden` to `exclude` for anyone who isn't).
- *
- * A fixed-height panel that scrolls inside itself, like the arcade select, so
- * the document never grows a scrollbar of its own.
+ * The album-grouped table: the Library's "Full" view. Non-admins see no admin controls, but the server is what
+ * enforces it. Scrolls inside a fixed-height panel.
  */
 export function LibraryFull() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -138,8 +125,7 @@ export function LibraryFull() {
   const isAdmin = Boolean(user?.isAdmin);
   const isGuest = Boolean(user?.isGuest);
 
-  // Every filter lives in the URL: a filtered view is then a link —
-  // bookmarkable, and still there after a refresh.
+  // Filters live in the URL, so a filtered view is a link.
   const search = searchParams.get('search') ?? '';
   const sort = (searchParams.get('sort') as SortField | null) ?? DEFAULT_SORT;
   const order = (searchParams.get('order') as SortOrder | null) ?? DEFAULT_ORDER;
@@ -164,8 +150,7 @@ export function LibraryFull() {
     );
   }
 
-  // The textbox's own value, decoupled from `search` so typing doesn't fire a
-  // query per keystroke — only what is committed to the URL after a pause does.
+  // The textbox's own value; only what reaches the URL after a pause queries.
   const [searchInput, setSearchInput] = useState(search);
   useEffect(() => {
     const handle = setTimeout(() => {
@@ -219,17 +204,12 @@ export function LibraryFull() {
     if (el.scrollHeight - el.scrollTop - el.clientHeight < LOAD_AHEAD_PX) void fetchNextPage();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // A tall panel (or a short first page) can be filled without ever being
-  // scrolled — no scroll event would ever ask for more, so ask after each page.
+  // A tall panel may never scroll, so ask for more after each page.
   useEffect(() => {
     loadMoreIfNear();
   }, [tracks.length, loadMoreIfNear]);
 
-  /**
-   * Play this track with everything loaded queued behind it. Files that are
-   * gone are filtered out rather than skipped at playback — queueing one
-   * stalls the queue on a 500 partway through.
-   */
+  /** Plays this track with the loaded rest queued; missing files are left out, since one stalls the queue on a 500. */
   function playFrom(track: TrackSummary) {
     if (track.missing) return;
     const playable = tracks.filter((candidate) => !candidate.missing);
@@ -272,8 +252,7 @@ export function LibraryFull() {
     });
   }
 
-  // "All" means everything loaded, not the whole library — selecting rows the
-  // admin has never scrolled past would make a bulk delete a blind one.
+  // "All" means loaded rows only, so a bulk delete is never blind.
   function toggleSelectAllLoaded() {
     const ids = tracks.map((t) => t.id);
     const allSelected = ids.length > 0 && ids.every((id) => selectedIds.has(id));
@@ -292,9 +271,7 @@ export function LibraryFull() {
     updateParams({ sort: field, order: sort === field && order === 'asc' ? 'desc' : 'asc' });
   }
 
-  // Ten columns whichever mode: the album column (flat) and the cover column
-  // (grouped) swap places. Plus the admin checkbox. Hidden-by-breakpoint cells
-  // just leave this span wider than it needs to be, which is harmless.
+  // Ten columns either way (album and cover columns swap), plus the admin checkbox.
   const columnCount = 10 + (isAdmin ? 1 : 0);
 
   function renderRow(t: TrackSummary, number: number, cover: ReactNode) {
@@ -302,9 +279,7 @@ export function LibraryFull() {
     return (
       <tr
         key={t.id}
-        // Clicking a row plays it — the one gesture a touch screen has is not
-        // spent on the rarest thing anyone does to a track; editing lives in
-        // the row's ⋮ menu.
+        // A row tap plays; editing lives in the ⋮ menu.
         onClick={() => playFrom(t)}
         className={`lf-row ${isCurrent ? 'is-current' : ''} ${t.missing ? 'is-missing' : ''}`}
       >
@@ -422,7 +397,7 @@ export function LibraryFull() {
             >
               Un-hide
             </button>
-            <button onClick={() => setDeleteTargets(selectedTracks)} className="btn-ghost btn-sm text-red-400!">
+            <button onClick={() => setDeleteTargets(selectedTracks)} className="btn-ghost btn-sm text-red-300!">
               Delete
             </button>
           </div>
@@ -434,7 +409,7 @@ export function LibraryFull() {
 
       <div className="lf-scroll" ref={scrollRef} onScroll={loadMoreIfNear}>
         {isLoading && <p className="lf-state">Loading…</p>}
-        {isError && <p className="lf-state text-red-400">Failed to load tracks.</p>}
+        {isError && <p className="lf-state text-red-300">Failed to load tracks.</p>}
         {data && tracks.length === 0 && <p className="lf-state">No tracks match these filters.</p>}
 
         {tracks.length > 0 && (
@@ -526,9 +501,7 @@ export function LibraryFull() {
                         ) : null,
                       ),
                     )}
-                    {/* The cover box is absolutely positioned, so it adds no
-                        height of its own — this row is what keeps a one- or
-                        two-track album at least as tall as its cover. */}
+                    {/* The cover is absolute, so this row keeps a short album at least cover height. */}
                     <tr className="lf-filler hidden sm:table-row" style={{ height: `${Math.max(0, COVER_BLOCK_REM - group.tracks.length * ROW_REM)}rem` }}>
                       <td colSpan={columnCount - 1} />
                     </tr>

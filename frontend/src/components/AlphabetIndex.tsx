@@ -3,16 +3,13 @@ import type { TrackSummary } from '../types/api';
 
 const LETTERS = ['#', ...Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i))];
 
-/** Which rail letter a title falls under — anything that isn't A-Z buckets
- *  under `#`, the same way a phone's contacts list groups digits and
- *  symbols together rather than giving each its own row. */
+/** The rail letter for a title; anything outside A-Z goes under `#`. */
 export function bucketOf(title: string): string {
   const ch = title.trim().charAt(0).toUpperCase();
   return ch >= 'A' && ch <= 'Z' ? ch : '#';
 }
 
-/** `#` first, then A..Z — the same order the list itself sorts in (SQLite's
- *  `COLLATE NOCASE` puts symbols and digits ahead of letters). */
+/** `#` first, then A..Z, matching `COLLATE NOCASE` order. */
 function rankOf(letter: string): number {
   return letter === '#' ? 0 : letter.charCodeAt(0) - 64;
 }
@@ -24,25 +21,13 @@ interface AlphabetIndexProps {
 }
 
 /**
- * An iOS-contacts-style letter rail down the strip's own edge — tap or drag
- * to land on a title, instead of dialling through hundreds of rows one
- * notch at a time. Only meaningful because the strip is already sorted by
- * title (`LibraryPage`'s own query: `sort=title&order=asc`) — jumping to
- * "M" means something specific because of that, not because of anything
- * this component checks itself.
- *
- * One pointer-tracking surface rather than 27 individually-hit-tested
- * buttons — the container captures the pointer on press and reads whichever
- * letter it's currently over on every move, which is what lets a single
- * drag sweep from "A" to "Z" the way it does on a phone.
+ * A letter rail on the strip's edge; tap or drag to jump. Relies on the strip being sorted by title. One surface
+ * captures the pointer and reads the letter under it, so a single drag can sweep A to Z.
  */
 export function AlphabetIndex({ tracks, currentBucket, onJump }: AlphabetIndexProps) {
   const railRef = useRef<HTMLDivElement>(null);
 
-  // Letters an already-loaded track actually starts with — everything else
-  // still jumps (to the nearest letter after it that does exist), just
-  // dimmed so a sparse stretch of the alphabet doesn't look like every
-  // letter is a live destination.
+  // Letters some loaded track starts with. The rest are dimmed but still jump to the next one that exists.
   const present = useMemo(() => {
     const set = new Set<string>();
     for (const track of tracks) set.add(bucketOf(track.title));
@@ -59,9 +44,7 @@ export function AlphabetIndex({ tracks, currentBucket, onJump }: AlphabetIndexPr
           return;
         }
       }
-      // Nothing loaded reaches that far yet — land on the last loaded row,
-      // which is also exactly what the strip's own near-end prefetch
-      // watches for, so more of the list arrives right behind it.
+      // Not loaded that far: land on the last row, which also triggers the near-end prefetch.
       onJump(tracks.length - 1);
     },
     [tracks, onJump],

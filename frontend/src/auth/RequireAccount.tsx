@@ -1,11 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 
-/**
- * Guests are listen-only (A37): playlists and favorites need a real account.
- * Renders an inline message rather than redirecting, the same way
- * RequireAdmin does, so a guest following an old link sees why.
- */
+/** Guests are listen-only (A37). Shows a message instead of redirecting, so an old link explains itself. */
 export function RequireAccount() {
   const { user } = useAuth();
 

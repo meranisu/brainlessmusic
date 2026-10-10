@@ -1,8 +1,4 @@
 /// <reference types="vite/client" />
 
-/**
- * Injected by `vite.config.ts` from `package.json`, so the title screen's
- * corner readout says something true rather than a number typed into JSX and
- * left to rot.
- */
+/** The app version from `package.json`, injected by `vite.config.ts` for the title screen. */
 declare const __APP_VERSION__: string;

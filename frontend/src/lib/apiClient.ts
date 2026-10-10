@@ -1,12 +1,5 @@
-// No .env file required for local dev — override by setting VITE_API_BASE_URL
-// in a .env file at the frontend/ root if the backend isn't where dev expects.
-// The API lives under /api so it doesn't collide with the app's own routes
-// (/albums, /search, /health are both); the container builds this as "/api",
-// which makes every request same-origin.
-//
-// The default is relative for that same reason: Vite proxies /api to the
-// backend in dev, so the app works from any device that can reach the dev
-// server. An absolute localhost default would send a phone to its own machine.
+// Relative `/api` by default (override with VITE_API_BASE_URL): Vite proxies it in dev and the container serves it
+// same-origin, so any device that reaches the page reaches the API. The prefix avoids the app's own /albums, /search.
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
 const TOKEN_STORAGE_KEY = 'brainlessmusic.token';
@@ -30,8 +23,7 @@ export function setToken(token: string | null): void {
   } else {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
   }
-  // A media token outlives the session token that minted it, so drop it here
-  // too — otherwise a logged-out tab could still stream.
+  // A media token outlives its session token, so drop it too or a logged-out tab could still stream.
   cachedMediaToken = null;
   localStorage.removeItem(MEDIA_TOKEN_STORAGE_KEY);
 }
@@ -90,11 +82,8 @@ export const apiClient = {
     request<T>(path, { method: 'POST', body: formData, isMultipart: true }),
 };
 
-// A plain `<audio src>` can't send an Authorization header, so the backend
-// mints a short-lived, media-scoped token that may travel in the URL instead.
-// It is not the session token: the server refuses a media token as a bearer
-// credential, so a stream URL in browser history or an access log can't be
-// replayed against the rest of the API, and it expires within hours anyway.
+// `<audio src>` can't send headers, so the server mints a short-lived media-scoped token for the URL. It is refused
+// as a bearer credential, so a leaked stream URL can't reach the rest of the API.
 interface MediaTokenResponse {
   token: string;
   expiresAt: string;
@@ -111,10 +100,7 @@ interface StoredMediaToken {
 let cachedMediaToken: StoredMediaToken | null = null;
 let inFlightMediaToken: Promise<string> | null = null;
 
-// The token is part of every cover URL, so a fresh one per page load gave each
-// cover a new URL and the browser re-downloaded all of them. Keeping it across
-// reloads and tabs keeps the URLs, and so the browser cache, stable until it
-// has to be renewed.
+// The token is in every cover URL; keeping it across reloads keeps those URLs, and the browser cache, stable.
 function loadStoredMediaToken(): StoredMediaToken | null {
   try {
     const raw = localStorage.getItem(MEDIA_TOKEN_STORAGE_KEY);
@@ -155,10 +141,7 @@ async function getMediaToken(): Promise<string> {
   return inFlightMediaToken;
 }
 
-/**
- * URL for `<audio src>` — supports native byte-range seeking, unlike the blob
- * download this replaced.
- */
+/** URL for `<audio src>`, with native byte-range seeking. */
 export async function buildStreamUrl(trackId: number, quality?: 'low', forceCompat?: boolean): Promise<string> {
   const params = new URLSearchParams({ token: await getMediaToken() });
   if (quality) params.set('quality', quality);
@@ -166,12 +149,7 @@ export async function buildStreamUrl(trackId: number, quality?: 'low', forceComp
   return `${API_BASE_URL}/tracks/${trackId}/stream?${params.toString()}`;
 }
 
-/**
- * Tells the server a stream it served fine still failed to play — the one
- * failure the backend has no way to see on its own, since the bytes went out
- * without error. Best effort: a report that itself fails to send costs
- * nothing but a missing log line, never a second toast.
- */
+/** Reports a stream that was served fine but didn't play, which the server can't see. Best effort, never a toast. */
 export function reportPlaybackFailure(
   trackId: number,
   details: { mediaErrorCode?: number; detail?: string; contentType?: string },
@@ -179,21 +157,13 @@ export function reportPlaybackFailure(
   void apiClient.post(`/tracks/${trackId}/playback-failure`, details).catch(() => {});
 }
 
-/**
- * Asks the server to convert a track before it is played, with the same
- * quality its stream URL will use. Fire-and-forget: if it does nothing, the
- * track converts when played, as it always did.
- */
+/** Asks the server to convert a track ahead of play at the same quality. Fire-and-forget. */
 export function prepareTrack(trackId: number, quality?: 'low'): void {
   const query = quality ? `?quality=${quality}` : '';
   void apiClient.post(`/tracks/${trackId}/prepare${query}`).catch(() => {});
 }
 
-/**
- * URL for `<img src>`, on the same media-token scheme as streaming. `thumb`
- * is a ~256px copy — right for list rows; `full` keeps the original, for the
- * player bar and detail drawer.
- */
+/** URL for `<img src>`, via media token. `thumb` is ~256px for rows; `full` for the player and drawer. */
 export async function buildCoverUrl(
   kind: 'tracks' | 'albums',
   id: number,

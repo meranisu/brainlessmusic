@@ -10,9 +10,9 @@ interface AuthContextValue {
   /** Takes over an identity handed across from another device. */
   adoptToken: (token: string) => Promise<User>;
   login: (username: string, password: string) => Promise<User>;
-  /** The arcade-card alternative to `login` — a username and a short bound passcode instead of a password. */
+  /** Sign in with a username and a short bound passcode instead of a password. */
   loginWithPasscode: (username: string, passcode: string) => Promise<User>;
-  /** Self-registration. Only ever reachable when the server says it's open — see `/auth/registration-status`. */
+  /** Self-registration, offered only when `/auth/registration-status` says it's open. */
   register: (username: string, password: string) => Promise<User>;
   /** Creates or replaces the signed-in account's own passcode. */
   setPasscode: (passcode: string) => Promise<void>;
@@ -49,8 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function enterAsGuest(code?: string) {
-    // The code is only sent when the screen collected one — an unset
-    // ENTRY_CODE means the server never looks at the body.
+    // Sent only if the screen collected one; with no ENTRY_CODE the server ignores the body.
     const { token } = await apiClient.post<{ token: string }>(
       '/auth/guest',
       code ? { code } : {},
@@ -58,12 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return signInWith(token);
   }
 
-  /**
-   * Adopting replaces this browser's identity rather than merging with it. The
-   * screen that calls this has to have said so first: whatever this device had
-   * favorited or was part-way through is unreachable afterwards, because the
-   * token it was reached by is the only key that row ever had.
-   */
+  /** Replaces this browser's identity, not merges: what it had is unreachable after. The caller must warn first. */
   async function adoptToken(token: string) {
     return signInWith(token);
   }
@@ -81,12 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return signInWith(token);
   }
 
-  /**
-   * `/auth/register` itself only hands back the new row, not a session — it's
-   * the same endpoint the admin-only Users page uses to create an account for
-   * someone else, so it has no opinion on signing the caller in. A plain
-   * `login` right after is what turns "account exists" into "signed in as it."
-   */
+  /** `/auth/register` returns the new row, not a session (admins use it too), so this logs in after. */
   async function register(username: string, password: string) {
     await apiClient.post('/auth/register', { username, password });
     return login(username, password);

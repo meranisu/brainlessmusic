@@ -1,13 +1,6 @@
 /**
- * Transport icons as inline SVG.
- *
- * These were text glyphs (⏮ ▶ ❚❚ ⏭). U+23EE / U+23ED carry emoji presentation
- * by default, so the system emoji font painted them as blue rounded tiles —
- * the buttons looked like coloured squares sitting on the bar, ignored
- * `text-*` colour, and sized themselves off the font rather than the button.
- *
- * Drawn at 24 and sized by the caller, filled with `currentColor` so hover and
- * disabled states come from the button as they do everywhere else.
+ * Transport icons as inline SVG. The old text glyphs (⏮ ⏭) rendered as emoji tiles that ignored `text-*` colour.
+ * Filled with `currentColor`, so states come from the button.
  */
 
 interface IconProps {
@@ -89,7 +82,7 @@ export function RepeatOneIcon({ className = 'h-4 w-4' }: IconProps) {
   );
 }
 
-/** Data saver: two arrows squeezing toward a line — "make this smaller". */
+/** Data saver: two arrows squeezing toward a line. */
 export function DataSaverIcon({ className = 'h-4 w-4' }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -110,8 +103,7 @@ export function VolumeIcon({ className = 'h-4 w-4' }: IconProps) {
   );
 }
 
-/** Same speaker, no waves, a line struck through — muted rather than merely
- *  quiet, which the plain speaker with a fainter wave would have implied. */
+/** The speaker struck through: muted, not just quiet. */
 export function VolumeMutedIcon({ className = 'h-4 w-4' }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -129,7 +121,7 @@ export function CloseIcon({ className = 'h-4 w-4' }: IconProps) {
   );
 }
 
-/** Exit: a door with an arrow leaving it — the fire-exit sign, essentially. */
+/** Exit: a door with an arrow leaving it. */
 export function ExitIcon({ className = 'h-4 w-4' }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -140,8 +132,7 @@ export function ExitIcon({ className = 'h-4 w-4' }: IconProps) {
   );
 }
 
-/** Search: a magnifying glass — the bar's search box, shrunk to an icon for
-    the header button that opens it on narrow screens. */
+/** Search, for the header button on narrow screens. */
 export function SearchIcon({ className = 'h-4 w-4' }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -151,8 +142,7 @@ export function SearchIcon({ className = 'h-4 w-4' }: IconProps) {
   );
 }
 
-/** Options: a gear. Six teeth rather than eight — fewer, larger teeth stay
-    legible at 16px, where eight turn into a ring of noise. */
+/** A six-tooth gear: eight teeth blur into noise at 16px. */
 export function GearIcon({ className = 'h-4 w-4' }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -162,7 +152,7 @@ export function GearIcon({ className = 'h-4 w-4' }: IconProps) {
   );
 }
 
-/** A closed folder — rows in the library browse dialog. */
+/** A closed folder, for browse-dialog rows. */
 export function FolderIcon({ className = 'h-4 w-4' }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -171,7 +161,7 @@ export function FolderIcon({ className = 'h-4 w-4' }: IconProps) {
   );
 }
 
-/** Up a level — the browse dialog's "go to the parent directory" control. */
+/** Up a level, in the browse dialog. */
 export function ArrowUpIcon({ className = 'h-4 w-4' }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -181,7 +171,7 @@ export function ArrowUpIcon({ className = 'h-4 w-4' }: IconProps) {
   );
 }
 
-/** Password visible — an open eye. */
+/** Password visible: an open eye. */
 export function EyeIcon({ className = 'h-4 w-4' }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -191,8 +181,7 @@ export function EyeIcon({ className = 'h-4 w-4' }: IconProps) {
   );
 }
 
-/** Password hidden — the same eye, crossed out rather than closed: a closed
-    lid reads as "blinking" at this size, where a slash reads as "off". */
+/** Password hidden: the eye with a slash (a closed lid reads as blinking at this size). */
 export function EyeOffIcon({ className = 'h-4 w-4' }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

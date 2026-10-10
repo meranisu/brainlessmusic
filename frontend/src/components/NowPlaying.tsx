@@ -30,13 +30,7 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-/**
- * Stand-in shape, shown while the real peaks are still being fetched or when
- * the server has none to give (an unreadable file, a missing duration).
- *
- * Derived from the track id so it stays put: a shape that reshuffled on every
- * render would read as broken rather than as pending.
- */
+/** A placeholder waveform while peaks load or when there are none, seeded by track id so it doesn't reshuffle. */
 function placeholderHeights(trackId: number): number[] {
   return Array.from({ length: WAVE_BARS }, (_, i) => {
     const seed = Math.sin((trackId + 1) * (i + 7) * 12.9898) * 43758.5453;
@@ -44,32 +38,12 @@ function placeholderHeights(trackId: number): number[] {
   });
 }
 
-/**
- * The shortest a track's loudest bar is allowed to be, as a fraction of the
- * scrubber's height. A track quiet enough to hit this still reads as quiet,
- * which is the whole point of not normalising all the way.
- */
+/** The tallest a quiet track's loudest bar may get, so quiet still reads as quiet. */
 const QUIET_TRACK_CEILING = 0.55;
 
 /**
- * Reduces the server's peaks to the bars this scrubber draws, taking the
- * loudest sample in each span rather than the average — averaging pulls
- * everything toward the middle and flattens exactly the transients that make a
- * waveform recognisable.
- *
- * The server stores more buckets than any client draws, so this only ever
- * downsamples.
- *
- * Peaks arrive as absolute amplitude, 0-255, where 255 is a full-scale sample.
- * Drawing them against that scale directly is honest and looks wrong: this
- * library is quietly-mastered piano that peaks around 80, so every waveform
- * would sit in the bottom third of the scrubber — flatter than the random
- * placeholder it replaces, which is the wrong way round.
- *
- * So each track is scaled to its own loudest bar, but only up to a ceiling that
- * rises with how loud the track actually is: a full-scale track may fill the
- * height, a near-silent one may not climb past QUIET_TRACK_CEILING. Shape stays
- * readable on everything without pretending a whisper is a wall of noise.
+ * Downsamples peaks by taking each span's max (averages flatten transients). Each track scales to its own loudest bar,
+ * up to a ceiling that rises with loudness, since this quiet piano library peaks near 80 of 255.
  */
 function barsFromPeaks(peaks: number[]): number[] {
   const span = peaks.length / WAVE_BARS;
@@ -94,15 +68,11 @@ function totalQueueSeconds(durations: (number | null | undefined)[]): number {
 
 function pill(active: boolean): string {
   return `flex h-11 flex-1 items-center justify-center rounded-2xl transition-colors ${
-    active ? 'bg-orange-600 text-white' : 'bg-blue-900 text-blue-300 hover:bg-blue-800'
+    active ? 'bg-orange-600 text-on-accent' : 'bg-blue-900 text-blue-300 hover:bg-blue-800'
   }`;
 }
 
-/**
- * Full-screen Now Playing, phone only — the desktop bar keeps the screen it
- * already fits. Everything here is driven by the same player state as the bar;
- * this view is a second presentation of it, not a second player.
- */
+/** Full-screen Now Playing, phone only: a second view of the same player state. */
 export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue; onCollapse: () => void }) {
   const {
     current,
@@ -132,12 +102,7 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
   } = player;
 
   const favoriteIds = useFavoriteIds();
-  // Null except mid-drag. Calling `seek()` on every `input` tick would fire a
-  // new range request for each intermediate position on a streamed track, so
-  // the audio spends the whole drag chasing a moving target instead of landing
-  // where the finger let go. Tracking the drag locally and seeking once on
-  // release fixes that, and also stops `timeupdate`'s real playback position
-  // from fighting the thumb while it's being dragged.
+  // Set only mid-drag. Seeking on every tick would fire a range request each time; seek once on release.
   const [scrubTime, setScrubTime] = useState<number | null>(null);
 
   // The queue only carries what it needs to play; sample rate and bitrate live
@@ -149,10 +114,7 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
     staleTime: 60_000,
   });
 
-  // Peaks are computed from the file on the server's first look at a track and
-  // cached on the row from then on, so this is slow once and instant after.
-  // A track that can't be analysed 404s; that's a placeholder, not an error
-  // worth showing anyone.
+  // Peaks are computed on first request, then cached. A 404 just keeps the placeholder.
   const { data: waveform } = useQuery({
     queryKey: ['waveform', current?.id],
     queryFn: () => apiClient.get<{ peaks: number[] }>(`/tracks/${current!.id}/waveform`),
@@ -176,10 +138,7 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
     current.format ?? detail?.format ?? null,
   ].filter(Boolean);
 
-  // The specs above already describe the file in the library. A second badge
-  // earns its place only when what is on the wire differs from it — data saver
-  // re-encoding, or a container swap like raw ADTS served as m4a. Serving the
-  // file as-is would just print the same numbers twice.
+  // A served-format badge appears only when the wire differs from the file (data saver, ADTS served as m4a).
   const servedFormat = servedLabel?.split(' · ')[0] ?? null;
   const sourceFormat = (current.format ?? detail?.format ?? '').toUpperCase();
   const showServed = servedLabel != null && (dataSaver || servedFormat !== sourceFormat);
@@ -209,9 +168,7 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
         </div>
       </div>
 
-      {/* Condensed and heavy, as the design asks, but not uppercased: a third
-          of this library has mixed-script titles, and `text-transform` would
-          capitalise only their Latin half — "WORTH LIVING ~ FROM 智代アフター". */}
+      {/* Not uppercased: `text-transform` capitalises only the Latin half of mixed-script titles. */}
       <div className="px-5 pt-5 text-center">
         <h2 className="font-display truncate text-2xl font-extrabold tracking-[0.01em] text-white">
           {current.title}
@@ -263,9 +220,7 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
           ))}
         </div>
 
-        {/* The real control: a native range on top of the bars, so drag,
-            keyboard and screen readers all work without reimplementing any of
-            it. The bars are decoration painted underneath. */}
+        {/* A native range over the bars, so drag, keyboard and screen readers work; the bars are decoration. */}
         <input
           type="range"
           min={0}
@@ -351,7 +306,7 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
           {showServed && (
             <span
               className={`font-display rounded-full px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-[0.16em] ${
-                dataSaver ? 'bg-orange-600 text-white' : 'bg-blue-900 text-blue-400'
+                dataSaver ? 'bg-orange-600 text-on-accent' : 'bg-blue-900 text-blue-400'
               }`}
             >
               {dataSaver ? `Streaming ${servedLabel}` : servedLabel}

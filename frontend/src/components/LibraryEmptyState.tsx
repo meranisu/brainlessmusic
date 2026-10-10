@@ -4,26 +4,14 @@ import { useAuth } from '../auth/AuthContext';
 import { apiClient } from '../lib/apiClient';
 import type { HealthSnapshot } from '../types/api';
 
-/**
- * How often this checks whether a scan is still running. Only mounted while
- * the caller has already confirmed there is nothing to show, so a real
- * library never pays for this.
- */
+/** Scan-status poll interval. Mounted only when there is nothing to show. */
 const SCAN_POLL_MS = 2000;
 
-/**
- * The "there is no music yet" state, shared by every browse surface — the
- * arcade select, Albums, Artists — so it reads and looks the same wherever
- * the reason is the library itself being empty. A page-specific empty state
- * ("no albums for this artist", "nothing matched your search", "nothing
- * favorited yet") is a different situation and keeps its own wording.
- */
+/** "No music yet", shared by every browse surface. Page-specific empty states keep their own wording. */
 export function LibraryEmptyState() {
   const { user } = useAuth();
 
-  // `/admin/health` is open to any signed-in user, guest included, unlike
-  // the root-management endpoints themselves — this works from every screen
-  // that can end up empty, not just admin-only ones.
+  // `/admin/health` is open to every signed-in user, guests too, so this works on any empty screen.
   const { data: health } = useQuery({
     queryKey: ['health'],
     queryFn: () => apiClient.get<HealthSnapshot>('/admin/health'),

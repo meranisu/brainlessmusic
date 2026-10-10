@@ -58,11 +58,11 @@ export function FavoritesPage() {
       </div>
 
       {isLoading && <p className="text-sm text-blue-300">Loading favorites…</p>}
-      {isError && <p className="text-sm text-red-400">Could not load favorites.</p>}
+      {isError && <p className="text-sm text-red-300">Could not load favorites.</p>}
 
       {data && data.favorites.length === 0 && (
         <p className="text-sm text-blue-300">
-          Nothing favorited yet — tap the heart on any track to add it here.
+          Nothing favorited yet. Tap the heart on any track to add it here.
         </p>
       )}
 

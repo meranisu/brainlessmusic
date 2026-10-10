@@ -33,8 +33,7 @@ export function AddToPlaylistDialog({ trackId, trackTitle, onClose }: AddToPlayl
       onClose();
     },
     onError: (err) => {
-      // 409 is the backend saying it's already there — a statement of fact,
-      // not a failure the user needs to act on.
+      // 409 means it's already there: a fact, not an error.
       if (err instanceof ApiError && err.status === 409) {
         showToast('Already in that playlist');
         onClose();
@@ -86,7 +85,7 @@ export function AddToPlaylistDialog({ trackId, trackTitle, onClose }: AddToPlayl
         )}
 
         {data && data.playlists.length === 0 && (
-          <p className="mb-4 text-sm text-blue-300">No playlists yet — make one below.</p>
+          <p className="mb-4 text-sm text-blue-300">No playlists yet. Make one below.</p>
         )}
 
         <form

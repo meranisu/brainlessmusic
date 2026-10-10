@@ -36,8 +36,7 @@ export function UsersPage() {
 
   const createMutation = useMutation({
     mutationFn: async (input: { username: string; password: string; isAdmin: boolean }) => {
-      // Creation goes through /auth/register — one code path makes a user, and
-      // one place decides who may.
+      // Created through /auth/register, the one place that makes users.
       const created = await apiClient.post<UserSummary>('/auth/register', {
         username: input.username,
         password: input.password,
@@ -156,7 +155,7 @@ export function UsersPage() {
       <GuestCodesPanel />
 
       {isLoading && <p className="text-sm text-blue-300">Loading users…</p>}
-      {isError && <p className="text-sm text-red-400">Could not load users.</p>}
+      {isError && <p className="text-sm text-red-300">Could not load users.</p>}
 
       {data && (
         <div className="card overflow-x-auto">
@@ -201,7 +200,7 @@ export function UsersPage() {
                           Set password
                         </button>
                         {!isSelf && (
-                          <button onClick={() => setDeletingUser(u)} className="btn-ghost btn-sm text-red-400!">
+                          <button onClick={() => setDeletingUser(u)} className="btn-ghost btn-sm text-red-300!">
                             Delete
                           </button>
                         )}

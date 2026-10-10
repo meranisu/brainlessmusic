@@ -2,10 +2,7 @@ export type LibraryView = 'simple' | 'full';
 
 const LIBRARY_VIEW_KEY = 'brainlessmusic.libraryView';
 
-/** Per-device, like the data-saver and volume preferences: a phone and a
- *  desktop sharing a login want different defaults. Simple until told
- *  otherwise — the arcade select is the listening surface, the table is the
- *  one you go looking for. */
+/** Per device, like data saver and volume. Simple by default. */
 export function loadLibraryView(): LibraryView {
   try {
     return localStorage.getItem(LIBRARY_VIEW_KEY) === 'full' ? 'full' : 'simple';

@@ -13,33 +13,15 @@ import { ShellBackdrop } from './BackdropDepth';
 import { CloseIcon, ExitIcon, GearIcon, SearchIcon } from './icons';
 import { NavOverflow, type NavItem } from './NavOverflow';
 
-/** Must match `.options-panel.is-closing` in `index.css` — the mobile search
- *  panel borrows the same menu chrome the "More" dropdown uses, so it borrows
- *  the same closing-animation timing. */
+/** Must match `.options-panel.is-closing` in `index.css`; the search panel reuses the More menu's chrome. */
 const SEARCH_CLOSE_MS = 160;
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `nav-tab ${isActive ? 'nav-tab-active' : ''}`;
 
 /**
- * The bar's order, as data rather than as markup, because three things need to
- * know it: which tab is active, whether the one being clicked is to the left or
- * the right of it, and which of them fit.
- *
- * Split in two because the bar does not fit and never did. Six tabs measured
- * **933px at a 390px viewport** — every page scrolled sideways on a phone — and
- * five would still measure ~375px before the wordmark, the search box or a
- * single button. So `primary` is what earns a place on the bar at `lg` and up,
- * and `overflow` is what lives behind **More** at every width: Manage, Upload,
- * Users and Control Center are all admin-only — the Control Center included,
- * since who is listening, what is failing and how the server is holding up are
- * admin concerns, not a guest's.
- * Below `lg` the primary tabs join them there.
- *
- * The breakpoint is `lg` and not `md` because `md` was measured and found
- * wanting: at exactly 768px the five tabs plus the brand, More, Options and
- * Exit came to 785px inside a 721px bar, and the page scrolled sideways again —
- * the very fault this split exists to fix, moved rather than removed.
+ * Tab order as data (active tab, click direction, what fits). Six tabs measured 933px at a 390px viewport, so only
+ * `primary` sits on the bar from `lg` (at `md` it overflowed 785px into 721px); `overflow` lives behind More.
  */
 function navItemsFor(isAdmin: boolean, isGuest: boolean): { primary: NavItem[]; overflow: NavItem[] } {
   return {
@@ -74,31 +56,12 @@ function activeIndex(items: NavItem[], pathname: string): number {
   );
 }
 
-/**
- * How long the staged assembly may hold the app back, in total. A little
- * longer than the last stage's delay plus its duration, so nothing is cut
- * short — and short enough that a broken animation is a glitch rather than an
- * outage. Must stay ahead of the delays in `index.css`.
- */
+/** Deadline for the staged entry, just past the last stage; must stay ahead of the delays in `index.css`. */
 const BOOT_MS = 1500;
 
 /**
- * One lap of the frame in orange, then gone.
- *
- * `pathLength="1"` rescales the dash maths into units of "the whole
- * perimeter", so a dash of 0.34 is a third of the way round at any window size
- * with nothing measured and no resize observer.
- *
- * **No `viewBox`, deliberately.** A viewBox plus `preserveAspectRatio="none"`
- * is the obvious way to make an SVG fill a box, and it cost two rounds of this
- * to get right: the non-uniform scale turns a 2-unit stroke into a 25px slab
- * down one side and 16px along the other, and `vector-effect:
- * non-scaling-stroke` then fixes the thickness but moves the *dash* into
- * screen space while its length still came from user space — which draws ten
- * stubby segments round the border instead of one line running it. With no
- * viewBox, user units are CSS pixels, the scale is uniform, and neither
- * problem exists. The rect's geometry comes from CSS, where percentages
- * resolve against the element box.
+ * One orange lap of the frame. `pathLength="1"` makes the dash a fraction of the perimeter at any size. No `viewBox`:
+ * with `preserveAspectRatio="none"` the stroke scales unevenly and the dash breaks into segments.
  */
 function BootFrame() {
   return (
@@ -113,16 +76,12 @@ export function AppShell() {
   const [showHandoff, setShowHandoff] = useState(false);
   const [showMore, setShowMore] = useState(false);
 
-  /** The mobile search panel — `GlobalSearch` itself is `hidden` below `lg`,
-   *  where the bar has no room for a standing input, so this is the only way
-   *  a phone reaches search at all. */
+  /** The mobile search panel: below `lg` the bar has no room for `GlobalSearch`, so this is a phone's only search. */
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const wasMobileSearchOpen = useRef(showMobileSearch);
   const [isMobileSearchClosing, setIsMobileSearchClosing] = useState(false);
 
-  // Same stay-mounted-to-play-the-reverse trick `NavOverflow` uses: closing
-  // flips `showMobileSearch` to false immediately, and without this the panel
-  // would simply vanish instead of shrinking back into the icon that opened it.
+  // Stays mounted through the close so the panel can animate back into its icon.
   useEffect(() => {
     if (wasMobileSearchOpen.current && !showMobileSearch) {
       setIsMobileSearchClosing(true);
@@ -149,9 +108,7 @@ export function AppShell() {
   /** Black still covering the page just arrived on, lifting off it. */
   const [arriving, setArriving] = useState(false);
 
-  // Read during the first render after an entry, not in an effect: the classes
-  // have to be on the very first paint or the elements flash at full opacity
-  // before animating in from nothing.
+  // Read on the first render, so the boot classes are on the first paint and nothing flashes.
   const [isBooting, setIsBooting] = useState(consumeJustEntered);
 
   const { pathname } = useLocation();
@@ -159,15 +116,7 @@ export function AppShell() {
   const { primary, overflow } = navItemsFor(Boolean(user?.isAdmin), Boolean(user?.isGuest));
   const current = activeIndex(primary, pathname);
 
-  /**
-   * Leaves through a card: a line of type at size, a held beat, a fade to
-   * black, and only then the navigation.
-   *
-   * The overlay is opaque and the app stays mounted underneath it, so nothing
-   * is torn down to play this — if the navigation never happened the app would
-   * simply still be there. Guarded against a second press, because two cards
-   * racing each other is two timers racing each other.
-   */
+  /** Leaves through a card (type, a held beat, fade to black), then navigates. The app stays mounted underneath. */
   function leaveThrough(card: { text: string; detail?: string }, to: string, onNavigate?: () => void) {
     if (leaving) return;
     const wait = interstitialDuration();
@@ -178,14 +127,8 @@ export function AppShell() {
     }
     setLeaving(card);
     setTimeout(() => {
-      // Order matters. The card's blackout has just finished opaque and the
-      // veil begins opaque, so swapping one for the other in the same commit
-      // means the route changes under cover and nothing is ever seen to cut.
-      //
-      // `onNavigate` fires here rather than up front for the same reason —
-      // Exit uses it to clear the session, and clearing it before the card
-      // is up would drop `RequireAuth`'s guard mid-animation and unmount this
-      // whole overlay along with the page underneath it.
+      // Swap card for veil in one commit, both opaque, so the route changes unseen. `onNavigate` (Exit's logout) runs
+      // here, since logging out earlier would unmount this overlay mid-animation.
       onNavigate?.();
       navigate(to);
       setLeaving(null);
@@ -197,52 +140,16 @@ export function AppShell() {
     }, wait);
   }
 
-  /**
-   * Records which way along the bar this click is going, for the CSS to read.
-   * Set on the click rather than after the navigation because that is the only
-   * moment both the old tab and the new one are known — and it lands before
-   * `startViewTransition` runs its animations, which is when the attribute is
-   * consulted.
-   *
-   * Falls back to `forward` from a page with no tab of its own (an album
-   * detail, say), where "which way" has no answer.
-   */
+  /** Records which way along the bar the click goes, before `startViewTransition` reads it. `forward` off-tab. */
   function rememberDirection(target: number) {
-    /* The lint rule below wants this moved into an effect, which would be
-       wrong rather than merely different: an effect runs *after* the
-       navigation, and this attribute has to be set before
-       `startViewTransition` takes its snapshot. Mutating the DOM inside an
-       event handler is exactly where a side effect belongs. */
+    /* An effect would run after navigation, too late for the snapshot; a DOM write in a handler is correct here. */
     // oxlint-disable-next-line react/immutability
     document.documentElement.dataset.navDir = current >= 0 && target < current ? 'back' : 'forward';
   }
 
   /**
-   * Changes tabs through the same card the rest of the bar leaves through.
-   *
-   * **This replaced the directional view transition**, and the replacement is
-   * total rather than additive: the card is opaque and covers the whole
-   * viewport, so a page sliding in underneath it is a snapshot nobody can see
-   * and a composite nobody asked for. Running both would be paying twice for
-   * one effect and showing neither properly.
-   *
-   * What was lost is worth naming, in case it is wanted back: the old
-   * transition slid the outgoing page left or right depending on which way you
-   * moved along the bar, which gave the tabs a sense of position. The card
-   * trades that for the section announcing itself, which is the arcade idiom.
-   * `rememberDirection` is kept because the CSS that reads `data-nav-dir` is
-   * still there, so restoring the slide is a matter of putting four lines back
-   * rather than rebuilding it.
-   *
-   * It runs at the **same length as Exit and Options** — 1,420ms. It briefly
-   * ran at 620ms on my reasoning that a card on every navigation would start to
-   * feel like a toll; the owner compared the two and the short one read as
-   * hurried beside the long one. A transition inconsistent with itself is worse
-   * than one that is merely unhurried.
-   *
-   * Everything about a plain link is preserved on the paths that matter — a
-   * modified click (new tab, new window, download) and anything that is not a
-   * primary button fall through to the browser untouched.
+   * Changes tabs through the same card as Exit and Options (1,420ms; a shorter one read as hurried). It replaced the
+   * directional slide; `rememberDirection` and the CSS stay, so the slide can return. Modified clicks pass through.
    */
   function onTabClick(event: MouseEvent<HTMLAnchorElement>, item: NavItem, index: number) {
     if (event.defaultPrevented || event.button !== 0) return;
@@ -257,23 +164,8 @@ export function AppShell() {
   }
 
   /**
-   * Back to the title screen, signed out — for a guest as much as for a real
-   * account.
-   *
-   * The flag is the whole mechanism: the title screen redirects a signed-in
-   * visitor into the app, and without something to say "this one meant it" the
-   * Exit button would bounce straight back off it. Set before navigating, since
-   * the title screen reads it on its first render.
-   *
-   * Guest identities used to survive Exit on purpose — the token stayed in
-   * this browser so pressing enter again resumed the same listening history —
-   * but that made Exit read as a plain screen change while quietly leaving the
-   * session open, which is exactly backwards for a button whose entire job is
-   * to leave. A guest who wants to come back to the same history now has to
-   * say so before leaving, the same "Move or forget this device" dialog
-   * Options already offers; Exit itself always ends the session it's exiting.
-   * `logout` runs as `leaveThrough`'s `onNavigate`, not before — see the
-   * comment there.
+   * Back to the title screen, signed out, guests included (to keep a guest identity, use Options' "Move or forget").
+   * The flag stops the title screen bouncing a signed-in visitor back in. `logout` runs in `leaveThrough`.
    */
   function handleExit() {
     markAtTitle();
@@ -285,16 +177,8 @@ export function AppShell() {
   }
 
   /**
-   * The sequence gets a deadline, and this is not belt-and-braces — it is the
-   * fix for a real bug. The staged classes hide content that has *already
-   * loaded*, so anything that disturbs the animation leaves the app blank:
-   * React StrictMode remounts every component in development, which recreates
-   * these elements and restarts their animations, delay and all. Measured
-   * before this: the track list was still at opacity 0 a second and a half
-   * after entering, on the dev server the owner actually uses.
-   *
-   * With a deadline the worst case is a sequence that finishes abruptly. With
-   * only CSS, the worst case is an app that never appears.
+   * A deadline for the boot sequence: StrictMode remounts restart the animations, which left loaded content at opacity 0.
+   * Worst case now is an abrupt finish, not a blank app.
    */
   useEffect(() => {
     if (!isBooting) return;
@@ -306,76 +190,28 @@ export function AppShell() {
 
   return (
     <div className="app-ground relative min-h-screen pb-20 text-white">
-      {/* Vivid on the Library screen specifically — its list now carries its
-          own solid card background (the strip, the detail panel's stat
-          cards), so the backdrop can bleed through the gaps around them the
-          way it does on the account-select screen instead of staying held
-          back for a dense, backdrop-only track list. Every other page here
-          still gets the restrained version — a table of rows has no card of
-          its own to read against. */}
+      {/* Vivid on the Library, whose cards give text its own ground; other pages keep the restrained backdrop. */}
       <ShellBackdrop vivid={pathname === '/'} />
 
-      {/*
-        Floating, and taller than it was. The bar used to be a full-width band
-        welded to the top of the page; it is now a panel with air around it,
-        which is what an arcade frame looks like and — more usefully — lets the
-        moving backdrop run behind and around it instead of stopping at a hard
-        edge.
-
-        `sticky` rather than `fixed`, so the bar keeps its place in the document
-        and the page below needs no compensating padding that would have to be
-        kept in sync with the bar's height by hand.
-
-        The gradient on the wrapper is doing real work: with a detached bar,
-        content scrolls through the gap above it, and a hard cut there looks
-        like a rendering fault. Fading the page out behind that strip makes the
-        bar read as floating over the content rather than punched through it.
-      */}
+      {/* A floating, sticky panel. The gradient fades content scrolling through the gap above it. */}
       <header className="sticky top-0 z-30 select-none bg-linear-to-b from-blue-950 via-blue-950/90 to-transparent px-3 pb-4 pt-3 sm:px-4">
-        <div className="shell-bar page-shell relative flex items-center gap-3 rounded-xl border border-blue-700 bg-blue-950/92 px-3 backdrop-blur-md sm:gap-5 sm:px-5">
+        <div className="shell-bar page-shell relative flex items-center gap-3 rounded-xl border border-blue-700 bg-blue-950/92 px-3 sm:gap-5 sm:px-5">
           <Link
             to="/"
             className={`flex shrink-0 items-center gap-2.5 ${boot('boot-wordmark')}`}
           >
             <BrandMark className="h-8 w-8 border-2 border-blue-200" />
-            {/* The word goes below `sm`; the mark alone still identifies the
-                app, and those ~140px are the difference between a bar that
-                fits a phone and one that does not. */}
+            {/* The word hides below `sm`; those ~140px decide whether the bar fits a phone. */}
             <Wordmark className="hidden text-base text-white sm:block" />
           </Link>
 
-          {/* Divides the brand from the navigation. The bar is one continuous
-              strip of unrelated things otherwise — a logo, some tabs, a search
-              box, some buttons — and a rule here says which of them is the
-              name of the thing and which is the controls, the way a game's
-              frame separates its title plate from its menu. Shorter than the
-              bar so it reads as a seam rather than a wall. */}
+          {/* Separates the name from the controls, like a game's title plate. */}
           <span aria-hidden className="h-7 w-px shrink-0 bg-blue-700/80" />
 
-          {/* Tabs and More share one wrapper so `gap-1` sits between all of
-              them equally, More included — a tab's distance from its
-              neighbour is the same as Playlists's distance from More, instead
-              of the tight cluster of tabs this used to be next to a More set
-              apart by the bar's own wider gap.
-
-              That gap has to stay `gap-1` and not the bar's own `gap-3
-              sm:gap-5` — this row was measured at 933px of tabs alone at a
-              390px viewport, and widening every gap in it here reproduces
-              that overflow at a wider, but still real, viewport. The bar's
-              wider gap keeps doing its job everywhere else: between the
-              divider and this wrapper, and between this wrapper and search.
-
-              The wrapper itself is always `flex`, never `hidden` — only
-              `nav` hides below `lg`. More has to survive that: it's the only
-              way a guest on a phone reaches the primary tabs at all, so it
-              cannot disappear along with them. Below `lg`, `nav` is
-              `display: none` and contributes no width, so this wrapper's own
-              `gap-1` has nothing on its left to space against — More just
-              sits where it always did. */}
+          {/* One wrapper so `gap-1` spaces tabs and More evenly; wider gaps here bring back the overflow. Always
+              `flex`: below `lg` only `nav` hides, and More is a phone's only route to the tabs. */}
           <div className="flex items-center gap-1">
-            {/* `boot-nav` staggers its children individually rather than
-                fading the row in as a block — a machine naming its parts, not
-                a container appearing. */}
+            {/* `boot-nav` staggers each tab in rather than fading the row as a block. */}
             <nav className={`hidden items-center gap-1 lg:flex ${isBooting ? 'boot-nav' : ''}`}>
               {primary.map((item, i) => (
                 <NavLink
@@ -388,19 +224,8 @@ export function AppShell() {
                   {({ isActive }) => (
                     <>
                       {item.label}
-                      {/* The underline is a real element, present only in the
-                          active tab, so exactly one of them exists at a time —
-                          which is what lets it carry a `view-transition-name`
-                          and slide between tabs instead of cross-fading. It was
-                          an `::after` before, and a pseudo-element cannot be
-                          named.
-
-                          The overflow menu repeats these links below `lg` and
-                          deliberately gives them no underline: a second element
-                          carrying the same name does not merely look wrong, it
-                          disables the transition for the whole page. Below `lg`
-                          this whole nav is `display: none`, so nothing here is
-                          rendered to collide with it. */}
+                      {/* A real element in the active tab only, so it can carry a `view-transition-name` and slide.
+                          The overflow menu's links get none: a duplicate name disables the transition. */}
                       {isActive && <span className="nav-underline" />}
                     </>
                   )}
@@ -418,37 +243,13 @@ export function AppShell() {
             />
           </div>
 
-          {/* A plain spacer takes the slack, and search keeps its natural width
-              beside the buttons.
-
-              Stretching the search wrapper itself was the obvious thing and it
-              was wrong: `GlobalSearch` is a `relative` box with a fixed-width
-              input and its `/` hint pinned to `right-2`, so a wrapper that grew
-              left the badge stranded 100px away from the field it belongs to. */}
-          {/* `flex` with `justify-end`, not `block`. The wrapper needs to take
-              the bar's slack (so the two ends stay put as the window changes)
-              while the box inside it keeps its own width — `GlobalSearch` is a
-              `relative` container with its `/` hint pinned to `right-2`, so a
-              wrapper that stretched it left the badge stranded 100px from the
-              field it labels. A flex child sizes to its content on the main
-              axis; a block child fills. */}
+          {/* Takes the bar's slack with `justify-end` so `GlobalSearch` keeps its width; stretching it would strand
+              its `/` hint 100px from the field. */}
           <div className={`hidden min-w-0 flex-1 justify-end lg:flex ${boot('boot-search')}`}>
             <GlobalSearch />
           </div>
 
-          {/* Below `lg`, `GlobalSearch` above is `hidden` and there is no
-              standing input for a phone to use, so this is search's only way
-              in on that width — a button that opens the panel below instead
-              of a box that would not fit beside the tabs.
-
-              `min-w-0`, the same fix the desktop search wrapper above already
-              needed and for the same reason: a `flex-1` item's minimum width
-              defaults to its own content's, not to zero, and this bar is
-              already measured as running out of room at narrow widths (see
-              the six-tabs-at-933px comment on `navItemsFor`). Without it this
-              button's own min-content width adds to that total instead of
-              yielding to it, and the gear/exit icons on its right get pushed
-              toward — and past — the edge of the screen. */}
+          {/* Below `lg`, search's only way in. `min-w-0` lets it shrink, or it pushes the gear and exit off-screen. */}
           <div className="flex min-w-0 flex-1 justify-end lg:hidden">
             <button
               onClick={() => setShowMobileSearch((open) => !open)}
@@ -464,14 +265,7 @@ export function AppShell() {
           <div className={`relative flex shrink-0 items-center gap-2 py-3 text-sm ${boot('boot-account')}`}>
             {user?.isAdmin && <span className="badge-admin mr-1 hidden shrink-0 xl:inline">Admin</span>}
 
-            {/* Icons, not words. Two labelled buttons were the widest thing on
-                the right of a bar that had no room to spare, and these two are
-                the only controls here that have a universally understood
-                picture — a gear and a door. The tooltip is `.tip` rather than
-                the native `title` attribute, which waits about a second before
-                appearing: long enough that an icon-only control reads as
-                unlabelled in exactly the moment someone is wondering what it
-                is. `aria-label` carries the same text for anyone not hovering. */}
+            {/* Icons (a gear and a door) to save width. `.tip` shows at once, unlike `title`; `aria-label` carries the text. */}
             <button
               onClick={() =>
                 leaveThrough({ text: 'Options', detail: 'Settings for this device' }, '/options')
@@ -483,29 +277,18 @@ export function AppShell() {
               <GearIcon className="h-5 w-5" />
             </button>
 
-            {/* Back to the attract screen, signed out either way (see
-                `handleExit`). Orange, which in this app is the accent nothing
-                else in the bar uses: the tab underline, the boot frame and
-                the title screen's enter button are all orange, so the
-                control that returns you to that screen wears its colour. */}
+            {/* Back to the title screen, signed out (see `handleExit`). Orange, the title screen's colour. */}
             <button
               onClick={handleExit}
               aria-label="Log out and exit to the title screen"
-              data-tip="Exit — signs you out"
+              data-tip="Exit (signs you out)"
               className="tip btn-primary btn-sm shrink-0 px-2"
             >
               <ExitIcon className="h-5 w-5" />
             </button>
           </div>
 
-          {/* The sign-in banner's accent line. It used to run along the
-              header's full-width bottom edge; with the bar detached it belongs
-              to the bar and has to be clipped to its rounded corners.
-
-              Its own layer, rather than `overflow-hidden` on the bar itself —
-              the bar is the positioning context for two dropdowns that hang
-              *below* it, and clipping there would have swallowed both menus
-              whole. Same clock as the title screen, so both pulse together. */}
+          {/* The accent line, on its own clipped layer: `overflow-hidden` on the bar would swallow its dropdowns. */}
           <span
             aria-hidden
             className="pointer-events-none absolute inset-0 overflow-hidden rounded-xl"
@@ -513,20 +296,7 @@ export function AppShell() {
             <span className="band-sweep band-sweep-rail band-sweep-bottom" />
           </span>
 
-          {/* The panel the mobile search button opens. `absolute`, off
-              `shell-bar` (already `relative`, the same anchor More and
-              Options hang off), and *not* a plain flow row — that was tried
-              first and jittered on close: `options-panel`'s animation only
-              ever touches `opacity`/`transform`, never height, because it was
-              built for exactly this kind of floating popover. In normal flow
-              the panel's full layout height stays reserved for the whole
-              160ms close, so the page content below sat still while the
-              panel visually shrank away, then snapped upward in one frame the
-              instant React unmounted it. Floating it removes the panel from
-              layout entirely, so open and close are purely the same
-              fade/scale everywhere else on the bar, and nothing below it ever
-              moves. `inset-x-0` spans exactly `shell-bar`'s own width, so it
-              needs no `page-shell` of its own. */}
+          {/* Absolute off `shell-bar`, not in flow: in flow, the 160ms close left a gap that then snapped shut. */}
           {mobileSearchVisible && (
             <>
               <div
@@ -561,12 +331,8 @@ export function AppShell() {
         </div>
       </header>
 
-      {/* Named, so it is lifted out of the root snapshot and animates on its
-          own while the header — identical between tabs — simply swaps. */}
-      {/* `page-enter` while the veil lifts: the content rises into place rather
-          than being uncovered already settled. A reveal alone is the curtain
-          moving; this is the thing behind it arriving, which is the difference
-          between a transition and a wipe. */}
+      {/* Named, so it animates on its own while the identical header just swaps. */}
+      {/* `page-enter` while the veil lifts: the content arrives rather than being uncovered. */}
       <main
         className={`view-page page-shell relative z-10 px-6 py-6 ${boot('boot-content')} ${
           arriving ? 'page-enter' : ''
@@ -579,8 +345,7 @@ export function AppShell() {
 
       {showHandoff && <HandoffDialog onClose={() => setShowHandoff(false)} />}
 
-      {/* Over everything, including the player bar — this is the cabinet
-          changing screens, not a dialog inside one. */}
+      {/* Above the player bar too: the cabinet changing screens. */}
       {leaving && <ArcadeInterstitial text={leaving.text} detail={leaving.detail} />}
       {arriving && <ArrivalVeil />}
     </div>

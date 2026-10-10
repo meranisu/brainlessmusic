@@ -5,21 +5,14 @@ interface CoverArtProps {
   kind: 'tracks' | 'albums';
   id: number;
   size?: 'thumb' | 'full';
-  /** Tailwind sizing classes for the box — the placeholder matches them. */
+  /** Tailwind sizing for the box; the placeholder matches it. */
   className?: string;
   alt?: string;
-  /** Skips the default rounded-corner-and-border treatment so `className` can
-   *  fully own the shape — for a decorative use (a full-bleed blurred
-   *  background, say) where a hard-edged border would show through the blur. */
+  /** Drops the rounded border so `className` owns the shape, e.g. a blurred full-bleed background. */
   bare?: boolean;
 }
 
-/**
- * Cover image with a placeholder that occupies the same box, so a list of rows
- * doesn't reflow as covers arrive or turn out to be missing. A track with no
- * embedded art 404s, which is expected rather than an error — the placeholder
- * is the answer, not a broken-image icon.
- */
+/** Cover with a same-size placeholder, so rows don't reflow. A 404 means no embedded art, not an error. */
 interface Loaded {
   key: string;
   url: string | null;
@@ -36,9 +29,7 @@ export function CoverArt({
 }: CoverArtProps) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
 
-  // Identifies which cover the loaded state belongs to. Comparing it during
-  // render is what lets the effect avoid a synchronous reset on every prop
-  // change — a stale result simply doesn't match and shows the placeholder.
+  // Ties the loaded state to one cover, so a stale result just shows the placeholder without a reset effect.
   const key = `${kind}:${id}:${size}`;
 
   useEffect(() => {

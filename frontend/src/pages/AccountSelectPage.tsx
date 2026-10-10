@@ -16,35 +16,17 @@ import type { User } from '../types/api';
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/**
- * Nobody left this screen open on purpose for two minutes — an arcade
- * cabinet doesn't hold a player-select screen forever either, and a sign-in
- * form with a username sitting in it is exactly the kind of thing a shared
- * device shouldn't be left showing. Events reset it, not renders: a re-render
- * from, say, a failed login already followed real input, so tying the timer
- * to input events directly (rather than to component state) is what keeps a
- * slow typist from being timed out mid-word.
- */
+/** Resets the screen after two idle minutes, so a shared device isn't left showing a username. Input events reset it. */
 const IDLE_MS = 2 * 60 * 1000;
 const IDLE_EVENTS = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart', 'input'] as const;
 
-/**
- * How long the winning card's zoom-and-fade runs before the welcome card
- * takes over. Must match `--commit` / `.profile-card-commit` in index.css —
- * the same JS/CSS split the title screen's `EXIT_MS`/`--exit` uses, for the
- * same reason: CSS drives the animation, JS decides when to move on, and the
- * two have to agree.
- */
+/** The winning card's zoom-and-fade. Must match `--commit` in index.css. */
 const COMMIT_MS = 420;
 function commitDuration(): number {
   return prefersReducedMotion() ? 0 : COMMIT_MS;
 }
 
-/**
- * How long the grid's cards take to fade out before the register form grows
- * into their place. Must match `.profile-card-recede` in index.css — the
- * form doesn't mount until the fade finishes, so the two never overlap.
- */
+/** The grid's fade before the register form grows in. Must match `.profile-card-recede`. */
 const RECEDE_MS = 240;
 function recedeDuration(): number {
   return prefersReducedMotion() ? 0 : RECEDE_MS;
@@ -53,13 +35,7 @@ function recedeDuration(): number {
 /** Which card, if either, is currently being committed to. */
 type Committing = 'login' | 'guest' | null;
 
-/**
- * Remembers, per account and per browser, that this person already said no
- * to setting a passcode — so the prompt asks once and then leaves it to
- * Options, rather than nagging on every future password login. `localStorage`
- * rather than the server: it's a UI courtesy, not a fact about the account,
- * and it costs nothing if it's ever lost.
- */
+/** Remembers per account, per browser, that the passcode prompt was declined, so it asks once. */
 const PASSCODE_PROMPT_DISMISSED_PREFIX = 'brainlessmusic.passcodePromptDismissed.';
 
 function passcodePromptDismissed(userId: number): boolean {
@@ -79,26 +55,15 @@ function dismissPasscodePrompt(userId: number): void {
 }
 
 /**
- * The "insert your card" screen: a save-file sign-in on the left, a guest
- * pass on the right. Reached only from the title screen's CRT exit, which is
- * why the arrival veil below plays unconditionally rather than being gated
- * the way `TitleScreenPage`'s is — there is no cold-load path that lands
- * here without one.
- *
- * Signing in has two shapes now: the traditional username and password, or a
- * username and a short bound passcode — the arcade-card-PIN idea, entered on
- * the same numeric keypad the old hidden admin numpad used to be. A fresh
- * account has no passcode until it makes one, from here on its first
- * password login or later from Options.
+ * Account select: sign in on the left (password or passcode), guest on the right. Reached only via the title screen's
+ * exit, so its arrival veil always plays.
  */
 export function AccountSelectPage() {
   const { user, login, loginWithPasscode, register, setPasscode, enterAsGuest } = useAuth();
   const navigate = useNavigate();
   useThemeCycle();
 
-  // Whether `/auth/register` will actually accept a new account right now —
-  // unset until the check resolves, so the button stays hidden rather than
-  // flashing on and then vanishing on a closed server.
+  // Hidden until the check resolves, so the button never flashes on a closed server.
   const [registrationOpen, setRegistrationOpen] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
   /** True for the brief window where the grid is fading out on its way to `showRegister`. */
@@ -119,21 +84,14 @@ export function AccountSelectPage() {
   const [passcode, setPasscodeInput] = useState('');
   const [passcodeError, setPasscodeError] = useState<string | null>(null);
   const [isPasscodeLoggingIn, setIsPasscodeLoggingIn] = useState(false);
-  // Passcode mode starts collapsed to just a button — the keypad only takes
-  // over once someone actually presses it, so a stray "Passcode" tab click
-  // doesn't by itself push the card past the fold the way it used to.
+  // Passcode mode starts as a button, so the keypad doesn't push the card past the fold until asked for.
   const [passcodeKeypadOpen, setPasscodeKeypadOpen] = useState(false);
 
-  // Set once a password login succeeds against an account with no passcode
-  // yet, and not already declined on this browser — the login card swaps its
-  // form for the "want a passcode?" prompt instead of finishing entry.
+  // Set after a password login to an account with no passcode (not declined here); the card shows the prompt instead.
   const [pendingPasscodeSetup, setPendingPasscodeSetup] = useState<User | null>(null);
   const [showCreatePasscode, setShowCreatePasscode] = useState(false);
 
-  // A guest code arrives in the link an admin shared (`?code=`, from the
-  // Users page QR card): show the code field already filled, so entering is
-  // one press. Read once, then dropped from the address bar so a reload or a
-  // copied URL does not carry a spent code around.
+  // `?code=` from a shared guest link: prefilled, then removed from the address bar so a spent code isn't carried around.
   const [linkedGuestCode] = useState(() => new URLSearchParams(window.location.search).get('code') ?? '');
   const [guestNeedsCode, setGuestNeedsCode] = useState(linkedGuestCode !== '');
   const [guestCode, setGuestCode] = useState(linkedGuestCode);
@@ -146,7 +104,7 @@ export function AccountSelectPage() {
 
   /** Which card just succeeded, and is now zooming into black. */
   const [committing, setCommitting] = useState<Committing>(null);
-  /** Set once the winning card's request resolves — swaps the whole page for the welcome card. */
+  /** Set when the winning request resolves; swaps the page for the welcome card. */
   const [welcomeName, setWelcomeName] = useState<string | null>(null);
   /** Five minutes with nobody touching this screen. */
   const [idleTimedOut, setIdleTimedOut] = useState(false);
@@ -159,9 +117,7 @@ export function AccountSelectPage() {
     return () => clearTimeout(done);
   }, [arriving]);
 
-  // A choice already being committed to (or a passcode prompt being decided)
-  // isn't idleness — there is a request in flight or a real decision pending,
-  // not an abandoned form — so the timer doesn't even start during either.
+  // No idle timer while committing or deciding the passcode prompt.
   useEffect(() => {
     if (committing || welcomeName !== null || pendingPasscodeSetup || showRegister || startingRegister) return;
 
@@ -178,9 +134,7 @@ export function AccountSelectPage() {
     };
   }, [committing, welcomeName, pendingPasscodeSetup, showRegister, startingRegister]);
 
-  // Same shape as `finishEntry` below, but leaving empty-handed rather than
-  // signed in: hold on the card, then go — `markAtTitle` so the title screen
-  // plays its own arrival veil, the same as it does after a deliberate Exit.
+  // Idle timeout: hold on the card, then return to the title screen (`markAtTitle`, so it plays its veil).
   useEffect(() => {
     if (!idleTimedOut) return;
     const done = setTimeout(() => {
@@ -190,13 +144,8 @@ export function AccountSelectPage() {
     return () => clearTimeout(done);
   }, [idleTimedOut, navigate]);
 
-  // Already signed in — reached directly, or a double-back after committing
-  // already navigated away. Nothing left to choose. `pendingPasscodeSetup`
-  // and `showRegister` are exemptions alongside `committing` for the same
-  // reason: `login`/`register` set `user` the instant the request resolves,
-  // before this page has decided what to do next (show the passcode prompt,
-  // or close the register modal and start its own commit) — without them,
-  // this redirect would fire on that very first render and skip the step.
+  // Signed in already. Exempt while committing, prompting for a passcode or registering: `user` is set the moment
+  // those requests resolve, before this page decides its next step.
   if (user && !committing && !pendingPasscodeSetup && !showRegister) return <Navigate to="/" replace />;
 
   /** Shared tail for both cards: hold on the welcome text, then land in the app. */
@@ -209,13 +158,7 @@ export function AccountSelectPage() {
     navigate('/', { replace: true });
   }
 
-  /**
-   * Plays the winning card's zoom-and-fade, then hands off to `finishEntry`.
-   * Used once the sign-in side already knows who it's signing in as — unlike
-   * the guest card below, there is no request left to overlap the animation
-   * with here, since the password/passcode/passcode-creation request has
-   * already resolved by the time this is called.
-   */
+  /** Plays the winning card's zoom, then `finishEntry`. The sign-in request has already resolved. */
   async function commitAndFinish(which: Exclude<Committing, null>, name: string) {
     setCommitting(which);
     await delay(commitDuration());
@@ -236,7 +179,7 @@ export function AccountSelectPage() {
       }
       await commitAndFinish('login', who.username);
     } catch (err) {
-      setLoginError(err instanceof ApiError ? err.message : 'Could not sign in — is the backend running?');
+      setLoginError(err instanceof ApiError ? err.message : 'Could not sign in. Is the backend running?');
     } finally {
       setIsLoggingIn(false);
     }
@@ -273,7 +216,7 @@ export function AccountSelectPage() {
       const who = await loginWithPasscode(username, passcode);
       await commitAndFinish('login', who.username);
     } catch (err) {
-      setPasscodeError(err instanceof ApiError ? err.message : 'Could not sign in — is the backend running?');
+      setPasscodeError(err instanceof ApiError ? err.message : 'Could not sign in. Is the backend running?');
       setPasscodeInput('');
     } finally {
       setIsPasscodeLoggingIn(false);
@@ -308,13 +251,7 @@ export function AccountSelectPage() {
     return register(newUsername, newPassword);
   }
 
-  // `showRegister` is deliberately never reset here, the same way
-  // `pendingPasscodeSetup` never resets on its own success path: the card
-  // stays put and simply starts its own commit zoom, rather than snapping
-  // back to a grid that's about to be replaced by the welcome screen anyway.
-  // A fresh account is exactly the `!hasPasscode` case `handleLogin` already
-  // handles, so registering routes through the very same prompt instead of
-  // asking about a passcode a second, different way.
+  // `showRegister` stays set: the card starts its own commit. New accounts go through the same passcode prompt as logins.
   function handleRegisterSuccess(who: User) {
     if (!who.hasPasscode && !passcodePromptDismissed(who.id)) {
       setPendingPasscodeSetup(who);
@@ -342,8 +279,7 @@ export function AccountSelectPage() {
       await finishEntry(who.username);
     } catch (err) {
       setCommitting(null);
-      // A 401 on the first press is how the client learns this server wants
-      // a code — the server does not advertise it, and does not need to.
+      // A 401 on the first press is how the client learns the server wants a code.
       if (err instanceof ApiError && err.status === 401) {
         setGuestNeedsCode(true);
         setGuestError(guestNeedsCode ? 'That code is not right.' : null);
@@ -368,15 +304,9 @@ export function AccountSelectPage() {
   }
 
   const disabled = Boolean(committing) || pendingPasscodeSetup !== null || startingRegister;
-  // Only an actual commit — the winning card zooming to black — makes the
-  // rest of the screen get out of the way. Deciding whether to set up a
-  // passcode is not that: the logo and heading stay put while that prompt
-  // is still asking a question, and only fade once a choice is finally made.
+  // Only a real commit clears the rest of the screen; the passcode prompt is still a question.
   const recede = (mine: Committing) => (committing && committing !== mine ? 'profile-card-recede' : '');
-  // The grid's own fade, used only by its three cards — `startingRegister`
-  // is the one case where the header stays put (it's about to announce the
-  // form that's replacing them) while the cards themselves still get out of
-  // the way, so this deliberately doesn't fold into `recede` above.
+  // Cards fade for `startingRegister` while the header stays, so this is separate from `recede`.
   const gridFade = (mine: Committing) => (startingRegister ? 'profile-card-recede' : recede(mine));
 
   return (
@@ -408,8 +338,8 @@ export function AccountSelectPage() {
             <h2 className="text-lg font-semibold text-white">Want a faster way back in?</h2>
             <p className="mt-1 text-sm text-blue-300">
               Set a short passcode for{' '}
-              <span className="font-medium text-white">{pendingPasscodeSetup.username}</span> —
-              next time, sign in with that instead of typing a password. You can add or change
+              <span className="font-medium text-white">{pendingPasscodeSetup.username}</span>.
+              Next time, sign in with that instead of typing a password. You can add or change
               this later from Options.
             </p>
             <div className="mt-5 flex gap-2">
@@ -422,7 +352,7 @@ export function AccountSelectPage() {
             </div>
           </div>
         ) : showRegister ? (
-          /* ── Register: the whole card is the form, no scrim ─────────────── */
+          /* Register: the whole card is the form. */
           <RegisterForm
             onSubmit={handleRegisterSubmit}
             onSuccess={handleRegisterSuccess}
@@ -434,7 +364,7 @@ export function AccountSelectPage() {
           />
         ) : (
           <div className="grid w-full max-w-3xl gap-5 md:grid-cols-2">
-            {/* ── Sign in: a returning player with a save file ─────────────── */}
+            {/* Sign in: a returning player. */}
             <div
               className={`profile-stage-2 profile-card-glow card p-6 sm:p-7 ${
                 committing === 'login' ? 'profile-card-commit' : gridFade('login')
@@ -584,12 +514,7 @@ export function AccountSelectPage() {
               )}
             </div>
 
-            {/* ── Guest, and below it a way to register instead ───────────────
-                 Grouped in one flex column so this whole thing is a single
-                 grid item — the sign-in card's own height still decides the
-                 row height (via the grid's default stretch), but now that
-                 space is spent on a second real card instead of sitting
-                 empty under the guest button. */}
+            {/* Guest, and below it register. One grid item, so the sign-in card still sets the row height. */}
             <div className="flex flex-col gap-5">
               <div
                 className={`profile-stage-3 profile-card-glow card p-6 sm:p-7 ${
