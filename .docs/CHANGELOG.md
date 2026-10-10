@@ -4,6 +4,24 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-10 — Android releases are built, signed and published by GitHub Actions
+
+A44. Pushing a `vX.Y.Z` tag builds the APK, signs it with a real release key and attaches it to a GitHub Release.
+
+- **`.github/workflows/android-release.yml`:** version from the tag (`versionCode = major*10000 + minor*100 +
+  patch`), key restored from secrets, `assembleRelease`, an `apksigner` check that the signer is `CN=brainlessmusic`,
+  then `gh release create`. It refuses to publish when the key secret is missing.
+- **`android/app/build.gradle.kts`:** a `release` signing config read from `BRAINLESS_KEYSTORE_*` env vars, falling
+  back to the debug key when they are absent; `versionCode`/`versionName` overridable with `-P`.
+- **Key:** generated (RSA 4096, 10 000 days), kept outside the repo and stored as the Actions secrets
+  `ANDROID_KEYSTORE_BASE64` / `ANDROID_KEYSTORE_PASSWORD`. Where it lives: `.docs/ops/android-release.md`.
+- **Verified:** a local `assembleRelease` with the key and `-PversionName=0.1.1 -PversionCode=101` produced an APK that
+  `apksigner` reports as signed by `CN=brainlessmusic` (SHA-256 `7b68c592…7f0c`), and `aapt2` reports
+  versionCode 101 / versionName 0.1.1. Both secrets are listed by `gh secret list`. **The workflow itself has not run
+  yet**: it needs `main` pushed and a tag.
+
+---
+
 ## 2026-10-10 — Per-guest codes, and a Guest button on Android
 
 Owner decisions A41–A43 (`.docs/QUESTIONS.md`). An admin makes a one-use code for each guest on the web Users page

@@ -13,8 +13,9 @@ android {
         applicationId = "com.brainlessmusic.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        // The release workflow passes both from the git tag (v1.2.3 → 10203), so each release installs over the last.
+        versionCode = (project.findProperty("versionCode") as String?)?.toInt() ?: 1
+        versionName = (project.findProperty("versionName") as String?) ?: "0.1.0"
 
         // The one server this app talks to, baked in so login is just a username and password.
         // Override for a dev backend: ./gradlew assembleDebug -PserverUrl=http://10.0.2.2:3000
@@ -29,14 +30,27 @@ android {
         }
     }
 
+    // The release key (A44) lives outside the repo: locally in ~/.brainlessmusic-signing, and as GitHub Actions
+    // secrets for .github/workflows/android-release.yml. Without these env vars a release build falls back to
+    // the debug key, as it always did, so a local `assembleRelease` still works on any machine.
+    val releaseKeystore = System.getenv("BRAINLESS_KEYSTORE_PATH")?.takeIf { file(it).exists() }
+    signingConfigs {
+        if (releaseKeystore != null) {
+            create("release") {
+                storeFile = file(releaseKeystore)
+                storePassword = System.getenv("BRAINLESS_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("BRAINLESS_KEY_ALIAS") ?: "brainlessmusic"
+                keyPassword = System.getenv("BRAINLESS_KEY_PASSWORD") ?: System.getenv("BRAINLESS_KEYSTORE_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             // R8 drops the unused ~99% of material-icons-extended, the bulk of the dex.
             isMinifyEnabled = true
             isShrinkResources = true
-            // Personal sideloading: signed with the local debug key so it installs over the debug build
-            // (same signature). A store release would need a real keystore instead.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
