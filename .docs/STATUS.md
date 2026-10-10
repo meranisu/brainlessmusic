@@ -62,7 +62,8 @@ The list is [QUESTIONS.md](QUESTIONS.md) — check it before asking anything. Bl
 2. **Android Phase 2 — on-device check** (box 17): run the checklist on the POCO F5. Phase 3 (box 18) is built too and needs the same phone check; Home + playlists come next (A22).
 3. Commit or finish the failure-logging work above.
 4. v0.3 starts with the room-sync spec (box 21) — spec before code.
-5. Fix the 2026-10-11 review findings, R1 to R5 first:
-   [process/session-review-2026-10-11.md](process/session-review-2026-10-11.md).
+5. Fix the rest of the 2026-10-11 review findings. The worst batch is done (ca945ba, not yet on smol); R3 and R4 are
+   next: [process/session-review-2026-10-11.md](process/session-review-2026-10-11.md), and the other `review-*` files
+   in `process/`.
 
 The current unticked boxes are authoritative in the roadmap; if this list disagrees with it, the roadmap wins.

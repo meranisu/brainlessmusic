@@ -13,7 +13,7 @@ Results at review time:
 
 ## Fix first
 
-- [ ] **F1. Tapping a filtered song can play the wrong song.** `LibraryViewModel.kt:70-78` sets `shownSongFilter`
+- [x] **F1. Tapping a filtered song can play the wrong song.** Fixed in ca945ba. `LibraryViewModel.kt:70-78` sets `shownSongFilter`
       inside `flatMapLatest`, when the new pager starts. The old list stays on screen until the new first page
       arrives, which takes about one request.
       - A tap in that gap passes an index from the old list to `playSongsFrom()` (`:130-139`), which fetches it from

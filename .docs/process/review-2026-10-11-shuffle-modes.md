@@ -6,13 +6,13 @@ are as of `2431cd0`, so check them before editing.
 
 ## Worth fixing
 
-- [ ] **S1. Albums mode leaves a hole in the album you tapped from.** With Albums on, tapping a song in Songs plays
+- [x] **S1. Albums mode leaves a hole in the album you tapped from.** Fixed in ca945ba. With Albums on, tapping a song in Songs plays
   that song, then random albums: the rest of its album does not follow, and the tapped song is left out of the first
   pass, so its album later plays without it. Cause: the redirect in `loadQueue()`
   (`android/.../playback/PlaybackController.kt:157-162`) builds a fresh library source with `skipTrackId`, and
   `nextChunk()` filters that id out (`PlaybackController.kt:268`). Fix: in Albums mode, queue the rest of the tapped
   song's album after it (the album's tracks are one `GET /albums/:id` away) and do not set `skipTrackId`.
-- [ ] **S2. `GET /browse/shuffled` answers 500 for a huge `asOf`.** Above about 8.64e12 seconds, `toSqliteUtc()`'s
+- [x] **S2. `GET /browse/shuffled` answers 500 for a huge `asOf`.** Fixed in ca945ba. Above about 8.64e12 seconds, `toSqliteUtc()`'s
   `toISOString()` throws (`backend/src/routes/shuffledTracks.ts:40-43`, `:15-17`). `asOf=` (empty) reads as 0, so
   every play is ignored. The app sends neither. Fix: reject an empty value and anything past the `Date` range with a
   400, and add both to the "rejects an unknown mode or a malformed asOf" test.

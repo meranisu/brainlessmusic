@@ -16,7 +16,7 @@ Results at review time:
 
 ## Fix
 
-- [ ] **G1. An approved request can be lost, leaving a guest nobody can sign in as.** Medium.
+- [x] **G1. An approved request can be lost, leaving a guest nobody can sign in as.** Fixed in ca945ba. Medium.
       - An approved request is handed over once: the first collect marks it `collected`, and every later collect
         answers 404 (`backend/src/db/guestCodeRequests.ts:127`, `:143`).
       - If that one answer never reaches the device, the guest exists but the device shows "gone" and asks again.

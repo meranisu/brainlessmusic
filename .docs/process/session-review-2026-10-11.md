@@ -12,7 +12,7 @@ Results at review time:
 
 ## Fix first: data loss, or audio where it shouldn't be
 
-- [ ] **R1. A path typo can wipe user data.** Adding the same folder with a trailing slash slips past the
+- [x] **R1. A path typo can wipe user data.** Fixed in ca945ba. Adding the same folder with a trailing slash slips past the
       duplicate check. Removing it then deletes every track and all user data tied to them. Checked.
       - `findLibraryRootByPath` compares raw strings (`backend/src/routes/library.ts:92`), so `/music/` is accepted
         next to `/music`.
@@ -22,7 +22,7 @@ Results at review time:
         play history and less-often marks.
       - Fix: `resolve()` the path, and refuse a folder that overlaps an existing one. That also covers the
         nested-root case already noted in QUESTIONS.md.
-- [ ] **R2. A folder can be removed during its own scan.** Scanning refuses with a 409 while a scan is running; removing
+- [x] **R2. A folder can be removed during its own scan.** Fixed in ca945ba. Scanning refuses with a 409 while a scan is running; removing
       doesn't (`backend/src/routes/library.ts:141-151`). The scan's later writes point at a root id that no longer
       exists, so the scan fails partway through.
 - [ ] **R3. Android: unplugging headphones mid-crossfade can leave the old song on the speaker.** It plays for up to
@@ -38,7 +38,7 @@ Results at review time:
       - The UI shows the new queue while the old one plays.
       - A pause with "Fade on pause" off can hit the same path.
       - Fix: ignore `AbortError`.
-- [ ] **R5. A theme can carry over to the next person.** `logout()` leaves `brainlessmusic.theme` in localStorage, so
+- [x] **R5. A theme can carry over to the next person.** Fixed in ca945ba. `logout()` leaves `brainlessmusic.theme` in localStorage, so
       the next account to sign in on that browser gets it (`frontend/src/auth/AuthContext.tsx:30-35`). Checked.
       - The theme is saved to that account's profile for good, or to the guest's.
       - The login screen also keeps the previous user's theme.

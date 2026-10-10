@@ -17,7 +17,7 @@ Nothing was built, run or tested for this review. The other review file from the
 
 ## Fix first
 
-- [ ] **P1. Marking a song "less often" mid-shuffle scrambles the rest of that shuffle.** Checked.
+- [x] **P1. Marking a song "less often" mid-shuffle scrambles the rest of that shuffle.** Fixed in ca945ba. Checked.
       - `backend/src/routes/shuffledTracks.ts:24-25` filters the less-often songs out first, then runs
         `seededShuffle` on what's left. Fisher-Yates over a shorter array gives a completely different order for the
         same seed.
@@ -26,11 +26,11 @@ Nothing was built, run or tested for this review. The other review file from the
         repeat, and others are never reached that pass. Unmarking a song mid-shuffle does the same.
       - Fix: shuffle the full `listPlayableTrackIds()` first, then filter. A mark then moves later positions by one
         at most. Add a test where the same seed and offset gives a stable order after a mark.
-- [ ] **P2. The queue's Undo snackbar never goes away.** Checked. `QueueSheet.kt:138-142` calls `showSnackbar` with an
+- [x] **P2. The queue's Undo snackbar never goes away.** Fixed in ca945ba. Checked. `QueueSheet.kt:138-142` calls `showSnackbar` with an
       `actionLabel`, `withDismissAction = false` and no `duration`. M3 defaults that to `Indefinite`, so the snackbar
       covers the bottom rows until Undo is tapped, another row is swiped, or the sheet closes.
       Fix: `duration = SnackbarDuration.Long` (or `withDismissAction = true`).
-- [ ] **P3. A late Undo puts the song behind the one playing, so it never plays.** Checked. `restore`
+- [x] **P3. A late Undo puts the song behind the one playing, so it never plays.** Fixed in ca945ba. Checked. `restore`
       (`PlaybackController.kt:368-391`) puts it back at the old `RemovedEntry.playPosition`. Remove the next song, let
       two songs play, then tap Undo. The song lands before the current one, in both the shuffle order and the list
       order, and with repeat off it never plays. P2 makes this much more likely. Fix: clamp to at least the current
