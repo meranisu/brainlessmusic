@@ -4,6 +4,43 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-10 — antislop pass: copy, glows, contrast, touch targets, title HUD, comments, README
+
+- **Copy:** em dashes used as connectors in user-facing strings (toasts, empty states, tooltips, dialogs, API error
+  messages, Android empty states, test names, the page's meta description) replaced with periods, colons or commas.
+  `'—'` placeholders in empty table cells are kept.
+- **Glows removed (A35, "never neon-glow surfaces"; all predate that answer):** the arcade strip's breathing
+  box-shadow (the border still breathes; keyframe renamed `arcade-strip-breathe`), the orange glow on active player
+  pills, the seek fill and thumb and the active Library view toggle; the blurred drop shadows on the top bar and the
+  play button (the play button keeps its hard bottom edge); `backdrop-blur-md` on the top bar. Reduced motion already
+  stopped every looping animation; nothing changed there.
+- **Contrast (A45):** new `--color-on-accent` token (the theme's `blue-950`) for text on accent fills: `.btn-primary`,
+  `::selection`, the accent badges, the player play button, active toggles, the Full view's current row (now a solid
+  accent bar). The default theme's `orange-600` is 2.9 L lighter and its `blue-400` 5 L lighter (3.94 → 4.62 on a card).
+  `text-red-400` → `text-red-300` everywhere (5.4:1 or better on cards in every theme). Library filter selects focus to
+  `orange-500` like `.input`.
+- **Touch targets:** under `pointer: coarse`, `.btn-sm`, `.btn-md` and a new `.tap-target` (track row ⋮ menu, playlist
+  row ✕) get a 44px minimum. Desktop sizes are unchanged.
+- **Title screen:** `SERVER OK` green, `CHECKING` amber, `UNREACHABLE` red (each at least 5.2:1 on the band). The static
+  `GUEST ENTRY` corner shows the live theme name (`useThemeCycle` now returns the theme on screen). The hint under the
+  enter button reads "Your own library, streamed from this server." at 70% instead of 45% opacity.
+- **Comments:** every comment block of three or more lines, and every comment with an em dash or a `// ----` banner,
+  across backend, frontend, Android, migrations, Dockerfile, compose, deploy script and hooks, cut to one or two lines
+  keeping the constraint. Stale ones corrected while there (fixed server URL on Android, FKs enforced in 0011, Exit
+  ending the session in `boot.ts`, AAC remux and cover-art media tokens existing, the default registration posture, the
+  numpad → passcode rate limit, `MAX_UPLOAD_SIZE_MB` example). A commented-out copy of `deleteUser` removed.
+  Verified comment-only by stripping comments from HEAD and the working tree and diffing: the only remaining
+  differences are the code changes listed above.
+- **Docs:** the README is now a short factual overview; its detailed sections moved to
+  `.docs/reference/server-guide.md` (links rewritten for the new location). `android/README.md`'s "What's built" and
+  signing notes brought up to date. DESIGN.md's line citations repointed after the comment pass, plus a line for A45.
+- **Verified:** `cd backend && npm test` (369 pass), backend `tsc --noEmit` clean, `cd frontend && npm run build`
+  clean, `npm run lint` (8 warnings, all present before: the same warnings appear on the HEAD versions),
+  `./gradlew compileDebugKotlin compileDebugUnitTestKotlin processDebugResources testDebugUnitTest` (31 pass),
+  `docker compose config -q` valid, `bash -n scripts/deploy.sh` ok. Not run: the web app in a browser, a phone.
+
+---
+
 ## 2026-10-10 — Android release notes, newer workflow actions, and a dry run
 
 - **Release notes:** each GitHub Release now says what changed in the Android app. The workflow uses

@@ -303,6 +303,12 @@ until it has been run on smol once.
 
 ## Answered
 
+### A45 — What colour is text on the accent? *(was Q45)*
+**Answered:** 2026-10-10 · **Shift it.** Text on an accent fill is now `--color-on-accent` (the theme's `blue-950`)
+instead of white, and the default theme's `orange-600` is 2.9 lightness points lighter so dark text clears 4.5:1 there
+too (4.10 → 4.6). Error text on cards moved from `red-400` to `red-300` (5.4:1 or better in every theme). Recorded in
+[`DESIGN.md`](../DESIGN.md) under Palette.
+
 ### A44 — Publish the APK on GitHub, built and signed automatically *(was Q44)*
 **Answered:** 2026-10-10 · **Automatic.** A real release keystore, kept out of the repo (held locally and as GitHub
 Actions secrets), and a workflow that builds, signs and attaches the APK to a GitHub Release on each version tag.

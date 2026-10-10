@@ -14,9 +14,9 @@ What that means in practice, as already built:
 
 - **The list moves, the cursor does not.** The selected entry stays fixed and everything else slides past it. "A cursor
   walking down a static list is a file browser; a list travelling under a fixed cursor is a machine offering you
-  things." (`frontend/src/components/ArcadeSelect.tsx:68-72`)
-- **Chosen item large on one side, names on the other.** (`ArcadeSelect.tsx:65`)
-- **Content band plus a side panel of scrolling geometric graphics** on the title screen. (`TitleScreenPanel.tsx:47-51`, right half of the screen)
+  things." (`frontend/src/components/ArcadeSelect.tsx:47-50`)
+- **Chosen item large on one side, names on the other.** (`ArcadeSelect.tsx:48`)
+- **Content band plus a side panel of scrolling geometric graphics** on the title screen. (`TitleScreenPanel.tsx:37-40`, right half of the screen)
 - **The player bar is a control deck**, not a media-player strip (commit `93dd81d`).
 
 ## Mood
@@ -25,7 +25,7 @@ Owner's picks (A35):
 
 - **A machine offering you things.** Browsing should feel like a cabinet presenting songs, not like a file manager.
 - **Flat and solid.** Use solid borders for elevation and swap the border colour on focus. No drop-shadow blur, no
-  rings, no glow (`frontend/src/index.css:388-395`).
+  rings, no glow (`frontend/src/index.css:336-339`).
 - **Loud backdrop, legible text.** The animated backdrop can be strong. The only limit is that text in front of it stays
   readable (backdrop strength turned up 2026-09-11).
 
@@ -39,38 +39,40 @@ The owner chose no other bans (A35).
 ## Palette
 
 Colours are theme tokens, never literals. A colour written straight into a rule can't be reached by any theme
-(`frontend/src/index.css:312-317`). Tailwind's scale names are **positional**, not hues: `blue-950` is the deepest
-ground, `blue-300` is muted text, `orange-600` is the accent (`frontend/src/lib/theme.ts:14-18`). Danger and success
+(`frontend/src/index.css:263-264`). Tailwind's scale names are **positional**, not hues: `blue-950` is the deepest
+ground, `blue-300` is muted text, `orange-600` is the accent (`frontend/src/lib/theme.ts:1-4`). Danger and success
 keep their meaning in every theme. Danger moves out of the theme's own hue when the two would clash.
+Text on an accent fill uses `--color-on-accent` (the theme's `blue-950`), never white, so it clears 4.5:1 in every
+theme (Q45, `frontend/src/index.css:3-6`).
 
 - **Default ("Deep blue", the original):** navy ground `#080e28`, blue backdrop, orange accent
-  (`index.css:312-334`, `theme.ts:36`).
+  (`index.css:260-280`, `theme.ts:17`).
 - **Alternatives, chosen by the user:** Crimson (after IIDX RED), Void (near-black, accent only), Nord, Magenta (after
-  osu!), Pastel (Material tonal). Each names its source in `theme.ts:26-33`. That stated source is their purpose, so
+  osu!), Pastel (Material tonal). Each names its source in `theme.ts:6-13`. That stated source is their purpose, so
   Magenta's vivid and Pastel's soft palettes are intentional, not defaults.
 - A theme controls **colour only**. Layout and type stay the same (Q19, still open, colour-only recommended).
 
 ## Typography
 
-- **Fredoka** (500–700): the wordmark only (`.font-brand`, `index.css:355-358`).
+- **Fredoka** (500–700): the wordmark only (`.font-brand`, `index.css:297-300`).
 - **Barlow Condensed** (800): track titles at display size (`.font-display`). Narrow and heavy so weight carries the
   title instead of `text-transform`. A third of the library has mixed-script titles, and uppercasing them capitalises
-  only the Latin half (`index.css:360-367`).
+  only the Latin half (`index.css:302-305`).
 - Everything else uses the system UI sans.
 - Both web fonts load from Google Fonts in `frontend/index.html:18`.
 
 ## Motion
 
-- Title-screen animation runs on one tempo, `--beat: 0.4s` (150 BPM), so nothing drifts (`index.css:306-310`).
-- The mosaic's wavefront burns orange on the downbeat (`TitleScreenPanel.tsx:53-56`).
+- Title-screen animation runs on one tempo, `--beat: 0.4s` (150 BPM), so nothing drifts (`index.css:259-261`).
+- The mosaic's wavefront burns orange on the downbeat (`TitleScreenPanel.tsx:37-38`).
 - On the title screen and login page, themes cycle with a 4 s cross-fade. A manual pick in Options switches instantly
-  (`index.css:282-290`). The cycle is skipped under reduced motion (`useThemeCycle.ts:21`).
+  (`index.css:239-241`). The cycle is skipped under reduced motion (`useThemeCycle.ts:18`).
 
 ## Android
 
 **Same brand as the web** (A36): the navy-and-orange default, flat surfaces, Fredoka and Barlow Condensed.
 
 Known gap, not yet closed: the Android theme defaults to Material dynamic colour, which follows the wallpaper
-(`android/.../ui/theme/Theme.kt:51`). It uses the system font (`Type.kt:10`), and its colours only "loosely match" the
-web (`Color.kt:5-8`). Close the gap when Android UI work next touches the theme. Until then, don't treat Android's
+(`android/.../ui/theme/Theme.kt:45`). It uses the system font (`Type.kt:10`), and its colours only "loosely match" the
+web (`Color.kt:5`). Close the gap when Android UI work next touches the theme. Until then, don't treat Android's
 current look as the reference.

@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `useThemeCycle()` — `frontend/src/hooks/useThemeCycle.ts`
+**Date:** 2026-10-10
+**How added:** new feature
+**Purpose:** cycles `data-theme` on the title and login screens; now also returns the theme on screen.
+**Side effects:** sets `data-theme` / `data-theme-cycling` on `<html>`, as before.
+**Before:** returned nothing.
+**After:** returns the current `ThemeId`, which `TitleHud` shows as `THEME <NAME>`.
+
+**Function:** `TitleHud()` — `frontend/src/pages/TitleScreenPage.tsx`
+**Date:** 2026-10-10
+**How added:** new feature
+**Purpose:** the title screen's corner readouts.
+**Side effects:** polls `GET /health` every 30 s, as before.
+**Before:** server state in blue or orange; a static `GUEST ENTRY` corner.
+**After:** server state green / amber / red; the corner names the live theme. Takes a `theme` prop.
+
 **Function:** `createGuestCode()`, `redeemGuestCode()`, `isRedeemableGuestCode()`, `listGuestCodes()`, `deleteGuestCode()`, `guestCodesRequired()`, `setGuestCodesRequired()`, `normalizeGuestCode()` — `backend/src/db/guestCodes.ts`
 **Date:** 2026-10-10
 **How added:** new feature
