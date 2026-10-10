@@ -6,7 +6,8 @@ Release by `.github/workflows/android-release.yml` whenever a version tag is pus
 ## Cutting a release
 
 1. **Write the release notes first** (owner's standing request, 2026-10-10): `android/release-notes/vX.Y.Z.md`, in
-   plain words for the people installing it. A "What's new in this version" list of what changed in the Android app
+   plain words for the people installing it, in a shitpost voice: a personal project by an amateur, casual and jokey,
+   not a polished product changelog. It still has to say what changed. A "What's new in this version" list of what changed in the Android app
    since the last tag (`git log --oneline vPREV..HEAD -- android/`), plus anything they must do (uninstall first,
    new permission). The workflow appends the install instructions. Commit it with the release.
 2. Push and tag:
