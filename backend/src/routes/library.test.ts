@@ -5,7 +5,7 @@ import { after, before, beforeEach, describe, it } from 'node:test';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../app.js';
 import { listFavoriteTrackIdsForUser, starTrack } from '../db/favorites.js';
-import { findTrackById, upsertTrack } from '../db/library.js';
+import { findTrackById, markTracksMissing, setTrackFlags, upsertTrack } from '../db/library.js';
 import { findLibraryRootById, insertLibraryRoot } from '../db/libraryRoots.js';
 import { insertUser, setAdmin } from '../db/users.js';
 import { hashPassword } from '../services/password.js';
@@ -216,5 +216,75 @@ describe('DELETE /library/roots/:id', () => {
     } finally {
       await temp.cleanup();
     }
+  });
+});
+
+describe('GET /library/stats', () => {
+  function add(path: string, rootId: number, format: string, fileSize: number, duration: number) {
+    return upsertTrack({
+      path,
+      title: 'x',
+      artistName: null,
+      albumTitle: null,
+      albumYear: null,
+      trackNumber: null,
+      duration,
+      format,
+      fileSize,
+      rootId,
+    });
+  }
+
+  it('totals present tracks by format; hidden counts only for an admin; missing files never count', async () => {
+    const rootId = insertLibraryRoot('/stats-root', null).id;
+    add('/stats-root/a.flac', rootId, 'FLAC', 300, 200);
+    add('/stats-root/b.flac', rootId, 'FLAC', 200, 100);
+    const hidden = add('/stats-root/c.mp3', rootId, 'MPEG 1 Layer 3', 50, 60);
+    add('/stats-root/d.mp3', rootId, 'MPEG 1 Layer 3', 40, 30);
+    const missing = add('/stats-root/e.opus', rootId, 'Opus', 999, 999);
+    setTrackFlags([hidden.id], { hidden: true });
+    markTracksMissing([missing.id], new Date().toISOString());
+
+    const admin = await app.inject({
+      method: 'GET',
+      url: '/api/library/stats',
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    assert.equal(admin.statusCode, 200);
+    assert.deepEqual(admin.json(), {
+      tracks: 4,
+      seconds: 390,
+      bytes: 590,
+      formats: [
+        { format: 'FLAC', tracks: 2, bytes: 500 },
+        { format: 'MPEG 1 Layer 3', tracks: 2, bytes: 90 },
+      ],
+      hidden: 1,
+      missing: 1,
+    });
+
+    const listener = await app.inject({
+      method: 'GET',
+      url: '/api/library/stats',
+      headers: { authorization: `Bearer ${listenerToken}` },
+    });
+    assert.deepEqual(listener.json(), {
+      tracks: 3,
+      seconds: 330,
+      bytes: 540,
+      formats: [
+        { format: 'FLAC', tracks: 2, bytes: 500 },
+        { format: 'MPEG 1 Layer 3', tracks: 1, bytes: 40 },
+      ],
+    });
+  });
+
+  it('is all zeros on an empty library', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/library/stats',
+      headers: { authorization: `Bearer ${listenerToken}` },
+    });
+    assert.deepEqual(res.json(), { tracks: 0, seconds: 0, bytes: 0, formats: [] });
   });
 });

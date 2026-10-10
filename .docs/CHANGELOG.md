@@ -4,6 +4,23 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Library totals in the Full view (A52)
+
+- Backend: `GET /library/stats` (any signed-in user, guests too) returns `{ tracks, seconds, bytes, formats }` over
+  tracks whose file is present, formats largest share of disk first. A listener's totals leave out hidden tracks so
+  they match what they can browse; an admin's include them and add `hidden` and `missing` counts. New
+  `db/libraryStats.ts`.
+- Web: one readout line above the Full view's toolbar (`LibraryStatsLine`): tracks, total length, size on disk,
+  hidden and missing for an admin, then each format's track count and size. A line rather than stat cards, per
+  DESIGN.md. Keyed under `['tracks', …]`, so hide, delete and the other track mutations refresh it. `formatBytes`
+  moved from the Control Center into `lib/format.ts` and is shared; new `formatTotalLength`.
+- Verified: new tests in `routes/library.test.ts` (admin vs listener totals, hidden and missing handling, empty
+  library); route added to the classification table. `npm test` 386/386, backend `tsc --noEmit` clean, frontend
+  `npm run build` and `npm run lint` (no findings in the changed files). Rendered with `vite preview` in headless
+  Chromium with the API mocked, at 1280 px and 390 px: readout shows, wraps on the phone, no sideways scroll
+  (`scrollWidth` 375 at 390), no page errors. Not tried against the real backend: the local `brainless-app`
+  container runs an older build.
+
 ## 2026-10-11 — Android: skeleton loading on the browse screens
 
 - A59, matching the web: the first load of the Library's Songs, Albums and Artists tabs, album and artist detail, and

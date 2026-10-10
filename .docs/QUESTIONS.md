@@ -192,7 +192,8 @@ so nothing changes.
 ### A52 — The Library gets a stats summary *(was Q25)*
 **Answered:** 2026-10-10 · **Yes.** A library-wide summary: total tracks, total size on disk, format breakdown. Not built
 yet: no endpoint returns these today (the Control Center shows server health, disk and scan state, not library
-totals). `/manage` now lives inside the Library (A34), so that is where it goes.
+totals). `/manage` now lives inside the Library (A34), so that is where it goes. Built 2026-10-11: `GET /library/stats`
+and a readout line above the Full view's toolbar (CHANGELOG 2026-10-11).
 
 ### A51 — Removing a library root deletes its tracks *(was Q26)*
 **Answered:** 2026-10-10 · **Delete the track rows**, not mark them missing. This overrides what shipped:

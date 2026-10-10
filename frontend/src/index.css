@@ -2385,6 +2385,25 @@
     border-bottom: 1px solid var(--color-blue-800);
   }
 
+  /* The A52 readout: totals, then formats. Wraps on a phone; never scrolls sideways. */
+  .lf-stats {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 1.25rem;
+    flex: 0 0 auto;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    border-bottom: 1px solid var(--color-blue-800);
+  }
+
+  .lf-stats-formats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    font-size: 0.75rem;
+  }
+
   .lf-bulk {
     display: flex;
     align-items: center;

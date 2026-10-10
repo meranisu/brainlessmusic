@@ -36,6 +36,7 @@ const EXPECTED: Record<string, Gate> = {
   'PUT /me/playback-state': 'guest',
   'GET /search': 'guest',
   'POST /shuffle': 'guest',
+  'GET /library/stats': 'guest',
   'GET /tracks': 'guest',
   'GET /tracks/:id': 'guest',
   'GET /tracks/:id/cover': 'guest',

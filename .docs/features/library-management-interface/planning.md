@@ -224,7 +224,7 @@ size, format breakdown). Neither was asked for; building either speculatively
 would cut against this project's own "prefer surfacing over building" rule.
 **2026-10-10:** the owner wants both after all —
 [A54](../../QUESTIONS.md#a54--bulk-hide-and-delete-get-a-real-endpoint-was-q24) (bulk endpoint, built 2026-10-11) and
-[A52](../../QUESTIONS.md#a52--the-library-gets-a-stats-summary-was-q25) (stats, not built yet).
+[A52](../../QUESTIONS.md#a52--the-library-gets-a-stats-summary-was-q25) (stats, built 2026-10-11).
 
 Full detail in `.docs/CHANGELOG.md` (2026-09-15 entry) and
 `.docs/FUNCTIONLOG.md`.

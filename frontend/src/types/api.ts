@@ -154,6 +154,16 @@ export interface ControlCenterSnapshot {
   scanFailureCount: number;
 }
 
+/** `GET /library/stats` (A52). `hidden` and `missing` come only for an admin. */
+export interface LibraryStats {
+  tracks: number;
+  seconds: number;
+  bytes: number;
+  formats: { format: string | null; tracks: number; bytes: number }[];
+  hidden?: number;
+  missing?: number;
+}
+
 export interface LibraryRoot {
   id: number;
   path: string;

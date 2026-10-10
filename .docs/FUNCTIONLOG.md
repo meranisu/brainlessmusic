@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `getLibraryStats()` — `backend/src/db/libraryStats.ts`; route `GET /library/stats` in `backend/src/routes/library.ts`; `LibraryStatsLine()` — `frontend/src/components/LibraryStatsLine.tsx`; `formatBytes()`, `formatTotalLength()` — `frontend/src/lib/format.ts`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** library-wide totals and format breakdown for the Full view (A52).
+**Side effects:** none (reads `tracks`).
+**Before:** nothing returned library totals; `formatBytes` was private to `ControlCenterPage.tsx`.
+**After:** the Full view shows a one-line readout; the Control Center imports the shared `formatBytes`.
+
 **Function:** `Skeleton()`, `SkeletonBlock()`, `SkeletonListRows()`, `SkeletonAlbumGrid()`, `SkeletonAlbumHeader()`, `LoadStateContent()`, `PagedContent()` — `android/.../ui/common/Skeleton.kt`, `ui/common/LoadStateContent.kt`, `ui/library/LibraryScreen.kt`
 **Date:** 2026-10-11
 **How added:** new feature

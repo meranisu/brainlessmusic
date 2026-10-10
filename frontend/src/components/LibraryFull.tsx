@@ -20,6 +20,7 @@ import { usePlayer } from './PlayerBar';
 import { useToast } from './ToastProvider';
 import { TrackDetailDrawer } from './TrackDetailDrawer';
 import { TrackRowMenu } from './TrackRowMenu';
+import { LibraryStatsLine } from './LibraryStatsLine';
 import { Skeleton, SkeletonTrackRows } from './Skeleton';
 
 /** The server allows up to 200; the panel scrolls, so a smaller page keeps the
@@ -353,6 +354,7 @@ export function LibraryFull() {
 
   return (
     <div className="lf">
+      <LibraryStatsLine />
       <div className="lf-toolbar">
         <div className="relative min-w-48 flex-1">
           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-blue-400">⌕</span>

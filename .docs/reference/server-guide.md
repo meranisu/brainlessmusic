@@ -296,7 +296,7 @@ and a signed-in non-admin gets 403.
 **Paths below are relative to `/api`**, so `POST /auth/login` is `POST /api/auth/login`.
 
 - **Auth**: `POST /auth/register` (admin-only; open only while no users exist), `POST /auth/login`, `GET /auth/me`, `POST /auth/media-token`
-- **Library**: `POST /library/scan`, `GET /artists[/:id]`, `GET /albums[/:id]`, `GET /tracks`, `GET /search?q=`
+- **Library**: `POST /library/scan`, `GET /library/stats` (totals and formats; hidden and missing counts for an admin), `GET /artists[/:id]`, `GET /albums[/:id]`, `GET /tracks`, `GET /search?q=`
 - **Streaming**: `GET /tracks/:id/stream` (byte-range support, `?quality=low` for transcoded audio; takes a bearer header or a `?token=` media token so `<audio src>` can point straight at it)
 - **Waveform**: `GET /tracks/:id/waveform` (peak amplitudes for the player's scrubber; decoded from the file on first request and cached on the row)
 - **Cover art**: `GET /tracks/:id/cover`, `GET /albums/:id/cover` (`?size=thumb` for ~256px; bearer header or `?token=` media token, `ETag`/`If-None-Match` supported)
