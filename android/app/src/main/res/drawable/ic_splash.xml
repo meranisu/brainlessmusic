@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The splash icon: the launcher mark on its own navy disc. The disc is drawn here, not left to the system's
+     icon-background mask, because some skins (Xiaomi HyperOS) skip that mask and show a square.
+     Disc radius 36 = the area Android keeps (192 of 288dp); the mark is scaled to 0.8 so the dot clears it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="@color/splash_icon_background"
+        android:pathData="M54,18 a36,36 0 1 0 0.01,0 z" />
+    <!-- Same paths as ic_launcher_foreground.xml. -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.8"
+        android:scaleY="0.8">
+        <path
+            android:fillColor="#FF5400"
+            android:fillType="evenOdd"
+            android:pathData="M54,28 a26,26 0 1 0 0.01,0 z M35.5,50.5 a2.5,2.5 0 0 1 5,0 v7 a2.5,2.5 0 0 1 -5,0 z M43.5,43.5 a2.5,2.5 0 0 1 5,0 v21 a2.5,2.5 0 0 1 -5,0 z M51.5,37.5 a2.5,2.5 0 0 1 5,0 v33 a2.5,2.5 0 0 1 -5,0 z M59.5,45.5 a2.5,2.5 0 0 1 5,0 v17 a2.5,2.5 0 0 1 -5,0 z M67.5,51.5 a2.5,2.5 0 0 1 5,0 v5 a2.5,2.5 0 0 1 -5,0 z" />
+        <path
+            android:fillColor="#FDBA74"
+            android:pathData="M79,24 a5,5 0 1 0 0.01,0 z" />
+    </group>
+</vector>

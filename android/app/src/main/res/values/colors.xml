@@ -2,6 +2,6 @@
 <resources>
     <!-- The splash and pre-Compose window: Deep blue's light background (ui/theme/Color.kt). Dark: values-night. -->
     <color name="window_background">#DBEAFE</color>
-    <!-- The splash icon's disc, so the orange mark reads on the pale light-mode ground as on the launcher. -->
+    <!-- The splash icon's disc (drawable/ic_splash), so the orange mark reads on the pale light-mode ground as on the launcher. -->
     <color name="splash_icon_background">#080E28</color>
 </resources>

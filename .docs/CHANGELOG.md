@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-10 — Android: splash icon is round on every phone
+
+- The splash showed the icon on a navy **square** on a Xiaomi (HyperOS) phone: the theme left the navy disc to the
+  system's icon-background mask (`Theme.SplashScreen.IconBackground`), which that skin skips. The disc is now drawn into
+  a splash-only vector, `drawable/ic_splash.xml` (navy circle radius 36 of 108, the area Android keeps; mark scaled 0.8
+  so the peach dot is no longer clipped), and the theme is plain `Theme.SplashScreen` with no icon background colour.
+- `assembleDebug` passes; not yet checked on a device.
+
 ## 2026-10-10 — CI: Android debug build workflow
 
 - `.github/workflows/android-debug.yml`, run by hand (Actions tab or `gh workflow run android-debug.yml`): builds
