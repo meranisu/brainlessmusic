@@ -4,6 +4,24 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Contrast check of `blue-400` small text
+
+- Measured every theme's real tokens (the default theme overrides Tailwind's `blue-400` at `frontend/src/index.css:276`):
+  `blue-400` on a card (`blue-900`) is 4.62:1 in the default theme and 5.6:1 or more in the others, so the ~74 uses
+  on cards and on the page ground pass AA. It fails only on `blue-800`, in the default theme (3.93:1 solid).
+- Correction to the "Guest accounts on the web" entry below: its 3.93:1 figure was measured against Tailwind's stock
+  `blue-400`, not the app's. That entry's move of new hint text to `blue-300` was not needed; it stays, since it
+  also passes.
+- Searched for `blue-400` text sitting on a `blue-800` surface. Two real cases, both on hover only, where the row
+  turns translucent `blue-800` over the card: the track number in a playlist (`blue-800/40`, 4.34:1) and a
+  playlist's song count in Add to playlist (`blue-800/60`, 4.2:1). Both rows are now a `group` and the number turns
+  `blue-300` on hover. Everything else the search found was `blue-800` beside the text (a progress track, an icon
+  circle), or text that already turns white on hover.
+- A lighter default `blue-400` token was tried and dropped: no lightness up to 80% clears 4.5:1 on `blue-800` without
+  merging into `blue-300`.
+- Verified: `npm run build` clean (the built CSS has the `group-hover:text-blue-300` rule), `npm run lint` with no new
+  warnings. Not checked in a running app: the scratch server had no tracks to make a playlist row from.
+
 ## 2026-10-11 — Guest accounts on the web (A67-A70)
 
 - Guest card on the account select page: an optional name ("Leave it blank and you're Guest plus a number"), "I have

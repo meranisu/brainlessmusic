@@ -215,11 +215,11 @@ export function PlaylistDetailPage() {
                     setDragOverIndex(null);
                   }}
                   onClick={() => playQueue(queue, i)}
-                  className={`cursor-pointer transition-colors hover:bg-blue-800/40 ${
+                  className={`group cursor-pointer transition-colors hover:bg-blue-800/40 ${
                     dragOverIndex === i ? 'bg-orange-600/20' : ''
                   } ${dragIndex === i ? 'opacity-50' : ''}`}
                 >
-                  <td className="py-2.5 pl-4 tabular-nums text-blue-400">
+                  <td className="py-2.5 pl-4 tabular-nums text-blue-400 group-hover:text-blue-300">
                     <span className="cursor-grab select-none pr-1 text-blue-500" title="Drag to reorder">
                       ⠿
                     </span>
