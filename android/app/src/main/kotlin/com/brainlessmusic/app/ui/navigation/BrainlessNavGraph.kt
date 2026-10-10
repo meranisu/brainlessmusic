@@ -52,24 +52,24 @@ fun BrainlessNavGraph(
         composable(
             Routes.ARTIST_DETAIL,
             arguments = listOf(intArg(Routes.ARG_ARTIST_ID)),
-        ) {
+        ) { entry ->
             ArtistDetailScreen(
-                onBack = { navController.popBackStack() },
+                onBack = { navController.popFrom(entry) },
                 onAlbumClick = { albumId -> navController.navigate(Routes.albumDetail(albumId)) },
-                onOpenNowPlaying = { navController.navigate(Routes.NOW_PLAYING) },
+                onOpenNowPlaying = { navController.openNowPlaying() },
             )
         }
         composable(
             Routes.ALBUM_DETAIL,
             arguments = listOf(intArg(Routes.ARG_ALBUM_ID)),
-        ) {
+        ) { entry ->
             AlbumDetailScreen(
-                onBack = { navController.popBackStack() },
-                onOpenNowPlaying = { navController.navigate(Routes.NOW_PLAYING) },
+                onBack = { navController.popFrom(entry) },
+                onOpenNowPlaying = { navController.openNowPlaying() },
             )
         }
-        composable(Routes.NOW_PLAYING) {
-            NowPlayingScreen(onBack = { navController.popBackStack() })
+        composable(Routes.NOW_PLAYING) { entry ->
+            NowPlayingScreen(onBack = { navController.popFrom(entry) })
         }
         composable(Routes.SETTINGS) {
             SettingsScreen(

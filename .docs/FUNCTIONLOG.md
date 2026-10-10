@@ -4,6 +4,15 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `NavHostController.popFrom()`, `NavHostController.openNowPlaying()` — `android/.../ui/navigation/SafeNavigation.kt`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** back arrows can't pop past their own screen; the player opens once.
+**Side effects:** a back tap during a screen's enter animation is ignored (it isn't `RESUMED` yet).
+**Before:** player, album and artist back arrows called `popBackStack()` directly; the mini player and Play buttons
+pushed a new `now_playing` each tap.
+**After:** `popFrom(entry)` pops only while `entry` is `RESUMED`; `openNowPlaying()` navigates with `launchSingleTop`.
+
 **Function:** `RequireAuth()`, `Moved()`, `TitleScreenPage.acceptHandoff()` — `frontend/src/auth/RequireAuth.tsx`, `frontend/src/App.tsx`, `frontend/src/pages/TitleScreenPage.tsx`
 **Date:** 2026-10-10
 **How added:** new feature

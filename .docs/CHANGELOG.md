@@ -4,6 +4,15 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android: closing the player could leave a blank, untouchable screen
+
+- Owner found the trigger: leaving the Now Playing screen. Its close arrow (and the album and artist back arrows)
+  called `navController.popBackStack()` unguarded, so a double tap, or a tap while the exit animation was still
+  running, popped twice: the player *and* the Library under it. The NavHost was then empty, a blank screen that
+  ignored every touch until the app was killed. Back arrows now go through `popFrom(entry)`, which pops only while
+  that entry is the settled top screen (lifecycle `RESUMED`). Opening the player now uses `launchSingleTop`, so a
+  double tap on the mini player can't stack two players either. The splash fix in v0.3.4 stays; it was a separate path.
+
 ## 2026-10-10 — Web: signed out, the address bar shows just the domain (no more `/enter`)
 
 - Owner's pick, A57. Signed out, `RequireAuth` renders the title screen at `/` itself, and any other path redirects to
