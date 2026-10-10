@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android: setting for whether swiping the app away stops the music
+
+- A58, the owner's pick: a user option. Settings → Playback has a new "Keep playing when swiped away" switch, on by
+  default (unchanged behaviour). Off, `PlaybackService.onTaskRemoved` pauses and stops the service even while music
+  plays. The service mirrors the DataStore value into a field from its own coroutine scope (cancelled in
+  `onDestroy`), so `onTaskRemoved` reads it without blocking. The two Playback switches share a new private
+  `SwitchRow` in `SettingsScreen`. Verified by the CI debug build; not tried on a device here (none attached).
+
 ## 2026-10-11 — Android: closing the player could leave a blank, untouchable screen
 
 - Owner found the trigger: leaving the Now Playing screen. Its close arrow (and the album and artist back arrows)

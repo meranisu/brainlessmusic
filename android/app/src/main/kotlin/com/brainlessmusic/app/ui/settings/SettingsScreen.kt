@@ -79,6 +79,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val autoPlay by viewModel.autoPlayOnResume.collectAsStateWithLifecycle()
+    val keepPlaying by viewModel.keepPlayingWhenSwipedAway.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val colorTheme by viewModel.colorTheme.collectAsStateWithLifecycle()
     val seekStyle by viewModel.seekStyle.collectAsStateWithLifecycle()
@@ -167,28 +168,27 @@ fun SettingsScreen(
             }
 
             Section("Playback") {
-                // The whole row toggles, for a 48 dp target.
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .toggleable(value = autoPlay, role = Role.Switch, onValueChange = viewModel::setAutoPlayOnResume)
-                        .padding(16.dp),
-                ) {
-                    Column(Modifier.weight(1f).padding(end = 16.dp)) {
-                        Text("Auto-play on resume", style = MaterialTheme.typography.bodyLarge)
-                        Text(
-                            if (autoPlay) {
-                                "Opening the app carries on playing where you left off."
-                            } else {
-                                "Opening the app queues where you left off, paused. Tap play to continue."
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Switch(checked = autoPlay, onCheckedChange = null)
-                }
+                SwitchRow(
+                    title = "Auto-play on resume",
+                    detail = if (autoPlay) {
+                        "Opening the app carries on playing where you left off."
+                    } else {
+                        "Opening the app queues where you left off, paused. Tap play to continue."
+                    },
+                    checked = autoPlay,
+                    onCheckedChange = viewModel::setAutoPlayOnResume,
+                )
+                Divider()
+                SwitchRow(
+                    title = "Keep playing when swiped away",
+                    detail = if (keepPlaying) {
+                        "Closing the app from recent apps leaves the music on. Pause from the notification to stop."
+                    } else {
+                        "Closing the app from recent apps stops the music."
+                    },
+                    checked = keepPlaying,
+                    onCheckedChange = viewModel::setKeepPlayingWhenSwipedAway,
+                )
             }
 
             Section("Account") {
@@ -250,6 +250,28 @@ private fun Block(title: String, detail: String? = null, content: @Composable ()
             }
         }
         content()
+    }
+}
+
+/** The whole row toggles, for a 48 dp target. */
+@Composable
+private fun SwitchRow(title: String, detail: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange)
+            .padding(16.dp),
+    ) {
+        Column(Modifier.weight(1f).padding(end = 16.dp)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                detail,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(checked = checked, onCheckedChange = null)
     }
 }
 

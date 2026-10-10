@@ -9,8 +9,14 @@ import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.brainlessmusic.app.MainActivity
+import com.brainlessmusic.app.data.local.PlaybackSettings
 import com.google.common.util.concurrent.MoreExecutors
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import java.util.concurrent.Executors
 import javax.inject.Inject
@@ -25,8 +31,13 @@ class PlaybackService : MediaSessionService() {
 
     @Inject lateinit var controller: PlaybackController
     @Inject lateinit var okHttpClient: OkHttpClient
+    @Inject lateinit var settings: PlaybackSettings
 
     private var session: MediaSession? = null
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    // Mirrored from the setting so onTaskRemoved can read it without blocking; true matches the setting's default.
+    private var keepPlayingWhenSwipedAway = true
 
     override fun onCreate() {
         super.onCreate()
@@ -46,18 +57,21 @@ class PlaybackService : MediaSessionService() {
                 ),
             )
             .build()
+        scope.launch { settings.keepPlayingWhenSwipedAway.collect { keepPlayingWhenSwipedAway = it } }
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = session
 
-    /** Swiping the app away stops the service unless music is actually playing. */
+    /** Swiping the app away stops the service unless music is actually playing and the user chose to keep it (A58). */
     override fun onTaskRemoved(rootIntent: Intent?) {
-        if (controller.sessionPlayer.playWhenReady.not() || controller.sessionPlayer.mediaItemCount == 0) {
+        val player = controller.sessionPlayer
+        if (!keepPlayingWhenSwipedAway || !player.playWhenReady || player.mediaItemCount == 0) {
             pauseAllPlayersAndStopSelf()
         }
     }
 
     override fun onDestroy() {
+        scope.cancel()
         // Release the session but never the player: it belongs to PlaybackController.
         session?.release()
         session = null

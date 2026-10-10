@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `PlaybackService.onTaskRemoved()`, `PlaybackSettings.keepPlayingWhenSwipedAway` / `setKeepPlayingWhenSwipedAway()`, `SwitchRow()` — `android/.../playback/PlaybackService.kt`, `data/local/PlaybackSettings.kt`, `ui/settings/SettingsScreen.kt`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** let the user choose whether swiping the app away stops the music (A58).
+**Side effects:** DataStore write (`keep_playing_when_swiped_away`).
+**Before:** swiping away stopped the service only when paused or the queue was empty.
+**After:** it also stops when the setting is off (default on). `SwitchRow` is the shared Settings toggle row.
+
 **Function:** `NavHostController.popFrom()`, `NavHostController.openNowPlaying()` — `android/.../ui/navigation/SafeNavigation.kt`
 **Date:** 2026-10-11
 **How added:** new feature

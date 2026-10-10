@@ -28,6 +28,13 @@ class SettingsViewModel @Inject constructor(
     val autoPlayOnResume: StateFlow<Boolean> = settings.autoPlayOnResume
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    val keepPlayingWhenSwipedAway: StateFlow<Boolean> = settings.keepPlayingWhenSwipedAway
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    fun setKeepPlayingWhenSwipedAway(enabled: Boolean) {
+        viewModelScope.launch { settings.setKeepPlayingWhenSwipedAway(enabled) }
+    }
+
     val themeMode: StateFlow<ThemeMode> = appearance.themeMode
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ThemeMode.SYSTEM)
 

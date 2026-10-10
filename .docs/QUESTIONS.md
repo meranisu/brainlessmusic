@@ -119,6 +119,12 @@ is not lost.
 
 ## Answered
 
+### A58 — Swiping the app away: stop the music or keep it? *(was Q58)*
+**Answered:** 2026-10-11 · **Make it a user setting.** Settings → Playback → "Keep playing when swiped away", on by
+default (the old behaviour, like other music apps). Off: swiping the app away from recents pauses and stops the
+service. A friend had expected it to stop and needed force stop. Lives in `PlaybackSettings` and
+`PlaybackService.onTaskRemoved`.
+
 ### A57 — What should the address bar show when signed out? *(was Q57)*
 **Answered:** 2026-10-10 · **Just the domain.** Signed out, `RequireAuth` renders the title screen at `/` itself (any
 other path redirects to `/`); account select is `/login`. `/enter` and `/enter/profile` redirect there keeping `?code=`

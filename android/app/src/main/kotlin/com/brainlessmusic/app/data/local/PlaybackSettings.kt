@@ -22,6 +22,13 @@ class PlaybackSettings @Inject constructor(
         dataStore.edit { it[AUTO_PLAY_ON_RESUME_KEY] = enabled }
     }
 
+    /** Whether music carries on after the app is swiped away from recents. On by default, like other music apps (A58). */
+    val keepPlayingWhenSwipedAway: Flow<Boolean> = dataStore.data.map { it[KEEP_PLAYING_WHEN_SWIPED_KEY] ?: true }
+
+    suspend fun setKeepPlayingWhenSwipedAway(enabled: Boolean) {
+        dataStore.edit { it[KEEP_PLAYING_WHEN_SWIPED_KEY] = enabled }
+    }
+
     /** Remembered across launches so the next queue starts the way the last one was left. */
     val shuffle: Flow<Boolean> = dataStore.data.map { it[SHUFFLE_KEY] ?: false }
 
@@ -40,5 +47,6 @@ class PlaybackSettings @Inject constructor(
         val SHUFFLE_KEY = booleanPreferencesKey("shuffle")
         val REPEAT_KEY = intPreferencesKey("repeat_mode")
         val AUTO_PLAY_ON_RESUME_KEY = booleanPreferencesKey("auto_play_on_resume")
+        val KEEP_PLAYING_WHEN_SWIPED_KEY = booleanPreferencesKey("keep_playing_when_swiped_away")
     }
 }
