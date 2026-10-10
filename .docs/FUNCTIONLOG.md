@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `POST /library/roots`, `DELETE /library/roots/:id`, new `overlaps()` — `backend/src/routes/library.ts`; `collectGuestCodeRequest()` — `backend/src/db/guestCodeRequests.ts`; `POST /auth/guest/requests/:id/collect` — `backend/src/routes/auth.ts`; `GET /browse/shuffled` — `backend/src/routes/shuffledTracks.ts`; new `clearTheme()` — `frontend/src/lib/theme.ts`; `logout()` — `frontend/src/auth/AuthContext.tsx`; the request poll in `AccountSelectPage.tsx`; `librarySource()`, `nextChunk()`, `restore()` — `android/.../playback/PlaybackController.kt`; `QueueSource.Shuffled.albumRest`, new `AlbumRest`, `LibraryRepository.queueItem(album, track)` (moved from `AlbumDetailViewModel`) — `playback/QueueSource.kt`; `LibraryViewModel.songs`, `playSongsFrom(index, row)`, new `SongListRow` — `ui/library/LibraryViewModel.kt`; `QueueSheet` snackbar
+**Date:** 2026-10-11
+**How added:** bug fix
+**Purpose:** fixes R1, R2, R5, G1, S1, S2, F1 and P1-P3 from the 2026-10-11 reviews.
+**Side effects:** migration `0023` adds `guest_code_requests.collected_at`; logout removes `brainlessmusic.theme` from localStorage; Android makes one `GET /albums/:id` when an Albums-mode library queue starts from a song.
+**Before:** see each item in the 2026-10-11 "Review fixes" CHANGELOG entry.
+**After:** as described in that entry.
+
 **Function:** `GET /browse/shuffled` (`mode`, `asOf`) — `backend/src/routes/shuffledTracks.ts`; `seededWeightedOrder()`, `rediscoverWeight()`, `seededAlbumOrder()` — `backend/src/services/shuffle.ts`; `listPlayableAlbumPlaces()`, `lastPlayedByUser()` — `backend/src/db/shuffledTracks.ts`; `ShuffleMode`, `AlbumShuffle.order()` — `android/.../playback/`; `PlaybackController.cycleShuffle()` (was `toggleShuffle()`), `applyShuffleOrder()` (was `applySmartShuffle()`), `libraryShuffleMode()`, `appendItems()`, `playQueue()`; `QueueSource.Shuffled` (`mode`, `asOf`, `fresh()`); `PlaybackSettings.shuffleMode`; `LibraryViewModel.shuffleAll()`; the Now Playing shuffle button and queue sheet subtitle
 **Date:** 2026-10-11
 **How added:** new feature

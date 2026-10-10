@@ -4,6 +4,35 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Review fixes: overlapping library folders, lost guest approvals, shuffle order, theme on logout
+
+From the 2026-10-11 reviews (R1, R2, R5, G1, S1, S2, F1, P1-P3).
+- R1: `POST /library/roots` resolves the path and refuses a folder that is, contains, or sits inside a registered one
+  (409). Before, `/music/` passed as a second `/music`; the scan moved every track onto it, and removing either root
+  then deleted all the tracks with everyone's favorites, playlists and history.
+- R2: `DELETE /library/roots/:id` answers 409 while that root is being scanned, instead of leaving the scan writing to a
+  root that no longer exists.
+- G1: an approved guest request can be collected again with the same secret for 10 minutes after the first collect
+  (migration `0023`, `guest_code_requests.collected_at`). The repeat returns the same guest and code and does not add a
+  sign-in row. The web guest screen now waits for each poll before starting the next, so a later 404 can't overtake the
+  approval, and the "no longer open" message tells the guest to ask the admin for their code.
+- S2: `GET /browse/shuffled` answers 400, not 500, for an empty `asOf` or one past the `Date` range.
+- P1: `GET /browse/shuffled` orders the whole library before leaving out "less often" songs, in every mode. Marking or
+  unmarking a song mid-pass now shifts later songs by one place at most, instead of reshuffling the rest of the pass.
+- R5 (web): logout clears the stored theme and goes back to the default, so the next person on that browser doesn't get
+  the last one's theme saved to their profile. A 401 that signs out on its own (`apiClient.ts`) still keeps it.
+- S1 (Android): in Albums mode, tapping a song in Songs plays the rest of its album next, then the album shuffle, and
+  the song stays in the pass. Before, its album played later with a hole where the song was. Switching to Albums
+  mid-way through a library shuffle does the same for the current song.
+- F1 (Android): each Songs row carries the filter it was loaded under, and a tap plays from that list. A tap while a
+  new filter was loading used to play a different song.
+- P2 (Android): the queue's Undo snackbar times out (`SnackbarDuration.Long`) instead of staying up.
+- P3 (Android): Undo never puts a song at or before the current one, where it would not play.
+- Verified: backend `npm test` 421/421, with new tests for a trailing-slash, nested and parent folder, removing during a
+  scan, a repeat collect inside and after the window, `asOf=` and `asOf=9e12`, and a stable order across a mark and
+  unmark in all three modes. Frontend `npm run build` clean; `npm run lint` shows no new warnings. Android
+  `./gradlew compileDebugKotlin testDebugUnitTest` passed. Not run in a browser, on a phone or on smol.
+
 ## 2026-10-11 — Shuffle modes: Rediscover and Albums (A77); web app version 0.2.0
 
 - `GET /browse/shuffled` takes `mode=shuffle|rediscover|albums` (default `shuffle`, unchanged) and `asOf` (Unix

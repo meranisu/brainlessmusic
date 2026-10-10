@@ -1,5 +1,5 @@
 import { readdir, stat } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import type { FastifyPluginAsync } from 'fastify';
 import { listMissingTracks } from '../db/library.js';
 import { getLibraryStats } from '../db/libraryStats.js';
@@ -7,7 +7,6 @@ import {
   countTracksForRoot,
   deleteLibraryRoot,
   findLibraryRootById,
-  findLibraryRootByPath,
   insertLibraryRoot,
   listLibraryRoots,
 } from '../db/libraryRoots.js';
@@ -21,6 +20,15 @@ interface AddRootBody {
 
 /** Listings past this are truncated; virtual folders like `/proc` can return thousands of entries. */
 const MAX_BROWSE_ENTRIES = 500;
+
+/** Whether one folder is the other or inside it. Both must already be `resolve()`d. */
+function overlaps(a: string, b: string): boolean {
+  const inside = (child: string, parent: string) => {
+    const rel = relative(parent, child);
+    return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
+  };
+  return inside(a, b) || inside(b, a);
+}
 
 const libraryRoute: FastifyPluginAsync = async (fastify) => {
   // Admin-only: scanning loads the disk and registering a root exposes the container's files.
@@ -83,14 +91,23 @@ const libraryRoute: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.post<{ Body: AddRootBody }>('/library/roots', adminOnly, async (request, reply) => {
-    const path = request.body?.path?.trim();
+    const rawPath = request.body?.path?.trim();
     const label = request.body?.label?.trim() || null;
 
-    if (!path) {
+    if (!rawPath) {
       return reply.code(400).send({ error: 'path is required' });
     }
-    if (findLibraryRootByPath(path)) {
-      return reply.code(409).send({ error: 'This folder is already registered' });
+    // Resolved, so `/music/` can't pass as a second `/music`: the scan would move every track onto the new root, and
+    // removing either one would then delete them all with everyone's favorites and history (A51).
+    const path = resolve(rawPath);
+    const clash = listLibraryRoots().find((root) => overlaps(resolve(root.path), path));
+    if (clash) {
+      return reply.code(409).send({
+        error:
+          resolve(clash.path) === path
+            ? 'This folder is already registered'
+            : `This folder overlaps "${clash.path}", which is already registered`,
+      });
     }
 
     // Checked up front, so an unmounted drive gets a clear message instead of a forever-empty root.
@@ -144,6 +161,11 @@ const libraryRoute: FastifyPluginAsync = async (fastify) => {
     const root = findLibraryRootById(id);
     if (!Number.isInteger(id) || !root) {
       return reply.code(404).send({ error: 'Library root not found' });
+    }
+
+    // A scan still running would go on writing tracks under a root id that no longer exists.
+    if (isLibrarySyncRunning(id)) {
+      return reply.code(409).send({ error: 'This folder is being scanned; remove it when the scan ends' });
     }
 
     // Deletes the root's tracks from the database too (A51); the files stay on disk.

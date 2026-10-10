@@ -6,6 +6,7 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
+import androidx.paging.map
 import com.brainlessmusic.app.data.paging.OffsetPage
 import com.brainlessmusic.app.data.paging.OffsetPagingSource
 import com.brainlessmusic.app.data.remote.dto.AlbumSummaryDto
@@ -65,19 +66,19 @@ class LibraryViewModel @Inject constructor(
     /** What is typed in the Songs filter, as typed. */
     val songFilter: StateFlow<String> = _songFilter.asStateFlow()
 
-    /** The filter the songs list on screen was loaded with; `null` is the whole library. A tapped row's index is in it. */
-    private var shownSongFilter: String? = null
-
+    /**
+     * Each row carries the filter it was loaded under. The old list stays on screen until the new filter's first page
+     * arrives, so a tap in that gap must play from the list it was made in, not the one on its way.
+     */
     @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
-    val songs: Flow<PagingData<TrackSummaryDto>> = _songFilter
+    val songs: Flow<PagingData<SongListRow>> = _songFilter
         .map { it.trim().ifEmpty { null } }
         .distinctUntilChanged()
         .debounce { if (it == null) 0L else FILTER_DEBOUNCE_MS } // clearing is instant
         .flatMapLatest { filter ->
-            shownSongFilter = filter
             pager { offset, limit ->
                 libraryRepository.getTracksPage(offset, limit, filter).map { OffsetPage(it.tracks, it.total) }
-            }
+            }.map { page -> page.map { SongListRow(it, filter) } }
         }
         .cachedIn(viewModelScope)
 
@@ -125,9 +126,12 @@ class LibraryViewModel @Inject constructor(
 
     fun albumCoverUrl(albumId: Int): String? = libraryRepository.albumCoverUrl(albumId)
 
-    /** Queues the tapped song and the ones after it in the list shown (filtered or not), topping up as it runs down. */
-    fun playSongsFrom(index: Int) {
-        val filter = shownSongFilter
+    /**
+     * Queues the tapped song and the ones after it in the list it was tapped in ([row]'s filter), topping up as it runs
+     * down.
+     */
+    fun playSongsFrom(index: Int, row: SongListRow) {
+        val filter = row.filter
         viewModelScope.launch {
             libraryRepository.getTracksPage(index, QUEUE_FROM_TAP, filter).onSuccess { page ->
                 if (page.tracks.isEmpty()) return@onSuccess
@@ -174,3 +178,6 @@ class LibraryViewModel @Inject constructor(
             pagingSourceFactory = { OffsetPagingSource(fetch) },
         ).flow
 }
+
+/** A row of the Songs list, with the filter (`null`: none) the list it is in was loaded under. */
+data class SongListRow(val track: TrackSummaryDto, val filter: String?)

@@ -34,6 +34,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
@@ -140,6 +141,8 @@ fun QueueSheet(
                 message = if (lessOften) "You'll hear \"${removed.item.title}\" less often" else "Removed \"${removed.item.title}\"",
                 actionLabel = "Undo",
                 withDismissAction = false,
+                // With an action, M3 defaults to Indefinite, which left it over the bottom rows until something else happened.
+                duration = SnackbarDuration.Long,
             )
             if (result == SnackbarResult.ActionPerformed) onUndo(removed, lessOften)
         }

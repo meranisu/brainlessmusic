@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { apiClient, getToken, setToken } from '../lib/apiClient';
-import { applyTheme, hasLocalTheme, isTheme, loadTheme } from '../lib/theme';
+import { applyTheme, clearTheme, hasLocalTheme, isTheme, loadTheme } from '../lib/theme';
 import type { User } from '../types/api';
 
 interface AuthContextValue {
@@ -125,6 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   function logout() {
     setToken(null);
     setUser(null);
+    clearTheme();
   }
 
   return (

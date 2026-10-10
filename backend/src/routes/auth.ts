@@ -215,8 +215,9 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
 
       if (result.status !== 'approved') return reply.send({ status: result.status });
 
-      recordGuestCodeSignin(result.codeId, signinDetails(request, result.platform));
-      request.log.info(`Guest ${result.user.username} collected request ${id}`);
+      // A repeat is the same sign-in arriving again, not a new one.
+      if (!result.repeat) recordGuestCodeSignin(result.codeId, signinDetails(request, result.platform));
+      request.log.info(`Guest ${result.user.username} collected request ${id}${result.repeat ? ' again' : ''}`);
       return reply.send({
         status: 'approved',
         token: signToken({ id: result.user.id, username: result.user.username }),

@@ -234,11 +234,17 @@ export function AccountSelectPage() {
       }
     }
 
-    void poll();
-    const timer = window.setInterval(() => void poll(), REQUEST_POLL_MS);
+    // Each poll waits for the last one. With overlapping polls, a later poll's 404 (already collected) could arrive
+    // before the approval it followed (G1).
+    let timer: number | undefined;
+    async function loop() {
+      await poll();
+      if (!stopped) timer = window.setTimeout(() => void loop(), REQUEST_POLL_MS);
+    }
+    void loop();
     return () => {
       stopped = true;
-      window.clearInterval(timer);
+      window.clearTimeout(timer);
     };
     // `adoptToken` is a new function on every provider render; restarting the poll for that would reset its timer.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -734,7 +740,7 @@ export function AccountSelectPage() {
                           ? 'The admin turned this request down.'
                           : requestState === 'expired'
                             ? 'Nobody answered this request within a day.'
-                            : 'This request is no longer open.'}
+                            : 'This request is no longer open. If the admin already approved it, ask them for your code.'}
                     </p>
                     <button
                       type="button"

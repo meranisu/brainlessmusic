@@ -9,6 +9,8 @@ const MODES = ['shuffle', 'rediscover', 'albums'] as const;
 type Mode = (typeof MODES)[number];
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+/** The latest time a JS `Date` can hold, in seconds. */
+const MAX_DATE_SEC = 8.64e12;
 
 /** SQLite's `datetime('now')` shape, which `play_history.played_at` is stored in. */
 function toSqliteUtc(ms: number): string {
@@ -36,8 +38,10 @@ const shuffledTracksRoute: FastifyPluginAsync = async (fastify) => {
       if (!MODES.includes(mode)) {
         return reply.code(400).send({ error: `mode must be one of ${MODES.join(', ')}` });
       }
-      const asOfSec = request.query.asOf === undefined ? Date.now() / 1000 : Number(request.query.asOf);
-      if (!Number.isFinite(asOfSec) || asOfSec < 0) {
+      const rawAsOf = request.query.asOf;
+      const asOfSec = rawAsOf === undefined ? Date.now() / 1000 : rawAsOf.trim() === '' ? NaN : Number(rawAsOf);
+      // Past this a `Date` is invalid and `toSqliteUtc` would throw.
+      if (!Number.isFinite(asOfSec) || asOfSec < 0 || asOfSec > MAX_DATE_SEC) {
         return reply.code(400).send({ error: 'asOf must be a Unix time in seconds' });
       }
       const { limit, offset } = parsePagination(request.query);
@@ -46,9 +50,11 @@ const shuffledTracksRoute: FastifyPluginAsync = async (fastify) => {
       const lessOften = new Set(listLessOftenTrackIds(userId));
       const inThisPass = (id: number) => !lessOften.has(id) || keptThisPass(id, seed);
 
+      // The whole library is ordered first and filtered after, so marking or unmarking a song mid-pass moves later
+      // songs by one place at most. Filtering first would reshuffle everything for the same seed.
       let order: number[];
       if (mode === 'albums') {
-        order = seededAlbumOrder(listPlayableAlbumPlaces().filter((track) => inThisPass(track.id)), seed);
+        order = seededAlbumOrder(listPlayableAlbumPlaces(), seed);
       } else if (mode === 'rediscover') {
         const asOfMs = Math.floor(asOfSec) * 1000;
         const lastPlayed = lastPlayedByUser(userId, toSqliteUtc(asOfMs));
@@ -56,10 +62,11 @@ const shuffledTracksRoute: FastifyPluginAsync = async (fastify) => {
           const at = lastPlayed.get(id);
           return at === undefined ? null : (asOfMs - Date.parse(`${at.replace(' ', 'T')}Z`)) / DAY_MS;
         };
-        order = seededWeightedOrder(listPlayableTrackIds().filter(inThisPass), (id) => rediscoverWeight(daysAgo(id)), seed);
+        order = seededWeightedOrder(listPlayableTrackIds(), (id) => rediscoverWeight(daysAgo(id)), seed);
       } else {
-        order = seededShuffle(listPlayableTrackIds().filter(inThisPass), seed);
+        order = seededShuffle(listPlayableTrackIds(), seed);
       }
+      order = order.filter(inThisPass);
       const pageIds = order.slice(offset, offset + limit);
 
       // getTrackSummariesByIds does not keep the order it was given; put it back.

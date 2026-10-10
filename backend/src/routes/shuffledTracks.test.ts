@@ -3,6 +3,7 @@ import { after, before, beforeEach, describe, it } from 'node:test';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../app.js';
 import { db } from '../db/connection.js';
+import { keptThisPass, markLessOften, unmarkLessOften } from '../db/lessOften.js';
 import { upsertTrack } from '../db/library.js';
 import { insertLibraryRoot } from '../db/libraryRoots.js';
 import { insertUser } from '../db/users.js';
@@ -100,8 +101,33 @@ describe('GET /api/browse/shuffled', () => {
 
   it('rejects an unknown mode or a malformed asOf', async () => {
     addTracks(3);
-    for (const q of ['seed=1&mode=loud', 'seed=1&mode=rediscover&asOf=soon', 'seed=1&mode=rediscover&asOf=-5']) {
+    for (const q of [
+      'seed=1&mode=loud',
+      'seed=1&mode=rediscover&asOf=soon',
+      'seed=1&mode=rediscover&asOf=-5',
+      'seed=1&mode=rediscover&asOf=',
+      'seed=1&mode=rediscover&asOf=9e12',
+    ]) {
       assert.equal((await shuffled(q)).statusCode, 400, q);
+    }
+  });
+
+  it('marking or unmarking a song mid-pass leaves the rest of the order as it was', async () => {
+    const ids = addTracks(40);
+    const seed = 9;
+    // A song this seed leaves out once it is marked, so the mark changes the list.
+    const marked = ids.find((id) => !keptThisPass(id, seed))!;
+    assert.ok(marked !== undefined);
+    for (const mode of ['shuffle', 'rediscover', 'albums']) {
+      const order = async () =>
+        ((await shuffled(`seed=${seed}&mode=${mode}&asOf=1800000000&limit=50`)).json() as { tracks: { id: number }[] }).tracks.map(
+          (t) => t.id,
+        );
+      const before = await order();
+      markLessOften(userId, marked);
+      assert.deepEqual(await order(), before.filter((id) => id !== marked), mode);
+      unmarkLessOften(userId, marked);
+      assert.deepEqual(await order(), before, mode);
     }
   });
 

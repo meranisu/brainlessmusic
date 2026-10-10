@@ -255,6 +255,15 @@ class PlaybackController @Inject constructor(
                 return page.tracks.map(libraryRepository::queueItem)
             }
             is QueueSource.Shuffled -> {
+                current.albumRest?.let { rest ->
+                    // The album the queue started in comes first, then the pass. With nothing left of it (the last
+                    // track, or a failed fetch), the pass starts now.
+                    source = current.copy(albumRest = null)
+                    val album = libraryRepository.getAlbumDetail(rest.albumId).getOrNull()
+                    val after = album?.tracks?.indexOfFirst { it.id == rest.afterTrackId } ?: -1
+                    val items = album?.tracks?.drop(after + 1)?.map { libraryRepository.queueItem(album, it) }.orEmpty()
+                    return items.ifEmpty { nextChunk() }
+                }
                 val page = libraryRepository
                     .getShuffledPage(current.seed, current.mode.apiName ?: "shuffle", current.asOf, current.nextOffset, REFILL_CHUNK)
                     .getOrNull() ?: return null
@@ -397,7 +406,10 @@ class PlaybackController @Inject constructor(
         return RemovedEntry(item, position)
     }
 
-    /** Puts a [removeAt] entry back where it was in play order (as near as the queue now allows). */
+    /**
+     * Puts a [removeAt] entry back where it was in play order, as near as the queue now allows. Never at or before the
+     * current track: after a late Undo, songs have played since, and a spot behind the current one would never play.
+     */
     fun restore(entry: RemovedEntry) {
         val mediaItem = toMediaItem(entry.item) ?: return
         if (queue.isEmpty()) {
@@ -412,10 +424,11 @@ class PlaybackController @Inject constructor(
             // ExoPlayer shuffles the new item in at random; put it back at its old spot in the play order.
             val sequence = shuffledSequence().toMutableList()
             sequence.remove(at)
-            sequence.add(entry.playPosition.coerceIn(0, sequence.size), at)
+            val earliest = sequence.indexOf(player.currentMediaItemIndex) + 1
+            sequence.add(entry.playPosition.coerceIn(earliest, sequence.size), at)
             player.setShuffleOrder(DefaultShuffleOrder(sequence.toIntArray(), System.nanoTime()))
         } else {
-            val at = entry.playPosition.coerceIn(0, queue.size)
+            val at = entry.playPosition.coerceIn(player.currentMediaItemIndex + 1, queue.size)
             queue.add(at, entry.item)
             keys.add(at, nextKey++)
             player.addMediaItem(at, mediaItem)
@@ -457,7 +470,18 @@ class PlaybackController @Inject constructor(
     }
 
     /** The whole library shuffled the way [wantMode] says, without [from] in its first pass. */
-    private fun librarySource(from: QueueItem) = QueueSource.Shuffled.fresh(wantMode, skipTrackId = from.trackId)
+    /**
+     * The library pass that follows [from]. In Albums mode the rest of [from]'s album plays first and [from] stays in
+     * the pass, so its album later plays whole; leaving it out would leave a hole in that album.
+     */
+    private fun librarySource(from: QueueItem): QueueSource.Shuffled {
+        val albumId = from.albumId
+        return if (wantMode == ShuffleMode.ALBUMS && albumId != null) {
+            QueueSource.Shuffled.fresh(wantMode).copy(albumRest = AlbumRest(albumId, from.trackId))
+        } else {
+            QueueSource.Shuffled.fresh(wantMode, skipTrackId = from.trackId)
+        }
+    }
 
     /**
      * Shuffle turned on mid-way through the songs list in title order (the rest of that batch would only mix songs

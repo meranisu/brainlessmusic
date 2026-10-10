@@ -57,3 +57,16 @@ export function applyTheme(theme: ThemeId): void {
     // The theme still applies for this page; it just will not be remembered.
   }
 }
+
+/**
+ * Back to the default, with the browser's copy removed. Run on logout: the next person to sign in on this browser would
+ * otherwise get this theme, and `syncTheme` would save it to their profile.
+ */
+export function clearTheme(): void {
+  document.documentElement.dataset.theme = DEFAULT_THEME;
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Nothing was stored, then.
+  }
+}

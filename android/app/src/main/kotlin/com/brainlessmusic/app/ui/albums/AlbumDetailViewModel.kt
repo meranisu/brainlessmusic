@@ -9,7 +9,7 @@ import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.data.repository.toMessage
 import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.PlaybackUiState
-import com.brainlessmusic.app.playback.QueueItem
+import com.brainlessmusic.app.playback.queueItem
 import com.brainlessmusic.app.data.remote.dto.AlbumTrackDto
 import com.brainlessmusic.app.ui.common.LoadState
 import com.brainlessmusic.app.ui.navigation.Routes
@@ -68,23 +68,10 @@ class AlbumDetailViewModel @Inject constructor(
 
     /** Plays the whole album as the queue, starting at [index]. */
     fun playFrom(album: AlbumDetailDto, index: Int) {
-        playbackController.playQueue(album.tracks.map { queueItem(album, it) }, index)
+        playbackController.playQueue(album.tracks.map { libraryRepository.queueItem(album, it) }, index)
     }
 
     fun playNext(album: AlbumDetailDto, track: AlbumTrackDto) {
-        playbackController.playNext(queueItem(album, track))
+        playbackController.playNext(libraryRepository.queueItem(album, track))
     }
-
-    // An album's tracks carry no artist/album/cover of their own; the album supplies them.
-    private fun queueItem(album: AlbumDetailDto, track: AlbumTrackDto) = QueueItem(
-        trackId = track.id,
-        title = track.title,
-        artist = album.artistName,
-        album = album.title,
-        durationSec = track.duration,
-        coverUrl = libraryRepository.albumCoverUrl(album.id),
-        format = track.format,
-        albumId = album.id,
-        trackNumber = track.trackNumber,
-    )
 }

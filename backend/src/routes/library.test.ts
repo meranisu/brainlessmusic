@@ -10,6 +10,7 @@ import { findLibraryRootById, insertLibraryRoot } from '../db/libraryRoots.js';
 import { insertUser, setAdmin } from '../db/users.js';
 import { hashPassword } from '../services/password.js';
 import { signToken } from '../services/token.js';
+import { syncLibrary } from '../services/librarySync.js';
 import { makeTempDir, resetDatabase } from '../testing/harness.js';
 
 /** `GET /library/browse`, the folder picker behind Options' "Browse…". Admin gating is in `api.test.ts`. */
@@ -172,6 +173,29 @@ describe('POST /library/roots', () => {
       await temp.cleanup();
     }
   });
+
+  it('refuses the same folder with a trailing slash, and folders inside or around a registered one', async () => {
+    const temp = await makeTempDir('root-overlap');
+    try {
+      const inner = join(temp.path, 'inner');
+      await mkdir(inner);
+      await writeFile(join(inner, 'track.mp3'), 'not real audio bytes');
+      insertLibraryRoot(inner, null);
+
+      for (const path of [`${inner}/`, `${inner}/./`, join(inner, 'sub'), temp.path]) {
+        if (path.endsWith('sub')) await mkdir(path);
+        const res = await app.inject({
+          method: 'POST',
+          url: '/api/library/roots',
+          headers: { authorization: `Bearer ${adminToken}` },
+          payload: { path },
+        });
+        assert.equal(res.statusCode, 409, `${path}: ${res.body}`);
+      }
+    } finally {
+      await temp.cleanup();
+    }
+  });
 });
 
 describe('DELETE /library/roots/:id', () => {
@@ -213,6 +237,26 @@ describe('DELETE /library/roots/:id', () => {
       assert.deepEqual(listFavoriteTrackIdsForUser(adminId), [stays.id]);
       assert.ok(findTrackById(stays.id), 'another root\'s track must survive');
       await access(file); // throws if the file on disk was removed
+    } finally {
+      await temp.cleanup();
+    }
+  });
+
+  it('refuses to remove a folder while it is being scanned', async () => {
+    const temp = await makeTempDir('root-remove-busy');
+    try {
+      await writeFile(join(temp.path, 'track.mp3'), 'not real audio bytes');
+      const busy = insertLibraryRoot(temp.path, null);
+      const scan = syncLibrary(busy.path, busy.id, { scan: true });
+
+      const res = await app.inject({
+        method: 'DELETE',
+        url: `/api/library/roots/${busy.id}`,
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      await scan;
+      assert.equal(res.statusCode, 409);
+      assert.ok(findLibraryRootById(busy.id), 'the root must still be registered');
     } finally {
       await temp.cleanup();
     }

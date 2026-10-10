@@ -315,8 +315,9 @@ one seed in four, `db/lessOften.ts`). No extra index: every read is by `user_id`
 | `secret_hash` | TEXT | NOT NULL | — | SHA-256 hex of the secret the device polls with; the secret itself is never stored |
 | `ip` | TEXT | NULL | — | `clientIp()` of the request |
 | `created_at` | TEXT | NOT NULL | `datetime('now')` | pending requests older than 24 hours count as expired |
-| `status` | TEXT | NOT NULL | `'pending'` | CHECK: `pending`, `approved`, `denied`, `collected` (the device took its token; collected once) |
+| `status` | TEXT | NOT NULL | `'pending'` | CHECK: `pending`, `approved`, `denied`, `collected` (the device took its token) |
 | `code_id` | INTEGER | NULL | — | **FK → `guest_codes.id`**, `ON DELETE NO ACTION`; set on approve, nulled by `deleteGuestCode()` |
+| `collected_at` | TEXT | NULL | — | first collect. The same secret can collect again for 10 minutes after, in case that answer was lost (G1). NULL on rows collected before `0023`, which cannot be collected again. Added `0023` |
 
 **Indexes:** `idx_guest_code_requests_status` on `(status, created_at)`.
 **"Request a code" (A67):** `db/guestCodeRequests.ts`. Approving makes a code and binds it to a new guest in one transaction. Rows older than 7 days are deleted whenever a new request comes in.
@@ -475,6 +476,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | `0017_delete_guest_playlists_and_favorites.sql` | Data only, no schema change: deletes `playlist_tracks`, `playlists` and `favorites` rows owned by `kind = 'guest'` users, in one transaction |
 | `0019_create_less_often.sql` | `less_often` (composite PK), per-account "play less often" marks |
 | `0022_guest_accounts.sql` | `users.display_name`, `guest_code_requests` + `idx_guest_code_requests_status`, `guest_code_signins` + `idx_guest_code_signins_code` (A67-A70) |
+| `0023_guest_request_collected_at.sql` | `guest_code_requests.collected_at` — a lost collect can be repeated for 10 minutes (G1) |
 | `0021_add_play_history_ms_final.sql` | `play_history.ms_final`: marks plays whose `ms_played` is the real total (A62) |
 | `0020_add_user_theme.sql` | `users.theme` — the web theme follows the profile (A55) |
 
@@ -482,6 +484,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-10-11 | Migration `0023_guest_request_collected_at.sql` — `guest_code_requests.collected_at`. From the migration SQL and the test run | G1 (guest-accounts review): an approved request whose one answer never reached the device left a guest nobody could sign in as |
 | 2026-10-11 | Migration `0022_guest_accounts.sql` — `users.display_name`; new `guest_code_requests` and `guest_code_signins` sections; `guest_codes` notes and relationship rows updated. Written from the migration SQL and the test run, not introspected from the live DB | A67-A70: a guest code becomes a reusable key to one guest, with names, a request queue and a sign-in log |
 | 2026-10-11 | Migration `0021_add_play_history_ms_final.sql` — `play_history.ms_final`; column rows updated. From the migration SQL and the test run | A62: real listening time for the profile stats. `0020` is another change in progress, not this one |
 | 2026-10-11 | Migration `0020_add_user_theme.sql` — `users.theme`; column row and migration row. Written from the migration SQL and the test run, not introspected from the live DB | A55: the web theme is saved per profile instead of per browser |

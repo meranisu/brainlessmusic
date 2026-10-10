@@ -363,9 +363,9 @@ private fun SongsTab(viewModel: LibraryViewModel, listState: LazyListState) {
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(top = TabBarClearance, end = ListEndPadding),
             ) {
-                items(count = items.itemCount, key = items.itemKey { it.id }) { index ->
-                    val song = items[index]
-                    if (song != null) SongRow(song, onClick = { viewModel.playSongsFrom(index) }) else PlaceholderRow()
+                items(count = items.itemCount, key = items.itemKey { it.track.id }) { index ->
+                    val row = items[index]
+                    if (row != null) SongRow(row.track, onClick = { viewModel.playSongsFrom(index, row) }) else PlaceholderRow()
                 }
             }
             // The letters index the whole library, so they would point at the wrong rows of a filtered list; while

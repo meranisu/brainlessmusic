@@ -225,7 +225,15 @@ describe('requesting a code (A67)', () => {
     const handed = (await collect(id, secret)).json() as { status: string; token: string; code: string };
     assert.equal(handed.status, 'approved');
     assert.equal((await me(handed.token)).json().displayName, 'Mei');
-    assert.equal((await collect(id, secret)).statusCode, 404, 'handed over once');
+
+    // A lost answer can be collected again for a while (G1): same guest, same code, no second sign-in row.
+    const again = (await collect(id, secret)).json() as { status: string; token: string; code: string };
+    assert.equal(again.status, 'approved');
+    assert.equal(again.code, handed.code);
+    assert.equal((await me(again.token)).json().id, (await me(handed.token)).json().id);
+    assert.equal((await collect(id, 'not-the-secret')).statusCode, 404);
+    db.prepare("UPDATE guest_code_requests SET collected_at = datetime('now', '-11 minutes') WHERE id = ?").run(id);
+    assert.equal((await collect(id, secret)).statusCode, 404, 'not after the window');
 
     // The code works on the other device, as the same guest.
     const other = await enter({ code: handed.code });

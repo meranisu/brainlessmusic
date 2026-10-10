@@ -11,6 +11,8 @@ import { findUserById, insertGuest, type UserRow } from './users.js';
 
 /** A request nobody answered in this long stops counting, and the device is told it expired. */
 const PENDING_HOURS = 24;
+/** How long after the first collect the device can collect the same answer again, in case it never arrived (G1). */
+const RECOLLECT_MINUTES = 10;
 /** Rows of any status older than this are deleted when a new request comes in. */
 const KEEP_DAYS = 7;
 
@@ -23,6 +25,7 @@ export interface GuestCodeRequestRow {
   created_at: string;
   status: 'pending' | 'approved' | 'denied' | 'collected';
   code_id: number | null;
+  collected_at: string | null;
 }
 
 export interface PendingRequestListing {
@@ -108,11 +111,12 @@ export function cancelGuestCodeRequest(id: number, secret: unknown): boolean {
 
 export type CollectResult =
   | { status: 'pending' | 'denied' | 'expired' }
-  | { status: 'approved'; user: UserRow; code: string; codeId: number; platform: string | null };
+  | { status: 'approved'; user: UserRow; code: string; codeId: number; platform: string | null; repeat: boolean };
 
 /**
- * The device's poll. Undefined for an unknown id, a wrong secret, or a request already collected: all look the same
- * from outside. An approved request is handed over once, then marked `collected`.
+ * The device's poll. Undefined for an unknown id, a wrong secret, or a request collected over `RECOLLECT_MINUTES`
+ * ago: all look the same from outside. An approved request is marked `collected` when first handed over, and answers
+ * the same again until that window ends (`repeat: true`).
  */
 export const collectGuestCodeRequest = db.transaction((id: number, secret: unknown): CollectResult | undefined => {
   if (typeof secret !== 'string' || secret === '') return undefined;
@@ -124,7 +128,12 @@ export const collectGuestCodeRequest = db.transaction((id: number, secret: unkno
   const provided = Buffer.from(hashSecret(secret), 'hex');
   if (!timingSafeEqual(expected, provided)) return undefined;
 
-  if (row.status === 'collected') return undefined;
+  if (row.status === 'collected') {
+    const recent = db
+      .prepare(`SELECT 1 FROM guest_code_requests WHERE id = ? AND collected_at > datetime('now', '-${RECOLLECT_MINUTES} minutes')`)
+      .get(id);
+    if (!recent) return undefined;
+  }
   if (row.status === 'denied') return { status: 'denied' };
   if (row.status === 'pending') {
     const live = db.prepare(`SELECT 1 FROM guest_code_requests WHERE id = ? AND ${PENDING}`).get(id);
@@ -140,6 +149,9 @@ export const collectGuestCodeRequest = db.transaction((id: number, secret: unkno
   const user = code?.used_by ? findUserById(code.used_by) : undefined;
   if (!code || !user) return { status: 'expired' };
 
-  db.prepare("UPDATE guest_code_requests SET status = 'collected' WHERE id = ?").run(id);
-  return { status: 'approved', user, code: code.code, codeId: row.code_id!, platform: row.platform };
+  const repeat = row.status === 'collected';
+  if (!repeat) {
+    db.prepare("UPDATE guest_code_requests SET status = 'collected', collected_at = datetime('now') WHERE id = ?").run(id);
+  }
+  return { status: 'approved', user, code: code.code, codeId: row.code_id!, platform: row.platform, repeat };
 });
