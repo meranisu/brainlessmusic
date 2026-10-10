@@ -3,7 +3,11 @@ import { db } from './connection.js';
 export type LetterScope = 'tracks' | 'albums' | 'artists';
 
 export interface LetterEntry {
-  /** `#` (digits, punctuation, anything that sorts before "a"), `A`–`Z`, or `…` (whatever sorts after "z": accents, CJK, kana). */
+  /**
+   * `#` (digits, punctuation, anything that sorts before "a"), `A`–`Z`, then one entry per script the listing has
+   * (`À` accented Latin, `Ω` Greek, `Я` Cyrillic, `あ` hiragana, `ア` katakana, `漢` CJK, `한` Hangul) and `…` for any
+   * other run above "z". `#` and A–Z are always present; the entries after Z only when non-empty.
+   */
   letter: string;
   /** Index of the bucket's first row in the default listing (where it would be, if empty). */
   offset: number;
@@ -17,7 +21,8 @@ export interface LetterIndex {
 
 /**
  * Where each letter starts in a listing. `COLLATE NOCASE` folds only ASCII, so buckets follow the sort: below "a",
- * a–z, then above "z" (non-ASCII, so Japanese sits after Z). Filters must match the default listings.
+ * a–z, then non-ASCII by code point, one bucket per script (so Japanese sits after Z). Filters must match the default
+ * listings.
  */
 const SOURCES: Record<LetterScope, { from: string; where: string; column: string }> = {
   tracks: { from: 'tracks t', where: 't.missing_since IS NULL AND t.hidden = 0', column: 't.title' },
@@ -33,22 +38,47 @@ const SOURCES: Record<LetterScope, { from: string; where: string; column: string
   },
 };
 
-/** a..z, then "{", the first character above "z". */
-const BOUNDARIES = [...'abcdefghijklmnopqrstuvwxyz', '{'];
-const LETTERS = ['#', ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ', '…'];
+/**
+ * Where each bucket after "#" starts, in sort order. Above "z" the sort is by code point, so each script is one
+ * unbroken run starting at its block's first code point; the gaps between them are `…`, which can appear more than
+ * once (symbols after "z", and, say, Thai between Cyrillic and kana).
+ */
+const BUCKETS: { letter: string; from: string }[] = [
+  ...[...'abcdefghijklmnopqrstuvwxyz'].map((c) => ({ letter: c.toUpperCase(), from: c })),
+  { letter: '…', from: '{' },
+  { letter: 'À', from: '\u00C0' }, // Latin-1 Supplement letters and Latin Extended-A/B
+  { letter: '…', from: '\u0250' },
+  { letter: 'Ω', from: '\u0370' }, // Greek
+  { letter: 'Я', from: '\u0400' }, // Cyrillic
+  { letter: '…', from: '\u0530' },
+  { letter: 'あ', from: '\u3040' }, // Hiragana
+  { letter: 'ア', from: '\u30A0' }, // Katakana
+  { letter: '…', from: '\u3100' },
+  { letter: '漢', from: '\u4E00' }, // CJK Unified Ideographs
+  { letter: '…', from: '\uA000' },
+  { letter: '한', from: '\uAC00' }, // Hangul syllables
+  { letter: '…', from: '\uD7B0' },
+];
+/** The first bucket that is dropped when empty: everything after Z. */
+const FIRST_OPTIONAL = 27;
 
 export function getLetterIndex(scope: LetterScope): LetterIndex {
   const { from, where, column } = SOURCES[scope];
-  // One scan: how many rows sort below each boundary.
-  const sums = BOUNDARIES.map((b, i) => `COALESCE(SUM(${column} COLLATE NOCASE < '${b}'), 0) AS b${i}`).join(', ');
-  const row = db.prepare(`SELECT COUNT(*) AS total, ${sums} FROM ${from} WHERE ${where}`).get() as Record<string, number>;
+  // One scan: how many rows sort below each bucket's start. NOCASE then a byte compare keeps code point order.
+  const sums = BUCKETS.map((_, i) => `COALESCE(SUM(${column} COLLATE NOCASE < ?), 0) AS b${i}`).join(', ');
+  const row = db
+    .prepare(`SELECT COUNT(*) AS total, ${sums} FROM ${from} WHERE ${where}`)
+    .get(...BUCKETS.map((b) => b.from)) as Record<string, number>;
 
   const total = row.total;
-  // below[i] = rows sorting before LETTERS[i]'s first row; the last bucket runs to the end.
-  const starts = [0, ...BOUNDARIES.map((_, i) => row[`b${i}`])];
-  const letters = LETTERS.map((letter, i) => {
-    const end = i + 1 < starts.length ? starts[i + 1] : total;
-    return { letter, offset: starts[i], count: end - starts[i] };
-  });
+  // starts[i] = rows sorting before entry i's first row; the last bucket runs to the end.
+  const labels = ['#', ...BUCKETS.map((b) => b.letter)];
+  const starts = [0, ...BUCKETS.map((_, i) => row[`b${i}`])];
+  const letters = labels
+    .map((letter, i) => {
+      const end = i + 1 < starts.length ? starts[i + 1] : total;
+      return { letter, offset: starts[i], count: end - starts[i] };
+    })
+    .filter((entry, i) => i < FIRST_OPTIONAL || entry.count > 0);
   return { total, letters };
 }

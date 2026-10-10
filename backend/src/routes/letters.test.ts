@@ -34,7 +34,7 @@ beforeEach(() => {
   token = signToken({ id: user.id, username: user.username });
 
   const rootId = insertLibraryRoot('/library', null).id;
-  const titles = ['1 Game', '/dev/null', '"burial"', 'Apple', 'apple pie', 'Banana', 'Zed', 'かめりあ', 'Émile'];
+  const titles = ['1 Game', '/dev/null', '"burial"', 'Apple', 'apple pie', 'Banana', 'Zed', 'かめりあ', 'Émile', '~tilde', '東京', 'カメラ', '서울', 'Ελλάδα', 'Москва'];
   titles.forEach((title, i) => {
     upsertTrack({
       path: `/library/${i}.mp3`,
@@ -70,12 +70,11 @@ describe('GET /api/browse/letters', () => {
     assert.equal((await app.inject({ method: 'GET', url: '/api/browse/letters', headers: { authorization: `Bearer ${token}` } })).statusCode, 400);
   });
 
-  it('buckets tracks on the list order: below a, a–z, then everything above z', async () => {
+  it('buckets tracks on the list order: below a, a–z, then one bucket per script above z', async () => {
     const body = (await letters('tracks')).json() as { total: number; letters: Entry[] };
     const by = new Map(body.letters.map((e) => [e.letter, e]));
 
-    assert.equal(body.total, 9);
-    assert.equal(body.letters.length, 28);
+    assert.equal(body.total, 15);
     // 1 Game, /dev/null and "burial": none starts with a letter.
     assert.deepEqual(by.get('#'), { letter: '#', offset: 0, count: 3 });
     assert.deepEqual(by.get('A'), { letter: 'A', offset: 3, count: 2 });
@@ -83,8 +82,20 @@ describe('GET /api/browse/letters', () => {
     // An empty letter still says where it would start: the next row that exists.
     assert.deepEqual(by.get('C'), { letter: 'C', offset: 6, count: 0 });
     assert.deepEqual(by.get('Z'), { letter: 'Z', offset: 6, count: 1 });
-    // Kana and an accented capital sort after "z" under NOCASE, which folds only ASCII.
-    assert.deepEqual(by.get('…'), { letter: '…', offset: 7, count: 2 });
+    // NOCASE folds only ASCII, so the rest sorts after "z" by code point, one script after another.
+    assert.deepEqual(
+      body.letters.slice(27).map((e) => [e.letter, e.offset, e.count]),
+      [
+        ['…', 7, 1],
+        ['À', 8, 1],
+        ['Ω', 9, 1],
+        ['Я', 10, 1],
+        ['あ', 11, 1],
+        ['ア', 12, 1],
+        ['漢', 13, 1],
+        ['한', 14, 1],
+      ],
+    );
     assert.equal(body.letters.reduce((n, e) => n + e.count, 0), body.total);
   });
 
@@ -102,8 +113,8 @@ describe('GET /api/browse/letters', () => {
       const landed = listing.tracks[entry.offset].title;
       const first = landed.charAt(0);
       if (entry.letter === '#') assert.ok(first.toLowerCase() < 'a', `# landed on ${landed}`);
-      else if (entry.letter === '…') assert.ok(first > 'z', `… landed on ${landed}`);
-      else assert.equal(first.toUpperCase(), entry.letter, `${entry.letter} landed on ${landed}`);
+      else if (/^[A-Z]$/.test(entry.letter)) assert.equal(first.toUpperCase(), entry.letter, `${entry.letter} landed on ${landed}`);
+      else assert.ok(first > 'z', `${entry.letter} landed on ${landed}`);
     }
   });
 
@@ -113,8 +124,8 @@ describe('GET /api/browse/letters', () => {
     assert.equal(albums.letters.find((e) => e.letter === 'A')?.count, 1);
 
     const artists = (await letters('artists')).json() as { total: number; letters: Entry[] };
-    assert.equal(artists.total, 9);
-    assert.equal(artists.letters.reduce((n, e) => n + e.count, 0), 9);
+    assert.equal(artists.total, 15);
+    assert.equal(artists.letters.reduce((n, e) => n + e.count, 0), 15);
   });
 
   it('handles an empty library', async () => {
@@ -123,6 +134,8 @@ describe('GET /api/browse/letters', () => {
     const bob = signToken({ id: user.id, username: user.username });
     const body = (await letters('tracks', bob)).json() as { total: number; letters: Entry[] };
     assert.equal(body.total, 0);
+    // # and A–Z stay, so the rail keeps its shape; the script entries are left out.
+    assert.equal(body.letters.length, 27);
     assert.ok(body.letters.every((e) => e.offset === 0 && e.count === 0));
   });
 });

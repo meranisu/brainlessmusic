@@ -4,6 +4,15 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `getLetterIndex()` — `backend/src/db/letterIndex.ts`
+**Date:** 2026-10-10
+**How added:** materially changed
+**Purpose:** where each rail entry starts in a listing, now with one entry per script after Z.
+**Side effects:** none; one read-only scan per call, as before.
+**Before:** always 28 entries: `#`, A–Z, `…` (everything above "z").
+**After:** `#` and A–Z always, then `À`/`Ω`/`Я`/`あ`/`ア`/`漢`/`한`/`…` buckets (from the `BUCKETS` table) only when
+non-empty. Boundaries are passed as parameters.
+
 **Function:** `LibraryViewModel.songs`, `songFilter`, `setSongFilter()`, `reloadLetters()`, `playSongsFrom()` — `android/app/src/main/kotlin/com/brainlessmusic/app/ui/library/LibraryViewModel.kt`
 **Date:** 2026-10-10
 **How added:** new feature

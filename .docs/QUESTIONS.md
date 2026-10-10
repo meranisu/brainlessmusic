@@ -303,6 +303,13 @@ until it has been run on smol once.
 
 ## Answered
 
+### A46 — How should the A–Z rail cover non-Latin titles? *(was Q46)*
+**Answered:** 2026-10-10 · **One entry per script the library has.** `getLetterIndex` (`backend/src/db/letterIndex.ts`)
+splits the old `…` bucket into `À` (accented Latin), `Ω` (Greek), `Я` (Cyrillic), `あ` (hiragana), `ア` (katakana),
+`漢` (CJK) and `한` (Hangul), with `…` for any other run above "z". `#` and A–Z always show; the rest only when
+non-empty. Not done: splitting kana by row or Hangul by first consonant (both possible later the same way), and sorting
+kanji by reading (needs a reading per title and a migration).
+
 ### A45 — What colour is text on the accent? *(was Q45)*
 **Answered:** 2026-10-10 · **Shift it.** Text on an accent fill is now `--color-on-accent` (the theme's `blue-950`)
 instead of white, and the default theme's `orange-600` is 2.9 lightness points lighter so dark text clears 4.5:1 there

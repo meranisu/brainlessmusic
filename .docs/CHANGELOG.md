@@ -4,6 +4,17 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-10 — Letter rail: one entry per script instead of one `…` for everything non-Latin
+
+- `GET /api/browse/letters` (`backend/src/db/letterIndex.ts`) now splits what sorts after "z" by script: `À`
+  (accented Latin), `Ω` (Greek), `Я` (Cyrillic), `あ` (hiragana), `ア` (katakana), `漢` (CJK) and `한` (Hangul), with
+  `…` for anything else (symbols like `~`, Thai, emoji…), which can appear more than once. The lists sort by code point
+  above "z", so each script is one unbroken run, and the same single scan counts it (boundaries are now bound
+  parameters). `#` and A–Z are always returned; the entries after Z only when they have rows, so the rail only shows
+  the scripts your library has. No Android change: the rail draws whatever labels it gets. Owner's pick, A46.
+- `letters.test.ts` covers every script bucket, that each one's offset lands on its first row in `GET /tracks`, and
+  that an empty library returns just `#` and A–Z.
+
 ## 2026-10-10 — Android: debug builds get their own launcher icon
 
 - `src/debug/res/drawable/ic_launcher_background.xml` overrides the release background for debug builds only:

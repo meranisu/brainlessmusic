@@ -90,7 +90,8 @@ letter shown while a finger is down and the current letter highlighted as you sc
   endpoint `GET /api/browse/letters?scope=tracks|albums|artists` (backend `db/letterIndex.ts`, `routes/letters.ts`) returns the
   start offset of `#`, `A`–`Z` and `…`. Buckets follow the sort's real boundaries (SQLite `NOCASE` folds ASCII only), so kana,
   CJK and accented titles sit under `…` after Z, not under `#` as on the web rail. Letters with nothing under them are dimmed
-  and jump to where they would be.
+  and jump to where they would be. *(2026-10-10, A46: `…` is now split into one entry per script the list has — `À`,
+  `Ω`, `Я`, `あ`, `ア`, `漢`, `한` — with `…` left for any other run; entries after Z appear only when non-empty.)*
 - **The lists moved to Paging 3** (`data/paging/OffsetPagingSource.kt`): each list learns its full length from its first page
   and shows placeholders for the rest, so the rail can scroll to row 4,000 without loading the 3,999 before it. Pages are 100
   rows (server cap 200). This also fixes a real bug: the Artists tab used to load only the **first 200 artists** and stop.
