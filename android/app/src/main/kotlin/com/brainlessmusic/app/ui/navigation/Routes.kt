@@ -8,6 +8,7 @@ object Routes {
     const val ARTISTS = "artists"
     const val SEARCH = "search"
     const val SETTINGS = "settings"
+    const val YOU = "you"
 
     // Detail screens: no bottom nav, a back arrow instead.
     const val ARTIST_DETAIL = "artist/{artistId}"
@@ -15,12 +16,19 @@ object Routes {
 
     const val NOW_PLAYING = "now_playing"
     const val SETTINGS_PAGE = "settings/{page}"
+    const val PLAYLISTS = "playlists"
+    const val PLAYLIST_DETAIL = "playlist/{playlistId}"
+    const val SONG_LIST = "you/{list}"
 
     const val ARG_ARTIST_ID = "artistId"
     const val ARG_ALBUM_ID = "albumId"
     const val ARG_SETTINGS_PAGE = "page"
+    const val ARG_PLAYLIST_ID = "playlistId"
+    const val ARG_SONG_LIST = "list"
 
     fun artistDetail(id: Int) = "artist/$id"
     fun albumDetail(id: Int) = "album/$id"
     fun settingsPage(page: String) = "settings/$page"
+    fun playlistDetail(id: Int) = "playlist/$id"
+    fun songList(list: String) = "you/$list"
 }

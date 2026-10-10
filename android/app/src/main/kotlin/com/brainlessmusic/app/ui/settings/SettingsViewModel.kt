@@ -9,6 +9,7 @@ import com.brainlessmusic.app.data.local.SeekStyle
 import com.brainlessmusic.app.data.local.ThemeMode
 import com.brainlessmusic.app.data.repository.AuthRepository
 import com.brainlessmusic.app.data.repository.LibraryRepository
+import com.brainlessmusic.app.data.repository.ProfileRepository
 import com.brainlessmusic.app.playback.PlaybackController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -25,6 +26,7 @@ class SettingsViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val playbackController: PlaybackController,
     private val libraryRepository: LibraryRepository,
+    private val profileRepository: ProfileRepository,
 ) : ViewModel() {
 
     /** `null` until the reset is tried, then whether it worked. */
@@ -82,6 +84,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             playbackController.stop()
             authRepository.logout()
+            profileRepository.clear()
             onLoggedOut()
         }
     }

@@ -34,7 +34,7 @@ part of a year.
 |---|---|---|---|
 | 1. Plan | This doc; owner answers Q61–Q66 | Done | [Phase 1](#phase-1-plan) |
 | 2. Stats backend | Per-user stats endpoint; full listening time | Done (web reporting in Phase 7) | [Phase 2](#phase-2-stats-backend) |
-| 3. Profile screen | Header, top songs/artists, liked, less often, playlists | Not started | [Phase 3](#phase-3-profile-screen) |
+| 3. Profile screen | Header, top songs/artists, liked, less often, playlists | Built (CI); not tried on a phone | [Phase 3](#phase-3-profile-screen) |
 | 4. Genres | Genre column, scanner, re-scan, genre stats and the Genres tab | Not started | [Phase 4](#phase-4-genres) |
 | 5. Your mix | Curated mix from listening habits | Not started | [Phase 5](#phase-5-your-mix) |
 | 6. Wrapped | Yearly recap as a swipeable story | Not started | [Phase 6](#phase-6-wrapped) |
@@ -67,15 +67,15 @@ Phases 2 and 3 are the core; 4–7 can follow in any order.
 
 ## Phase 3: Profile screen
 
-- [ ] A fourth bottom tab, "You" (A61), next to Library, Search and Settings.
-- [ ] Header: username, member since, total plays and hours.
-- [ ] Top songs and top artists, with a range switch (week / month / year / all time). Each song shows plays and time.
-- [ ] Liked songs: list and play. Plus a heart on Now Playing and in the song menu (A65).
-- [ ] Songs you hear less: list, with undo per song (replaces needing the queue to see them).
-- [ ] Playlists (A65): list and play, create, rename, delete, add a song (song menu and Now Playing), remove and
-      reorder songs. All over the existing `/playlists` endpoints, reorder included (`PATCH /playlists/:id/tracks`,
+- [x] A fourth bottom tab, "You" (A61), next to Library, Search and Settings.
+- [x] Header: username, member since, total plays and hours.
+- [x] Top songs and top artists, with a range switch (week / month / year / all time). Each song shows plays and time.
+- [x] Liked songs: list and play. Plus a heart on Now Playing and in the song menu (A65).
+- [x] Songs you hear less: list, with undo per song (replaces needing the queue to see them).
+- [x] Playlists (A65): list and play, create, rename, delete, add a song (song menu and Now Playing), remove and
+      reorder songs. All over the existing `/playlists` endpoints, reorder included (`PATCH /playlists/:id/tracks/reorder`,
       `routes/playlists.ts:168`).
-- [ ] Empty states for a new account, and the guest line.
+- [x] Empty states for a new account, and the guest line.
 
 ## Phase 4: Genres
 
@@ -121,4 +121,5 @@ Phases 2 and 3 are the core; 4–7 can follow in any order.
 | 2026-10-11 | Plan | Created | Owner's idea | Yes |
 | 2026-10-11 | All | A61–A64 answered, phases updated | Owner took every recommendation | Yes |
 | 2026-10-11 | 2 | Built: `/me/stats`, `/me/stats/tracks/:id`, `/me/less-often`, `PATCH /me/history/:id`, migration `0021` (`ms_final`) | Phase 2 | Yes; web reporting moved to Phase 7 |
+| 2026-10-11 | 3 | Built: You tab, likes, playlists list and page, add-to-playlist sheet, liked and less-often lists. "Song menu" means the album page's; Library song rows have no menu yet | Phase 3 | Yes |
 | 2026-10-11 | 3, 7 | A65: Android edits playlists; A66: web gets a Phase 7, walkthrough moves to 8 | Owner's answers | Yes |

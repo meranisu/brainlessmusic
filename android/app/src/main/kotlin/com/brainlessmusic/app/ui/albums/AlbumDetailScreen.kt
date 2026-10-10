@@ -48,6 +48,8 @@ import com.brainlessmusic.app.ui.common.SkeletonLead
 import com.brainlessmusic.app.ui.common.SkeletonListRows
 import com.brainlessmusic.app.ui.common.formatDuration
 import com.brainlessmusic.app.ui.playback.MiniPlayer
+import com.brainlessmusic.app.ui.profile.AddToPlaylistSheet
+import com.brainlessmusic.app.ui.profile.SongActionsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,8 +57,14 @@ fun AlbumDetailScreen(
     onBack: () -> Unit,
     onOpenNowPlaying: () -> Unit,
     viewModel: AlbumDetailViewModel = hiltViewModel(),
+    songActions: SongActionsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val liked by songActions.likedIds.collectAsStateWithLifecycle()
+    var addingToPlaylist by remember { mutableStateOf<AlbumTrackDto?>(null) }
+    addingToPlaylist?.let { track ->
+        AddToPlaylistSheet(track.id, track.title, onDismiss = { addingToPlaylist = null }, viewModel = songActions)
+    }
     val playback by viewModel.playback.collectAsStateWithLifecycle()
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
     val title = when (val s = state) {
@@ -97,6 +105,10 @@ fun AlbumDetailScreen(
                             isCurrent = playback.current?.trackId == track.id,
                             onClick = { viewModel.playFrom(album, index) },
                             onPlayNext = { viewModel.playNext(album, track) },
+                            // Accounts only (A65); guests keep just "Play next".
+                            liked = if (songActions.canEdit) track.id in liked else null,
+                            onToggleLike = { songActions.toggleLike(track.id) },
+                            onAddToPlaylist = { addingToPlaylist = track },
                         )
                     }
                 }
@@ -142,6 +154,9 @@ private fun TrackRow(
     isCurrent: Boolean,
     onClick: () -> Unit,
     onPlayNext: () -> Unit,
+    liked: Boolean?,
+    onToggleLike: () -> Unit,
+    onAddToPlaylist: () -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     ListItem(
@@ -174,6 +189,22 @@ private fun TrackRow(
                                 onPlayNext()
                             },
                         )
+                        if (liked != null) {
+                            DropdownMenuItem(
+                                text = { Text(if (liked) "Unlike" else "Like") },
+                                onClick = {
+                                    menuOpen = false
+                                    onToggleLike()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Add to playlist") },
+                                onClick = {
+                                    menuOpen = false
+                                    onAddToPlaylist()
+                                },
+                            )
+                        }
                     }
                 }
             }

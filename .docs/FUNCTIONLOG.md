@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `YouScreen()`, `SongListScreen()`, `PlaylistsScreen()`, `PlaylistDetailScreen()`, `AddToPlaylistSheet()`, `LikeButton()`; `ProfileRepository` — `android/.../ui/profile/`, `data/repository/ProfileRepository.kt`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** the Android You tab (A61), likes and playlist editing (A65).
+**Side effects:** favorites, less-often and playlist writes through the existing endpoints.
+**Before:** nothing on Android showed stats, liked songs or playlists, or could like a song or edit a playlist.
+**After:** all of the above; `ProfileRepository` holds the liked-id set shared by every screen.
+
 **Function:** `checkBoundary()`, `startNext()`, `handleEnded()`, `preloadSpare()`, `spareHolds()`, `transitionKind()`, `rampTo()`, `retireSpare()`, `jumpTo()`, `resumePlayback()`, `pausePlayback()`, `replanBoundary()` — `frontend/src/components/PlayerBar.tsx`; `loadTransitionPrefs()`, `saveTransitionPrefs()`, `isNextOnAlbum()`, `canFadeVolume()` — `frontend/src/lib/transitions.ts`; `TransitionSettings()` — `frontend/src/pages/OptionsPage.tsx`
 **Date:** 2026-10-11
 **How added:** new feature

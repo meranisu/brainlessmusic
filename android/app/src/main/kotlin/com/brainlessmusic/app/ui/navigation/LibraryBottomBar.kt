@@ -2,6 +2,7 @@ package com.brainlessmusic.app.ui.navigation
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
@@ -31,6 +32,12 @@ fun LibraryBottomBar(navController: NavHostController, onReselect: () -> Unit = 
             onClick = { if (currentRoute == Routes.SEARCH) onReselect() else navController.navigateToTab(Routes.SEARCH) },
             icon = { Icon(Icons.Filled.Search, contentDescription = null) },
             label = { Text("Search") },
+        )
+        NavigationBarItem(
+            selected = currentRoute == Routes.YOU,
+            onClick = { if (currentRoute == Routes.YOU) onReselect() else navController.navigateToTab(Routes.YOU) },
+            icon = { Icon(Icons.Filled.Person, contentDescription = null) },
+            label = { Text("You") },
         )
         NavigationBarItem(
             selected = currentRoute == Routes.SETTINGS,

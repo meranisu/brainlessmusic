@@ -4,6 +4,25 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android: the You tab, likes and playlist editing (profile Phase 3)
+
+- A fourth bottom tab, **You** (A61): your initial and name, "listening since", time listened, plays and songs for
+  the range picked (week, month, year, all time; rolling windows), top 10 songs (tap to play them as a queue) and
+  top artists (tap to open), each with plays and time. Then Liked songs, Playlists and Songs you hear less, with
+  counts. Guests see a short note instead (A37). Data from `GET /me/stats`.
+- Likes (A65): a heart on Now Playing and Like/Unlike in the album song menu. One liked-id set in `ProfileRepository`
+  (loaded from `/me/favorites/ids`), flipped at once and put back if the server says no; cleared on logout.
+- Playlists (A65): list and create (`PlaylistsScreen`); a playlist page with Play and Shuffle, rename and delete
+  (with a confirm), swipe left to remove (red, Undo puts it back in its old place), and drag the handle to reorder,
+  saved once on drop (`PATCH /playlists/:id/tracks/reorder`). "Add to playlist" from Now Playing and the album song
+  menu opens a sheet with your playlists and "New playlist"; a song already there says so (the server's 409).
+- Liked songs and Songs you hear less are one list screen (`SongListScreen`): play from any row; unlike with the
+  heart, or Undo a "less often" mark.
+- New: `ui/profile/` (`YouScreen`, `SongActions`, `PlaylistsScreen`, `PlaylistDetailScreen`, `SongListScreen`,
+  `ProfileFormat`), `data/repository/ProfileRepository.kt`, `dto/ProfileDtos.kt`; routes `you`, `you/{list}`,
+  `playlists`, `playlist/{playlistId}`.
+- Verified by the CI debug build only; not run on a phone here.
+
 ## 2026-10-11 — Web: gapless playback and fades (A56, A71 to A73)
 
 - The web player has two `<audio>` elements that trade places at each song boundary (`PlayerBar.tsx`). 15 s into a

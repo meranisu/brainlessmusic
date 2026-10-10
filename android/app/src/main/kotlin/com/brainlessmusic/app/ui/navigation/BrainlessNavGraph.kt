@@ -13,6 +13,11 @@ import com.brainlessmusic.app.ui.artists.ArtistDetailScreen
 import com.brainlessmusic.app.ui.library.LibraryScreen
 import com.brainlessmusic.app.ui.login.LoginScreen
 import com.brainlessmusic.app.ui.playback.NowPlayingScreen
+import com.brainlessmusic.app.ui.profile.PlaylistDetailScreen
+import com.brainlessmusic.app.ui.profile.PlaylistsScreen
+import com.brainlessmusic.app.ui.profile.SongListKind
+import com.brainlessmusic.app.ui.profile.SongListScreen
+import com.brainlessmusic.app.ui.profile.YouScreen
 import com.brainlessmusic.app.ui.search.SearchScreen
 import com.brainlessmusic.app.ui.settings.SettingsPage
 import com.brainlessmusic.app.ui.settings.SettingsPageScreen
@@ -72,6 +77,34 @@ fun BrainlessNavGraph(
         }
         composable(Routes.NOW_PLAYING) { entry ->
             NowPlayingScreen(onBack = { navController.popFrom(entry) })
+        }
+        composable(Routes.YOU) {
+            YouScreen(
+                navController = navController,
+                onOpenArtist = { id -> navController.navigate(Routes.artistDetail(id)) },
+                onOpenLiked = { navController.navigate(Routes.songList(SongListKind.LIKED.route)) { launchSingleTop = true } },
+                onOpenLessOften = { navController.navigate(Routes.songList(SongListKind.LESS_OFTEN.route)) { launchSingleTop = true } },
+                onOpenPlaylists = { navController.navigate(Routes.PLAYLISTS) { launchSingleTop = true } },
+            )
+        }
+        composable(
+            Routes.SONG_LIST,
+            arguments = listOf(navArgument(Routes.ARG_SONG_LIST) { type = NavType.StringType }),
+        ) { entry ->
+            SongListScreen(onBack = { navController.popFrom(entry) }, onOpenNowPlaying = { navController.openNowPlaying() })
+        }
+        composable(Routes.PLAYLISTS) { entry ->
+            PlaylistsScreen(
+                onBack = { navController.popFrom(entry) },
+                onOpenPlaylist = { id -> navController.navigate(Routes.playlistDetail(id)) { launchSingleTop = true } },
+                onOpenNowPlaying = { navController.openNowPlaying() },
+            )
+        }
+        composable(
+            Routes.PLAYLIST_DETAIL,
+            arguments = listOf(intArg(Routes.ARG_PLAYLIST_ID)),
+        ) { entry ->
+            PlaylistDetailScreen(onBack = { navController.popFrom(entry) }, onOpenNowPlaying = { navController.openNowPlaying() })
         }
         composable(Routes.SETTINGS) {
             SettingsScreen(

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Pause
@@ -53,6 +54,9 @@ import com.brainlessmusic.app.playback.Repeat
 import com.brainlessmusic.app.playback.StreamInfo
 import com.brainlessmusic.app.ui.common.CoverImage
 import com.brainlessmusic.app.ui.common.formatDuration
+import com.brainlessmusic.app.ui.profile.AddToPlaylistSheet
+import com.brainlessmusic.app.ui.profile.LikeButton
+import com.brainlessmusic.app.ui.profile.SongActionsViewModel
 import com.brainlessmusic.app.ui.theme.accentInk
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,11 +64,13 @@ import com.brainlessmusic.app.ui.theme.accentInk
 fun NowPlayingScreen(
     onBack: () -> Unit,
     viewModel: PlaybackViewModel = hiltViewModel(),
+    songActions: SongActionsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val seekStyle by viewModel.seekStyle.collectAsStateWithLifecycle()
     val current = state.current
     var showQueue by remember { mutableStateOf(false) }
+    var addingToPlaylist by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -73,6 +79,15 @@ fun NowPlayingScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Close")
+                    }
+                },
+                // Like and add to a playlist (A65); both hide themselves for guests.
+                actions = {
+                    if (current != null && songActions.canEdit) {
+                        LikeButton(current.trackId, viewModel = songActions)
+                        IconButton(onClick = { addingToPlaylist = true }) {
+                            Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = "Add to playlist")
+                        }
                     }
                 },
             )
@@ -164,6 +179,15 @@ fun NowPlayingScreen(
                 modifier = Modifier.padding(top = 8.dp, bottom = 16.dp).navigationBarsPadding(),
             )
         }
+    }
+
+    if (addingToPlaylist && current != null) {
+        AddToPlaylistSheet(
+            trackId = current.trackId,
+            trackTitle = current.title,
+            onDismiss = { addingToPlaylist = false },
+            viewModel = songActions,
+        )
     }
 
     if (showQueue) {

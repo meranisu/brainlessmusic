@@ -1,23 +1,33 @@
 package com.brainlessmusic.app.data.remote
 
+import com.brainlessmusic.app.data.remote.dto.AddPlaylistTrackRequest
 import com.brainlessmusic.app.data.remote.dto.AlbumDetailDto
 import com.brainlessmusic.app.data.remote.dto.AlbumsPageDto
 import com.brainlessmusic.app.data.remote.dto.ArtistDetailDto
 import com.brainlessmusic.app.data.remote.dto.ArtistsPageDto
+import com.brainlessmusic.app.data.remote.dto.FavoriteIdsDto
+import com.brainlessmusic.app.data.remote.dto.FavoritesPageDto
+import com.brainlessmusic.app.data.remote.dto.FinishPlayRequest
 import com.brainlessmusic.app.data.remote.dto.GuestRequest
 import com.brainlessmusic.app.data.remote.dto.HealthResponse
-import com.brainlessmusic.app.data.remote.dto.FinishPlayRequest
+import com.brainlessmusic.app.data.remote.dto.LessOftenPageDto
 import com.brainlessmusic.app.data.remote.dto.LetterIndexDto
 import com.brainlessmusic.app.data.remote.dto.LoginRequest
 import com.brainlessmusic.app.data.remote.dto.LoginResponse
 import com.brainlessmusic.app.data.remote.dto.MeResponse
 import com.brainlessmusic.app.data.remote.dto.PlaybackStateResponse
+import com.brainlessmusic.app.data.remote.dto.PlaylistDetailDto
+import com.brainlessmusic.app.data.remote.dto.PlaylistNameRequest
+import com.brainlessmusic.app.data.remote.dto.PlaylistRefDto
+import com.brainlessmusic.app.data.remote.dto.PlaylistsDto
+import com.brainlessmusic.app.data.remote.dto.ReorderPlaylistRequest
 import com.brainlessmusic.app.data.remote.dto.SavePlaybackStateRequest
 import com.brainlessmusic.app.data.remote.dto.ScrobbleRequest
 import com.brainlessmusic.app.data.remote.dto.ScrobbleResponse
 import com.brainlessmusic.app.data.remote.dto.SearchResultsDto
 import com.brainlessmusic.app.data.remote.dto.ShuffledTracksPageDto
 import com.brainlessmusic.app.data.remote.dto.TracksPageDto
+import com.brainlessmusic.app.data.remote.dto.UserStatsDto
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -96,4 +106,49 @@ interface ApiService {
 
     @DELETE("me/less-often")
     suspend fun clearLessOften()
+
+    // Profile (A61): stats, liked songs, songs heard less, playlists. Accounts only.
+    @GET("me/stats")
+    suspend fun stats(@Query("range") range: String, @Query("limit") limit: Int): UserStatsDto
+
+    @GET("me/favorites")
+    suspend fun favorites(@Query("limit") limit: Int, @Query("offset") offset: Int): FavoritesPageDto
+
+    @GET("me/favorites/ids")
+    suspend fun favoriteIds(): FavoriteIdsDto
+
+    @PUT("tracks/{id}/favorite")
+    suspend fun like(@Path("id") id: Int)
+
+    @DELETE("tracks/{id}/favorite")
+    suspend fun unlike(@Path("id") id: Int)
+
+    @GET("me/less-often")
+    suspend fun lessOften(@Query("limit") limit: Int, @Query("offset") offset: Int): LessOftenPageDto
+
+    @GET("playlists")
+    suspend fun playlists(): PlaylistsDto
+
+    @POST("playlists")
+    suspend fun createPlaylist(@Body body: PlaylistNameRequest): PlaylistRefDto
+
+    @GET("playlists/{id}")
+    suspend fun playlist(@Path("id") id: Int): PlaylistDetailDto
+
+    @PATCH("playlists/{id}")
+    suspend fun renamePlaylist(@Path("id") id: Int, @Body body: PlaylistNameRequest): PlaylistRefDto
+
+    @DELETE("playlists/{id}")
+    suspend fun deletePlaylist(@Path("id") id: Int)
+
+    // 409 when the song is already there.
+    @POST("playlists/{id}/tracks")
+    suspend fun addToPlaylist(@Path("id") id: Int, @Body body: AddPlaylistTrackRequest)
+
+    @DELETE("playlists/{id}/tracks/{trackId}")
+    suspend fun removeFromPlaylist(@Path("id") id: Int, @Path("trackId") trackId: Int)
+
+    @PATCH("playlists/{id}/tracks/reorder")
+    suspend fun reorderPlaylist(@Path("id") id: Int, @Body body: ReorderPlaylistRequest): PlaylistDetailDto
 }
+
