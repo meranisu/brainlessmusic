@@ -61,8 +61,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.focus.FocusRequester
@@ -98,11 +96,8 @@ private val TabBarClearance = 68.dp
 // The tab pill, the search field and the round buttons beside them share one height, so swapping them doesn't jump.
 private val HeaderHeight = 48.dp
 
-// Room on the right for the alphabet rail, so a row's duration isn't drawn under it.
-private val RailWidth = 28.dp
-
-// Rows end before the rail and the scroll bar beside it.
-private val ListEndPadding = RailWidth + ScrollbarWidth
+// Rows end before the alphabet rail, so a row's duration isn't drawn under it.
+private val ListEndPadding = RailWidth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -132,13 +127,12 @@ fun LibraryScreen(
                 LibraryTab.ARTISTS -> ArtistsTab(viewModel, navController, artistsState)
                 LibraryTab.GENRES -> GenresTab()
             }
-            // Rows still scroll under the pills, but fade out first, so their text doesn't show between and beside them.
-            val background = MaterialTheme.colorScheme.background
+            // A flat band in the page colour behind the header: rows end cleanly at its edge instead of showing beside the pills.
             Box(
                 Modifier
                     .fillMaxWidth()
                     .height(TabBarClearance)
-                    .background(Brush.verticalGradient(0f to background, 0.8f to background, 1f to Color.Transparent)),
+                    .background(MaterialTheme.colorScheme.background),
             )
             LibraryHeader(
                 tab = tab,
@@ -320,7 +314,6 @@ private fun SongsTab(viewModel: LibraryViewModel, listState: LazyListState) {
         onRefresh = { viewModel.reloadLetters(LibraryTab.SONGS) },
         topInset = TabBarClearance,
     ) {
-        val firstVisible by remember { derivedStateOf { listState.firstVisibleItemIndex } }
         Box(Modifier.fillMaxSize()) {
             LazyColumn(
                 state = listState,
@@ -332,22 +325,13 @@ private fun SongsTab(viewModel: LibraryViewModel, listState: LazyListState) {
                     if (song != null) SongRow(song, onClick = { viewModel.playSongsFrom(index) }) else PlaceholderRow()
                 }
             }
-            // The letters index the whole library, so they would point at the wrong rows of a filtered list.
-            val songLetters = letters[LibraryTab.SONGS].orEmpty()
-            val showRail = !filtering && songLetters.isNotEmpty()
-            if (showRail) {
-                AlphabetRail(
-                    letters = songLetters,
-                    firstVisibleIndex = firstVisible,
-                    onJump = { scope.launch { listState.scrollToItem(it) } },
-                    topInset = TabBarClearance,
-                )
-            }
-            ListScrollbar(
+            // The letters index the whole library, so they would point at the wrong rows of a filtered list; while
+            // filtering, the rail is a plain scroll bar.
+            AlphabetRail(
+                letters = if (filtering) emptyList() else letters[LibraryTab.SONGS].orEmpty(),
                 state = listState,
                 onJump = { scope.launch { listState.scrollToItem(it) } },
                 topInset = TabBarClearance,
-                modifier = Modifier.align(Alignment.CenterEnd).padding(end = if (showRail) RailWidth else 0.dp),
             )
             // Plays everything, not just what is on screen: the server shuffles the whole library.
             FloatingActionButton(
@@ -447,7 +431,6 @@ private fun AlbumsTab(viewModel: LibraryViewModel, navController: NavHostControl
         onRefresh = { viewModel.reloadLetters(LibraryTab.ALBUMS) },
         topInset = TabBarClearance,
     ) {
-        val firstVisible by remember { derivedStateOf { gridState.firstVisibleItemIndex } }
         Box(Modifier.fillMaxSize()) {
             LazyVerticalGrid(
                 state = gridState,
@@ -470,18 +453,11 @@ private fun AlbumsTab(viewModel: LibraryViewModel, navController: NavHostControl
                     }
                 }
             }
-            val albumLetters = letters[LibraryTab.ALBUMS].orEmpty()
             AlphabetRail(
-                letters = albumLetters,
-                firstVisibleIndex = firstVisible,
-                onJump = { scope.launch { gridState.scrollToItem(it) } },
-                topInset = TabBarClearance,
-            )
-            GridScrollbar(
+                letters = letters[LibraryTab.ALBUMS].orEmpty(),
                 state = gridState,
                 onJump = { scope.launch { gridState.scrollToItem(it) } },
                 topInset = TabBarClearance,
-                modifier = Modifier.align(Alignment.CenterEnd).padding(end = if (albumLetters.isEmpty()) 0.dp else RailWidth),
             )
         }
     }
@@ -523,7 +499,6 @@ private fun ArtistsTab(viewModel: LibraryViewModel, navController: NavHostContro
         onRefresh = { viewModel.reloadLetters(LibraryTab.ARTISTS) },
         topInset = TabBarClearance,
     ) {
-        val firstVisible by remember { derivedStateOf { listState.firstVisibleItemIndex } }
         Box(Modifier.fillMaxSize()) {
             LazyColumn(
                 state = listState,
@@ -539,18 +514,11 @@ private fun ArtistsTab(viewModel: LibraryViewModel, navController: NavHostContro
                     }
                 }
             }
-            val artistLetters = letters[LibraryTab.ARTISTS].orEmpty()
             AlphabetRail(
-                letters = artistLetters,
-                firstVisibleIndex = firstVisible,
-                onJump = { scope.launch { listState.scrollToItem(it) } },
-                topInset = TabBarClearance,
-            )
-            ListScrollbar(
+                letters = letters[LibraryTab.ARTISTS].orEmpty(),
                 state = listState,
                 onJump = { scope.launch { listState.scrollToItem(it) } },
                 topInset = TabBarClearance,
-                modifier = Modifier.align(Alignment.CenterEnd).padding(end = if (artistLetters.isEmpty()) 0.dp else RailWidth),
             )
         }
     }

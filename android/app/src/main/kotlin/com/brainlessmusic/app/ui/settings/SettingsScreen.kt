@@ -1,12 +1,19 @@
 package com.brainlessmusic.app.ui.settings
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -19,10 +26,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
@@ -30,11 +38,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,21 +50,26 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.brainlessmusic.app.BuildConfig
 import com.brainlessmusic.app.data.local.ColorTheme
 import com.brainlessmusic.app.data.local.SeekStyle
 import com.brainlessmusic.app.data.local.ThemeMode
 import com.brainlessmusic.app.ui.navigation.AppBottomBar
 import com.brainlessmusic.app.ui.playback.SeekBar
-import com.brainlessmusic.app.ui.theme.palette
+import com.brainlessmusic.app.ui.theme.previewColorScheme
 import com.brainlessmusic.app.ui.theme.supportsMaterialYou
+
+// Cards here match the Library header: flat, a 1 dp outline, no shadow (DESIGN.md, Android).
+private val CardShape = RoundedCornerShape(20.dp)
+private val TileShape = RoundedCornerShape(14.dp)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,7 +82,13 @@ fun SettingsScreen(
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val colorTheme by viewModel.colorTheme.collectAsStateWithLifecycle()
     val seekStyle by viewModel.seekStyle.collectAsStateWithLifecycle()
+    val username by viewModel.username.collectAsStateWithLifecycle()
     var confirmingGuestLogout by remember { mutableStateOf(false) }
+    val darkTheme = when (themeMode) {
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+    }
 
     if (confirmingGuestLogout) {
         AlertDialog(
@@ -94,25 +113,16 @@ fun SettingsScreen(
         topBar = { TopAppBar(title = { Text("Settings") }) },
         bottomBar = { AppBottomBar(navController) },
     ) { padding ->
-        Column(modifier = Modifier.padding(padding).verticalScroll(rememberScrollState())) {
-            ListItem(
-                headlineContent = { Text("Colours") },
-                supportingContent = {
-                    Column(
-                        modifier = Modifier.padding(top = 8.dp).selectableGroup(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text("The website's six, or your wallpaper's. Saved on this phone.")
-                        ColorTheme.entries.filter { it != ColorTheme.MATERIAL_YOU || supportsMaterialYou }.forEach { theme ->
-                            ColorThemeOption(theme, selected = theme == colorTheme, onClick = { viewModel.setColorTheme(theme) })
-                        }
-                    }
-                },
-            )
-            ListItem(
-                headlineContent = { Text("Light or dark") },
-                supportingContent = {
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+        ) {
+            Section("Appearance") {
+                Block(title = "Light or dark") {
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                         ThemeMode.entries.forEachIndexed { index, mode ->
                             SegmentedButton(
                                 selected = mode == themeMode,
@@ -121,92 +131,180 @@ fun SettingsScreen(
                             ) { Text(mode.label) }
                         }
                     }
-                },
-            )
-            ListItem(
-                headlineContent = { Text("Progress bar") },
-                supportingContent = {
-                    Column {
-                        Text("How the seek bar looks on the Now Playing screen.")
+                }
+                Divider()
+                Block(title = "Colours", detail = "Saved on this phone.") {
+                    val themes = ColorTheme.entries.filter { it != ColorTheme.MATERIAL_YOU || supportsMaterialYou }
+                    Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        themes.chunked(2).forEach { pair ->
+                            // Same height per row, so a two-line name doesn't leave its neighbour short.
+                            Row(
+                                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                pair.forEach { theme ->
+                                    ColorThemeTile(
+                                        theme = theme,
+                                        darkTheme = darkTheme,
+                                        selected = theme == colorTheme,
+                                        onClick = { viewModel.setColorTheme(theme) },
+                                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                                    )
+                                }
+                                if (pair.size == 1) Spacer(Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+                Divider()
+                Block(title = "Progress bar", detail = "How the seek bar looks on the Now Playing screen.") {
+                    Column(Modifier.selectableGroup()) {
                         SeekStyle.entries.forEach { style ->
                             SeekStyleOption(style, selected = style == seekStyle, onClick = { viewModel.setSeekStyle(style) })
                         }
                     }
-                },
-            )
-            ListItem(
-                headlineContent = { Text("Auto-play on resume") },
-                supportingContent = {
-                    Text(
-                        if (autoPlay) {
-                            "Opening the app carries on playing where you left off."
-                        } else {
-                            "Opening the app queues where you left off, paused. Tap play to continue."
-                        },
-                    )
-                },
+                }
+            }
+
+            Section("Playback") {
                 // The whole row toggles, for a 48 dp target.
-                trailingContent = { Switch(checked = autoPlay, onCheckedChange = null) },
-                modifier = Modifier
-                    .toggleable(value = autoPlay, role = Role.Switch, onValueChange = viewModel::setAutoPlayOnResume),
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .toggleable(value = autoPlay, role = Role.Switch, onValueChange = viewModel::setAutoPlayOnResume)
+                        .padding(16.dp),
+                ) {
+                    Column(Modifier.weight(1f).padding(end = 16.dp)) {
+                        Text("Auto-play on resume", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            if (autoPlay) {
+                                "Opening the app carries on playing where you left off."
+                            } else {
+                                "Opening the app queues where you left off, paused. Tap play to continue."
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(checked = autoPlay, onCheckedChange = null)
+                }
+            }
+
+            Section("Account") {
+                Block(
+                    title = if (viewModel.isGuest) "Guest" else username ?: "Logged in",
+                    detail = if (viewModel.isGuest) "Listening without an account." else "Logged in on this phone.",
+                ) {
+                    OutlinedButton(
+                        onClick = { if (viewModel.isGuest) confirmingGuestLogout = true else viewModel.logout(onLoggedOut) },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null)
+                        Text("Log out", modifier = Modifier.padding(start = 8.dp))
+                    }
+                }
+            }
+
+            // Which build this is, for when something needs reporting.
+            Text(
+                "brainlessmusic ${BuildConfig.VERSION_NAME}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
             )
-            OutlinedButton(
-                onClick = { if (viewModel.isGuest) confirmingGuestLogout = true else viewModel.logout(onLoggedOut) },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 24.dp).heightIn(min = 48.dp),
+        }
+    }
+}
+
+/** A heading on the ground, then its settings on one outlined card. The heading is a screen-reader heading. */
+@Composable
+private fun Section(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 4.dp).semantics { heading() },
+        )
+        Surface(
+            shape = CardShape,
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(content = content)
+        }
+    }
+}
+
+/** One setting inside a card: its name, an optional line about it, then the control. */
+@Composable
+private fun Block(title: String, detail: String? = null, content: @Composable () -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            if (detail != null) {
+                Text(detail, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        content()
+    }
+}
+
+@Composable
+private fun Divider() {
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+}
+
+/**
+ * One colour theme: a swatch of its ground and accent as they'd look in the current light or dark setting, the name,
+ * and what it's after. Picked shows a thicker accent border and a check, so it isn't told by colour alone.
+ */
+@Composable
+private fun ColorThemeTile(
+    theme: ColorTheme,
+    darkTheme: Boolean,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val preview = previewColorScheme(theme, darkTheme)
+    Surface(
+        shape = TileShape,
+        color = scheme.surfaceContainer,
+        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) scheme.primary else scheme.outlineVariant),
+        modifier = modifier.selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.heightIn(min = 64.dp).padding(horizontal = 10.dp, vertical = 10.dp),
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(32.dp)
+                    .background(preview.background, CircleShape)
+                    .border(1.dp, preview.outline, CircleShape),
             ) {
-                Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null)
-                Text("Log out", modifier = Modifier.padding(start = 8.dp))
+                Box(Modifier.size(12.dp).background(preview.primary, CircleShape))
+            }
+            Column(Modifier.weight(1f).padding(start = 10.dp)) {
+                Text(theme.label, style = MaterialTheme.typography.bodyMedium, color = scheme.onSurface)
+                Text(theme.detail, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+            }
+            if (selected) {
+                Icon(
+                    Icons.Filled.CheckCircle,
+                    contentDescription = null,
+                    tint = scheme.primary,
+                    modifier = Modifier.padding(start = 4.dp).size(20.dp),
+                )
             }
         }
     }
-}
-
-/** One colour theme, as on the web's Options page: a swatch of its ground and accent, and a border that swaps on pick. */
-@Composable
-private fun ColorThemeOption(theme: ColorTheme, selected: Boolean, onClick: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    val (ground, edge, accent) = swatchColors(theme)
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 56.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .border(
-                width = if (selected) 2.dp else 1.dp,
-                color = if (selected) scheme.primary else scheme.outlineVariant,
-                shape = RoundedCornerShape(8.dp),
-            )
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-    ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(36.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .background(ground)
-                .border(1.dp, edge, RoundedCornerShape(6.dp)),
-        ) {
-            Box(Modifier.size(14.dp).clip(CircleShape).background(accent))
-        }
-        Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
-            Text(theme.label, style = MaterialTheme.typography.bodyLarge, color = scheme.onSurface)
-            Text(theme.detail, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
-        }
-        RadioButton(selected = selected, onClick = null)
-    }
-}
-
-/** Ground, edge and accent for a swatch. Material You shows this phone's wallpaper colours, the rest their dark ground. */
-@Composable
-private fun swatchColors(theme: ColorTheme): Triple<Color, Color, Color> {
-    if (theme == ColorTheme.MATERIAL_YOU && supportsMaterialYou) {
-        val dynamic = dynamicDarkColorScheme(LocalContext.current)
-        return Triple(dynamic.surface, dynamic.outline, dynamic.primary)
-    }
-    val palette = theme.palette()
-    return Triple(palette.blue950, palette.blue700, palette.accent)
 }
 
 /** One choice in the progress-bar picker, with the bar itself drawn at 40% so the look is visible before picking it. */
@@ -216,6 +314,7 @@ private fun SeekStyleOption(style: SeekStyle, selected: Boolean, onClick: () -> 
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = 56.dp)
             .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
             .padding(vertical = 4.dp),
     ) {

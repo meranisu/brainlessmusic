@@ -12,6 +12,7 @@ import com.brainlessmusic.app.playback.PlaybackController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -51,6 +52,10 @@ class SettingsViewModel @Inject constructor(
     fun setAutoPlayOnResume(enabled: Boolean) {
         viewModelScope.launch { settings.setAutoPlayOnResume(enabled) }
     }
+
+    /** Who this phone is logged in as, for the Account card. */
+    val username: StateFlow<String?> = flow { emit(authRepository.savedUsername()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** A guest's identity lives only in this phone's stored token, so logging out is forgetting it for good. */
     val isGuest: Boolean get() = authRepository.isGuest

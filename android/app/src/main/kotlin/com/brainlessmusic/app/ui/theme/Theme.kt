@@ -83,6 +83,19 @@ private fun Palette.lightScheme(): ColorScheme = lightColorScheme(
     onError = white,
 )
 
+/** The scheme [theme] would use in [darkTheme], for previews such as the Settings swatches. Same rules as the app's. */
+@Composable
+fun previewColorScheme(theme: ColorTheme, darkTheme: Boolean): ColorScheme {
+    val context = LocalContext.current
+    val dynamicColor = theme == ColorTheme.MATERIAL_YOU && supportsMaterialYou
+    return when {
+        dynamicColor && darkTheme -> dynamicDarkColorScheme(context)
+        dynamicColor -> dynamicLightColorScheme(context)
+        darkTheme -> theme.palette().darkScheme()
+        else -> theme.palette().lightScheme()
+    }
+}
+
 private val LocalAccentInk = staticCompositionLocalOf { Color.Unspecified }
 
 /** Accent for text on a card (`surfaceContainer`). `primary` is for fills, icons and text on the ground. */

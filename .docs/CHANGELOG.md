@@ -4,6 +4,27 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-10 — Android: black system bars after the splash; the A–Z rail is the scroll bar; Settings regrouped
+
+- **Black status and navigation bars in dark mode:** removing the splash (`SplashScreenViewProvider.remove()`)
+  re-applies the post-splash theme's bar colours, black for `Theme.Material`, after `enableEdgeToEdge` had made them
+  transparent. They stayed black until a light/dark switch re-ran the effect. `MainActivity` now sets `splashGone`
+  after the splash is removed, and the edge-to-edge effect is keyed on it, so the effect runs again.
+- **One strip instead of two:** `ListScrollbar.kt` is gone, and `AlphabetRail` is the scroll bar. A thumb behind the
+  letters moves through each letter's equal slot as the list moves through that letter's rows, so it sits on the
+  current letter. A plain share of the rows wouldn't line up with the letters. Dragging is continuous, and a tap on a
+  letter lands on its first row (the finger holds the thumb's middle). With no letters (a filtered Songs list) it is a
+  plain scroll bar. The math is in `railSegments`/`railFraction`/`railIndex`/`railThumbHeight`, covered by
+  `AlphabetRailTest`, including the unmeasured-track case that crashed v0.3.1.
+- **Library header:** the fade behind the tabs is now a solid band in the page colour (owner: "flat, not see
+  through"). Rows end at its edge instead of showing half-faded beside the pills.
+- **Settings:** three outlined cards (Appearance, Playback, Account) under headings that TalkBack announces as
+  headings. Light or dark comes before the colours. The colours are a two-column tile grid; the picked tile has a
+  2 dp accent border and a check, and swatches show each theme in the current light/dark (`previewColorScheme` in
+  `Theme.kt`). Account shows the username, or "Guest". The app version is at the bottom. Targets are 48 dp or more,
+  with no fixed heights, so large font sizes wrap.
+- Verified: `AlphabetRailTest` (4 tests) passes and `./gradlew assembleDebug` passes. **Not run on a device** (none connected).
+
 ## 2026-10-10 — Android: v0.3.1 crashed on opening the Library (scroll bar)
 
 - `ListScrollbar` clamped the thumb with `coerceIn(minThumb, trackPx)`. Before the track is measured (`trackPx` = 1)

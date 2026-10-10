@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -45,6 +47,9 @@ class MainActivity : ComponentActivity() {
     // Activity-scoped, so the system splash and the nav graph's start screen wait on the same session check.
     private val startViewModel: StartViewModel by viewModels()
 
+    // Removing the splash re-applies the theme's own bar colours (black in dark), so edge-to-edge is set again after.
+    private var splashGone by mutableStateOf(false)
+
     // Without it Android 13+ hides the media notification, and with it the lock-screen controls.
     private val notificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -62,7 +67,10 @@ class MainActivity : ComponentActivity() {
             provider.view.animate()
                 .alpha(0f)
                 .setDuration(SPLASH_FADE_MS)
-                .withEndAction { provider.remove() }
+                .withEndAction {
+                    provider.remove()
+                    splashGone = true
+                }
                 .start()
         }
         askForNotificationsOnFirstPlayback()
@@ -78,7 +86,7 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.DARK -> true
             }
             // The system bars' icon colors have to follow the app's choice, not the phone's.
-            DisposableEffect(darkTheme) {
+            DisposableEffect(darkTheme, splashGone) {
                 enableEdgeToEdge(
                     statusBarStyle = SystemBarStyle.auto(
                         android.graphics.Color.TRANSPARENT,
