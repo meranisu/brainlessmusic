@@ -14,6 +14,8 @@ import com.brainlessmusic.app.ui.library.LibraryScreen
 import com.brainlessmusic.app.ui.login.LoginScreen
 import com.brainlessmusic.app.ui.playback.NowPlayingScreen
 import com.brainlessmusic.app.ui.search.SearchScreen
+import com.brainlessmusic.app.ui.settings.SettingsPage
+import com.brainlessmusic.app.ui.settings.SettingsPageScreen
 import com.brainlessmusic.app.ui.settings.SettingsScreen
 import com.brainlessmusic.app.ui.splash.SplashScreen
 import com.brainlessmusic.app.ui.splash.StartViewModel
@@ -74,7 +76,20 @@ fun BrainlessNavGraph(
         composable(Routes.SETTINGS) {
             SettingsScreen(
                 navController = navController,
-                // Settings sits on the Library anchor, so popping that clears every tab.
+                onOpenPage = { page -> navController.navigate(Routes.settingsPage(page.route)) { launchSingleTop = true } },
+            )
+        }
+        composable(
+            Routes.SETTINGS_PAGE,
+            arguments = listOf(navArgument(Routes.ARG_SETTINGS_PAGE) { type = NavType.StringType }),
+        ) { entry ->
+            val page = SettingsPage.entries.firstOrNull { it.route == entry.arguments?.getString(Routes.ARG_SETTINGS_PAGE) }
+                ?: SettingsPage.APPEARANCE
+            SettingsPageScreen(
+                page = page,
+                onBack = { navController.popFrom(entry) },
+                onOpenNowPlaying = { navController.openNowPlaying() },
+                // The pages sit on the Library anchor too, so popping that clears every tab.
                 onLoggedOut = {
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(Routes.ARTISTS) { inclusive = true }

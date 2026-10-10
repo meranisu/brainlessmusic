@@ -3,6 +3,7 @@ package com.brainlessmusic.app.ui.settings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,12 +26,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
@@ -50,9 +57,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -63,6 +69,7 @@ import com.brainlessmusic.app.data.local.ColorTheme
 import com.brainlessmusic.app.data.local.SeekStyle
 import com.brainlessmusic.app.data.local.ThemeMode
 import com.brainlessmusic.app.ui.navigation.AppBottomBar
+import com.brainlessmusic.app.ui.playback.MiniPlayer
 import com.brainlessmusic.app.ui.playback.SeekBar
 import com.brainlessmusic.app.ui.theme.previewColorScheme
 import com.brainlessmusic.app.ui.theme.supportsMaterialYou
@@ -71,10 +78,78 @@ import com.brainlessmusic.app.ui.theme.supportsMaterialYou
 private val CardShape = RoundedCornerShape(20.dp)
 private val TileShape = RoundedCornerShape(14.dp)
 
+/** The pages under Settings, each its own screen off the list. */
+enum class SettingsPage(val route: String, val title: String) {
+    APPEARANCE("appearance", "Appearance"),
+    PLAYBACK("playback", "Playback"),
+    ACCOUNT("account", "Account"),
+}
+
+/** The Settings tab: one row per page, then the build. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     navController: NavHostController,
+    onOpenPage: (SettingsPage) -> Unit,
+    viewModel: SettingsViewModel = hiltViewModel(),
+) {
+    val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+    val colorTheme by viewModel.colorTheme.collectAsStateWithLifecycle()
+    val username by viewModel.username.collectAsStateWithLifecycle()
+
+    Scaffold(
+        topBar = { TopAppBar(title = { Text("Settings") }) },
+        bottomBar = { AppBottomBar(navController) },
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+        ) {
+            Card {
+                PageRow(
+                    icon = Icons.Filled.Palette,
+                    title = SettingsPage.APPEARANCE.title,
+                    summary = "${themeMode.label} · ${colorTheme.label}",
+                    onClick = { onOpenPage(SettingsPage.APPEARANCE) },
+                )
+                Divider()
+                PageRow(
+                    icon = Icons.Filled.PlayCircle,
+                    title = SettingsPage.PLAYBACK.title,
+                    summary = "Resuming, swiping the app away",
+                    onClick = { onOpenPage(SettingsPage.PLAYBACK) },
+                )
+                Divider()
+                PageRow(
+                    icon = Icons.Filled.AccountCircle,
+                    title = SettingsPage.ACCOUNT.title,
+                    summary = if (viewModel.isGuest) "Guest" else username ?: "Logged in",
+                    onClick = { onOpenPage(SettingsPage.ACCOUNT) },
+                )
+            }
+
+            // Which build this is, for when something needs reporting.
+            Text(
+                "brainlessmusic ${BuildConfig.VERSION_NAME}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            )
+        }
+    }
+}
+
+/** One page under Settings: a back arrow, its settings on one outlined card, and the mini player. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsPageScreen(
+    page: SettingsPage,
+    onBack: () -> Unit,
+    onOpenNowPlaying: () -> Unit,
     onLoggedOut: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -111,131 +186,147 @@ fun SettingsScreen(
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Settings") }) },
-        bottomBar = { AppBottomBar(navController) },
+        topBar = {
+            TopAppBar(
+                title = { Text(page.title) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+            )
+        },
+        bottomBar = { MiniPlayer(onClick = onOpenNowPlaying) },
     ) { padding ->
         Column(
             modifier = Modifier
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            Section("Appearance") {
-                Block(title = "Light or dark") {
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        ThemeMode.entries.forEachIndexed { index, mode ->
-                            SegmentedButton(
-                                selected = mode == themeMode,
-                                onClick = { viewModel.setThemeMode(mode) },
-                                shape = SegmentedButtonDefaults.itemShape(index, ThemeMode.entries.size),
-                            ) { Text(mode.label) }
+            Card {
+                when (page) {
+                    SettingsPage.APPEARANCE -> {
+                        Block(title = "Light or dark") {
+                            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                                ThemeMode.entries.forEachIndexed { index, mode ->
+                                    SegmentedButton(
+                                        selected = mode == themeMode,
+                                        onClick = { viewModel.setThemeMode(mode) },
+                                        shape = SegmentedButtonDefaults.itemShape(index, ThemeMode.entries.size),
+                                    ) { Text(mode.label) }
+                                }
+                            }
+                        }
+                        Divider()
+                        Block(title = "Colours", detail = "Saved on this phone.") {
+                            val themes = ColorTheme.entries.filter { it != ColorTheme.MATERIAL_YOU || supportsMaterialYou }
+                            Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                themes.chunked(2).forEach { pair ->
+                                    // Same height per row, so a two-line name doesn't leave its neighbour short.
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        pair.forEach { theme ->
+                                            ColorThemeTile(
+                                                theme = theme,
+                                                darkTheme = darkTheme,
+                                                selected = theme == colorTheme,
+                                                onClick = { viewModel.setColorTheme(theme) },
+                                                modifier = Modifier.weight(1f).fillMaxHeight(),
+                                            )
+                                        }
+                                        if (pair.size == 1) Spacer(Modifier.weight(1f))
+                                    }
+                                }
+                            }
+                        }
+                        Divider()
+                        Block(title = "Progress bar", detail = "How the seek bar looks on the Now Playing screen.") {
+                            Column(Modifier.selectableGroup()) {
+                                SeekStyle.entries.forEach { style ->
+                                    SeekStyleOption(style, selected = style == seekStyle, onClick = { viewModel.setSeekStyle(style) })
+                                }
+                            }
                         }
                     }
-                }
-                Divider()
-                Block(title = "Colours", detail = "Saved on this phone.") {
-                    val themes = ColorTheme.entries.filter { it != ColorTheme.MATERIAL_YOU || supportsMaterialYou }
-                    Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        themes.chunked(2).forEach { pair ->
-                            // Same height per row, so a two-line name doesn't leave its neighbour short.
-                            Row(
-                                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    SettingsPage.PLAYBACK -> {
+                        SwitchRow(
+                            title = "Auto-play on resume",
+                            detail = if (autoPlay) {
+                                "Opening the app carries on playing where you left off."
+                            } else {
+                                "Opening the app queues where you left off, paused. Tap play to continue."
+                            },
+                            checked = autoPlay,
+                            onCheckedChange = viewModel::setAutoPlayOnResume,
+                        )
+                        Divider()
+                        SwitchRow(
+                            title = "Keep playing when swiped away",
+                            detail = if (keepPlaying) {
+                                "Closing the app from recent apps leaves the music on. Pause from the notification to stop."
+                            } else {
+                                "Closing the app from recent apps stops the music."
+                            },
+                            checked = keepPlaying,
+                            onCheckedChange = viewModel::setKeepPlayingWhenSwipedAway,
+                        )
+                    }
+                    SettingsPage.ACCOUNT -> {
+                        Block(
+                            title = if (viewModel.isGuest) "Guest" else username ?: "Logged in",
+                            detail = if (viewModel.isGuest) "Listening without an account." else "Logged in on this phone.",
+                        ) {
+                            OutlinedButton(
+                                onClick = { if (viewModel.isGuest) confirmingGuestLogout = true else viewModel.logout(onLoggedOut) },
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                             ) {
-                                pair.forEach { theme ->
-                                    ColorThemeTile(
-                                        theme = theme,
-                                        darkTheme = darkTheme,
-                                        selected = theme == colorTheme,
-                                        onClick = { viewModel.setColorTheme(theme) },
-                                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                                    )
-                                }
-                                if (pair.size == 1) Spacer(Modifier.weight(1f))
+                                Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null)
+                                Text("Log out", modifier = Modifier.padding(start = 8.dp))
                             }
                         }
                     }
                 }
-                Divider()
-                Block(title = "Progress bar", detail = "How the seek bar looks on the Now Playing screen.") {
-                    Column(Modifier.selectableGroup()) {
-                        SeekStyle.entries.forEach { style ->
-                            SeekStyleOption(style, selected = style == seekStyle, onClick = { viewModel.setSeekStyle(style) })
-                        }
-                    }
-                }
             }
-
-            Section("Playback") {
-                SwitchRow(
-                    title = "Auto-play on resume",
-                    detail = if (autoPlay) {
-                        "Opening the app carries on playing where you left off."
-                    } else {
-                        "Opening the app queues where you left off, paused. Tap play to continue."
-                    },
-                    checked = autoPlay,
-                    onCheckedChange = viewModel::setAutoPlayOnResume,
-                )
-                Divider()
-                SwitchRow(
-                    title = "Keep playing when swiped away",
-                    detail = if (keepPlaying) {
-                        "Closing the app from recent apps leaves the music on. Pause from the notification to stop."
-                    } else {
-                        "Closing the app from recent apps stops the music."
-                    },
-                    checked = keepPlaying,
-                    onCheckedChange = viewModel::setKeepPlayingWhenSwipedAway,
-                )
-            }
-
-            Section("Account") {
-                Block(
-                    title = if (viewModel.isGuest) "Guest" else username ?: "Logged in",
-                    detail = if (viewModel.isGuest) "Listening without an account." else "Logged in on this phone.",
-                ) {
-                    OutlinedButton(
-                        onClick = { if (viewModel.isGuest) confirmingGuestLogout = true else viewModel.logout(onLoggedOut) },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null)
-                        Text("Log out", modifier = Modifier.padding(start = 8.dp))
-                    }
-                }
-            }
-
-            // Which build this is, for when something needs reporting.
-            Text(
-                "brainlessmusic ${BuildConfig.VERSION_NAME}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-            )
         }
     }
 }
 
-/** A heading on the ground, then its settings on one outlined card. The heading is a screen-reader heading. */
+/** A row on the Settings list that opens a page: icon, name, what's set now, and a chevron. */
 @Composable
-private fun Section(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            title,
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 4.dp).semantics { heading() },
-        )
-        Surface(
-            shape = CardShape,
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Column(content = content)
+private fun PageRow(icon: ImageVector, title: String, summary: String, onClick: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(16.dp),
+    ) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        Column(Modifier.weight(1f).padding(horizontal = 16.dp)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** Settings on one outlined card. */
+@Composable
+private fun Card(content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        shape = CardShape,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(content = content)
     }
 }
 

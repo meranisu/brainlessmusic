@@ -4,6 +4,15 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android: Settings split into pages
+
+- Owner's ask: Settings is now a short list (Appearance, Playback, Account, each with an icon, what's set now and a
+  chevron) and each opens its own page with a back arrow and the mini player, like album and artist pages. Route
+  `settings/{page}` (`Routes.SETTINGS_PAGE`), `SettingsPage` enum, `SettingsPageScreen`. The settings themselves and
+  their wording are unchanged; the headed `Section` became an untitled `Card`, since the page title now names it.
+  Logging out from the Account page still pops to Login past the Library anchor. Back uses `popFrom`.
+- Verified by the CI debug build only; not run on a device here (none attached).
+
 ## 2026-10-11 — Android: setting for whether swiping the app away stops the music
 
 - A58, the owner's pick: a user option. Settings → Playback has a new "Keep playing when swiped away" switch, on by

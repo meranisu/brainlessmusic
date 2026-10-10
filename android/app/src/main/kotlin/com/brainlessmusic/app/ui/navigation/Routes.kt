@@ -14,10 +14,13 @@ object Routes {
     const val ALBUM_DETAIL = "album/{albumId}"
 
     const val NOW_PLAYING = "now_playing"
+    const val SETTINGS_PAGE = "settings/{page}"
 
     const val ARG_ARTIST_ID = "artistId"
     const val ARG_ALBUM_ID = "albumId"
+    const val ARG_SETTINGS_PAGE = "page"
 
     fun artistDetail(id: Int) = "artist/$id"
     fun albumDetail(id: Int) = "album/$id"
+    fun settingsPage(page: String) = "settings/$page"
 }

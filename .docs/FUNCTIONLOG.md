@@ -4,6 +4,15 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `SettingsScreen()`, `SettingsPageScreen()`, `PageRow()`, `Card()` — `android/.../ui/settings/SettingsScreen.kt`
+**Date:** 2026-10-11
+**How added:** refactor
+**Purpose:** Settings as a list of pages instead of one long screen.
+**Side effects:** none.
+**Before:** one scrolling screen with Appearance, Playback and Account sections under headings.
+**After:** `SettingsScreen` lists the pages (`PageRow`) and calls `onOpenPage`; `SettingsPageScreen(page)` shows one
+page's settings on a `Card`, with a back arrow and the mini player.
+
 **Function:** `PlaybackService.onTaskRemoved()`, `PlaybackSettings.keepPlayingWhenSwipedAway` / `setKeepPlayingWhenSwipedAway()`, `SwitchRow()` — `android/.../playback/PlaybackService.kt`, `data/local/PlaybackSettings.kt`, `ui/settings/SettingsScreen.kt`
 **Date:** 2026-10-11
 **How added:** new feature
