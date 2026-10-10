@@ -45,12 +45,27 @@ android {
     }
 
     buildTypes {
+        // Its own package, name and file, so a test build sits beside the release app instead of fighting it: the two
+        // are signed with different keys, so Android would refuse to install one over the other.
+        debug {
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
         release {
             // R8 drops the unused ~99% of material-icons-extended, the bulk of the dex.
             isMinifyEnabled = true
             isShrinkResources = true
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+
+    // brainlessmusic-debug.apk instead of app-debug.apk. The release APK keeps its name; the release workflow reads it.
+    applicationVariants.all {
+        if (buildType.name == "debug") {
+            outputs.all {
+                (this as com.android.build.gradle.internal.api.BaseVariantOutputImpl).outputFileName = "brainlessmusic-debug.apk"
+            }
         }
     }
 

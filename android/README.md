@@ -34,15 +34,16 @@ echo "sdk.dir=$HOME/Android/sdk" > android/local.properties  # gitignored, machi
 
 `gradlew`/`gradle/wrapper/gradle-wrapper.jar` **are** checked in now (generated
 from a standalone Gradle 8.7 install, `gradle wrapper --gradle-version 8.7`), so
-`./gradlew :app:assembleDebug` builds `app/build/outputs/apk/debug/app-debug.apk`
-without Android Studio. Verified working 2026-09-18 (caught one real bug: a
+`./gradlew :app:assembleDebug` builds `app/build/outputs/apk/debug/brainlessmusic-debug.apk`
+without Android Studio. A debug build is its own app, "brainlessmusic (debug)" (`com.brainlessmusic.app.debug`), so it
+installs beside the release one with its own login. Verified working 2026-09-18 (caught one real bug: a
 missing `androidx.compose.runtime.getValue` import in `SplashScreen.kt` that
 only the compiler surfaced; see the planning doc's change log).
 
 **Still can't run it from WSL2:** no emulator (no GPU/KVM passthrough) and
 no device attached. Install the built APK on a physical device yourself
-(`adb install app-debug.apk` from Windows, or copy the file over; it's
-reachable from Windows at `\\wsl.localhost\Ubuntu\home\abcde\brainlessmusic\android\app\build\outputs\apk\debug\app-debug.apk`),
+(`adb install brainlessmusic-debug.apk` from Windows, or copy the file over; it's
+reachable from Windows at `\\wsl.localhost\Ubuntu\home\abcde\brainlessmusic\android\app\build\outputs\apk\debug\brainlessmusic-debug.apk`),
 or open the project in Android Studio as before. It will happily use this
 same `local.properties`/SDK if pointed at it, or install its own.
 

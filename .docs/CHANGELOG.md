@@ -4,6 +4,25 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-10 — Android: debug builds are their own app
+
+- Debug builds are named "brainlessmusic (debug)" (`src/debug/res/values/strings.xml`), use the app ID
+  `com.brainlessmusic.app.debug` and version `…-debug`, and build to `brainlessmusic-debug.apk`. Debug and release are
+  signed with different keys, so Android refused to install one over the other; now they sit side by side, each with
+  its own login. Release builds are unchanged (`app-release.apk`, which the release workflow reads).
+- Verified with `aapt2 dump badging` on both APKs after `assembleDebug` and `assembleRelease`.
+
+## 2026-10-10 — Android: keyboard no longer shoves the login card off screen; Library header fade
+
+- **Keyboard:** `MainActivity` now declares `windowSoftInputMode="adjustResize"`. Without it the window panned up
+  *and* the login form's `imePadding()` applied, so the card was cut off with a gap above the keyboard and the
+  Log in button out of reach.
+- **Library header:** rows still scroll under the floating tab bar and Songs filter, but a fade in the background
+  colour now sits behind them, so song text no longer shows between and beside the pills.
+- **Songs filter** drops focus when the keyboard closes (`WindowInsets.isImeVisible`), so the cursor stops blinking
+  in an empty field after a back press.
+- Verified: `./gradlew assembleDebug` passes. **Not run on a device** (none connected over adb).
+
 ## 2026-10-10 — Android: Settings tab, pull to refresh, Songs filter, queue via Up next, cold-start splash
 
 - **Settings is a bottom tab** (Library · Search · Settings), not a top-bar icon. It has the mini player and no back
