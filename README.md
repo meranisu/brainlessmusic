@@ -417,7 +417,7 @@ Right now:
 - **Backend:** auth, library scan and scheduled sync, streaming (byte ranges + transcoding + media tokens), FTS5 search, browsing, playlists, play tracking, upload, favorites, smart shuffle, cover art, waveform peaks, and verified scheduled backups. Built and tested.
 - **Web:** a real player with a queue, seeking, shuffle, repeat and keyboard controls, plus album/artist browsing, playlists, favorites, search, upload, user management and a health dashboard. On a phone the bar opens a full-screen Now Playing view with a waveform scrubber.
 - **Android:** login, browsing, playback and background playback with notification controls all built. Played music on an actual phone over Wi-Fi and mobile data on 2026-09-28, which felt great.
-- **Out in the world:** live at `music.nobrainmusic.my` through a Cloudflare Tunnel. The login gate in front of it (roadmap box 13) isn't done yet, and it's the thing blocking v0.2.
+- **Out in the world:** live at `music.nobrainmusic.my` through a Cloudflare Tunnel.
 
 Details: [.docs/STATUS.md](.docs/STATUS.md). What's next:
 [.docs/process/development-roadmap.md](.docs/process/development-roadmap.md).
