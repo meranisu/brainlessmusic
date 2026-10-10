@@ -34,6 +34,11 @@ android {
     // Without these env vars a release build falls back to the debug key.
     val releaseKeystore = System.getenv("BRAINLESS_KEYSTORE_PATH")?.takeIf { file(it).exists() }
     signingConfigs {
+        // CI's debug build (android-debug.yml) passes the shared debug key here; its alias and passwords are the
+        // stock debug ones. Locally the default ~/.android/debug.keystore is used.
+        System.getenv("BRAINLESS_DEBUG_KEYSTORE_PATH")?.takeIf { file(it).exists() }?.let { path ->
+            getByName("debug") { storeFile = file(path) }
+        }
         if (releaseKeystore != null) {
             create("release") {
                 storeFile = file(releaseKeystore)
