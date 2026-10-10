@@ -49,6 +49,15 @@ export const config = {
   // Someone reaching port 3000 directly (LAN, Tailscale) can send any value
   // and pick their own window, which is the price of publishing that port.
   clientIpHeader: (process.env.CLIENT_IP_HEADER ?? '').trim().toLowerCase(),
+  // Other websites allowed to call the API from a browser, comma-separated
+  // (`https://example.com`, or `null` for a page opened from `file://`).
+  // Empty by default because nothing needs it: production serves the page and
+  // the API from one origin, and Vite's dev server proxies `/api`. The Android
+  // app is not a browser, so CORS never applies to it.
+  corsOrigins: (process.env.CORS_ORIGINS ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter((origin) => origin !== ''),
   libraryPath: process.env.LIBRARY_PATH ?? './library',
   uploadStagingPath: process.env.UPLOAD_STAGING_PATH ?? './data/upload-staging',
   // Extracted cover art, content-addressed. Safe to delete wholesale — a

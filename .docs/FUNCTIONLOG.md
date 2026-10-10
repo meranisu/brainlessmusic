@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** CORS registration in `buildApp()` — `backend/src/app.ts`; `config.corsOrigins` — `backend/src/config.ts`
+**Date:** 2026-10-10
+**How added:** hardening
+**Purpose:** decides which other websites a browser lets read API responses.
+**Side effects:** none.
+**Before:** `origin: true`, so every origin was allowed.
+**After:** only the origins in `CORS_ORIGINS`; none by default (`origin: false`).
+
 **Function:** `redactUrl()` — `backend/src/utils/redactUrl.ts`; `req` log serializer — `backend/src/app.ts`
 **Date:** 2026-10-10
 **How added:** hardening

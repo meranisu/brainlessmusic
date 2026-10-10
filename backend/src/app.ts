@@ -43,10 +43,8 @@ export function buildApp() {
 
   registerAuthDecorator(app);
 
-  // Personal/local project, not a public API — allow any origin so local HTML
-  // test pages (opened via file://, which sends Origin: null) and future
-  // frontend dev servers can hit it. Auth is still enforced via JWT bearer token
-  // regardless of origin.
+  // Same-origin by default (see `config.corsOrigins`). `false` means no CORS
+  // headers at all, so a browser refuses any other site's script a response.
   //
   // `methods` must be listed explicitly — @fastify/cors v11's own default is
   // 'GET,HEAD,POST' (confirmed in node_modules/@fastify/cors/index.js), not
@@ -54,7 +52,10 @@ export function buildApp() {
   // playlists, tracks) is silently blocked by the browser's CORS preflight —
   // curl-based testing never surfaces it since CORS is browser-enforced only.
   // Found 2026-09-03 via a real headless-Chromium PATCH /tracks/:id call.
-  app.register(cors, { origin: true, methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'] });
+  app.register(cors, {
+    origin: config.corsOrigins.length > 0 ? config.corsOrigins : false,
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  });
 
   app.register(multipart, {
     limits: {

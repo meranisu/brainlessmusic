@@ -4,6 +4,25 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-10 — CORS: same-origin by default
+
+The last minor finding from the security pass. `@fastify/cors` ran with `origin: true`, so any website could read API
+responses from a visitor's browser. Low risk, since auth is a bearer header rather than a cookie, but nothing needed it:
+production serves the page and API from one origin, and Vite's dev server proxies `/api`.
+
+- New `CORS_ORIGINS` (comma-separated; `null` allows `file://` pages). Empty by default, which registers the plugin
+  with `origin: false`: no CORS headers, so browsers block other sites. The explicit method list is kept for when
+  origins are listed. The Android app is unaffected (CORS is browser-only).
+- **Verified:** backend `tsc --noEmit` clean; `npm test` 349/349 with a new `routes/cors.test.ts` (an unlisted origin
+  gets no headers by default and when others are listed; a listed origin gets them, PATCH included). Ran the new code
+  with `npm run dev` on `:3100` against a scratch database and library: a preflight from `https://evil.example` got
+  no CORS headers, and a request carrying the Vite dev origin got `200`. The Vite dev server itself was not running, so
+  the web app was not clicked through. The local `brainless-app` container still runs the old build. Not deployed.
+- **Found on the way:** the test script's `src/**/*.test.ts` only matches one folder down (no globstar), so a test
+  directly in `src/` silently never runs. The new test lives in `src/routes/`.
+
+---
+
 ## 2026-10-10 — Media tokens hidden from request logs; deleted users' tokens refused
 
 The minor findings from the same security pass.
