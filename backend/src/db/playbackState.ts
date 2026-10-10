@@ -114,6 +114,8 @@ function fetchPlayable(ids: number[]): Map<number, TrackSummary> {
          t.title as title,
          a.name as artist,
          al.title as album,
+         t.album_id as albumId,
+         t.track_number as trackNumber,
          t.duration as duration,
          t.format as format,
          t.hidden as hidden,

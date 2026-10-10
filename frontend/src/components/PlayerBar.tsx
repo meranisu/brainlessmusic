@@ -21,6 +21,14 @@ import {
   saveDataSaverPreference,
   type ServedStream,
 } from '../lib/streamQuality';
+import {
+  canFadeVolume,
+  isNextOnAlbum,
+  loadTransitionPrefs,
+  saveTransitionPrefs,
+  type BetweenSongs,
+  type TransitionPrefs,
+} from '../lib/transitions';
 import { CoverArt } from './CoverArt';
 import { FavoriteButton, useFavoriteIds } from './FavoriteButton';
 import {
@@ -41,7 +49,7 @@ import type { PlaybackState, TrackSummary } from '../types/api';
 import { useToast } from './ToastProvider';
 
 export type QueueTrack = Pick<TrackSummary, 'id' | 'title' | 'artist' | 'duration'> &
-  Partial<Pick<TrackSummary, 'format'>>;
+  Partial<Pick<TrackSummary, 'format' | 'albumId' | 'trackNumber'>>;
 
 export type RepeatMode = 'off' | 'all' | 'one';
 
@@ -59,8 +67,20 @@ const MAX_PLAYBACK_DELTA_SECONDS = 2;
 /** How often the position is pushed while playing. */
 const SAVE_INTERVAL_MS = 10_000;
 
-/** How long a track has to stay current before the next one is converted ahead of time. */
+/** How long a track has to stay current before the next one is converted ahead of time, and preloaded. */
 const PREPARE_NEXT_DELAY_MS = 15_000;
+
+/** A gapless start is scheduled once this little is left, on a timer more precise than `timeupdate` (~4 Hz). */
+const GAPLESS_SCHEDULE_S = 0.4;
+
+/** The next song starts this early, so the two overlap by a few ms rather than leave a gap. */
+const GAPLESS_LEAD_S = 0.01;
+
+/** The pause, play and skip fade (A71). */
+const SHORT_FADE_MS = 150;
+
+/** Volume ramps step this often. Audible tabs aren't timer-throttled, so it holds in the background. */
+const RAMP_STEP_MS = 20;
 
 interface PlayProgress {
   trackId: number;
@@ -209,6 +229,11 @@ export interface PlayerContextValue {
   setVolume: (volume: number) => void;
   toggleMute: () => void;
   stop: () => void;
+  /** Gapless, crossfade or fade out then in, plus the pause fade and the album rule (A71, A72). Per device. */
+  transitions: TransitionPrefs;
+  setTransitions: (prefs: TransitionPrefs) => void;
+  /** False on iOS and iPadOS, which ignore `audio.volume`: fades are unavailable there, gapless still works. */
+  canFade: boolean;
 }
 
 const PlayerContext = createContext<PlayerContextValue | undefined>(undefined);
@@ -231,6 +256,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [isShuffled, setIsShuffled] = useState(false);
   const [dataSaver, setDataSaverState] = useState(loadDataSaverPreference);
   const [volume, setVolumeState] = useState(loadVolumePreference);
+  const [transitions, setTransitionsState] = useState(loadTransitionPrefs);
   // The volume just before muting, restored on unmute.
   const preMuteVolumeRef = useRef(volume || 1);
   const [served, setServed] = useState<ServedStream | null>(null);
@@ -249,7 +275,27 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // Derived, not stored: widening past `md` with the sheet open would otherwise strand the user with no controls.
   const isSheetOpen = isExpanded && isPhone;
 
+  // Two elements that trade places at each song boundary (A56): `audioRef` is the one playing, everything else reads
+  // it; `spareRef` loads the next song ahead of time, and during a crossfade it is the song fading out.
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const spareRef = useRef<HTMLAudioElement | null>(null);
+  // What the spare holds, so a boundary can tell whether it is the right song at the right quality.
+  const preloadRef = useRef<{ trackId: number; quality: 'low' | undefined } | null>(null);
+  // A boundary already under way for the playing song, so `timeupdate` starts it once. `timer` is a scheduled
+  // gapless start; `fadeOutIn` waits for `ended` to start the next song.
+  const transitionRef = useRef<{ kind: BetweenSongs; fadeSeconds: number; timer?: number } | null>(null);
+  // Each element's fade (0 to 1). Its volume is the user's volume times this, so a fade never touches the slider.
+  const fadeGainRef = useRef(new Map<HTMLAudioElement, number>());
+  const rampsRef = useRef(new Map<HTMLAudioElement, { timer: number; done: () => void }>());
+  const volumeRef = useRef(volume);
+  const transitionsRef = useRef(transitions);
+  transitionsRef.current = transitions;
+  const [canFade] = useState(canFadeVolume);
+  // Bumped by every pause, play and skip, so a fade that finishes late can tell it was overtaken.
+  const fadeActionRef = useRef(0);
+  // Set each render (see `checkBoundary`, `handleEnded`); the listeners bound at mount call through these.
+  const boundaryRef = useRef<(audio: HTMLAudioElement) => void>(() => {});
+  const endedRef = useRef<() => void>(() => {});
   // The pre-shuffle order, so turning shuffle off restores it rather than
   // leaving the queue permanently scrambled.
   const originalQueueRef = useRef<QueueTrack[] | null>(null);
@@ -286,73 +332,167 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [isPlaying]);
 
   useEffect(() => {
-    const audio = new Audio();
-    // Buffer as much as the browser allows while foregrounded.
-    audio.preload = 'auto';
-    // Read fresh: this effect runs once, at mount.
-    audio.volume = loadVolumePreference();
-    audioRef.current = audio;
+    // Bound to both elements; each listener acts only while its element is the playing one, so the spare's preload
+    // and a song fading out stay silent to the rest of the player.
+    function bind(audio: HTMLAudioElement): () => void {
+      // Buffer as much as the browser allows while foregrounded.
+      audio.preload = 'auto';
+      // Read fresh: this effect runs once, at mount.
+      audio.volume = loadVolumePreference();
+      const isActive = () => audio === audioRef.current;
 
-    const onTime = () => {
-      // Mid-swap the clock is briefly 0 and means nothing: not a position to
-      // show, and not time anybody listened to.
-      if (swappingRef.current) return;
-      // Audio plays on under a drag, so it still counts as listened.
-      recordListenedTime(audio.currentTime);
-      if (!scrubbingRef.current) setCurrentTime(audio.currentTime);
-    };
-    const onMeta = () => {
-      const known = Number.isFinite(audio.duration) ? audio.duration : 0;
-      setDuration(known);
-      // The scanner's duration can be missing or wrong; once the browser has
-      // decoded the header it knows better, so re-derive the threshold.
-      if (progressRef.current && known > 0) {
-        progressRef.current.thresholdMs = scrobbleThresholdMs(known);
-      }
-    };
-    const onPlay = () => setIsPlaying(true);
-    const onPause = () => setIsPlaying(false);
-    const onWaiting = () => setIsBuffering(true);
-    const onPlaying = () => {
-      hasStartedRef.current = true;
-      consecutiveLoadFailuresRef.current = 0;
-      setIsBuffering(false);
-    };
-    // A source that was playing and broke: dropped connection, decode error, or a lapsed `?token=` on seek.
-    // `load()` and the quality swap handle their own errors.
-    const onError = () => {
-      if (swappingRef.current || !hasStartedRef.current) return;
-      hasStartedRef.current = false;
+      const onTime = () => {
+        if (!isActive()) return;
+        // Mid-swap the clock is briefly 0 and means nothing: not a position to
+        // show, and not time anybody listened to.
+        if (swappingRef.current) return;
+        // Audio plays on under a drag, so it still counts as listened.
+        recordListenedTime(audio.currentTime);
+        if (!scrubbingRef.current) setCurrentTime(audio.currentTime);
+        boundaryRef.current(audio);
+      };
+      const onMeta = () => {
+        if (!isActive()) return;
+        const known = Number.isFinite(audio.duration) ? audio.duration : 0;
+        setDuration(known);
+        // The scanner's duration can be missing or wrong; once the browser has
+        // decoded the header it knows better, so re-derive the threshold.
+        if (progressRef.current && known > 0) {
+          progressRef.current.thresholdMs = scrobbleThresholdMs(known);
+        }
+      };
+      const onPlay = () => {
+        if (isActive()) setIsPlaying(true);
+      };
+      const onPause = () => {
+        if (isActive()) setIsPlaying(false);
+      };
+      const onWaiting = () => {
+        if (isActive()) setIsBuffering(true);
+      };
+      const onPlaying = () => {
+        if (!isActive()) return;
+        hasStartedRef.current = true;
+        consecutiveLoadFailuresRef.current = 0;
+        setIsBuffering(false);
+      };
+      // A source that was playing and broke: dropped connection, decode error, or a lapsed `?token=` on seek.
+      // `load()` and the quality swap handle their own errors. A spare that fails to preload is caught at the
+      // boundary instead, which falls back to a normal load.
+      const onError = () => {
+        if (!isActive()) return;
+        if (swappingRef.current || !hasStartedRef.current) return;
+        hasStartedRef.current = false;
 
-      const { queue: tracks, index: at } = stateRef.current;
-      const track = tracks[at];
-      if (!track) return;
+        const { queue: tracks, index: at } = stateRef.current;
+        const track = tracks[at];
+        if (!track) return;
 
-      void reconnect(track, progressRef.current?.lastTime ?? 0, isPlayingRef.current);
-    };
+        void reconnect(track, progressRef.current?.lastTime ?? 0, isPlayingRef.current);
+      };
+      const onEnded = () => {
+        if (isActive()) endedRef.current();
+      };
 
-    audio.addEventListener('timeupdate', onTime);
-    audio.addEventListener('loadedmetadata', onMeta);
-    audio.addEventListener('durationchange', onMeta);
-    audio.addEventListener('play', onPlay);
-    audio.addEventListener('pause', onPause);
-    audio.addEventListener('waiting', onWaiting);
-    audio.addEventListener('playing', onPlaying);
-    audio.addEventListener('error', onError);
+      audio.addEventListener('timeupdate', onTime);
+      audio.addEventListener('loadedmetadata', onMeta);
+      audio.addEventListener('durationchange', onMeta);
+      audio.addEventListener('play', onPlay);
+      audio.addEventListener('pause', onPause);
+      audio.addEventListener('waiting', onWaiting);
+      audio.addEventListener('playing', onPlaying);
+      audio.addEventListener('error', onError);
+      audio.addEventListener('ended', onEnded);
 
+      return () => {
+        audio.pause();
+        audio.removeEventListener('timeupdate', onTime);
+        audio.removeEventListener('loadedmetadata', onMeta);
+        audio.removeEventListener('durationchange', onMeta);
+        audio.removeEventListener('play', onPlay);
+        audio.removeEventListener('pause', onPause);
+        audio.removeEventListener('waiting', onWaiting);
+        audio.removeEventListener('playing', onPlaying);
+        audio.removeEventListener('error', onError);
+        audio.removeEventListener('ended', onEnded);
+      };
+    }
+
+    const first = new Audio();
+    const second = new Audio();
+    audioRef.current = first;
+    spareRef.current = second;
+    const unbindFirst = bind(first);
+    const unbindSecond = bind(second);
     return () => {
-      audio.pause();
-      audio.removeEventListener('timeupdate', onTime);
-      audio.removeEventListener('loadedmetadata', onMeta);
-      audio.removeEventListener('durationchange', onMeta);
-      audio.removeEventListener('play', onPlay);
-      audio.removeEventListener('pause', onPause);
-      audio.removeEventListener('waiting', onWaiting);
-      audio.removeEventListener('playing', onPlaying);
-      audio.removeEventListener('error', onError);
+      unbindFirst();
+      unbindSecond();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /** The element's volume is the user's volume times its fade. */
+  function setFadeGain(audio: HTMLAudioElement, gain: number) {
+    fadeGainRef.current.set(audio, gain);
+    audio.volume = Math.min(Math.max(volumeRef.current * gain, 0), 1);
+  }
+
+  function fadeGain(audio: HTMLAudioElement): number {
+    return fadeGainRef.current.get(audio) ?? 1;
+  }
+
+  function cancelRamp(audio: HTMLAudioElement) {
+    const ramp = rampsRef.current.get(audio);
+    if (!ramp) return;
+    window.clearInterval(ramp.timer);
+    rampsRef.current.delete(audio);
+    ramp.done();
+  }
+
+  /**
+   * Linear fade of one element to `target` over `ms`. Resolves when it lands or is cancelled; callers that care
+   * re-check state after. Instant where the browser ignores `volume` (iOS), so nothing waits on a fade that can't run.
+   */
+  function rampTo(audio: HTMLAudioElement, target: number, ms: number): Promise<void> {
+    cancelRamp(audio);
+    if (!canFade || ms <= 0) {
+      setFadeGain(audio, target);
+      return Promise.resolve();
+    }
+    const from = fadeGain(audio);
+    const start = performance.now();
+    return new Promise((resolve) => {
+      const timer = window.setInterval(() => {
+        const t = Math.min((performance.now() - start) / ms, 1);
+        setFadeGain(audio, from + (target - from) * t);
+        if (t >= 1) {
+          window.clearInterval(timer);
+          rampsRef.current.delete(audio);
+          resolve();
+        }
+      }, RAMP_STEP_MS);
+      rampsRef.current.set(audio, { timer, done: resolve });
+    });
+  }
+
+  /** Silences and empties the spare: after a boundary, on any explicit jump, on stop. */
+  function retireSpare() {
+    const spare = spareRef.current;
+    if (!spare) return;
+    cancelRamp(spare);
+    spare.pause();
+    if (spare.hasAttribute('src')) {
+      spare.removeAttribute('src');
+      spare.load(); // drops the in-flight range request
+    }
+    setFadeGain(spare, 1);
+    preloadRef.current = null;
+  }
+
+  function clearTransition() {
+    if (transitionRef.current?.timer !== undefined) window.clearTimeout(transitionRef.current.timer);
+    transitionRef.current = null;
+  }
 
   async function scrobble(trackId: number, msPlayed: number) {
     // Guest plays aren't counted (A37); the route would answer 403.
@@ -435,6 +575,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     // Latest wins: re-checked after every await so an abandoned call never overwrites the newer one.
     const token = ++loadTokenRef.current;
     hasStartedRef.current = false;
+    // An explicit load replaces whatever the spare held or was fading out.
+    clearTransition();
+    retireSpare();
+    const fadeIn = autoplay && canFade && transitionsRef.current.fadeOnPause;
+    cancelRamp(audio);
+    setFadeGain(audio, fadeIn ? 0 : 1);
 
     setIsLoading(true);
     setCurrentTime(0);
@@ -466,6 +612,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (autoplay) {
         try {
           await audio!.play();
+          if (fadeIn) void rampTo(audio!, 1, SHORT_FADE_MS);
         } catch (err) {
           throw new StreamLoadError(
             err instanceof Error ? err.message : 'Playback failed',
@@ -619,13 +766,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  /** Set on the element directly; a dragged slider fires many times a second. */
+  /** Set on the elements directly; a dragged slider fires many times a second. Each keeps its own fade. */
   function setVolume(next: number) {
     const clamped = Math.min(Math.max(next, 0), 1);
     setVolumeState(clamped);
     saveVolumePreference(clamped);
-    if (audioRef.current) audioRef.current.volume = clamped;
+    volumeRef.current = clamped;
+    for (const audio of [audioRef.current, spareRef.current]) {
+      if (audio) setFadeGain(audio, fadeGain(audio));
+    }
     if (clamped > 0) preMuteVolumeRef.current = clamped;
+  }
+
+  function setTransitions(prefs: TransitionPrefs) {
+    setTransitionsState(prefs);
+    saveTransitionPrefs(prefs);
+    // A boundary already timed for the old setting would run the wrong way; the next `timeupdate` re-plans it.
+    if (transitionRef.current && transitionRef.current.kind !== 'fadeOutIn') clearTransition();
   }
 
   function toggleMute() {
@@ -652,22 +809,72 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     void load(queue, at);
   }
 
+  /** A skip the user asked for: the short fade out first (A71), then the jump. Auto-advance uses `goTo`. */
+  function jumpTo(at: number) {
+    if (at < 0 || at >= queue.length) return;
+    const audio = audioRef.current;
+    const action = ++fadeActionRef.current;
+    if (!audio || audio.paused || !canFade || !transitionsRef.current.fadeOnPause) return goTo(at);
+    const tracks = queue;
+    setIndex(at);
+    void rampTo(audio, 0, SHORT_FADE_MS).then(() => {
+      // A newer skip, pause or play since then owns the player.
+      if (action === fadeActionRef.current) void load(tracks, at);
+    });
+  }
+
   function next() {
-    if (index < queue.length - 1) return goTo(index + 1);
-    if (repeat === 'all') return goTo(0);
+    if (index < queue.length - 1) return jumpTo(index + 1);
+    if (repeat === 'all') return jumpTo(0);
+  }
+
+  /** Play, with the short fade in when it's on (A71). Every play button and the lock screen come through here. */
+  function resumePlayback() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    ++fadeActionRef.current;
+    const fade = canFade && transitionsRef.current.fadeOnPause;
+    cancelRamp(audio);
+    setFadeGain(audio, fade ? 0 : 1);
+    // A broken `src` after a failed reconnect was already reported once.
+    void audio
+      .play()
+      .then(() => {
+        if (fade) void rampTo(audio, 1, SHORT_FADE_MS);
+      })
+      .catch(() => {});
+  }
+
+  /** Pause, after the short fade out when it's on. A song still fading out from a crossfade stops at once. */
+  function pausePlayback() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const action = ++fadeActionRef.current;
+    if (spareRef.current && !spareRef.current.paused) retireSpare();
+    // A boundary planned for this song is re-planned from `timeupdate` after resuming.
+    clearTransition();
+    if (!canFade || !transitionsRef.current.fadeOnPause) {
+      audio.pause();
+      return;
+    }
+    void rampTo(audio, 0, SHORT_FADE_MS).then(() => {
+      if (action === fadeActionRef.current && audio === audioRef.current) audio.pause();
+    });
   }
 
   function previous() {
     const audio = audioRef.current;
     if (audio && audio.currentTime > RESTART_THRESHOLD_SECONDS) {
+      replanBoundary(audio);
       audio.currentTime = 0;
       // Same reasoning as `seek()`: keep the reconnect anchor from going
       // stale the instant this jump happens.
       if (progressRef.current) progressRef.current.lastTime = 0;
       return;
     }
-    if (index > 0) return goTo(index - 1);
+    if (index > 0) return jumpTo(index - 1);
     if (audio) {
+      replanBoundary(audio);
       audio.currentTime = 0;
       if (progressRef.current) progressRef.current.lastTime = 0;
     }
@@ -676,15 +883,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   function toggle() {
     const audio = audioRef.current;
     if (!audio || !current) return;
-    if (audio.paused) {
-      // A broken `src` after a failed reconnect was already reported once.
-      void audio.play().catch(() => {});
-    } else audio.pause();
+    if (audio.paused) resumePlayback();
+    else pausePlayback();
+  }
+
+  /** After a jump within the song: a planned boundary (timer, fade-out) no longer fits, so `timeupdate` re-plans it. */
+  function replanBoundary(audio: HTMLAudioElement) {
+    if (!transitionRef.current) return;
+    clearTransition();
+    cancelRamp(audio);
+    setFadeGain(audio, 1);
   }
 
   function seek(seconds: number) {
     const audio = audioRef.current;
     if (!audio) return;
+    replanBoundary(audio);
     const max = duration || audio.duration || 0;
     const target = Math.min(Math.max(seconds, 0), max);
     audio.currentTime = target;
@@ -731,6 +945,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // alone; every value it touches is a setter or a ref.
   const stop = useCallback(() => {
     const audio = audioRef.current;
+    clearTransition();
+    retireSpare();
     if (audio) {
       audio.pause();
       audio.removeAttribute('src');
@@ -762,8 +978,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [user, stop]);
 
   // Newest values, reachable from long-lived listeners without re-binding them.
-  const stateRef = useRef({ queue, index, isPlaying });
-  stateRef.current = { queue, index, isPlaying };
+  const stateRef = useRef({ queue, index, isPlaying, repeat, dataSaver });
+  stateRef.current = { queue, index, isPlaying, repeat, dataSaver };
 
   const persistState = useCallback(() => {
     const audio = audioRef.current;
@@ -834,32 +1050,173 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // Re-bound whenever the queue position or repeat mode changes, so the
-  // handler always sees current values instead of the ones captured at mount.
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
+  /** The index that plays after `at`, or -1 at the end of the queue. */
+  function nextIndexFor(length: number, at: number, mode: RepeatMode): number {
+    if (mode === 'one') return at;
+    if (at < length - 1) return at + 1;
+    return mode === 'all' && length > 0 ? 0 : -1;
+  }
 
-    function onEnded() {
-      if (repeat === 'one') {
-        void load(queue, index);
-        return;
-      }
-      if (index < queue.length - 1) {
-        goTo(index + 1);
-        return;
-      }
-      if (repeat === 'all' && queue.length > 0) {
-        goTo(0);
-        return;
-      }
-      setIsPlaying(false);
+  /** Gapless unless a fade is set and allowed: not on iOS, not on repeat-one, not inside an album (A72). */
+  function transitionKind(track: QueueTrack, next: QueueTrack, mode: RepeatMode): BetweenSongs {
+    const prefs = transitionsRef.current;
+    if (!canFade || prefs.betweenSongs === 'gapless' || mode === 'one') return 'gapless';
+    if (prefs.keepAlbumsGapless && isNextOnAlbum(track, next)) return 'gapless';
+    return prefs.betweenSongs;
+  }
+
+  /** The spare holds this song, at the quality in use, and hasn't failed. Otherwise a boundary loads it normally. */
+  function spareHolds(track: QueueTrack | undefined): boolean {
+    const spare = spareRef.current;
+    const held = preloadRef.current;
+    const quality = stateRef.current.dataSaver ? 'low' : undefined;
+    return Boolean(track && spare && held && held.trackId === track.id && held.quality === quality && !spare.error);
+  }
+
+  /** Loads the song after this one into the spare, so the boundary only has to press play. */
+  async function preloadSpare(track: QueueTrack) {
+    const spare = spareRef.current;
+    if (!spare) return;
+    const quality = stateRef.current.dataSaver ? 'low' : undefined;
+    if (spareHolds(track)) return;
+    // Still fading out the last song; this boundary falls back to a normal load if it comes first.
+    if (!spare.paused) return;
+    const url = await buildStreamUrl(track.id, quality);
+    if (spare !== spareRef.current || !spare.paused) return;
+    cancelRamp(spare);
+    setFadeGain(spare, 1);
+    spare.src = url;
+    spare.load();
+    preloadRef.current = { trackId: track.id, quality };
+  }
+
+  /**
+   * The boundary: the spare becomes the playing element, the old one finishes or fades out. Falls back to a normal
+   * load when the spare isn't holding the next song.
+   */
+  function startNext(kind: BetweenSongs, fadeSeconds: number) {
+    const outgoing = audioRef.current;
+    const incoming = spareRef.current;
+    const { queue: tracks, index: at, repeat: mode } = stateRef.current;
+    const nextAt = nextIndexFor(tracks.length, at, mode);
+    const nextTrack = tracks[nextAt];
+    clearTransition();
+    if (!outgoing || !incoming || !nextTrack) return;
+    if (!spareHolds(nextTrack)) {
+      goTo(nextAt);
+      return;
     }
 
-    audio.addEventListener('ended', onEnded);
-    return () => audio.removeEventListener('ended', onEnded);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queue, index, repeat, dataSaver]);
+    // An older `load()` still awaiting, or a pending fade action, must not take over the new song.
+    ++loadTokenRef.current;
+    ++fadeActionRef.current;
+    hasStartedRef.current = false;
+    audioRef.current = incoming;
+    spareRef.current = outgoing;
+    preloadRef.current = null;
+
+    progressRef.current = {
+      trackId: nextTrack.id,
+      listenedMs: 0,
+      lastTime: 0,
+      thresholdMs: scrobbleThresholdMs(nextTrack.duration ?? 0),
+      scrobbled: false,
+    };
+    setIndex(nextAt);
+    setDuration(
+      Number.isFinite(incoming.duration) && incoming.duration > 0 ? incoming.duration : (nextTrack.duration ?? 0),
+    );
+    setCurrentTime(0);
+
+    cancelRamp(incoming);
+    setFadeGain(incoming, kind === 'gapless' ? 1 : 0);
+    void incoming
+      .play()
+      .then(() => {
+        if (kind !== 'gapless') void rampTo(incoming, 1, fadeSeconds * 1000);
+      })
+      .catch(() => {
+        // The preload looked fine but won't play: the normal path has the compat retry and the reporting.
+        if (audioRef.current === incoming) void load(tracks, nextAt);
+      });
+
+    // The old element is the spare now; empty it once it has nothing left to play.
+    const retireOutgoing = () => {
+      if (spareRef.current === outgoing && preloadRef.current === null) retireSpare();
+    };
+    if (kind === 'crossfade') void rampTo(outgoing, 0, fadeSeconds * 1000).then(retireOutgoing);
+    else if (kind === 'gapless') window.setTimeout(retireOutgoing, 1000);
+    else retireOutgoing();
+  }
+
+  /** Runs on every `timeupdate` of the playing element: starts the boundary once, in the way the settings ask. */
+  function checkBoundary(audio: HTMLAudioElement) {
+    if (transitionRef.current || audio.paused || swappingRef.current) return;
+    const { queue: tracks, index: at, repeat: mode } = stateRef.current;
+    const track = tracks[at];
+    const nextAt = nextIndexFor(tracks.length, at, mode);
+    if (!track || nextAt < 0) return;
+    const total = audio.duration;
+    if (!Number.isFinite(total) || total <= 0) return;
+
+    const remaining = total - audio.currentTime;
+    const nextTrack = tracks[nextAt];
+    const kind = transitionKind(track, nextTrack, mode);
+    // Never a fade longer than a third of either song.
+    const fadeSeconds = Math.min(transitionsRef.current.fadeSeconds, total / 3, (nextTrack.duration ?? total) / 3);
+
+    if (kind === 'gapless') {
+      if (remaining > GAPLESS_SCHEDULE_S) return;
+      // Not preloaded: leave it to `ended`, which loads the next song the old way.
+      if (!spareHolds(nextTrack)) {
+        transitionRef.current = { kind, fadeSeconds: 0 };
+        return;
+      }
+      const timer = window.setTimeout(
+        () => startNext('gapless', 0),
+        Math.max(0, (remaining - GAPLESS_LEAD_S) * 1000),
+      );
+      transitionRef.current = { kind, fadeSeconds: 0, timer };
+      return;
+    }
+
+    if (remaining > fadeSeconds) return;
+    transitionRef.current = { kind, fadeSeconds };
+    if (kind === 'crossfade') {
+      // Fades over what is actually left, which `timeupdate`'s quarter-second steps can shave a little.
+      if (spareHolds(nextTrack)) startNext('crossfade', remaining);
+      return;
+    }
+    // Fade out, then in: this song fades over what's left; `ended` starts the next one fading in.
+    void rampTo(audio, 0, remaining * 1000);
+  }
+
+  /** The playing element ran out. A planned boundary that didn't start yet starts now; otherwise the old way. */
+  function handleEnded() {
+    const { queue: tracks, index: at, repeat: mode } = stateRef.current;
+    const pending = transitionRef.current;
+    clearTransition();
+    const nextAt = nextIndexFor(tracks.length, at, mode);
+
+    if (nextAt >= 0 && spareHolds(tracks[nextAt])) {
+      if (pending?.kind === 'fadeOutIn') startNext('fadeOutIn', pending.fadeSeconds);
+      else startNext('gapless', 0);
+      return;
+    }
+    if (mode === 'one') {
+      void load(tracks, at);
+      return;
+    }
+    if (nextAt >= 0) {
+      goTo(nextAt);
+      return;
+    }
+    setIsPlaying(false);
+  }
+
+  // The mount-time listeners call these through refs, so they always see this render's values.
+  boundaryRef.current = checkBoundary;
+  endedRef.current = handleEnded;
 
   // Lock-screen and notification controls. Secure-context only, so absent over plain http on a LAN.
   useEffect(() => {
@@ -906,8 +1263,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     // Driven off the element rather than `toggle()`, so an OS button always
     // means what it says even if our own state has drifted out of sync.
-    set('play', () => void audioRef.current?.play());
-    set('pause', () => audioRef.current?.pause());
+    set('play', () => resumePlayback());
+    set('pause', () => pausePlayback());
     set('previoustrack', () => previous());
     set('nexttrack', () => next());
     set('seekbackward', (d) => seek(currentTime - (d.seekOffset ?? SEEK_STEP_SECONDS)));
@@ -977,16 +1334,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current?.id, dataSaver]);
 
-  // Converts the next track while this one plays, after a delay so skipping doesn't start one per track.
+  // Converts the next track while this one plays, after a delay so skipping doesn't start one per track, then loads it
+  // into the spare element for the boundary (A56). Repeat-one preloads the same song again.
   const upNext =
     repeat === 'one' ? null : (queue[index + 1] ?? (repeat === 'all' && queue.length > 1 ? queue[0] : null));
+  const spareTarget = repeat === 'one' ? current : upNext;
 
   useEffect(() => {
-    if (!current || !upNext) return;
-    const timer = setTimeout(() => prepareTrack(upNext.id, dataSaver ? 'low' : undefined), PREPARE_NEXT_DELAY_MS);
+    if (!current || !spareTarget) return;
+    const timer = setTimeout(() => {
+      if (upNext) prepareTrack(upNext.id, dataSaver ? 'low' : undefined);
+      void preloadSpare(spareTarget);
+    }, PREPARE_NEXT_DELAY_MS);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current?.id, upNext?.id, dataSaver]);
+  }, [current?.id, spareTarget?.id, dataSaver]);
 
   // Keyboard transport. Ignored while typing, so the library search box and
   // the tag editor keep working normally.
@@ -1046,7 +1408,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     toggle,
     next,
     previous,
-    goTo,
+    // Picking a queue row is a user's skip, so it gets the short fade.
+    goTo: jumpTo,
     seek,
     cycleRepeat,
     toggleShuffle,
@@ -1054,6 +1417,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setVolume,
     toggleMute,
     stop: stopAndForget,
+    transitions,
+    setTransitions,
+    canFade,
   };
 
   return (

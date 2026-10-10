@@ -4,6 +4,33 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Web: gapless playback and fades (A56, A71 to A73)
+
+- The web player has two `<audio>` elements that trade places at each song boundary (`PlayerBar.tsx`). 15 s into a
+  song (with the existing `/prepare`), the next song loads into the spare element; at the boundary the spare starts
+  ~10 ms before the old one ends, timed from `timeupdate` plus a timer, and the old one is emptied. Without a preload
+  (a song under ~15 s, a failed preload, a queue change late in a song) it falls back to the old `ended` path.
+  Listeners are bound to both elements and act only for the one playing, so the spare's preload and a fading-out
+  song never touch the player's state. Seeking or restarting cancels a planned boundary.
+- Options → Playback (A71, A72), per device: **Between songs** (Gapless default, Crossfade, or Fade out then in;
+  3, 6, 9 or 12 s, capped at a third of either song), **Keep albums gapless** (on: no fade between back-to-back
+  tracks of one album, by `albumId` and `trackNumber`), **Fade on pause and skip** (150 ms, on). Repeat-one always
+  joins gapless. Fades are `audio.volume` ramps scaled by the volume slider, so the slider never moves.
+- iOS and iPadOS ignore `audio.volume`, so there the fade settings are replaced by a note and songs join gapless.
+- Backend: track summaries (`TRACK_SUMMARY_SELECT`, track detail, resume hydration) now include `albumId` and
+  `trackNumber`, for the album rule. Additive; Android ignores unknown fields.
+- Verified: headless Chromium 153 and Firefox 155 decode MP3 (LAME), AAC/M4A, the server's 64k Opus and FLAC to the
+  exact sample count (padding and pre-skip removed), so on the web only the element switch is left to measure. With
+  the built app, the API mocked and three 20 s MP3s of one continuous tone, logged every 50 ms: the spare preloads at
+  15 s; gapless hands over at 20.1 s with no volume change; crossfade ramps old 1 to 0 and new 0 to 1 over the last
+  ~2.75 s; with the album switch on, same-album tracks join gapless despite crossfade; fade out then in fades to 0 at
+  the end and the next song in over 3 s; pause fades out over 150 ms then pauses, play fades back in, skip (`n`)
+  fades out then the next song fades in. No page errors. `npm test` 411/411, backend `tsc --noEmit` clean, frontend
+  `npm run build` and `npm run lint` (no new warnings). **Not verified:** how long the join actually is by ear. A
+  headless browser's fake audio output gave unstable numbers (the new element's clock stalled 17 to 170 ms after
+  starting, varying between runs), so that needs listening on a real browser and device. Not tried against the
+  real backend.
+
 ## 2026-10-11 — Profile Phase 2: listening stats backend, and real listening time from Android
 
 - `GET /me/stats?range=week|month|year|all&limit=`: plays, time listened, distinct songs and artists, top songs

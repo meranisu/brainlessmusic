@@ -11,12 +11,113 @@ import { useToast } from '../components/ToastProvider';
 import { ApiError, apiClient } from '../lib/apiClient';
 import { formatScanStatus } from '../lib/format';
 import { applyTheme, loadTheme, THEMES, type ThemeId } from '../lib/theme';
+import { FADE_LENGTHS, type BetweenSongs, type TransitionPrefs } from '../lib/transitions';
 import type { AddLibraryRootResponse, LibraryRoot, LibraryRootListResponse, LibraryRootScanResult } from '../types/api';
+
+const BETWEEN_SONGS: { id: BetweenSongs; name: string; detail: string }[] = [
+  { id: 'gapless', name: 'Gapless', detail: 'One song straight into the next' },
+  { id: 'crossfade', name: 'Crossfade', detail: 'The next song fades in over the end' },
+  { id: 'fadeOutIn', name: 'Fade out, then in', detail: 'A soft dip between songs' },
+];
+
+/** A71 and A72: what happens between songs, and the short fade on pause and skip. Per device, like data saver. */
+function TransitionSettings({
+  prefs,
+  onChange,
+  canFade,
+}: {
+  prefs: TransitionPrefs;
+  onChange: (prefs: TransitionPrefs) => void;
+  canFade: boolean;
+}) {
+  if (!canFade) {
+    return (
+      <p className="mt-2 rounded-lg border border-blue-800 bg-blue-900/60 px-4 py-3 text-xs text-blue-300">
+        Songs play back to back with no gap. Fades aren't available here: this browser doesn't let a page change the
+        volume (iPhone and iPad).
+      </p>
+    );
+  }
+
+  const fading = prefs.betweenSongs !== 'gapless';
+  return (
+    <div className="mt-2 space-y-2">
+      <div className="rounded-lg border border-blue-800 bg-blue-900/60 px-4 py-3.5">
+        <p className="text-sm font-medium text-white" id="between-songs">
+          Between songs
+        </p>
+        {/* A radiogroup: the three rule each other out, which is the point (A71). */}
+        <div role="radiogroup" aria-labelledby="between-songs" className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          {BETWEEN_SONGS.map((option) => {
+            const selected = prefs.betweenSongs === option.id;
+            return (
+              <button
+                key={option.id}
+                role="radio"
+                aria-checked={selected}
+                onClick={() => onChange({ ...prefs, betweenSongs: option.id })}
+                className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+                  selected
+                    ? 'border-orange-500 bg-orange-600/12'
+                    : 'border-blue-800 bg-blue-950/40 hover:border-blue-600 hover:bg-blue-800/60'
+                }`}
+              >
+                <span className="block text-sm text-white">{option.name}</span>
+                <span className="block text-xs text-blue-300">{option.detail}</span>
+              </button>
+            );
+          })}
+        </div>
+        {fading && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs text-blue-300" id="fade-length">
+              Fade length
+            </span>
+            <div role="radiogroup" aria-labelledby="fade-length" className="flex gap-1">
+              {FADE_LENGTHS.map((seconds) => {
+                const selected = prefs.fadeSeconds === seconds;
+                return (
+                  <button
+                    key={seconds}
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => onChange({ ...prefs, fadeSeconds: seconds })}
+                    className={`min-w-11 rounded-md border px-2.5 py-1.5 text-xs tabular-nums transition-colors ${
+                      selected
+                        ? 'border-orange-500 bg-orange-600/12 text-white'
+                        : 'border-blue-800 text-blue-200 hover:border-blue-600'
+                    }`}
+                  >
+                    {seconds} s
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+      {fading && (
+        <ToggleRow
+          label="Keep albums gapless"
+          detail="No fade between tracks of one album played in order, so live albums and mixes stay seamless"
+          checked={prefs.keepAlbumsGapless}
+          onChange={() => onChange({ ...prefs, keepAlbumsGapless: !prefs.keepAlbumsGapless })}
+        />
+      )}
+      <ToggleRow
+        label="Fade on pause and skip"
+        detail="A quick fade instead of a hard stop"
+        checked={prefs.fadeOnPause}
+        onChange={() => onChange({ ...prefs, fadeOnPause: !prefs.fadeOnPause })}
+      />
+    </div>
+  );
+}
 
 interface ToggleRowProps {
   label: string;
   detail: string;
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   checked: boolean;
   onChange: () => void;
 }
@@ -28,7 +129,7 @@ function ToggleRow({ label, detail, icon, checked, onChange }: ToggleRowProps) {
       aria-pressed={checked}
       className="flex w-full items-center gap-4 rounded-lg border border-blue-800 bg-blue-900/60 px-4 py-3.5 text-left transition-colors hover:border-blue-600 hover:bg-blue-800/60"
     >
-      <span className={`shrink-0 ${checked ? 'text-orange-500' : 'text-blue-400'}`}>{icon}</span>
+      {icon && <span className={`shrink-0 ${checked ? 'text-orange-500' : 'text-blue-400'}`}>{icon}</span>}
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-medium text-white">{label}</span>
         <span className="block text-xs text-blue-300">{detail}</span>
@@ -250,7 +351,7 @@ function LibrarySection() {
  */
 export function OptionsPage() {
   const { user, logout, setPasscode, clearPasscode } = useAuth();
-  const { dataSaver, setDataSaver } = usePlayer();
+  const { dataSaver, setDataSaver, transitions, setTransitions, canFade } = usePlayer();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [showHandoff, setShowHandoff] = useState(false);
@@ -317,6 +418,7 @@ export function OptionsPage() {
           checked={dataSaver}
           onChange={() => void setDataSaver(!dataSaver)}
         />
+        <TransitionSettings prefs={transitions} onChange={setTransitions} canFade={canFade} />
       </section>
 
       {user?.isAdmin && <LibrarySection />}

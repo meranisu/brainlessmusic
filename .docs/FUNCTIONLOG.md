@@ -4,6 +4,25 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `checkBoundary()`, `startNext()`, `handleEnded()`, `preloadSpare()`, `spareHolds()`, `transitionKind()`, `rampTo()`, `retireSpare()`, `jumpTo()`, `resumePlayback()`, `pausePlayback()`, `replanBoundary()` — `frontend/src/components/PlayerBar.tsx`; `loadTransitionPrefs()`, `saveTransitionPrefs()`, `isNextOnAlbum()`, `canFadeVolume()` — `frontend/src/lib/transitions.ts`; `TransitionSettings()` — `frontend/src/pages/OptionsPage.tsx`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** gapless playback and the three fades on the web (A56, A71 to A73).
+**Side effects:** a second `<audio>` element fetches the next song's stream 15 s into each song; settings in
+`localStorage` (`brainlessmusic.transitions`).
+**Before:** one element; the next song loaded only on `ended`, so every boundary had a fetch-and-decode gap; pause
+and skip were hard cuts.
+**After:** the spare element holds the next song and takes over at the boundary, gapless or faded as set; pause,
+play and skip fade over 150 ms when on. The `ended` listener moved into the mount-time binding (via `endedRef`).
+
+**Function:** `TRACK_SUMMARY_SELECT`, `getTrackDetailById()` — `backend/src/db/browse.ts`; `fetchPlayable()` — `backend/src/db/playbackState.ts`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** track summaries carry `albumId` and `trackNumber`, so a player can tell the next track of an album (A72).
+**Side effects:** none.
+**Before:** summaries had the album title only; `trackNumber` was on the detail alone.
+**After:** both fields on every summary and on the resumed queue.
+
 **Function:** `getUserStats()`, `getTrackStat()`, `finishPlay()`, `listLessOftenTracks()` — `backend/src/db/listeningStats.ts`; `recordScrobble()` — `backend/src/db/plays.ts`
 **Date:** 2026-10-11
 **How added:** new feature

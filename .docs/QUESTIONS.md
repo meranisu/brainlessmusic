@@ -119,6 +119,22 @@ is not lost.
 
 ## Answered
 
+### A73 — Web gapless: two players first, measured *(was Q73)*
+**Answered:** 2026-10-11 · **Yes, as assumed.** Two audio elements with the next song preloaded. Sample-exact playback
+through Media Source Extensions only if the measured seam is audible on real albums. Plan: [gapless and fades](features/gapless-and-crossfade/planning.md).
+
+### A72 — Albums stay gapless, with a switch *(was Q72)*
+**Answered:** 2026-10-11 · **No fade between back-to-back tracks of the same album, and a setting for it.** "Keep albums
+gapless", on by default. Turned off, album tracks fade like any others. Plan: [gapless and fades](features/gapless-and-crossfade/planning.md).
+
+### A71 — All three fades, each one optional *(was Q71)*
+**Answered:** 2026-10-11 · **All of them, each one able to be turned off.** Read as two settings, on web and Android:
+- **Between songs**, one choice of three, so they rule each other out: **Gapless** (default), **Crossfade** (overlap;
+  length 3, 6, 9 or 12 s) or **Fade out, then in** (no overlap; same lengths).
+- **Fade on pause, play and skip**, a switch of its own (about 0.15 s), on by default.
+
+Plan: [gapless and fades](features/gapless-and-crossfade/planning.md).
+
 ### A66 — The profile comes to the web too *(was Q66)*
 **Answered:** 2026-10-11 · **Both.** Android and the web each get the profile, Wrapped and the mix, over the same
 endpoints. [profile plan](features/profile-and-listening-stats/planning.md), Phase 7 (web).
@@ -171,6 +187,10 @@ handoff links `/#t=`.
 **Answered:** 2026-10-10 · **Yes.** Tracks should play back to back with no gap, which means handling the Opus pre-skip
 and the LAME delay/padding at track edges. Not built yet and not scheduled on the roadmap. It needs its own plan
 (`.docs/features/<name>/planning.md`), covering the web player and Android separately.
+**Plan written 2026-10-11:** [gapless and fades](features/gapless-and-crossfade/planning.md); the owner added fades
+to the scope. Answered: A71 to A73.
+**Web built 2026-10-11** (CHANGELOG): two elements, preload, gapless join, the three fades and their settings. The join
+hasn't been judged by ear yet. Android (gapless check, fades) is still to do.
 
 ### A55 — The theme follows the profile *(was Q20)*
 **Answered:** 2026-10-10 · **Stored per user on the server**, not per browser. This overrides the `localStorage`

@@ -15,6 +15,9 @@ export interface TrackSummary {
   title: string;
   artist: string | null;
   album: string | null;
+  /** With `trackNumber`, tells "the next track of this album" apart (A72, gapless albums). */
+  albumId: number | null;
+  trackNumber: number | null;
   duration: number | null;
   format: string | null;
   hidden: boolean;
