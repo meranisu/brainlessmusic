@@ -12,7 +12,7 @@ import {
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useIsPhone } from '../hooks/useIsPhone';
-import { apiClient, buildCoverUrl, buildStreamUrl, reportPlaybackFailure } from '../lib/apiClient';
+import { apiClient, buildCoverUrl, buildStreamUrl, prepareTrack, reportPlaybackFailure } from '../lib/apiClient';
 import {
   describeMediaError,
   describeServed,
@@ -63,6 +63,9 @@ const MAX_PLAYBACK_DELTA_SECONDS = 2;
 
 /** How often the position is pushed while playing. */
 const SAVE_INTERVAL_MS = 10_000;
+
+/** How long a track has to stay current before the next one is converted ahead of time. */
+const PREPARE_NEXT_DELAY_MS = 15_000;
 
 interface PlayProgress {
   trackId: number;
@@ -1150,6 +1153,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current?.id, dataSaver]);
+
+  // Convert the track that plays next while this one is playing, so a cold
+  // data-saver (or Safari Ogg) track starts at once instead of after its
+  // conversion. Delayed so that skipping through a queue doesn't start one
+  // conversion per skipped track, and so this track's own conversion, if it
+  // has one, gets the slot first. Follows the same rule as `onEnded` above.
+  const upNext =
+    repeat === 'one' ? null : (queue[index + 1] ?? (repeat === 'all' && queue.length > 1 ? queue[0] : null));
+
+  useEffect(() => {
+    if (!current || !upNext) return;
+    const timer = setTimeout(() => prepareTrack(upNext.id, dataSaver ? 'low' : undefined), PREPARE_NEXT_DELAY_MS);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current?.id, upNext?.id, dataSaver]);
 
   // Keyboard transport. Ignored while typing, so the library search box and
   // the tag editor keep working normally.

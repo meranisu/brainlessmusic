@@ -3,7 +3,7 @@ import { mkdir, readdir, rename, stat, unlink, utimes } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Stats } from 'node:fs';
 import { config } from '../config.js';
-import { encodeToFile, type Variant } from './streaming.js';
+import { encodeToFile, getActiveTranscodes, NoTranscodeSlotError, type Variant } from './streaming.js';
 
 /**
  * Converted copies of tracks, kept on disk.
@@ -90,6 +90,32 @@ export async function getOrCreate(
   const work = produce(sourcePath, path, name, variant).finally(() => inFlight.delete(name));
   inFlight.set(name, work);
   return { path: await work, hit: false };
+}
+
+/**
+ * Starts filling the cache for a track that is about to be played, without
+ * waiting for it.
+ *
+ * This is speculative work, so it never takes the last free slot: a guess
+ * about the next track must not make the track someone pressed play on answer
+ * 503. A conversion already running for the same entry counts as started, and
+ * a cached one costs only a touch, which also keeps it from being evicted
+ * before it plays.
+ */
+export function warm(
+  sourcePath: string,
+  sourceStats: Pick<Stats, 'size' | 'mtimeMs'>,
+  variant: Variant,
+  onError: (err: unknown) => void,
+): 'started' | 'busy' {
+  const name = cacheEntryName(variant, sourceStats);
+  if (!inFlight.has(name) && getActiveTranscodes() >= config.maxConcurrentTranscodes - 1) return 'busy';
+
+  getOrCreate(sourcePath, sourceStats, variant).catch((err: unknown) => {
+    // Losing the race for a slot to a real play is the cap doing its job.
+    if (!(err instanceof NoTranscodeSlotError)) onError(err);
+  });
+  return 'started';
 }
 
 async function produce(

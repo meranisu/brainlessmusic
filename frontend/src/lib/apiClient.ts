@@ -180,6 +180,16 @@ export function reportPlaybackFailure(
 }
 
 /**
+ * Asks the server to convert a track before it is played, with the same
+ * quality its stream URL will use. Fire-and-forget: if it does nothing, the
+ * track converts when played, as it always did.
+ */
+export function prepareTrack(trackId: number, quality?: 'low'): void {
+  const query = quality ? `?quality=${quality}` : '';
+  void apiClient.post(`/tracks/${trackId}/prepare${query}`).catch(() => {});
+}
+
+/**
  * URL for `<img src>`, on the same media-token scheme as streaming. `thumb`
  * is a ~256px copy — right for list rows; `full` keeps the original, for the
  * player bar and detail drawer.

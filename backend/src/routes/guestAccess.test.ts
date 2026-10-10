@@ -47,6 +47,7 @@ const EXPECTED: Record<string, Gate> = {
   'GET /tracks/:id': 'guest',
   'GET /tracks/:id/cover': 'guest',
   'POST /tracks/:id/playback-failure': 'guest',
+  'POST /tracks/:id/prepare': 'guest',
   'GET /tracks/:id/stream': 'guest',
   'GET /tracks/:id/waveform': 'guest',
   // Real accounts only: anything that builds up personal data (A37).

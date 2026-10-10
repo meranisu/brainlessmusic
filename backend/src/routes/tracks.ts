@@ -35,7 +35,7 @@ import {
   WEBKIT_INCOMPATIBLE_EXTENSIONS,
   type Variant,
 } from '../services/streaming.js';
-import { getOrCreate } from '../services/transcodeCache.js';
+import { getOrCreate, warm } from '../services/transcodeCache.js';
 import { recordStreamError, streamEnded, streamStarted } from '../services/streamMonitor.js';
 import { sendCover } from '../services/artwork.js';
 import { persistArtwork } from '../services/artworkIngest.js';
@@ -474,6 +474,45 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
       reply.header('Content-Range', `bytes ${start}-${end}/${serveStats.size}`);
       reply.header('Content-Length', end - start + 1);
       return reply.send(createReadStream(servePath, { start, end }));
+    },
+  );
+
+  /**
+   * Converts a track ahead of time, so that playing it later is a cache hit
+   * instead of a wait. The player calls this for the next track in its queue
+   * with the same `?quality=` it will stream with; the conversion is chosen by
+   * the same `variantFor()` as the stream route, so what gets warmed is exactly
+   * what will be asked for.
+   *
+   * Answers at once and converts in the background. `not-needed` means the
+   * track will be served as-is; `busy` means no spare slot, and the track will
+   * simply convert when played, as it did before this existed.
+   */
+  fastify.post<{ Params: { id: string }; Querystring: { quality?: string } }>(
+    '/tracks/:id/prepare',
+    { preHandler: fastify.authenticate },
+    async (request, reply) => {
+      const id = Number(request.params.id);
+      const track = Number.isInteger(id) ? findTrackById(id) : undefined;
+      if (!track) {
+        return reply.code(404).send({ error: 'Track not found' });
+      }
+
+      const variant = variantFor(track, request.query.quality === 'low', request.headers['user-agent'], false);
+      if (!variant) return { status: 'not-needed' };
+
+      let stats;
+      try {
+        stats = await stat(track.path);
+      } catch {
+        // The stream route reports a missing file when it is actually played.
+        return reply.code(404).send({ error: 'Track file is missing from disk' });
+      }
+
+      const status = warm(track.path, stats, variant, (err) => {
+        request.log.warn({ err, trackId: id, variant: variant.id }, 'Ahead-of-time transcode failed');
+      });
+      return { status };
     },
   );
 

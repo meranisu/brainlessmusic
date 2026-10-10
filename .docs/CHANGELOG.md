@@ -4,6 +4,30 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-10 — The next track is converted while the current one plays
+
+The first play of a track that needs converting (data saver, or an Ogg/Opus file on Safari) waited for the whole
+conversion: 4.5 s for a 7-minute FLAC (`transcodeCache.ts` header). The web player now asks for the next track to be
+converted ahead of time, so it starts at once.
+
+- **`POST /api/tracks/:id/prepare?quality=low`** (any signed-in user, guests included, since it is part of listening;
+  added to the `guestAccess.test.ts` table). It picks the conversion with the stream route's own `variantFor()`, so it
+  warms exactly what will be streamed, and answers at once with `not-needed`, `started` or `busy`.
+- **`warm()`** in `services/transcodeCache.ts` starts `getOrCreate()` without awaiting it, and never takes the last
+  free transcode slot (`MAX_CONCURRENT_TRANSCODES`, default 2), so a guess about the next track can't make a real
+  play answer 503. A conversion of the same entry that is already running counts as started.
+- **Web player** (`PlayerBar.tsx`): 15 s after a track becomes current, it calls `prepareTrack()` for the track
+  `onEnded` would go to (none on repeat-one; the first track on repeat-all), with the same quality setting. The delay
+  means skipping through a queue doesn't start a conversion per skipped track, and the current track's own
+  conversion gets a slot first. The Android app does not call it yet.
+- **Verified:** backend `tsc --noEmit` clean; `npm test` 358/358 with a new `routes/prepare.test.ts` (401 without a
+  login, 404 for an unknown track, `not-needed` for a track served as-is, `busy` with a single slot, and a real
+  ffmpeg conversion of a generated FLAC landing in the cache under the name the stream route will look for; it uses
+  its own temp `TRANSCODE_PATH`). Frontend `npm run build` clean; lint adds nothing new. **Not run in a browser**: the
+  15 s timer and the faster start of the next track were not checked by hand. Not deployed.
+
+---
+
 ## 2026-10-10 — Covers and the web app stay in the browser cache
 
 From a performance check of production on smol. The server is idle (0% CPU, 73 MB), and Cloudflare already

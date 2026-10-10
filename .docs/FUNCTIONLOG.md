@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `warm()` — `backend/src/services/transcodeCache.ts`; `POST /tracks/:id/prepare` — `backend/src/routes/tracks.ts`
+**Date:** 2026-10-10
+**How added:** performance
+**Purpose:** starts converting a track into the transcode cache before it is played, choosing the conversion the same way the stream route does.
+**Side effects:** may start one ffmpeg run in the background and write a cache entry under `TRANSCODE_PATH`; touches an existing entry.
+**Before:** a track was converted only when its stream was requested, and the player waited for it.
+**After:** the player can ask ahead; the conversion runs only when a slot would still be left for a real play.
+
+**Function:** `prepareTrack()` — `frontend/src/lib/apiClient.ts`; next-track effect in `PlayerProvider` — `frontend/src/components/PlayerBar.tsx`
+**Date:** 2026-10-10
+**How added:** performance
+**Purpose:** 15 s into the current track, asks the server to prepare the track that plays next, with the current data-saver setting.
+**Side effects:** one `POST /api/tracks/:id/prepare` per track that stays current for 15 s; errors are ignored.
+**Before:** nothing was prepared ahead.
+**After:** the next track is usually converted by the time it starts.
+
 **Function:** `getMediaToken()`, `loadStoredMediaToken()`, `setToken()` — `frontend/src/lib/apiClient.ts`
 **Date:** 2026-10-10
 **How added:** performance
