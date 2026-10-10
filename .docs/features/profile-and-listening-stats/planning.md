@@ -76,6 +76,8 @@ Phases 2 and 3 are the core; 4–7 can follow in any order.
       reorder songs. All over the existing `/playlists` endpoints, reorder included (`PATCH /playlists/:id/tracks/reorder`,
       `routes/playlists.ts:168`).
 - [x] Empty states for a new account, and the guest line.
+- [ ] Fix the review findings P1 to P16 in
+      [process/profile-queue-review-2026-10-11.md](../../process/profile-queue-review-2026-10-11.md), P1 to P5 first.
 
 ## Phase 4: Genres
 
@@ -123,3 +125,4 @@ Phases 2 and 3 are the core; 4–7 can follow in any order.
 | 2026-10-11 | 2 | Built: `/me/stats`, `/me/stats/tracks/:id`, `/me/less-often`, `PATCH /me/history/:id`, migration `0021` (`ms_final`) | Phase 2 | Yes; web reporting moved to Phase 7 |
 | 2026-10-11 | 3 | Built: You tab, likes, playlists list and page, add-to-playlist sheet, liked and less-often lists. "Song menu" means the album page's; Library song rows have no menu yet | Phase 3 | Yes |
 | 2026-10-11 | 3, 7 | A65: Android edits playlists; A66: web gets a Phase 7, walkthrough moves to 8 | Owner's answers | Yes |
+| 2026-10-11 | 2, 3 | Review of the queue, listening-time and profile commits: 16 findings (P1 to P16), none built or run | Owner asked for a review before testing | Yes; fixes go before Phase 4 |
