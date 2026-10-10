@@ -6,6 +6,8 @@ export interface User {
   isGuest: boolean;
   /** Whether the account has a passcode. Never true for a guest. */
   hasPasscode: boolean;
+  /** Web theme id (A55), or `null` if this profile never chose one. */
+  theme: string | null;
 }
 
 export interface TrackSummary {

@@ -18,11 +18,14 @@ export const DEFAULT_THEME: ThemeId = 'blue';
 
 const STORAGE_KEY = 'brainlessmusic.theme';
 
-function isTheme(value: string | null): value is ThemeId {
+export function isTheme(value: string | null | undefined): value is ThemeId {
   return THEMES.some((theme) => theme.id === value);
 }
 
-/** In `localStorage`: a theme belongs to the screen, and needs no round trip before first paint. */
+/**
+ * The browser's copy. The theme belongs to the profile (A55, `theme` on `/auth/me`); this copy is what `index.html`
+ * paints first, so the page doesn't flash the default while the profile loads.
+ */
 export function loadTheme(): ThemeId {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -33,7 +36,19 @@ export function loadTheme(): ThemeId {
   }
 }
 
-/** Sets `data-theme` and saves it. The default sets "blue" explicitly, so the attribute is never absent. */
+/**
+ * Whether this browser has a theme of its own. Used once per profile: a profile with no theme yet takes the browser's,
+ * so a choice made before A55 isn't lost.
+ */
+export function hasLocalTheme(): boolean {
+  try {
+    return isTheme(localStorage.getItem(STORAGE_KEY));
+  } catch {
+    return false;
+  }
+}
+
+/** Sets `data-theme` and saves the browser's copy. The default sets "blue" explicitly, so the attribute is never absent. */
 export function applyTheme(theme: ThemeId): void {
   document.documentElement.dataset.theme = theme;
   try {

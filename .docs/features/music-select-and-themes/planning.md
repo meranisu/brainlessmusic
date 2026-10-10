@@ -76,7 +76,7 @@ preference, it is the measurement.
 - Ship at least two: the current blue, and a red one from the IIDX RED
   reference. A theme controls colour only ([A48](../../QUESTIONS.md#a48--a-theme-controls-colour-only-was-q19)).
 - Persistence shipped per-device; [A55](../../QUESTIONS.md#a55--the-theme-follows-the-profile-was-q20) (2026-10-10)
-  moves it to the profile. Not built yet.
+  moves it to the profile. Built 2026-10-11.
 - The backdrop, boot frame, band sweep and tap flash all hard-code blue and
   orange; they have to move to tokens in the same pass or a red theme will have
   blue furniture.

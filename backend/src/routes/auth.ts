@@ -13,6 +13,7 @@ import {
   pruneIdleGuests,
   setAdmin,
   setPasscodeHashById,
+  setUserTheme,
   touchLastSeen,
 } from '../db/users.js';
 import { hashPasscode, hashPassword, verifyPasscode, verifyPassword } from '../services/password.js';
@@ -33,6 +34,8 @@ interface PasscodeLogin {
 const USERNAME_PATTERN = /^[A-Za-z0-9._-]{2,32}$/;
 const MIN_PASSWORD_LENGTH = 8;
 const PASSCODE_PATTERN = /^\d{4,8}$/;
+/** A web theme id (`frontend/src/lib/theme.ts`): lowercase, short. */
+const THEME_ID = /^[a-z][a-z0-9-]{0,31}$/;
 
 const HOUR_MS = 60 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
@@ -279,7 +282,19 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       isAdmin: Boolean(user.is_admin),
       isGuest: user.kind === 'guest',
       hasPasscode: Boolean(user.passcode_hash),
+      theme: user.theme,
     });
+  });
+
+  // Guests too: each guest identity keeps its own theme (A55). The id list lives in the web client; only the shape is
+  // checked here, so a theme added there needs no server change.
+  fastify.put<{ Body: { theme?: unknown } }>('/me/theme', { preHandler: fastify.authenticate }, async (request, reply) => {
+    const theme = request.body?.theme;
+    if (typeof theme !== 'string' || !THEME_ID.test(theme)) {
+      return reply.code(400).send({ error: 'theme must be a theme id like "blue"' });
+    }
+    setUserTheme(request.user!.id, theme);
+    return reply.code(204).send();
   });
 
   // Swaps a session token for a short-lived media token for `<audio src>` / `<img src>`. Clients cache it until `expiresAt`.

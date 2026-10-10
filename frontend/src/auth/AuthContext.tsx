@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { apiClient, getToken, setToken } from '../lib/apiClient';
+import { applyTheme, hasLocalTheme, isTheme, loadTheme } from '../lib/theme';
 import type { User } from '../types/api';
 
 interface AuthContextValue {
@@ -22,9 +23,28 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+/**
+ * The profile's theme wins over the browser's (A55). A profile that never chose one takes the browser's own choice,
+ * uploaded once; with neither, nothing changes. Not awaited: a failed upload just tries again next sign-in.
+ */
+function syncTheme(user: User) {
+  if (isTheme(user.theme)) {
+    applyTheme(user.theme);
+  } else if (user.theme === null && hasLocalTheme()) {
+    void apiClient.put('/me/theme', { theme: loadTheme() }).catch(() => {});
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Per sign-in, not per `/auth/me` refresh: a passcode change re-reads the user and must not undo a theme picked since.
+  const userId = user?.id;
+  useEffect(() => {
+    if (user) syncTheme(user);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   useEffect(() => {
     const token = getToken();

@@ -20,6 +20,16 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 **Before:** the tracker stopped counting at the scrobble threshold and nothing was sent after the scrobble.
 **After:** it keeps counting; the controller reports the total, keyed by the `playId` the scrobble returns.
 
+**Function:** `setUserTheme()` — `backend/src/db/users.ts`; route `PUT /me/theme` and `theme` on `GET /auth/me` in `backend/src/routes/auth.ts`; `syncTheme()` — `frontend/src/auth/AuthContext.tsx`; `hasLocalTheme()`, `isTheme()` (now exported) — `frontend/src/lib/theme.ts`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** the web theme is saved on the profile (A55).
+**Side effects:** `setUserTheme` writes `users.theme`. `syncTheme` sets `data-theme` and the browser copy, or sends one
+`PUT /me/theme`.
+**Before:** the theme lived only in `localStorage`, per browser; `index.html` reset three of the six themes to blue on
+load.
+**After:** the profile's theme wins at sign-in; Options saves to the profile; the browser copy is a first-paint cache.
+
 **Function:** `getLibraryStats()` — `backend/src/db/libraryStats.ts`; route `GET /library/stats` in `backend/src/routes/library.ts`; `LibraryStatsLine()` — `frontend/src/components/LibraryStatsLine.tsx`; `formatBytes()`, `formatTotalLength()` — `frontend/src/lib/format.ts`
 **Date:** 2026-10-11
 **How added:** new feature

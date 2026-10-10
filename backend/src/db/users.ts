@@ -14,6 +14,8 @@ export interface UserRow {
   last_seen_at: string | null;
   /** NULL means no passcode is set. See `0014_add_passcode.sql`. */
   passcode_hash: string | null;
+  /** Web theme id (A55); NULL until the user picks one or the client uploads its local choice. See `0020`. */
+  theme: string | null;
 }
 
 export function findUserByUsername(username: string): UserRow | undefined {
@@ -177,6 +179,10 @@ export function setPasswordHashById(id: number, passwordHash: string): UserRow |
 export function setPasscodeHashById(id: number, passcodeHash: string): UserRow | undefined {
   db.prepare('UPDATE users SET passcode_hash = ? WHERE id = ?').run(passcodeHash, id);
   return findUserById(id);
+}
+
+export function setUserTheme(id: number, theme: string): void {
+  db.prepare('UPDATE users SET theme = ? WHERE id = ?').run(theme, id);
 }
 
 export function clearPasscodeById(id: number): UserRow | undefined {

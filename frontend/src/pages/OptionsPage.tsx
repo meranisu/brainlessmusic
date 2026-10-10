@@ -262,6 +262,9 @@ export function OptionsPage() {
   function chooseTheme(id: ThemeId) {
     applyTheme(id);
     setTheme(id);
+    apiClient
+      .put('/me/theme', { theme: id })
+      .catch(() => showToast('Theme changed here, but not saved to your profile. Try again later.', 'error'));
   }
 
   return (
@@ -299,7 +302,7 @@ export function OptionsPage() {
           ))}
         </div>
         <p className="mt-2 text-xs text-blue-400">
-          Saved on this device. Another device can use a different one.
+          Saved to your profile, so it follows you to any device you sign in on.
         </p>
       </section>
 

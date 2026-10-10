@@ -114,6 +114,7 @@ erDiagram
 | `created_at` | TEXT | NOT NULL | `datetime('now')` | |
 | `kind` | TEXT | NOT NULL | `'account'` | `'account'` (has a password, can log in) or `'guest'` (minted by the title screen's enter button, `password_hash` is `''` and `/auth/login` refuses it before reaching bcrypt). Added `0012` |
 | `last_seen_at` | TEXT | — | — | Last `GET /auth/me` by this row; NULL until the first one. Only read by `pruneIdleGuests`, which falls back to `created_at`. Added `0012` |
+| `theme` | TEXT | — | — | Web theme id (`blue`, `red`, …, from `frontend/src/lib/theme.ts`), set by `PUT /me/theme` and returned on `/auth/me`. NULL until chosen; the web client then uploads the browser's own choice once. Shape-checked only (`/^[a-z][a-z0-9-]{0,31}$/`). Added `0020` (A55) |
 
 **FKs:** none (root entity).
 **Indexes:** unique index on `username` (auto, from the `UNIQUE` constraint); `idx_users_kind_last_seen` on `(kind, last_seen_at)` — both guest queries filter on kind and order by staleness.
@@ -441,12 +442,14 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | `0017_delete_guest_playlists_and_favorites.sql` | Data only, no schema change: deletes `playlist_tracks`, `playlists` and `favorites` rows owned by `kind = 'guest'` users, in one transaction |
 | `0019_create_less_often.sql` | `less_often` (composite PK), per-account "play less often" marks |
 | `0021_add_play_history_ms_final.sql` | `play_history.ms_final`: marks plays whose `ms_played` is the real total (A62) |
+| `0020_add_user_theme.sql` | `users.theme` — the web theme follows the profile (A55) |
 
 ## Change log
 
 | Date | Change | Why |
 |---|---|---|
 | 2026-10-11 | Migration `0021_add_play_history_ms_final.sql` — `play_history.ms_final`; column rows updated. From the migration SQL and the test run | A62: real listening time for the profile stats. `0020` is another change in progress, not this one |
+| 2026-10-11 | Migration `0020_add_user_theme.sql` — `users.theme`; column row and migration row. Written from the migration SQL and the test run, not introspected from the live DB | A55: the web theme is saved per profile instead of per browser |
 | 2026-10-11 | Migration `0019_create_less_often.sql` — `less_often`; new table section, relationship rows, migration row. Written from the migration SQL and the test run, not introspected from the live DB | A60: swiping a song right in the Android queue plays it less often in shuffle. User and track deletes clear it first, like `favorites` |
 | 2026-10-10 | Comments only in migrations `0007`–`0018` (antislop pass): shortened, and `0011`'s stale "this database does not set `PRAGMA foreign_keys`" corrected to match [Discrepancy 1](#1-foreign-keys-are-enforced-not-off). No SQL changed; no table section needs updating | Comment cleanup; verified by diffing the files with comments stripped |
 | 2026-10-10 | Migration `0018_create_guest_codes.sql` — `guest_codes`, `server_settings`; new table sections and relationship row. Written from the migration SQL and the test run (applied to a scratch DB), not introspected from the live DB | A42/A43: one-use per-guest codes made on the web Users page, and the admin toggle that closes the guest door. FKs to `users` are nulled, not cascaded, by `deleteUser`/`pruneIdleGuests` |

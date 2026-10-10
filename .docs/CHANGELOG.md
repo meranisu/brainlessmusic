@@ -20,6 +20,24 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
   counts, per-song, guests) and the route-gate table; `npm test` 396/396, `tsc --noEmit` clean. Android: a
   `ListenTrackerTest` case for counting past the threshold; built by the CI debug build.
 
+## 2026-10-11 — The theme follows the profile (A55)
+
+- Backend: migration `0020` adds `users.theme`. `/auth/me` returns `theme` (NULL until chosen) and `PUT /me/theme`
+  (`{ theme }`, any signed-in user, guests too) saves it. The server checks only the id's shape, so a theme added on
+  the web needs no server change.
+- Web: on sign-in (and on load with a stored token) the profile's theme is applied and copied to the browser. A
+  profile with no theme yet takes the browser's own choice, uploaded once, so a pick made before this isn't lost.
+  Picking a theme in Options saves it to the profile; if that request fails, the toast says it only changed here.
+  The browser copy stays as a cache so the first paint isn't the default colour.
+- Fixed on the way: the first-paint script in `index.html` only knew `blue`, `red` and `void`, so Nord, Magenta and
+  Pastel came back as blue on every reload until Options was opened. It now lists all six.
+- Verified: new `routes/theme.test.ts` (NULL by default, per user, guests too, 400s on bad ids); route added to the
+  classification table. `npm test` 389/389, backend `tsc --noEmit` clean, frontend `npm run build` and `npm run lint`
+  (no new warnings). `vite preview` in headless Chromium with the API mocked: profile `red` over a browser `nord`
+  ends on red and caches it; profile NULL with browser `pastel` paints pastel first and uploads it once; nothing
+  set stays blue with no request; picking Magenta in Options sends `PUT /me/theme`. No page errors. Not tried
+  against the real backend (the local container runs an older build).
+
 ## 2026-10-11 — Library totals in the Full view (A52)
 
 - Backend: `GET /library/stats` (any signed-in user, guests too) returns `{ tracks, seconds, bytes, formats }` over

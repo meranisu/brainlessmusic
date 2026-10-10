@@ -37,6 +37,7 @@ const EXPECTED: Record<string, Gate> = {
   'GET /search': 'guest',
   'POST /shuffle': 'guest',
   'GET /library/stats': 'guest',
+  'PUT /me/theme': 'guest',
   'GET /tracks': 'guest',
   'GET /tracks/:id': 'guest',
   'GET /tracks/:id/cover': 'guest',

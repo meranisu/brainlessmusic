@@ -174,10 +174,12 @@ and the LAME delay/padding at track edges. Not built yet and not scheduled on th
 
 ### A55 — The theme follows the profile *(was Q20)*
 **Answered:** 2026-10-10 · **Stored per user on the server**, not per browser. This overrides the `localStorage`
-assumption that shipped (`frontend/src/lib/theme.ts:25`). Not built yet: needs a migration (with a
+assumption that shipped (`frontend/src/lib/theme.ts:25`). Needed a migration (with a
 `database-schema.md` update), an endpoint to read and set it, and a first-paint plan so the wrong colours don't flash
 while the profile loads (a local cached copy is the likely answer). Guests are user rows too (A13), so each guest
 identity keeps its own theme.
+**Built 2026-10-11:** migration `0020` (`users.theme`), `PUT /me/theme`, and the sync in `AuthContext`. The browser copy
+is kept as the first-paint cache (CHANGELOG 2026-10-11).
 
 ### A54 — Bulk hide and delete get a real endpoint *(was Q24)*
 **Answered:** 2026-10-10 · **Yes.** Replace the one-request-per-row bulk actions with a real batch endpoint. `/manage`
