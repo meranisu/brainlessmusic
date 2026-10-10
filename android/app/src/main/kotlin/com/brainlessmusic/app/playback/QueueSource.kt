@@ -20,4 +20,6 @@ fun LibraryRepository.queueItem(track: TrackSummaryDto) = QueueItem(
     durationSec = track.duration,
     coverUrl = trackCoverUrl(track.id),
     format = track.format,
+    albumId = track.albumId,
+    trackNumber = track.trackNumber,
 )

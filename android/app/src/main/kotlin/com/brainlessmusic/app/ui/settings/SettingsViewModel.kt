@@ -3,10 +3,12 @@ package com.brainlessmusic.app.ui.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.brainlessmusic.app.data.local.AppearanceSettings
+import com.brainlessmusic.app.data.local.BetweenSongs
 import com.brainlessmusic.app.data.local.ColorTheme
 import com.brainlessmusic.app.data.local.PlaybackSettings
 import com.brainlessmusic.app.data.local.SeekStyle
 import com.brainlessmusic.app.data.local.ThemeMode
+import com.brainlessmusic.app.data.local.TransitionPrefs
 import com.brainlessmusic.app.data.repository.AuthRepository
 import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.data.repository.ProfileRepository
@@ -46,6 +48,26 @@ class SettingsViewModel @Inject constructor(
 
     fun setKeepPlayingWhenSwipedAway(enabled: Boolean) {
         viewModelScope.launch { settings.setKeepPlayingWhenSwipedAway(enabled) }
+    }
+
+    /** Between songs, fade length, the album rule and the pause fade (A71, A72). */
+    val transitions: StateFlow<TransitionPrefs> = settings.transitions
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TransitionPrefs())
+
+    fun setBetweenSongs(value: BetweenSongs) {
+        viewModelScope.launch { settings.setBetweenSongs(value) }
+    }
+
+    fun setFadeSeconds(seconds: Int) {
+        viewModelScope.launch { settings.setFadeSeconds(seconds) }
+    }
+
+    fun setFadeOnPause(enabled: Boolean) {
+        viewModelScope.launch { settings.setFadeOnPause(enabled) }
+    }
+
+    fun setKeepAlbumsGapless(enabled: Boolean) {
+        viewModelScope.launch { settings.setKeepAlbumsGapless(enabled) }
     }
 
     val themeMode: StateFlow<ThemeMode> = appearance.themeMode

@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `checkBoundary()`, `startCrossfade()`, `transitionKind()`, `playWithFade()`, `pauseWithFade()`, `skipWithFade()`, `resetFades()`, `cancelCrossfade()`, `newExoPlayer()`, `sessionPlayer` (now a `ForwardingPlayer`) — `android/.../playback/PlaybackController.kt`; `VolumeRamps` — `playback/VolumeRamps.kt`; `TransitionPrefs`, `BetweenSongs`, `isNextOnAlbum()` — `data/local/TransitionPrefs.kt`; `PlaybackSettings.transitions` and setters; `BetweenSongsOption()` — `ui/settings/SettingsScreen.kt`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** the A71 fades and A72 album rule on Android, with their settings.
+**Side effects:** a second ExoPlayer streams the old song's last seconds during a crossfade, then is released;
+settings in DataStore (`between_songs`, `fade_seconds`, `fade_on_pause`, `keep_albums_gapless`).
+**Before:** Media3's playlist was already gapless; pause and skip were hard cuts; no fades; the session drove the
+ExoPlayer directly.
+**After:** fades as set; the session's play, pause and skip go through the same fade helpers as the app's buttons.
+
 **Function:** `YouScreen()`, `SongListScreen()`, `PlaylistsScreen()`, `PlaylistDetailScreen()`, `AddToPlaylistSheet()`, `LikeButton()`; `ProfileRepository` — `android/.../ui/profile/`, `data/repository/ProfileRepository.kt`
 **Date:** 2026-10-11
 **How added:** new feature

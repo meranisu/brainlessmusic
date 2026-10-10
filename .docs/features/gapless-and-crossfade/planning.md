@@ -34,7 +34,7 @@ assuming.
 | 3. Android gapless | Confirm or fix Media3 gapless; nothing to build if Phase 2 says it's clean | Not started | [Phase 3](#phase-3-android-gapless) |
 | 4. Web engine | Two elements; preload the next track; Media Session follows the playing one | Done | [Phase 4](#phase-4-web-engine) |
 | 5. Web gapless and fades | Handoff at the boundary; fades per A71 and A72; settings in Options | Done, except listening to the join | [Phase 5](#phase-5-web-gapless-and-fades) |
-| 6. Android fades | Fades per A71 and A72 on Android; settings in Settings → Playback | Not started | [Phase 6](#phase-6-android-fades) |
+| 6. Android fades | Fades per A71 and A72 on Android; settings in Settings → Playback | Built, not run on a device | [Phase 6](#phase-6-android-fades) |
 | 7. Walkthrough | Listen to real albums on both clients; done checklist | Not started | [Phase 7](#phase-7-walkthrough) |
 
 ---
@@ -94,9 +94,13 @@ assuming.
 
 ## Phase 6: Android fades
 
-- [ ] Per A71 and A72, same three settings. A fade with no overlap is `player.volume` ramps on the one ExoPlayer. An overlap (crossfade) needs a
-      second ExoPlayer for the incoming track and a hand-over of the MediaSession, which is the bulk of the work
-- [ ] Setting in Settings → Playback (`ui/settings/SettingsScreen.kt:255-275`, `data/local/PlaybackSettings.kt`)
+- [x] Per A71 and A72, same settings. Fade out then in: `player.volume` ramps on the one ExoPlayer. Crossfade: a
+      short-lived second ExoPlayer plays the *old* song out while the main one (which keeps the MediaSession) moves to
+      the next song, so no session hand-over is needed. Dropped back to gapless if anything doesn't line up
+- [x] Pause, play and skip fade from the notification and headset too (`ForwardingPlayer` on the session)
+- [ ] On a phone: fades, the crossfade join (`TAIL_START_LEAD_MS` 60 ms is a guess), notification controls, a call
+      or unplugged headphones mid-crossfade
+- [x] Settings in Settings → Playback (`SettingsScreen.kt`, `PlaybackSettings.transitions`)
 
 ## Phase 7: Walkthrough
 
@@ -115,4 +119,5 @@ assuming.
 | 2026-10-11 | Plan | Plan written; fades added to the scope | Owner asked for "gapless playback and fade in, fade out" | Yes |
 | 2026-10-11 | Plan, 5, 6 | A71 to A73: all three fades, each optional; album switch | Owner answers | Yes |
 | 2026-10-11 | 4, 5 | Fades use `audio.volume` ramps, not Web Audio gain nodes; Phases 4 and 5 built together | Routing playback through an `AudioContext` makes it silent whenever the context is suspended or the stream is cross-origin, for no gain: iOS ignores volume either way, so fades there are off regardless | Yes |
+| 2026-10-11 | 6 | Crossfade keeps the session on the main player and moves the *old* song to a tail player | Handing the MediaSession between players mid-song is what made this the bulk of the work; this way the session never changes player | Yes |
 | 2026-10-11 | 2 | Measured decoders in headless Chromium and Firefox; the join itself could not be measured headless | Fake audio output gave unstable stall numbers (17 to 170 ms) | Yes; Phase 7 listening decides |

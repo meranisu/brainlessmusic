@@ -56,6 +56,9 @@ data class TrackSummaryDto(
     val title: String,
     val artist: String?,
     val album: String?,
+    // Nullable: servers before 2026-10-11 don't send them, and Gson leaves a missing field null.
+    val albumId: Int? = null,
+    val trackNumber: Int? = null,
     val duration: Double?,
     val format: String?,
     val hidden: Boolean,

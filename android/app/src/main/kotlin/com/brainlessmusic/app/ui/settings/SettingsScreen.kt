@@ -65,7 +65,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.brainlessmusic.app.BuildConfig
+import com.brainlessmusic.app.data.local.BetweenSongs
 import com.brainlessmusic.app.data.local.ColorTheme
+import com.brainlessmusic.app.data.local.FADE_LENGTHS
 import com.brainlessmusic.app.data.local.SeekStyle
 import com.brainlessmusic.app.data.local.ThemeMode
 import com.brainlessmusic.app.ui.navigation.AppBottomBar
@@ -155,6 +157,7 @@ fun SettingsPageScreen(
 ) {
     val autoPlay by viewModel.autoPlayOnResume.collectAsStateWithLifecycle()
     val keepPlaying by viewModel.keepPlayingWhenSwipedAway.collectAsStateWithLifecycle()
+    val transitions by viewModel.transitions.collectAsStateWithLifecycle()
     val lessOftenReset by viewModel.lessOftenReset.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val colorTheme by viewModel.colorTheme.collectAsStateWithLifecycle()
@@ -273,6 +276,51 @@ fun SettingsPageScreen(
                             },
                             checked = keepPlaying,
                             onCheckedChange = viewModel::setKeepPlayingWhenSwipedAway,
+                        )
+                        Divider()
+                        // One choice of three, so they rule each other out (A71).
+                        Block(title = "Between songs", detail = "Saved on this phone.") {
+                            Column(Modifier.selectableGroup()) {
+                                BetweenSongs.entries.forEach { option ->
+                                    BetweenSongsOption(
+                                        option,
+                                        selected = option == transitions.betweenSongs,
+                                        onClick = { viewModel.setBetweenSongs(option) },
+                                    )
+                                }
+                            }
+                            if (transitions.betweenSongs != BetweenSongs.GAPLESS) {
+                                Text(
+                                    "Fade length",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                                    FADE_LENGTHS.forEachIndexed { index, seconds ->
+                                        SegmentedButton(
+                                            selected = seconds == transitions.fadeSeconds,
+                                            onClick = { viewModel.setFadeSeconds(seconds) },
+                                            shape = SegmentedButtonDefaults.itemShape(index, FADE_LENGTHS.size),
+                                        ) { Text("$seconds s") }
+                                    }
+                                }
+                            }
+                        }
+                        if (transitions.betweenSongs != BetweenSongs.GAPLESS) {
+                            Divider()
+                            SwitchRow(
+                                title = "Keep albums gapless",
+                                detail = "No fade between tracks of one album played in order, so live albums and mixes stay seamless.",
+                                checked = transitions.keepAlbumsGapless,
+                                onCheckedChange = viewModel::setKeepAlbumsGapless,
+                            )
+                        }
+                        Divider()
+                        SwitchRow(
+                            title = "Fade on pause and skip",
+                            detail = "A quick fade instead of a hard stop.",
+                            checked = transitions.fadeOnPause,
+                            onCheckedChange = viewModel::setFadeOnPause,
                         )
                         // Guests can't mark songs, so there is nothing to reset.
                         if (!viewModel.isGuest) {
@@ -435,6 +483,29 @@ private fun ColorThemeTile(
                     modifier = Modifier.padding(start = 4.dp).size(20.dp),
                 )
             }
+        }
+    }
+}
+
+/** One "Between songs" choice: a radio, the name, and what it sounds like. */
+@Composable
+private fun BetweenSongsOption(option: BetweenSongs, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .padding(vertical = 4.dp),
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Column(modifier = Modifier.padding(start = 12.dp)) {
+            Text(option.label, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                option.detail,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

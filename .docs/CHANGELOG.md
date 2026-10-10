@@ -4,6 +4,28 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android: fades and their settings (A71, A72)
+
+- Settings → Playback gets the web's settings, saved on the phone: **Between songs** (Gapless default, Crossfade,
+  Fade out then in; 3, 6, 9 or 12 s, capped at a third of either song), **Keep albums gapless** (shown when a fade
+  is chosen; on by default), **Fade on pause and skip** (150 ms, on). `PlaybackSettings.transitions`,
+  `data/local/TransitionPrefs.kt`.
+- Gapless needs nothing: Media3 plays the queue as one playlist. Repeat-one and, with the switch on, back-to-back
+  album tracks always join that way.
+- Fade out then in: the playing song's volume ramps to 0 over what's left; on the automatic transition the next song
+  ramps up. Crossfade: 3 s before the fade a second, short-lived ExoPlayer (no audio focus, no session) is readied on
+  the same song at the fade point; when the main player gets there the tail plays the old song out, the main player
+  moves to the next song and ramps up while the tail ramps down and is released. The notification shows the new song
+  from that moment. If the tail isn't ready in time, the user seeks or pauses, or something else pauses playback, the
+  crossfade is dropped and the songs join gaplessly.
+- Pause, play and skip fade in the app and from the notification, lock screen and headset: the session now gets a
+  `ForwardingPlayer` whose play, pause and skip go through the same fades. A newer action cancels a fade still
+  running (`VolumeRamps`), so a late fade can't pause or skip over it.
+- `TrackSummaryDto` and `QueueItem` carry `albumId` and `trackNumber` (nullable; older servers send neither).
+- Verified: `./gradlew assembleDebug` and `testDebugUnitTest` (40 tests, 4 new in `TransitionPrefsTest` for the album
+  rule and defaults). **Not run on a phone or emulator** (none attached): fades, the crossfade hand-off and its
+  alignment (`TAIL_START_LEAD_MS` = 60 ms, a guess) and the notification controls are untested.
+
 ## 2026-10-11 — Android: the You tab, likes and playlist editing (profile Phase 3)
 
 - A fourth bottom tab, **You** (A61): your initial and name, "listening since", time listened, plays and songs for

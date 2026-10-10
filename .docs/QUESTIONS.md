@@ -190,7 +190,9 @@ and the LAME delay/padding at track edges. Not built yet and not scheduled on th
 **Plan written 2026-10-11:** [gapless and fades](features/gapless-and-crossfade/planning.md); the owner added fades
 to the scope. Answered: A71 to A73.
 **Web built 2026-10-11** (CHANGELOG): two elements, preload, gapless join, the three fades and their settings. The join
-hasn't been judged by ear yet. Android (gapless check, fades) is still to do.
+hasn't been judged by ear yet.
+**Android fades built 2026-10-11** (CHANGELOG), with the same settings. Not yet run on a phone: the fades, the crossfade
+hand-off and Media3's gapless all wait on a device.
 
 ### A55 — The theme follows the profile *(was Q20)*
 **Answered:** 2026-10-10 · **Stored per user on the server**, not per browser. This overrides the `localStorage`

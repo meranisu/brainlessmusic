@@ -8,6 +8,7 @@ import androidx.annotation.OptIn
 import androidx.core.net.toUri
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
@@ -20,7 +21,10 @@ import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import com.brainlessmusic.app.data.local.BetweenSongs
 import com.brainlessmusic.app.data.local.PlaybackSettings
+import com.brainlessmusic.app.data.local.TransitionPrefs
+import com.brainlessmusic.app.data.local.isNextOnAlbum
 import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.google.common.util.concurrent.ListenableFuture
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -60,8 +64,31 @@ class PlaybackController @Inject constructor(
 
     private val player: ExoPlayer by lazy { buildPlayer() }
 
-    /** Owned here and lent to [PlaybackService], so the service being killed never loses the queue. */
-    val sessionPlayer: Player get() = player
+    /**
+     * Owned here and lent to [PlaybackService], so the service being killed never loses the queue. The notification,
+     * lock screen and headset buttons go through this wrapper, so their play, pause and skip fade like the app's (A71).
+     */
+    val sessionPlayer: Player by lazy {
+        object : ForwardingPlayer(player) {
+            override fun play() = playWithFade()
+            override fun pause() = pauseWithFade()
+            override fun setPlayWhenReady(playWhenReady: Boolean) = if (playWhenReady) playWithFade() else pauseWithFade()
+            override fun seekToNext() = skipWithFade { player.seekToNext() }
+            override fun seekToNextMediaItem() = skipWithFade { player.seekToNextMediaItem() }
+            override fun seekToPrevious() = skipWithFade { player.seekToPrevious() }
+            override fun seekToPreviousMediaItem() = skipWithFade { player.seekToPreviousMediaItem() }
+        }
+    }
+
+    // Fades (A71, A72). `transitions` mirrors the setting; `boundary` is the song end already being handled, so the
+    // ticker starts it once; `tail` is the second player that carries the old song through a crossfade.
+    private val ramps = VolumeRamps(CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate))
+    private var transitions = TransitionPrefs()
+    private var boundary: Boundary? = null
+    private var tail: ExoPlayer? = null
+    private var crossfadeJob: Job? = null
+    // Bumped by every pause, play and skip, so a fade that lands late can tell it was overtaken.
+    private var fadeAction = 0
 
     // Held for the life of the process: a connected controller is what keeps PlaybackService bound,
     // and Media3 moves the bound service to the foreground while audio is playing.
@@ -101,6 +128,7 @@ class PlaybackController @Inject constructor(
             wantShuffle = settings.shuffle.first()
             wantRepeat = settings.repeatMode.first()
         }
+        scope.launch { settings.transitions.collect { transitions = it } }
     }
 
     /** Replaces the queue and starts playing [startIndex]. */
@@ -134,10 +162,11 @@ class PlaybackController @Inject constructor(
         player.shuffleModeEnabled = wantShuffle
         player.repeatMode = wantRepeat
         playNextPending = 0
+        resetFades()
         player.setMediaItems(mediaItems, index, positionMs.coerceAtLeast(0))
         if (wantShuffle) applySmartShuffle(first = index)
         player.prepare()
-        if (play) player.play()
+        if (play) playWithFade()
         beginTrack()
         publish()
         maybeRefill()
@@ -264,7 +293,7 @@ class PlaybackController @Inject constructor(
     fun togglePlayPause() {
         if (queue.isEmpty()) return
         if (player.isPlaying) {
-            player.pause()
+            pauseWithFade()
             return
         }
         when (player.playbackState) {
@@ -276,35 +305,43 @@ class PlaybackController @Inject constructor(
             Player.STATE_ENDED -> player.seekToDefaultPosition(0)
             else -> Unit // READY / BUFFERING: play() alone resumes
         }
-        player.play()
+        playWithFade()
     }
 
     fun seekTo(positionMs: Long) {
         if (queue.isEmpty()) return
+        // A song end planned from the old position no longer fits; the ticker plans it again.
+        resetFades()
         player.seekTo(positionMs.coerceAtLeast(0))
         publish()
     }
 
     fun skipToNext() {
-        if (player.hasNextMediaItem()) player.seekToNextMediaItem()
+        if (player.hasNextMediaItem()) skipWithFade { player.seekToNextMediaItem() }
     }
 
     /** Past the first few seconds this restarts the track, matching what every player does. */
     fun skipToPrevious() {
         if (queue.isEmpty()) return
         if (player.currentPosition > RESTART_THRESHOLD_MS || !player.hasPreviousMediaItem()) {
-            player.seekTo(0)
-            publish()
+            skipWithFade {
+                player.seekTo(0)
+                publish()
+            }
         } else {
-            player.seekToPreviousMediaItem()
+            skipWithFade { player.seekToPreviousMediaItem() }
         }
     }
 
     fun skipToIndex(index: Int) {
         if (index !in queue.indices) return
         playNextPending = 0
-        player.seekToDefaultPosition(index)
-        if (!player.isPlaying) player.play()
+        if (player.isPlaying) {
+            skipWithFade { player.seekToDefaultPosition(index) }
+        } else {
+            player.seekToDefaultPosition(index)
+            playWithFade()
+        }
     }
 
     /** Queue indices in the order they play: the shuffle order with shuffle on, else the list order. */
@@ -392,6 +429,7 @@ class PlaybackController @Inject constructor(
     /** Ends playback and empties the queue, so a logout doesn't leave the last account's music playing. */
     fun stop() {
         if (queue.isEmpty()) return
+        resetFades()
         player.stop()
         player.clearMediaItems()
         queue.clear()
@@ -407,6 +445,153 @@ class PlaybackController @Inject constructor(
         publish()
     }
 
+    /** Play, with the short fade in when it's on (A71). */
+    private fun playWithFade() {
+        fadeAction++
+        if (transitions.fadeOnPause) {
+            ramps.set(player, 0f)
+            player.play()
+            ramps.rampTo(player, 1f, SHORT_FADE_MS)
+        } else {
+            ramps.set(player, 1f)
+            player.play()
+        }
+    }
+
+    /** Pause, after the short fade out when it's on. A song still fading out in the tail stops at once. */
+    private fun pauseWithFade() {
+        val action = ++fadeAction
+        resetFades(keepVolume = true)
+        if (!transitions.fadeOnPause || !player.isPlaying) {
+            player.pause()
+            ramps.set(player, 1f)
+            return
+        }
+        ramps.rampTo(player, 0f, SHORT_FADE_MS) { if (action == fadeAction) player.pause() }
+    }
+
+    /** A skip the user asked for: fade out, [jump], fade back in. Auto-advance never comes through here. */
+    private fun skipWithFade(jump: () -> Unit) {
+        val action = ++fadeAction
+        resetFades(keepVolume = true)
+        if (!transitions.fadeOnPause || !player.isPlaying) {
+            ramps.set(player, 1f)
+            jump()
+            return
+        }
+        ramps.rampTo(player, 0f, SHORT_FADE_MS) {
+            if (action != fadeAction) return@rampTo
+            jump()
+            ramps.rampTo(player, 1f, SHORT_FADE_MS)
+        }
+    }
+
+    /**
+     * Drops any planned song end, any crossfade and any ramp, and puts the volume back to full, unless the caller is
+     * about to fade from wherever it is now ([keepVolume]), which avoids a jump to full mid-fade.
+     */
+    private fun resetFades(keepVolume: Boolean = false) {
+        boundary = null
+        cancelCrossfade()
+        if (keepVolume) ramps.cancel(player) else ramps.set(player, 1f)
+    }
+
+    private fun cancelCrossfade() {
+        crossfadeJob?.cancel()
+        crossfadeJob = null
+        tail?.let {
+            ramps.cancel(it)
+            it.release()
+        }
+        tail = null
+    }
+
+    /**
+     * Gapless unless a fade is set and allowed: not on repeat-one, not inside an album with the switch on (A72). Media3's
+     * playlist is already gapless, so that case needs nothing here.
+     */
+    private fun transitionKind(current: QueueItem, next: QueueItem): BetweenSongs {
+        if (transitions.betweenSongs == BetweenSongs.GAPLESS || player.repeatMode == Player.REPEAT_MODE_ONE) {
+            return BetweenSongs.GAPLESS
+        }
+        if (transitions.keepAlbumsGapless &&
+            isNextOnAlbum(current.albumId, current.trackNumber, next.albumId, next.trackNumber)
+        ) {
+            return BetweenSongs.GAPLESS
+        }
+        return transitions.betweenSongs
+    }
+
+    /** Every tick while playing: starts the song end once, the way the settings ask. */
+    private fun checkBoundary() {
+        if (boundary != null || !player.isPlaying) return
+        val duration = player.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: return
+        val nextIndex = player.nextMediaItemIndex.takeIf { it != C.INDEX_UNSET } ?: return
+        val current = queue.getOrNull(player.currentMediaItemIndex) ?: return
+        val next = queue.getOrNull(nextIndex) ?: return
+        val kind = transitionKind(current, next)
+        if (kind == BetweenSongs.GAPLESS) return
+
+        val remaining = duration - player.currentPosition
+        // Never a fade longer than a third of either song.
+        val nextMs = next.durationSec?.let { (it * 1000).toLong() } ?: duration
+        val fadeMs = minOf(transitions.fadeSeconds * 1000L, duration / 3, nextMs / 3)
+        when (kind) {
+            BetweenSongs.FADE_OUT_IN -> {
+                if (remaining > fadeMs) return
+                boundary = Boundary.FadeOutIn(fadeMs)
+                // This song fades over what's left; the transition fades the next one in.
+                ramps.rampTo(player, 0f, remaining)
+            }
+            BetweenSongs.CROSSFADE -> {
+                if (remaining > fadeMs + TAIL_PREPARE_MS) return
+                boundary = Boundary.Crossfade
+                startCrossfade(duration - fadeMs, fadeMs)
+            }
+            BetweenSongs.GAPLESS -> Unit
+        }
+    }
+
+    /**
+     * Crossfade: a second player is readied on this song at [handOffAtMs]. When the main player reaches that point the
+     * tail takes the old song over, and the main player moves to the next song and fades in while the tail fades out.
+     * The notification shows the new song from that moment. If anything doesn't line up (a seek, the tail not ready
+     * in time, a pause), it gives up and the songs join gaplessly instead.
+     */
+    private fun startCrossfade(handOffAtMs: Long, fadeMs: Long) {
+        val item = player.currentMediaItem ?: return
+        val outgoingIndex = player.currentMediaItemIndex
+        if (player.currentPosition > handOffAtMs - TAIL_START_LEAD_MS) return // too late to line up; stays gapless
+        cancelCrossfade()
+        val t = newExoPlayer(handleAudioFocus = false)
+        tail = t
+        t.volume = player.volume
+        t.setMediaItem(item, handOffAtMs + TAIL_START_LEAD_MS)
+        t.prepare()
+        crossfadeJob = scope.launch {
+            val stillOn = { player.isPlaying && player.currentMediaItemIndex == outgoingIndex }
+            // Ready (buffered at the hand-off point) well before it, or no crossfade this time.
+            while (t.playbackState != Player.STATE_READY) {
+                if (!stillOn() || player.currentPosition >= handOffAtMs) return@launch cancelCrossfade()
+                delay(POLL_MS)
+            }
+            while (player.currentPosition < handOffAtMs) {
+                if (!stillOn()) return@launch cancelCrossfade()
+                delay(POLL_MS)
+            }
+            // The tail starts slightly ahead of where the main player is, to cover its own start-up time.
+            t.play()
+            while (!t.isPlaying) {
+                if (!stillOn() || player.currentPosition > handOffAtMs + HAND_OFF_TIMEOUT_MS) return@launch cancelCrossfade()
+                delay(POLL_MS)
+            }
+            ramps.set(player, 0f)
+            player.seekToNextMediaItem()
+            ramps.rampTo(player, 1f, fadeMs)
+            ramps.rampTo(t, 0f, fadeMs) { if (tail === t) cancelCrossfade() }
+        }
+    }
+
     private fun connectSession() {
         if (sessionController != null) return
         val token = SessionToken(context, ComponentName(context, PlaybackService::class.java))
@@ -414,6 +599,14 @@ class PlaybackController @Inject constructor(
     }
 
     private fun buildPlayer(): ExoPlayer =
+        newExoPlayer(handleAudioFocus = true)
+            .also { it.addListener(listener) }
+
+    /**
+     * The crossfade's tail player is built the same way but takes no audio focus (it would take it from the main player)
+     * and isn't wired to the session or the listener: it only plays out the old song while it fades.
+     */
+    private fun newExoPlayer(handleAudioFocus: Boolean): ExoPlayer =
         ExoPlayer.Builder(context)
             .setMediaSourceFactory(DefaultMediaSourceFactory(OkHttpDataSource.Factory(okHttpClient)))
             .setAudioAttributes(
@@ -421,11 +614,10 @@ class PlaybackController @Inject constructor(
                     .setUsage(C.USAGE_MEDIA)
                     .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
                     .build(),
-                /* handleAudioFocus = */ true,
+                handleAudioFocus,
             )
-            .setHandleAudioBecomingNoisy(true)
+            .setHandleAudioBecomingNoisy(handleAudioFocus)
             .build()
-            .also { it.addListener(listener) }
 
     private val listener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -434,6 +626,11 @@ class PlaybackController @Inject constructor(
                 startTicker()
             } else {
                 reportListened(final = false)
+                // Paused by something outside the app (a call, unplugged headphones): the old song must not play on in the
+                // tail. Buffering through the crossfade's own skip keeps `playWhenReady`, so that doesn't count.
+                if (!player.playWhenReady || player.playbackSuppressionReason != Player.PLAYBACK_SUPPRESSION_REASON_NONE) {
+                    cancelCrossfade()
+                }
             }
             publish()
         }
@@ -445,6 +642,18 @@ class PlaybackController @Inject constructor(
         override fun onRepeatModeChanged(repeatMode: Int) = publish()
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            val ended = boundary
+            boundary = null
+            if (ended is Boundary.FadeOutIn) {
+                // The old song faded out to its end: the new one fades in. Any other transition (a skip mid-fade) just
+                // puts the volume back.
+                if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+                    ramps.set(player, 0f)
+                    ramps.rampTo(player, 1f, ended.fadeMs)
+                } else {
+                    ramps.set(player, 1f)
+                }
+            }
             if (playNextPending > 0) playNextPending--
             beginTrack()
             maybeRefill()
@@ -455,6 +664,7 @@ class PlaybackController @Inject constructor(
             Log.w(TAG, "Playback failed for track ${queue.getOrNull(player.currentMediaItemIndex)?.trackId}", error)
             if (player.hasNextMediaItem()) {
                 // One bad file shouldn't end the whole listen.
+                resetFades()
                 player.seekToNextMediaItem()
                 player.prepare()
                 player.play()
@@ -489,6 +699,7 @@ class PlaybackController @Inject constructor(
                 val crossed = tracker?.onTick(now - lastTickAt, player.isPlaying) == true
                 lastTickAt = now
                 if (crossed) scrobble()
+                checkBoundary()
                 publish()
             }
         }
@@ -595,8 +806,28 @@ class PlaybackController @Inject constructor(
             .build()
     }
 
+    /** A song end already being handled. */
+    private sealed interface Boundary {
+        data class FadeOutIn(val fadeMs: Long) : Boundary
+        data object Crossfade : Boundary
+    }
+
     private companion object {
         const val RESTART_THRESHOLD_MS = 3_000L
+
+        /** The pause, play and skip fade (A71). */
+        const val SHORT_FADE_MS = 150L
+
+        /** A crossfade's tail player is readied this long before the fade, so it has buffered by then. */
+        const val TAIL_PREPARE_MS = 3_000L
+
+        /** The tail starts this far ahead of the main player, to cover its start-up. Not tuned on a device yet. */
+        const val TAIL_START_LEAD_MS = 60L
+
+        /** How long the tail may take to start before the crossfade is dropped. */
+        const val HAND_OFF_TIMEOUT_MS = 500L
+
+        const val POLL_MS = 5L
 
         /** Top the queue up when this few tracks are left to play... */
         const val REFILL_WHEN_REMAINING = 30

@@ -10,6 +10,9 @@ data class QueueItem(
     val coverUrl: String?,
     /** The file's container as the server names it ("flac", "opus", "mp3"…), for the stream readout. */
     val format: String? = null,
+    /** With [trackNumber], tells "the next track of this album" apart (A72, gapless albums). */
+    val albumId: Int? = null,
+    val trackNumber: Int? = null,
 )
 
 enum class Repeat { OFF, ALL, ONE }

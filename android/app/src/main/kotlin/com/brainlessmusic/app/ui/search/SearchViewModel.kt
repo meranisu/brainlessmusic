@@ -85,6 +85,8 @@ class SearchViewModel @Inject constructor(
                     durationSec = it.duration,
                     coverUrl = libraryRepository.trackCoverUrl(it.id),
                     format = it.format,
+                    albumId = it.albumId,
+                    trackNumber = it.trackNumber,
                 )
             },
             index,
