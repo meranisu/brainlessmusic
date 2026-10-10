@@ -1,17 +1,18 @@
 # brainlessmusic
 
-A self-hosted music streaming server with a web app and an Android app. Personal project, built for me and a few
-friends. Most of the code was written with AI coding agents (Claude Code, sometimes Antigravity).
+My own music streaming server, with a web app and an Android app. I built it so I could listen to my own music
+library anywhere, mostly on my phone, and share it with a few friends. It's a personal project, not a product.
+Most of the code was written with AI coding agents (Claude Code, sometimes Antigravity).
 
-## Features
+## What it does
 
-- Scans a folder of audio files into a library (artists, albums, tracks, cover art)
-- Player with queue, shuffle, repeat, seeking and a waveform scrubber
+- Point it at a folder of music and it builds a library out of it: artists, albums, tracks and cover art
+- Plays with a queue, shuffle, repeat, and a waveform you can drag to seek
 - Playlists, favorites, search and play history
-- Data saver mode (converts tracks to 64 kbps Opus)
-- Resume where you left off, across devices
-- Guest access and user accounts, with an admin role
-- Scheduled library sync and database backups
+- A data saver mode that streams tracks as 64 kbps Opus, for when you're on mobile data
+- Picks up where you left off, even on another device
+- Accounts for you and your friends, an admin role, and guest access for people without an account
+- Rescans the library and backs up the database on a schedule
 
 ## Tech stack
 
@@ -79,7 +80,8 @@ cd backend
 npm test
 ```
 
-Only run tests this way. Running the test files directly can point them at your real music library.
+Only run tests this way. Running the test files directly can point them at your real music library, and that once
+wiped mine.
 
 ## License
 
