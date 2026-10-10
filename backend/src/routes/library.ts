@@ -1,7 +1,7 @@
 import { readdir, stat } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import type { FastifyPluginAsync } from 'fastify';
-import { listMissingTracks, listTrackPaths, markTracksMissing } from '../db/library.js';
+import { listMissingTracks } from '../db/library.js';
 import {
   countTracksForRoot,
   deleteLibraryRoot,
@@ -144,9 +144,7 @@ const libraryRoute: FastifyPluginAsync = async (fastify) => {
       return reply.code(404).send({ error: 'Library root not found' });
     }
 
-    // Marked missing first: once `root_id` is cleared, nothing says which tracks these were.
-    const ids = listTrackPaths(id).map((row) => row.id);
-    markTracksMissing(ids, new Date().toISOString());
+    // Deletes the root's tracks from the database too (A51); the files stay on disk.
     deleteLibraryRoot(id);
 
     return reply.code(204).send();

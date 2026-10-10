@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { access, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../app.js';
+import { listFavoriteTrackIdsForUser, starTrack } from '../db/favorites.js';
+import { findTrackById, upsertTrack } from '../db/library.js';
+import { findLibraryRootById, insertLibraryRoot } from '../db/libraryRoots.js';
 import { insertUser, setAdmin } from '../db/users.js';
 import { hashPassword } from '../services/password.js';
 import { signToken } from '../services/token.js';
@@ -15,6 +18,7 @@ let app: FastifyInstance;
 let cleanup: () => Promise<void>;
 let root: string;
 let adminToken: string;
+let adminId: number;
 let listenerToken: string;
 
 before(async () => {
@@ -47,6 +51,7 @@ beforeEach(async () => {
 
   listenerToken = signToken({ id: listenerRow.id, username: listenerRow.username });
   adminToken = signToken({ id: adminRow.id, username: adminRow.username });
+  adminId = adminRow.id;
 });
 
 describe('GET /library/browse', () => {
@@ -163,6 +168,51 @@ describe('POST /library/roots', () => {
       });
       assert.equal(res.statusCode, 201, JSON.stringify(res.json()));
       assert.equal(res.json().root.path, temp.path);
+    } finally {
+      await temp.cleanup();
+    }
+  });
+});
+
+describe('DELETE /library/roots/:id', () => {
+  const track = (path: string, rootId: number) =>
+    upsertTrack({
+      path,
+      title: 'x',
+      artistName: null,
+      albumTitle: null,
+      albumYear: null,
+      trackNumber: null,
+      duration: null,
+      format: 'mp3',
+      fileSize: 1,
+      rootId,
+    });
+
+  it('deletes the root\'s tracks and their favorites, keeps the files and other roots', async () => {
+    const temp = await makeTempDir('root-remove');
+    try {
+      const file = join(temp.path, 'track.mp3');
+      await writeFile(file, 'not real audio bytes');
+      const doomed = insertLibraryRoot(temp.path, null);
+      const kept = insertLibraryRoot('/elsewhere', null);
+      const gone = track(file, doomed.id);
+      const stays = track('/elsewhere/other.mp3', kept.id);
+      starTrack(adminId, gone.id);
+      starTrack(adminId, stays.id);
+
+      const res = await app.inject({
+        method: 'DELETE',
+        url: `/api/library/roots/${doomed.id}`,
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      assert.equal(res.statusCode, 204);
+
+      assert.equal(findLibraryRootById(doomed.id), undefined);
+      assert.equal(findTrackById(gone.id), undefined);
+      assert.deepEqual(listFavoriteTrackIdsForUser(adminId), [stays.id]);
+      assert.ok(findTrackById(stays.id), 'another root\'s track must survive');
+      await access(file); // throws if the file on disk was removed
     } finally {
       await temp.cleanup();
     }

@@ -174,7 +174,8 @@ totals). `/manage` now lives inside the Library (A34), so that is where it goes.
 **Answered:** 2026-10-10 · **Delete the track rows**, not mark them missing. This overrides what shipped:
 `deleteLibraryRoot` (`backend/src/db/libraryRoots.ts:53`) detaches the tracks and keeps them. Read as deleting the
 *database rows only*, together with their favorites, play history and playlist entries; the music files on disk are
-never touched. Not built yet.
+never touched. Built 2026-10-11: `deleteLibraryRoot` deletes each track through `deleteTrackRow`, and the Options
+dialog says so (CHANGELOG 2026-10-11).
 
 ### A50 — Very long tracks convert first like the rest *(was Q12)*
 **Answered:** 2026-10-10 · **Agreed.** Every track converts on first play, however long. An hour-long mix waits about

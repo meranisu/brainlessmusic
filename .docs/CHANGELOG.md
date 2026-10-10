@@ -4,6 +4,19 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Removing a library root deletes its tracks (A51)
+
+- `DELETE /library/roots/:id` used to mark the root's tracks missing and keep them, detached, with their favorites
+  and history. It now deletes the track rows too, through `deleteTrackRow`, so favorites, `less_often`, playlist
+  entries, play history and playback failures go with them. All in one transaction with the root's delete. Files on
+  disk are never touched; adding the folder again scans them back in as new tracks. Resume already drops deleted ids.
+- Options: the remove dialog now says how many tracks go, that it can't be undone, and that the files stay. The toast
+  matches.
+- Verified: new test in `routes/library.test.ts` (root's track and its favorite gone, the file still on disk, another
+  root's track and favorite kept); `npm test` 380/380; backend `tsc --noEmit` clean; frontend `npm run build` and
+  `npm run lint` (no new warnings). The dialog was not clicked through in the running app, to avoid deleting rows from
+  the dev library.
+
 ## 2026-10-11 — Web: skeleton loading on the browse pages
 
 - A59: the "Loading albums…" style text lines are now placeholder blocks shaped like what is coming: list rows

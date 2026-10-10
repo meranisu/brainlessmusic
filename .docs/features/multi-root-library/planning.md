@@ -36,7 +36,7 @@ non-blocking, all built to the stated default):
   not delete them. Consistent with this app's existing hide-vs-delete
   philosophy — a registration decision isn't a decision to destroy music.
   **Reversed 2026-10-10 by [A51](../../QUESTIONS.md#a51--removing-a-library-root-deletes-its-tracks-was-q26):**
-  removing a root deletes its track rows (not the files). Not built yet.
+  removing a root deletes its track rows (not the files). Built 2026-10-11.
 - **Q27 — uploads** stay single-destination (the original default root).
   Extra roots are for scanning in collections that already exist there, not
   upload targets.

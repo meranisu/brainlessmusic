@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `deleteLibraryRoot()` — `backend/src/db/libraryRoots.ts`; route `DELETE /library/roots/:id` in `backend/src/routes/library.ts`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** removes a library root and the tracks found under it (A51).
+**Side effects:** deletes `tracks` rows for the root (and, via `deleteTrackRow`, their favorites, `less_often`,
+playlist entries, play history and playback failures), the root's `scan_failures`, and the `library_roots` row. No
+filesystem writes.
+**Before:** detached the tracks (`root_id = NULL`) and kept them; the route marked them missing first.
+**After:** the tracks are deleted in the same transaction; the route no longer marks anything missing.
+
 **Function:** `Skeleton()`, `SkeletonListRows()`, `SkeletonAlbumGrid()`, `SkeletonTrackRows()`, `SkeletonDetailHeader()`, `SkeletonArcade()` — `frontend/src/components/Skeleton.tsx`
 **Date:** 2026-10-11
 **How added:** new feature

@@ -235,7 +235,7 @@ export interface MissingTrack {
   path: string;
   missingSince: string;
   lastStreamError: string | null;
-  /** Null when the track's root was removed (see `deleteLibraryRoot`). */
+  /** Null on rows detached by a root removal before A51 (2026-10-11); a removal now deletes the tracks. */
   rootId: number | null;
   rootLabel: string | null;
 }

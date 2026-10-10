@@ -1,4 +1,5 @@
 import { db } from './connection.js';
+import { deleteTrackRow } from './library.js';
 
 export interface LibraryRootRow {
   id: number;
@@ -47,18 +48,18 @@ export function countTracksForRoot(id: number): number {
 }
 
 /**
- * Unregisters a root but keeps its tracks (detached, with their favorites and history). The caller marks them
- * missing first. Detach happens before the delete, in one transaction, because foreign keys are enforced.
+ * Unregisters a root and deletes its tracks' rows, with their favorites, playlist entries and history (A51). Files on
+ * disk are never touched. One transaction, so a failure leaves the root and every track in place.
  */
 export function deleteLibraryRoot(id: number): void {
   db.transaction(() => {
-    db.prepare('UPDATE tracks SET root_id = NULL WHERE root_id = ?').run(id);
+    const tracks = db.prepare('SELECT id FROM tracks WHERE root_id = ?').all(id) as { id: number }[];
+    for (const track of tracks) deleteTrackRow(track.id);
     db.prepare('DELETE FROM scan_failures WHERE root_id = ?').run(id);
     db.prepare('DELETE FROM library_roots WHERE id = ?').run(id);
   })();
 }
 
-/** Seeds the original LIBRARY_PATH as a root and adopts older tracks. A no-op once any root exists; SQL can't read env. */
 export function ensureDefaultLibraryRoot(libraryPath: string): void {
   if (listLibraryRoots().length > 0) return;
 

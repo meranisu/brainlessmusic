@@ -117,7 +117,7 @@ function LibrarySection() {
     onSuccess: () => {
       invalidate();
       setRemoveTarget(null);
-      showToast('Folder removed. Its tracks are kept and flagged missing.');
+      showToast('Folder removed, along with its tracks. The files are still on disk.');
     },
     onError: (err) => showToast(err instanceof ApiError ? err.message : 'Could not remove that folder', 'error'),
   });
@@ -221,8 +221,9 @@ function LibrarySection() {
               Remove "{removeTarget.label || removeTarget.path}"?
             </h2>
             <p className="mb-4 text-xs text-blue-400">
-              Nothing on disk is touched. Its tracks stay in the database, flagged missing, with
-              their favorites, playlists and history intact.
+              This takes its {removeTarget.trackCount} tracks out of the library, with their
+              favorites, playlist entries and play history. You can't undo it. The music files stay
+              on disk, so adding the folder again scans them back in as new tracks.
             </p>
             <div className="flex justify-end gap-2">
               <button onClick={() => setRemoveTarget(null)} className="btn-secondary btn-sm">

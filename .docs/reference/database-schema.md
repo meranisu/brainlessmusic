@@ -338,6 +338,7 @@ Written by `backend/src/db/migrate.ts` on every `npm run migrate` — not someth
 | `playback_failures` | `user_id` | `users` | `NO ACTION` | `pruneIdleGuests()` and `deleteUser()` (`db/users.ts`) — delete `playback_failures` rows first |
 | `playback_failures` | `track_id` | `tracks` | `NO ACTION` | `deleteTrackRow()` — deletes `playback_failures` rows first |
 | `scan_failures` | `root_id` | `library_roots` | `NO ACTION` | `deleteLibraryRoot()` (`db/libraryRoots.ts`) — deletes `scan_failures` rows first |
+| `tracks` | `root_id` | `library_roots` | `NO ACTION` | `deleteLibraryRoot()` — deletes the root's tracks first, each through `deleteTrackRow()` (since 2026-10-11, A51; before that it set `root_id` to NULL) |
 | `guest_codes` | `created_by`, `used_by` | `users` | `NO ACTION` | `deleteUser()` nulls both; `pruneIdleGuests()` nulls `used_by` (`db/users.ts`) |
 
 ## Discrepancies / things worth knowing
