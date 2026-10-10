@@ -4,18 +4,21 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.activity.SystemBarStyle
+import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.brainlessmusic.app.data.local.AppearanceSettings
@@ -23,13 +26,14 @@ import com.brainlessmusic.app.data.local.ThemeMode
 import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.PlaybackResume
 import com.brainlessmusic.app.ui.navigation.BrainlessNavGraph
+import com.brainlessmusic.app.ui.splash.StartViewModel
 import com.brainlessmusic.app.ui.theme.BrainlessMusicTheme
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -38,18 +42,36 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var playbackController: PlaybackController
     @Inject lateinit var appearance: AppearanceSettings
 
+    // Activity-scoped, so the system splash and the nav graph's start screen wait on the same session check.
+    private val startViewModel: StartViewModel by viewModels()
+
     // Without it Android 13+ hides the media notification, and with it the lock-screen controls.
     private val notificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splash = installSplashScreen()
         super.onCreate(savedInstanceState)
+        // Held until we know where to go, so a cold start never shows an empty screen. Capped: the check can wait on
+        // a slow network, and past that the in-app splash (with a progress bar) takes over in the same place.
+        val launchedAt = SystemClock.uptimeMillis()
+        splash.setKeepOnScreenCondition {
+            startViewModel.resolvedRoute.value == null && SystemClock.uptimeMillis() - launchedAt < SPLASH_HOLD_MAX_MS
+        }
+        splash.setOnExitAnimationListener { provider ->
+            provider.view.animate()
+                .alpha(0f)
+                .setDuration(SPLASH_FADE_MS)
+                .withEndAction { provider.remove() }
+                .start()
+        }
         askForNotificationsOnFirstPlayback()
-        // Read once, synchronously (a single tiny preference): otherwise a phone set to light with the app
-        // forced to dark would paint one light frame on every cold start before the saved choice arrived.
-        val initialMode = runBlocking { appearance.themeMode.first() }
+        // Read once, synchronously (two tiny preferences): otherwise every cold start would paint one frame in the
+        // default colours before the saved choice arrived.
+        val (initialMode, initialColors) = runBlocking { appearance.themeMode.first() to appearance.colorTheme.first() }
         setContent {
             val mode by appearance.themeMode.collectAsStateWithLifecycle(initialValue = initialMode)
+            val colorTheme by appearance.colorTheme.collectAsStateWithLifecycle(initialValue = initialColors)
             val darkTheme = when (mode) {
                 ThemeMode.SYSTEM -> isSystemInDarkTheme()
                 ThemeMode.LIGHT -> false
@@ -69,9 +91,9 @@ class MainActivity : ComponentActivity() {
                 )
                 onDispose { }
             }
-            BrainlessMusicTheme(darkTheme = darkTheme) {
+            BrainlessMusicTheme(colorTheme = colorTheme, darkTheme = darkTheme) {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    BrainlessNavGraph()
+                    BrainlessNavGraph(startViewModel = startViewModel)
                 }
             }
         }
@@ -94,3 +116,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+private const val SPLASH_HOLD_MAX_MS = 1_200L
+private const val SPLASH_FADE_MS = 200L

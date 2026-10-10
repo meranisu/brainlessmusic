@@ -51,6 +51,8 @@ interface ApiService {
         @Query("limit") limit: Int,
         @Query("offset") offset: Int,
         @Query("sort") sort: String = "title",
+        // Title, artist or album; Retrofit leaves a null out of the URL.
+        @Query("search") search: String? = null,
     ): TracksPageDto
 
     @GET("browse/shuffled")

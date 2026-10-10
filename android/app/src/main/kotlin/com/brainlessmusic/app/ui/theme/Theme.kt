@@ -2,62 +2,124 @@ package com.brainlessmusic.app.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import com.brainlessmusic.app.data.local.ColorTheme
 
-// Dark-first, like the web app. The light scheme exists for the system setting.
-private val DarkColors = darkColorScheme(
-    primary = Orange500,
-    onPrimary = Navy900,
-    secondary = Orange400,
-    background = Navy900,
-    onBackground = Slate200,
-    surface = Navy800,
-    onSurface = Slate200,
-    surfaceVariant = Navy700,
-    onSurfaceVariant = Slate200,
-    error = Red400,
+// Dark-first, like the web app. Every surface role is set, so Material derives no shades of its own, and the tint is
+// off: elevation is a border, never a lighter fill (DESIGN.md, "Flat and solid").
+private fun Palette.darkScheme(): ColorScheme = darkColorScheme(
+    primary = accent,
+    onPrimary = blue950,
+    primaryContainer = accent,
+    onPrimaryContainer = blue950,
+    inversePrimary = accentOnBand,
+    secondary = blue400,
+    onSecondary = blue950,
+    secondaryContainer = blue800,
+    onSecondaryContainer = white,
+    tertiary = blue300,
+    onTertiary = blue950,
+    background = blue950,
+    onBackground = white,
+    surface = blue950,
+    onSurface = white,
+    surfaceVariant = blue900,
+    onSurfaceVariant = blue300,
+    surfaceTint = Color.Transparent,
+    surfaceContainerLowest = ground,
+    surfaceContainerLow = blue950,
+    surfaceContainer = blue900,
+    surfaceContainerHigh = blue900,
+    surfaceContainerHighest = blue800,
+    inverseSurface = blue100,
+    inverseOnSurface = blue950,
+    outline = blue700,
+    outlineVariant = blue800,
+    error = dangerDark,
+    onError = blue950,
 )
 
-private val LightColors = lightColorScheme(
-    primary = Orange500,
-    onPrimary = Navy900,
-    secondary = Orange400,
-    background = Slate200,
-    onBackground = Navy900,
-    surface = Color(0xFFFFFFFF),
-    onSurface = Navy900,
+// For the system light setting: the same scale read from the pale end, with the accent darkened to clear 4.5:1.
+private fun Palette.lightScheme(): ColorScheme = lightColorScheme(
+    primary = accentOnLight,
+    onPrimary = white,
+    primaryContainer = accent,
+    onPrimaryContainer = blue950,
+    inversePrimary = accent,
+    secondary = blue800,
+    onSecondary = white,
+    secondaryContainer = blue100,
+    onSecondaryContainer = blue950,
+    tertiary = blue700,
+    onTertiary = white,
+    background = blue100,
+    onBackground = blue950,
+    surface = blue100,
+    onSurface = blue950,
+    surfaceVariant = white,
+    onSurfaceVariant = blue900,
+    surfaceTint = Color.Transparent,
+    surfaceContainerLowest = white,
+    surfaceContainerLow = white,
+    surfaceContainer = white,
+    surfaceContainerHigh = white,
+    surfaceContainerHighest = blue100,
+    inverseSurface = blue950,
+    inverseOnSurface = blue100,
+    outline = blue700,
+    outlineVariant = blue300,
+    error = dangerLight,
+    onError = white,
 )
 
-/**
- * On Android 12+ the scheme comes from the wallpaper (Material You); below that, the static navy and orange.
- * `dynamicColor = false` keeps the brand palette on 12+.
- */
+private val LocalAccentInk = staticCompositionLocalOf { Color.Unspecified }
+
+/** Accent for text on a card (`surfaceContainer`). `primary` is for fills, icons and text on the ground. */
+val MaterialTheme.accentInk: Color
+    @Composable @ReadOnlyComposable get() = LocalAccentInk.current
+
+/** Whether this phone can take colours from the wallpaper (Material You, Android 12+). */
+val supportsMaterialYou: Boolean get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+
+/** The brand palette by default (A36). [ColorTheme.MATERIAL_YOU] takes the wallpaper's scheme on Android 12+. */
 @Composable
 fun BrainlessMusicTheme(
+    colorTheme: ColorTheme = ColorTheme.DEEP_BLUE,
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
     content: @Composable () -> Unit,
 ) {
-    val supportsDynamicColor = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val context = LocalContext.current
+    val dynamicColor = colorTheme == ColorTheme.MATERIAL_YOU && supportsMaterialYou
 
     val colorScheme = when {
-        dynamicColor && supportsDynamicColor && darkTheme -> dynamicDarkColorScheme(context)
-        dynamicColor && supportsDynamicColor && !darkTheme -> dynamicLightColorScheme(context)
-        darkTheme -> DarkColors
-        else -> LightColors
+        dynamicColor && darkTheme -> dynamicDarkColorScheme(context)
+        dynamicColor -> dynamicLightColorScheme(context)
+        darkTheme -> colorTheme.palette().darkScheme()
+        else -> colorTheme.palette().lightScheme()
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content,
-    )
+    val accentInk = when {
+        dynamicColor -> colorScheme.primary
+        darkTheme -> colorTheme.palette().accentInk
+        else -> colorTheme.palette().accentOnLight
+    }
+
+    CompositionLocalProvider(LocalAccentInk provides accentInk) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content,
+        )
+    }
 }

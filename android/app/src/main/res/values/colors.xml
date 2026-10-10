@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Pre-Compose window background only, to prevent a flash. Compose uses ui/theme/Color.kt. Dark: values-night. -->
-    <color name="window_background">#F8FAFC</color>
+    <!-- The splash and pre-Compose window: Deep blue's light background (ui/theme/Color.kt). Dark: values-night. -->
+    <color name="window_background">#DBEAFE</color>
+    <!-- The splash icon's disc, so the orange mark reads on the pale light-mode ground as on the launcher. -->
+    <color name="splash_icon_background">#080E28</color>
 </resources>

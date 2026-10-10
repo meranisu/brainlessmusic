@@ -1,5 +1,6 @@
 package com.brainlessmusic.app.ui.library
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,10 +21,12 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,21 +40,28 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.AlertDialog
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -72,6 +82,10 @@ import kotlinx.coroutines.launch
 // The floating tab bar covers the top of the list, so every list starts this far down.
 private val TabBarClearance = 68.dp
 
+// The Songs filter floats under the tab bar, so the Songs list starts further down again.
+private val FilterTop = TabBarClearance - 4.dp
+private val SongsClearance = TabBarClearance + 52.dp
+
 // Room on the right for the alphabet rail, so a row's duration isn't drawn under it.
 private val RailWidth = 28.dp
 
@@ -79,7 +93,6 @@ private val RailWidth = 28.dp
 @Composable
 fun LibraryScreen(
     navController: NavHostController,
-    onLoggedOut: () -> Unit,
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
     val tab by viewModel.tab.collectAsStateWithLifecycle()
@@ -89,46 +102,8 @@ fun LibraryScreen(
     val albumsState = rememberLazyGridState()
     val artistsState = rememberLazyListState()
 
-    var confirmingGuestLogout by remember { mutableStateOf(false) }
-
-    if (confirmingGuestLogout) {
-        AlertDialog(
-            onDismissRequest = { confirmingGuestLogout = false },
-            title = { Text("Leave as guest?") },
-            text = {
-                Text("This phone forgets this guest, including where you left off. Getting back in may need a new guest code.")
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmingGuestLogout = false
-                    viewModel.logout(onLoggedOut)
-                }) { Text("Leave") }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmingGuestLogout = false }) { Text("Stay") }
-            },
-        )
-    }
-
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Library") },
-                actions = {
-                    IconButton(onClick = viewModel::refresh) {
-                        Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
-                    }
-                    IconButton(onClick = { navController.navigate(Routes.SETTINGS) }) {
-                        Icon(Icons.Filled.Settings, contentDescription = "Settings")
-                    }
-                    IconButton(onClick = {
-                        if (viewModel.isGuest) confirmingGuestLogout = true else viewModel.logout(onLoggedOut)
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Log out")
-                    }
-                },
-            )
-        },
+        topBar = { TopAppBar(title = { Text("Library") }) },
         bottomBar = { AppBottomBar(navController) },
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
@@ -154,8 +129,7 @@ private fun LibraryTabBar(selected: LibraryTab, onSelect: (LibraryTab) -> Unit, 
         modifier = modifier,
         shape = CircleShape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 3.dp,
-        shadowElevation = 6.dp,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     ) {
         Row(modifier = Modifier.padding(4.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             LibraryTab.entries.forEach { tab ->
@@ -177,11 +151,17 @@ private fun LibraryTabBar(selected: LibraryTab, onSelect: (LibraryTab) -> Unit, 
     }
 }
 
-/** Loading, error and empty states for a paged list's first load; a later page that fails retries on scroll. */
+/**
+ * Loading, error and empty states for a paged list's first load; a later page that fails retries on scroll. A loaded
+ * list refreshes on a pull down, with the spinner below whatever floats over the list's top ([topInset]).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun <T : Any> PagedContent(
     items: LazyPagingItems<T>,
     emptyMessage: String,
+    onRefresh: () -> Unit,
+    topInset: Dp,
     content: @Composable () -> Unit,
 ) {
     val refresh = items.loadState.refresh
@@ -204,7 +184,30 @@ private fun <T : Any> PagedContent(
                 Text(emptyMessage, style = MaterialTheme.typography.bodyMedium)
             }
 
-        else -> content()
+        else -> {
+            // Spins from the pull until the reload settles; Paging always passes through Loading on a refresh.
+            var pulled by remember { mutableStateOf(false) }
+            val reloading = refresh is LoadState.Loading
+            LaunchedEffect(reloading) { if (!reloading) pulled = false }
+            val pullState = rememberPullToRefreshState()
+            PullToRefreshBox(
+                isRefreshing = pulled,
+                onRefresh = {
+                    pulled = true
+                    onRefresh()
+                    items.refresh()
+                },
+                state = pullState,
+                indicator = {
+                    PullToRefreshDefaults.Indicator(
+                        state = pullState,
+                        isRefreshing = pulled,
+                        modifier = Modifier.align(Alignment.TopCenter).padding(top = topInset),
+                    )
+                },
+                modifier = Modifier.fillMaxSize(),
+            ) { content() }
+        }
     }
 }
 
@@ -212,35 +215,90 @@ private fun <T : Any> PagedContent(
 private fun SongsTab(viewModel: LibraryViewModel, listState: LazyListState) {
     val items = viewModel.songs.collectAsLazyPagingItems()
     val letters by viewModel.letters.collectAsStateWithLifecycle()
+    val filter by viewModel.songFilter.collectAsStateWithLifecycle()
+    val filtering = filter.isNotBlank()
     val scope = rememberCoroutineScope()
-    RegisterRefresh(viewModel, items::refresh)
 
-    PagedContent(items, emptyMessage = "No songs yet. Scan your library from the web app.") {
-        val firstVisible by remember { derivedStateOf { listState.firstVisibleItemIndex } }
-        Box(Modifier.fillMaxSize()) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = TabBarClearance, end = RailWidth),
-            ) {
-                items(count = items.itemCount, key = items.itemKey { it.id }) { index ->
-                    val song = items[index]
-                    if (song != null) SongRow(song, onClick = { viewModel.playSongsFrom(index) }) else PlaceholderRow()
+    Box(Modifier.fillMaxSize()) {
+        PagedContent(
+            items,
+            emptyMessage = if (filtering) "No songs match \"${filter.trim()}\"." else "No songs yet. Scan your library from the web app.",
+            onRefresh = { viewModel.reloadLetters(LibraryTab.SONGS) },
+            topInset = SongsClearance,
+        ) {
+            val firstVisible by remember { derivedStateOf { listState.firstVisibleItemIndex } }
+            Box(Modifier.fillMaxSize()) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(top = SongsClearance, end = RailWidth),
+                ) {
+                    items(count = items.itemCount, key = items.itemKey { it.id }) { index ->
+                        val song = items[index]
+                        if (song != null) SongRow(song, onClick = { viewModel.playSongsFrom(index) }) else PlaceholderRow()
+                    }
+                }
+                // The letters index the whole library, so they would point at the wrong rows of a filtered list.
+                if (!filtering) {
+                    AlphabetRail(
+                        letters = letters[LibraryTab.SONGS].orEmpty(),
+                        firstVisibleIndex = firstVisible,
+                        onJump = { scope.launch { listState.scrollToItem(it) } },
+                        topInset = SongsClearance,
+                    )
+                }
+                // Plays everything, not just what is on screen: the server shuffles the whole library.
+                ExtendedFloatingActionButton(
+                    onClick = viewModel::shuffleAll,
+                    icon = { Icon(Icons.Filled.Shuffle, contentDescription = null) },
+                    text = { Text("Shuffle all") },
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(end = RailWidth + 12.dp, bottom = 16.dp),
+                )
+            }
+        }
+        SongFilterField(
+            text = filter,
+            onChange = { text ->
+                viewModel.setSongFilter(text)
+                scope.launch { listState.scrollToItem(0) }
+            },
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = FilterTop, start = 16.dp, end = 16.dp),
+        )
+    }
+}
+
+/** Floats like the tab bar above it. Narrows the Songs list by title, artist or album, on the server. */
+@Composable
+private fun SongFilterField(text: String, onChange: (String) -> Unit, modifier: Modifier = Modifier) {
+    val focusManager = LocalFocusManager.current
+    Surface(
+        modifier = modifier.fillMaxWidth().height(48.dp),
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 14.dp)) {
+            Icon(Icons.Filled.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Box(Modifier.weight(1f).padding(horizontal = 10.dp)) {
+                if (text.isEmpty()) {
+                    Text("Filter songs", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                BasicTextField(
+                    value = text,
+                    onValueChange = onChange,
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Filter songs" },
+                )
+            }
+            if (text.isNotEmpty()) {
+                IconButton(onClick = { onChange("") }) {
+                    Icon(Icons.Filled.Close, contentDescription = "Clear filter")
                 }
             }
-            AlphabetRail(
-                letters = letters[LibraryTab.SONGS].orEmpty(),
-                firstVisibleIndex = firstVisible,
-                onJump = { scope.launch { listState.scrollToItem(it) } },
-                topInset = TabBarClearance,
-            )
-            // Plays everything, not just what is on screen: the server shuffles the whole library.
-            ExtendedFloatingActionButton(
-                onClick = viewModel::shuffleAll,
-                icon = { Icon(Icons.Filled.Shuffle, contentDescription = null) },
-                text = { Text("Shuffle all") },
-                modifier = Modifier.align(Alignment.BottomEnd).padding(end = RailWidth + 12.dp, bottom = 16.dp),
-            )
         }
     }
 }
@@ -273,9 +331,12 @@ private fun AlbumsTab(viewModel: LibraryViewModel, navController: NavHostControl
     val items = viewModel.albums.collectAsLazyPagingItems()
     val letters by viewModel.letters.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-    RegisterRefresh(viewModel, items::refresh)
-
-    PagedContent(items, emptyMessage = "No albums yet. Scan your library from the web app.") {
+    PagedContent(
+        items,
+        emptyMessage = "No albums yet. Scan your library from the web app.",
+        onRefresh = { viewModel.reloadLetters(LibraryTab.ALBUMS) },
+        topInset = TabBarClearance,
+    ) {
         val firstVisible by remember { derivedStateOf { gridState.firstVisibleItemIndex } }
         Box(Modifier.fillMaxSize()) {
             LazyVerticalGrid(
@@ -339,9 +400,12 @@ private fun ArtistsTab(viewModel: LibraryViewModel, navController: NavHostContro
     val items = viewModel.artists.collectAsLazyPagingItems()
     val letters by viewModel.letters.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-    RegisterRefresh(viewModel, items::refresh)
-
-    PagedContent(items, emptyMessage = "No artists yet. Scan your library from the web app.") {
+    PagedContent(
+        items,
+        emptyMessage = "No artists yet. Scan your library from the web app.",
+        onRefresh = { viewModel.reloadLetters(LibraryTab.ARTISTS) },
+        topInset = TabBarClearance,
+    ) {
         val firstVisible by remember { derivedStateOf { listState.firstVisibleItemIndex } }
         Box(Modifier.fillMaxSize()) {
             LazyColumn(
@@ -392,14 +456,5 @@ private fun GenresTab() {
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-    }
-}
-
-/** Lets the top-bar Refresh reach whichever list is showing. */
-@Composable
-private fun RegisterRefresh(viewModel: LibraryViewModel, refresh: () -> Unit) {
-    DisposableEffect(refresh) {
-        viewModel.registerRefresh(refresh)
-        onDispose { }
     }
 }

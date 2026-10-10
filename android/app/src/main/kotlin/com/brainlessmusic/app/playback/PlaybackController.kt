@@ -195,9 +195,9 @@ class PlaybackController @Inject constructor(
         when (val current = source) {
             null -> return null
             is QueueSource.Songs -> {
-                val page = libraryRepository.getTracksPage(current.nextOffset, REFILL_CHUNK).getOrNull() ?: return null
+                val page = libraryRepository.getTracksPage(current.nextOffset, REFILL_CHUNK, current.search).getOrNull() ?: return null
                 val next = current.nextOffset + page.tracks.size
-                source = if (page.tracks.isEmpty() || next >= page.total) null else QueueSource.Songs(next)
+                source = if (page.tracks.isEmpty() || next >= page.total) null else current.copy(nextOffset = next)
                 return page.tracks.map(libraryRepository::queueItem)
             }
             is QueueSource.Shuffled -> {

@@ -1,5 +1,6 @@
 package com.brainlessmusic.app.ui.library
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -112,7 +113,7 @@ fun AlphabetRail(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                shadowElevation = 6.dp,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                 modifier = Modifier.align(Alignment.Center).size(84.dp),
             ) {
                 Box(contentAlignment = Alignment.Center) {

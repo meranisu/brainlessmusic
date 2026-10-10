@@ -1,27 +1,21 @@
 package com.brainlessmusic.app.ui.albums
 
-import androidx.compose.foundation.layout.Column
-import com.brainlessmusic.app.ui.playback.MiniPlayer
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.graphics.Color
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -30,10 +24,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -43,6 +44,7 @@ import com.brainlessmusic.app.ui.common.CoverImage
 import com.brainlessmusic.app.ui.common.LoadState
 import com.brainlessmusic.app.ui.common.LoadStateContent
 import com.brainlessmusic.app.ui.common.formatDuration
+import com.brainlessmusic.app.ui.playback.MiniPlayer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,6 +55,7 @@ fun AlbumDetailScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val playback by viewModel.playback.collectAsStateWithLifecycle()
+    val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
     val title = when (val s = state) {
         is LoadState.Content -> s.data.title
         else -> "Album"
@@ -67,11 +70,6 @@ fun AlbumDetailScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
-                actions = {
-                    IconButton(onClick = viewModel::load) {
-                        Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
-                    }
-                },
             )
         },
         bottomBar = { MiniPlayer(onClick = onOpenNowPlaying) },
@@ -83,15 +81,17 @@ fun AlbumDetailScreen(
             isEmpty = { it.tracks.isEmpty() },
             emptyMessage = "This album has no tracks.",
         ) { album: AlbumDetailDto ->
-            LazyColumn {
-                item { AlbumHeader(album, coverUrl = viewModel.coverUrl()) }
-                itemsIndexed(album.tracks, key = { _, track -> track.id }) { index, track ->
-                    TrackRow(
-                        track = track,
-                        isCurrent = playback.current?.trackId == track.id,
-                        onClick = { viewModel.playFrom(album, index) },
-                        onPlayNext = { viewModel.playNext(album, track) },
-                    )
+            PullToRefreshBox(isRefreshing = refreshing, onRefresh = viewModel::refresh) {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    item { AlbumHeader(album, coverUrl = viewModel.coverUrl()) }
+                    itemsIndexed(album.tracks, key = { _, track -> track.id }) { index, track ->
+                        TrackRow(
+                            track = track,
+                            isCurrent = playback.current?.trackId == track.id,
+                            onClick = { viewModel.playFrom(album, index) },
+                            onPlayNext = { viewModel.playNext(album, track) },
+                        )
+                    }
                 }
             }
         }
@@ -112,7 +112,7 @@ private fun AlbumHeader(album: AlbumDetailDto, coverUrl: String?) {
             modifier = Modifier.size(88.dp),
         )
         Column(modifier = Modifier.padding(start = 16.dp)) {
-            Text(album.title, style = MaterialTheme.typography.titleMedium)
+            Text(album.title, style = MaterialTheme.typography.headlineSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(
                 album.artistName ?: "Unknown Artist",
                 style = MaterialTheme.typography.bodyMedium,

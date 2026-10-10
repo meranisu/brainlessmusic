@@ -5,7 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import com.brainlessmusic.app.ui.playback.MiniPlayer
 
-/** The mini player stacked on the navigation bar, for the two top-level tabs. */
+/** The mini player stacked on the navigation bar, for the top-level tabs. */
 @Composable
 fun AppBottomBar(navController: NavHostController) {
     Column {

@@ -43,7 +43,8 @@ Colours are theme tokens, never literals. A colour written straight into a rule 
 ground, `blue-300` is muted text, `orange-600` is the accent (`frontend/src/lib/theme.ts:1-4`). Danger and success
 keep their meaning in every theme. Danger moves out of the theme's own hue when the two would clash.
 Text on an accent fill uses `--color-on-accent` (the theme's `blue-950`), never white, so it clears 4.5:1 in every
-theme (Q45, `frontend/src/index.css:3-6`).
+theme (Q45, `frontend/src/index.css:3-6`). Accent-coloured text on a card uses `--color-accent-ink`
+(`MaterialTheme.accentInk` on Android): the accent itself except in Deep blue, where it is lightened to clear 4.5:1.
 
 - **Default ("Deep blue", the original):** navy ground `#080e28`, blue backdrop, orange accent
   (`index.css:260-280`, `theme.ts:17`).
@@ -72,7 +73,8 @@ theme (Q45, `frontend/src/index.css:3-6`).
 
 **Same brand as the web** (A36): the navy-and-orange default, flat surfaces, Fredoka and Barlow Condensed.
 
-Known gap, not yet closed: the Android theme defaults to Material dynamic colour, which follows the wallpaper
-(`android/.../ui/theme/Theme.kt:45`). It uses the system font (`Type.kt:10`), and its colours only "loosely match" the
-web (`Color.kt:5`). Close the gap when Android UI work next touches the theme. Until then, don't treat Android's
-current look as the reference.
+Built (2026-10-10): the brand palette is the default, not Material dynamic colour (`android/.../ui/theme/Theme.kt`).
+`Color.kt` holds the web's Deep blue tokens. Display and headline styles use Barlow Condensed and the wordmark uses
+Fredoka (`Type.kt`, fonts in `res/font`). Floating surfaces have a 1 dp `outline` border, not a shadow. All six web themes
+are in Settings → Colours (`Color.kt`, one `Palette` each), and each also has a light scheme for the system setting.
+Colours also offers Material You (wallpaper colours, Android 12+) as an opt-in. It is never the default.

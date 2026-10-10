@@ -32,8 +32,20 @@ class AlbumDetailViewModel @Inject constructor(
     private val _state = MutableStateFlow<LoadState<AlbumDetailDto>>(LoadState.Loading)
     val state: StateFlow<LoadState<AlbumDetailDto>> = _state.asStateFlow()
 
+    private val _refreshing = MutableStateFlow(false)
+    val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
+
     init {
         load()
+    }
+
+    /** Pull to refresh: what is shown stays up while it reloads, and stays if the reload fails. */
+    fun refresh() {
+        viewModelScope.launch {
+            _refreshing.value = true
+            libraryRepository.getAlbumDetail(albumId).onSuccess { _state.value = LoadState.Content(it) }
+            _refreshing.value = false
+        }
     }
 
     fun load() {

@@ -4,6 +4,82 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `LibraryViewModel.songs`, `songFilter`, `setSongFilter()`, `reloadLetters()`, `playSongsFrom()` — `android/app/src/main/kotlin/com/brainlessmusic/app/ui/library/LibraryViewModel.kt`
+**Date:** 2026-10-10
+**How added:** new feature
+**Purpose:** filter the Songs list on the server, and queue from the filtered list.
+**Side effects:** `GET /tracks?search=` per settled filter.
+**Before:** `songs` was one unfiltered pager; `refresh()`/`registerRefresh()` served a top-bar button; `logout()` and `isGuest` lived here.
+**After:** `songs` is rebuilt per debounced filter (`flatMapLatest`, cached after); `playSongsFrom()` passes the filter to
+the page fetch and to `QueueSource.Songs`. Refresh is pull-to-refresh in the screen; logout moved to `SettingsViewModel`.
+
+**Function:** `LibraryRepository.getTracksPage()`, `ApiService.tracks()`, `QueueSource.Songs`, `PlaybackController.nextChunk()` — `android/.../data/repository/LibraryRepository.kt`, `data/remote/ApiService.kt`, `playback/QueueSource.kt`, `playback/PlaybackController.kt`
+**Date:** 2026-10-10
+**How added:** new feature
+**Purpose:** carry an optional `search` through song paging and queue top-up.
+**Side effects:** none new.
+**Before:** no filter.
+**After:** `search: String? = null`; `QueueSource.Songs(nextOffset, search)` tops up with matches only.
+
+**Function:** `SettingsScreen()`, `SettingsViewModel.logout()`, `isGuest` — `android/.../ui/settings/`
+**Date:** 2026-10-10
+**How added:** new feature
+**Purpose:** Settings as a bottom tab, with Log out.
+**Side effects:** logout stops playback and clears the session, as before.
+**Before:** reached from a Library top-bar icon, with a back arrow; no logout.
+**After:** takes `navController` and `onLoggedOut`; shows `AppBottomBar`; Log out button with the guest confirmation.
+
+**Function:** `AlbumDetailViewModel.refresh()`, `ArtistDetailViewModel.refresh()`, `refreshing` — `android/.../ui/albums/`, `ui/artists/`
+**Date:** 2026-10-10
+**How added:** new feature
+**Purpose:** pull to refresh without blanking the page.
+**Side effects:** one detail request.
+**Before:** only `load()`, which shows the spinner.
+**After:** `refresh()` keeps the content up and replaces it on success.
+
+**Function:** `UpNextCard()`, `remainingInQueue()` — `android/.../ui/playback/NowPlayingScreen.kt`
+**Date:** 2026-10-10
+**How added:** new feature
+**Purpose:** the Up next card is the way into the queue.
+**Side effects:** none.
+**Before:** a separate queue icon button beside the stream readout.
+**After:** the card shows a queue icon and the count after the current track; the icon button is removed.
+
+**Function:** `MainActivity.onCreate()` splash, `SplashScreen()`, `BrainlessNavGraph()` — `android/.../MainActivity.kt`, `ui/splash/SplashScreen.kt`, `ui/navigation/BrainlessNavGraph.kt`
+**Date:** 2026-10-10
+**How added:** new feature
+**Purpose:** a branded splash on cold start instead of an empty screen.
+**Side effects:** none.
+**Before:** a plain window, then a centred spinner.
+**After:** `installSplashScreen()` held on the activity-scoped `StartViewModel` (max 1.2 s, 200 ms fade); `SplashScreen` takes
+`viewModel` and mirrors the system splash, with a progress bar after 400 ms. `BrainlessNavGraph` takes `startViewModel`.
+
+**Function:** `MaterialTheme.accentInk` (and `BrainlessMusicTheme()` providing it) — `android/app/src/main/kotlin/com/brainlessmusic/app/ui/theme/Theme.kt`
+**Date:** 2026-10-10
+**How added:** new feature
+**Purpose:** accent colour for text on a card, where `primary` is under 4.5:1 in Deep blue.
+**Side effects:** none.
+**Before:** did not exist; card text used `colorScheme.primary`.
+**After:** the palette's `accentInk` in dark mode, `accentOnLight` in light mode, `primary` under Material You.
+
+**Function:** `BrainlessMusicTheme()`, `Palette.darkScheme()`, `Palette.lightScheme()`, `ColorTheme.palette()` — `android/app/src/main/kotlin/com/brainlessmusic/app/ui/theme/Theme.kt`, `Color.kt`
+**Date:** 2026-10-10
+**How added:** new feature
+**Purpose:** build the Material scheme from one of the web's six colour themes.
+**Side effects:** none.
+**Before:** one fixed Deep blue dark scheme and one light scheme.
+**After:** takes `colorTheme: ColorTheme` (default `DEEP_BLUE`); each `Palette` builds a dark and a light scheme.
+`MATERIAL_YOU` uses the system's dynamic scheme on Android 12+ (`supportsMaterialYou`); the `dynamicColor` parameter
+is removed.
+
+**Function:** `AppearanceSettings.colorTheme`, `setColorTheme()`; `SettingsViewModel.colorTheme`, `setColorTheme()`; `ColorThemeOption()` — `android/.../data/local/AppearanceSettings.kt`, `ui/settings/SettingsViewModel.kt`, `ui/settings/SettingsScreen.kt`
+**Date:** 2026-10-10
+**How added:** new feature
+**Purpose:** store and pick the colour theme on this phone.
+**Side effects:** writes the `color_theme` DataStore key.
+**Before:** did not exist.
+**After:** unknown stored values fall back to Deep blue. `MainActivity` reads it synchronously with the light/dark mode.
+
 **Function:** `playerCheckedIn()`, `playerClosed()`, `listListeners()`, `clientLabel()` — `backend/src/services/streamMonitor.ts`
 **Date:** 2026-10-10
 **How added:** bug fix
@@ -19,6 +95,16 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 **Side effects:** none.
 **Before:** menu links stacked with no space, so adjacent hover/active highlights merged.
 **After:** each link group is wrapped in a `flex flex-col gap-1` column.
+
+**Function:** `BrainlessMusicTheme()` — `android/app/src/main/kotlin/com/brainlessmusic/app/ui/theme/Theme.kt`
+**Date:** 2026-10-10
+**How added:** new feature
+**Purpose:** the app's Material theme.
+**Side effects:** none.
+**Before:** `dynamicColor = true` by default (wallpaper colours on Android 12+); loose navy and orange seeds; system font.
+**After:** `dynamicColor = false` by default; the web's Deep blue tokens with every surface role set and no tint; display
+and headline styles in Barlow Condensed (`DisplayFontFamily`). `BrandFontFamily` (Fredoka) added in `Type.kt` for the
+wordmark.
 
 **Function:** `useThemeCycle()` — `frontend/src/hooks/useThemeCycle.ts`
 **Date:** 2026-10-10

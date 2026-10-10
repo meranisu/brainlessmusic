@@ -1,5 +1,6 @@
 package com.brainlessmusic.app.ui.playback
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -48,6 +49,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -59,6 +62,7 @@ import com.brainlessmusic.app.playback.Repeat
 import com.brainlessmusic.app.playback.StreamInfo
 import com.brainlessmusic.app.ui.common.CoverImage
 import com.brainlessmusic.app.ui.common.formatDuration
+import com.brainlessmusic.app.ui.theme.accentInk
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -116,8 +120,7 @@ fun NowPlayingScreen(
             Column(modifier = Modifier.fillMaxWidth().padding(top = 20.dp)) {
                 Text(
                     current.title,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.headlineMedium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -159,19 +162,13 @@ fun NowPlayingScreen(
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                StreamReadout(state.stream, modifier = Modifier.weight(1f))
-                IconButton(onClick = { showQueue = true }) {
-                    Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = "Queue")
-                }
-            }
+            // Clear air under the transport, so a thumb reaching for play/pause doesn't land on the readout.
+            StreamReadout(state.stream, modifier = Modifier.fillMaxWidth().padding(top = 16.dp))
 
+            // The way into the queue: the card says what is next and how much follows.
             UpNextCard(
                 next = state.next,
+                remaining = remainingInQueue(state),
                 onClick = { showQueue = true },
                 modifier = Modifier.padding(top = 8.dp, bottom = 16.dp).navigationBarsPadding(),
             )
@@ -238,13 +235,23 @@ private fun TransportRow(state: PlaybackUiState, viewModel: PlaybackViewModel) {
     }
 }
 
-/** What plays next, in play order (shuffled when shuffle is on). Tapping opens the queue. */
+/** Tracks after the current one, in play order (the shuffled order when shuffle is on). */
+private fun remainingInQueue(state: PlaybackUiState): Int {
+    val order = if (state.shuffle && state.playOrder.size == state.queue.size) state.playOrder else state.queue.indices.toList()
+    val position = order.indexOf(state.currentIndex)
+    return if (position < 0) 0 else order.size - position - 1
+}
+
+/** What plays next, in play order (shuffled when shuffle is on), and how many follow. Tapping opens the queue. */
 @Composable
-private fun UpNextCard(next: QueueItem?, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun UpNextCard(next: QueueItem?, remaining: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClickLabel = "Open queue", onClick = onClick),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -254,7 +261,7 @@ private fun UpNextCard(next: QueueItem?, onClick: () -> Unit, modifier: Modifier
                 CoverImage(url = next.coverUrl, contentDescription = null, cornerRadius = 8.dp, modifier = Modifier.size(44.dp))
             }
             Column(modifier = Modifier.weight(1f).padding(start = if (next != null) 12.dp else 4.dp)) {
-                Text("UP NEXT", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                Text("UP NEXT", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.accentInk)
                 Text(
                     next?.title ?: "End of the queue",
                     style = MaterialTheme.typography.bodyMedium,
@@ -268,6 +275,21 @@ private fun UpNextCard(next: QueueItem?, onClick: () -> Unit, modifier: Modifier
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(start = 8.dp)) {
+                Icon(
+                    Icons.AutoMirrored.Filled.QueueMusic,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (remaining > 0) {
+                    Text(
+                        "$remaining",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.semantics { contentDescription = "$remaining tracks queued" },
                     )
                 }
             }
@@ -297,7 +319,7 @@ private fun StreamReadout(stream: StreamInfo?, modifier: Modifier = Modifier) {
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        modifier = modifier.padding(end = 12.dp),
+        modifier = modifier,
     ) {
         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
             format?.let { Text(it, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis) }

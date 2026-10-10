@@ -4,6 +4,65 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-10 — Android: Settings tab, pull to refresh, Songs filter, queue via Up next, cold-start splash
+
+- **Settings is a bottom tab** (Library · Search · Settings), not a top-bar icon. It has the mini player and no back
+  arrow. **Log out** moved from the Library top bar to the bottom of Settings, with the same guest confirmation.
+  `Routes.SETTINGS` joins the tab routes; logging out pops to Login from the Library anchor.
+- **Pull to refresh** replaces the Refresh buttons on Library (Songs, Albums, Artists; letters reload too), Artist
+  and Album. On the Library lists the spinner sits below the floating tab bar. The detail pages keep what is shown
+  while they reload, and keep it if the reload fails. The top-bar refresh plumbing (`registerRefresh`) is gone.
+- **Songs filter:** a field floating under the Library tab bar narrows Songs by title, artist or album, using the
+  server's existing `GET /tracks?search=` (FTS, LIKE under three characters; order stays by title). Typing waits
+  300 ms; clearing is instant. The A-Z rail hides while filtering, because its letters index the whole library.
+  Tapping a filtered song queues from the filtered list, and `QueueSource.Songs` carries the filter, so the queue tops
+  up with matches only. No backend change.
+- **Now Playing:** the separate queue button is gone. The Up next card opens the queue: it has a queue icon, the
+  number of tracks after this one, an "Open queue" click label, and a 1 dp border. 16 dp more space separates the
+  play/pause row from the stream readout below it.
+- **Cold-start splash** (`androidx.core:core-splashscreen` 1.0.1; Android 12+ natively, back-ported below): the app
+  icon on a navy disc over the window ground. It holds until the session check answers, at most 1.2 s, then fades
+  over 200 ms. Past 1.2 s, the in-app splash takes over at the same position, with a thin progress bar after
+  400 ms. `StartViewModel` is now activity-scoped, so the splash and the start route share one check. The window colours
+  now match Deep blue's backgrounds, and the launcher icon uses the brand tokens (`#FF5400` on `#080E28`/`#162456`).
+- Verified: `./gradlew assembleDebug testDebugUnitTest lintDebug` pass. **Not run on a device** (none connected).
+
+## 2026-10-10 — Accent text on cards clears 4.5:1 in Deep blue (web and Android)
+
+- In the default theme, orange-600 is 3.22:1 on a `blue-900` card and orange-500 is 3.59:1, under 4.5:1 for text.
+  Raising the accent itself tops out near 4:1 before it turns peach, so text gets its own token instead.
+- Web: new `--color-accent-ink` (`text-accent-ink`), which is `orange-600` in every theme except `[data-theme='blue']`.
+  There it is `oklch(76% 0.148 41.116)`, the accent lightened at its own hue: 4.59:1 on `blue-900`, 6.55:1 on
+  `blue-950`. The other five themes' accents already clear 5.1:1 on their cards. Applied to the four places with
+  orange text on a surface: Library "N selected", the Now Playing "Next" badge, the Control center "degraded"
+  pill, and the empty-library "Options" link. Orange icons stay as they are, since 3.22:1 clears the 3:1 for icons.
+- Android: `Palette.accentInk` (`#FF8E63` for Deep blue, the accent elsewhere), read as `MaterialTheme.accentInk`. It
+  is the light scheme's accent in light mode and `primary` under Material You. Used on the Now Playing "UP NEXT"
+  label, the only Android text in accent on a card.
+- Verified: `npm run build` and `npm run lint` in `frontend` (no new warnings); `./gradlew assembleDebug
+  testDebugUnitTest lintDebug` pass. Not looked at in a browser or on a device.
+
+## 2026-10-10 — Android: the web's six colour themes, plus Material You
+
+- New Settings row **Colours**: Deep blue, Crimson, Void, Nord, Magenta, Pastel, with the web's names and notes
+  (`frontend/src/lib/theme.ts`). A seventh choice, **Material You**, takes the wallpaper's colours. It is offered only
+  on Android 12+; a stored choice on an older phone falls back to Deep blue. Its swatch shows this phone's wallpaper
+  colours. The `dynamicColor` parameter on `BrainlessMusicTheme` is gone; the theme choice decides. Material You's
+  colours come from the system, so the contrast checks below do not cover them. Rows are bordered like the web's Options picker, with a swatch of each theme's ground and
+  accent; the picked row's border swaps to the accent. The old "Theme" row is now "Light or dark".
+- Stored per phone in DataStore (`color_theme`), like the web's `localStorage` choice (Q20's stated assumption). Read
+  synchronously at start with the light/dark choice, so a cold start does not flash the default colours.
+- `Color.kt` is now one `Palette` per theme, converted from the OKLCH values in `frontend/src/index.css` and clipped to
+  sRGB as the browser renders them. Each palette builds both a dark and a light scheme (`Theme.kt`). The light scheme's
+  accent and the wordmark band's accent are darkened at the accent's own hue until they clear 4.5:1 and 3:1. Clipping
+  those instead turned Deep blue's light accent red, which reads as danger.
+- Danger text is now `red-300` in dark schemes, as on the web since A45. It was `red-400`.
+- Contrast, checked by script against every palette in `Color.kt` (text, muted text, text on accent, accent on ground,
+  danger, selected tab, light-scheme pairs): all pass, except Deep blue's accent on a `blue-900` card at 3.22:1. That
+  pair is the same on the web.
+- Verified: `./gradlew assembleDebug`, `./gradlew testDebugUnitTest` and `./gradlew lintDebug` pass (no `NewApi`
+  findings). **Not checked on a device.**
+
 ## 2026-10-10 — Control center: "Now playing" lists real listeners, phone included
 
 - The table was built from open stream connections. Both players download a whole file in seconds and close the
@@ -27,6 +86,24 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
   rows keep 4px apart. The phone-only group above the divider gets the same gap.
 - Verified: `npm run build` passes; `npm run lint` shows only the three existing warnings. **Not checked in a
   browser.**
+
+## 2026-10-10 — Android: brand theme (navy and orange, Fredoka, Barlow Condensed, flat surfaces)
+
+- Closes the gap DESIGN.md listed under "Android" (A36). `BrainlessMusicTheme` now defaults to `dynamicColor = false`, so
+  the wallpaper no longer picks the colours. `Color.kt` holds the web's default "Deep blue" tokens, converted from the
+  OKLCH values in `frontend/src/index.css`. Every Material surface role is set and `surfaceTint` is transparent, so no
+  derived shades and no tonal tint.
+- Contrast (checked with a WCAG script, not on a device): text on accent 4.59:1, muted text (blue-300 on blue-950)
+  8.15:1, error 5.12:1. The light scheme darkens the accent to orange-800 (6.0:1 on blue-100), because orange-600 is
+  2.6:1 there. The wordmark's "music" on the pale band uses orange-700 (4.2:1, large text only).
+- Fonts bundled in `res/font` (OFL licences in `assets/licenses/`): Fredoka (variable) for the login wordmark, Barlow
+  Condensed ExtraBold for display and headline styles. In use on the Now Playing title (`headlineMedium`) and the
+  album header (`headlineSmall`, two lines max). Body text stays the system sans. Fredoka measures 6.69 em for
+  "brainlessmusic", narrower than the old bold, so the 33 sp wordmark still fits a 360 dp phone.
+- Flat: the floating Library tab pill, the login card and the A-Z rail's letter bubble lose their drop shadows and get a
+  1 dp `outline` border.
+- Verified: `./gradlew assembleDebug` and `./gradlew testDebugUnitTest` pass. **Not checked on a device**: none was
+  connected.
 
 ## 2026-10-10 — antislop pass: copy, glows, contrast, touch targets, title HUD, comments, README
 

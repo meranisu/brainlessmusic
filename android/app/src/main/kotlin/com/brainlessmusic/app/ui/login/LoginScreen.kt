@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -63,6 +64,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.brainlessmusic.app.BuildConfig
 import com.brainlessmusic.app.ui.common.BrandMark
+import com.brainlessmusic.app.ui.theme.BrandFontFamily
 
 /** The web title screen in Material colors: beat mosaic, a solid band with the wordmark, and true corner readouts. */
 @Composable
@@ -109,8 +111,7 @@ fun LoginScreen(
                     Surface(
                         shape = RoundedCornerShape(28.dp),
                         color = MaterialTheme.colorScheme.surfaceContainer,
-                        tonalElevation = 2.dp,
-                        shadowElevation = 6.dp,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                     ) {
                         Column(
@@ -353,6 +354,7 @@ private fun TitleBand() {
                     pop()
                 },
                 color = scheme.inverseOnSurface,
+                fontFamily = BrandFontFamily,
                 fontSize = 33.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = (-0.8).sp,

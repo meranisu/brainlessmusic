@@ -3,6 +3,7 @@ package com.brainlessmusic.app.ui.navigation
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -12,7 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 
-/** The two top-level tabs. Detail screens push on top with a back arrow instead. */
+/** The three top-level tabs. Detail screens push on top with a back arrow instead. */
 @Composable
 fun LibraryBottomBar(navController: NavHostController) {
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -31,10 +32,16 @@ fun LibraryBottomBar(navController: NavHostController) {
             icon = { Icon(Icons.Filled.Search, contentDescription = null) },
             label = { Text("Search") },
         )
+        NavigationBarItem(
+            selected = currentRoute == Routes.SETTINGS,
+            onClick = { navController.navigateToTab(Routes.SETTINGS) },
+            icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
+            label = { Text("Settings") },
+        )
     }
 }
 
-/** Pops to the fixed `ARTISTS` anchor; fine for two flat tabs, not for nested per-tab stacks. */
+/** Pops to the fixed `ARTISTS` anchor; fine for flat tabs, not for nested per-tab stacks. */
 private fun NavHostController.navigateToTab(route: String) {
     if (currentDestination?.route == route) return
     navigate(route) {

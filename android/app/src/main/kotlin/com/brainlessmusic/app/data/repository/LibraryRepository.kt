@@ -31,8 +31,9 @@ class LibraryRepository @Inject constructor(
     suspend fun getArtists(): Result<List<ArtistSummaryDto>> =
         callApi { it.artists().artists }
 
-    suspend fun getTracksPage(offset: Int, limit: Int): Result<TracksPageDto> =
-        callApi { it.tracks(limit, offset) }
+    /** [search] narrows to titles, artists or albums containing it; the order stays by title. */
+    suspend fun getTracksPage(offset: Int, limit: Int, search: String? = null): Result<TracksPageDto> =
+        callApi { it.tracks(limit, offset, search = search) }
 
     suspend fun getAlbumsPage(offset: Int, limit: Int): Result<AlbumsPageDto> =
         callApi { it.albums(limit, offset) }

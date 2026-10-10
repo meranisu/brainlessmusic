@@ -4,16 +4,16 @@ object Routes {
     const val SPLASH = "splash"
     const val LOGIN = "login"
 
-    // The two bottom-nav destinations.
+    // The bottom-nav destinations.
     const val ARTISTS = "artists"
     const val SEARCH = "search"
+    const val SETTINGS = "settings"
 
     // Detail screens: no bottom nav, a back arrow instead.
     const val ARTIST_DETAIL = "artist/{artistId}"
     const val ALBUM_DETAIL = "album/{albumId}"
 
     const val NOW_PLAYING = "now_playing"
-    const val SETTINGS = "settings"
 
     const val ARG_ARTIST_ID = "artistId"
     const val ARG_ALBUM_ID = "albumId"

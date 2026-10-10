@@ -11,17 +11,22 @@ import androidx.navigation.navArgument
 import com.brainlessmusic.app.ui.albums.AlbumDetailScreen
 import com.brainlessmusic.app.ui.artists.ArtistDetailScreen
 import com.brainlessmusic.app.ui.library.LibraryScreen
+import com.brainlessmusic.app.ui.login.LoginScreen
 import com.brainlessmusic.app.ui.playback.NowPlayingScreen
 import com.brainlessmusic.app.ui.search.SearchScreen
-import com.brainlessmusic.app.ui.login.LoginScreen
 import com.brainlessmusic.app.ui.settings.SettingsScreen
 import com.brainlessmusic.app.ui.splash.SplashScreen
+import com.brainlessmusic.app.ui.splash.StartViewModel
 
 @Composable
-fun BrainlessNavGraph(navController: NavHostController = rememberNavController()) {
+fun BrainlessNavGraph(
+    startViewModel: StartViewModel,
+    navController: NavHostController = rememberNavController(),
+) {
     NavHost(navController = navController, startDestination = Routes.SPLASH) {
         composable(Routes.SPLASH) {
             SplashScreen(
+                viewModel = startViewModel,
                 onResolved = { route ->
                     navController.navigate(route) {
                         popUpTo(Routes.SPLASH) { inclusive = true }
@@ -39,14 +44,7 @@ fun BrainlessNavGraph(navController: NavHostController = rememberNavController()
             )
         }
         composable(Routes.ARTISTS) {
-            LibraryScreen(
-                navController = navController,
-                onLoggedOut = {
-                    navController.navigate(Routes.LOGIN) {
-                        popUpTo(Routes.ARTISTS) { inclusive = true }
-                    }
-                },
-            )
+            LibraryScreen(navController = navController)
         }
         composable(Routes.SEARCH) {
             SearchScreen(navController = navController)
@@ -74,7 +72,15 @@ fun BrainlessNavGraph(navController: NavHostController = rememberNavController()
             NowPlayingScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.SETTINGS) {
-            SettingsScreen(onBack = { navController.popBackStack() })
+            SettingsScreen(
+                navController = navController,
+                // Settings sits on the Library anchor, so popping that clears every tab.
+                onLoggedOut = {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(Routes.ARTISTS) { inclusive = true }
+                    }
+                },
+            )
         }
     }
 }
