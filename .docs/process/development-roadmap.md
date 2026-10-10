@@ -98,9 +98,9 @@ Hosting comes before the app, so there's a real server to point the phone at.
   **Note, 2026-10-10:** owner's quick phone check says the site works from outside, but the structured test wasn't
   run, so the box stays open. To do later, on mobile data: **(A)** log in, play a song, seek once; **(B)** in a private
   tab, pick guest without a code. If B lets you straight in, `ENTRY_CODE` isn't set on smol, so set it in smol's env and
-  redeploy with `./scripts/deploy.sh` ([A47](../QUESTIONS.md#a47--a-change-reaches-smol-through-scriptsdeploysh-was-q39)). Also stale: the Cloudflare Access line above
-  says it's "being built now", but [Q30](../QUESTIONS.md#q30--should-cloudflare-access-sit-in-front-of-the-public-hostname)
-  keeps Access off.
+  redeploy with `./scripts/deploy.sh` ([A47](../QUESTIONS.md#a47--a-change-reaches-smol-through-scriptsdeploysh-was-q39)). Access is decided on
+  ([A74](../QUESTIONS.md#a74--cloudflare-access-goes-in-front-of-the-public-hostname-was-q30), 2026-10-11) but not switched on: it waits on how the Android app
+  gets through and who is on the email list (Q77, Q78).
 
 - [x] **12. Docker image** (ops). — **done 2026-09-09**, verified by 16 HTTP + 12 browser checks against the production build; the `docker build` itself is unverified (sandbox networking) — run `docker compose up --build` to confirm. Required moving the API under `/api`, since the web app has its own `/albums`, `/search` and `/health` routes. Dockerfile + compose, ffmpeg in the image, volumes for the library and the DB, healthcheck wired to `/health`.
   *Done when:* `docker compose up` on the home server serves your library.

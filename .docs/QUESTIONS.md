@@ -28,36 +28,10 @@ is never asked twice.
 
 | ID | Question | Asked | Blocking |
 |---|---|---|---|
-| [Q2](#q2--when-does-open-registration-get-turned-off) | When does open registration get turned off? | 2026-09-09 | Yes, at box 13's done-when |
-| [Q4](#q4--room-sync-design-details) | Room-sync design details | 2026-09-09 | Not yet — v0.3 |
+| [Q4](#q4--room-sync-design-details) | Room-sync design details | 2026-09-09 | Not yet — v0.3; owner: wait (2026-10-11) |
 | [Q5](#q5--tag-editing-scope) | Tag-editing scope | 2026-09-09 | No |
-| [Q27](#q27--should-uploads-let-you-pick-which-library-root-they-file-into) | Should uploads let you pick which library root they file into? | 2026-09-15 | No — assumption stated |
-| [Q30](#q30--should-cloudflare-access-sit-in-front-of-the-public-hostname) | Should Cloudflare Access sit in front of the public hostname? | 2026-09-21 | No — assumption stated |
-
-### Q2 — When does open registration get turned off?
-**Asked:** 2026-09-09 · **Blocking:** yes, at box 13's done-when
-
-`ALLOW_OPEN_REGISTRATION` defaults on, which is fine on the LAN and was
-re-opened at your request. It must be `false` before the server is reachable
-from outside. The backend warns at every boot while it's on.
-
-**Superseded in part on 2026-09-11 by [A16](#a16--signup-goes-and-open-registration-closes).**
-The flag is being flipped to default `false` as part of guest access, well ahead
-of box 13, because deleting `/signup` leaves it with no caller. So the narrow
-question this entry asks — *when does the flag go off* — is answered: now.
-
-**What keeps this open:** the flag was never the real concern. A stranger who
-reaches the server can now press a button and listen without minting an account
-at all, so the exposure Q2 was standing in for moves to
-[A15](#a15--the-entry-code-hook-ships-now-unset) and to box 13's gate. This
-entry stays open until that gate exists and is running.
-
-**Update 2026-09-21:** the tunnel is now running and public at
-`music.nobrainmusic.my`, with `ALLOW_OPEN_REGISTRATION=false` and `ENTRY_CODE`
-set (both now actually reach the container — see the changelog). What is still
-missing is the Cloudflare Access gate, which is now its own decision,
-[Q30](#q30--should-cloudflare-access-sit-in-front-of-the-public-hostname).
-Q2 closes when that is answered either way.
+| [Q77](#q77--how-does-the-android-app-get-past-cloudflare-access) | How does the Android app get past Cloudflare Access? | 2026-10-11 | Yes, before Access goes on |
+| [Q78](#q78--who-goes-on-the-access-email-list) | Who goes on the Access email list? | 2026-10-11 | Yes, before Access goes on |
 
 ### Q4 — Room-sync design details
 **Asked:** 2026-09-09 · **Blocking:** not yet — v0.3 work
@@ -66,58 +40,54 @@ Data model, drift tolerance, reconnect handling. Flagged as needing a dedicated
 brainstorming session rather than an inline answer — this is the project's
 centerpiece feature, so it deserves its own turn, not a paragraph here.
 
+**2026-10-11:** the owner said to wait. Not to be raised again until v0.3 work starts.
+
 ### Q5 — Tag-editing scope
 **Asked:** 2026-09-09 · **Blocking:** no
 
 Which fields are editable, whether batch-edit exists, and what undo/backup
 behaviour looks like when the edit writes back to the file on disk.
 
-### Q27 — Should uploads let you pick which library root they file into?
-**Asked:** 2026-09-15 · **Blocking:** no
+### Q77 — How does the Android app get past Cloudflare Access?
+**Asked:** 2026-10-11 · **Blocking:** yes, before Access goes on ([A74](#a74--cloudflare-access-goes-in-front-of-the-public-hostname-was-q30))
 
-With multiple roots, `POST /tracks/upload` still only knows about one
-destination (the original default root).
+Access answers any request without its login cookie with Cloudflare's login page. A browser can show it; the app
+can't, so it would stop working the moment Access is switched on.
 
-**Assumption I will build on: uploads stay single-destination.** Extra roots
-are for folders that already hold music you want scanned in, not upload
-targets — a root picker on the upload UI is a separate, un-asked-for
-decision. Say so if you want uploads to target a chosen root instead.
+- **A. A service token built into the app (recommended).** Cloudflare issues an id and secret; the app sends both on
+  every request, and Access lets it through. Someone could dig the secret out of the APK, but it still keeps out
+  everyone who just finds the address. The secret stays out of git (a build property, like `SERVER_URL`'s override).
+- **B. Let `/api/*` through without Access.** The app works unchanged, but then the API, where the music actually is,
+  is open to anyone again. Access would only guard the web page.
 
----
+### Q78 — Who goes on the Access email list?
+**Asked:** 2026-10-11 · **Blocking:** yes, before Access goes on ([A74](#a74--cloudflare-access-goes-in-front-of-the-public-hostname-was-q30))
 
-### Q30 — Should Cloudflare Access sit in front of the public hostname?
-**Asked:** 2026-09-21 · **Blocking:** no — assumption stated
+Every browser visit starts with Cloudflare asking for an email on the list and a one-time code sent to it. That
+includes friends using a guest code on the web: without their email on the list they never reach the guest screen.
 
-[A21](#a21--is-the-home-network-behind-cgnat-was-q1) planned a Cloudflare Access
-application (email-allowlist login) in front of the tunnel as defense-in-depth.
-The tunnel went live on 2026-09-21 without it, so `music.nobrainmusic.my` is
-currently gated only by `ENTRY_CODE` and account login.
+- **A. You and the friends who use the web (recommended).** Each friend's email goes on the list once.
+- **B. Only you.** Friends use the Android app only (with Q77's token), never the web.
 
-The catch is that Access is a browser login. A request that arrives without
-the Access cookie — the Android app, or a web client cloned and pointed at the
-hostname — is redirected to Cloudflare's login page instead of reaching the
-API, so it breaks unless it is given a Cloudflare **service token** (extra
-headers on every request, which the Android app does not send today).
+## Answered
 
-- **Access on:** strongest protection; the request never reaches the
-  container without passing Cloudflare first. Browser users get an extra
-  email/OTP step, and native clients need service tokens or a bypass rule for
-  the API paths.
-- **Access off:** native and cloned clients connect directly; the app's own
-  `ENTRY_CODE` + accounts are the only gate, so a bug or a leaked code is the
-  whole exposure.
+### A76 — Open registration is off, and the outside gate is Access *(was Q2)*
+**Answered:** 2026-10-11, by [A74](#a74--cloudflare-access-goes-in-front-of-the-public-hostname-was-q30). Q2 was to
+close once Q30 was answered either way. `ALLOW_OPEN_REGISTRATION=false` and `ENTRY_CODE` were set on smol on
+2026-09-21; the remaining gate is Access, which waits on Q77 and Q78.
 
-**Assumption I will build on: Access stays off for now**, because the Android
-app (Phase 0 confirmed on a real device against a tunnel URL) should be able to
-use the permanent hostname without new client work. Say so if browser-only
-access is enough and the gate should go on now.
+### A75 — Uploads stay single-destination *(was Q27)*
+**Answered:** 2026-10-11 · **No root picker.** An upload files into the default library root and that's it, as built.
+
+### A74 — Cloudflare Access goes in front of the public hostname *(was Q30)*
+**Answered:** 2026-10-11 · **Yes.** Overrides the assumption that kept it off. Not switched on yet: before it is, the
+Android app needs a way through (Q77) and the email list needs deciding (Q78), or the app and guests are locked out.
+Switching it on is done in the Cloudflare dashboard by the owner; the app side (Q77) is code here.
 
 Related, non-blocking: nothing copies `/data/backups` (the backend's own
 database backups, which live in the same Docker volume as the database) off
 `smol`, so a dead disk takes both. Not a question — a gap; noted here so it
 is not lost.
-
-## Answered
 
 ### A73 — Web gapless: two players first, measured *(was Q73)*
 **Answered:** 2026-10-11 · **Yes, as assumed.** Two audio elements with the next song preloaded. Sample-exact playback
