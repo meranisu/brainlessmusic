@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { useToast } from '../components/ToastProvider';
 import { apiClient } from '../lib/apiClient';
 import type { PlaylistSummary } from '../types/api';
+import { Skeleton, SkeletonListRows } from '../components/Skeleton';
 
 export function PlaylistsPage() {
   const [name, setName] = useState('');
@@ -59,7 +60,11 @@ export function PlaylistsPage() {
         </button>
       </form>
 
-      {isLoading && <p className="text-sm text-blue-300">Loading playlists…</p>}
+      {isLoading && (
+        <Skeleton label="Loading playlists…">
+          <SkeletonListRows rows={5} />
+        </Skeleton>
+      )}
       {isError && <p className="text-sm text-red-300">Could not load playlists.</p>}
 
       {data && data.playlists.length === 0 && (

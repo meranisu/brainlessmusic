@@ -6,6 +6,7 @@ import { FavoriteButton, useFavoriteIds } from '../components/FavoriteButton';
 import { usePlayer, type QueueTrack } from '../components/PlayerBar';
 import { apiClient } from '../lib/apiClient';
 import type { SearchResults } from '../types/api';
+import { Skeleton, SkeletonListRows, SkeletonTrackRows } from '../components/Skeleton';
 
 function formatDuration(seconds: number | null): string {
   if (seconds === null) return '—';
@@ -64,6 +65,12 @@ export function SearchPage() {
         </p>
       </div>
 
+      {isLoading && (
+        <Skeleton label={`Searching for “${query}”…`}>
+          <SkeletonListRows rows={3} />
+          <SkeletonTrackRows rows={5} cover />
+        </Skeleton>
+      )}
       {isError && <p className="text-sm text-red-300">Search failed.</p>}
 
       {data && total === 0 && (

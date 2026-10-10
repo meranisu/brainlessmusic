@@ -11,6 +11,7 @@ import { apiClient } from '../lib/apiClient';
 import { formatScanStatus } from '../lib/format';
 import { loadLibraryView, saveLibraryView, type LibraryView } from '../lib/libraryView';
 import type { LibraryRootListResponse, TrackListResponse, TrackSummary } from '../types/api';
+import { Skeleton, SkeletonArcade } from '../components/Skeleton';
 
 /** Roots re-poll interval while a scan runs; admin only, and only while scanning. */
 const SCAN_POLL_MS = 2000;
@@ -83,7 +84,11 @@ function SimpleLibrary() {
   );
 
   if (isLoading) {
-    return <p className="text-sm text-blue-300">Loading your library…</p>;
+    return (
+      <Skeleton label="Loading your library…">
+        <SkeletonArcade />
+      </Skeleton>
+    );
   }
 
   if (isError) {

@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { AlbumGrid } from '../components/AlbumGrid';
 import { apiClient } from '../lib/apiClient';
 import type { ArtistDetail } from '../types/api';
+import { Skeleton, SkeletonAlbumGrid, SkeletonDetailHeader } from '../components/Skeleton';
 
 export function ArtistDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -14,7 +15,14 @@ export function ArtistDetailPage() {
     enabled: Number.isInteger(artistId),
   });
 
-  if (isLoading) return <p className="text-sm text-blue-300">Loading artist…</p>;
+  if (isLoading) {
+    return (
+      <Skeleton label="Loading artist…">
+        <SkeletonDetailHeader />
+        <SkeletonAlbumGrid count={5} showArtist={false} />
+      </Skeleton>
+    );
+  }
   if (isError || !data) return <p className="text-sm text-red-300">Could not load that artist.</p>;
 
   return (

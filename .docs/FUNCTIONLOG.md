@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `Skeleton()`, `SkeletonListRows()`, `SkeletonAlbumGrid()`, `SkeletonTrackRows()`, `SkeletonDetailHeader()`, `SkeletonArcade()` — `frontend/src/components/Skeleton.tsx`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** loading states shaped like the content they stand in for (A59).
+**Side effects:** none.
+**Before:** each page showed a text line ("Loading albums…") or, in the Full view, "Loading…".
+**After:** `Skeleton` wraps the placeholders with a screen-reader label and the 300 ms hold; the others mirror the
+artists/playlists list, `AlbumGrid`, the track tables, the detail headers and `ArcadeSelect`. Used by the Library
+(both views), Albums, Artists, album and artist detail, Playlists, playlist detail, Favorites and Search.
+
 **Function:** `markLessOften()`, `unmarkLessOften()`, `clearLessOften()`, `listLessOftenTrackIds()`, `keptThisPass()` — `backend/src/db/lessOften.ts`; routes in `backend/src/routes/lessOften.ts`
 **Date:** 2026-10-11
 **How added:** new feature

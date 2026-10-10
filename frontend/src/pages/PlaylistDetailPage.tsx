@@ -9,6 +9,7 @@ import { useScrollLock } from '../hooks/useScrollLock';
 import { apiClient } from '../lib/apiClient';
 import type { PlaylistDetail } from '../types/api';
 import { PlayIcon } from '../components/icons';
+import { Skeleton, SkeletonDetailHeader, SkeletonTrackRows } from '../components/Skeleton';
 
 function formatDuration(seconds: number | null): string {
   if (seconds === null) return '—';
@@ -95,7 +96,14 @@ export function PlaylistDetailPage() {
     onSettled: () => queryClient.invalidateQueries({ queryKey }),
   });
 
-  if (isLoading) return <p className="text-sm text-blue-300">Loading playlist…</p>;
+  if (isLoading) {
+    return (
+      <Skeleton label="Loading playlist…">
+        <SkeletonDetailHeader />
+        <SkeletonTrackRows />
+      </Skeleton>
+    );
+  }
   if (isError || !data) return <p className="text-sm text-red-300">Could not load that playlist.</p>;
 
   const queue: QueueTrack[] = data.tracks.map((t) => ({

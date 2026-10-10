@@ -2266,6 +2266,57 @@
   }
 }
 
+/* Skeleton loading (`components/Skeleton.tsx`). The pulse is the "still working" signal, so it runs only while a
+   page is loading and stops when the data replaces it. Four beats per breath, slow enough to read as waiting. In
+   `@layer components` so `rounded-*` and sizing utilities on the same element win. */
+@layer components {
+  .skeleton {
+    border-radius: 0.25rem;
+    background: var(--color-blue-800);
+    animation: skeleton-pulse calc(var(--beat, 0.4s) * 4) ease-in-out infinite;
+  }
+
+  /* A card's fill is close to blue-800, so bars on one step lighter to stay visible. */
+  .card .skeleton {
+    background: var(--color-blue-700);
+  }
+
+  /* Hidden for the first 300 ms, so a fast load swaps straight to the content without a flash of grey. */
+  .skeleton-delay {
+    animation: skeleton-reveal 150ms ease-out 300ms both;
+  }
+}
+
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes skeleton-reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Reduced motion: still blocks, and they appear without the fade. The delay stays; it is timing, not movement. */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+
+  .skeleton-delay {
+    animation-duration: 0s;
+  }
+}
+
 /* Library Simple/Full toggle and Full view. In `@layer components`, unlike `.arcade-*`, so utilities on the same
    elements can still override padding, width and alignment. */
 :root {

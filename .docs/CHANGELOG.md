@@ -4,6 +4,19 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Web: skeleton loading on the browse pages
+
+- A59: the "Loading albums…" style text lines are now placeholder blocks shaped like what is coming: list rows
+  (artists, playlists), the album grid (albums, artist detail), track rows (album, playlist, favorites, search, the
+  Full view), detail headers, and the Library's Simple view (art, stats, strip). New `components/Skeleton.tsx`; CSS
+  `.skeleton` / `.skeleton-delay` in `index.css`. Bars pulse over four beats (`--beat`) only while loading, sit one
+  shade lighter inside `.card` so they stay visible, and are hidden for the first 300 ms so a fast load never flashes
+  them. Reduced motion: no pulse, no fade. Screen readers get a `role="status"` label ("Loading albums…").
+- Verified: `npm run build` and `npm run lint` (no new warnings). Ran the built app (`vite preview`) in headless
+  Chromium with the API mocked to hang, screenshotted all ten loading screens at 1280 px and 390 px, no page errors.
+  Measured opacity from mount: 0 until 300 ms, then visible; with reduced motion, no animation. Not tried against the
+  real backend (no login here), so the swap from skeleton to real content was not watched.
+
 ## 2026-10-11 — Queue sheet redesign, and "play less often" (A60)
 
 - Backend: migration `0019` adds `less_often` (per account, like `favorites`). `PUT`/`DELETE /tracks/:id/less-often`,

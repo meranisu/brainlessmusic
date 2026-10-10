@@ -6,6 +6,7 @@ import { usePlayer, type QueueTrack } from '../components/PlayerBar';
 import { apiClient } from '../lib/apiClient';
 import type { FavoriteListResponse } from '../types/api';
 import { PlayIcon } from '../components/icons';
+import { Skeleton, SkeletonTrackRows } from '../components/Skeleton';
 
 const PAGE_SIZE = 50;
 
@@ -57,7 +58,11 @@ export function FavoritesPage() {
         )}
       </div>
 
-      {isLoading && <p className="text-sm text-blue-300">Loading favorites…</p>}
+      {isLoading && (
+        <Skeleton label="Loading favorites…">
+          <SkeletonTrackRows />
+        </Skeleton>
+      )}
       {isError && <p className="text-sm text-red-300">Could not load favorites.</p>}
 
       {data && data.favorites.length === 0 && (

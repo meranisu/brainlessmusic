@@ -20,6 +20,7 @@ import { usePlayer } from './PlayerBar';
 import { useToast } from './ToastProvider';
 import { TrackDetailDrawer } from './TrackDetailDrawer';
 import { TrackRowMenu } from './TrackRowMenu';
+import { Skeleton, SkeletonTrackRows } from './Skeleton';
 
 /** The server allows up to 200; the panel scrolls, so a smaller page keeps the
  *  first paint quick and the next one arrives before the bottom does. */
@@ -408,7 +409,11 @@ export function LibraryFull() {
       )}
 
       <div className="lf-scroll" ref={scrollRef} onScroll={loadMoreIfNear}>
-        {isLoading && <p className="lf-state">Loading…</p>}
+        {isLoading && (
+          <Skeleton label="Loading tracks…">
+            <SkeletonTrackRows rows={14} bare />
+          </Skeleton>
+        )}
         {isError && <p className="lf-state text-red-300">Failed to load tracks.</p>}
         {data && tracks.length === 0 && <p className="lf-state">No tracks match these filters.</p>}
 

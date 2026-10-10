@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { LibraryEmptyState } from '../components/LibraryEmptyState';
 import { apiClient } from '../lib/apiClient';
 import type { ArtistListResponse } from '../types/api';
+import { Skeleton, SkeletonListRows } from '../components/Skeleton';
 
 const PAGE_SIZE = 50;
 
@@ -28,7 +29,11 @@ export function ArtistsPage() {
         </p>
       </div>
 
-      {isLoading && <p className="text-sm text-blue-300">Loading artists…</p>}
+      {isLoading && (
+        <Skeleton label="Loading artists…">
+          <SkeletonListRows />
+        </Skeleton>
+      )}
       {isError && <p className="text-sm text-red-300">Could not load artists.</p>}
 
       {data && data.artists.length === 0 && <LibraryEmptyState />}

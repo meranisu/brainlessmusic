@@ -119,6 +119,13 @@ is not lost.
 
 ## Answered
 
+### A59 — What skeleton loading looks like *(was Q59)*
+**Answered:** 2026-10-11 · **A slow pulse, web first.** Flat placeholder blocks shaped like the real rows, cover tiles
+and headers, pulsing over four beats (1.6 s) and still under reduced motion. Held back 300 ms so fast loads never
+flash. Screens: Library (Simple and Full), artists, albums, album and artist detail, playlists, playlist detail,
+search and favorites. The owner confirmed favorites stays.
+Web is built (`frontend/src/components/Skeleton.tsx`). Android is next, through `LoadStateContent`.
+
 ### A60 — Swipe right on a queue row: play less often *(was Q60)*
 **Answered:** 2026-10-11 · **Play less often.** Per account (guests can't), stored in `less_often` (migration
 `0019`). The row also leaves the current queue, with Undo. Shuffle (`/browse/shuffled`) keeps a marked song in about

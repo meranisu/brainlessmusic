@@ -7,6 +7,7 @@ import { usePlayer, type QueueTrack } from '../components/PlayerBar';
 import { apiClient } from '../lib/apiClient';
 import type { AlbumDetail } from '../types/api';
 import { PlayIcon } from '../components/icons';
+import { Skeleton, SkeletonDetailHeader, SkeletonTrackRows } from '../components/Skeleton';
 
 export function AlbumDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -30,7 +31,14 @@ export function AlbumDetailPage() {
       format: t.format,
     })) ?? [];
 
-  if (isLoading) return <p className="text-sm text-blue-300">Loading album…</p>;
+  if (isLoading) {
+    return (
+      <Skeleton label="Loading album…">
+        <SkeletonDetailHeader cover />
+        <SkeletonTrackRows />
+      </Skeleton>
+    );
+  }
   if (isError || !data) return <p className="text-sm text-red-300">Could not load that album.</p>;
 
   return (

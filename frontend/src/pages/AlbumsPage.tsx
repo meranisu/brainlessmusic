@@ -4,6 +4,7 @@ import { AlbumGrid } from '../components/AlbumGrid';
 import { LibraryEmptyState } from '../components/LibraryEmptyState';
 import { apiClient } from '../lib/apiClient';
 import type { AlbumListResponse } from '../types/api';
+import { Skeleton, SkeletonAlbumGrid } from '../components/Skeleton';
 
 const PAGE_SIZE = 50;
 
@@ -28,7 +29,11 @@ export function AlbumsPage() {
         </p>
       </div>
 
-      {isLoading && <p className="text-sm text-blue-300">Loading albums…</p>}
+      {isLoading && (
+        <Skeleton label="Loading albums…">
+          <SkeletonAlbumGrid />
+        </Skeleton>
+      )}
       {isError && <p className="text-sm text-red-300">Could not load albums.</p>}
 
       {data && data.total === 0 && <LibraryEmptyState />}
