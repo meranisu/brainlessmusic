@@ -4,6 +4,18 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android: shuffle after tapping a song covers the whole library
+
+- Bug: with shuffle on, tapping a song in Songs only shuffled songs starting with the same letter. The tap queued the
+  next 200 songs in title order, shuffle mixed only those, and each top-up added the next 200 in title order.
+- Now, with shuffle on, tapping a song in the unfiltered Songs list plays that song, then the whole library in a seeded
+  server shuffle (`/browse/shuffled`, the same source as the shuffle-all button). The tapped song is left out of that
+  first pass. Turning shuffle on while an A-Z queue plays drops the rest of that batch, keeps "Play next" songs, and
+  continues with the library shuffled; played songs stay behind the current one for "previous".
+- Not changed: a filtered Songs list, albums, playlists and search still shuffle only their own songs.
+- Verified: `./gradlew compileDebugKotlin` clean with no warnings; `testDebugUnitTest --tests '*Shuffle*'` 10/10
+  (no test covers the queue swap itself). Not run on a phone or emulator.
+
 ## 2026-10-11 — Guest accounts on Android (A67-A70)
 
 - The Guest button now opens a form instead of trying to enter at once: an optional name ("Leave it blank and you're

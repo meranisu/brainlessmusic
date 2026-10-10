@@ -148,6 +148,13 @@ class PlaybackController @Inject constructor(
 
     private fun loadQueue(items: List<QueueItem>, startIndex: Int, positionMs: Long, play: Boolean, source: QueueSource? = null) {
         if (items.isEmpty()) return
+        if (wantShuffle && source.isLibraryInTitleOrder) {
+            // Shuffle would only mix this first title-order batch (one letter's songs): play the tapped song, then the
+            // whole library shuffled.
+            val tapped = items[startIndex.coerceIn(0, items.lastIndex)]
+            loadQueue(listOf(tapped), 0, positionMs, play, librarySource(tapped))
+            return
+        }
         val mediaItems = items.map { toMediaItem(it) ?: return }
         val index = startIndex.coerceIn(0, items.lastIndex)
 
@@ -224,9 +231,10 @@ class PlaybackController @Inject constructor(
             } finally {
                 refilling = false
             }
-            // A chunk can arrive already short of the threshold (a tiny library); keep going until it is not.
+            // A chunk can arrive already short of the threshold (a tiny library); keep going until it is not. A fetch
+            // for a replaced queue or source may have blocked the new one's first top-up, so that gets its turn too.
             // A failed fetch does not loop: the next track change tries again.
-            if (appended) maybeRefill()
+            if (appended || startedFor != generation) maybeRefill()
         }
     }
 
@@ -247,9 +255,9 @@ class PlaybackController @Inject constructor(
                 source = if (page.tracks.isEmpty() || next >= page.total) {
                     QueueSource.Shuffled(kotlin.random.Random.nextInt(Int.MAX_VALUE), 0)
                 } else {
-                    QueueSource.Shuffled(current.seed, next)
+                    current.copy(nextOffset = next)
                 }
-                return page.tracks.map(libraryRepository::queueItem)
+                return page.tracks.filter { it.id != current.skipTrackId }.map(libraryRepository::queueItem)
             }
         }
     }
@@ -409,9 +417,36 @@ class PlaybackController @Inject constructor(
     fun toggleShuffle() {
         wantShuffle = !wantShuffle
         player.shuffleModeEnabled = wantShuffle
-        if (wantShuffle) applySmartShuffle(first = player.currentMediaItemIndex)
+        if (wantShuffle && source.isLibraryInTitleOrder) {
+            continueWithLibraryShuffle()
+        } else if (wantShuffle) {
+            applySmartShuffle(first = player.currentMediaItemIndex)
+        }
         scope.launch { settings.setShuffle(wantShuffle) }
         publish()
+    }
+
+    /** The whole library in a fresh seeded shuffle, without [from] in its first pass. */
+    private fun librarySource(from: QueueItem) =
+        QueueSource.Shuffled(kotlin.random.Random.nextInt(Int.MAX_VALUE), 0, skipTrackId = from.trackId)
+
+    /**
+     * Shuffle turned on mid-way through the songs list in title order: the rest of that batch would only mix songs
+     * sharing a letter, so it goes, and the whole library shuffled follows the current song and any "Play next" ones.
+     */
+    private fun continueWithLibraryShuffle() {
+        val current = player.currentMediaItemIndex
+        val keep = (current + 1 + playNextPending).coerceAtMost(queue.size)
+        if (keep < queue.size) {
+            player.removeMediaItems(keep, queue.size)
+            queue.subList(keep, queue.size).clear()
+            keys.subList(keep, keys.size).clear()
+        }
+        // Played songs before the current one, so "previous" still walks back through them; new batches go after.
+        player.setShuffleOrder(DefaultShuffleOrder(IntArray(queue.size) { it }, System.nanoTime()))
+        source = librarySource(queue[current])
+        generation++
+        maybeRefill()
     }
 
     /** Off, then repeat the whole queue, then repeat the current track. */

@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `loadQueue()`, `toggleShuffle()`, `nextChunk()`, `maybeRefill()`, new `librarySource()` and `continueWithLibraryShuffle()` — `android/.../playback/PlaybackController.kt`; `QueueSource.Shuffled.skipTrackId`, `isLibraryInTitleOrder` — `playback/QueueSource.kt`
+**Date:** 2026-10-11
+**How added:** bug fix
+**Purpose:** shuffle on a tapped song covers the whole library instead of one letter's batch.
+**Side effects:** an extra `GET /browse/shuffled` page fetch when the swap happens; the rest of the title-order batch is removed from the queue.
+**Before:** shuffle mixed only the 200 title-order songs queued from the tap, then each later 200 in turn.
+**After:** as described in the 2026-10-11 "shuffle after tapping a song" CHANGELOG entry.
+
 **Function:** `AuthRepository.enterAsGuest(code, name)`, `requestGuestCode()`, `pollGuestRequest()`, `cancelGuestRequest()`, `setDisplayName()`, `adopt()` — `android/.../data/repository/AuthRepository.kt`; `LoginViewModel.chooseGuest()`, `requestCode()`, `startPolling()`, `stopWaiting()`, `continueWithHandedCode()` — `ui/login/LoginViewModel.kt`; `GuestForm`, `RequestStatus`, `HandedCode` — `ui/login/LoginScreen.kt`; `SessionStore` pending-request and display-name keys; `SettingsViewModel.rename()`
 **Date:** 2026-10-11
 **How added:** new feature
