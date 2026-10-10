@@ -25,9 +25,11 @@ import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.google.common.util.concurrent.ListenableFuture
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -75,6 +77,8 @@ class PlaybackController @Inject constructor(
 
     private var tracker: ListenTracker? = null
     private var trackerItem: QueueItem? = null
+    // The current play's id once its scrobble answers; the final listening time goes to it (A62).
+    private var playId: Deferred<Int?>? = null
     private var lastTickAt = 0L
     private var tickerJob: Job? = null
     private var errorMessage: String? = null
@@ -395,6 +399,7 @@ class PlaybackController @Inject constructor(
         source = null
         generation++
         playNextPending = 0
+        reportListened(final = true)
         tracker = null
         trackerItem = null
         errorMessage = null
@@ -427,6 +432,8 @@ class PlaybackController @Inject constructor(
             if (isPlaying) {
                 lastTickAt = SystemClock.elapsedRealtime()
                 startTicker()
+            } else {
+                reportListened(final = false)
             }
             publish()
         }
@@ -465,6 +472,7 @@ class PlaybackController @Inject constructor(
     }
 
     private fun beginTrack() {
+        reportListened(final = true)
         val item = queue.getOrNull(player.currentMediaItemIndex)
         trackerItem = item
         tracker = item?.let { ListenTracker(it.durationSec) }
@@ -490,7 +498,18 @@ class PlaybackController @Inject constructor(
         val item = trackerItem ?: return
         val listened = tracker?.listenedMs ?: return
         // A missed scrobble costs a statistic, so it is never surfaced.
-        scope.launch { libraryRepository.scrobble(item.trackId, listened) }
+        playId = scope.async { libraryRepository.scrobble(item.trackId, listened).getOrNull() }
+    }
+
+    /**
+     * Sends how long the current play has really lasted (A62), once it has been scrobbled. On pause too, not only at the
+     * end, so a play cut short by the app being killed still has a close number; [final] lets go of it.
+     */
+    private fun reportListened(final: Boolean) {
+        val pending = playId ?: return
+        val listened = tracker?.listenedMs ?: return
+        if (final) playId = null
+        scope.launch { pending.await()?.let { libraryRepository.finishPlay(it, listened) } }
     }
 
     private fun publish() {

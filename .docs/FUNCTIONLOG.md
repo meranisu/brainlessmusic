@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `getUserStats()`, `getTrackStat()`, `finishPlay()`, `listLessOftenTracks()` — `backend/src/db/listeningStats.ts`; `recordScrobble()` — `backend/src/db/plays.ts`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** the profile's numbers (A61) and real listening time (A62).
+**Side effects:** `finishPlay` updates `play_history.ms_played` and sets `ms_final`.
+**Before:** only server-wide top tracks; `recordScrobble` returned nothing; `ms_played` stopped at the threshold.
+**After:** per-account stats by range; `recordScrobble` returns the play id; a play's real length can be recorded.
+
+**Function:** `ListenTracker.onTick()`, `PlaybackController.reportListened()`, `LibraryRepository.finishPlay()` — `android/.../playback/`, `data/repository/LibraryRepository.kt`
+**Date:** 2026-10-11
+**How added:** materially changed / new
+**Purpose:** send how long each play really lasted (A62).
+**Side effects:** `PATCH /me/history/:id` on pause, track change and stop.
+**Before:** the tracker stopped counting at the scrobble threshold and nothing was sent after the scrobble.
+**After:** it keeps counting; the controller reports the total, keyed by the `playId` the scrobble returns.
+
 **Function:** `getLibraryStats()` — `backend/src/db/libraryStats.ts`; route `GET /library/stats` in `backend/src/routes/library.ts`; `LibraryStatsLine()` — `frontend/src/components/LibraryStatsLine.tsx`; `formatBytes()`, `formatTotalLength()` — `frontend/src/lib/format.ts`
 **Date:** 2026-10-11
 **How added:** new feature

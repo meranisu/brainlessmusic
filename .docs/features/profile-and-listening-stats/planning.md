@@ -33,7 +33,7 @@ part of a year.
 | Phase | What it covers | Status | Checklist |
 |---|---|---|---|
 | 1. Plan | This doc; owner answers Q61–Q66 | Done | [Phase 1](#phase-1-plan) |
-| 2. Stats backend | Per-user stats endpoint; full listening time | Not started | [Phase 2](#phase-2-stats-backend) |
+| 2. Stats backend | Per-user stats endpoint; full listening time | Done (web reporting in Phase 7) | [Phase 2](#phase-2-stats-backend) |
 | 3. Profile screen | Header, top songs/artists, liked, less often, playlists | Not started | [Phase 3](#phase-3-profile-screen) |
 | 4. Genres | Genre column, scanner, re-scan, genre stats and the Genres tab | Not started | [Phase 4](#phase-4-genres) |
 | 5. Your mix | Curated mix from listening habits | Not started | [Phase 5](#phase-5-your-mix) |
@@ -54,15 +54,16 @@ Phases 2 and 3 are the core; 4–7 can follow in any order.
 
 ## Phase 2: Stats backend
 
-- [ ] `GET /me/stats?range=all|year|month|week`, accounts only: total plays, total listening time, top songs (plays
+- [x] `GET /me/stats?range=all|year|month|week`, accounts only: total plays, total listening time, top songs (plays
       and time each), top artists, top albums, counts of liked / less often / playlists. One query per list over
       `play_history` (indexed on `user_id, played_at`), grouped by `track_id`.
-- [ ] Per-song detail, `GET /me/stats/tracks/:id`: plays, time listened, first and last play.
-- [ ] `GET /me/less-often` with track summaries (today only ids exist).
-- [ ] Full listening time (A62): the app keeps counting after the threshold and, when the track ends or is skipped,
+- [x] Per-song detail, `GET /me/stats/tracks/:id`: plays, time listened, first and last play.
+- [x] `GET /me/less-often` with track summaries (today only ids exist).
+- [x] Full listening time (A62), Android: the app keeps counting after the threshold and, when the track ends or is skipped,
       sends the final amount. Backend: `PATCH` the play's `ms_played` (the scrobble returns the history id). Plays
       from before this change count as a full play of the song (their stored `ms_played` stops at the threshold).
-- [ ] Tests for each, through `npm test`; route-gate table in `guestAccess.test.ts`.
+- [x] Tests for each, through `npm test`; route-gate table in `guestAccess.test.ts` (`routes/listeningStats.test.ts`).
+- [ ] The web player reports final listening time too (moved to Phase 7; until then web plays count as full plays).
 
 ## Phase 3: Profile screen
 
@@ -99,6 +100,7 @@ Phases 2 and 3 are the core; 4–7 can follow in any order.
 
 ## Phase 7: Web
 
+- [ ] The web player sends final listening time (`PATCH /me/history/:id` with the scrobble's `playId`), like Android.
 - [ ] A Profile page on the web over the same endpoints (A66): stats with the range switch, liked, less often (with
       undo), playlists (the web already edits them), your mix, and Wrapped in December.
 - [ ] Fits the web's existing nav and look (DESIGN.md); works at phone width.
@@ -118,4 +120,5 @@ Phases 2 and 3 are the core; 4–7 can follow in any order.
 |---|---|---|---|---|
 | 2026-10-11 | Plan | Created | Owner's idea | Yes |
 | 2026-10-11 | All | A61–A64 answered, phases updated | Owner took every recommendation | Yes |
+| 2026-10-11 | 2 | Built: `/me/stats`, `/me/stats/tracks/:id`, `/me/less-often`, `PATCH /me/history/:id`, migration `0021` (`ms_final`) | Phase 2 | Yes; web reporting moved to Phase 7 |
 | 2026-10-11 | 3, 7 | A65: Android edits playlists; A66: web gets a Phase 7, walkthrough moves to 8 | Owner's answers | Yes |

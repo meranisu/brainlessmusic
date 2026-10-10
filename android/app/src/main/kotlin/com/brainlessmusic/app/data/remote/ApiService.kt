@@ -6,6 +6,7 @@ import com.brainlessmusic.app.data.remote.dto.ArtistDetailDto
 import com.brainlessmusic.app.data.remote.dto.ArtistsPageDto
 import com.brainlessmusic.app.data.remote.dto.GuestRequest
 import com.brainlessmusic.app.data.remote.dto.HealthResponse
+import com.brainlessmusic.app.data.remote.dto.FinishPlayRequest
 import com.brainlessmusic.app.data.remote.dto.LetterIndexDto
 import com.brainlessmusic.app.data.remote.dto.LoginRequest
 import com.brainlessmusic.app.data.remote.dto.LoginResponse
@@ -20,6 +21,7 @@ import com.brainlessmusic.app.data.remote.dto.TracksPageDto
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
@@ -73,6 +75,10 @@ interface ApiService {
 
     @POST("tracks/{id}/scrobble")
     suspend fun scrobble(@Path("id") id: Int, @Body body: ScrobbleRequest): ScrobbleResponse
+
+    // Answers 204 with no body.
+    @PATCH("me/history/{id}")
+    suspend fun finishPlay(@Path("id") id: Int, @Body body: FinishPlayRequest)
 
     @GET("me/playback-state")
     suspend fun playbackState(): PlaybackStateResponse

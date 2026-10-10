@@ -78,6 +78,8 @@ data class ScrobbleRequest(
 
 /** `POST /tracks/:id/scrobble` answers 201 with the updated counters; the client only needs to know it landed. */
 data class ScrobbleResponse(
+    /** The play's id, for [FinishPlayRequest]; missing from servers older than A62. */
+    val playId: Int?,
     val trackId: Int,
     val playCount: Int,
 )
@@ -141,3 +143,6 @@ data class LetterEntryDto(
     val offset: Int,
     val count: Int,
 )
+
+/** `PATCH /me/history/:id`: how long the play really lasted (A62). */
+data class FinishPlayRequest(val msPlayed: Long)

@@ -220,7 +220,8 @@ have no other way to be reclaimed. It runs only when `POST /auth/guest` hits
 | `user_id` | INTEGER | NOT NULL | — | **FK → `users.id`**, `ON DELETE NO ACTION` |
 | `track_id` | INTEGER | NOT NULL | — | **FK → `tracks.id`**, `ON DELETE NO ACTION` |
 | `played_at` | TEXT | NOT NULL | `datetime('now')` | |
-| `ms_played` | INTEGER | nullable | — | optional, client-reported |
+| `ms_played` | INTEGER | nullable | — | optional, client-reported. Time at the scrobble threshold, then the real total once `ms_final = 1` |
+| `ms_final` | INTEGER | NOT NULL | `0` | added in `0021`, boolean-as-int (A62): `ms_played` is the final listening time, sent by `PATCH /me/history/:id`. Stats count a `0` row as one full play of the song |
 
 **FKs:** `user_id → users.id`, `track_id → tracks.id` (both `NO ACTION` / `NO ACTION`).
 **Indexes:** `idx_play_history_user_played_at` (composite, `user_id, played_at` — backs `GET /me/history`), `idx_play_history_track_id` (backs `GET /tracks/:id/history`).
@@ -439,11 +440,13 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | `0016_create_scan_failures.sql` | `scan_failures` + `idx_scan_failures_root_id` — files the last scan of each root couldn't read |
 | `0017_delete_guest_playlists_and_favorites.sql` | Data only, no schema change: deletes `playlist_tracks`, `playlists` and `favorites` rows owned by `kind = 'guest'` users, in one transaction |
 | `0019_create_less_often.sql` | `less_often` (composite PK), per-account "play less often" marks |
+| `0021_add_play_history_ms_final.sql` | `play_history.ms_final`: marks plays whose `ms_played` is the real total (A62) |
 
 ## Change log
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-10-11 | Migration `0021_add_play_history_ms_final.sql` — `play_history.ms_final`; column rows updated. From the migration SQL and the test run | A62: real listening time for the profile stats. `0020` is another change in progress, not this one |
 | 2026-10-11 | Migration `0019_create_less_often.sql` — `less_often`; new table section, relationship rows, migration row. Written from the migration SQL and the test run, not introspected from the live DB | A60: swiping a song right in the Android queue plays it less often in shuffle. User and track deletes clear it first, like `favorites` |
 | 2026-10-10 | Comments only in migrations `0007`–`0018` (antislop pass): shortened, and `0011`'s stale "this database does not set `PRAGMA foreign_keys`" corrected to match [Discrepancy 1](#1-foreign-keys-are-enforced-not-off). No SQL changed; no table section needs updating | Comment cleanup; verified by diffing the files with comments stripped |
 | 2026-10-10 | Migration `0018_create_guest_codes.sql` — `guest_codes`, `server_settings`; new table sections and relationship row. Written from the migration SQL and the test run (applied to a scratch DB), not introspected from the live DB | A42/A43: one-use per-guest codes made on the web Users page, and the admin toggle that closes the guest door. FKs to `users` are nulled, not cascaded, by `deleteUser`/`pruneIdleGuests` |

@@ -35,24 +35,27 @@ export interface TopTrack {
  * Records a play and updates play_count/last_played_at in one transaction. Built on first call, since
  * `db.transaction()` opens the connection.
  */
-let scrobbleTransaction: ((userId: number, trackId: number, msPlayed: number | null) => void) | null = null;
+let scrobbleTransaction: ((userId: number, trackId: number, msPlayed: number | null) => number) | null = null;
 
-export function recordScrobble(userId: number, trackId: number, msPlayed: number | null): void {
+/** Returns the new play's id, which the app uses to report the final listening time (A62). */
+export function recordScrobble(userId: number, trackId: number, msPlayed: number | null): number {
   scrobbleTransaction ??= buildScrobbleTransaction();
-  scrobbleTransaction(userId, trackId, msPlayed);
+  return scrobbleTransaction(userId, trackId, msPlayed);
 }
 
 function buildScrobbleTransaction() {
-  return db.transaction((userId: number, trackId: number, msPlayed: number | null): void => {
-    db.prepare(
-      'INSERT INTO play_history (user_id, track_id, ms_played) VALUES (?, ?, ?)',
-    ).run(userId, trackId, msPlayed);
+  return db.transaction((userId: number, trackId: number, msPlayed: number | null): number => {
+    const playId = Number(
+      db.prepare('INSERT INTO play_history (user_id, track_id, ms_played) VALUES (?, ?, ?)').run(userId, trackId, msPlayed)
+        .lastInsertRowid,
+    );
 
     db.prepare(
       `UPDATE tracks
        SET play_count = play_count + 1, last_played_at = datetime('now')
        WHERE id = ?`,
     ).run(trackId);
+    return playId;
   });
 }
 

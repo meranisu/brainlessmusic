@@ -35,6 +35,13 @@ class ListenTrackerTest {
     }
 
     @Test
+    fun keepsCountingAfterTheThresholdForTheFinalTotal() {
+        val tracker = ListenTracker(durationSeconds = 10.0) // 5s to count
+        repeat(20) { tracker.onTick(500, playing = true) }
+        assertEquals(10_000L, tracker.listenedMs)
+    }
+
+    @Test
     fun pausedTimeEarnsNoCredit() {
         val tracker = ListenTracker(durationSeconds = 10.0)
         repeat(100) { tracker.onTick(500, playing = false) }

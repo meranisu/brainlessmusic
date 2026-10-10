@@ -13,7 +13,10 @@ fun scrobbleThresholdMs(durationSeconds: Double?): Long {
     return (minOf(durationSeconds / 2, SCROBBLE_CAP_SECONDS) * 1000).toLong()
 }
 
-/** Time actually heard in one playthrough. Fed wall-clock ticks, not positions, so seeking adds no credit. */
+/**
+ * Time actually heard in one playthrough. Fed wall-clock ticks, not positions, so seeking adds no credit. Keeps counting
+ * after the threshold, so the final total can be reported when the track ends (A62).
+ */
 class ListenTracker(durationSeconds: Double?) {
     val thresholdMs: Long = scrobbleThresholdMs(durationSeconds)
 
@@ -25,9 +28,9 @@ class ListenTracker(durationSeconds: Double?) {
 
     /** @return `true` once, on the tick that crosses the threshold. */
     fun onTick(elapsedMs: Long, playing: Boolean): Boolean {
-        if (scrobbled || !playing || elapsedMs <= 0) return false
+        if (!playing || elapsedMs <= 0) return false
         listenedMs += minOf(elapsedMs, MAX_TICK_MS)
-        if (listenedMs < thresholdMs) return false
+        if (scrobbled || listenedMs < thresholdMs) return false
         scrobbled = true
         return true
     }

@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Profile Phase 2: listening stats backend, and real listening time from Android
+
+- `GET /me/stats?range=week|month|year|all&limit=`: plays, time listened, distinct songs and artists, top songs
+  (with full track summaries), top artists and albums, counts of liked, less often and playlists, member since.
+  Accounts only. `GET /me/stats/tracks/:id` gives one song's plays, time and first/last play. `GET /me/less-often`
+  lists marked songs with details. Queries in `db/listeningStats.ts`.
+- Real listening time (A62): migration `0021` adds `play_history.ms_final`. The scrobble now answers with `playId`;
+  `PATCH /me/history/:id` sets the play's final `ms_played` (own plays only, capped at the song length). Plays without
+  a final report count as one full play of the song.
+- Android: `ListenTracker` keeps counting after the threshold; the controller sends the total when a track ends, is
+  skipped or the queue stops, and the running total on every pause, so a play cut short by the app being killed is
+  still close. The web player doesn't report yet (profile Phase 7); its plays count as full plays.
+- Tests: `routes/listeningStats.test.ts` (ranking per account, estimated vs reported time, cap and ownership, ranges,
+  counts, per-song, guests) and the route-gate table; `npm test` 396/396, `tsc --noEmit` clean. Android: a
+  `ListenTrackerTest` case for counting past the threshold; built by the CI debug build.
+
 ## 2026-10-11 — Library totals in the Full view (A52)
 
 - Backend: `GET /library/stats` (any signed-in user, guests too) returns `{ tracks, seconds, bytes, formats }` over

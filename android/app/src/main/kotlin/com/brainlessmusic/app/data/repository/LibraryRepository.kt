@@ -8,6 +8,7 @@ import com.brainlessmusic.app.data.remote.ServerConfig
 import com.brainlessmusic.app.data.remote.dto.AlbumDetailDto
 import com.brainlessmusic.app.data.remote.dto.AlbumsPageDto
 import com.brainlessmusic.app.data.remote.dto.ArtistsPageDto
+import com.brainlessmusic.app.data.remote.dto.FinishPlayRequest
 import com.brainlessmusic.app.data.remote.dto.LetterIndexDto
 import com.brainlessmusic.app.data.remote.dto.ArtistDetailDto
 import com.brainlessmusic.app.data.remote.dto.ArtistSummaryDto
@@ -59,10 +60,15 @@ class LibraryRepository @Inject constructor(
         callApi { it.search(query) }
 
     /** Guests are listen-only (A37): the server refuses their plays, so they are not sent at all. */
-    suspend fun scrobble(trackId: Int, msPlayed: Long): Result<Unit> {
-        if (tokenProvider.isGuest) return Result.success(Unit)
-        return callApi { it.scrobble(trackId, ScrobbleRequest(msPlayed)) }.map { }
+    /** The new play's id (for [finishPlay]), or `null` for a guest or an older server. */
+    suspend fun scrobble(trackId: Int, msPlayed: Long): Result<Int?> {
+        if (tokenProvider.isGuest) return Result.success(null)
+        return callApi { it.scrobble(trackId, ScrobbleRequest(msPlayed)) }.map { it.playId }
     }
+
+    /** The play's real length, sent when the track ends, is skipped or pauses (A62). Later calls overwrite earlier ones. */
+    suspend fun finishPlay(playId: Int, msPlayed: Long): Result<Unit> =
+        callApi { it.finishPlay(playId, FinishPlayRequest(msPlayed)) }
 
     suspend fun loadPlaybackState(): Result<PlaybackStateDto?> =
         callApi { it.playbackState().state }

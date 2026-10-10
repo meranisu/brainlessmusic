@@ -631,10 +631,11 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
           ? Math.floor(rawMsPlayed)
           : null;
 
-      recordScrobble(request.user!.id, id, msPlayed);
+      const playId = recordScrobble(request.user!.id, id, msPlayed);
 
       const updated = findTrackById(id)!;
       return reply.code(201).send({
+        playId,
         trackId: id,
         playCount: updated.play_count,
         lastPlayedAt: updated.last_played_at,
