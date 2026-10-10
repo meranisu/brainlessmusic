@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `AccountSelectPage` guest card (`requestCode()`, `stopWaiting()`, the request poll effect, `continueWithHandedCode()`), `loadPendingRequest()` / `savePendingRequest()` — `frontend/src/pages/AccountSelectPage.tsx`; `GuestCodesPanel`, `RevokeGuestDialog` — `frontend/src/components/GuestCodesPanel.tsx`; `NameSection` — `frontend/src/pages/OptionsPage.tsx`; `enterAsGuest({ code, name })`, `setDisplayName()` — `frontend/src/auth/AuthContext.tsx`; `formatDateTime()`, `describeDevice()` — `frontend/src/lib/format.ts`; `cancelGuestCodeRequest()` and `POST /auth/guest/requests/:id/cancel` — `backend/src/db/guestCodeRequests.ts`, `backend/src/routes/auth.ts`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** the web side of guest accounts (A67-A70): name, code, request and wait, the code handed over once, the admin's request queue and sign-in log, renaming.
+**Side effects:** `localStorage` key `brainlessmusic.guestRequest` while a request waits; polling `POST /auth/guest/requests/:id/collect` every 3 s; cancel deletes the pending request row.
+**Before:** the guest card had one button and an optional code field; the admin card listed one-use codes; `enterAsGuest(code)` took a code only.
+**After:** as described in the 2026-10-11 "Guest accounts on the web" CHANGELOG entry.
+
 **Function:** `checkBoundary()`, `startCrossfade()`, `transitionKind()`, `playWithFade()`, `pauseWithFade()`, `skipWithFade()`, `resetFades()`, `cancelCrossfade()`, `newExoPlayer()`, `sessionPlayer` (now a `ForwardingPlayer`) — `android/.../playback/PlaybackController.kt`; `VolumeRamps` — `playback/VolumeRamps.kt`; `TransitionPrefs`, `BetweenSongs`, `isNextOnAlbum()` — `data/local/TransitionPrefs.kt`; `PlaybackSettings.transitions` and setters; `BetweenSongsOption()` — `ui/settings/SettingsScreen.kt`
 **Date:** 2026-10-11
 **How added:** new feature
@@ -40,6 +48,30 @@ play and skip fade over 150 ms when on. The `ended` listener moved into the moun
 **Side effects:** none.
 **Before:** summaries had the album title only; `trackNumber` was on the detail alone.
 **After:** both fields on every summary and on the resumed queue.
+
+**Function:** `peekGuestCode()`, `claimGuestCode()`, `recordGuestCodeSignin()`, `listGuestCodes()`, `deleteGuestCode()` — `backend/src/db/guestCodes.ts`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** a guest code as a reusable key to one guest (A69/A70), the sign-in log, and revoke.
+**Side effects:** `claimGuestCode` inserts a guest and binds the code on first use; `recordGuestCodeSignin` inserts a log row; `deleteGuestCode` deletes the code's guest (via `deleteUser`) and its log rows.
+**Before:** `isRedeemableGuestCode()` / `redeemGuestCode()` allowed one use; deleting a code only removed the row.
+**After:** first use mints, later uses return the bound guest unless it has been idle past `GUEST_IDLE_DAYS`; the listing includes the guest's name and its sign-ins; deleting a used code revokes it.
+
+**Function:** `createGuestCodeRequest()`, `listPendingRequests()`, `countPendingRequests()`, `approveGuestCodeRequest()`, `denyGuestCodeRequest()`, `collectGuestCodeRequest()` — `backend/src/db/guestCodeRequests.ts`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** "Request a code" (A67): a queue the admin answers, and a one-time handover of the token to the waiting device.
+**Side effects:** writes `guest_code_requests`; approving also creates a code and a guest; creating deletes rows older than 7 days.
+**Before:** nothing — new functions.
+**After:** routes `POST /auth/guest/requests`, `POST /auth/guest/requests/:id/collect`, `POST /guest-codes/requests/:id/approve|deny`.
+
+**Function:** `cleanDisplayName()`, `randomGuestName()`, `nameOf()`, `setDisplayName()`, `insertGuest(displayName)`, `listUsers()` — `backend/src/db/users.ts`; `POST /auth/guest`, `PUT /me/name`, `makeRoomForGuest()` — `backend/src/routes/auth.ts`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** names for guests and accounts (A68), and the guest door reworked around reusable codes.
+**Side effects:** writes `users.display_name`.
+**Before:** guests had only `guest-xxxxxx`; the guest door burnt a code on use and ignored a wrong code when open.
+**After:** new guests get the typed name or `Guest NNNN`; `/auth/me` and `listUsers` return `displayName`; a wrong typed code is a 401; joining a guest skips the cap.
 
 **Function:** `getUserStats()`, `getTrackStat()`, `finishPlay()`, `listLessOftenTracks()` — `backend/src/db/listeningStats.ts`; `recordScrobble()` — `backend/src/db/plays.ts`
 **Date:** 2026-10-11

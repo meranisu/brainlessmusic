@@ -16,6 +16,9 @@ type Gate = 'public' | 'guest' | 'account' | 'admin' | 'custom';
 const EXPECTED: Record<string, Gate> = {
   // No token at all: the ways in, and liveness.
   'POST /auth/guest': 'public',
+  'POST /auth/guest/requests': 'public',
+  'POST /auth/guest/requests/:id/collect': 'public',
+  'POST /auth/guest/requests/:id/cancel': 'public',
   'POST /auth/login': 'public',
   'POST /auth/passcode-login': 'public',
   'GET /auth/registration-status': 'public',
@@ -38,6 +41,7 @@ const EXPECTED: Record<string, Gate> = {
   'POST /shuffle': 'guest',
   'GET /library/stats': 'guest',
   'PUT /me/theme': 'guest',
+  'PUT /me/name': 'guest',
   'GET /tracks': 'guest',
   'GET /tracks/:id': 'guest',
   'GET /tracks/:id/cover': 'guest',
@@ -94,6 +98,8 @@ const EXPECTED: Record<string, Gate> = {
   'POST /guest-codes': 'admin',
   'PUT /guest-codes/settings': 'admin',
   'DELETE /guest-codes/:id': 'admin',
+  'POST /guest-codes/requests/:id/approve': 'admin',
+  'POST /guest-codes/requests/:id/deny': 'admin',
   // Gated by hand: open while the users table is empty, admin-only after (A16).
   'POST /auth/register': 'custom',
 };

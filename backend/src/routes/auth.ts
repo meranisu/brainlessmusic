@@ -1,8 +1,15 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { config } from '../config.js';
-import { guestCodesRequired, isRedeemableGuestCode, redeemGuestCode } from '../db/guestCodes.js';
 import {
+  cancelGuestCodeRequest,
+  collectGuestCodeRequest,
+  countPendingRequests,
+  createGuestCodeRequest,
+} from '../db/guestCodeRequests.js';
+import { claimGuestCode, guestCodesRequired, peekGuestCode, recordGuestCodeSignin } from '../db/guestCodes.js';
+import {
+  cleanDisplayName,
   clearPasscodeById,
   countAccounts,
   countGuests,
@@ -10,8 +17,11 @@ import {
   findUserByUsername,
   insertGuest,
   insertUser,
+  nameOf,
   pruneIdleGuests,
+  randomGuestName,
   setAdmin,
+  setDisplayName,
   setPasscodeHashById,
   setUserTheme,
   touchLastSeen,
@@ -41,6 +51,17 @@ const HOUR_MS = 60 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
 
 const guestMintLimiter = createRateLimiter();
+const guestRequestLimiter = createRateLimiter();
+
+/** Which client signed in, for the admin's sign-in log (A69). Anything else is stored as unknown. */
+function platformOf(input: unknown): string | null {
+  return input === 'web' || input === 'android' ? input : null;
+}
+
+function signinDetails(request: FastifyRequest, platform: string | null) {
+  const userAgent = request.headers['user-agent'];
+  return { platform, userAgent: typeof userAgent === 'string' ? userAgent : null, ip: clientIp(request) };
+}
 const passcodeLoginLimiter = createRateLimiter();
 const passwordLoginLimiter = createRateLimiter();
 
@@ -63,17 +84,88 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
     return config.allowOpenRegistration || countAccounts() === 0;
   }
 
+  /** Under the guest cap, pruning idle guests first if needed. False when the server is full. */
+  function makeRoomForGuest(request: FastifyRequest): boolean {
+    if (countGuests() < config.maxGuests) return true;
+
+    const pruned = pruneIdleGuests(config.guestIdleDays);
+    if (pruned > 0) {
+      request.log.info(`Pruned ${pruned} idle guest(s) to make room for a new one`);
+    }
+    return countGuests() < config.maxGuests;
+  }
+
   fastify.get('/auth/registration-status', async (_request, reply) => {
     return reply.send({ open: isRegistrationOpen(), firstAccount: countAccounts() === 0 });
   });
 
   /**
-   * The guest door: mints a passwordless user and returns an ordinary session token. Public by necessity, so on an
-   * exposed server anyone can listen; the gate belongs at the network edge (box 13), `ENTRY_CODE` is the backstop.
+   * The guest door. A per-guest code signs in as that code's guest (A69): the first use mints it, named from `name`
+   * (A68), and later uses on any device join it. Without one, mints a fresh guest when the door is open or the shared
+   * `ENTRY_CODE` matches. Public by necessity; rate limited per IP.
    */
-  fastify.post<{ Body: { code?: unknown } }>('/auth/guest', async (request, reply) => {
-    const rate = guestMintLimiter.check(clientIp(request), {
-      limit: config.guestMintsPerHour,
+  fastify.post<{ Body: { code?: unknown; name?: unknown; platform?: unknown } }>(
+    '/auth/guest',
+    async (request, reply) => {
+      const rate = guestMintLimiter.check(clientIp(request), {
+        limit: config.guestMintsPerHour,
+        windowMs: HOUR_MS,
+      });
+
+      if (!rate.allowed) {
+        return reply
+          .code(429)
+          .header('retry-after', String(rate.retryAfterSeconds))
+          .send({ error: 'Too many guest sessions from this address. Try again shortly.' });
+      }
+
+      const name = cleanDisplayName(request.body?.name);
+      if (name === undefined) {
+        return reply.code(400).send({ error: 'name must be text, at most 32 characters' });
+      }
+
+      // Closed by `ENTRY_CODE` (A15) or the admin's per-guest-code toggle (A43); neither set means open. The shared
+      // code admits any number of new guests.
+      const code = request.body?.code;
+      const doorClosed = config.entryCode !== '' || guestCodesRequired();
+      const sharedCodeOk = secretMatches(code, config.entryCode);
+      const hasCode = typeof code === 'string' && code.trim() !== '';
+      const codeState = hasCode && !sharedCodeOk ? peekGuestCode(code, config.guestIdleDays) : undefined;
+
+      // A code that was typed but isn't right is refused even with the door open, rather than quietly minting a
+      // stranger in place of the guest the person meant to be.
+      if ((hasCode && !sharedCodeOk && !codeState) || (doorClosed && !sharedCodeOk && !codeState)) {
+        return reply.code(401).send({ error: 'That code is not right' });
+      }
+
+      // The cap bounds table growth; the rate limit is the defence. Pruning runs only here, under pressure. Joining a
+      // guest that exists adds nothing, so it skips the cap.
+      if (codeState !== 'bound' && !makeRoomForGuest(request)) {
+        return reply.code(503).send({ error: 'This server is not accepting new guests right now' });
+      }
+
+      if (codeState) {
+        const claimed = claimGuestCode(code, name, config.guestIdleDays);
+        // Revoked, or gone idle, between the check above and here.
+        if (!claimed) return reply.code(401).send({ error: 'That code is not right' });
+
+        recordGuestCodeSignin(claimed.codeId, signinDetails(request, platformOf(request.body?.platform)));
+        request.log.info(`${claimed.minted ? 'Minted' : 'Signed in'} guest ${claimed.user.username} on a guest code`);
+        return reply
+          .code(claimed.minted ? 201 : 200)
+          .send({ token: signToken({ id: claimed.user.id, username: claimed.user.username }) });
+      }
+
+      const guest = insertGuest(name);
+      request.log.info(`Minted guest ${guest.username}`);
+      return reply.code(201).send({ token: signToken({ id: guest.id, username: guest.username }) });
+    },
+  );
+
+  /** "Request a code" (A67): queues a request for the admin and hands the device an id and secret to poll with. */
+  fastify.post<{ Body: { name?: unknown; platform?: unknown } }>('/auth/guest/requests', async (request, reply) => {
+    const rate = guestRequestLimiter.check(clientIp(request), {
+      limit: config.guestRequestsPerHour,
       windowMs: HOUR_MS,
     });
 
@@ -81,46 +173,57 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       return reply
         .code(429)
         .header('retry-after', String(rate.retryAfterSeconds))
-        .send({ error: 'Too many guest sessions from this address. Try again shortly.' });
+        .send({ error: 'Too many requests from this address. Try again later.' });
     }
 
-    // Closed by `ENTRY_CODE` (A15) or the admin's per-guest-code toggle (A43); neither set means open. The shared code
-    // admits any number of devices; a per-guest code is burnt below once the cap allows.
-    const code = request.body?.code;
-    const doorClosed = config.entryCode !== '' || guestCodesRequired();
-    const sharedCodeOk = secretMatches(code, config.entryCode);
-
-    if (doorClosed && !sharedCodeOk && !isRedeemableGuestCode(code)) {
-      return reply.code(401).send({ error: 'That code is not right' });
+    const name = cleanDisplayName(request.body?.name);
+    if (name === undefined) {
+      return reply.code(400).send({ error: 'name must be text, at most 32 characters' });
     }
 
-    // The cap bounds table growth; the rate limit is the defence. Pruning runs only here, under pressure.
-    if (countGuests() >= config.maxGuests) {
-      const pruned = pruneIdleGuests(config.guestIdleDays);
-      if (pruned > 0) {
-        request.log.info(`Pruned ${pruned} idle guest(s) to make room for a new one`);
-      }
-
-      if (countGuests() >= config.maxGuests) {
-        return reply
-          .code(503)
-          .send({ error: 'This server is not accepting new guests right now' });
-      }
+    if (countPendingRequests() >= config.maxPendingGuestRequests) {
+      return reply.code(503).send({ error: 'Too many requests are waiting already. Try again later.' });
     }
 
-    let guest;
-    if (doorClosed && !sharedCodeOk) {
-      guest = redeemGuestCode(code);
-      // Spent by a racing device between the check above and here.
-      if (!guest) return reply.code(401).send({ error: 'That code is not right' });
-      request.log.info(`Minted guest ${guest.username} on a guest code`);
-    } else {
-      guest = insertGuest();
-      request.log.info(`Minted guest ${guest.username}`);
-    }
-
-    return reply.code(201).send({ token: signToken({ id: guest.id, username: guest.username }) });
+    const created = createGuestCodeRequest(name, platformOf(request.body?.platform), clientIp(request));
+    request.log.info(`Guest code request ${created.id} from ${name || 'an unnamed guest'}`);
+    return reply.code(201).send(created);
   });
+
+  /**
+   * The waiting device's poll. `pending`, `denied` or `expired`; once approved, the guest's token and code, handed over
+   * once. 404 for an unknown id, a wrong secret or a request already collected.
+   */
+  /** "Stop waiting": withdraws a pending request. 404 when it isn't pending or the secret is wrong. */
+  fastify.post<{ Params: { id: string }; Body: { secret?: unknown } }>(
+    '/auth/guest/requests/:id/cancel',
+    async (request, reply) => {
+      const id = Number(request.params.id);
+      if (!Number.isInteger(id) || !cancelGuestCodeRequest(id, request.body?.secret)) {
+        return reply.code(404).send({ error: 'Request not found' });
+      }
+      return reply.code(204).send();
+    },
+  );
+
+  fastify.post<{ Params: { id: string }; Body: { secret?: unknown } }>(
+    '/auth/guest/requests/:id/collect',
+    async (request, reply) => {
+      const id = Number(request.params.id);
+      const result = Number.isInteger(id) ? collectGuestCodeRequest(id, request.body?.secret) : undefined;
+      if (!result) return reply.code(404).send({ error: 'Request not found' });
+
+      if (result.status !== 'approved') return reply.send({ status: result.status });
+
+      recordGuestCodeSignin(result.codeId, signinDetails(request, result.platform));
+      request.log.info(`Guest ${result.user.username} collected request ${id}`);
+      return reply.send({
+        status: 'approved',
+        token: signToken({ id: result.user.id, username: result.user.username }),
+        code: result.code,
+      });
+    },
+  );
 
   /** Gated by hand because the gate is conditional; on a failed `authenticate` the 401 is already sent. */
   fastify.post<{ Body: Credentials }>(
@@ -279,6 +382,7 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
     return reply.send({
       id: user.id,
       username: user.username,
+      displayName: nameOf(user),
       isAdmin: Boolean(user.is_admin),
       isGuest: user.kind === 'guest',
       hasPasscode: Boolean(user.passcode_hash),
@@ -295,6 +399,19 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
     }
     setUserTheme(request.user!.id, theme);
     return reply.code(204).send();
+  });
+
+  // Guests and accounts alike. Empty clears it: an account shows its username again, a guest gets a new `Guest NNNN`.
+  fastify.put<{ Body: { name?: unknown } }>('/me/name', { preHandler: fastify.authenticate }, async (request, reply) => {
+    const name = cleanDisplayName(request.body?.name);
+    if (name === undefined || request.body?.name === undefined) {
+      return reply.code(400).send({ error: 'name must be text, at most 32 characters' });
+    }
+
+    const user = findUserById(request.user!.id)!;
+    const stored = name || (user.kind === 'guest' ? randomGuestName() : null);
+    setDisplayName(user.id, stored);
+    return reply.send({ displayName: stored ?? user.username });
   });
 
   // Swaps a session token for a short-lived media token for `<audio src>` / `<img src>`. Clients cache it until `expiresAt`.

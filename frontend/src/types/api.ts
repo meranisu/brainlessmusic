@@ -1,6 +1,8 @@
 export interface User {
   id: number;
   username: string;
+  /** What to call this user (A68): their chosen name, a guest's `Guest 1234`, or else `username`. */
+  displayName: string;
   isAdmin: boolean;
   /** A guest: no password, so once its token is gone it can't be reached. Options offers a handoff first. */
   isGuest: boolean;
@@ -326,6 +328,8 @@ export interface SearchResults {
 export interface UserSummary {
   id: number;
   username: string;
+  /** Chosen name, else `username`. */
+  displayName: string;
   isAdmin: boolean;
   createdAt: string;
 }
@@ -337,8 +341,31 @@ export interface GuestCode {
   createdAt: string;
   expiresAt: string;
   usedAt: string | null;
+  /** The guest's internal username. */
   usedBy: string | null;
+  /** The guest's display name. */
+  usedByName: string | null;
+  /** `used`: bound to a guest that still exists, and works on any device (A69). */
   status: 'active' | 'used' | 'expired';
+  /** Newest first, at most 20. */
+  signins: GuestCodeSignin[];
+}
+
+/** One sign-in with a guest code (A69). `platform` is null when the client didn't say. */
+export interface GuestCodeSignin {
+  at: string;
+  platform: 'web' | 'android' | null;
+  userAgent: string | null;
+  ip: string | null;
+}
+
+/** A guest's "Request a code" waiting for the admin (A67). */
+export interface GuestCodeRequest {
+  id: number;
+  name: string | null;
+  platform: 'web' | 'android' | null;
+  ip: string | null;
+  createdAt: string;
 }
 
 export interface GuestCodesSnapshot {
@@ -347,4 +374,6 @@ export interface GuestCodesSnapshot {
   /** Whether the shared `ENTRY_CODE` is set on the server. Its value is never sent. */
   sharedCodeSet: boolean;
   codes: GuestCode[];
+  /** Pending requests, oldest first. */
+  requests: GuestCodeRequest[];
 }

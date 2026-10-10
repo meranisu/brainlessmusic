@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { usePlayer } from '../components/PlayerBar';
 import { DataSaverIcon } from '../components/icons';
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { HandoffDialog } from '../components/HandoffDialog';
 import { LibraryBrowseDialog } from '../components/LibraryBrowseDialog';
 import { Numpad } from '../components/Numpad';
@@ -350,7 +350,7 @@ function LibrarySection() {
  * playing) and themes.
  */
 export function OptionsPage() {
-  const { user, logout, setPasscode, clearPasscode } = useAuth();
+  const { user, logout, setPasscode, clearPasscode, setDisplayName } = useAuth();
   const { dataSaver, setDataSaver, transitions, setTransitions, canFade } = usePlayer();
   const { showToast } = useToast();
   const navigate = useNavigate();
@@ -423,6 +423,8 @@ export function OptionsPage() {
 
       {user?.isAdmin && <LibrarySection />}
 
+      {user && <NameSection key={user.displayName} current={user.displayName} onSave={setDisplayName} />}
+
       <section className="mt-7">
         <h2 className="mb-3 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-blue-400">
           This device
@@ -430,11 +432,11 @@ export function OptionsPage() {
         {user?.isGuest ? (
           <div className="rounded-lg border border-blue-800 bg-blue-900/60 p-4">
             <p className="text-sm text-blue-100">
-              You are listening as a guest. Nothing identifies you but this browser.
+              You are listening as a guest, <span className="font-medium text-white">{user.displayName}</span>.
             </p>
             <p className="mt-1 text-xs text-blue-400">
-              There is no password to sign back in with, so moving to another device means carrying
-              this identity across rather than logging in there.
+              If you came in with a guest code, type it on another device to listen there as the same guest. Without
+              one, this browser is the only way back in, so moving means carrying this identity across.
             </p>
             <button onClick={() => setShowHandoff(true)} className="btn-secondary btn-md mt-3">
               Move or forget this device
@@ -444,6 +446,9 @@ export function OptionsPage() {
           <div className="rounded-lg border border-blue-800 bg-blue-900/60 p-4">
             <p className="text-sm text-blue-100">
               Signed in as <span className="font-medium text-white">{user?.username}</span>
+              {user && user.displayName !== user.username && (
+                <span className="text-blue-300"> ({user.displayName})</span>
+              )}
               {user?.isAdmin && <span className="badge-admin ml-2">Admin</span>}
             </p>
             <button onClick={logout} className="btn-secondary btn-md mt-3">
@@ -515,5 +520,54 @@ export function OptionsPage() {
         />
       )}
     </div>
+  );
+}
+
+/** The name shown on the welcome screen and to the admin (A68). Remounted by key when the saved name changes. */
+function NameSection({ current, onSave }: { current: string; onSave: (name: string) => Promise<void> }) {
+  const { showToast } = useToast();
+  const [name, setName] = useState(current);
+  const [isSaving, setIsSaving] = useState(false);
+  const unchanged = name.trim() === current;
+
+  async function save(event: FormEvent) {
+    event.preventDefault();
+    if (unchanged || isSaving) return;
+    setIsSaving(true);
+    try {
+      await onSave(name);
+      showToast('Name saved');
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : 'Could not save your name', 'error');
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <section className="mt-7">
+      <h2 className="mb-3 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-blue-400">Your name</h2>
+      <form onSubmit={save} className="rounded-lg border border-blue-800 bg-blue-900/60 p-4">
+        <label htmlFor="display-name" className="mb-1 block text-sm text-blue-200">
+          Shown when you sign in, and to the admin
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <input
+            id="display-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={32}
+            autoComplete="nickname"
+            aria-describedby="display-name-hint"
+            className="input min-w-0 flex-1"
+          />
+          <button type="submit" disabled={unchanged || isSaving} className="btn-secondary btn-md">
+            {isSaving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+        <p id="display-name-hint" className="mt-1 text-xs text-blue-300">
+          Clear it and save to go back to the default.
+        </p>
+      </form>
+    </section>
   );
 }

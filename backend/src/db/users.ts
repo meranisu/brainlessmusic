@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomInt } from 'node:crypto';
 import { db } from './connection.js';
 
 /** `'account'` logs in with a password. `'guest'` can't: its one JWT is the only way in, so losing it loses the row. */
@@ -16,6 +16,32 @@ export interface UserRow {
   passcode_hash: string | null;
   /** Web theme id (A55); NULL until the user picks one or the client uploads its local choice. See `0020`. */
   theme: string | null;
+  /** What to call this user (A68); NULL shows `username`. See `0022`. */
+  display_name: string | null;
+}
+
+/** Longest display name, in characters. */
+export const DISPLAY_NAME_MAX = 32;
+
+/**
+ * Trims, collapses whitespace and drops control characters. `''` means "no name given"; undefined means not a usable
+ * name (wrong type or too long), which callers turn into a 400.
+ */
+export function cleanDisplayName(input: unknown): string | undefined {
+  if (input === undefined || input === null) return '';
+  if (typeof input !== 'string') return undefined;
+  const name = input.replace(/\s+/g, ' ').replace(/[\p{Cc}\p{Cf}]/gu, '').trim();
+  return [...name].length <= DISPLAY_NAME_MAX ? name : undefined;
+}
+
+/** The name an unnamed guest gets: `Guest 4821`. Not unique; the code, not the name, says who someone is (A68). */
+export function randomGuestName(): string {
+  return `Guest ${randomInt(1000, 10000)}`;
+}
+
+/** `display_name`, else `username`. */
+export function nameOf(user: Pick<UserRow, 'username' | 'display_name'>): string {
+  return user.display_name ?? user.username;
 }
 
 export function findUserByUsername(username: string): UserRow | undefined {
@@ -68,16 +94,17 @@ export function countGuests(): number {
 
 /**
  * A passwordless guest row. The random username keeps `UNIQUE` meaningful and gives logs a name; the retry rules out
- * collisions. `password_hash` is `''`, though `/auth/login` refuses guests before any comparison.
+ * collisions. `password_hash` is `''`, though `/auth/login` refuses guests before any comparison. An empty
+ * `displayName` becomes `Guest NNNN`.
  */
-export function insertGuest(): UserRow {
+export function insertGuest(displayName = ''): UserRow {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const username = `guest-${randomBytes(3).toString('hex')}`;
     if (findUserByUsername(username)) continue;
 
     const result = db
-      .prepare("INSERT INTO users (username, password_hash, kind) VALUES (?, '', 'guest')")
-      .run(username);
+      .prepare("INSERT INTO users (username, password_hash, kind, display_name) VALUES (?, '', 'guest', ?)")
+      .run(username, displayName || randomGuestName());
 
     return findUserById(Number(result.lastInsertRowid))!;
   }
@@ -133,12 +160,14 @@ export interface UserSummary {
   /** So the admin page can tell a person from a device that pressed "enter". */
   kind: UserKind;
   lastSeenAt: string | null;
+  /** `display_name`, else `username`. */
+  displayName: string;
 }
 
 export function listUsers(): UserSummary[] {
   const rows = db
     .prepare(
-      'SELECT id, username, is_admin, created_at, kind, last_seen_at FROM users ORDER BY username COLLATE NOCASE',
+      'SELECT id, username, is_admin, created_at, kind, last_seen_at, display_name FROM users ORDER BY username COLLATE NOCASE',
     )
     .all() as {
     id: number;
@@ -147,6 +176,7 @@ export function listUsers(): UserSummary[] {
     created_at: string;
     kind: UserKind;
     last_seen_at: string | null;
+    display_name: string | null;
   }[];
 
   return rows.map((row) => ({
@@ -156,6 +186,7 @@ export function listUsers(): UserSummary[] {
     createdAt: row.created_at,
     kind: row.kind,
     lastSeenAt: row.last_seen_at,
+    displayName: nameOf(row),
   }));
 }
 
@@ -183,6 +214,11 @@ export function setPasscodeHashById(id: number, passcodeHash: string): UserRow |
 
 export function setUserTheme(id: number, theme: string): void {
   db.prepare('UPDATE users SET theme = ? WHERE id = ?').run(theme, id);
+}
+
+/** NULL clears it back to `username`. */
+export function setDisplayName(id: number, displayName: string | null): void {
+  db.prepare('UPDATE users SET display_name = ? WHERE id = ?').run(displayName, id);
 }
 
 export function clearPasscodeById(id: number): UserRow | undefined {

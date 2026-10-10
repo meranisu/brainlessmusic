@@ -175,6 +175,9 @@ export function UsersPage() {
                   <tr key={u.id} className="align-top">
                     <td className="py-2.5 pl-4 font-medium text-white">
                       {u.username}
+                      {u.displayName !== u.username && (
+                        <span className="ml-2 text-xs font-normal text-blue-300">{u.displayName}</span>
+                      )}
                       {isSelf && <span className="ml-2 text-xs font-normal text-blue-400">you</span>}
                     </td>
                     <td className="py-2.5">

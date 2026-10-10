@@ -13,7 +13,7 @@ SQLite (`better-sqlite3`), WAL journal mode. Confirmed live against `backend/dat
 | `PRAGMA foreign_keys` | **`ON`** (confirmed live) — `better-sqlite3`'s per-connection default, not set explicitly anywhere in `backend/src/`. See [Discrepancy 1](#1-foreign-keys-are-enforced-not-off) |
 | `PRAGMA integrity_check` | `ok` (2026-09-03) |
 | `PRAGMA foreign_key_check` | no violations (2026-09-03) |
-| Domain tables | `users`, `artists`, `albums`, `tracks`, `playlists`, `playlist_tracks`, `play_history`, `favorites`, `less_often`, `guest_codes` (+ `server_settings`, see its section) |
+| Domain tables | `users`, `artists`, `albums`, `tracks`, `playlists`, `playlist_tracks`, `play_history`, `favorites`, `less_often`, `guest_codes`, `guest_code_requests`, `guest_code_signins` (+ `server_settings`, see its section) |
 | Infrastructure tables | `schema_migrations` (migration bookkeeping only, not domain data) |
 
 ## Entity relationships
@@ -115,6 +115,7 @@ erDiagram
 | `kind` | TEXT | NOT NULL | `'account'` | `'account'` (has a password, can log in) or `'guest'` (minted by the title screen's enter button, `password_hash` is `''` and `/auth/login` refuses it before reaching bcrypt). Added `0012` |
 | `last_seen_at` | TEXT | — | — | Last `GET /auth/me` by this row; NULL until the first one. Only read by `pruneIdleGuests`, which falls back to `created_at`. Added `0012` |
 | `theme` | TEXT | — | — | Web theme id (`blue`, `red`, …, from `frontend/src/lib/theme.ts`), set by `PUT /me/theme` and returned on `/auth/me`. NULL until chosen; the web client then uploads the browser's own choice once. Shape-checked only (`/^[a-z][a-z0-9-]{0,31}$/`). Added `0020` (A55) |
+| `display_name` | TEXT | — | — | What to call this user (A68), set by `PUT /me/name` or at guest sign-in; `/auth/me` returns it as `displayName`, falling back to `username`. New guests always get one (`Guest NNNN` if unnamed); NULL on rows from before `0022` and on accounts that never set one. Not unique. Added `0022` |
 
 **FKs:** none (root entity).
 **Indexes:** unique index on `username` (auto, from the `UNIQUE` constraint); `idx_users_kind_last_seen` on `(kind, last_seen_at)` — both guest queries filter on kind and order by staleness.
@@ -297,12 +298,42 @@ one seed in four, `db/lessOften.ts`). No extra index: every read is by `user_id`
 | `created_by` | INTEGER | NULL | — | **FK → `users.id`**, `ON DELETE NO ACTION`; the admin who made it, nulled by `deleteUser()` |
 | `created_at` | TEXT | NOT NULL | `datetime('now')` | |
 | `expires_at` | TEXT | NOT NULL | — | `created_at + 7 days`; only matters while unused |
-| `used_at` | TEXT | NULL | — | set when redeemed; a code is used at most once |
-| `used_by` | INTEGER | NULL | — | **FK → `users.id`**, `ON DELETE NO ACTION`; the guest it minted, nulled by `deleteUser()` and `pruneIdleGuests()` |
+| `used_at` | TEXT | NULL | — | first use. Since `0022` (A69) a used code keeps working as its guest's key |
+| `used_by` | INTEGER | NULL | — | **FK → `users.id`**, `ON DELETE NO ACTION`; the guest it belongs to, nulled by `deleteUser()` and `pruneIdleGuests()`. A used code with `used_by` NULL no longer works |
 
 **FKs:** `created_by`, `used_by → users.id` (`NO ACTION`).
 **Indexes:** unique index on `code` (auto).
-**Per-guest entry codes (A42/A43):** `redeemGuestCode()` (`db/guestCodes.ts`) inserts the guest and stamps `used_at`/`used_by` in one transaction. Rows are kept after use so the admin panel can say who came in on which code; the panel lists the last 30 days.
+**Per-guest codes (A42/A43, reusable since A69):** `claimGuestCode()` (`db/guestCodes.ts`) mints and binds on first use, in one transaction, and returns the bound guest after. A used code stops working when revoked (`deleteGuestCode()` deletes the guest, its `guest_code_signins`, and nulls `guest_code_requests.code_id`) or when its guest's `COALESCE(last_seen_at, created_at)` is older than `GUEST_IDLE_DAYS` (A70). The panel lists unused live codes, every code whose guest exists, and the last 30 days of the rest.
+
+### `guest_code_requests`
+
+| Column | Type | Null? | Default | Notes |
+|---|---|---|---|---|
+| `id` | INTEGER | — | — | **PK**, autoincrement |
+| `name` | TEXT | NULL | — | the name typed on the guest screen; NULL for none |
+| `platform` | TEXT | NULL | — | `'web'`, `'android'`, or NULL if the client didn't say |
+| `secret_hash` | TEXT | NOT NULL | — | SHA-256 hex of the secret the device polls with; the secret itself is never stored |
+| `ip` | TEXT | NULL | — | `clientIp()` of the request |
+| `created_at` | TEXT | NOT NULL | `datetime('now')` | pending requests older than 24 hours count as expired |
+| `status` | TEXT | NOT NULL | `'pending'` | CHECK: `pending`, `approved`, `denied`, `collected` (the device took its token; collected once) |
+| `code_id` | INTEGER | NULL | — | **FK → `guest_codes.id`**, `ON DELETE NO ACTION`; set on approve, nulled by `deleteGuestCode()` |
+
+**Indexes:** `idx_guest_code_requests_status` on `(status, created_at)`.
+**"Request a code" (A67):** `db/guestCodeRequests.ts`. Approving makes a code and binds it to a new guest in one transaction. Rows older than 7 days are deleted whenever a new request comes in.
+
+### `guest_code_signins`
+
+| Column | Type | Null? | Default | Notes |
+|---|---|---|---|---|
+| `id` | INTEGER | — | — | **PK**, autoincrement |
+| `code_id` | INTEGER | NOT NULL | — | **FK → `guest_codes.id`**, `ON DELETE NO ACTION`; deleted by `deleteGuestCode()` |
+| `platform` | TEXT | NULL | — | `'web'`, `'android'`, or NULL |
+| `user_agent` | TEXT | NULL | — | trimmed to 200 characters |
+| `ip` | TEXT | NULL | — | `clientIp()` |
+| `created_at` | TEXT | NOT NULL | `datetime('now')` | |
+
+**Indexes:** `idx_guest_code_signins_code` on `(code_id, created_at)`.
+**Sign-in log (A69):** one row per sign-in with a code, from `POST /auth/guest` or a collected request. The panel shows the newest 20 per code.
 
 ### `server_settings`
 
@@ -342,6 +373,8 @@ Written by `backend/src/db/migrate.ts` on every `npm run migrate` — not someth
 | `scan_failures` | `root_id` | `library_roots` | `NO ACTION` | `deleteLibraryRoot()` (`db/libraryRoots.ts`) — deletes `scan_failures` rows first |
 | `tracks` | `root_id` | `library_roots` | `NO ACTION` | `deleteLibraryRoot()` — deletes the root's tracks first, each through `deleteTrackRow()` (since 2026-10-11, A51; before that it set `root_id` to NULL) |
 | `guest_codes` | `created_by`, `used_by` | `users` | `NO ACTION` | `deleteUser()` nulls both; `pruneIdleGuests()` nulls `used_by` (`db/users.ts`) |
+| `guest_code_requests` | `code_id` | `guest_codes` | `NO ACTION` | `deleteGuestCode()` (`db/guestCodes.ts`) nulls it |
+| `guest_code_signins` | `code_id` | `guest_codes` | `NO ACTION` | `deleteGuestCode()` deletes them first |
 
 ## Discrepancies / things worth knowing
 
@@ -441,6 +474,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | `0016_create_scan_failures.sql` | `scan_failures` + `idx_scan_failures_root_id` — files the last scan of each root couldn't read |
 | `0017_delete_guest_playlists_and_favorites.sql` | Data only, no schema change: deletes `playlist_tracks`, `playlists` and `favorites` rows owned by `kind = 'guest'` users, in one transaction |
 | `0019_create_less_often.sql` | `less_often` (composite PK), per-account "play less often" marks |
+| `0022_guest_accounts.sql` | `users.display_name`, `guest_code_requests` + `idx_guest_code_requests_status`, `guest_code_signins` + `idx_guest_code_signins_code` (A67-A70) |
 | `0021_add_play_history_ms_final.sql` | `play_history.ms_final`: marks plays whose `ms_played` is the real total (A62) |
 | `0020_add_user_theme.sql` | `users.theme` — the web theme follows the profile (A55) |
 
@@ -448,6 +482,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-10-11 | Migration `0022_guest_accounts.sql` — `users.display_name`; new `guest_code_requests` and `guest_code_signins` sections; `guest_codes` notes and relationship rows updated. Written from the migration SQL and the test run, not introspected from the live DB | A67-A70: a guest code becomes a reusable key to one guest, with names, a request queue and a sign-in log |
 | 2026-10-11 | Migration `0021_add_play_history_ms_final.sql` — `play_history.ms_final`; column rows updated. From the migration SQL and the test run | A62: real listening time for the profile stats. `0020` is another change in progress, not this one |
 | 2026-10-11 | Migration `0020_add_user_theme.sql` — `users.theme`; column row and migration row. Written from the migration SQL and the test run, not introspected from the live DB | A55: the web theme is saved per profile instead of per browser |
 | 2026-10-11 | Migration `0019_create_less_often.sql` — `less_often`; new table section, relationship rows, migration row. Written from the migration SQL and the test run, not introspected from the live DB | A60: swiping a song right in the Android queue plays it less often in shuffle. User and track deletes clear it first, like `favorites` |

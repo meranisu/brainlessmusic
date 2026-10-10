@@ -1,6 +1,6 @@
 import { randomInt } from 'node:crypto';
 import { db } from './connection.js';
-import { insertGuest, type UserRow } from './users.js';
+import { deleteUser, findUserById, insertGuest, type UserRow } from './users.js';
 
 /** No 0/O, 1/I/L: the code gets read off a screen or a printed card. */
 const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -23,8 +23,20 @@ export interface GuestCodeListing {
   createdAt: string;
   expiresAt: string;
   usedAt: string | null;
+  /** The guest's internal `username`. */
   usedBy: string | null;
+  /** The guest's display name. */
+  usedByName: string | null;
   status: 'active' | 'used' | 'expired';
+  /** Newest first, at most 20. */
+  signins: GuestCodeSignin[];
+}
+
+export interface GuestCodeSignin {
+  at: string;
+  platform: string | null;
+  userAgent: string | null;
+  ip: string | null;
 }
 
 /** Upper-cases and drops non-alphabet characters, so `abcd-efgh` and `ABCDEFGH` match. Shown as `ABCD-EFGH`. */
@@ -53,49 +65,107 @@ export function createGuestCode(createdBy: number): GuestCodeRow {
   throw new Error('Could not allocate a unique guest code');
 }
 
-/** Read-only twin of `redeemGuestCode`'s check, for refusing before any work is done. */
-export function isRedeemableGuestCode(input: unknown): boolean {
+export type GuestCodeState = 'fresh' | 'bound';
+
+/**
+ * Read-only twin of `claimGuestCode`'s check, for refusing before any work is done: `fresh` would mint a guest (so the
+ * cap applies), `bound` signs in as an existing one. Undefined when the code can't be used.
+ */
+export function peekGuestCode(input: unknown, idleDays: number): GuestCodeState | undefined {
   const code = normalizeGuestCode(input);
-  if (code.length !== CODE_LENGTH) return false;
-  return (
-    db
-      .prepare("SELECT 1 FROM guest_codes WHERE code = ? AND used_at IS NULL AND expires_at > datetime('now')")
-      .get(code) !== undefined
-  );
+  if (code.length !== CODE_LENGTH) return undefined;
+  const row = db.prepare('SELECT * FROM guest_codes WHERE code = ?').get(code) as GuestCodeRow | undefined;
+  return row ? stateOf(row, idleDays) : undefined;
+}
+
+function stateOf(row: GuestCodeRow, idleDays: number): GuestCodeState | undefined {
+  if (row.used_at === null) {
+    return row.expires_at > sqliteNow() ? 'fresh' : undefined;
+  }
+  // Used: it is that guest's key until revoked, or until the guest has gone unseen for `idleDays` (A70). A pruned or
+  // deleted guest leaves `used_by` NULL, and the code with it.
+  if (row.used_by === null) return undefined;
+  const idle = db
+    .prepare(
+      `SELECT 1 FROM users
+        WHERE id = ? AND COALESCE(last_seen_at, created_at) < datetime('now', ?)`,
+    )
+    .get(row.used_by, `-${idleDays} days`);
+  return idle ? undefined : 'bound';
+}
+
+function sqliteNow(): string {
+  return (db.prepare("SELECT datetime('now') AS now").get() as { now: string }).now;
+}
+
+export interface ClaimedGuest {
+  user: UserRow;
+  codeId: number;
+  minted: boolean;
 }
 
 /**
- * Mints a guest and burns the code in one transaction, so racing devices get one guest and a spent code leaves no
- * orphan. Undefined when the code is unknown, used or expired.
+ * Signs in with a guest code (A69): a fresh code mints a guest named `displayName` and binds to it; a bound code
+ * returns its guest and ignores the name (A68). One transaction, so racing devices on a fresh code get one guest.
+ * Undefined when the code can't be used.
  */
-export const redeemGuestCode = db.transaction((input: unknown): UserRow | undefined => {
-  const code = normalizeGuestCode(input);
-  if (code.length !== CODE_LENGTH) return undefined;
+export const claimGuestCode = db.transaction(
+  (input: unknown, displayName: string, idleDays: number): ClaimedGuest | undefined => {
+    const code = normalizeGuestCode(input);
+    if (code.length !== CODE_LENGTH) return undefined;
 
-  const row = db
-    .prepare(
-      `SELECT id FROM guest_codes
-        WHERE code = ? AND used_at IS NULL AND expires_at > datetime('now')`,
-    )
-    .get(code) as { id: number } | undefined;
-  if (!row) return undefined;
+    const row = db.prepare('SELECT * FROM guest_codes WHERE code = ?').get(code) as GuestCodeRow | undefined;
+    if (!row) return undefined;
 
-  const guest = insertGuest();
-  db.prepare("UPDATE guest_codes SET used_at = datetime('now'), used_by = ? WHERE id = ?").run(guest.id, row.id);
-  return guest;
-});
+    const state = stateOf(row, idleDays);
+    if (state === 'bound') {
+      return { user: findUserById(row.used_by!)!, codeId: row.id, minted: false };
+    }
+    if (state !== 'fresh') return undefined;
 
-/** Live codes first, then the last 30 days of used and expired ones. */
+    const guest = insertGuest(displayName);
+    db.prepare("UPDATE guest_codes SET used_at = datetime('now'), used_by = ? WHERE id = ?").run(guest.id, row.id);
+    return { user: guest, codeId: row.id, minted: true };
+  },
+);
+
+export interface SigninDetails {
+  platform: string | null;
+  userAgent: string | null;
+  ip: string | null;
+}
+
+/** One row per sign-in with a code (A69). */
+export function recordGuestCodeSignin(codeId: number, details: SigninDetails): void {
+  db.prepare('INSERT INTO guest_code_signins (code_id, platform, user_agent, ip) VALUES (?, ?, ?, ?)').run(
+    codeId,
+    details.platform,
+    details.userAgent?.slice(0, USER_AGENT_MAX) ?? null,
+    details.ip,
+  );
+}
+
+const USER_AGENT_MAX = 200;
+/** Sign-ins listed per code; older ones stay in the table. */
+const SIGNINS_LISTED = 20;
+
+/**
+ * Unused codes still live and every code bound to a guest that exists, then the last 30 days of the rest. A used code
+ * whose guest is gone reads as `expired`.
+ */
 export function listGuestCodes(): GuestCodeListing[] {
   const rows = db
     .prepare(
       `SELECT g.id, g.code, g.created_at, g.expires_at, g.used_at, u.username AS used_by_name,
-              CASE WHEN g.used_at IS NOT NULL THEN 'used'
-                   WHEN g.expires_at <= datetime('now') THEN 'expired'
-                   ELSE 'active' END AS status
+              COALESCE(u.display_name, u.username) AS used_by_display_name,
+              CASE WHEN g.used_at IS NOT NULL AND u.id IS NOT NULL THEN 'used'
+                   WHEN g.used_at IS NULL AND g.expires_at > datetime('now') THEN 'active'
+                   ELSE 'expired' END AS status
          FROM guest_codes g
          LEFT JOIN users u ON u.id = g.used_by
         WHERE g.created_at > datetime('now', '-30 days')
+           OR u.id IS NOT NULL
+           OR (g.used_at IS NULL AND g.expires_at > datetime('now'))
         ORDER BY status = 'active' DESC, g.created_at DESC, g.id DESC`,
     )
     .all() as {
@@ -105,8 +175,14 @@ export function listGuestCodes(): GuestCodeListing[] {
     expires_at: string;
     used_at: string | null;
     used_by_name: string | null;
+    used_by_display_name: string | null;
     status: GuestCodeListing['status'];
   }[];
+
+  const signins = db.prepare(
+    `SELECT platform, user_agent, ip, created_at FROM guest_code_signins
+      WHERE code_id = ? ORDER BY created_at DESC, id DESC LIMIT ?`,
+  );
 
   return rows.map((row) => ({
     id: row.id,
@@ -115,13 +191,39 @@ export function listGuestCodes(): GuestCodeListing[] {
     expiresAt: row.expires_at,
     usedAt: row.used_at,
     usedBy: row.used_by_name,
+    usedByName: row.used_by_display_name,
     status: row.status,
+    signins: (
+      signins.all(row.id, SIGNINS_LISTED) as {
+        platform: string | null;
+        user_agent: string | null;
+        ip: string | null;
+        created_at: string;
+      }[]
+    ).map((signin) => ({
+      at: signin.created_at,
+      platform: signin.platform,
+      userAgent: signin.user_agent,
+      ip: signin.ip,
+    })),
   }));
 }
 
-export function deleteGuestCode(id: number): boolean {
+/**
+ * Deletes a code, and on a used one revokes it (A69): its guest is deleted with its data, so every device using it is
+ * refused on its next request (`rejectDeletedUser`). False when there is no such code.
+ */
+export const deleteGuestCode = db.transaction((id: number): boolean => {
+  const row = db.prepare('SELECT used_by FROM guest_codes WHERE id = ?').get(id) as
+    | { used_by: number | null }
+    | undefined;
+  if (!row) return false;
+
+  if (row.used_by !== null) deleteUser(row.used_by);
+  db.prepare('DELETE FROM guest_code_signins WHERE code_id = ?').run(id);
+  db.prepare('UPDATE guest_code_requests SET code_id = NULL WHERE code_id = ?').run(id);
   return db.prepare('DELETE FROM guest_codes WHERE id = ?').run(id).changes > 0;
-}
+});
 
 /** Off unless an admin turned it on: the LAN posture (A15) stays an open door. */
 export function guestCodesRequired(): boolean {

@@ -19,6 +19,8 @@ Yes, there are this many knobs. Most of them you will never touch.
 | `MAX_GUESTS` | `50` | ceiling on passwordless guest rows. At the cap the server prunes idle guests, then refuses |
 | `GUEST_IDLE_DAYS` | `90` | how stale a guest must be before the cap may collect it, along with its favorites, playlists, history and resume position |
 | `GUEST_MINTS_PER_HOUR` | `10` | new guest sessions one IP address may mint per hour |
+| `GUEST_REQUESTS_PER_HOUR` | `5` | "Request a code" presses one IP address may make per hour |
+| `MAX_PENDING_GUEST_REQUESTS` | `20` | code requests that may wait for the admin at once |
 | `PASSCODE_ATTEMPTS_PER_MINUTE` | `8` | passcode sign-in attempts one IP address may make per minute |
 | `UPLOAD_STAGING_PATH` | `./data/upload-staging` | staging area for `POST /tracks/upload` |
 | `MAX_UPLOAD_SIZE_MB` | `1024` | per-file upload limit. Raised from 100 for hi-res FLAC and WAV, which exceed that on their own. The web client uploads 3 at a time, so `UPLOAD_STAGING_PATH` should have room for roughly 3× this; a reverse proxy in front will have its own body limit that must be raised to match |

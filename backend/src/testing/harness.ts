@@ -11,6 +11,8 @@ import { runMigrations } from '../db/migrator.js';
 
 /** Child rows first: foreign keys are enforced. */
 const TABLES_IN_DELETION_ORDER = [
+  'guest_code_signins',
+  'guest_code_requests',
   'guest_codes',
   'server_settings',
   'playback_failures',

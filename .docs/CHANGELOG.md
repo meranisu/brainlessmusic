@@ -4,6 +4,31 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Guest accounts on the web (A67-A70)
+
+- Guest card on the account select page: an optional name ("Leave it blank and you're Guest plus a number"), "I have
+  a code" to show the code field, and "Request a code". A request shows a waiting screen that polls every 3 seconds
+  and survives a reload (the request id and secret sit in `localStorage`). On approval the device is signed in and
+  shown its code once, with Copy code and Start listening. Denied, expired and lost requests each say so, with Back.
+  The idle timer that returns to the title screen is paused while waiting.
+- Backend: `POST /auth/guest/requests/:id/cancel` (public, needs the secret) withdraws a pending request, so "Stop
+  waiting" no longer leaves the admin a request nobody will collect.
+- Admin Guest access card on `/users`: pending requests first (name, web or Android, time, IP) with Approve and Turn
+  down; then unused codes; then "Guests with a code", each with its name, code, last sign-in and a sign-in log (time,
+  app, device read from the user agent, IP). Revoking a guest's code asks first, since it deletes the guest; Escape
+  closes the dialog. The card refetches every 15 seconds so new requests appear.
+- Names: Options gets "Your name" for everyone (`PUT /me/name`); the welcome screen, Options and the Users table show
+  the display name. Guest Options copy no longer says the browser is the only way back in.
+- New hint text on cards uses `blue-300` (5.72:1 on the default card) instead of `blue-400` (3.93:1, below AA for
+  small text). `blue-400` small text elsewhere in the app has the same problem; not changed here.
+- Verified: `npm run build` clean, `npm run lint` with no new warnings, backend `npm test` 412/412 (one new test for
+  cancel). Used in headless Chromium against a throwaway backend on :3100 (scratch database, built frontend):
+  request, admin approve, code shown, enter; same code on a 390 px phone viewport (no horizontal scroll) joins the
+  same guest; rename in Options; admin sees two sign-ins; revoke dialog closes on Escape, revoke signs the phone out
+  (401); wrong code refused; deny shows the message; reload keeps waiting; Stop waiting empties the admin queue. The
+  only console errors were the expected 401s. Clipboard copy is blocked in headless Chromium, so the fallback message
+  was what showed. Android not changed yet (plan Phase 4).
+
 ## 2026-10-11 — Android: fades and their settings (A71, A72)
 
 - Settings → Playback gets the web's settings, saved on the phone: **Between songs** (Gapless default, Crossfade,
@@ -71,6 +96,31 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
   headless browser's fake audio output gave unstable numbers (the new element's clock stalled 17 to 170 ms after
   starting, varying between runs), so that needs listening on a real browser and device. Not tried against the
   real backend.
+
+## 2026-10-11 — Guest accounts, backend (A67-A70)
+
+- A guest code is now a reusable key to one guest (A69). First use mints the guest; later uses, on any device, sign in
+  as that guest (200 instead of 201). It stops working when the admin revokes it or when the guest has gone unseen
+  for `GUEST_IDLE_DAYS` (A70). Joining an existing guest skips the guest cap.
+- A typed code that isn't right is now refused with 401 even when the guest door is open, instead of minting a
+  stranger. Clients only send a code when the door is closed, so nothing changes for them.
+- Names (A68): migration `0022` adds `users.display_name`. `POST /auth/guest` takes `name` (trimmed, max 32
+  characters); an empty name becomes `Guest NNNN`. The name is ignored when joining an existing guest. `/auth/me` and
+  the admin user list return `displayName`. `PUT /me/name` renames anyone; empty gives a guest a new `Guest NNNN` and
+  an account its username back.
+- Sign-in log (A69): every sign-in with a code is recorded (time, `platform` from the body, user agent, IP) in
+  `guest_code_signins`. `GET /guest-codes` lists each code's newest 20 sign-ins and its guest's name (`usedByName`).
+- Revoking (`DELETE /guest-codes/:id`) a used code now deletes its guest and data, so every device using it is signed
+  out on its next request. The current web panel only offers Revoke on unused codes, so it can't do this by accident.
+- Request a code (A67): `POST /auth/guest/requests` (`{ name, platform }`, 5 per IP per hour, at most 20 waiting)
+  returns an id and a secret. The device polls `POST /auth/guest/requests/:id/collect` with the secret: `pending`,
+  `denied`, `expired` (24 hours unanswered, or revoked after approval), or once only `approved` with a token and the
+  code. Admin: pending requests come back on `GET /guest-codes`; `POST /guest-codes/requests/:id/approve|deny`.
+  Approving counts against the guest cap. New env vars `GUEST_REQUESTS_PER_HOUR`, `MAX_PENDING_GUEST_REQUESTS`.
+- Tests: new `routes/guestAccounts.test.ts` (two devices one guest, the log, names, wrong code, idle cut-off,
+  revoke signs out, cap, rename, request approve/deny/expire/wrong secret/once only, rate limit and cap, admin-only);
+  the one-use test in `guestCodes.test.ts` now expects reuse; the route-gate table has the five new routes.
+  `npm test` 411/411, `tsc --noEmit` clean. Web and Android not changed yet (plan Phases 3 and 4).
 
 ## 2026-10-11 — Profile Phase 2: listening stats backend, and real listening time from Android
 

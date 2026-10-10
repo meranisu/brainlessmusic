@@ -6,8 +6,11 @@ import type { User } from '../types/api';
 interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
-  /** Passwordless entry: mints a new listener and signs in as it. */
-  enterAsGuest: (code?: string) => Promise<User>;
+  /**
+   * Passwordless entry. A new guest is named `name` (blank: `Guest 1234`); a code already in use signs in as its guest
+   * and the name is ignored (A68/A69).
+   */
+  enterAsGuest: (options: { code?: string; name?: string }) => Promise<User>;
   /** Takes over an identity handed across from another device. */
   adoptToken: (token: string) => Promise<User>;
   login: (username: string, password: string) => Promise<User>;
@@ -18,6 +21,8 @@ interface AuthContextValue {
   /** Creates or replaces the signed-in account's own passcode. */
   setPasscode: (passcode: string) => Promise<void>;
   clearPasscode: () => Promise<void>;
+  /** Renames the signed-in user (A68). Blank: a guest gets a new `Guest 1234`, an account its username back. */
+  setDisplayName: (name: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -68,12 +73,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return who;
   }
 
-  async function enterAsGuest(code?: string) {
-    // Sent only if the screen collected one; with no ENTRY_CODE the server ignores the body.
-    const { token } = await apiClient.post<{ token: string }>(
-      '/auth/guest',
-      code ? { code } : {},
-    );
+  async function enterAsGuest({ code, name }: { code?: string; name?: string }) {
+    // The code only if the screen collected one: the server refuses a wrong code even with the door open.
+    const { token } = await apiClient.post<{ token: string }>('/auth/guest', {
+      ...(code ? { code } : {}),
+      name: name ?? '',
+      platform: 'web',
+    });
     return signInWith(token);
   }
 
@@ -111,6 +117,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(await apiClient.get<User>('/auth/me'));
   }
 
+  async function setDisplayName(name: string) {
+    await apiClient.put('/me/name', { name });
+    setUser(await apiClient.get<User>('/auth/me'));
+  }
+
   function logout() {
     setToken(null);
     setUser(null);
@@ -128,6 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         setPasscode,
         clearPasscode,
+        setDisplayName,
         logout,
       }}
     >

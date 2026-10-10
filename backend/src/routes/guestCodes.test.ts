@@ -11,7 +11,7 @@ import { resetAllRateLimiters } from '../services/rateLimit.js';
 import { signToken } from '../services/token.js';
 import { resetDatabase } from '../testing/harness.js';
 
-/** Per-guest entry codes (A42/A43): one use, 7 days, and the admin toggle that requires them. */
+/** Per-guest entry codes (A42/A43): 7 days to first use, and the admin toggle that requires them. Reuse is in `guestAccounts.test.ts`. */
 
 interface Listing {
   id: number;
@@ -80,14 +80,14 @@ describe('guest codes', () => {
     assert.equal((await enter('ABCDEFGH')).statusCode, 401);
   });
 
-  it('lets one device in per code, then reports who used it', async () => {
+  it('mints a guest on first use, joins it after, and reports who used it', async () => {
     await requireCodes(true);
     const { code } = await newCode();
 
     // Typed lower-case with a dash, as a person reading it off a card would.
     const pretty = `${code.slice(0, 4)}-${code.slice(4)}`.toLowerCase();
     assert.equal((await enter(pretty)).statusCode, 201);
-    assert.equal((await enter(code)).statusCode, 401, 'a used code must not let a second device in');
+    assert.equal((await enter(code)).statusCode, 200, 'a used code joins its guest (A69)');
 
     const panel = await app.inject({ method: 'GET', url: '/api/guest-codes', headers: adminAuth });
     const [listing] = (panel.json() as { codes: Listing[] }).codes;

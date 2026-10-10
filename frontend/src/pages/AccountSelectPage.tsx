@@ -11,6 +11,7 @@ import { RegisterForm } from '../components/RegisterForm';
 import { useThemeCycle } from '../hooks/useThemeCycle';
 import { apiClient, ApiError } from '../lib/apiClient';
 import { clearAtTitle, markAtTitle, markJustEntered } from '../lib/boot';
+import { prettyGuestCode } from '../lib/guestCodeCard';
 import { arrivalDuration, interstitialDuration, prefersReducedMotion } from '../lib/interstitial';
 import type { User } from '../types/api';
 
@@ -34,6 +35,39 @@ function recedeDuration(): number {
 
 /** Which card, if either, is currently being committed to. */
 type Committing = 'login' | 'guest' | null;
+
+/** A "Request a code" waiting for the admin (A67), kept so a reload keeps waiting instead of asking again. */
+interface PendingRequest {
+  id: number;
+  secret: string;
+}
+
+const GUEST_REQUEST_KEY = 'brainlessmusic.guestRequest';
+const REQUEST_POLL_MS = 3000;
+
+function loadPendingRequest(): PendingRequest | null {
+  try {
+    const raw = localStorage.getItem(GUEST_REQUEST_KEY);
+    const parsed = raw ? (JSON.parse(raw) as Partial<PendingRequest>) : null;
+    return parsed && typeof parsed.id === 'number' && typeof parsed.secret === 'string'
+      ? { id: parsed.id, secret: parsed.secret }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function savePendingRequest(request: PendingRequest | null): void {
+  try {
+    if (request) localStorage.setItem(GUEST_REQUEST_KEY, JSON.stringify(request));
+    else localStorage.removeItem(GUEST_REQUEST_KEY);
+  } catch {
+    // Private mode or blocked site data: a reload forgets the request, and the guest asks again.
+  }
+}
+
+/** Where a request stands, as the guest card shows it. `gone`: unknown, already collected, or the server lost it. */
+type RequestState = 'waiting' | 'denied' | 'expired' | 'gone';
 
 /** Remembers per account, per browser, that the passcode prompt was declined, so it asks once. */
 const PASSCODE_PROMPT_DISMISSED_PREFIX = 'brainlessmusic.passcodePromptDismissed.';
@@ -59,7 +93,7 @@ function dismissPasscodePrompt(userId: number): void {
  * exit, so its arrival veil always plays.
  */
 export function AccountSelectPage() {
-  const { user, login, loginWithPasscode, register, setPasscode, enterAsGuest } = useAuth();
+  const { user, login, loginWithPasscode, register, setPasscode, enterAsGuest, adoptToken } = useAuth();
   const navigate = useNavigate();
   useThemeCycle();
 
@@ -101,6 +135,17 @@ export function AccountSelectPage() {
   }, [linkedGuestCode]);
   const [guestError, setGuestError] = useState<string | null>(null);
   const [isEnteringGuest, setIsEnteringGuest] = useState(false);
+  const [guestName, setGuestName] = useState('');
+
+  // "Request a code" (A67): the device waits here and is signed in when the admin approves.
+  const [pendingRequest, setPendingRequest] = useState<PendingRequest | null>(loadPendingRequest);
+  const [requestState, setRequestState] = useState<RequestState | null>(() =>
+    loadPendingRequest() ? 'waiting' : null,
+  );
+  const [isRequesting, setIsRequesting] = useState(false);
+  const [requestUnreachable, setRequestUnreachable] = useState(false);
+  /** Shown once after approval: the code for this guest's other devices. */
+  const [handedCode, setHandedCode] = useState<{ code: string; name: string } | null>(null);
 
   /** Which card just succeeded, and is now zooming into black. */
   const [committing, setCommitting] = useState<Committing>(null);
@@ -119,7 +164,17 @@ export function AccountSelectPage() {
 
   // No idle timer while committing or deciding the passcode prompt.
   useEffect(() => {
-    if (committing || welcomeName !== null || pendingPasscodeSetup || showRegister || startingRegister) return;
+    if (
+      committing ||
+      welcomeName !== null ||
+      pendingPasscodeSetup ||
+      showRegister ||
+      startingRegister ||
+      requestState === 'waiting' ||
+      handedCode
+    ) {
+      return;
+    }
 
     let timer = window.setTimeout(() => setIdleTimedOut(true), IDLE_MS);
     const reset = () => {
@@ -132,7 +187,62 @@ export function AccountSelectPage() {
       window.clearTimeout(timer);
       for (const event of IDLE_EVENTS) window.removeEventListener(event, reset);
     };
-  }, [committing, welcomeName, pendingPasscodeSetup, showRegister, startingRegister]);
+  }, [committing, welcomeName, pendingPasscodeSetup, showRegister, startingRegister, requestState, handedCode]);
+
+  // Polls the waiting request. On approval, signs in and holds on the code card until the guest continues.
+  useEffect(() => {
+    if (!pendingRequest || requestState !== 'waiting') return;
+
+    let stopped = false;
+    async function poll() {
+      try {
+        const result = await apiClient.post<
+          { status: 'pending' | 'denied' | 'expired' } | { status: 'approved'; token: string; code: string }
+        >(`/auth/guest/requests/${pendingRequest!.id}/collect`, { secret: pendingRequest!.secret });
+        if (stopped) return;
+        setRequestUnreachable(false);
+        if (result.status === 'pending') return;
+
+        savePendingRequest(null);
+        setPendingRequest(null);
+        if (result.status === 'approved') {
+          // Code card first: signing in sets `user`, and without it this page would redirect before showing the code.
+          setHandedCode({ code: result.code, name: '' });
+          setRequestState(null);
+          try {
+            const who = await adoptToken(result.token);
+            setHandedCode({ code: result.code, name: who.displayName });
+          } catch {
+            // The token is spent, but the code still works: put it in the form.
+            setHandedCode(null);
+            setGuestCode(prettyGuestCode(result.code));
+            setGuestNeedsCode(true);
+            setGuestError('Approved, but signing in failed. Press Enter as guest to use your new code.');
+          }
+        } else {
+          setRequestState(result.status);
+        }
+      } catch (err) {
+        if (stopped) return;
+        if (err instanceof ApiError && err.status === 404) {
+          savePendingRequest(null);
+          setPendingRequest(null);
+          setRequestState('gone');
+        } else {
+          setRequestUnreachable(true);
+        }
+      }
+    }
+
+    void poll();
+    const timer = window.setInterval(() => void poll(), REQUEST_POLL_MS);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+    };
+    // `adoptToken` is a new function on every provider render; restarting the poll for that would reset its timer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingRequest, requestState]);
 
   // Idle timeout: hold on the card, then return to the title screen (`markAtTitle`, so it plays its veil).
   useEffect(() => {
@@ -146,7 +256,7 @@ export function AccountSelectPage() {
 
   // Signed in already. Exempt while committing, prompting for a passcode or registering: `user` is set the moment
   // those requests resolve, before this page decides its next step.
-  if (user && !committing && !pendingPasscodeSetup && !showRegister) return <Navigate to="/" replace />;
+  if (user && !committing && !pendingPasscodeSetup && !showRegister && !handedCode) return <Navigate to="/" replace />;
 
   /** Shared tail for both cards: hold on the welcome text, then land in the app. */
   async function finishEntry(name: string) {
@@ -177,7 +287,7 @@ export function AccountSelectPage() {
         setPendingPasscodeSetup(who);
         return;
       }
-      await commitAndFinish('login', who.username);
+      await commitAndFinish('login', who.displayName);
     } catch (err) {
       setLoginError(err instanceof ApiError ? err.message : 'Could not sign in. Is the backend running?');
     } finally {
@@ -214,7 +324,7 @@ export function AccountSelectPage() {
 
     try {
       const who = await loginWithPasscode(username, passcode);
-      await commitAndFinish('login', who.username);
+      await commitAndFinish('login', who.displayName);
     } catch (err) {
       setPasscodeError(err instanceof ApiError ? err.message : 'Could not sign in. Is the backend running?');
       setPasscodeInput('');
@@ -229,13 +339,13 @@ export function AccountSelectPage() {
 
   function handleCreatePasscodeSuccess() {
     setShowCreatePasscode(false);
-    if (pendingPasscodeSetup) void commitAndFinish('login', pendingPasscodeSetup.username);
+    if (pendingPasscodeSetup) void commitAndFinish('login', pendingPasscodeSetup.displayName);
   }
 
   function skipPasscodeSetup() {
     if (!pendingPasscodeSetup) return;
     dismissPasscodePrompt(pendingPasscodeSetup.id);
-    void commitAndFinish('login', pendingPasscodeSetup.username);
+    void commitAndFinish('login', pendingPasscodeSetup.displayName);
   }
 
   /** Fades the grid out, then swaps to the register form once it's clear. */
@@ -257,7 +367,7 @@ export function AccountSelectPage() {
       setPendingPasscodeSetup(who);
       return;
     }
-    void commitAndFinish('login', who.username);
+    void commitAndFinish('login', who.displayName);
   }
 
   function cancelRegister() {
@@ -273,16 +383,20 @@ export function AccountSelectPage() {
 
     try {
       const [who] = await Promise.all([
-        enterAsGuest(guestNeedsCode ? guestCode : undefined),
+        enterAsGuest({ code: guestNeedsCode ? guestCode : undefined, name: guestName }),
         delay(commitDuration()),
       ]);
-      await finishEntry(who.username);
+      await finishEntry(who.displayName);
     } catch (err) {
       setCommitting(null);
       // A 401 on the first press is how the client learns the server wants a code.
       if (err instanceof ApiError && err.status === 401) {
         setGuestNeedsCode(true);
-        setGuestError(guestNeedsCode ? 'That code is not right.' : null);
+        setGuestError(
+          guestNeedsCode ? 'That code is not right.' : 'This server asks for a code. Type yours, or request one.',
+        );
+      } else if (err instanceof ApiError && err.status === 400) {
+        setGuestError('Names can be up to 32 characters.');
       } else if (err instanceof ApiError && err.status === 429) {
         setGuestError('Too many tries from here. Wait a little.');
       } else if (err instanceof ApiError && err.status === 503) {
@@ -293,6 +407,65 @@ export function AccountSelectPage() {
     } finally {
       setIsEnteringGuest(false);
     }
+  }
+
+  async function requestCode() {
+    if (committing || isRequesting) return;
+    setGuestError(null);
+    setIsRequesting(true);
+
+    try {
+      const created = await apiClient.post<PendingRequest>('/auth/guest/requests', {
+        name: guestName,
+        platform: 'web',
+      });
+      savePendingRequest(created);
+      setRequestUnreachable(false);
+      setPendingRequest(created);
+      setRequestState('waiting');
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 429) {
+        setGuestError('You have asked a few times already. Try again in an hour.');
+      } else if (err instanceof ApiError && err.status === 503) {
+        setGuestError('Too many requests are waiting for the admin. Try again later.');
+      } else if (err instanceof ApiError && err.status === 400) {
+        setGuestError('Names can be up to 32 characters.');
+      } else {
+        setGuestError('Could not reach the server.');
+      }
+    } finally {
+      setIsRequesting(false);
+    }
+  }
+
+  /** Stops waiting and withdraws the request, so the admin isn't asked about it. Not awaited: it expires anyway. */
+  function stopWaiting() {
+    if (pendingRequest) {
+      void apiClient
+        .post(`/auth/guest/requests/${pendingRequest.id}/cancel`, { secret: pendingRequest.secret })
+        .catch(() => {});
+    }
+    savePendingRequest(null);
+    setPendingRequest(null);
+    setRequestState(null);
+    setRequestUnreachable(false);
+  }
+
+  async function copyHandedCode() {
+    if (!handedCode) return;
+    try {
+      await navigator.clipboard.writeText(prettyGuestCode(handedCode.code));
+      setGuestError('Copied.');
+    } catch {
+      // Clipboard access needs HTTPS; on the plain-HTTP LAN it is refused.
+      setGuestError('Copying is blocked here. Select the code and copy it by hand.');
+    }
+  }
+
+  function continueWithHandedCode() {
+    if (!handedCode) return;
+    setGuestError(null);
+    void commitAndFinish('guest', handedCode.name);
   }
 
   if (welcomeName !== null) {
@@ -521,42 +694,139 @@ export function AccountSelectPage() {
                   committing === 'guest' ? 'profile-card-commit' : gridFade('guest')
                 }`}
               >
-                <h2 className="text-lg font-semibold text-white">Continue as guest</h2>
-                <p className="mt-1 text-sm text-blue-300">
-                  No account needed. This device gets its own listening history.
-                </p>
+                {handedCode ? (
+                  <>
+                    <h2 className="text-lg font-semibold text-white">
+                      {handedCode.name ? `You're in, ${handedCode.name}` : "You're in"}
+                    </h2>
+                    <p className="mt-1 text-sm text-blue-300">
+                      This is your guest code. Type it on your phone or another browser to listen as the same
+                      guest there. The admin can look it up if you lose it.
+                    </p>
+                    <p className="mt-4 font-mono text-2xl font-semibold tracking-wider text-white select-all">
+                      {prettyGuestCode(handedCode.code)}
+                    </p>
+                    {guestError && (
+                      <p className="mt-2 text-sm text-blue-200" role="status">
+                        {guestError}
+                      </p>
+                    )}
+                    <div className="mt-5 flex gap-2">
+                      <button type="button" onClick={continueWithHandedCode} disabled={disabled} className="btn-primary btn-md flex-1">
+                        Start listening
+                      </button>
+                      <button type="button" onClick={copyHandedCode} disabled={disabled} className="btn-secondary btn-md">
+                        Copy code
+                      </button>
+                    </div>
+                  </>
+                ) : requestState ? (
+                  <>
+                    <h2 className="text-lg font-semibold text-white">
+                      {requestState === 'waiting' ? 'Waiting for the admin' : 'Request closed'}
+                    </h2>
+                    <p className="mt-1 text-sm text-blue-300" role="status" aria-live="polite">
+                      {requestState === 'waiting'
+                        ? requestUnreachable
+                          ? 'Lost touch with the server. Still trying.'
+                          : 'Your request is in. Keep this page open and you go straight in once the admin approves it.'
+                        : requestState === 'denied'
+                          ? 'The admin turned this request down.'
+                          : requestState === 'expired'
+                            ? 'Nobody answered this request within a day.'
+                            : 'This request is no longer open.'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={stopWaiting}
+                      className={`${requestState === 'waiting' ? 'btn-secondary' : 'btn-primary'} btn-md mt-5 w-full`}
+                    >
+                      {requestState === 'waiting' ? 'Stop waiting' : 'Back'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-lg font-semibold text-white">Continue as guest</h2>
+                    <p className="mt-1 text-sm text-blue-300">
+                      No account needed. A guest code lets you back in as the same guest on any device.
+                    </p>
 
-                <form onSubmit={handleGuest} className="mt-5">
-                  {guestNeedsCode && (
-                    <>
-                      <label className="mb-1 block text-sm text-blue-200" htmlFor="entry-code">
-                        This server asks for a code
+                    <form onSubmit={handleGuest} className="mt-5">
+                      <label className="mb-1 block text-sm text-blue-200" htmlFor="guest-name">
+                        Name <span className="text-blue-300">(optional)</span>
                       </label>
                       <input
-                        id="entry-code"
-                        value={guestCode}
-                        onChange={(e) => setGuestCode(e.target.value)}
-                        autoFocus
+                        id="guest-name"
+                        value={guestName}
+                        onChange={(e) => setGuestName(e.target.value)}
+                        maxLength={32}
+                        autoComplete="nickname"
+                        aria-describedby="guest-name-hint"
                         disabled={disabled}
-                        className="input mb-4"
+                        className="input"
                       />
-                    </>
-                  )}
+                      <p id="guest-name-hint" className="mt-1 mb-4 text-xs text-blue-300">
+                        Leave it blank and you're Guest plus a number.
+                      </p>
 
-                  {guestError && (
-                    <p className="mb-4 rounded-md border border-red-700 bg-red-700 px-3 py-2 text-sm text-white">
-                      {guestError}
-                    </p>
-                  )}
+                      {guestNeedsCode && (
+                        <>
+                          <label className="mb-1 block text-sm text-blue-200" htmlFor="entry-code">
+                            Guest code
+                          </label>
+                          <input
+                            id="entry-code"
+                            value={guestCode}
+                            onChange={(e) => setGuestCode(e.target.value)}
+                            autoComplete="off"
+                            autoCapitalize="characters"
+                            autoFocus
+                            disabled={disabled}
+                            className="input mb-4"
+                          />
+                        </>
+                      )}
 
-                  <button
-                    type="submit"
-                    disabled={isEnteringGuest || disabled}
-                    className="btn-primary btn-md w-full"
-                  >
-                    {isEnteringGuest ? 'Entering…' : 'Enter as guest'}
-                  </button>
-                </form>
+                      {guestError && (
+                        <p className="mb-4 rounded-md border border-red-700 bg-red-700 px-3 py-2 text-sm text-white">
+                          {guestError}
+                        </p>
+                      )}
+
+                      <button
+                        type="submit"
+                        disabled={isEnteringGuest || disabled}
+                        className="btn-primary btn-md w-full"
+                      >
+                        {isEnteringGuest ? 'Entering…' : 'Enter as guest'}
+                      </button>
+
+                      <div className="mt-2 flex gap-2">
+                        {!guestNeedsCode && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setGuestError(null);
+                              setGuestNeedsCode(true);
+                            }}
+                            disabled={disabled}
+                            className="btn-ghost btn-md flex-1"
+                          >
+                            I have a code
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={requestCode}
+                          disabled={disabled || isRequesting}
+                          className="btn-ghost btn-md flex-1"
+                        >
+                          {isRequesting ? 'Asking…' : 'Request a code'}
+                        </button>
+                      </div>
+                    </form>
+                  </>
+                )}
               </div>
 
               {registrationOpen && (

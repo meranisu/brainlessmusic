@@ -135,6 +135,25 @@ gapless", on by default. Turned off, album tracks fade like any others. Plan: [g
 
 Plan: [gapless and fades](features/gapless-and-crossfade/planning.md).
 
+### A70 — A used guest code works until revoked or idle for 90 days *(was Q70)*
+**Answered:** 2026-10-11 · **A, tightened.** Owner asked which fits better; this was the recommendation. A used code
+keeps working until the admin revokes it, **or** its guest has not been seen for `GUEST_IDLE_DAYS` (90). That second
+part is checked at sign-in, not only at cap pressure, so a forgotten code stops working on its own. No fixed lifetime:
+friends would have to keep asking for new codes. [guest accounts plan](features/guest-accounts/planning.md).
+
+### A69 — A guest code works on any device, and every sign-in is logged *(was Q69)*
+**Answered:** 2026-10-11 · **Any device, logged.** No device limit. Each sign-in with a code is recorded (when, web or
+Android, IP, device description) and shown to the admin under that code, next to Revoke. Supersedes the "one use"
+part of [A43](#a43--per-guest-codes-one-use-7-days-door-toggled-on-the-panel). [guest accounts plan](features/guest-accounts/planning.md).
+
+### A68 — Guests sign in with the code alone *(was Q68)*
+**Answered:** 2026-10-11 · **Code alone.** The name is a display label, changeable later; two guests may share one.
+An empty name becomes `Guest` plus a random number. [guest accounts plan](features/guest-accounts/planning.md).
+
+### A67 — Approving a guest's code request signs that device straight in *(was Q67)*
+**Answered:** 2026-10-11 · **Straight in.** The requesting device waits; on Approve it is signed in and shown its
+code once, for use on other devices. Requests are rate limited and capped. [guest accounts plan](features/guest-accounts/planning.md).
+
 ### A66 — The profile comes to the web too *(was Q66)*
 **Answered:** 2026-10-11 · **Both.** Android and the web each get the profile, Wrapped and the mix, over the same
 endpoints. [profile plan](features/profile-and-listening-stats/planning.md), Phase 7 (web).
@@ -275,6 +294,7 @@ Per-guest codes should be on before the first public APK, since anyone who insta
 **Answered:** 2026-10-10 · **Both recommended options.** A code lets one device in once, and expires unused after
 7 days. Whether the guest door needs a code at all is an admin toggle on the same web panel, stored in the database,
 **default off** (LAN posture unchanged). `ENTRY_CODE` keeps working as a shared code alongside.
+**Superseded in part 2026-10-11 by [A69](#a69--a-guest-code-works-on-any-device-and-every-sign-in-is-logged):** a used code is reusable.
 
 ### A42 — The guest-code panel shows random per-guest codes, as text and QR *(was unnumbered, 2026-10-10)*
 **Answered:** 2026-10-10 · Asked in chat without an ID (a ledger slip, corrected here). An admin-only "Guest access"
