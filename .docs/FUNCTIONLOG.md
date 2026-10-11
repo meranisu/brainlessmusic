@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `parseVersion()`, `compareVersions()`, `notesWithoutInstalling()`, `pickOffer()` (new): `android/.../update/Releases.kt`; `UpdateRepository` (`checkOnLaunch`, `checkNow`, `later`, `skip`, `download`, `installIntent`) (new): `update/UpdateRepository.kt`; `UpdateSheetHost`, `UpdateViewModel` (new): `ui/update/`; Settings "Check for updates" row: `SettingsScreen.kt`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** in-app updates from GitHub Releases (A104–A106).
+**Side effects:** a request to `api.github.com` at most once a day; downloads an APK into the app cache; opens Android's installer.
+**Before:** friends updated by downloading the APK from the releases page by hand.
+**After:** the app offers a newer release with its notes and installs it after the person confirms.
+
 **Function:** `onMenuClick()` (new): `frontend/src/components/AppShell.tsx`; `NavOverflow` (`onNavigate` prop), `NavItem.detail`: `frontend/src/components/NavOverflow.tsx`
 **Date:** 2026-10-11
 **How added:** owner request

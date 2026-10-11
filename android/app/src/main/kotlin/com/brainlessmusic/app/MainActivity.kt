@@ -36,6 +36,8 @@ import com.brainlessmusic.app.ui.navigation.BrainlessNavGraph
 import com.brainlessmusic.app.ui.splash.StartViewModel
 import com.brainlessmusic.app.ui.theme.BrainlessMusicTheme
 import com.brainlessmusic.app.ui.theme.isDark
+import com.brainlessmusic.app.ui.update.UpdateSheetHost
+import com.brainlessmusic.app.update.UpdateRepository
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.flow.first
@@ -51,6 +53,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var appearance: AppearanceSettings
     // From launch too, so a restarted app gets back into the room it was in.
     @Inject lateinit var roomSession: RoomSession
+    @Inject lateinit var updates: UpdateRepository
 
     // Activity-scoped, so the system splash and the nav graph's start screen wait on the same session check.
     private val startViewModel: StartViewModel by viewModels()
@@ -95,6 +98,8 @@ class MainActivity : ComponentActivity() {
             Handler(Looper.getMainLooper()).postDelayed(::remove, SPLASH_FADE_MS + SPLASH_REMOVE_GRACE_MS)
         }
         askForNotificationsOnFirstPlayback()
+        // A newer release on GitHub: at most one look a day, quiet when offline (A104).
+        updates.checkOnLaunch()
         // Room notices (it ended, you were removed, a song couldn't be added) from whichever screen is open.
         lifecycleScope.launch {
             roomSession.messages.collect { Toast.makeText(this@MainActivity, it, Toast.LENGTH_LONG).show() }
@@ -123,6 +128,7 @@ class MainActivity : ComponentActivity() {
             BrainlessMusicTheme(colorTheme = colorTheme, darkTheme = darkTheme) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     BrainlessNavGraph(startViewModel = startViewModel)
+                    UpdateSheetHost()
                 }
             }
         }

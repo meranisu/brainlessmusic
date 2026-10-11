@@ -1,8 +1,5 @@
 package com.brainlessmusic.app.ui.settings
 
-import androidx.compose.material.icons.filled.DownloadForOffline
-import com.brainlessmusic.app.ui.downloads.DownloadSettings
-import com.brainlessmusic.app.ui.downloads.downloadSummary
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -33,8 +30,10 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DownloadForOffline
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -74,12 +73,16 @@ import com.brainlessmusic.app.data.local.ColorTheme
 import com.brainlessmusic.app.data.local.FADE_LENGTHS
 import com.brainlessmusic.app.data.local.SeekStyle
 import com.brainlessmusic.app.data.local.ThemeMode
+import com.brainlessmusic.app.ui.downloads.DownloadSettings
+import com.brainlessmusic.app.ui.downloads.downloadSummary
 import com.brainlessmusic.app.ui.navigation.AppBottomBar
 import com.brainlessmusic.app.ui.playback.MiniPlayer
 import com.brainlessmusic.app.ui.playback.SeekBar
 import com.brainlessmusic.app.ui.theme.isDark
 import com.brainlessmusic.app.ui.theme.previewColorScheme
 import com.brainlessmusic.app.ui.theme.supportsMaterialYou
+import com.brainlessmusic.app.ui.update.UpdateViewModel
+import com.brainlessmusic.app.update.UpdateState
 
 // Cards here match the Library header: flat, a 1 dp outline, no shadow (DESIGN.md, Android).
 private val CardShape = RoundedCornerShape(20.dp)
@@ -100,10 +103,12 @@ fun SettingsScreen(
     navController: NavHostController,
     onOpenPage: (SettingsPage) -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
+    updateViewModel: UpdateViewModel = hiltViewModel(),
 ) {
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val colorTheme by viewModel.colorTheme.collectAsStateWithLifecycle()
     val username by viewModel.username.collectAsStateWithLifecycle()
+    val update by updateViewModel.state.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Settings") }) },
@@ -144,6 +149,26 @@ fun SettingsScreen(
                     summary = if (viewModel.isGuest) "Guest" else username ?: "Logged in",
                     onClick = { onOpenPage(SettingsPage.ACCOUNT) },
                 )
+            }
+
+            // Release builds only: a debug build is a separate app and never takes a release.
+            if (updateViewModel.enabled) {
+                Card {
+                    PageRow(
+                        icon = Icons.Filled.SystemUpdate,
+                        title = "Check for updates",
+                        summary = when (val s = update) {
+                            UpdateState.Checking -> "Checking…"
+                            is UpdateState.UpToDate -> "You're on the latest (v${s.version})"
+                            is UpdateState.Available -> "v${s.offer.version} is out"
+                            is UpdateState.Downloading -> "Downloading v${s.offer.version}…"
+                            is UpdateState.Ready -> "v${s.offer.version} is ready to install"
+                            is UpdateState.Failed -> s.message
+                            UpdateState.Idle -> "New versions come from GitHub"
+                        },
+                        onClick = updateViewModel::checkNow,
+                    )
+                }
             }
 
             // Which build this is, for when something needs reporting.

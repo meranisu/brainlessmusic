@@ -1,5 +1,42 @@
 [
   {
+    "version": "0.3.29",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the app can update itself now, so no more digging through github for the apk"
+          },
+          {
+            "type": "ul",
+            "items": [
+              "once a day when you open the app it checks for a new version. if there is one, a sheet pops up with what changed since your version",
+              "install now downloads it and opens android's installer. you still tap install yourself",
+              "later closes it, skip this version keeps it quiet until the next one comes out",
+              "settings has a check for updates button if you don't want to wait"
+            ]
+          },
+          {
+            "type": "p",
+            "text": "the first time, android asks you to allow installs from brainlessmusic. turn it on, go back and tap install again"
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install this one by hand over v0.3.28, same as always. after that the app takes care of it. no server update"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.28",
     "date": "2026-10-11",
     "sections": [

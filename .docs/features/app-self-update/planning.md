@@ -11,8 +11,8 @@ and hands it to Android's installer, so friends stop missing releases. Owner ide
 | Phase | What it covers | Status | Checklist |
 |---|---|---|---|
 | 1. Plan | This doc | Done | [Phase 1](#phase-1-plan) |
-| 2. Structure | Release check, download, checksum, install hand-off | Not started | [Phase 2](#phase-2-structure) |
-| 3. Interior | Update sheet, settings row | Not started | [Phase 3](#phase-3-interior) |
+| 2. Structure | Release check, download, checksum, install hand-off | Done | [Phase 2](#phase-2-structure) |
+| 3. Interior | Update sheet, settings row | Done | [Phase 3](#phase-3-interior) |
 | 4. Walkthrough | A real update from one release to the next on a phone | Not started | [Phase 4](#phase-4-walkthrough) |
 
 No server work: everything comes from GitHub.
@@ -69,18 +69,18 @@ No server work: everything comes from GitHub.
 
 ## Phase 2: Structure
 
-- [ ] `UpdateRepository`: fetch releases, pick the offer, compare versions (unit-tested: `0.3.9` < `0.3.10`, drafts
+- [x] `UpdateRepository`: fetch releases, pick the offer, compare versions (unit-tested: `0.3.9` < `0.3.10`, drafts
       and pre-releases ignored, a release without an APK skipped)
-- [ ] Once-a-day gate and skip, in DataStore
-- [ ] Download with progress, SHA-256 against `digest`, cleanup of old files
-- [ ] `REQUEST_INSTALL_PACKAGES`, `FileProvider` or `PackageInstaller` hand-off; the "unknown apps" detour handled
+- [x] Once-a-day gate and skip, in DataStore
+- [x] Download with progress, SHA-256 against `digest`, cleanup of old files
+- [x] `REQUEST_INSTALL_PACKAGES`, `FileProvider` or `PackageInstaller` hand-off; the "unknown apps" detour handled
 
 ## Phase 3: Interior
 
-- [ ] Update sheet: notes since the installed version, size, Install now / Later / Skip this version, progress, a
+- [x] Update sheet: notes since the installed version, size, Install now / Later / Skip this version, progress, a
       checksum or download failure with Retry
-- [ ] Settings: "Check for updates" with "You're on the latest (v0.3.28)" when there's nothing
-- [ ] Warns when music is playing; saves the queue before handing off
+- [x] Settings: "Check for updates" with "You're on the latest (v0.3.28)" when there's nothing
+- [x] Warns when music is playing; saves the queue before handing off
 
 ## Phase 4: Walkthrough
 
@@ -96,3 +96,5 @@ No server work: everything comes from GitHub.
 | Date | Phase affected | What changed | Why | Still fits the Plan phase? |
 |---|---|---|---|---|
 | 2026-10-11 | Plan | Doc written from A104–A106 and the approach agreed in chat | Room sync landed, which this waited on | Yes |
+| 2026-10-11 | Structure | Install goes through `ACTION_VIEW` + `FileProvider`, not a `PackageInstaller` session | Fewer moving parts; Android's installer shows its own errors | Yes |
+| 2026-10-11 | Walkthrough | v0.3.29 is the first build with the updater, so friends install it by hand once; the first real in-app update is the release after it | An updater can only update from a version that has it | Yes |

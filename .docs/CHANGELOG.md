@@ -4,6 +4,29 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Android checks GitHub for updates and installs them in-app (A104–A106)
+
+- **`update/UpdateRepository`**: on launch, at most once a day (quiet when offline, quiet for a skipped version),
+  and from a new "Check for updates" row in Settings, it reads `api.github.com/repos/meranisu/brainlessmusic/releases`.
+  `update/Releases.kt` picks the newest `vX.Y.Z` release with an APK, ignoring drafts and pre-releases, plus the
+  notes of every release newer than the installed one (A106), without the workflow's appended "Installing" part.
+- **Update sheet** (`ui/update/UpdateSheet.kt`, over any screen): the notes, size, Install now / Later / Skip this
+  version (A105), download progress, and Try again on a failure. A warning when music is playing; the queue is saved
+  before the hand-off.
+- **Download and install:** streamed into `cache/updates/` while hashing, checked against GitHub's SHA-256 asset
+  `digest` (deleted on a mismatch), then opened with Android's installer through a `FileProvider`. New
+  `REQUEST_INSTALL_PACKAGES` permission. The first time, Android's "Install unknown apps" setting opens instead, and
+  the sheet says to come back and tap Install. The person always confirms in Android's own dialog.
+- GitHub calls use a copy of the shared OkHttp client with its interceptors removed, so the server's sign-in token
+  never goes to GitHub. Off in debug builds (a separate `.debug` app). Gson parses into an array, not a `TypeToken`,
+  so R8 can't break it; keep rules for the two GitHub classes.
+- Verified: `./gradlew assembleDebug` builds; unit suite 98 tests, 1 skipped (the live room test), 0 failures. New
+  `ReleasesTest` covers version order (`0.3.9` < `0.3.10`), drafts, pre-releases, odd tags, a newest release without an
+  APK, and notes trimming. A one-off parse of GitHub's real releases JSON (30 releases) offered v0.3.28 with the notes
+  for 0.3.28, 0.3.27 and 0.3.26 from 0.3.25, nothing from 0.3.28, and a SHA-256 equal to `sha256sum` of the real
+  APK. **Not run:** on a phone (none here), so the sheet, the download and the installer hand-off are untested until
+  a phone on this version sees the next release.
+
 ## 2026-10-11: Listen together opens through the arcade card, like the tabs
 
 - The More menu's links were plain links, so Listen together appeared with no transition while the tabs, Options
