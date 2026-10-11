@@ -4,6 +4,25 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Web 0.3.0, "What's new" from the title screen, with web and Android tabs and the APK download
+
+- **"VER 0.3.0" on the title screen is a button** that opens What's new (`ChangelogDialog`). It was inside the
+  click-through, aria-hidden readout layer, so the button sits outside it in the same corner.
+- **Two tabs: Web and Android app.** Web notes are `lib/webChangelog.ts` (0.3.0 written from everything since 0.2.0;
+  0.2.0 says where the list starts). Android notes are `android/release-notes/*.md`, turned into
+  `lib/androidChangelog.json` by `scripts/android-notes.mjs`, which runs before every `npm run build`. The Docker
+  build has no `android/` (`.dockerignore`), so there the committed JSON is used.
+- **Android tab: "Get the app"** asks GitHub's API for the latest release when the tab opens and links its APK
+  ("Download v0.3.27 (3.1 MB)"); if GitHub can't be reached, a link to the releases page instead. The APK file name
+  carries the version, so a fixed `releases/latest/download` link couldn't work.
+- **Web version 0.2.0 to 0.3.0** (`frontend/package.json`).
+- Keyboard: focus starts on Close, Left/Right switch tabs, Escape or the backdrop closes, focus returns to VER.
+- Verified: `npm run build` clean (the generator found 29 Android releases), lint adds nothing. Headless Chromium,
+  signed out, desktop and 390 px: VER opens the window on Web with 0.3.0 marked, arrow key to Android, the download
+  link to `.../releases/download/v0.3.27/brainlessmusic-v0.3.27.apk`, Android notes with the newest marked Latest,
+  GitHub blocked shows the releases-page link, Escape and backdrop close, focus back on VER, no sideways scroll, no
+  console errors. VER button contrast 10.49:1.
+
 ## 2026-10-11: Control Center is the admin dashboard, with Upload and Users as tabs
 
 - **One dashboard** at `/control-center` with tabs Overview (the old page), Upload and Users (`AdminDashboard`,

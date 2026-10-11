@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `ChangelogDialog`, `DownloadApk`, `WebNotes`, `AndroidNotes`, `Inline` (new): `frontend/src/components/ChangelogDialog.tsx`; `WEB_CHANGELOG` (new): `frontend/src/lib/webChangelog.ts`; `parse()`, `dateOf()` (new): `frontend/scripts/android-notes.mjs`; `TitleScreenPage` (version button): `frontend/src/pages/TitleScreenPage.tsx`
+**Date:** 2026-10-11
+**How added:** owner request
+**Purpose:** a What's new window from the title screen with web and Android notes, and a download of the latest APK.
+**Side effects:** one request to `api.github.com` when the Android tab opens; the prebuild step rewrites `src/lib/androidChangelog.json` when the notes change.
+**Before:** the version on the title screen was static text; no changelog in the app.
+**After:** VER opens the window; Android notes come from the existing release-notes files.
+
 **Function:** `AdminDashboard` (new): `frontend/src/pages/AdminDashboard.tsx`; `FadersIcon` (new): `icons.tsx`; `navItemsFor()`, header button: `AppShell.tsx`; routes: `App.tsx`
 **Date:** 2026-10-11
 **How added:** owner request

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { BrandMark } from '../components/BrandLockup';
@@ -10,6 +10,7 @@ import { clearAtTitle, consumeJustEntered, isAtTitle, markJustEntered } from '..
 import { arrivalDuration } from '../lib/interstitial';
 import { THEMES, type ThemeId } from '../lib/theme';
 import { ArrivalVeil } from '../components/ArcadeInterstitial';
+import { ChangelogDialog } from '../components/ChangelogDialog';
 
 /** The shut-off length. Must match `--exit` in `index.css`. */
 const EXIT_MS = 820;
@@ -46,7 +47,6 @@ function TitleHud({ theme }: { theme: ThemeId }) {
       aria-hidden
       className="pointer-events-none absolute inset-0 z-20 p-4 font-mono text-[0.6rem] tracking-[0.2em] text-blue-300/70 sm:p-6 sm:text-[0.65rem]"
     >
-      <span className="absolute left-4 top-4 sm:left-6 sm:top-6">VER {__APP_VERSION__}</span>
       <span className="absolute right-4 top-4 sm:right-6 sm:top-6">
         SERVER{' '}
         <span
@@ -72,6 +72,14 @@ export function TitleScreenPage() {
   const navigate = useNavigate();
   const theme = useThemeCycle();
 
+  const [showChangelog, setShowChangelog] = useState(false);
+  // Stable, so the dialog's Escape listener isn't re-bound every render.
+  const versionRef = useRef<HTMLButtonElement>(null);
+  const closeChangelog = useCallback(() => {
+    setShowChangelog(false);
+    // Back where the keyboard was, not the top of the page.
+    versionRef.current?.focus();
+  }, []);
   const [isEntering, setIsEntering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLeaving, setIsLeaving] = useState(false);
@@ -136,6 +144,18 @@ export function TitleScreenPage() {
     <div className="app-ground relative min-h-screen overflow-hidden">
       <TitleScreenPanel className={isLeaving ? 'title-exit-panel' : undefined} />
       <TitleHud theme={theme} />
+      {/* Outside the HUD, which is aria-hidden and click-through: this one opens What's new (owner request,
+          2026-10-11). Same readout look; full-strength colour, since it's a control and must clear 4.5:1. */}
+      <button
+        ref={versionRef}
+        onClick={() => setShowChangelog(true)}
+        className="absolute left-2 top-2 z-30 rounded px-2 py-1.5 font-mono text-[0.6rem] tracking-[0.2em] text-blue-300 underline decoration-dotted underline-offset-4 transition-colors hover:text-white sm:left-4 sm:top-4 sm:text-[0.65rem]"
+        aria-label={`Version ${__APP_VERSION__}. See what's new`}
+        title="What's new"
+      >
+        VER {__APP_VERSION__}
+      </button>
+      {showChangelog && <ChangelogDialog onClose={closeChangelog} />}
 
       {/* The content band: white under the type, dissolving to the right into the mosaic. */}
       <div

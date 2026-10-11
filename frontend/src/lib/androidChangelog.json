@@ -1,0 +1,973 @@
+[
+  {
+    "version": "0.3.27",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "play all and shuffle on the downloads tab moved out of the storage box and into the bottom right corner, same spot as the shuffle button in the library. big round one shuffles, the small one above it plays in order",
+              "the storage box is shorter now, just how much space you're using and what's on the phone"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over v0.3.26, nothing else needed. no server update"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.26",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "guest home isn't just one sad sentence anymore:"
+          },
+          {
+            "type": "ul",
+            "items": [
+              "there's a guest card now, same style as the account one, showing how many songs, albums and artists are on the server",
+              "\"songs to try\": 12 random songs to tap and play. hit the refresh button for a new batch",
+              "\"albums to try\": random albums underneath, tap one to open it",
+              "pull down to reroll both"
+            ]
+          },
+          {
+            "type": "p",
+            "text": "accounts don't see any of this, your home stays the same"
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over v0.3.25, nothing else needed. no server update"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.25",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "downloads got a search box:"
+          },
+          {
+            "type": "ul",
+            "items": [
+              "type an album, playlist, artist or song name and it narrows down as you go. caps and accents don't matter, so \"beyonce\" still finds Beyoncé",
+              "on All it shows matching songs too, under the albums and playlists, so searching a song title actually finds it",
+              "the chips still work while searching, so Albums + \"road\" only shows albums",
+              "new sort button next to the search: recently added, name, or artist. it lights up when you're not on the default so you don't forget you changed it",
+              "tap a song in the results and it plays the results, not your whole downloads",
+              "nothing found? it says so and gives you a clear button"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over v0.3.24, nothing else needed. no server update"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.24",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "the songs tile in downloads is a proper collage now. up to six album covers, and the layout fits however many you have: one fills it, two side by side, three is one big and two small, all the way up to a 3+3",
+              "one cover per album, so ten songs off the same album don't turn into ten copies of the same picture",
+              "home got reshuffled: your card is first now, then liked / playlists / hear less, then the week / month / year picker, then recently played and your top songs",
+              "the big shuffle button is now a small one up top next to the greeting, and it stays there when you scroll"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over v0.3.23, nothing else needed. songs you downloaded one at a time before v0.3.22 have no saved cover, so they won't show up in the collage until you download them again"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.23",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "small downloads touch-up:"
+          },
+          {
+            "type": "ul",
+            "items": [
+              "empty downloads tab isn't a sad single line anymore. it tells you what downloads are for, how to get one (download icon on an album or playlist, or press and hold a song), and has a button straight to your library",
+              "offline with nothing downloaded? it says to connect first instead of pointing you at a library you can't open",
+              "songs inside the songs tile and playlist downloads now show the album next to the artist",
+              "the songs tile page shows each song's cover instead of numbers"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over v0.3.22, nothing else needed. no server update this time"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.22",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the you tab is now home, plus a bunch of smaller stuff:"
+          },
+          {
+            "type": "ul",
+            "items": [
+              "home is the first tab and where the app opens. it says hi, has a big shuffle my library button, then recently played, your library and your stats",
+              "liked songs, playlists and songs you hear less are three tiles near the top now, no more scrolling to the bottom to find them",
+              "switching week / month / year on home doesn't flash a blank screen anymore, the page stays up and fades while it loads",
+              "long press a song and there's go to artist now, next to go to album",
+              "playing something you downloaded? the player says \"on this phone\" instead of buffering and network speed. the data saver button hides when nothing in your queue would stream anyway",
+              "the songs tile in downloads finally has covers, and the grid is three across so more fits",
+              "songs in the downloads list show the album too",
+              "settings is back to the old look, matching the rest of the app",
+              "dark mode with the queue pulled all the way up no longer turns the status bar icons black",
+              "the song details popup doesn't jump around while it loads",
+              "shuffle tells you if it can't reach the server instead of doing nothing"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over v0.3.21, you stay logged in and your downloads stay. go to artist needs the server update too. songs you downloaded one at a time before this get their cover once you download them again"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.21",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "a bigger one this time, mostly the downloads and you tabs plus a pile of fixes from going over the whole app:"
+          },
+          {
+            "type": "ul",
+            "items": [
+              "the downloads tab is a grid of covers now. tap an album or playlist to see each song and download or remove them one by one",
+              "downloads has play all and shuffle, a pause/resume all for what's still downloading, and filters for albums, playlists and songs",
+              "the you tab got bigger: a player card, recently played, play and shuffle on your top songs, and arrows showing which songs and artists moved up or down since last time",
+              "long press a song on the you tab for the song menu. the song details now show your own plays, time listened, and when you first and last played it",
+              "settings got a new look, no more boxes everywhere. the cards in dark mode are easier to see now too",
+              "if your login expires the app takes you back to the sign-in screen instead of quietly failing",
+              "a song played twice by accident (resent after a bad connection) only counts once",
+              "songs played offline get sent properly once you're back online, and downloads paused by a logout pick up again after you sign in",
+              "the storage limit counts songs still waiting to download, so it doesn't go over",
+              "if songs keep failing to play, it stops skipping after 5 in a row instead of looping forever on repeat",
+              "opening the app from the notification player no longer leaves black bars at the top and bottom",
+              "search doesn't flicker while you type anymore"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over v0.3.20, you stay logged in and your downloads stay."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.20",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "fixes for the downloads from the last update, found when going back over it:"
+          },
+          {
+            "type": "ul",
+            "items": [
+              "with data saver on, a song downloaded after it was queued could fail to play offline. fixed",
+              "opening the app with no signal could briefly think nothing was downloaded. it waits for the list now",
+              "hotel or cafe wifi that hasn't let you in yet counts as offline, so your downloads play instead of nothing",
+              "repeat-all offline goes back round to the start instead of stopping",
+              "songs played while the server was down (but your phone had signal) weren't saved for later. they are now",
+              "offline plays from one account don't get counted for whoever logs in after. they're sent before logout, or dropped",
+              "a song played offline could get counted twice, or with the wrong listening time. fixed"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over v0.3.19, you stay logged in and your downloads stay. the double-count fix needs the server update too"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.19",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "you can download music now, so it plays with no signal. this is the first go at it, so tell me if something's off"
+          },
+          {
+            "type": "ul",
+            "items": [
+              "albums and playlists have a download button next to play and shuffle. tap it again to remove the download",
+              "single songs can be downloaded from the song menu (the ⋮ or long press), guests too",
+              "new Downloads tab between Search and You, with everything on your phone. tap to play, shuffle icon to shuffle, ⋮ to retry or remove",
+              "downloads are the original files, over wifi or mobile data, and they keep going if you close the app",
+              "with no signal the app opens straight on Downloads, and a line at the bottom says you're offline",
+              "if you're offline and the queue has songs that aren't downloaded, it skips them instead of stopping",
+              "songs you play offline still count in your stats, they get sent once you're back online",
+              "Settings has a Downloads page: how much space it's using, an optional storage limit, and delete all",
+              "data saver doesn't touch downloaded songs, they're already on the phone",
+              "opening the app with no signal used to log you out. my bad. it doesn't anymore",
+              "search keeps the old results on screen while the new ones load, instead of going blank"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over whatever version you have, you stay logged in. downloads show a notification while they run. offline plays get the right time once the server is updated too, until then they're dated to when they were sent"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.18",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "small fixes for the song menu and data saver from the last update:"
+          },
+          {
+            "type": "ul",
+            "items": [
+              "\"play next\" when nothing is playing now says it's playing the song, because that's what it does",
+              "song details showed dates in UTC, so a song played early in the morning could show as the day before. fixed",
+              "if you opened details for two songs quickly, you could get the first one's info. fixed",
+              "the drag handle in the queue is easier to grab now",
+              "with data saver on, the app no longer sets up the player at launch before you've played anything"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over whatever version you have, you stay logged in. no server update needed"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.17",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "albums and artists now have play and shuffle buttons at the top, same as playlists. since tapping a song turns shuffle off, this is the way to shuffle a whole album or everything by an artist",
+              "shuffle buttons start on a random song now. a playlist's shuffle used to always open with its first song, my bad",
+              "if you had rediscover or albums picked before v0.3.15, the first tapped song wiped that and shuffle came back as plain shuffle. it remembers your mode now"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over whatever version you have, you stay logged in. no server update needed"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.16",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "hold a song (library, an album, a playlist, search results) and you get a menu: play next, like, add to playlist, go to album, play less often, and details like format, bitrate and play count",
+              "holding the album cover on the now playing screen opens the same menu",
+              "swipe the mini player left or right to skip, or up to open the player",
+              "on the player, swipe the cover left or right to skip, and swipe down to close it",
+              "the queue looks tidier: smaller text, lined up with the player, and the title and song count sit on one line",
+              "data saver: streams smaller copies of songs, handy on mobile data. it's in Settings → Playback, or the icon at the top of the now playing screen. the song already playing finishes as it is, the next ones switch"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over whatever version you have, you stay logged in. no server update needed"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.15",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "tapping a song now plays the list in order and turns shuffle off, like youtube music does. shuffle all, a playlist's shuffle and the button on now playing still turn it on",
+              "if you'd picked rediscover or albums, shuffle all and a playlist's shuffle bring that back after a tap turned shuffle off, instead of plain shuffle. the now playing button still starts from plain shuffle",
+              "liked it the old way? Settings → Playback → Keep shuffle. with that on, tapping a song keeps shuffle on if it already was"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over whatever version you have, you stay logged in. no server update needed"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.14",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "your colour theme follows you now. pick crimson on the website and the app picks it up next time you open it, and the other way round. material you is still a phone-only thing, so choosing it won't mess with what the website shows"
+          },
+          {
+            "type": "p",
+            "text": "a big pile of fixes, mostly playback:"
+          },
+          {
+            "type": "ul",
+            "items": [
+              "skipping, pausing and seeking from the lock screen, a headset or your car no longer gets the fades out of sync",
+              "pressing next twice really skips two songs",
+              "a phone call or pulling your headphones out no longer leaves the end of a song silent",
+              "albums with two discs stay gapless across the disc change",
+              "albums shuffle starts with the rest of the album you tapped",
+              "likes and playlist edits save in the order you made them, and undo in a playlist keeps a drag you did in between",
+              "failed refreshes and playlist changes now tell you instead of silently doing nothing",
+              "the you tab shows the right numbers for the range you picked, and refreshes when you come back to it",
+              "the splash screen matches the app's light or dark setting"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over whatever version you have, you stay logged in. theme syncing and a couple of the fixes need the server updated too"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.13",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "two new kinds of shuffle. tap the shuffle button on the now playing screen and it goes off → shuffle → rediscover → albums, the same way repeat cycles:"
+          },
+          {
+            "type": "ul",
+            "items": [
+              "rediscover (the clock icon) plays songs you haven't listened to in a while, or ever, sooner. everything still comes up eventually, the stuff you forgot about just jumps the line",
+              "albums (the record icon) picks albums at random and plays each one start to finish, in order",
+              "the queue shows which one you're on, and the shuffle-all button uses whichever you picked"
+            ]
+          },
+          {
+            "type": "p",
+            "text": "rediscover works on the whole library. if you're playing an album or playlist it acts like normal shuffle, since the phone doesn't know your listening history"
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over whatever version you have, you stay logged in. the new modes need the server updated too, until then they act like normal shuffle"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.12",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "shuffle actually shuffles now. with shuffle on, tapping a song used to only mix songs starting with the same letter, my bad. now it plays the song you tapped, then your whole library in random order",
+              "same if you turn shuffle on while a song from the list is playing: the rest of the queue becomes the whole library shuffled. songs you added with \"Play next\" stay where they are"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over whatever version you have, you stay logged in. no server update needed"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.11",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "guests get a proper way in now:"
+          },
+          {
+            "type": "ul",
+            "items": [
+              "the Guest button opens a small form instead of letting you straight in. you can type a name, or leave it blank and be Guest plus a number",
+              "got a guest code? tap \"I have a code\" and type it. the same code now signs you in as the same guest on any phone or browser, so your spot in the queue follows you around",
+              "no code? tap \"Request a code\". the admin gets asked, and once they say yes the phone signs itself in and shows you your code. write it down or copy it, that's how you get back in on another device",
+              "you can close the app while waiting, it picks the wait back up when you open it again",
+              "Settings → Account shows your name and lets you change it"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over whatever version you have, you stay logged in. the guest stuff needs the server updated too, ask whoever runs it"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.10",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "new **You** tab in the bottom bar:"
+          },
+          {
+            "type": "ul",
+            "items": [
+              "your listening at a glance: hours listened, plays, how many songs. switch between this week, month, year or all time",
+              "your top 10 songs and top artists, with how many times and how long you played each. tap a song to play your top list, tap an artist to open them",
+              "liked songs, your playlists, and the songs you swiped to hear less, all one tap away"
+            ]
+          },
+          {
+            "type": "p",
+            "text": "likes and playlists work on the phone now:"
+          },
+          {
+            "type": "ul",
+            "items": [
+              "heart button on the now playing screen, and like / unlike in an album's song menu",
+              "add to playlist from now playing or an album's song menu, or make a new playlist right there",
+              "playlists: play, shuffle, rename, delete, drag songs to reorder, swipe left to remove (with undo)"
+            ]
+          },
+          {
+            "type": "p",
+            "text": "guests see a short note on the You tab, since plays and likes are only kept for accounts."
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over whatever version you have, you stay logged in. the You tab needs the server updated too, ask whoever runs it"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.9",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "behind the scenes: the app now keeps track of how long you actually listen to each song, not just that you played it. nothing to see yet, it's for the profile tab that's coming (top songs, hours listened, wrapped in december). songs you played before this update count as one full listen each"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over whatever version you have, you stay logged in"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.8",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "loading looks less like a frozen app now:"
+          },
+          {
+            "type": "ul",
+            "items": [
+              "instead of a spinner in the middle of the screen, you get grey outlines of what's coming: song rows, album covers, the album header. they gently pulse until the real stuff shows up",
+              "on a fast connection you won't see them at all, they only show if loading takes a moment",
+              "shows up on the library tabs (songs, albums, artists), album and artist pages, and search",
+              "if you've turned animations off in your phone settings, they stay still"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over whatever version you have, you stay logged in"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.7",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the queue got a proper redo:"
+          },
+          {
+            "type": "ul",
+            "items": [
+              "swipe a song left to take it out of the queue (red), swipe right to hear it less often (blue). both have an undo at the bottom for a few seconds",
+              "\"less often\" means shuffle skips it most of the time, not never. changed your mind? settings → playback → songs you hear less → reset. guests only get swipe left",
+              "drag the handle on the right of a song to move it up or down",
+              "search box at the top to find something in a long queue",
+              "pulling the queue all the way up doesn't put the top under the camera hole anymore",
+              "title's centred and the sides line up with the player now"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over whatever version you have, you stay logged in"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.6",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "settings is split into pages now: appearance, playback and account. the main settings screen is just a short list, tap one to open it, back arrow to come back. same settings as before, just less scrolling"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over whatever version you have, you stay logged in"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.5",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "found the real blank screen bug, thanks for spotting it. closing the player with a quick double tap (or tapping the arrow while it was still sliding away) closed the library behind it too, leaving nothing on screen. it can't do that anymore, same for the back arrows on albums and artists",
+              "tapping the mini player twice doesn't open two players stacked on each other anymore",
+              "new switch in settings → playback: \"keep playing when swiped away\". on by default, so music keeps going when you close the app from recent apps. turn it off if you'd rather swiping the app away stop the music"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over whatever version you have, you stay logged in"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.4",
+    "date": "2026-10-10",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "fixed the app sometimes getting stuck on a blank screen where nothing responds, even after switching away and back. the startup screen could get left on top of everything if the app was interrupted while it was fading out. if it still happens to you, tell me roughly what you were doing when it did"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over whatever version you have, you stay logged in"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.3",
+    "date": "2026-10-10",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "the status bar and nav bar don't go black in dark mode anymore. they did after the startup screen until you switched themes back and forth",
+              "the A–Z strip on the right is the scroll bar now, instead of having both. drag it to scroll, or tap a letter to jump",
+              "japanese, korean and other titles get their own spots on the strip after Z (あ, ア, 漢, 한 and so on), only for the ones your library actually has. before they were all lumped under one \"…\"",
+              "tapping Library in the bottom bar when you're already there takes you back to the top",
+              "the bar behind the tabs is solid now, so song titles don't show through it",
+              "the logo is next to the Library title",
+              "settings got tidied up: appearance, playback and account sections, the colour tiles show what each theme looks like, and it shows who you're logged in as and the app version"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over whatever version you have, you stay logged in"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.2",
+    "date": "2026-10-10",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "fixed the crash from v0.3.1. the app died as soon as you opened the library, because the new scroll bar tried to work out its size before it had one. my bad. there's a test for it now",
+              "the startup icon is round on xiaomi phones now. it was showing on a navy square and the orange dot got cut off"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over whatever version you have, you stay logged in"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.1",
+    "date": "2026-10-10",
+    "sections": [
+      {
+        "title": "heads up",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "this version crashes when you open the library. skip it and get v0.3.2"
+          }
+        ]
+      },
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "the keyboard doesn't push the login screen off anymore, so you can actually reach the log in button",
+              "the filter box under the tabs is gone. there's a search button next to the tabs instead. tap it to search songs, tap the X or go back to get the tabs back. searching from albums or artists takes you to songs, since that's all it searches",
+              "songs, albums and artists have a scroll bar next to the letters now. drag it to get through a big library fast",
+              "shuffle all is just the shuffle icon now",
+              "song titles don't show through behind the tabs when you scroll anymore"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over v0.3.0, you stay logged in"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.0",
+    "date": "2026-10-10",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "this one's a big one, mostly how the app looks"
+          },
+          {
+            "type": "ul",
+            "items": [
+              "it looks like the website now: navy and orange, the same chunky font for song and album titles, and the logo font on the login screen",
+              "settings → colours has all six themes from the website (deep blue, crimson, void, nord, magenta, pastel), plus material you, which takes its colours from your wallpaper on android 12 and up. they all have light and dark",
+              "settings is a tab at the bottom now, next to library and search. log out moved to the bottom of settings",
+              "pull a list down to refresh it. works on the library tabs, artist pages and album pages, so the refresh buttons are gone",
+              "there's a box on the songs tab to filter by title, artist or album. tapping a song plays the matching songs from there, not your whole library",
+              "the queue button on the now playing screen is gone. tap the up next card instead, it shows how many songs are left",
+              "the app shows its icon while it starts up instead of a blank screen"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "install over v0.2.0, you stay logged in"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.2.0",
+    "date": "2026-10-10",
+    "sections": [
+      {
+        "title": "What's new in this version",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "**Two ways in.** The start screen now has **Log in** and **Guest** buttons. Log in shows the username and password form. Guest lets you in without an account; if the server asks for a guest code, a box appears for it. Codes look like `ABCD-EFGH` and work in upper or lower case, with or without the dash.",
+              "**Guests can listen and search.** Guests don't build up play counts, and leaving as a guest asks first, because the phone forgets that guest for good.",
+              "**Signed for updates.** From this version the app is signed with its own release key, so future versions install straight over this one."
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Already in the app",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "Browse songs, albums, artists and genres with an A to Z rail, search, background playback with lock-screen and notification controls, shuffle (spread across artists), repeat, an endless queue with Play next, a Now Playing screen with a choice of seek bar styles, resume where you left off, and System / Light / Dark themes."
+          }
+        ]
+      },
+      {
+        "title": "Upgrading from an earlier build",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "If you installed the app before this release, uninstall it first: the old builds were signed with a different key, so Android won't update over them. Then install this one and log in again."
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -153,6 +153,11 @@ Every backend/frontend code change (not doc-only commits) gets logged in both, n
 
 Update both files as part of the same piece of work that makes the change — don't batch it up for later.
 
+**User-facing notes (the "What's new" window on the title screen):** when `frontend/package.json`'s version goes up,
+add its entry to `frontend/src/lib/webChangelog.ts` in the same change. Android notes stay in
+`android/release-notes/vX.Y.Z.md`; the next `npm run build` in `frontend/` regenerates
+`frontend/src/lib/androidChangelog.json` from them, and that JSON must be committed (the Docker build can't see `android/`).
+
 ## Harness (enforced, not just written down)
 
 Rules that have already been broken once are enforced by tooling, because a written rule depends on a session remembering it.
