@@ -206,7 +206,9 @@ server by any signed-in user, a guest included.
   dark grey in light). The 2026-10-10 fix re-applied edge-to-edge only from the splash's exit callback, and a launch from
   the notification likely skips that callback. Not confirmed on a device.
 - `Theme.BrainlessMusic` (`values/` and `values-night/themes.xml`) now has transparent status and navigation bars, light
-  or dark bar icons to match, and no forced nav-bar contrast. Whatever restores the theme's colours, it gets transparent ones.
+  or dark bar icons to match. Whatever restores the theme's colours, it gets transparent ones. Nav-bar contrast is left
+  at the system default (on), matching what `enableEdgeToEdge` sets for `SystemBarStyle.auto`, so the 3-button bar's
+  scrim doesn't flicker off after a restore.
 - `MainActivity` also re-applies edge-to-edge each time the window regains focus (`focusGains`). That keeps the icon
   colours on the app's own Light/Dark setting when it differs from the phone's.
 - Verified: `./gradlew assembleDebug lintDebug` passes. **Not run on a device.**
