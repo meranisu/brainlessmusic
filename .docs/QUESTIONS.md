@@ -118,9 +118,12 @@ are retired so the clash can't repeat.*
 **Answered:** 2026-10-11 · **A.** Notes for every release newer than the installed one, newest first. Lands in the
 in-app updater plan (`features/app-self-update/planning.md`, written once room sync is done).
 
-### A105 — "Skip this version" is in *(was Q106)*
+### A105 — "Skip this version" is in *(was Q106)* · **reversed the same day**
 **Answered:** 2026-10-11 · **A.** The update sheet has "Install now", "Later" and "Skip this version". A skipped
 version stays quiet until a newer one is out; the settings button still offers it.
+
+**Reversed 2026-10-11 by the owner:** "remove the skip this version, it seem redundant with later". The sheet has
+Install now and Later only; Later already keeps it away until the next day's check.
 
 ### A104 — Check on launch once a day, plus a settings button *(was Q105)*
 **Answered:** 2026-10-11 · **A.** The app checks GitHub Releases on launch at most once a day, and there is a

@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `UpdateRepository.skip()`, `UpdateViewModel.skip()` (removed); `UpdateRepository.checkOnLaunch()`, `UpdateSheetHost()` (changed): `android/.../update/`, `ui/update/`
+**Date:** 2026-10-11
+**How added:** owner request (reverses A105)
+**Purpose:** one way to wave off an update, Later.
+**Side effects:** none.
+**Before:** a skipped version stayed quiet on launch until a newer one came out.
+**After:** every version is offered on the daily launch check until installed.
+
 **Function:** `HitCircleDeck()`, `HitButton()`, `PlayCircle()` (new): `android/.../ui/playback/skins/HitCircle.kt`; `clearFor()`, `recordLine()`, `rememberAnimationsOn()` (new): `skins/SongRecord.kt`; `SeekCanvas()` (new, split from `SeekBar()`): `ui/playback/SeekBar.kt`; `SongActionsViewModel.record()` (new); `NowPlayingScreen()` (changed); `getTrackStat()` (changed): `backend/src/db/listeningStats.ts`
 **Date:** 2026-10-11
 **How added:** owner request (A114-A116)

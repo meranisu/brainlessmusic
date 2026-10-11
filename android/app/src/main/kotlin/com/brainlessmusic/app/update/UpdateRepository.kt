@@ -9,7 +9,6 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
-import androidx.datastore.preferences.core.stringPreferencesKey
 import com.brainlessmusic.app.BuildConfig
 import com.google.gson.Gson
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -71,7 +70,7 @@ class UpdateRepository @Inject constructor(
 
     val enabled: Boolean get() = !BuildConfig.DEBUG
 
-    /** On launch: at most once a day, quiet when offline, and a skipped version stays quiet (A105). */
+    /** On launch: at most once a day, quiet when offline. */
     fun checkOnLaunch() {
         if (!enabled || _state.value !is UpdateState.Idle) return
         scope.launch {
@@ -80,13 +79,13 @@ class UpdateRepository @Inject constructor(
             if (now - (prefs[LAST_CHECK_KEY] ?: 0L) < DAY_MS) return@launch
             val offer = fetchOffer().getOrNull()
             dataStore.edit { it[LAST_CHECK_KEY] = now }
-            if (offer == null || offer.version == prefs[SKIPPED_KEY]) return@launch
+            if (offer == null) return@launch
             _state.value = UpdateState.Available(offer)
             _sheetOpen.value = true
         }
     }
 
-    /** From Settings: ignores the daily gate and a skipped version, and says so when there's nothing new. */
+    /** From Settings: ignores the daily gate, and says so when there's nothing new. */
     fun checkNow() {
         if (!enabled) return
         when (_state.value) {
@@ -113,17 +112,12 @@ class UpdateRepository @Inject constructor(
         }
     }
 
-    /** Later: the sheet closes; the next launch check (a day on) or the settings row brings it back. */
+    /**
+     * Later, the only way to wave it off: the next launch check (a day on) or the settings row brings it back. "Skip
+     * this version" was dropped as the same thing with extra steps (owner, 2026-10-11, over A105).
+     */
     fun later() {
         _sheetOpen.value = false
-    }
-
-    /** Skip this version: no sheet on launch until a newer one is out (A105). */
-    fun skip(version: String) {
-        _sheetOpen.value = false
-        downloadJob?.cancel()
-        _state.value = UpdateState.Idle
-        scope.launch { dataStore.edit { it[SKIPPED_KEY] = version } }
     }
 
     fun download() {
@@ -226,6 +220,5 @@ class UpdateRepository @Inject constructor(
         const val UPDATES_DIR = "updates"
         const val DAY_MS = 24 * 60 * 60 * 1000L
         val LAST_CHECK_KEY = longPreferencesKey("update_last_check")
-        val SKIPPED_KEY = stringPreferencesKey("update_skipped_version")
     }
 }

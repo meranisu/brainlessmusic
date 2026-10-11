@@ -1,5 +1,31 @@
 [
   {
+    "version": "0.3.33",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "the update popup lost its \"skip this version\" button. it did the same thing as later, so now it's just install now or later"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it, with one less button"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.32",
     "date": "2026-10-11",
     "sections": [

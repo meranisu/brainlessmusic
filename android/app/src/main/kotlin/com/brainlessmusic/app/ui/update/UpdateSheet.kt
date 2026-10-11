@@ -20,7 +20,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -46,7 +45,7 @@ import com.brainlessmusic.app.ui.theme.accentInk
 
 /**
  * The update sheet (A104–A106), shown over whatever screen is open when a check finds a newer release: the notes of
- * every release since this one, then Install now, Later or Skip this version. Lives once, at the top of the app.
+ * every release since this one, then Install now or Later. Lives once, at the top of the app.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -149,7 +148,6 @@ private fun UpdateSheetContent(offer: UpdateOffer, state: UpdateState, viewModel
                 else -> Button(onClick = viewModel::download) { Text("Install now") }
             }
             OutlinedButton(onClick = viewModel::later) { Text("Later") }
-            TextButton(onClick = { viewModel.skip(offer.version) }) { Text("Skip this version") }
         }
     }
 }

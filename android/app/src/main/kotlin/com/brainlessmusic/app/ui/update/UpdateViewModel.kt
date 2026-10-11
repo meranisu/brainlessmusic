@@ -27,7 +27,6 @@ class UpdateViewModel @Inject constructor(
 
     fun checkNow() = updates.checkNow()
     fun later() = updates.later()
-    fun skip(version: String) = updates.skip(version)
     fun download() = updates.download()
     fun canInstall(): Boolean = updates.canInstall()
 

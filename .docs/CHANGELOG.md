@@ -4,6 +4,13 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Android update sheet drops "Skip this version"
+
+- Owner's request, reversing A105: it did the same job as Later. The sheet offers Install now and Later; Later keeps it
+  away until the next daily launch check. `UpdateRepository.skip()` and the `update_skipped_version` check are gone (a
+  value already stored on a phone is simply no longer read).
+- Verified: `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest` pass. **Not run:** on a phone.
+
 ## 2026-10-11: Player skins begin: Hit circle (osu!), with your record for the song
 
 - Owner's decisions A114 to A116. "Player buttons" in Settings → Appearance becomes **Player skin** (`PlayerSkin`, same
