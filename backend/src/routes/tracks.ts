@@ -148,6 +148,9 @@ async function deleteTrackAndFile(track: TrackRow): Promise<NodeJS.ErrnoExceptio
   return null;
 }
 
+/** A UUID in practice; anything longer or stranger is refused rather than stored. */
+const CLIENT_PLAY_ID = /^[A-Za-z0-9-]{8,64}$/;
+
 /** Failure reports one user may send per minute. */
 const PLAYBACK_FAILURES_PER_MINUTE = 30;
 const playbackFailureLimiter = createRateLimiter();
@@ -634,7 +637,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
     },
   );
 
-  fastify.post<{ Params: { id: string }; Body: { msPlayed?: number; playedAt?: unknown } }>(
+  fastify.post<{ Params: { id: string }; Body: { msPlayed?: number; playedAt?: unknown; clientPlayId?: unknown } }>(
     '/tracks/:id/scrobble',
     { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
@@ -663,7 +666,17 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
         }
       }
 
-      const playId = recordScrobble(request.user!.id, id, msPlayed, playedAt);
+      // The app's own id for this play (C10): a resend with the same id is counted once.
+      const rawClientPlayId = request.body?.clientPlayId;
+      let clientPlayId: string | null = null;
+      if (rawClientPlayId !== undefined && rawClientPlayId !== null) {
+        if (typeof rawClientPlayId !== 'string' || !CLIENT_PLAY_ID.test(rawClientPlayId)) {
+          return reply.code(400).send({ error: 'clientPlayId must be 8-64 letters, digits or dashes' });
+        }
+        clientPlayId = rawClientPlayId;
+      }
+
+      const playId = recordScrobble(request.user!.id, id, msPlayed, playedAt, clientPlayId);
 
       const updated = findTrackById(id)!;
       return reply.code(201).send({

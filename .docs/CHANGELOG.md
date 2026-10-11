@@ -4,6 +4,25 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Review fix C10: a resent play is counted once (migration 0026)
+
+- A play was matched to an earlier send only by exact `played_at`. When the phone's clock ran ahead,
+  `parsePlayedAt` clamped each resend to a different server time. And a scrobble that committed on the server but
+  timed out on the phone was queued with the phone's `Instant.now()`, which never matched the server's
+  `datetime('now')`. Either way the play counted twice.
+- **Backend:** migration `0026_add_play_history_client_play_id.sql` adds `play_history.client_play_id` with a unique
+  partial index per user. `POST /tracks/:id/scrobble` accepts an optional `clientPlayId` (8-64 letters, digits or
+  dashes; anything else is a 400). `recordScrobble` returns the existing play for a repeat id. Without an id it still
+  falls back to the `played_at` match.
+- **Android:** `PlaybackController.scrobble()` makes one UUID and one time per play. The online send and any queued
+  resend use both (`PendingPlays.add`, `PendingPlay.clientPlayId`). Room `downloads.db` goes to version 3
+  (`MIGRATION_2_3` adds the nullable column), so rows queued before the update are sent without an id.
+- The web client doesn't queue plays, so it sends no id.
+- Verified: `cd backend && npm test` 446/446 pass. New tests: an online send plus a queued resend with another time
+  counts once; two ids at the same time count twice; malformed ids are refused. Backend `tsc --noEmit` is clean.
+  `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest` passes. **Not run on a device**; the Room migration was
+  not exercised on an installed v2 database.
+
 ## 2026-10-11 — Review fix C9: a rescan keeps an admin's tag edit (migration 0025)
 
 - `PATCH /tracks/:id` edits title, artist, album and track number in the database only; write-back to files is still

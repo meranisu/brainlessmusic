@@ -51,10 +51,18 @@ class PendingPlays @Inject constructor(
         scope.launch { networkMonitor.online.collect { if (it) flush() } }
     }
 
-    /** Records a play now, or `null` for a guest. */
-    suspend fun add(trackId: Int, msPlayed: Long): PlayRef? {
+    /**
+     * Records a play, or `null` for a guest. [clientPlayId] is the id it was (or would have been) sent with online, so
+     * if that send did land, the resend is counted once (C10). [playedAt] defaults to now.
+     */
+    suspend fun add(
+        trackId: Int,
+        msPlayed: Long,
+        clientPlayId: String,
+        playedAt: String = Instant.now().toString(),
+    ): PlayRef? {
         if (tokenProvider.isGuest) return null
-        val id = dao.add(PendingPlay(trackId = trackId, msPlayed = msPlayed, playedAt = Instant.now().toString()))
+        val id = dao.add(PendingPlay(trackId = trackId, msPlayed = msPlayed, playedAt = playedAt, clientPlayId = clientPlayId))
         openRow = id
         return PlayRef.Local(id)
     }
@@ -105,7 +113,7 @@ class PendingPlays @Inject constructor(
             if (play.id == openRow) break
             // Signed out, or signed in as someone else, mid-loop: the rest of this snapshot isn't theirs to send.
             if (tokenProvider.current != token) return@withLock
-            val result = libraryRepository.scrobble(play.trackId, play.msPlayed, play.playedAt)
+            val result = libraryRepository.scrobble(play.trackId, play.msPlayed, play.playedAt, play.clientPlayId)
             if (result.isSuccess || result.exceptionOrNull().isRefusedForGood()) {
                 dao.delete(play.id)
             } else {

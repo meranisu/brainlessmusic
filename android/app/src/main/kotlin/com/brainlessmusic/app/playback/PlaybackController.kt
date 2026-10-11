@@ -50,6 +50,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
+import java.time.Instant
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -1058,10 +1060,14 @@ class PlaybackController @Inject constructor(
     private fun scrobble() {
         val item = trackerItem ?: return
         val listened = tracker?.listenedMs ?: return
+        // One id and one time for this play, whichever way it goes: a send that lands but whose answer is lost, then
+        // sent again from the queue, is counted once (C10).
+        val clientPlayId = UUID.randomUUID().toString()
+        val playedAt = Instant.now().toString()
         // A missed scrobble costs a statistic, so it is never surfaced. With no signal it waits on the phone (A87).
         playId = scope.async {
-            if (!networkMonitor.online.value) return@async pendingPlays.add(item.trackId, listened)
-            libraryRepository.scrobble(item.trackId, listened).fold(
+            if (!networkMonitor.online.value) return@async pendingPlays.add(item.trackId, listened, clientPlayId, playedAt)
+            libraryRepository.scrobble(item.trackId, listened, clientPlayId = clientPlayId).fold(
                 onSuccess = { id ->
                     // The server is answering: anything that waited for it can go now.
                     pendingPlays.flush()
@@ -1070,7 +1076,7 @@ class PlaybackController @Inject constructor(
                 onFailure = {
                     // Unreachable, or answering with an error while smol is down (Cloudflare's 502/530): keep it for
                     // later, unless the server refused this play for good.
-                    if (it.isRefusedForGood()) null else pendingPlays.add(item.trackId, listened)
+                    if (it.isRefusedForGood()) null else pendingPlays.add(item.trackId, listened, clientPlayId, playedAt)
                 },
             )
         }

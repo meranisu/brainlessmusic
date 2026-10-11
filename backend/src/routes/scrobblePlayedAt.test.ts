@@ -108,3 +108,35 @@ describe('scrobble playedAt (offline plays, A87)', () => {
     assert.equal(parsePlayedAt('2026-10-11T12:10:00Z', now), null);
   });
 });
+
+describe('scrobble clientPlayId (C10)', () => {
+  const plays = () => (db.prepare('SELECT COUNT(*) AS n FROM play_history').get() as { n: number }).n;
+  const playCount = () =>
+    (db.prepare('SELECT play_count FROM tracks WHERE id = ?').get(trackId) as { play_count: number }).play_count;
+
+  it('counts a play sent online, then again from the queue with another time, only once', async () => {
+    const id = '5f0c6b2e-9a41-4d8e-b0a3-1e2f3a4b5c6d';
+    const online = await scrobble({ msPlayed: 30_000, clientPlayId: id });
+    // The answer was lost; the phone queued it with its own clock's time and sends it again.
+    const resent = await scrobble({ msPlayed: 30_000, playedAt: hoursAgo(0.01), clientPlayId: id });
+    assert.equal(resent.statusCode, 201, resent.body);
+    assert.equal(resent.json().playId, online.json().playId);
+    assert.equal(plays(), 1);
+    assert.equal(playCount(), 1);
+  });
+
+  it('counts two plays with different ids twice, even at the same time', async () => {
+    const at = hoursAgo(1);
+    await scrobble({ msPlayed: 30_000, playedAt: at, clientPlayId: 'aaaaaaaa-1' });
+    await scrobble({ msPlayed: 30_000, playedAt: at, clientPlayId: 'bbbbbbbb-2' });
+    assert.equal(plays(), 2);
+  });
+
+  it('refuses an id that is not a plain token', async () => {
+    for (const clientPlayId of ['short', 'x'.repeat(65), 'has spaces in it', 42]) {
+      const res = await scrobble({ msPlayed: 30_000, clientPlayId });
+      assert.equal(res.statusCode, 400, `clientPlayId ${String(clientPlayId)}`);
+    }
+    assert.equal(plays(), 0);
+  });
+});

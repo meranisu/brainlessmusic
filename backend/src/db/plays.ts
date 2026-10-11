@@ -39,50 +39,72 @@ export interface TopTrack {
  * `db.transaction()` opens the connection.
  */
 let scrobbleTransaction:
-  | ((userId: number, trackId: number, msPlayed: number | null, playedAt: string | null) => number)
+  | ((
+      userId: number,
+      trackId: number,
+      msPlayed: number | null,
+      playedAt: string | null,
+      clientPlayId: string | null,
+    ) => number)
   | null = null;
 
 /**
  * Returns the new play's id, which the app uses to report the final listening time (A62). [playedAt] is when a play
  * made offline happened (A87), in SQLite's `datetime('now')` shape; null means now. A late play never moves the track's
- * `last_played_at` back. The same offline play sent twice (the phone resends one whose answer it never got) is counted
- * once: the second send returns the first one's id.
+ * `last_played_at` back. The same play sent twice (the phone resends one whose answer it never got) is counted once:
+ * the second send returns the first one's id. [clientPlayId], the app's own id for the play, is how that is matched
+ * (C10); without one, an offline play is matched on `played_at`, which a skewed phone clock defeats.
  */
 export function recordScrobble(
   userId: number,
   trackId: number,
   msPlayed: number | null,
   playedAt: string | null = null,
+  clientPlayId: string | null = null,
 ): number {
   scrobbleTransaction ??= buildScrobbleTransaction();
-  return scrobbleTransaction(userId, trackId, msPlayed, playedAt);
+  return scrobbleTransaction(userId, trackId, msPlayed, playedAt, clientPlayId);
 }
 
 function buildScrobbleTransaction() {
-  return db.transaction((userId: number, trackId: number, msPlayed: number | null, playedAt: string | null): number => {
-    if (playedAt) {
-      const sent = db
-        .prepare('SELECT id FROM play_history WHERE user_id = ? AND track_id = ? AND played_at = ?')
-        .get(userId, trackId, playedAt) as { id: number } | undefined;
-      if (sent) return sent.id;
-    }
+  return db.transaction(
+    (
+      userId: number,
+      trackId: number,
+      msPlayed: number | null,
+      playedAt: string | null,
+      clientPlayId: string | null,
+    ): number => {
+      if (clientPlayId) {
+        const sent = db
+          .prepare('SELECT id FROM play_history WHERE user_id = ? AND client_play_id = ?')
+          .get(userId, clientPlayId) as { id: number } | undefined;
+        if (sent) return sent.id;
+      } else if (playedAt) {
+        const sent = db
+          .prepare('SELECT id FROM play_history WHERE user_id = ? AND track_id = ? AND played_at = ?')
+          .get(userId, trackId, playedAt) as { id: number } | undefined;
+        if (sent) return sent.id;
+      }
 
-    const playId = Number(
-      db
-        .prepare(
-          "INSERT INTO play_history (user_id, track_id, ms_played, played_at) VALUES (?, ?, ?, COALESCE(?, datetime('now')))",
-        )
-        .run(userId, trackId, msPlayed, playedAt).lastInsertRowid,
-    );
+      const playId = Number(
+        db
+          .prepare(
+            `INSERT INTO play_history (user_id, track_id, ms_played, played_at, client_play_id)
+             VALUES (?, ?, ?, COALESCE(?, datetime('now')), ?)`,
+          )
+          .run(userId, trackId, msPlayed, playedAt, clientPlayId).lastInsertRowid,
+      );
 
-    db.prepare(
-      `UPDATE tracks
-       SET play_count = play_count + 1,
-           last_played_at = MAX(COALESCE(last_played_at, ''), COALESCE(?, datetime('now')))
-       WHERE id = ?`,
-    ).run(playedAt, trackId);
-    return playId;
-  });
+      db.prepare(
+        `UPDATE tracks
+         SET play_count = play_count + 1,
+             last_played_at = MAX(COALESCE(last_played_at, ''), COALESCE(?, datetime('now')))
+         WHERE id = ?`,
+      ).run(playedAt, trackId);
+      return playId;
+    },
+  );
 }
 
 export function countHistoryForUser(userId: number): number {

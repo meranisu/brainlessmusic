@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `recordScrobble()` — `backend/src/db/plays.ts`; scrobble route — `backend/src/routes/tracks.ts`
+**Date:** 2026-10-11
+**How added:** bug fix (review C10)
+**Purpose:** count a play once however many times it is sent.
+**Side effects:** INSERT into `play_history` (with `client_play_id`), `tracks.play_count` bump.
+**Before:** a repeat was recognised only by an exact `played_at`, which clock skew and timeouts defeated.
+**After:** a repeat `clientPlayId` returns the first play's id; with no id, the old `played_at` match applies.
+
+**Function:** `PlaybackController.scrobble()`, `PendingPlays.add()`, `PendingPlays.send()`, `LibraryRepository.scrobble()`, `DownloadDatabase.MIGRATION_2_3` — `android/app/src/main/kotlin/com/brainlessmusic/app/`
+**Date:** 2026-10-11
+**How added:** bug fix (review C10)
+**Purpose:** give each play one id and one time, kept through the offline queue.
+**Side effects:** Room `downloads.db` version 3 (`pending_play.clientPlayId`).
+**Before:** a queued play was dated when it was queued and carried no id.
+**After:** the same `clientPlayId` and `playedAt` are used for the online send and any resend.
+
 **Function:** `upsertTrack()`, `updateTrackFields()` — `backend/src/db/library.ts`
 **Date:** 2026-10-11
 **How added:** bug fix (review C9)

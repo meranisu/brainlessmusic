@@ -208,6 +208,8 @@ data class PendingPlay(
     val msPlayed: Long,
     /** ISO 8601, UTC. */
     val playedAt: String,
+    /** Sent with the play so a resend is counted once (C10). Null on rows queued before version 3. */
+    val clientPlayId: String? = null,
 )
 
 @Dao
@@ -231,7 +233,7 @@ interface PendingPlayDao {
 /** Downloads and, since version 2, plays waiting for signal: both are what the phone keeps for offline use. */
 @Database(
     entities = [DownloadedTrack::class, DownloadGroup::class, DownloadGroupTrack::class, PendingPlay::class],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 abstract class DownloadDatabase : RoomDatabase() {
@@ -246,6 +248,12 @@ abstract class DownloadDatabase : RoomDatabase() {
                     "CREATE TABLE IF NOT EXISTS `pending_play` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
                         "`trackId` INTEGER NOT NULL, `msPlayed` INTEGER NOT NULL, `playedAt` TEXT NOT NULL)",
                 )
+            }
+        }
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `pending_play` ADD COLUMN `clientPlayId` TEXT")
             }
         }
     }

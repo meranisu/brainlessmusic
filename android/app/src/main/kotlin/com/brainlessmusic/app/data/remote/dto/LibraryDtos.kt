@@ -97,6 +97,8 @@ data class ScrobbleRequest(
     val msPlayed: Long,
     /** Only for a play made offline and sent later (A87); Gson leaves it out when null. */
     val playedAt: String? = null,
+    /** The app's own id for this play (C10), the same on every send, so a resend is counted once. */
+    val clientPlayId: String? = null,
 )
 
 /** `POST /tracks/:id/scrobble` answers 201 with the updated counters; the client only needs to know it landed. */
