@@ -1,6 +1,6 @@
 # Spec: Offline downloads
 
-**Status:** Built, awaiting the phone checklist (2026-10-11)
+**Status:** Shipped; owner reported the whole phone checklist passing (2026-10-11)
 **Layers:** 📱 Android, with one small 🔧 Backend change (A87)
 
 Roadmap box 19. *Done when:* you play a downloaded album in airplane mode, including opening the app from cold in
@@ -127,9 +127,9 @@ database holds that, so the Downloads screen never needs the server:
 | # | Step | Done when |
 |---|---|---|
 | 1 | Offline-safe start (section 1) — **built 2026-10-11 except the re-check when signal returns; not tried on a phone** | In airplane mode the app opens and you're still signed in |
-| 2 | Download engine + one "Download album" button + player reads from the cache — **built 2026-10-11; not tried on a phone** | An album downloads and plays in airplane mode |
-| 3 | Room metadata + Downloads screen + offline banner — **built 2026-10-11; not tried on a phone** | The Downloads screen works from a cold start in airplane mode |
-| 4 | Song and playlist downloads, queue controls, delete, settings — **built 2026-10-11; not tried on a phone** | The checklist below passes |
+| 2 | Download engine + one "Download album" button + player reads from the cache — **built 2026-10-11; phone checklist passed 2026-10-11** | An album downloads and plays in airplane mode |
+| 3 | Room metadata + Downloads screen + offline banner — **built 2026-10-11; phone checklist passed 2026-10-11** | The Downloads screen works from a cold start in airplane mode |
+| 4 | Song and playlist downloads, queue controls, delete, settings — **built 2026-10-11; phone checklist passed 2026-10-11** | The checklist below passes |
 | 5 | Offline plays (backend `playedAt` + pending queue) — **built 2026-10-11; not deployed to smol, not tried on a phone** | Plays from an airplane-mode ride show up with the right times |
 
 Step 1 is a fix worth shipping on its own, even before anything else lands.

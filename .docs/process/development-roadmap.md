@@ -122,8 +122,8 @@ Hosting comes before the app, so there's a real server to point the phone at.
 - [x] **18. Android Phase 3 — background.** MediaSession, foreground service, lock-screen and notification controls, audio focus, auto-pause on headphone/Bluetooth disconnect. — **built 2026-09-28; screen-off playback and notification confirmed on a phone, rest of the checklist pending.** See `.docs/features/android-phase-3-background/planning.md`.
   *Done when:* playback survives locking the phone and is controllable from the lock screen.
 
-- [ ] **19. Offline downloads** (mobile). Download at original quality, manage the download queue, fall back to cache when the signal drops, data-saver mode via `?quality=low`. **[spec first]**
-  *Done when:* you play a downloaded album in airplane mode. — **spec drafted and all five steps built 2026-10-11:** [specs/offline-downloads.md](../specs/offline-downloads.md) (decisions A85–A88). Open until the phone checklist in the spec passes and the backend is on smol.
+- [x] **19. Offline downloads** (mobile). Download at original quality, manage the download queue, fall back to cache when the signal drops, data-saver mode via `?quality=low`. **[spec first]**
+  *Done when:* you play a downloaded album in airplane mode. — **spec drafted and all five steps built 2026-10-11:** [specs/offline-downloads.md](../specs/offline-downloads.md) (decisions A85–A88). **Done 2026-10-11:** backend on smol, owner reported every phone checklist item passing.
 
 ---
 

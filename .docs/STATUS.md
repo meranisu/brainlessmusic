@@ -50,7 +50,7 @@ The list is [QUESTIONS.md](QUESTIONS.md) — check it before asking anything. Bl
 
 ## Next
 
-1. **Box 19 — offline downloads** (Android): the last v0.2 box. All five spec steps built 2026-10-11 and the backend (`playedAt`) is on smol; left: the phone checklist in [specs/offline-downloads.md](specs/offline-downloads.md).
+1. v0.2 is done: box 19 (offline downloads) passed the phone checklist 2026-10-11.
 2. Cloudflare Access (A74): switch on once Q77 and Q78 are answered.
 3. v0.3: room-sync spec agreed ([specs/room-sync.md](specs/room-sync.md)); next is build step 1, the backend (box 22).
 4. Backend commits after 97ba069 (3724daa, 8fe408e, 920cd50) are not confirmed on smol yet.
