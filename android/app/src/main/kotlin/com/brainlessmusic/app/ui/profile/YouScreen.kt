@@ -10,6 +10,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
@@ -41,6 +43,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -52,6 +55,7 @@ import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -123,27 +127,19 @@ fun YouScreen(
 
     val context = LocalContext.current
     val shuffle = { viewModel.shuffleLibrary { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() } }
+    val together = { navController.navigate(Routes.TOGETHER) { launchSingleTop = true } }
 
     val title = greeting(Calendar.getInstance().get(Calendar.HOUR_OF_DAY), if (viewModel.isGuest) null else username)
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                // Small and always in reach, so it doesn't push the page down or scroll away.
-                actions = {
-                    IconButton(onClick = { navController.navigate(Routes.TOGETHER) { launchSingleTop = true } }) {
-                        Icon(Icons.Filled.Groups, contentDescription = "Listen together")
-                    }
-                    ShuffleLibraryButton(shuffle)
-                },
-            )
+            TopAppBar(title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) })
         },
         bottomBar = { AppBottomBar(navController) },
     ) { padding ->
         if (viewModel.isGuest) {
             // No stats for guests (A98), so the library and some random picks to start from.
-            GuestHomeList(viewModel, refreshing, onOpenAlbum, onMenu = { menuFor = it }, Modifier.padding(padding))
+            GuestHomeList(viewModel, refreshing, onOpenAlbum, onMenu = { menuFor = it }, shuffle, together, Modifier.padding(padding))
             return@Scaffold
         }
         Column(Modifier.padding(padding)) {
@@ -163,8 +159,10 @@ fun YouScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = 16.dp),
                     ) {
-                        // Who you are and your library, then what you've played (owner's order, 2026-10-11).
+                        // Who you are, the two ways to start, your library, then what you've played (owner's order,
+                        // 2026-10-11; Shuffle and Listen together moved here from the top bar the same day).
                         item { Box(ofRange) { PlayerCard(username, stats, range) } }
+                        item { StartRow(onShuffle = shuffle, onTogether = together) }
                         item { LibraryTiles(stats.counts, onOpenLiked, onOpenPlaylists, onOpenLessOften) }
                         item { RangePicker(range, viewModel::setRange) }
 
@@ -180,68 +178,67 @@ fun YouScreen(
                             }
                         }
 
+                        item { SectionTitle("Top songs") }
                         item {
-                            SectionTitle(
-                                "Top songs",
-                                trailing = if (stats.topTracks.isEmpty()) null else {
-                                    {
-                                        IconButton(onClick = { viewModel.playAllTop(stats, shuffle = false) }) {
-                                            Icon(Icons.Filled.PlayArrow, contentDescription = "Play top songs")
-                                        }
-                                        IconButton(onClick = { viewModel.playAllTop(stats, shuffle = true) }) {
-                                            Icon(Icons.Filled.Shuffle, contentDescription = "Shuffle top songs")
+                            Box(ofRange) {
+                                ListCard {
+                                    if (stats.topTracks.isEmpty()) EmptyLine(emptyTopSongs(range))
+                                    stats.topTracks.forEachIndexed { index, top ->
+                                        key(top.track.id) {
+                                            if (index == 0) {
+                                                TopSongHero(
+                                                    top = top,
+                                                    coverUrl = viewModel.trackCoverUrl(top.track.id),
+                                                    movement = movement(1, top.previousRank, compared),
+                                                    onClick = { viewModel.playTop(stats, 0) },
+                                                    onLongClick = { menuFor = viewModel.queueItem(top.track) },
+                                                )
+                                            } else {
+                                                RankedRow(
+                                                    rank = index + 1,
+                                                    coverUrl = viewModel.trackCoverUrl(top.track.id),
+                                                    title = top.track.title,
+                                                    subtitle = top.track.artist ?: "Unknown artist",
+                                                    plays = top.plays,
+                                                    msListened = top.msListened,
+                                                    movement = movement(index + 1, top.previousRank, compared),
+                                                    onClick = { viewModel.playTop(stats, index) },
+                                                    onLongClick = { menuFor = viewModel.queueItem(top.track) },
+                                                )
+                                            }
                                         }
                                     }
-                                },
-                            )
-                        }
-                        if (stats.topTracks.isEmpty()) {
-                            item { Box(ofRange) { EmptyLine(emptyTopSongs(range)) } }
-                        }
-                        stats.topTracks.firstOrNull()?.let { top ->
-                            item(key = "t${top.track.id}") {
-                                Box(ofRange.animateItem()) {
-                                    TopSongHero(
-                                        top = top,
-                                        coverUrl = viewModel.trackCoverUrl(top.track.id),
-                                        movement = movement(1, top.previousRank, compared),
-                                        onClick = { viewModel.playTop(stats, 0) },
-                                        onLongClick = { menuFor = viewModel.queueItem(top.track) },
-                                    )
+                                    if (stats.topTracks.isNotEmpty()) {
+                                        CardActions(
+                                            onPlay = { viewModel.playAllTop(stats, shuffle = false) },
+                                            onShuffle = { viewModel.playAllTop(stats, shuffle = true) },
+                                            what = "top songs",
+                                        )
+                                    }
                                 }
-                            }
-                        }
-                        itemsIndexed(stats.topTracks.drop(1), key = { _, t -> "t${t.track.id}" }) { i, top ->
-                            val index = i + 1
-                            Box(ofRange.animateItem()) {
-                                RankedRow(
-                                    rank = index + 1,
-                                    coverUrl = viewModel.trackCoverUrl(top.track.id),
-                                    title = top.track.title,
-                                    subtitle = top.track.artist ?: "Unknown artist",
-                                    plays = top.plays,
-                                    msListened = top.msListened,
-                                    movement = movement(index + 1, top.previousRank, compared),
-                                    onClick = { viewModel.playTop(stats, index) },
-                                    onLongClick = { menuFor = viewModel.queueItem(top.track) },
-                                )
                             }
                         }
 
                         if (stats.topArtists.isNotEmpty()) {
                             item { SectionTitle("Top artists") }
-                            itemsIndexed(stats.topArtists, key = { _, a -> "a${a.id}" }) { index, artist ->
-                                Box(ofRange.animateItem()) {
-                                    RankedRow(
-                                        rank = index + 1,
-                                        coverUrl = null,
-                                        title = artist.name,
-                                        subtitle = null,
-                                        plays = artist.plays,
-                                        msListened = artist.msListened,
-                                        movement = movement(index + 1, artist.previousRank, compared),
-                                        onClick = { onOpenArtist(artist.id) },
-                                    )
+                            item {
+                                Box(ofRange) {
+                                    ListCard {
+                                        stats.topArtists.forEachIndexed { index, artist ->
+                                            key(artist.id) {
+                                                RankedRow(
+                                                    rank = index + 1,
+                                                    coverUrl = null,
+                                                    title = artist.name,
+                                                    subtitle = null,
+                                                    plays = artist.plays,
+                                                    msListened = artist.msListened,
+                                                    movement = movement(index + 1, artist.previousRank, compared),
+                                                    onClick = { onOpenArtist(artist.id) },
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -260,6 +257,8 @@ private fun GuestHomeList(
     refreshing: Boolean,
     onOpenAlbum: (Int) -> Unit,
     onMenu: (QueueItem) -> Unit,
+    onShuffle: () -> Unit,
+    onTogether: () -> Unit,
     modifier: Modifier,
 ) {
     val state by viewModel.guest.collectAsStateWithLifecycle()
@@ -273,6 +272,7 @@ private fun GuestHomeList(
         PullToRefreshBox(isRefreshing = refreshing, onRefresh = viewModel::refresh) {
             LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 16.dp)) {
                 item { GuestCard(home) }
+                item { StartRow(onShuffle = onShuffle, onTogether = onTogether) }
                 if (home.picks.isEmpty()) {
                     item { EmptyLine("Nothing in the library yet. Songs show up here once the server has some.") }
                 } else {
@@ -326,35 +326,31 @@ private fun GuestCard(home: GuestHome) {
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        Column(Modifier.padding(16.dp)) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(56.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(14.dp)),
-                ) {
+                Avatar {
                     Icon(
                         Icons.Filled.Person,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(32.dp),
+                        modifier = Modifier.size(24.dp),
                     )
                 }
-                Column(Modifier.padding(start = 14.dp)) {
-                    Text("Guest", style = MaterialTheme.typography.headlineSmall)
+                Column(Modifier.padding(start = 12.dp)) {
+                    Text("Guest", style = MaterialTheme.typography.titleMedium)
                     Text(
                         "Plays, likes and playlists are only kept for accounts.",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 14.dp))
             Text(
                 "In this library",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp),
             )
             Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
                 BigStat("%,d".format(home.songs), if (home.songs == 1) "song" else "songs", Modifier.weight(1f))
@@ -367,16 +363,72 @@ private fun GuestCard(home: GuestHome) {
     }
 }
 
-/** Home's play action, in the top bar: the whole library, shuffled on the server. */
+/**
+ * Home's two ways to start, side by side under the player card (owner, 2026-10-11): the whole library shuffled on the
+ * server, in the accent as the page's main action, and Listen together. Both were small icons in the top bar before.
+ */
 @Composable
-private fun ShuffleLibraryButton(onClick: () -> Unit) {
-    FilledTonalButton(
-        onClick = onClick,
-        contentPadding = PaddingValues(start = 12.dp, end = 16.dp),
-        modifier = Modifier.padding(end = 8.dp),
+private fun StartRow(onShuffle: () -> Unit, onTogether: () -> Unit) {
+    val padding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Icon(Icons.Filled.Shuffle, contentDescription = null, modifier = Modifier.size(18.dp))
-        Text("Shuffle", modifier = Modifier.padding(start = 6.dp))
+        Button(onClick = onShuffle, contentPadding = padding, modifier = Modifier.weight(1f)) {
+            Icon(Icons.Filled.Shuffle, contentDescription = null, modifier = Modifier.size(18.dp))
+            Text("Shuffle library", maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 8.dp))
+        }
+        OutlinedButton(onClick = onTogether, contentPadding = padding, modifier = Modifier.weight(1f)) {
+            Icon(Icons.Filled.Groups, contentDescription = null, modifier = Modifier.size(18.dp))
+            Text("Listen together", maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 8.dp))
+        }
+    }
+}
+
+/** The player card's initial or icon, in a small rounded square. */
+@Composable
+private fun Avatar(content: @Composable () -> Unit) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(10.dp)),
+    ) { content() }
+}
+
+/** A bordered card holding a ranked list, like the player card, so a list reads as one block (owner, 2026-10-11). */
+@Composable
+private fun ListCard(content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        shape = CardShape,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
+        Column(Modifier.padding(vertical = 4.dp), content = content)
+    }
+}
+
+/** Play and Shuffle along a card's foot, labelled, instead of loose icons beside the heading. */
+@Composable
+private fun CardActions(onPlay: () -> Unit, onShuffle: () -> Unit, what: String) {
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(top = 4.dp))
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        FilledTonalButton(
+            onClick = onPlay,
+            modifier = Modifier.weight(1f).semantics { contentDescription = "Play $what" },
+        ) {
+            Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+            Text("Play", modifier = Modifier.padding(start = 8.dp))
+        }
+        FilledTonalButton(
+            onClick = onShuffle,
+            modifier = Modifier.weight(1f).semantics { contentDescription = "Shuffle $what" },
+        ) {
+            Icon(Icons.Filled.Shuffle, contentDescription = null, modifier = Modifier.size(18.dp))
+            Text("Shuffle", modifier = Modifier.padding(start = 8.dp))
+        }
     }
 }
 
@@ -403,30 +455,27 @@ private fun PlayerCard(username: String?, stats: UserStatsDto, range: StatsRange
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        Column(Modifier.padding(16.dp)) {
+        // Compact (owner, 2026-10-11): a small avatar beside the name, the numbers straight under it.
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(56.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(14.dp)),
-                ) {
+                Avatar {
                     Text(
                         name.take(1).uppercase(),
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
                 }
-                Column(Modifier.padding(start = 14.dp)) {
-                    Text(name, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Column(Modifier.padding(start = 12.dp)) {
+                    Text(name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(
                         "Listening since ${formatMonthYear(stats.memberSince)}",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 14.dp))
             val (listenedValue, listenedLabel) = listenedHeadline(stats.totals.msListened)
-            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+            Row(Modifier.fillMaxWidth().padding(top = 12.dp).height(IntrinsicSize.Min)) {
                 BigStat(listenedValue, listenedLabel, Modifier.weight(1f))
                 VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.fillMaxHeight())
                 BigStat(stats.totals.plays.toString(), if (stats.totals.plays == 1) "play" else "plays", Modifier.weight(1f))
@@ -439,7 +488,7 @@ private fun PlayerCard(username: String?, stats: UserStatsDto, range: StatsRange
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 )
             }
         }
@@ -449,7 +498,7 @@ private fun PlayerCard(username: String?, stats: UserStatsDto, range: StatsRange
 @Composable
 private fun BigStat(value: String, label: String, modifier: Modifier) {
     Column(modifier.padding(horizontal = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, style = MaterialTheme.typography.headlineLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(value, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(
             label,
             style = MaterialTheme.typography.bodySmall,
@@ -546,7 +595,7 @@ private fun <T> CoverRow(
     }
 }
 
-/** #1 gets the big cover, like the chosen song on a music select (DESIGN.md); the rest follow as rows. */
+/** #1 gets the big cover, like the chosen song on a music select (DESIGN.md); the rest follow as rows in the same card. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TopSongHero(

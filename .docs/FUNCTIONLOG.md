@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `StartRow()`, `Avatar()`, `ListCard()`, `CardActions()` (new); `PlayerCard()`, `GuestCard()`, `GuestHomeList()`, `YouScreen()` (changed); `ShuffleLibraryButton()` (removed): `android/.../ui/profile/YouScreen.kt`
+**Date:** 2026-10-11
+**How added:** owner request
+**Purpose:** Home layout: Shuffle library and Listen together as a labelled row under the player card, a compact player card, top lists in bordered cards with Play/Shuffle at the foot.
+**Side effects:** none.
+**Before:** Shuffle and a Listen together icon in the top bar; a tall player card; top lists loose on the page with icon buttons beside the heading.
+**After:** as above.
+
 **Function:** `MainActivity.onDestroy()` (new), `MainActivity.keepPlayingWhenSwipedAway` (new): `android/.../MainActivity.kt`; `PlaybackService.onTaskRemoved()` (logging)
 **Date:** 2026-10-11
 **How added:** bug fix

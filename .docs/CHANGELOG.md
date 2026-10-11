@@ -4,6 +4,21 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Android Home tidied: actions under the player card, lists in cards
+
+Owner's requests, 2026-10-11, all in `ui/profile/YouScreen.kt`:
+
+- **Top bar:** the greeting only. The Shuffle button and the Listen together icon left it.
+- **`StartRow`:** under the player card, "Shuffle library" (filled, the page's one accent action) and "Listen
+  together" (outlined), side by side and labelled. Guests get the same row under their card.
+- **Player card, compact:** a 40 dp avatar beside the name, the three numbers straight under it with no divider,
+  numbers at `headlineSmall` instead of `headlineLarge`. The guest card follows the same shape.
+- **Top songs and Top artists in cards (`ListCard`):** the same bordered surface as the player card. Top songs ends
+  with labelled Play and Shuffle buttons (`CardActions`) instead of two icons beside the heading. The rows now sit in
+  one list item each, so they no longer slide to their new places when the range changes.
+- Verified: `./gradlew :app:compileDebugKotlin` builds. **Not run:** on a phone or emulator (none here), so the layout,
+  narrow-screen fit of the two buttons and the light themes are unchecked.
+
 ## 2026-10-11: Android pauses on a swipe from recents from the activity too (A58 backstop)
 
 - **Why:** on a Pixel, with "Keep playing when swiped away" off and not in a room, music kept playing after the app
