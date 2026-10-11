@@ -10,6 +10,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.brainlessmusic.app.ui.albums.AlbumDetailScreen
 import com.brainlessmusic.app.ui.artists.ArtistDetailScreen
+import com.brainlessmusic.app.ui.downloads.DownloadGroupScreen
 import com.brainlessmusic.app.ui.downloads.DownloadsScreen
 import com.brainlessmusic.app.ui.library.LibraryScreen
 import com.brainlessmusic.app.ui.login.LoginScreen
@@ -62,6 +63,12 @@ fun BrainlessNavGraph(
         }
         composable(Routes.DOWNLOADS) {
             DownloadsScreen(navController = navController)
+        }
+        composable(
+            Routes.DOWNLOAD_GROUP,
+            arguments = listOf(navArgument(Routes.ARG_DOWNLOAD_GROUP) { type = NavType.StringType }),
+        ) { entry ->
+            DownloadGroupScreen(onBack = { navController.popFrom(entry) }, onOpenNowPlaying = { navController.openNowPlaying() })
         }
         composable(
             Routes.ARTIST_DETAIL,

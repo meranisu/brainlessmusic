@@ -25,10 +25,10 @@ class DownloadRowTest {
 
     @Test
     fun `status follows the download`() {
-        assertEquals("Artist · 3 songs", row(3, 3, GroupDownload.Done).status())
-        assertEquals("3 songs", row(3, 3, GroupDownload.Done, subtitle = null).status())
+        assertEquals("3 songs", row(3, 3, GroupDownload.Done).status())
+        assertEquals("2 of 3 songs", row(2, 3, GroupDownload.None).status())
         assertEquals("Downloading, 40%", row(1, 3, GroupDownload.Running(40)).status())
-        assertEquals("Some songs failed. Retry from the menu.", row(2, 3, GroupDownload.Failed).status())
+        assertEquals("Some songs failed", row(2, 3, GroupDownload.Failed).status())
     }
 
     @Test
@@ -37,5 +37,18 @@ class DownloadRowTest {
         assertTrue(row(2, 3, GroupDownload.None).canRetry)
         assertFalse(row(3, 3, GroupDownload.Done).canRetry)
         assertFalse(row(1, 3, GroupDownload.Running(40)).canRetry)
+    }
+
+    @Test
+    fun `filters pick tiles by kind, and Songs shows no tiles`() {
+        fun group(id: String, kind: String) = DownloadRow(DownloadGroup(id, kind, id, null, null, 0), emptyList(), 0, GroupDownload.None)
+        val album = group("album:1", "album")
+        val playlist = group("playlist:2", "playlist")
+        val songs = group("songs", "songs")
+        val ui = DownloadsUi(listOf(album, playlist, songs), emptyList(), emptyList(), 1, 1, 0, 0, 0, false, false)
+        assertEquals(listOf(album, playlist, songs), ui.tilesFor(DownloadFilter.ALL))
+        assertEquals(listOf(album), ui.tilesFor(DownloadFilter.ALBUMS))
+        assertEquals(listOf(playlist), ui.tilesFor(DownloadFilter.PLAYLISTS))
+        assertEquals(emptyList<DownloadRow>(), ui.tilesFor(DownloadFilter.SONGS))
     }
 }

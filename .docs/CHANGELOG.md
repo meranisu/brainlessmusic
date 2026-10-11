@@ -4,6 +4,26 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android: the Downloads tab as a cover grid, with a page per album and playlist (A89, A90)
+
+- **Cover grid** (A89): two columns of covers on a phone (more on a wider screen), each with its download state on a
+  solid disc in the corner (done, a progress ring, failed, or partly downloaded), the name and "8 of 12 songs" under it.
+  Tap opens its page.
+- **Storage panel** (A90): space used, against the limit with a bar when one is set; how many albums and playlists and
+  how many songs are ready; Play all and Shuffle, which queue every song fully on the phone.
+- **In progress**: while anything downloads, a panel shows how many, the first three songs with their progress, and
+  Pause all / Resume all (`DownloadManager` pause state, now followed in `DownloadRepository.paused`).
+- **Filters**: All, Albums, Playlists, Songs. Songs lists every downloaded song once, with its state; tap plays the
+  downloaded songs from it, the menu takes it off the phone.
+- **A page per album or playlist** (`downloads/{groupId}`): cover, name, "8 of 12 songs on the phone", Play and
+  Shuffle, then each song with its state. Tap plays from it (offline, only songs on the phone). Each song's menu:
+  Remove from phone, Stop download, or Download (checked against the storage limit, `downloadAgain()`). The page menu
+  has Download the rest and Remove download (asks first); the page closes once the group is gone.
+- New queries: `DownloadDao.allTracks()` (each song once, with a cover), `groupFlow()`, `tracksOfFlow()`.
+- Verified: `./gradlew assembleDebug testDebugUnitTest lintDebug` succeeds: 63 tests (1 new), 0 failures; lint 0
+  errors, no warnings in `ui/downloads`. **Not run:** no emulator or phone is attached to this machine, so the screens
+  have not been seen.
+
 ## 2026-10-11 — Fixes from reviewing the offline downloads work (v0.3.19)
 
 From a review of `d40389c..20ebcea`/`98e085f`; every finding was checked against the code before fixing.

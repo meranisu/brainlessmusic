@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `DownloadsScreen` (rewritten: `StoragePanel`, `InProgressPanel`, `FilterRow`, `DownloadTile`, `StateBadge`, `SongRow`, `RemoveGroupDialog`), `DownloadsViewModel` (rewritten: `ui`, `playAll()`, `playSong()`, `pauseAll()`, `resumeAll()`, `tilesFor()`), new `DownloadGroupScreen` / `DownloadGroupViewModel` — `android/.../ui/downloads/`; `DownloadRepository.paused`, `pauseAll()`, `resumeAll()`, `downloadAgain()`; `DownloadDao.allTracks()`, `groupFlow()`, `tracksOfFlow()`; `Routes.DOWNLOAD_GROUP`
+**Date:** 2026-10-11
+**How added:** new feature (A89, A90)
+**Purpose:** the Downloads tab as a cover grid with storage, Play all, in-progress, filters, and a page per group.
+**Side effects:** none beyond the download service (pause and resume all).
+**Before:** a plain list with a space line, play on tap and a remove menu.
+**After:** as in the 2026-10-11 cover grid CHANGELOG entry.
+
 **Function:** `PlaybackController.rebuildQueuedItems()` (new, from `applyDataSaver()`), `streamUrlFor()`, `skipToDownloaded()`, `scrobble()`, `reportListened()`; `DownloadRepository.isLoaded`, `readIndex()`, `queueOf()`; `PendingPlays` (`close()`, `sendThenClear()`, retry timer, `isRefusedForGood()` narrowed); `AuthRepository.logout()`, new `recheckWhenOnline()`; `NetworkMonitor` (validated networks only); `recordScrobble()` (dedupe) — `backend/src/db/plays.ts`; `SearchPage` placeholder
 **Date:** 2026-10-11
 **How added:** bug fix (review of the offline downloads work)

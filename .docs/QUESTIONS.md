@@ -71,6 +71,15 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A90 — The Downloads tab gets all four additions *(was Q92)*
+**Answered:** 2026-10-11, in the question picker: a storage header (space against the limit, counts) with Play all /
+Shuffle all downloads; filter chips (All, Albums, Playlists, Songs); a page per album or playlist with each song's
+state and single-song removal; an in-progress section with pause and resume all.
+
+### A89 — The Downloads tab is a cover grid *(was Q91)*
+**Answered:** 2026-10-11, in the question picker: "Cover grid (Recommended)". Two columns of album and playlist covers,
+like the music select, with the download state on the cover.
+
 ### A88 — Downloads: show space used, plus an optional limit *(was Q90)*
 **Answered:** 2026-10-11, in chat: "show space used, and allow for limits". Settings show the space downloads use,
 and you can set a limit (off by default). New downloads stop at the limit and say so; nothing already downloaded is

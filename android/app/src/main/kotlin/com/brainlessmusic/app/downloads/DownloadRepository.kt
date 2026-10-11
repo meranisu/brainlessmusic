@@ -69,6 +69,11 @@ class DownloadRepository @Inject constructor(
     /** Bytes the downloads take on the phone, finished or not. */
     val spaceUsed: StateFlow<Long> = _spaceUsed.asStateFlow()
 
+    private val _paused = MutableStateFlow(manager.downloadsPaused)
+
+    /** Pause all from the Downloads tab, or a 401 (see [needsSignIn]). */
+    val paused: StateFlow<Boolean> = _paused.asStateFlow()
+
     private val _needsSignIn = MutableStateFlow(false)
 
     /** The server answered 401 to a download: the session ran out, and the queue is paused until a sign-in. */
@@ -93,6 +98,10 @@ class DownloadRepository @Inject constructor(
                     _needsSignIn.value = true
                     DownloadService.sendPauseDownloads(context, MusicDownloadService::class.java, false)
                 }
+            }
+
+            override fun onDownloadsPausedChanged(manager: DownloadManager, downloadsPaused: Boolean) {
+                _paused.value = downloadsPaused
             }
 
             override fun onDownloadRemoved(manager: DownloadManager, download: Download) {
@@ -266,6 +275,24 @@ class DownloadRepository @Inject constructor(
                     file.absolutePath
                 }
             }.getOrNull()
+        }
+    }
+
+    fun pauseAll() = DownloadService.sendPauseDownloads(context, MusicDownloadService::class.java, false)
+
+    fun resumeAll() {
+        _needsSignIn.value = false
+        DownloadService.sendResumeDownloads(context, MusicDownloadService::class.java, false)
+    }
+
+    /**
+     * Downloads songs already listed in a group again (from its page: one that failed, or was removed on its own),
+     * checked against the storage limit like any download.
+     */
+    fun downloadAgain(trackIds: List<Int>, onRefused: (String) -> Unit) {
+        scope.launch {
+            roomFor(trackIds)?.let { onRefused(it); return@launch }
+            download(trackIds)
         }
     }
 

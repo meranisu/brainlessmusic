@@ -2,6 +2,7 @@ package com.brainlessmusic.app.downloads
 
 import androidx.room.Dao
 import androidx.room.Database
+import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.Insert
@@ -13,6 +14,7 @@ import androidx.room.Transaction
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 /** What a downloaded song is called, so it can be listed and played with no signal. The file itself is Media3's. */
 @Entity(tableName = "downloaded_track")
@@ -47,8 +49,37 @@ data class DownloadGroup(
 )
 data class DownloadGroupTrack(val groupId: String, val trackId: Int, val position: Int)
 
+/** A downloaded song with the cover of a group that holds it, for lists that mix groups. */
+data class DownloadedTrackWithCover(
+    @Embedded val track: DownloadedTrack,
+    val coverPath: String?,
+)
+
 @Dao
 abstract class DownloadDao {
+    /**
+     * Every downloaded song once, newest group first and in each group's order; a song in two groups appears where
+     * its newest group puts it.
+     */
+    @Query(
+        "SELECT t.*, g.coverPath AS coverPath FROM downloaded_track t " +
+            "JOIN download_group_track l ON l.trackId = t.trackId JOIN download_group g ON g.id = l.groupId " +
+            "ORDER BY g.addedAt DESC, l.position",
+    )
+    protected abstract fun allTracksWithDuplicates(): Flow<List<DownloadedTrackWithCover>>
+
+    fun allTracks(): Flow<List<DownloadedTrackWithCover>> =
+        allTracksWithDuplicates().map { rows -> rows.distinctBy { it.track.trackId } }
+
+    @Query("SELECT * FROM download_group WHERE id = :groupId")
+    abstract fun groupFlow(groupId: String): Flow<DownloadGroup?>
+
+    @Query(
+        "SELECT t.* FROM downloaded_track t JOIN download_group_track g ON g.trackId = t.trackId " +
+            "WHERE g.groupId = :groupId ORDER BY g.position",
+    )
+    abstract fun tracksOfFlow(groupId: String): Flow<List<DownloadedTrack>>
+
     @Query("SELECT * FROM download_group ORDER BY addedAt DESC")
     abstract fun groups(): Flow<List<DownloadGroup>>
 
