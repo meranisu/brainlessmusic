@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `recordScrobble()` (new `playedAt` parameter) — `backend/src/db/plays.ts`; scrobble route and new `parsePlayedAt()` — `backend/src/routes/tracks.ts`
+**Date:** 2026-10-11
+**How added:** new feature (A87)
+**Purpose:** date a play made offline by when it happened.
+**Side effects:** DB writes to `play_history` and `tracks`, as before.
+**Before:** every play was dated to when it reached the server, and `last_played_at` was always set to now.
+**After:** an optional `playedAt` within 30 days dates the play; `last_played_at` only ever moves forward.
+
+**Function:** new `PendingPlays` (`add()`, `setMsPlayed()`, `flush()`), `PlayRef`, `isRefusedForGood()` — `android/.../playback/PendingPlays.kt`; new `PendingPlay`, `PendingPlayDao`, `DownloadDatabase.MIGRATION_1_2`; `PlaybackController.scrobble()`, `reportListened()`; `LibraryRepository.scrobble()` (new `playedAt`)
+**Date:** 2026-10-11
+**How added:** new feature (A87; offline downloads, step 5)
+**Purpose:** keep plays made with no signal and send them later with their time.
+**Side effects:** writes the `pending_play` table; scrobble calls when the phone comes back online.
+**Before:** a scrobble with no signal was lost.
+**After:** it waits on the phone and is sent, oldest first, when the signal returns.
+
 **Function:** `DownloadRepository` new `downloadPlaylist()`, `downloadSong()`, `removeSong()`, `deleteAll()`, `roomFor()`, `needsSignIn`, shared `downloadGroup()` (`downloadAlbum()` now takes `onRefused`); `DownloadDao` new `addToGroup()`, `removeFromGroup()`, `deleteAll()`, `saveGroup()` returns dropped songs; `PlaybackSettings.downloadLimitGb` / `setDownloadLimitGb()`
 **Date:** 2026-10-11
 **How added:** new feature (offline downloads, step 4)

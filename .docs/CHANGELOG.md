@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Plays made offline are counted with the time they happened (A87; offline downloads, step 5)
+
+- **Backend:** `POST /tracks/:id/scrobble` takes an optional `playedAt` (ISO 8601). It must be within the last 30 days
+  and not more than 5 minutes ahead of the server's clock (a phone clock running fast is recorded as now); anything
+  else is a 400. `recordScrobble()` writes it as `play_history.played_at`, and a late play never moves the track's
+  `last_played_at` back. Without `playedAt` nothing changes. No schema change.
+- **Android:** a play that can't reach the server (no signal, or the server unreachable) is kept on the phone in a new
+  `pending_play` table (Room `downloads.db` version 2, with a migration), with the time it happened. Its listening time
+  keeps updating there (A62). When the phone is back online they go out oldest first; one the server can't take yet
+  stays for next time, one it refuses for good (a 4xx other than 401) is dropped. Guests' plays aren't kept (A37).
+- Order of rollout doesn't matter: a phone on this build talking to the old server just has its offline plays dated to
+  when they were sent.
+- Verified: `cd backend && npm test`, 427 tests, 0 failures (4 new in `scrobblePlayedAt.test.ts`); `npx tsc --noEmit`
+  clean. `./gradlew assembleDebug testDebugUnitTest lintDebug` succeeds: 62 tests (1 new), 0 failures; lint 0 errors,
+  no new warnings. Not run on a phone, and not deployed to smol.
+
 ## 2026-10-11 — Android: playlist and single-song downloads, storage limit, offline skipping (offline downloads, step 4)
 
 - **Playlists download** from a button in the playlist header (accounts only, as playlists are). It is a snapshot:

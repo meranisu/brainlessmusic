@@ -58,7 +58,7 @@ The list is [QUESTIONS.md](QUESTIONS.md) — check it before asking anything. Bl
 
 ## Next
 
-1. **Box 19 — offline downloads** (Android): the last v0.2 box. Spec first; data-saver (`?quality=low`) already shipped in fa403a9.
+1. **Box 19 — offline downloads** (Android): the last v0.2 box. All five spec steps built 2026-10-11; left: deploy the backend (`playedAt`) to smol and run the phone checklist in [specs/offline-downloads.md](specs/offline-downloads.md).
 2. Cloudflare Access (A74): switch on once Q77 and Q78 are answered.
 3. Commit or finish the failure-logging work above.
 4. v0.3 starts with the room-sync spec (box 21) — spec before code.

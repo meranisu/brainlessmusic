@@ -10,6 +10,8 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.RoomDatabase
 import androidx.room.Transaction
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 /** What a downloaded song is called, so it can be listed and played with no signal. The file itself is Media3's. */
@@ -167,11 +169,50 @@ abstract class DownloadDao {
     }
 }
 
+/** A play made with no signal, waiting to be sent with the time it happened (A87). */
+@Entity(tableName = "pending_play")
+data class PendingPlay(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val trackId: Int,
+    val msPlayed: Long,
+    /** ISO 8601, UTC. */
+    val playedAt: String,
+)
+
+@Dao
+interface PendingPlayDao {
+    @Insert
+    suspend fun add(play: PendingPlay): Long
+
+    @Query("UPDATE pending_play SET msPlayed = :msPlayed WHERE id = :id")
+    suspend fun setMsPlayed(id: Long, msPlayed: Long)
+
+    @Query("SELECT * FROM pending_play ORDER BY id")
+    suspend fun all(): List<PendingPlay>
+
+    @Query("DELETE FROM pending_play WHERE id = :id")
+    suspend fun delete(id: Long)
+}
+
+/** Downloads and, since version 2, plays waiting for signal: both are what the phone keeps for offline use. */
 @Database(
-    entities = [DownloadedTrack::class, DownloadGroup::class, DownloadGroupTrack::class],
-    version = 1,
+    entities = [DownloadedTrack::class, DownloadGroup::class, DownloadGroupTrack::class, PendingPlay::class],
+    version = 2,
     exportSchema = false,
 )
 abstract class DownloadDatabase : RoomDatabase() {
     abstract fun dao(): DownloadDao
+
+    abstract fun pendingPlays(): PendingPlayDao
+
+    companion object {
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `pending_play` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`trackId` INTEGER NOT NULL, `msPlayed` INTEGER NOT NULL, `playedAt` TEXT NOT NULL)",
+                )
+            }
+        }
+    }
 }

@@ -123,7 +123,7 @@ Hosting comes before the app, so there's a real server to point the phone at.
   *Done when:* playback survives locking the phone and is controllable from the lock screen.
 
 - [ ] **19. Offline downloads** (mobile). Download at original quality, manage the download queue, fall back to cache when the signal drops, data-saver mode via `?quality=low`. **[spec first]**
-  *Done when:* you play a downloaded album in airplane mode. — **spec drafted 2026-10-11:** [specs/offline-downloads.md](../specs/offline-downloads.md) (decisions A85–A88).
+  *Done when:* you play a downloaded album in airplane mode. — **spec drafted and all five steps built 2026-10-11:** [specs/offline-downloads.md](../specs/offline-downloads.md) (decisions A85–A88). Open until the phone checklist in the spec passes and the backend is on smol.
 
 ---
 

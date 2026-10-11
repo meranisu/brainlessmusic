@@ -616,7 +616,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
     },
   );
 
-  fastify.post<{ Params: { id: string }; Body: { msPlayed?: number } }>(
+  fastify.post<{ Params: { id: string }; Body: { msPlayed?: number; playedAt?: unknown } }>(
     '/tracks/:id/scrobble',
     { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
@@ -636,7 +636,16 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
           ? Math.floor(rawMsPlayed)
           : null;
 
-      const playId = recordScrobble(request.user!.id, id, msPlayed);
+      // A play made offline and sent later says when it happened (A87).
+      let playedAt: string | null = null;
+      if (request.body?.playedAt !== undefined) {
+        playedAt = parsePlayedAt(request.body.playedAt);
+        if (!playedAt) {
+          return reply.code(400).send({ error: 'playedAt must be an ISO time within the last 30 days' });
+        }
+      }
+
+      const playId = recordScrobble(request.user!.id, id, msPlayed, playedAt);
 
       const updated = findTrackById(id)!;
       return reply.code(201).send({
@@ -670,3 +679,16 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
 };
 
 export default tracksRoute;
+
+/** How long a play made offline may wait to be sent. Older ones are refused, and the phone drops them. */
+const PLAYED_AT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+/** A phone's clock can run a little ahead of the server's. */
+const PLAYED_AT_CLOCK_SKEW_MS = 5 * 60 * 1000;
+
+/** An ISO time within the allowed window, as SQLite's `datetime('now')` shape (UTC); otherwise null. */
+export function parsePlayedAt(value: unknown, now = Date.now()): string | null {
+  if (typeof value !== 'string') return null;
+  const ms = Date.parse(value);
+  if (Number.isNaN(ms) || ms > now + PLAYED_AT_CLOCK_SKEW_MS || ms < now - PLAYED_AT_MAX_AGE_MS) return null;
+  return new Date(Math.min(ms, now)).toISOString().slice(0, 19).replace('T', ' ');
+}

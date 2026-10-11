@@ -15,6 +15,7 @@ import androidx.media3.exoplayer.scheduler.Requirements
 import androidx.room.Room
 import com.brainlessmusic.app.downloads.DownloadDao
 import com.brainlessmusic.app.downloads.DownloadDatabase
+import com.brainlessmusic.app.downloads.PendingPlayDao
 import com.brainlessmusic.app.downloads.TrackCacheKey
 import dagger.Module
 import dagger.Provides
@@ -48,10 +49,15 @@ object DownloadModule {
     @Provides
     @Singleton
     fun provideDownloadDatabase(@ApplicationContext context: Context): DownloadDatabase =
-        Room.databaseBuilder(context, DownloadDatabase::class.java, "downloads.db").build()
+        Room.databaseBuilder(context, DownloadDatabase::class.java, "downloads.db")
+            .addMigrations(DownloadDatabase.MIGRATION_1_2)
+            .build()
 
     @Provides
     fun provideDownloadDao(db: DownloadDatabase): DownloadDao = db.dao()
+
+    @Provides
+    fun providePendingPlayDao(db: DownloadDatabase): PendingPlayDao = db.pendingPlays()
 
     @Provides
     @Singleton

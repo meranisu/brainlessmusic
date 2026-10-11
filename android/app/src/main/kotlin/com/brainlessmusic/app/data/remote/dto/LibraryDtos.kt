@@ -95,6 +95,8 @@ data class SearchResultsDto(
 
 data class ScrobbleRequest(
     val msPlayed: Long,
+    /** Only for a play made offline and sent later (A87); Gson leaves it out when null. */
+    val playedAt: String? = null,
 )
 
 /** `POST /tracks/:id/scrobble` answers 201 with the updated counters; the client only needs to know it landed. */

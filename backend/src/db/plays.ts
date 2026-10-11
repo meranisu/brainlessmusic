@@ -35,26 +35,41 @@ export interface TopTrack {
  * Records a play and updates play_count/last_played_at in one transaction. Built on first call, since
  * `db.transaction()` opens the connection.
  */
-let scrobbleTransaction: ((userId: number, trackId: number, msPlayed: number | null) => number) | null = null;
+let scrobbleTransaction:
+  | ((userId: number, trackId: number, msPlayed: number | null, playedAt: string | null) => number)
+  | null = null;
 
 /** Returns the new play's id, which the app uses to report the final listening time (A62). */
-export function recordScrobble(userId: number, trackId: number, msPlayed: number | null): number {
+/**
+ * [playedAt] is when a play made offline happened (A87), in SQLite's `datetime('now')` shape; null means now. A late
+ * play never moves the track's `last_played_at` back.
+ */
+export function recordScrobble(
+  userId: number,
+  trackId: number,
+  msPlayed: number | null,
+  playedAt: string | null = null,
+): number {
   scrobbleTransaction ??= buildScrobbleTransaction();
-  return scrobbleTransaction(userId, trackId, msPlayed);
+  return scrobbleTransaction(userId, trackId, msPlayed, playedAt);
 }
 
 function buildScrobbleTransaction() {
-  return db.transaction((userId: number, trackId: number, msPlayed: number | null): number => {
+  return db.transaction((userId: number, trackId: number, msPlayed: number | null, playedAt: string | null): number => {
     const playId = Number(
-      db.prepare('INSERT INTO play_history (user_id, track_id, ms_played) VALUES (?, ?, ?)').run(userId, trackId, msPlayed)
-        .lastInsertRowid,
+      db
+        .prepare(
+          "INSERT INTO play_history (user_id, track_id, ms_played, played_at) VALUES (?, ?, ?, COALESCE(?, datetime('now')))",
+        )
+        .run(userId, trackId, msPlayed, playedAt).lastInsertRowid,
     );
 
     db.prepare(
       `UPDATE tracks
-       SET play_count = play_count + 1, last_played_at = datetime('now')
+       SET play_count = play_count + 1,
+           last_played_at = MAX(COALESCE(last_played_at, ''), COALESCE(?, datetime('now')))
        WHERE id = ?`,
-    ).run(trackId);
+    ).run(playedAt, trackId);
     return playId;
   });
 }

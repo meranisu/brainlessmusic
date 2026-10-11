@@ -28,6 +28,8 @@ import com.brainlessmusic.app.data.local.PlaybackSettings
 import com.brainlessmusic.app.data.local.TransitionPrefs
 import com.brainlessmusic.app.data.local.isNextOnAlbum
 import com.brainlessmusic.app.data.remote.NetworkMonitor
+import com.brainlessmusic.app.data.repository.ConnectionError
+import com.brainlessmusic.app.data.repository.ConnectionException
 import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.downloads.DownloadRepository
 import com.brainlessmusic.app.downloads.TrackCacheKey
@@ -67,6 +69,7 @@ class PlaybackController @Inject constructor(
     private val settings: PlaybackSettings,
     private val downloads: DownloadRepository,
     private val networkMonitor: NetworkMonitor,
+    private val pendingPlays: PendingPlays,
     // Lazy: opening the download folder is disk work, and waits until the player is first built.
     private val downloadCache: dagger.Lazy<Cache>,
 ) {
@@ -150,7 +153,7 @@ class PlaybackController @Inject constructor(
     private var tracker: ListenTracker? = null
     private var trackerItem: QueueItem? = null
     // The current play's id once its scrobble answers; the final listening time goes to it (A62).
-    private var playId: Deferred<Int?>? = null
+    private var playId: Deferred<PlayRef?>? = null
     private var lastTickAt = 0L
     // The newest final-listening-time report, so logout can wait for it.
     private var lastFinish: Job? = null
@@ -1019,8 +1022,21 @@ class PlaybackController @Inject constructor(
     private fun scrobble() {
         val item = trackerItem ?: return
         val listened = tracker?.listenedMs ?: return
-        // A missed scrobble costs a statistic, so it is never surfaced.
-        playId = scope.async { libraryRepository.scrobble(item.trackId, listened).getOrNull() }
+        // A missed scrobble costs a statistic, so it is never surfaced. With no signal it waits on the phone (A87).
+        playId = scope.async {
+            if (!networkMonitor.online.value) return@async pendingPlays.add(item.trackId, listened)
+            libraryRepository.scrobble(item.trackId, listened).fold(
+                onSuccess = { id -> id?.let { PlayRef.Server(it) } },
+                onFailure = {
+                    // Connected but the server can't be reached: same as no signal.
+                    if ((it as? ConnectionException)?.error == ConnectionError.Unreachable) {
+                        pendingPlays.add(item.trackId, listened)
+                    } else {
+                        null
+                    }
+                },
+            )
+        }
     }
 
     /**
@@ -1031,7 +1047,13 @@ class PlaybackController @Inject constructor(
         val pending = playId ?: return
         val listened = tracker?.listenedMs ?: return
         if (final) playId = null
-        lastFinish = scope.launch { pending.await()?.let { libraryRepository.finishPlay(it, listened) } }
+        lastFinish = scope.launch {
+            when (val ref = pending.await()) {
+                is PlayRef.Server -> libraryRepository.finishPlay(ref.playId, listened)
+                is PlayRef.Local -> pendingPlays.setMsPlayed(ref, listened)
+                null -> Unit
+            }
+        }
     }
 
     /**
