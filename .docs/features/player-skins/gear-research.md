@@ -5,6 +5,8 @@ VOLTEX's play screen, scoring, screens and look, with notes on what Gear can use
 2021-2025); the current arcade version is SOUND VOLTEX ∇ (from 2025-12-24), which adds finer sub-levels and a profile
 section. Gathered 2026-10-11 from the sources at the bottom.
 
+**Built:** v0.3.48 (the skin), v0.3.49 (CHAIN on the lane, the listening radar on Home). VOLFORCE is not built.
+
 **Decided (A125-A128):** Orbitron for display/labels/numbers with Chakra Petch for body; Phosphor icons (Bold, Fill
 for play/pause/heart); colour theme "Voltage" from the mockup's swatch; a score and grade from plays and skips.
 

@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `scrobble()`, `recordSkip()`, `publish()` (changed): `android/.../playback/PlaybackController.kt`; `ChainCount()` (new), `GearLane()` (changed): `android/.../ui/playback/skins/Gear.kt`; `ListeningRadar()`, `radarValues()`, `rangeDays()` (new): `android/.../ui/profile/ListeningRadar.kt`
+**Date:** 2026-10-11
+**How added:** new feature (owner's go-ahead)
+**Purpose:** Gear's CHAIN count on the lane, and its listening radar on Home.
+**Side effects:** none; the chain lives in memory for the app's run.
+**Before:** nothing counted plays in a row; Home had no radar.
+**After:** `PlaybackUiState.chain` counts plays without a skip between; Gear shows it, and a six-axis radar of the range on Home.
+
 **Function:** `GearDeck()`, `listeningScore()`, `gearGrade()` and the player's parts (new): `android/.../ui/playback/skins/Gear.kt`; `GearIntro()` (new): `android/.../ui/theme/SkinTransition.kt`; `GearHitIndication` (new), `typography()`/`shapes()`/`rowShape`/`coverShape` (changed): `android/.../ui/theme/Skin.kt`; `GearIcons` (new): `android/.../ui/theme/GearIcons.kt`; `QueueMarker()`, `PlayingMarker()`, `MiniProgress()`, `MiniPlayButton()`, `EdgeLine()`, `TabIcon()`, `tabColors()`, `segmentShape()`, `SkinSheet()`, `dockedHeader` (changed): `android/.../ui/common/SkinParts.kt`; `DifficultyTabs()` (new): `android/.../ui/library/LibraryScreen.kt`
 **Date:** 2026-10-11
 **How added:** new feature (A114, A125-A128)

@@ -61,6 +61,11 @@ data class PlaybackUiState(
     val queueStreams: Boolean = true,
     /** In a "Listen together" room: the transport drives the room for everyone, and shuffle and repeat are off. */
     val inRoom: Boolean = false,
+    /**
+     * Songs heard to the play threshold in a row since the app started, broken by one recorded as a skip (A113): SOUND
+     * VOLTEX's CHAIN, which Gear shows on its lane. Kept on the phone only, for this run of the app.
+     */
+    val chain: Int = 0,
 ) {
     val current: QueueItem? get() = queue.getOrNull(currentIndex)
     val hasQueue: Boolean get() = queue.isNotEmpty()

@@ -119,7 +119,9 @@ never its artwork, and stay flat: rings and borders, no glow.
   dock under a cyan edge; tabs are BT keys, the open one lit; the mini player's progress is a laser with the critical
   line's red tick, its play a small white key; the Library's tabs are the game's difficulty boxes (`GearDifficultyColors`);
   the queue numbers coming tracks "01", "02" on keys; sheets open as a chamfered card in the middle of the screen.
-  Voltage (phone-only) is its matching colour theme.
+  Voltage (phone-only) is its matching colour theme. The lane shows the CHAIN (songs played through in a row since
+  the app started, broken by a skip) as the game does, and Home adds a listening radar under the range picker, six
+  axes in the EFFECT RADAR's colours (`ListeningRadar`).
 
 Changing skin plays a short intro over the app (`SkinTransition`): Standard fades its name, Hit circle lands an
 approach ring and bursts, Lane closes and opens Arcaea's shutter, Gear runs the lane in and slams the critical line

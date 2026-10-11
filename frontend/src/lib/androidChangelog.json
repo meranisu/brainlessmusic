@@ -1,5 +1,32 @@
 [
   {
+    "version": "0.3.49",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "gear: the lane shows your **CHAIN** now, how many songs you've let play through in a row. skip one and it's back to zero",
+              "gear: home has a **listening radar**, a hexagon of your week/month/year/all time: plays, time, variety, reach, devotion and loved. it follows the range you pick"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.48",
     "date": "2026-10-11",
     "sections": [

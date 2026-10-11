@@ -4,6 +4,19 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Gear's CHAIN, and a listening radar on Home
+
+- Owner's go-ahead on two follow-ups from the Gear research. **CHAIN:** the playback controller counts songs heard
+  to the play threshold in a row (`chain`, up at each scrobble, back to 0 when a song is recorded as a skip, A113),
+  kept on the phone for this run of the app, and `PlaybackUiState.chain` carries it. Gear's lane shows it as the
+  game does, "CHAIN" over four wide digits with the leading zeros dim, kicking up on each new link.
+- **Listening radar:** in Gear, Home shows a hexagon chart of the picked range under the range picker, after SOUND
+  VOLTEX's EFFECT RADAR, its six axes in that radar's colours: PLAYS (plays a day), TIME (hours a day), VARIETY
+  (songs per play), REACH (artists per song), DEVOTION (the top artist's share) and LOVED (liked songs). All from the
+  stats Home already loads; no server change. It grows in on load unless animations are off.
+- Verified: `./gradlew testDebugUnitTest`: 114 tests, 1 skipped, 0 failed (new `ListeningRadarTest`: range lengths,
+  the empty case, each reading). **Not run:** on a phone.
+
 ## 2026-10-11: Gear, the SOUND VOLTEX skin, and the Voltage colour theme
 
 - The fourth skin in the mockup's order, after research (`.docs/features/player-skins/gear-research.md`) and the

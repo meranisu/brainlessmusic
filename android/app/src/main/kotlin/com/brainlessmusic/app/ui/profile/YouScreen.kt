@@ -1,5 +1,7 @@
 package com.brainlessmusic.app.ui.profile
 
+import com.brainlessmusic.app.data.local.Skin
+import com.brainlessmusic.app.ui.theme.LocalSkin
 import android.widget.Toast
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
@@ -148,6 +150,7 @@ fun YouScreen(
                 // with nothing played then, every song would read NEW.
                 val compared = (stats.previousTotals?.plays ?: 0) > 0
                 val ofRange = Modifier.graphicsLayer { alpha = rangeAlpha }
+                val gear = LocalSkin.current == Skin.GEAR
                 PullToRefreshBox(isRefreshing = refreshing, onRefresh = viewModel::refresh) {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
@@ -159,6 +162,8 @@ fun YouScreen(
                         item { StartRow(onShuffle = shuffle, onTogether = together) }
                         item { LibraryTiles(stats.counts, onOpenLiked, onOpenPlaylists, onOpenLessOften) }
                         item { RangePicker(range, viewModel::setRange) }
+                        // Gear reads the range as SOUND VOLTEX's EFFECT RADAR.
+                        if (gear) item { Box(ofRange) { ListeningRadar(stats, range) } }
 
                         if (recent.isNotEmpty()) {
                             item { SectionTitle("Recently played") }

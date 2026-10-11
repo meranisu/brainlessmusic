@@ -235,6 +235,7 @@ fun ColumnScope.GearDeck(
             enabled = state.durationMs > 0,
             shuffleOn = state.shuffle,
             repeatOn = state.repeat != Repeat.OFF,
+            chain = state.chain,
             onFraction = onFraction,
             onFinished = onFinished,
             modifier = Modifier.weight(1f).fillMaxHeight(),
@@ -379,7 +380,8 @@ private fun ScoreStrip(trackId: Int, record: TrackStatDto) {
  * The song as SOUND VOLTEX's lane: four BT lanes narrowing into the distance, a cyan wall left and a magenta one
  * right. The played part fills from the bottom to the red critical line at [fraction]; a tap or vertical drag seeks.
  * The two knob cursors ride the line, lit when shuffle and repeat are on. While [playing], chips fall toward it: white
- * BT chips and the orange FX ones across two lanes.
+ * BT chips and the orange FX ones across two lanes. [chain] (songs played through in a row) stands in the lane's
+ * middle as the game's CHAIN count.
  */
 @Composable
 private fun GearLane(
@@ -388,6 +390,7 @@ private fun GearLane(
     enabled: Boolean,
     shuffleOn: Boolean,
     repeatOn: Boolean,
+    chain: Int,
     onFraction: (Float) -> Unit,
     onFinished: () -> Unit,
     modifier: Modifier = Modifier,
@@ -430,23 +433,66 @@ private fun GearLane(
         Modifier
     }
 
-    Canvas(
-        modifier
-            .onSizeChanged { heightPx = it.height.coerceAtLeast(1) }
-            .then(touch)
-            .semantics {
-                contentDescription = "Song position"
-                progressBarRangeInfo = ProgressBarRangeInfo(f, 0f..1f)
-                if (enabled) {
-                    setProgress { target ->
-                        onFraction(target.coerceIn(0f, 1f))
-                        onFinished()
-                        true
+    Box(modifier, contentAlignment = Alignment.Center) {
+        Canvas(
+            Modifier
+                .fillMaxSize()
+                .onSizeChanged { heightPx = it.height.coerceAtLeast(1) }
+                .then(touch)
+                .semantics {
+                    contentDescription = "Song position"
+                    progressBarRangeInfo = ProgressBarRangeInfo(f, 0f..1f)
+                    if (enabled) {
+                        setProgress { target ->
+                            onFraction(target.coerceIn(0f, 1f))
+                            onFinished()
+                            true
+                        }
                     }
-                }
-            },
+                },
+        ) {
+            drawGearLane(f, phase, left = scheme.primary, shuffleOn = shuffleOn, repeatOn = repeatOn)
+        }
+        if (chain > 0) ChainCount(chain, Modifier.padding(bottom = 40.dp))
+    }
+}
+
+/**
+ * The CHAIN count as the game sets it in the lane: four wide digits, the leading zeros dim, a small label over them.
+ * It kicks up on each new link, unless animations are off. Doesn't take touches, so the lane under it still seeks.
+ */
+@Composable
+private fun ChainCount(chain: Int, modifier: Modifier = Modifier) {
+    val animate = rememberAnimationsOn()
+    val kick = remember { Animatable(1f) }
+    LaunchedEffect(chain) {
+        if (!animate) return@LaunchedEffect
+        kick.snapTo(1.3f)
+        kick.animateTo(1f, tween(260, easing = FastOutSlowInEasing))
+    }
+    val digits = chain.coerceAtMost(9999).toString().padStart(4, '0')
+    val lead = digits.indexOfFirst { it != '0' }.coerceAtLeast(0)
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+            .graphicsLayer {
+                scaleX = kick.value
+                scaleY = kick.value
+            }
+            .semantics(mergeDescendants = true) { contentDescription = "Chain $chain" },
     ) {
-        drawGearLane(f, phase, left = scheme.primary, shuffleOn = shuffleOn, repeatOn = repeatOn)
+        Text("CHAIN", fontFamily = GearDisplayFontFamily, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 2.sp, color = CriticalYellow)
+        Text(
+            buildAnnotatedString {
+                withStyle(SpanStyle(color = Color.White.copy(alpha = 0.25f))) { append(digits.substring(0, lead)) }
+                append(digits.substring(lead))
+            },
+            fontFamily = GearDisplayFontFamily,
+            fontWeight = FontWeight.Black,
+            fontSize = 34.sp,
+            letterSpacing = 2.sp,
+            color = Color.White,
+        )
     }
 }
 

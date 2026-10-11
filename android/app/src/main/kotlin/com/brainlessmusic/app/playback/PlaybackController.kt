@@ -1137,9 +1137,13 @@ class PlaybackController @Inject constructor(
         }
     }
 
+    /** Plays in a row with no skip between them, for [PlaybackUiState.chain]. */
+    private var chain = 0
+
     private fun scrobble() {
         val item = trackerItem ?: return
         val listened = tracker?.listenedMs ?: return
+        chain++
         // One id and one time for this play, whichever way it goes: a send that lands but whose answer is lost, then
         // sent again from the queue, is counted once (C10).
         val clientPlayId = UUID.randomUUID().toString()
@@ -1170,6 +1174,8 @@ class PlaybackController @Inject constructor(
         val item = trackerItem ?: return
         val heard = tracker ?: return
         if (heard.scrobbled || heard.listenedMs <= 0) return
+        // A skip breaks the chain, as an ERROR does in the game.
+        chain = 0
         val listened = heard.listenedMs
         val clientPlayId = UUID.randomUUID().toString()
         val playedAt = Instant.now().toString()
@@ -1243,6 +1249,7 @@ class PlaybackController @Inject constructor(
             stream = if (queue.isEmpty()) null else streamInfo(),
             queueStreams = queue.any { !downloads.isDownloaded(it.trackId) },
             inRoom = inRoom,
+            chain = chain,
         )
     }
 
