@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `BrainlessMusicTheme()` (changed): `android/.../ui/theme/Theme.kt`; `ArcadeWelcome()` (changed): `android/.../ui/splash/ArcadeWelcome.kt`
+**Date:** 2026-10-11
+**How added:** bug fix (owner report)
+**Purpose:** the skin intro and the sign-in welcome play.
+**Side effects:** none.
+**Before:** a skin change rebuilt everything under the theme, so the intro never played; the welcome cancelled itself on its first frame and left an invisible layer eating the first tap.
+**After:** one call site for every skin keeps state across a skin change; the welcome runs from one long-lived effect.
+
 **Function:** `ComboCounter()` (new), `HitCircleDeck()` (changed): `android/.../ui/playback/skins/HitCircle.kt`; `LaneCombo()` (new), `LaneTrack()` (changed): `android/.../ui/playback/skins/Lane.kt`
 **Date:** 2026-10-11
 **How added:** owner request

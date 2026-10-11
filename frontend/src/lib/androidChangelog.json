@@ -1,5 +1,32 @@
 [
   {
+    "version": "0.3.51",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "fixed the skin change intro not playing. switching skin was quietly rebuilding the whole app underneath, so it never noticed the skin changed",
+              "fixed the \"welcome back\" screen on login / opening the app. it was cancelling itself on the first frame and leaving an invisible layer that ate your first tap"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.50",
     "date": "2026-10-11",
     "sections": [

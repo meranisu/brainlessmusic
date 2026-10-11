@@ -4,6 +4,19 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: The skin intro and the sign-in welcome play again
+
+- Owner's report: the skin-change intro and the sign-in welcome didn't work properly. Two causes, found by reading
+  the code (no phone or emulator here to watch them):
+  - `BrainlessMusicTheme` called `content()` from a different branch of a `when` per skin. A skin change put the
+    whole app under a new composition group, throwing away all state below the theme: `SkinTransition`'s memory of the
+    skin before, so it never saw a change, and with it the open screen's state. Now one call site provides the
+    skin's indication (`LocalIndication.current` for Standard).
+  - `ArcadeWelcome` ran its animation in `LaunchedEffect(due)` and cleared the flag first, which changed the key and
+    cancelled the effect on its first frame: the animation never ran, and an invisible full-screen layer stayed over
+    the app until tapped. It now collects the flag from one long-lived effect.
+- Verified: `./gradlew testDebugUnitTest`: 114 tests, 1 skipped, 0 failed (compiles). **Not run:** on a phone.
+
 ## 2026-10-11: The combo in Hit circle and Lane too
 
 - Owner's request: Gear's CHAIN (`PlaybackUiState.chain`, songs played through in a row, broken by a skip) now shows

@@ -59,7 +59,6 @@ private fun readingLabel(skin: Skin) = when (skin) {
  */
 @Composable
 fun ArcadeWelcome(viewModel: StartViewModel) {
-    val due by viewModel.welcome.collectAsStateWithLifecycle()
     val name by viewModel.displayName.collectAsStateWithLifecycle(initialValue = null)
     val context = LocalContext.current
     val animate = remember {
@@ -68,13 +67,17 @@ fun ArcadeWelcome(viewModel: StartViewModel) {
     val progress = remember { Animatable(1f) }
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(due) {
-        if (!due) return@LaunchedEffect
-        // Cleared first, so turning the phone mid-way doesn't play it again.
-        viewModel.welcomed()
-        if (!animate) return@LaunchedEffect
-        progress.snapTo(0f)
-        progress.animateTo(1f, tween(2100, easing = LinearEasing))
+    // Watched from one long-lived effect rather than keyed on the flag: clearing the flag would change the key and
+    // cancel the effect, and with it the animation, on its first frame, leaving an invisible layer over the app.
+    LaunchedEffect(Unit) {
+        viewModel.welcome.collect { due ->
+            if (!due) return@collect
+            // Cleared first, so turning the phone mid-way doesn't play it again.
+            viewModel.welcomed()
+            if (!animate) return@collect
+            progress.snapTo(0f)
+            progress.animateTo(1f, tween(2100, easing = LinearEasing))
+        }
     }
 
     val p = progress.value

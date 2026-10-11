@@ -174,22 +174,17 @@ fun BrainlessMusicTheme(
             typography = skin.typography(),
             shapes = skin.shapes(),
         ) {
-            when (skin) {
-                Skin.STANDARD -> content()
-                // Inside MaterialTheme, which sets the ripple this replaces.
-                Skin.HIT_CIRCLE -> CompositionLocalProvider(
-                    LocalIndication provides ApproachRingIndication(colorScheme.primary, animationsOn),
-                    content = content,
-                )
-                Skin.LANE -> CompositionLocalProvider(
-                    LocalIndication provides LaneHitIndication(colorScheme.primary, animationsOn),
-                    content = content,
-                )
-                Skin.GEAR -> CompositionLocalProvider(
-                    LocalIndication provides GearHitIndication(colorScheme.primary, animationsOn),
-                    content = content,
-                )
+            // One call site for every skin: a `when` with `content()` in each branch put the whole app under a
+            // different composition group per skin, so a skin change threw away all state below the theme (the open
+            // screen, and the skin intro's memory of the skin before, so it never played).
+            val indication = when (skin) {
+                // Inside MaterialTheme, which sets the ripple the others replace.
+                Skin.STANDARD -> LocalIndication.current
+                Skin.HIT_CIRCLE -> ApproachRingIndication(colorScheme.primary, animationsOn)
+                Skin.LANE -> LaneHitIndication(colorScheme.primary, animationsOn)
+                Skin.GEAR -> GearHitIndication(colorScheme.primary, animationsOn)
             }
+            CompositionLocalProvider(LocalIndication provides indication, content = content)
         }
     }
 }
