@@ -23,7 +23,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -52,6 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.brainlessmusic.app.ui.common.SkinSheet
 import com.brainlessmusic.app.playback.PlaybackUiState
 import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.playback.RemovedEntry
@@ -155,7 +155,7 @@ fun QueueSheet(
     val sheetTop = runCatching { sheetState.requireOffset() }.getOrDefault(Float.MAX_VALUE)
     val underStatusBar = with(density) { (statusBarTop - sheetTop).coerceAtLeast(0f).toDp() }
 
-    ModalBottomSheet(
+    SkinSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = {

@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `SkinSheet()` (new): `android/.../ui/common/SkinParts.kt`
+**Date:** 2026-10-11
+**How added:** owner request
+**Purpose:** the app's bottom sheet; Hit circle floats it as an outlined card off the edges.
+**Side effects:** none. `QueueSheet`, `AddToPlaylistSheet`, `SongMenuSheet` and `UpdateSheet` now call it.
+**Before:** every sheet was a docked `ModalBottomSheet` in every skin.
+**After:** Standard docks as before; Hit circle floats 12 dp off the sides and bottom, above the navigation bar.
+
 **Function:** `ProfileRepository.callApi()` (changed): `android/.../data/repository/ProfileRepository.kt`
 **Date:** 2026-10-11
 **How added:** bug fix (owner report)

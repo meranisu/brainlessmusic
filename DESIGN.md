@@ -90,5 +90,5 @@ never its artwork, and stay flat: rings and borders, no glow.
 
 - **Hit circle** (after osu!): Fredoka for headings, titles and labels; round covers and avatars; larger corner radii and
   pill rows; a tapped row or tile gets an approach ring closing on the finger; the mini player and tab bar float as
-  outlined pills, the mini cover is ringed by progress; the selected tab is ringed (no pill); icons are Font Awesome
+  outlined pills and bottom sheets float as outlined cards (`SkinSheet`), the mini cover is ringed by progress; the selected tab is ringed (no pill); icons are Font Awesome
   Free, as osu!lazer uses (`AppIcons`, CC BY 4.0, credited in Settings → Licenses); the player is `HitCircleDeck`. Magenta is its matching colour theme.

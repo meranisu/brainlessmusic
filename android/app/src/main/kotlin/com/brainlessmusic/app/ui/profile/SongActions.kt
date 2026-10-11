@@ -1,6 +1,7 @@
 package com.brainlessmusic.app.ui.profile
 
 import androidx.media3.common.util.UnstableApi
+import com.brainlessmusic.app.ui.common.SkinSheet
 import com.brainlessmusic.app.downloads.DownloadRepository
 import com.brainlessmusic.app.downloads.TrackDownload
 import android.widget.Toast
@@ -17,10 +18,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -230,7 +229,7 @@ fun AddToPlaylistSheet(
         )
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+    SkinSheet(onDismissRequest = onDismiss) {
         SheetStatusBarFollowsApp()
         Text(
             "Add \"$trackTitle\" to",

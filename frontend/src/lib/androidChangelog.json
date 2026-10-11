@@ -1,5 +1,31 @@
 [
   {
+    "version": "0.3.38",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "hit circle: the bottom sheets float now too, same as the mini player and tab bar. holding the cover, add to playlist, the queue, all of them pop up as a rounded card off the edges instead of stuck to the bottom"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.37",
     "date": "2026-10-11",
     "sections": [

@@ -4,6 +4,13 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Hit circle, bottom sheets float
+
+- Owner's request: in Hit circle the bottom sheets (song options from holding the cover, Add to playlist, Queue, the
+  update offer) float off the screen's edges as an outlined card with all four corners rounded, like its mini player
+  and tab bar. `SkinSheet` in `ui/common/SkinParts.kt` wraps `ModalBottomSheet`; Standard is unchanged.
+- Verified: `./gradlew :app:compileDebugKotlin` builds. **Not run:** on a phone.
+
 ## 2026-10-11: Home's Week/Month/Year no longer glitches on quick taps
 
 - Owner's report: tapping between the range buttons quickly made Home stutter. `ProfileRepository.callApi` wrapped

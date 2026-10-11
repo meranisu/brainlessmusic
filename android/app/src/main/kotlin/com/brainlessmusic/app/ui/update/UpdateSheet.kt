@@ -17,10 +17,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -37,6 +35,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.brainlessmusic.app.ui.common.SkinSheet
 import com.brainlessmusic.app.BuildConfig
 import com.brainlessmusic.app.update.ReleaseNotes
 import com.brainlessmusic.app.update.UpdateOffer
@@ -61,10 +60,7 @@ fun UpdateSheetHost(viewModel: UpdateViewModel = hiltViewModel()) {
     }
     if (!open || offer == null) return
 
-    ModalBottomSheet(
-        onDismissRequest = viewModel::later,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-    ) {
+    SkinSheet(onDismissRequest = viewModel::later) {
         UpdateSheetContent(offer, state, viewModel)
     }
 }
