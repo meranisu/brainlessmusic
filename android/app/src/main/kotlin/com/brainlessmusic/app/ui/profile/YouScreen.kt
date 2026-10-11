@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
@@ -86,6 +87,7 @@ import com.brainlessmusic.app.ui.common.LoadStateContent
 import com.brainlessmusic.app.ui.common.SkeletonLead
 import com.brainlessmusic.app.ui.common.SkeletonListRows
 import com.brainlessmusic.app.ui.navigation.AppBottomBar
+import com.brainlessmusic.app.ui.navigation.Routes
 import com.brainlessmusic.app.ui.theme.DisplayFontFamily
 import java.util.Calendar
 
@@ -129,7 +131,12 @@ fun YouScreen(
             TopAppBar(
                 title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 // Small and always in reach, so it doesn't push the page down or scroll away.
-                actions = { ShuffleLibraryButton(shuffle) },
+                actions = {
+                    IconButton(onClick = { navController.navigate(Routes.TOGETHER) { launchSingleTop = true } }) {
+                        Icon(Icons.Filled.Groups, contentDescription = "Listen together")
+                    }
+                    ShuffleLibraryButton(shuffle)
+                },
             )
         },
         bottomBar = { AppBottomBar(navController) },

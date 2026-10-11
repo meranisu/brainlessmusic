@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -30,6 +31,7 @@ import androidx.lifecycle.lifecycleScope
 import com.brainlessmusic.app.data.local.AppearanceSettings
 import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.PlaybackResume
+import com.brainlessmusic.app.rooms.RoomSession
 import com.brainlessmusic.app.ui.navigation.BrainlessNavGraph
 import com.brainlessmusic.app.ui.splash.StartViewModel
 import com.brainlessmusic.app.ui.theme.BrainlessMusicTheme
@@ -47,6 +49,8 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var playbackResume: PlaybackResume
     @Inject lateinit var playbackController: PlaybackController
     @Inject lateinit var appearance: AppearanceSettings
+    // From launch too, so a restarted app gets back into the room it was in.
+    @Inject lateinit var roomSession: RoomSession
 
     // Activity-scoped, so the system splash and the nav graph's start screen wait on the same session check.
     private val startViewModel: StartViewModel by viewModels()
@@ -91,6 +95,10 @@ class MainActivity : ComponentActivity() {
             Handler(Looper.getMainLooper()).postDelayed(::remove, SPLASH_FADE_MS + SPLASH_REMOVE_GRACE_MS)
         }
         askForNotificationsOnFirstPlayback()
+        // Room notices (it ended, you were removed, a song couldn't be added) from whichever screen is open.
+        lifecycleScope.launch {
+            roomSession.messages.collect { Toast.makeText(this@MainActivity, it, Toast.LENGTH_LONG).show() }
+        }
         // Read once, synchronously (two tiny preferences): otherwise every cold start would paint one frame in the
         // default colours before the saved choice arrived.
         val (initialMode, initialColors) = runBlocking { appearance.themeMode.first() to appearance.colorTheme.first() }

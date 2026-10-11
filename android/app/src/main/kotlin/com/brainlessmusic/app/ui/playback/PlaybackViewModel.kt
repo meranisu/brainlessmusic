@@ -10,12 +10,14 @@ import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.PlaybackUiState
 import com.brainlessmusic.app.playback.RemovedEntry
+import com.brainlessmusic.app.rooms.RoomSession
+import com.brainlessmusic.app.rooms.RoomUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 /** A thin per-screen handle on the app-wide [PlaybackController]; the player itself outlives every screen. */
 @HiltViewModel
@@ -25,7 +27,11 @@ class PlaybackViewModel @Inject constructor(
     private val playbackSettings: PlaybackSettings,
     private val libraryRepository: LibraryRepository,
     authRepository: AuthRepository,
+    roomSession: RoomSession,
 ) : ViewModel() {
+
+    /** The "Listen together" room, if one is joined: the player names it and opens it. */
+    val room: StateFlow<RoomUiState> = roomSession.state
 
     /** Guests are listen-only (A37), so they get remove but not "play less often". */
     val canPlayLessOften: Boolean = !authRepository.isGuest

@@ -29,6 +29,7 @@ import com.brainlessmusic.app.ui.settings.SettingsPageScreen
 import com.brainlessmusic.app.ui.settings.SettingsScreen
 import com.brainlessmusic.app.ui.splash.SplashScreen
 import com.brainlessmusic.app.ui.splash.StartViewModel
+import com.brainlessmusic.app.ui.together.TogetherScreen
 
 @Composable
 fun BrainlessNavGraph(
@@ -128,6 +129,13 @@ fun BrainlessNavGraph(
                         popUpTo(Routes.NOW_PLAYING) { inclusive = true }
                     }
                 },
+                onOpenTogether = { navController.navigate(Routes.TOGETHER) { launchSingleTop = true } },
+            )
+        }
+        composable(Routes.TOGETHER) { entry ->
+            TogetherScreen(
+                onBack = { navController.popFrom(entry) },
+                onOpenNowPlaying = { navController.openNowPlaying() },
             )
         }
         composable(Routes.HOME) {

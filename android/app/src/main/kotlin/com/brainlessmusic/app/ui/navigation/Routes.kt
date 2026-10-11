@@ -21,6 +21,7 @@ object Routes {
     const val PLAYLISTS = "playlists"
     const val PLAYLIST_DETAIL = "playlist/{playlistId}"
     const val SONG_LIST = "you/{list}"
+    const val TOGETHER = "together"
 
     const val ARG_ARTIST_ID = "artistId"
     const val ARG_ALBUM_ID = "albumId"

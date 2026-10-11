@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `RoomSocket`, `ClockEstimator`, room models (new): `android/.../rooms/`; `RoomSession`, `RoomUiState` (new): `rooms/RoomSession.kt`; `enterRoom()`, `followRoom()`, `exitRoom()`, `syncToRoom()`, `applyRoomQueue()`, `roomSetPlaying()`, `roomPlay()`, `onRoomPlayWhenReady()` (new), transport and session-player overrides (room branch): `playback/PlaybackController.kt`; `TogetherScreen`, `TogetherViewModel` (new): `ui/together/`; `createRoom`, `myRoom`, `lookupRoom`: `ApiService.kt`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** Listen together on Android (room sync spec step 4): the phone joins a room and plays in step with it.
+**Side effects:** one WebSocket to `/api/rooms/ws` while in a room; `GET /rooms/mine` on every sign-in.
+**Before:** rooms were web-only; Android had no room mode.
+**After:** the Android player follows a room's state, and its controls (in the app and on the lock screen) drive the room.
+
 **Function:** `ChangelogDialog`, `DownloadApk`, `WebNotes`, `AndroidNotes`, `Inline` (new): `frontend/src/components/ChangelogDialog.tsx`; `WEB_CHANGELOG` (new): `frontend/src/lib/webChangelog.ts`; `parse()`, `dateOf()` (new): `frontend/scripts/android-notes.mjs`; `TitleScreenPage` (version button): `frontend/src/pages/TitleScreenPage.tsx`
 **Date:** 2026-10-11
 **How added:** owner request

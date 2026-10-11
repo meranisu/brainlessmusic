@@ -141,7 +141,7 @@ The centerpiece. It lands here — not earlier — because syncing playback is o
   *Done when:* two browser tabs stay in sync. — **server and web built 2026-10-11** (`services/rooms.ts`, `routes/rooms.ts`, `/together` page, room mode in the player). Two headless Chromium sessions stayed within ±0.25 s, skip, pause and a forced 15 s drop all worked. Open until the owner tries two tabs on the real app.
 
 - [ ] **23. Room sync clients.** Web room view + monitor, then the Android client side.
-  *Done when:* the v0.3 done-when above is true.
+  *Done when:* the v0.3 done-when above is true. — **web, monitor and Android built 2026-10-11** (Android: room mode in the player, Listen together screen, lock-screen buttons send room commands). Needs the backend on smol and an Android release before the two-person walkthrough.
 
 ---
 

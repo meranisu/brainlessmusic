@@ -59,6 +59,8 @@ data class PlaybackUiState(
     val stream: StreamInfo? = null,
     /** Some song in the queue would stream rather than play from the phone; data saver only matters then (A95). */
     val queueStreams: Boolean = true,
+    /** In a "Listen together" room: the transport drives the room for everyone, and shuffle and repeat are off. */
+    val inRoom: Boolean = false,
 ) {
     val current: QueueItem? get() = queue.getOrNull(currentIndex)
     val hasQueue: Boolean get() = queue.isNotEmpty()

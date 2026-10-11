@@ -38,6 +38,9 @@ import com.brainlessmusic.app.data.remote.dto.TracksPageDto
 import com.brainlessmusic.app.data.remote.dto.UserStatsDto
 import com.brainlessmusic.app.data.remote.dto.TrackStatDto
 import com.brainlessmusic.app.data.remote.dto.HistoryPageDto
+import com.brainlessmusic.app.data.remote.dto.CreateRoomRequest
+import com.brainlessmusic.app.data.remote.dto.RoomCodeResponse
+import com.brainlessmusic.app.data.remote.dto.RoomLookupDto
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -193,5 +196,14 @@ interface ApiService {
 
     @PATCH("playlists/{id}/tracks/reorder")
     suspend fun reorderPlaylist(@Path("id") id: Int, @Body body: ReorderPlaylistRequest): PlaylistDetailDto
-}
 
+    // "Listen together" (A102). The live part is the WebSocket at rooms/ws (`rooms/RoomSocket.kt`).
+    @POST("rooms")
+    suspend fun createRoom(@Body body: CreateRoomRequest): RoomCodeResponse
+
+    @GET("rooms/mine")
+    suspend fun myRoom(): RoomCodeResponse
+
+    @GET("rooms/{code}")
+    suspend fun lookupRoom(@Path("code") code: String): RoomLookupDto
+}

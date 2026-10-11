@@ -3,8 +3,8 @@ package com.brainlessmusic.app.ui.playback
 import android.widget.Toast
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,13 +17,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.DataSaverOff
 import androidx.compose.material.icons.filled.DataSaverOn
 import androidx.compose.material.icons.filled.DownloadDone
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
-import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -68,6 +69,7 @@ import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.playback.Repeat
 import com.brainlessmusic.app.playback.ShuffleMode
 import com.brainlessmusic.app.playback.StreamInfo
+import com.brainlessmusic.app.rooms.RoomConnection
 import com.brainlessmusic.app.ui.common.CoverImage
 import com.brainlessmusic.app.ui.common.formatDuration
 import com.brainlessmusic.app.ui.profile.AddToPlaylistSheet
@@ -85,12 +87,14 @@ fun NowPlayingScreen(
     onBack: () -> Unit,
     onOpenAlbum: (Int) -> Unit,
     onOpenArtist: (Int) -> Unit,
+    onOpenTogether: () -> Unit,
     viewModel: PlaybackViewModel = hiltViewModel(),
     songActions: SongActionsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val seekStyle by viewModel.seekStyle.collectAsStateWithLifecycle()
     val dataSaver by viewModel.dataSaver.collectAsStateWithLifecycle()
+    val room by viewModel.room.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val current = state.current
     var showQueue by remember { mutableStateOf(false) }
@@ -120,7 +124,19 @@ fun NowPlayingScreen(
             ),
         topBar = {
             TopAppBar(
-                title = { Text("Now playing") },
+                title = {
+                    Column {
+                        Text("Now playing")
+                        // In a room: which one, or that it's reconnecting while the music carries on.
+                        room.room?.let {
+                            Text(
+                                if (room.connection == RoomConnection.LIVE) "Room ${it.code}" else "Reconnecting…",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.accentInk,
+                            )
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Close")
@@ -129,6 +145,14 @@ fun NowPlayingScreen(
                 // Data saver, lit while on, for everyone, and only while some queued song would stream (A95); like and
                 // add to a playlist (A65) hide themselves for guests.
                 actions = {
+                    IconButton(
+                        onClick = onOpenTogether,
+                        colors = IconButtonDefaults.iconButtonColors(
+                            contentColor = if (room.room != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                    ) {
+                        Icon(Icons.Filled.Groups, contentDescription = if (room.room != null) "Open the room" else "Listen together")
+                    }
                     if (state.queueStreams) IconButton(
                         onClick = {
                             viewModel.setDataSaver(!dataSaver)
@@ -313,8 +337,10 @@ private fun TransportRow(state: PlaybackUiState, viewModel: PlaybackViewModel) {
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         // Lit while on, and the icon changes per mode, like repeat; the queue sheet names the mode in words.
+        // A room plays its queue once, in order, the same for everyone: shuffle and repeat are off there.
         IconButton(
             onClick = viewModel::cycleShuffle,
+            enabled = !state.inRoom,
             colors = IconButtonDefaults.iconButtonColors(
                 contentColor = if (state.shuffle) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             ),
@@ -356,6 +382,7 @@ private fun TransportRow(state: PlaybackUiState, viewModel: PlaybackViewModel) {
         }
         IconButton(
             onClick = viewModel::cycleRepeat,
+            enabled = !state.inRoom,
             colors = IconButtonDefaults.iconButtonColors(
                 contentColor = if (state.repeat != Repeat.OFF) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             ),

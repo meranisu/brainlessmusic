@@ -4,6 +4,38 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Listen together on Android (room sync spec step 4)
+
+- **Room socket** (`rooms/RoomSocket.kt`): the Android twin of the web's `roomClient.ts` on OkHttp's WebSocket, with
+  the same protocol and timings: `hello` first, 8 quick pings then every 3 s for 30 s then every 20 s, the clock
+  offset as the median of the 3 quickest round trips in 2 minutes (`ClockEstimator`, on `elapsedRealtime`), drop
+  after 30 s silent, reconnect at 1, 2, 4, 8, 10 s. Commands aren't queued while reconnecting.
+- **Room session** (`rooms/RoomSession.kt`, singleton next to the player): start a room from the current queue (a
+  queue past 500 starts at the current song), look up a code, join, leave, end, remove someone. Gets back into the
+  account's room after a restart (`GET /rooms/mine`) and stops on sign-out. Notices (room ended, removed, a
+  rejected command) show as a toast from `MainActivity`.
+- **Room mode in `PlaybackController`**: while in a room the player follows the room's state and every control,
+  including the lock screen, notification and headset buttons, sends a room command instead. It follows the web
+  rules: the drift rule (seek after 300 ms off twice), the learned seek lead, waiting for a new song's start time,
+  and `pauseAtEndOfMediaItems` so the server ends songs. Offline, it moves to the next song it last saw. Adding a
+  song keeps the playing one where the room still has it, so nobody's song restarts. Shuffle, repeat and fades are
+  off in a room and come back on leaving, and the music keeps playing after leaving. A call or headphones coming
+  out pauses this phone only, and Play rejoins the room's position. A song that fails to load is retried every
+  5 s rather than skipped alone. Play on a song adds it (and up to 49 after it) after the current one, then
+  jumps there for everyone.
+- **Listen together screen** (`ui/together/`): join by code (live lookup), start a room, and inside a room the
+  code with Share, connection state, now playing, members with Host, Guest and Away, Remove for the host, Leave,
+  and End with a confirm. Reached from a people icon on Home and Now Playing; Now Playing names the room under its
+  title and greys out shuffle and repeat in a room.
+- R8 keep rules for the room snapshot classes (Gson).
+- Verified: `./gradlew assembleDebug` builds; the unit suite passes (92 tests, 1 skipped: the live test without
+  `ROOM_TEST_URL`). New `RoomClockTest` covers the offset maths and the position formula. New `RoomSocketLiveTest`
+  ran two sockets (an account and a guest) against a scratch backend on :3191 with its own DB and generated tracks.
+  Results: clock within 1 ms of the server, a double skip moved one song (the other got `stale`), the 1.5 s lead,
+  the guest's add, pause, seek, move, End refused as host-only, kick, a dropped socket reconnected by itself,
+  End closed the room. **Not run:** the app on a phone or emulator (none available here), so the player
+  following the room, the screen, screen-off and the lock-screen buttons are untested; the release (R8) build.
+
 ## 2026-10-11: Web 0.3.0, "What's new" from the title screen, with web and Android tabs and the APK download
 
 - **"VER 0.3.0" on the title screen is a button** that opens What's new (`ChangelogDialog`). It was inside the

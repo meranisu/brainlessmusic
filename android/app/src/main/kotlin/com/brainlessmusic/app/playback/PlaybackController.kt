@@ -31,6 +31,9 @@ import com.brainlessmusic.app.data.remote.NetworkMonitor
 import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.downloads.DownloadRepository
 import com.brainlessmusic.app.downloads.TrackCacheKey
+import com.brainlessmusic.app.rooms.RoomCommand
+import com.brainlessmusic.app.rooms.RoomEntry
+import com.brainlessmusic.app.rooms.RoomState
 import com.google.common.util.concurrent.ListenableFuture
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -53,6 +56,7 @@ import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import java.time.Instant
 import java.util.UUID
+import kotlin.math.abs
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -85,14 +89,20 @@ class PlaybackController @Inject constructor(
      * lock screen and headset buttons go through this wrapper, so their play, pause and skip fade like the app's (A71).
      */
     val sessionPlayer: Player by lazy {
+        // In a room the same buttons drive the room for everyone (spec, "Clients").
         object : ForwardingPlayer(player) {
-            override fun play() = playWithFade()
-            override fun pause() = pauseWithFade()
-            override fun setPlayWhenReady(playWhenReady: Boolean) = if (playWhenReady) playWithFade() else pauseWithFade()
-            override fun seekToNext() = skipWithFade { player.seekToNext() }
-            override fun seekToNextMediaItem() = skipWithFade { player.seekToNextMediaItem() }
-            override fun seekToPrevious() = skipWithFade { player.seekToPrevious() }
-            override fun seekToPreviousMediaItem() = skipWithFade { player.seekToPreviousMediaItem() }
+            override fun play() = if (inRoom) roomSetPlaying(true) else playWithFade()
+            override fun pause() = if (inRoom) roomSetPlaying(false) else pauseWithFade()
+            override fun setPlayWhenReady(playWhenReady: Boolean) = when {
+                inRoom -> roomSetPlaying(playWhenReady)
+                playWhenReady -> playWithFade()
+                else -> pauseWithFade()
+            }
+            override fun seekToNext() = if (inRoom) skipToNext() else skipWithFade { player.seekToNext() }
+            override fun seekToNextMediaItem() = if (inRoom) skipToNext() else skipWithFade { player.seekToNextMediaItem() }
+            override fun seekToPrevious() = if (inRoom) skipToPrevious() else skipWithFade { player.seekToPrevious() }
+            override fun seekToPreviousMediaItem() =
+                if (inRoom) skipToPrevious() else skipWithFade { player.seekToPreviousMediaItem() }
 
             // Seeks from the lock screen, notification or Bluetooth: a song end planned from the old position no longer
             // fits (a fade-out would leave the rest silent, a crossfade tail would play the wrong part).
@@ -101,6 +111,8 @@ class PlaybackController @Inject constructor(
             // A STOP from a headset or another app: nothing scheduled (a skip's jump, a pause fade, a crossfade tail)
             // may act after it.
             override fun stop() {
+                // In a room that is a pause for everyone; stopping this phone alone is Leave, in the app.
+                if (inRoom) return roomSetPlaying(false)
                 fadeAction++
                 pendingJump = null
                 pausing = false
@@ -109,18 +121,28 @@ class PlaybackController @Inject constructor(
             }
 
             override fun seekTo(positionMs: Long) {
+                if (inRoom) return this@PlaybackController.seekTo(positionMs)
                 resetFades()
                 super.seekTo(positionMs)
             }
             override fun seekTo(mediaItemIndex: Int, positionMs: Long) {
+                if (inRoom) {
+                    return if (mediaItemIndex == player.currentMediaItemIndex) {
+                        this@PlaybackController.seekTo(positionMs)
+                    } else {
+                        skipToIndex(mediaItemIndex)
+                    }
+                }
                 resetFades()
                 super.seekTo(mediaItemIndex, positionMs)
             }
             override fun seekBack() {
+                if (inRoom) return this@PlaybackController.seekTo(player.currentPosition - player.seekBackIncrement)
                 resetFades()
                 super.seekBack()
             }
             override fun seekForward() {
+                if (inRoom) return this@PlaybackController.seekTo(player.currentPosition + player.seekForwardIncrement)
                 resetFades()
                 super.seekForward()
             }
@@ -195,6 +217,29 @@ class PlaybackController @Inject constructor(
     // A library re-source waiting for the shuffle mode to settle (see `setShuffleMode`).
     private var resourceJob: Job? = null
 
+    // "Listen together" (A102): while a room is joined, the player follows the room's state (`syncToRoom`) and the
+    // transport sends room commands instead of acting here. Spec: `.docs/specs/room-sync.md`.
+    private var roomLink: RoomLink? = null
+    private val inRoom get() = roomLink != null
+    private var room: RoomState? = null
+    // The room's entry ids, in step with [queue]; `roomKeys` gives each a list key that survives moves.
+    private var roomEntryIds = emptyList<Int>()
+    private val roomKeys = HashMap<Int, Long>()
+    // The entry the player holds, so the sync can tell when the room moved to another song.
+    private var roomEntry: Int? = null
+    private var driftStrikes = 0
+    // How far ahead to aim a start or a correction so it lands on time, learned on this phone (spec, "Seek lead").
+    private var seekLeadMs = 0L
+    private var afterCorrection = false
+    private var lastDriftMs: Long? = null
+    private var roomStartJob: Job? = null
+    private var roomTickJob: Job? = null
+    private var lastRoomRetryAt = 0L
+    // Paused here by a call, another app or unplugged headphones while the room plays on: stay quiet until Play.
+    private var sittingOut = false
+    // Play pressed in a room: the songs go in after the current one, and this jumps to the picked one once it's there.
+    private var pendingRoomJump: PendingRoomJump? = null
+
     init {
         scope.launch {
             wantMode = settings.shuffleMode.first()
@@ -256,6 +301,7 @@ class PlaybackController @Inject constructor(
      * `null` is a tapped song, which turns it off unless "Keep shuffle" is on.
      */
     fun playQueue(items: List<QueueItem>, startIndex: Int, source: QueueSource? = null, shuffle: Boolean? = null) {
+        if (inRoom) return roomPlay(items, startIndex)
         val mode = shuffleModeForPlay(shuffle, keepShuffle, wantMode, lastOnMode)
         if (mode != wantMode) {
             wantMode = mode
@@ -267,7 +313,7 @@ class PlaybackController @Inject constructor(
 
     /** Restores a saved queue, paused unless [autoPlay]. A no-op if something is already queued. */
     fun restoreQueue(items: List<QueueItem>, startIndex: Int, positionMs: Long, autoPlay: Boolean) {
-        if (queue.isNotEmpty()) return
+        if (queue.isNotEmpty() || inRoom) return
         loadQueue(items, startIndex, positionMs, play = autoPlay)
     }
 
@@ -307,6 +353,7 @@ class PlaybackController @Inject constructor(
 
     /** Inserts right after the current track; starts playing if nothing is queued. */
     fun playNext(item: QueueItem) {
+        if (inRoom) return roomSend(RoomCommand.Add(listOf(item.trackId), after = room?.currentEntry?.entryId))
         if (queue.isEmpty()) {
             playQueue(listOf(item), 0, shuffle = wantShuffle)
             return
@@ -463,6 +510,7 @@ class PlaybackController @Inject constructor(
     fun libraryShuffleMode(): ShuffleMode = if (wantMode == ShuffleMode.OFF) lastOnMode else wantMode
 
     fun togglePlayPause() {
+        if (inRoom) return roomSetPlaying(!(room?.playback?.playing == true && hearingRoom()))
         if (queue.isEmpty()) return
         if (player.isPlaying) {
             pauseWithFade()
@@ -481,6 +529,10 @@ class PlaybackController @Inject constructor(
     }
 
     fun seekTo(positionMs: Long) {
+        if (inRoom) {
+            val entry = room?.currentEntry ?: return
+            return roomSend(RoomCommand.Seek(entry.entryId, positionMs.coerceIn(0, entry.durationMs)))
+        }
         if (queue.isEmpty()) return
         // A song end planned from the old position no longer fits; the ticker plans it again.
         resetFades()
@@ -489,11 +541,14 @@ class PlaybackController @Inject constructor(
     }
 
     fun skipToNext() {
+        if (inRoom) return room?.currentEntry?.let { roomSend(RoomCommand.Next(it.entryId)) } ?: Unit
         if (player.hasNextMediaItem()) skipWithFade { player.seekToNextMediaItem() }
     }
 
     /** Past the first few seconds this restarts the track, matching what every player does. */
     fun skipToPrevious() {
+        // The server restarts the song instead when it's past its first 3 s, like here.
+        if (inRoom) return room?.currentEntry?.let { roomSend(RoomCommand.Previous(it.entryId)) } ?: Unit
         if (queue.isEmpty()) return
         if (player.currentPosition > RESTART_THRESHOLD_MS || !player.hasPreviousMediaItem()) {
             skipWithFade {
@@ -507,6 +562,7 @@ class PlaybackController @Inject constructor(
 
     /** A swipe back: the track before, however far into this one it is. The first track restarts. */
     fun skipToPreviousTrack() {
+        if (inRoom) return skipToPrevious()
         if (queue.isEmpty()) return
         if (player.hasPreviousMediaItem()) {
             skipWithFade { player.seekToPreviousMediaItem() }
@@ -519,6 +575,7 @@ class PlaybackController @Inject constructor(
     }
 
     fun skipToIndex(index: Int) {
+        if (inRoom) return roomEntryIds.getOrNull(index)?.let { roomSend(RoomCommand.Jump(it)) } ?: Unit
         if (index !in queue.indices) return
         playNextPending = 0
         if (player.isPlaying) {
@@ -538,6 +595,11 @@ class PlaybackController @Inject constructor(
      */
     fun removeAt(index: Int): RemovedEntry? {
         if (index !in queue.indices || index == player.currentMediaItemIndex) return null
+        if (inRoom) {
+            // No Undo in a room: by then someone else may have changed the queue.
+            roomEntryIds.getOrNull(index)?.let { roomSend(RoomCommand.Remove(it)) }
+            return null
+        }
         val position = playOrder().indexOf(index)
         val item = queue.removeAt(index)
         keys.removeAt(index)
@@ -554,6 +616,7 @@ class PlaybackController @Inject constructor(
      * current track: after a late Undo, songs have played since, and a spot behind the current one would never play.
      */
     fun restore(entry: RemovedEntry) {
+        if (inRoom) return
         val mediaItem = toMediaItem(entry.item) ?: return
         if (queue.isEmpty()) {
             playQueue(listOf(entry.item), 0, shuffle = wantShuffle)
@@ -582,6 +645,7 @@ class PlaybackController @Inject constructor(
     /** Moves the entry at play-order position [from] to [to]: the list order, or the shuffle order with shuffle on. */
     fun move(from: Int, to: Int) {
         if (from == to || from !in queue.indices || to !in queue.indices) return
+        if (inRoom) return roomSend(RoomCommand.Move(roomEntryIds[from], to))
         if (player.shuffleModeEnabled) {
             val sequence = shuffledSequence().toMutableList()
             sequence.add(to, sequence.removeAt(from))
@@ -596,14 +660,17 @@ class PlaybackController @Inject constructor(
     }
 
     /** Off, then Shuffle, Rediscover and Albums (A77). */
-    fun cycleShuffle() = setShuffleMode(wantMode.next())
+    fun cycleShuffle() {
+        // A room plays its queue once, in order, the same for everyone.
+        if (!inRoom) setShuffleMode(wantMode.next())
+    }
 
     /**
      * Shuffle turned on or off from outside the app (notification, lock screen, Bluetooth). On means the mode last
      * picked, not ExoPlayer's own random order.
      */
     private fun setShuffleFromSession(enabled: Boolean) {
-        if (enabled == wantShuffle) return
+        if (enabled == wantShuffle || inRoom) return
         setShuffleMode(if (enabled) libraryShuffleMode() else ShuffleMode.OFF)
     }
 
@@ -669,6 +736,7 @@ class PlaybackController @Inject constructor(
 
     /** Off, then repeat the whole queue, then repeat the current track. */
     fun cycleRepeat() {
+        if (inRoom) return
         wantRepeat = when (wantRepeat) {
             Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
             Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
@@ -804,7 +872,8 @@ class PlaybackController @Inject constructor(
 
     /** Every tick while playing: starts the song end once, the way the settings ask. */
     private fun checkBoundary() {
-        if (boundary != null || !player.isPlaying) return
+        // No fades in a room: the server ends songs, and a fade behind a moving target is where the drift maths gets hard.
+        if (boundary != null || !player.isPlaying || inRoom) return
         val duration = player.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: return
         val nextIndex = player.nextMediaItemIndex.takeIf { it != C.INDEX_UNSET } ?: return
         val current = queue.getOrNull(player.currentMediaItemIndex) ?: return
@@ -936,6 +1005,7 @@ class PlaybackController @Inject constructor(
         // would also finish during the call and leave the rest silent; the ticker plans it again after.
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
             if (!playWhenReady && !pausing) resetFades()
+            if (inRoom) onRoomPlayWhenReady(playWhenReady, reason)
         }
 
         override fun onPlaybackSuppressionReasonChanged(playbackSuppressionReason: Int) {
@@ -973,6 +1043,12 @@ class PlaybackController @Inject constructor(
 
         override fun onPlayerError(error: PlaybackException) {
             Log.w(TAG, "Playback failed for track ${queue.getOrNull(player.currentMediaItemIndex)?.trackId}", error)
+            if (inRoom) {
+                // Skipping here alone would leave the room; the sync tries this song again every few seconds.
+                errorMessage = "Couldn't play this song here. Trying again."
+                publish()
+                return
+            }
             // The signal went mid-song: carry on with what's on the phone instead of trying each song in turn.
             if (skipToDownloaded(skipCurrent = true)) return
             failedInARow++
@@ -1002,7 +1078,8 @@ class PlaybackController @Inject constructor(
      */
     private fun skipToDownloaded(skipCurrent: Boolean): Boolean {
         // Until the stored downloads are read, everything looks not downloaded; the collector above runs this again.
-        if (networkMonitor.online.value || queue.isEmpty() || !downloads.isLoaded) return false
+        // A room decides the song for everyone; offline, the room's own catch-up rules apply instead.
+        if (networkMonitor.online.value || queue.isEmpty() || !downloads.isLoaded || inRoom) return false
         val from = player.currentMediaItemIndex
         val current = queue.getOrNull(from) ?: return false
         if (!skipCurrent && downloads.isDownloaded(current.trackId)) return false
@@ -1140,6 +1217,7 @@ class PlaybackController @Inject constructor(
             },
             stream = if (queue.isEmpty()) null else streamInfo(),
             queueStreams = queue.any { !downloads.isDownloaded(it.trackId) },
+            inRoom = inRoom,
         )
     }
 
@@ -1207,6 +1285,300 @@ class PlaybackController @Inject constructor(
             .build()
     }
 
+    // ---- "Listen together" room mode (spec: `.docs/specs/room-sync.md`) ----
+
+    /** A room was joined: from now on the player follows [followRoom] and the transport sends room commands. */
+    fun enterRoom(link: RoomLink) {
+        roomLink = link
+        room = null
+        roomEntryIds = emptyList()
+        roomEntry = null
+        driftStrikes = 0
+        afterCorrection = false
+        sittingOut = false
+        pendingRoomJump = null
+        // A room plays its queue once, in order, without fades: nothing left over from playing alone may act in it.
+        fadeAction++
+        pendingJump = null
+        pausing = false
+        resetFades()
+        source = null
+        generation++
+        playNextPending = 0
+        roomTickJob?.cancel()
+        // Once a second for drift, reported every 5 s for the Control Center monitor.
+        roomTickJob = scope.launch {
+            var ticks = 0
+            while (isActive) {
+                delay(ROOM_TICK_MS)
+                syncToRoom()
+                if (++ticks % ROOM_STATUS_EVERY == 0) {
+                    roomLink?.status(lastDriftMs, player.playbackState == Player.STATE_BUFFERING)
+                }
+            }
+        }
+        publish()
+    }
+
+    /** A new room state, or the connection came back: line the player up with it. */
+    fun followRoom(state: RoomState) {
+        if (!inRoom) return
+        room = state
+        syncToRoom()
+    }
+
+    /**
+     * Left, ended, removed or signed out. Leaving keeps playing the room's queue on this phone from where it was, so the
+     * music never cuts off mid-song (spec, "Clients"); shuffle and repeat come back as they were.
+     */
+    fun exitRoom() {
+        if (!inRoom) return
+        roomLink = null
+        room = null
+        roomTickJob?.cancel()
+        roomStartJob?.cancel()
+        pendingRoomJump = null
+        roomEntry = null
+        lastDriftMs = null
+        sittingOut = false
+        if (queue.isNotEmpty()) {
+            player.pauseAtEndOfMediaItems = false
+            player.repeatMode = wantRepeat
+            player.shuffleModeEnabled = wantShuffle
+            if (wantShuffle) applyShuffleOrder(first = player.currentMediaItemIndex)
+        }
+        publish()
+    }
+
+    private fun roomSend(command: RoomCommand) {
+        // Not queued while reconnecting: a skip pressed into the void would land late and surprise everyone.
+        roomLink?.takeIf { it.live }?.send(command)
+    }
+
+    /** Whether this phone is playing along, rather than sitting out or stuck on a failed song. */
+    private fun hearingRoom() = !sittingOut && player.playbackState != Player.STATE_IDLE
+
+    /**
+     * Play or pause from any button. Play while the room already plays starts it on this phone only (after a call, or
+     * a failed song); the room didn't stop.
+     */
+    private fun roomSetPlaying(play: Boolean) {
+        val current = room ?: return
+        if (!play) return roomSend(RoomCommand.Pause)
+        if (current.playback.playing) {
+            sittingOut = false
+            errorMessage = null
+            if (player.playbackState == Player.STATE_IDLE) player.prepare()
+            syncToRoom()
+        } else {
+            roomSend(RoomCommand.Play)
+        }
+    }
+
+    /** Play on a song in a room adds it, and what follows it, after the current song, then jumps there for everyone. */
+    private fun roomPlay(items: List<QueueItem>, startIndex: Int) {
+        val picked = items.drop(startIndex.coerceIn(0, items.lastIndex.coerceAtLeast(0))).take(ROOM_ADD_MAX)
+        val first = picked.firstOrNull() ?: return
+        val after = room?.currentEntry?.entryId
+        pendingRoomJump = PendingRoomJump(after, first.trackId, SystemClock.elapsedRealtime())
+        roomSend(RoomCommand.Add(picked.map { it.trackId }, after))
+    }
+
+    private fun runPendingRoomJump(state: RoomState) {
+        val pending = pendingRoomJump ?: return
+        if (SystemClock.elapsedRealtime() - pending.at > ROOM_PENDING_JUMP_MS) {
+            pendingRoomJump = null
+            return
+        }
+        val start = if (pending.afterEntryId == null) 0 else state.queue.indexOfFirst { it.entryId == pending.afterEntryId } + 1
+        if (pending.afterEntryId != null && start == 0) return
+        val target = state.queue.getOrNull(start) ?: return
+        if (target.trackId != pending.trackId || target.addedBy != roomLink?.you) return
+        pendingRoomJump = null
+        roomSend(RoomCommand.Jump(target.entryId))
+    }
+
+    private fun roomQueueItem(entry: RoomEntry) = QueueItem(
+        trackId = entry.trackId,
+        title = entry.title,
+        artist = entry.artist,
+        album = null,
+        durationSec = entry.durationMs / 1000.0,
+        coverUrl = libraryRepository.trackCoverUrl(entry.trackId),
+        albumId = entry.albumId,
+    )
+
+    /**
+     * Makes the queue the room's. The playing song is kept where the room still has it, so someone adding a song
+     * doesn't restart everyone's. Returns false when the songs can't be played here (signed out).
+     */
+    private fun applyRoomQueue(state: RoomState): Boolean {
+        val ids = state.queue.map { it.entryId }
+        if (ids == roomEntryIds && player.mediaItemCount == ids.size) return true
+        val items = state.queue.map(::roomQueueItem)
+        val media = items.map { toMediaItem(it) ?: return false }
+        connectSession()
+        player.shuffleModeEnabled = false
+        player.repeatMode = Player.REPEAT_MODE_OFF
+        // The server ends songs: this phone stops at the end of each and waits for the room's next one.
+        player.pauseAtEndOfMediaItems = true
+
+        val at = player.currentMediaItemIndex
+        val sameList = player.mediaItemCount == queue.size && queue.isNotEmpty()
+        val keepAt = when {
+            !sameList -> -1
+            roomEntryIds.size == queue.size -> roomEntryIds.getOrNull(at)?.let(ids::indexOf) ?: -1
+            // Just started this room from what was playing: the song is already loaded.
+            queue.getOrNull(at)?.trackId == state.currentEntry?.trackId -> state.current
+            else -> -1
+        }
+        // Before the player changes, so the song change it reports (`beginTrack`) reads the new queue.
+        queue.clear()
+        queue.addAll(items)
+        keys.clear()
+        ids.forEach { id -> keys.add(roomKeys.getOrPut(id) { nextKey++ }) }
+        roomKeys.keys.retainAll(ids.toSet())
+        roomEntryIds = ids
+        when {
+            media.isEmpty() -> {
+                player.pause()
+                player.clearMediaItems()
+            }
+            keepAt >= 0 -> {
+                player.replaceMediaItems(at + 1, player.mediaItemCount, media.subList(keepAt + 1, media.size))
+                player.replaceMediaItems(0, at, media.subList(0, keepAt))
+            }
+            else -> {
+                player.setMediaItems(media, state.current.coerceIn(0, media.lastIndex), 0)
+                player.prepare()
+                roomEntry = null
+            }
+        }
+        publish()
+        return true
+    }
+
+    /**
+     * Makes this phone match the room: the right song, playing or paused, at the right position. Runs on every room
+     * state and once a second. The formula and thresholds are the spec's ("Model", "Drift"), as on the web.
+     */
+    private fun syncToRoom() {
+        val link = roomLink ?: return
+        val state = room ?: return
+        // Disconnected: carry on alone from the last state; `onRoomPlayWhenReady` moves to the next song.
+        if (!link.live) return
+        if (!applyRoomQueue(state)) return
+        runPendingRoomJump(state)
+
+        val entry = state.currentEntry
+        if (entry == null) {
+            roomStartJob?.cancel()
+            if (player.playWhenReady) player.pause()
+            publish()
+            return
+        }
+        val expected = state.expectedPositionMs(link.serverNow())
+        if (roomEntry != entry.entryId) {
+            roomEntry = entry.entryId
+            roomStartJob?.cancel()
+            driftStrikes = 0
+            afterCorrection = false
+            if (player.currentMediaItemIndex != state.current) player.seekTo(state.current, expected.coerceAtLeast(0))
+        }
+        if (player.playbackState == Player.STATE_IDLE) {
+            // A song that failed to load: try it again now and then, rather than skipping on alone.
+            val now = SystemClock.elapsedRealtime()
+            if (now - lastRoomRetryAt < ROOM_RETRY_MS) return
+            lastRoomRetryAt = now
+            player.prepare()
+        }
+        if (player.isPlaying && errorMessage != null) errorMessage = null
+
+        if (!state.playback.playing) {
+            roomStartJob?.cancel()
+            lastDriftMs = null
+            sittingOut = false
+            if (player.playWhenReady) player.pause()
+            if (abs(player.currentPosition - state.playback.positionMs) >= ROOM_DRIFT_LIMIT_MS) {
+                player.seekTo(state.playback.positionMs)
+            }
+            publish()
+            return
+        }
+        if (expected < 0) {
+            // A new song's start time is still ahead: wait at the start, loading, and go on the dot.
+            if (player.playWhenReady) player.pause()
+            if (player.currentPosition > ROOM_DRIFT_LIMIT_MS) player.seekTo(0)
+            roomStartJob?.cancel()
+            roomStartJob = scope.launch {
+                delay(-expected)
+                syncToRoom()
+            }
+            publish()
+            return
+        }
+        // Past the end: the server is about to move everyone on.
+        if (expected >= entry.durationMs) return
+        if (sittingOut) {
+            lastDriftMs = null
+            return
+        }
+        if (!player.playWhenReady) {
+            player.seekTo(expected + seekLeadMs)
+            afterCorrection = true
+            driftStrikes = 0
+            player.play()
+            publish()
+            return
+        }
+        // Buffering or ducked for a call: the position isn't moving, so a reading now says nothing.
+        if (player.playbackState != Player.STATE_READY ||
+            player.playbackSuppressionReason != Player.PLAYBACK_SUPPRESSION_REASON_NONE
+        ) {
+            return
+        }
+        val drift = player.currentPosition - expected
+        lastDriftMs = drift
+        if (afterCorrection) {
+            // How far the last start or jump landed from where it should: aim that much further ahead next time.
+            afterCorrection = false
+            if (abs(drift) < 2_000) seekLeadMs = (seekLeadMs - drift).coerceIn(0, MAX_SEEK_LEAD_MS)
+        }
+        if (abs(drift) < ROOM_DRIFT_LIMIT_MS) {
+            driftStrikes = 0
+            return
+        }
+        // Two readings in a row, so one bad reading doesn't cause a jump.
+        if (++driftStrikes >= 2) {
+            player.seekTo(expected + seekLeadMs)
+            afterCorrection = true
+            driftStrikes = 0
+        }
+    }
+
+    private fun onRoomPlayWhenReady(playWhenReady: Boolean, reason: Int) {
+        when {
+            // Paused by something on this phone (another app's audio, headphones out): the room plays on without it.
+            !playWhenReady && (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS ||
+                reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY) -> {
+                sittingOut = true
+                publish()
+            }
+            reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM -> {
+                // The server's next song is moments away. Only with the connection down does this phone move on alone,
+                // to the next song in the queue it last saw (spec, "The 30-second test").
+                if (roomLink?.live == true) return
+                val next = player.currentMediaItemIndex + 1
+                if (next !in queue.indices) return
+                roomEntry = roomEntryIds.getOrNull(next)
+                player.seekTo(next, 0)
+                player.play()
+            }
+        }
+    }
+
+    private class PendingRoomJump(val afterEntryId: Int?, val trackId: Int, val at: Long)
+
     /** A song end already being handled. */
     private sealed interface Boundary {
         data class FadeOutIn(val fadeMs: Long) : Boundary
@@ -1244,7 +1616,31 @@ class PlaybackController @Inject constructor(
 
         /** ...with this many at a time (the server's page cap). */
         const val REFILL_CHUNK = 200
+
+        const val ROOM_TICK_MS = 1_000L
+        /** Status goes out every this many ticks (5 s). */
+        const val ROOM_STATUS_EVERY = 5
+        /** Off by this much, twice in a row, means seek back into step (spec, "Drift"). */
+        const val ROOM_DRIFT_LIMIT_MS = 300L
+        const val MAX_SEEK_LEAD_MS = 1_000L
+        /** A song picked with Play in a room waits this long for the server to add it, then the jump is dropped. */
+        const val ROOM_PENDING_JUMP_MS = 10_000L
+        const val ROOM_RETRY_MS = 5_000L
+        /** Play on a song in a room adds it and up to this many in all, so a long list can't fill the room's 500. */
+        const val ROOM_ADD_MAX = 50
     }
+}
+
+/** What room mode needs from the room session (`rooms/RoomSession.kt`). */
+interface RoomLink {
+    /** Connected, with the clock settled. While false the player carries on alone from the last state. */
+    val live: Boolean
+    /** Our user id in the room. */
+    val you: Int?
+    fun send(command: RoomCommand)
+    /** The server's clock now, in ms. */
+    fun serverNow(): Long
+    fun status(driftMs: Long?, buffering: Boolean)
 }
 
 /**
