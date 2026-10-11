@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { NavLink } from 'react-router-dom';
 
 /** Must match `.options-panel.is-closing` in `index.css`. */
@@ -8,6 +8,8 @@ export interface NavItem {
   to: string;
   label: string;
   end?: boolean;
+  /** The second line on the arcade card shown on the way in (`ArcadeInterstitial`). */
+  detail?: string;
 }
 
 interface NavOverflowProps {
@@ -18,6 +20,8 @@ interface NavOverflowProps {
   isOpen: boolean;
   onToggle: () => void;
   onClose: () => void;
+  /** A plain click on an item: the shell plays the arcade card and navigates, as the bar's tabs do. */
+  onNavigate: (event: MouseEvent<HTMLAnchorElement>, item: NavItem) => void;
   /** Boot-stagger class from the shell, so this arrives with the rest of the bar. */
   className?: string;
 }
@@ -26,7 +30,7 @@ interface NavOverflowProps {
  * The More menu: `overflow` (admin pages) at every width, plus `primary` tabs below `lg`. The repeated tabs get no
  * underline: a second `nav-underline` name disables the view transition.
  */
-export function NavOverflow({ overflow, primary, isOpen, onToggle, onClose, className = '' }: NavOverflowProps) {
+export function NavOverflow({ overflow, primary, isOpen, onToggle, onClose, onNavigate, className = '' }: NavOverflowProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const wasOpen = useRef(isOpen);
   const [isClosing, setIsClosing] = useState(false);
@@ -96,7 +100,16 @@ export function NavOverflow({ overflow, primary, isOpen, onToggle, onClose, clas
                 <div className="lg:hidden">
                   <div className="flex flex-col gap-1">
                     {primary.map((item) => (
-                      <NavLink key={item.to} to={item.to} end={item.end} onClick={onClose} className={itemClass}>
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        end={item.end}
+                        onClick={(event) => {
+                          onClose();
+                          onNavigate(event, item);
+                        }}
+                        className={itemClass}
+                      >
                         {item.label}
                       </NavLink>
                     ))}
@@ -107,7 +120,16 @@ export function NavOverflow({ overflow, primary, isOpen, onToggle, onClose, clas
               {/* A gap so neighbouring highlights (hover next to the active page) read as two rows. */}
               <div className="flex flex-col gap-1">
                 {overflow.map((item) => (
-                  <NavLink key={item.to} to={item.to} end={item.end} onClick={onClose} className={itemClass}>
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    onClick={(event) => {
+                      onClose();
+                      onNavigate(event, item);
+                    }}
+                    className={itemClass}
+                  >
                     {item.label}
                   </NavLink>
                 ))}

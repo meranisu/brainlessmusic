@@ -42,7 +42,7 @@ function navItemsFor(isGuest: boolean): { primary: NavItem[]; overflow: NavItem[
     // 2026-10-11), so More holds only what doesn't fit the bar.
     overflow: [
       // Everyone, guests included (A100). Behind More: a sixth tab doesn't fit the bar (see above).
-      { to: '/together', label: 'Listen together' },
+      { to: '/together', label: 'Listen together', detail: 'Same song, same moment' },
     ],
   };
 }
@@ -162,6 +162,20 @@ export function AppShell() {
   }
 
   /**
+   * A More menu item: the bar's tabs (repeated there on a phone) go as `onTabClick`; the rest (Listen together) through
+   * the same card, with its line underneath. Modified clicks and the page you're already on pass through.
+   */
+  function onMenuClick(event: MouseEvent<HTMLAnchorElement>, item: NavItem) {
+    const index = primary.indexOf(item);
+    if (index >= 0) return onTabClick(event, item, index);
+    if (event.defaultPrevented || event.button !== 0) return;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    if (pathname === item.to || pathname.startsWith(`${item.to}/`)) return;
+    event.preventDefault();
+    leaveThrough({ text: item.label, detail: item.detail }, item.to);
+  }
+
+  /**
    * Back to the title screen, signed out, guests included (to keep a guest identity, use Options' "Move or forget").
    * The flag stops the title screen bouncing a signed-in visitor back in. `logout` runs in `leaveThrough`.
    */
@@ -238,6 +252,7 @@ export function AppShell() {
               isOpen={showMore}
               onToggle={() => setShowMore((open) => !open)}
               onClose={() => setShowMore(false)}
+              onNavigate={onMenuClick}
             />
           </div>
 

@@ -4,6 +4,19 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Listen together opens through the arcade card, like the tabs
+
+- The More menu's links were plain links, so Listen together appeared with no transition while the tabs, Options
+  and Control Center all go through the arcade card (`leaveThrough`). Now `NavOverflow` hands each click to the
+  shell (`onNavigate`): Listen together plays the card "Listen together / Same song, same moment", and a tab repeated
+  in the phone's More menu plays its card like the bar's tab does. Modified clicks, reduced motion and the page
+  you're already on skip the card. Owner request.
+- The room links in the player bar and Now Playing ("Room ABCDEF") still open the page directly.
+- Verified: `npm run build` clean, lint clean on both files. Headless Chromium against the scratch server, desktop
+  and 390 px: the card shows with both lines while the old page is still underneath, then lands on `/together`; no
+  card when already there; the phone's Library entry in More plays its card; reduced motion goes straight there; no
+  page errors.
+
 ## 2026-10-11: Listen together on Android (room sync spec step 4)
 
 - **Room socket** (`rooms/RoomSocket.kt`): the Android twin of the web's `roomClient.ts` on OkHttp's WebSocket, with

@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `onMenuClick()` (new): `frontend/src/components/AppShell.tsx`; `NavOverflow` (`onNavigate` prop), `NavItem.detail`: `frontend/src/components/NavOverflow.tsx`
+**Date:** 2026-10-11
+**How added:** owner request
+**Purpose:** the More menu's links go through the arcade card, so Listen together has a transition like the tabs.
+**Side effects:** none.
+**Before:** menu links navigated at once with no card.
+**After:** Listen together and the phone's repeated tabs play the card first.
+
 **Function:** `RoomSocket`, `ClockEstimator`, room models (new): `android/.../rooms/`; `RoomSession`, `RoomUiState` (new): `rooms/RoomSession.kt`; `enterRoom()`, `followRoom()`, `exitRoom()`, `syncToRoom()`, `applyRoomQueue()`, `roomSetPlaying()`, `roomPlay()`, `onRoomPlayWhenReady()` (new), transport and session-player overrides (room branch): `playback/PlaybackController.kt`; `TogetherScreen`, `TogetherViewModel` (new): `ui/together/`; `createRoom`, `myRoom`, `lookupRoom`: `ApiService.kt`
 **Date:** 2026-10-11
 **How added:** new feature
