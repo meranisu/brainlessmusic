@@ -1,6 +1,6 @@
 # Spec: Room sync
 
-**Status:** Agreed (2026-10-11); step 1 (backend) built 2026-10-11, steps 2–5 not started
+**Status:** Agreed (2026-10-11); steps 1 (backend) and 2 (web) built 2026-10-11, steps 3–5 not started
 **Layers:** 🔧 Backend / 🌐 Web / 📱 Android
 
 Roadmap boxes 21 (this spec), 22 (backend) and 23 (clients). *Done when (v0.3):* two people in different places hear
@@ -94,11 +94,13 @@ the way NTP does: it sends `ping {t0}`, the server answers `pong {t0, ts}`, the 
 
 - On connect: 8 pings, 100 ms apart. Keep the offset from the 3 lowest-RTT samples (median). Low-RTT samples have
   the least room for error.
-- Then one ping every 20 s. That also keeps the WebSocket inside Cloudflare's ~100 s idle limit. The server also
+- Then one ping every 3 s for half a minute, then every 20 s. The burst runs while the page is still loading, which
+  delays handling the replies; in testing that put the first estimate 0.5 s off, so the early pings replace it with
+  quieter samples. The 20 s pings also keep the WebSocket inside Cloudflare's ~100 s idle limit. The server also
   sends a WebSocket protocol ping every 30 s and drops a socket that missed the last one, so a phone that vanished
   without closing shows as away within a minute.
-- Replace the offset only if a new sample's RTT is no worse than 1.5× the best seen in the last 2 minutes, so one slow
-  round trip on mobile data doesn't knock everyone out of step.
+- The offset is always the median of the 3 lowest-RTT samples from the last 2 minutes, so one slow round trip on
+  mobile data doesn't knock anyone out of step.
 - Client time uses a monotonic clock (`performance.now()` on the web, `SystemClock.elapsedRealtime()` on Android), so
   the phone's own clock changing mid-session doesn't matter.
 
@@ -109,13 +111,17 @@ Once a second, each client compares its player's position to where the song shou
 | Off by | What the client does |
 |---|---|
 | under 300 ms | Nothing. |
-| 300 ms or more, twice in a row | Seek to the right position. |
+| 300 ms or more, twice in a row | Seek to the right position, plus this device's seek lead (below). |
 
 Why so loose: the members are in different places and can't hear each other's speakers, so a few hundred
 milliseconds is inaudible. What matters is "did you hear that bit?" over a call or chat. Seeking only after two
 readings stops one bad reading from causing a skip. Gently speeding up or slowing down (instead of seeking) is the
 better fix if seeks turn out to be audible; it's left for after the first walkthrough, since both players support it
 (`playbackRate`, `PlaybackParameters`).
+
+**Seek lead.** Starting or seeking takes a device a moment before sound actually moves, so aiming at the exact
+position always lands behind it (about 0.7 s in headless Chromium). After each start or correction the client measures
+how far off it landed and aims that much further ahead next time, learned per device, between 0 and 1 s.
 
 Each client reports its measured drift every 5 s (`status`). The room monitor shows it, so "are we in sync" is a
 number, not a feeling.
@@ -236,7 +242,7 @@ Both clients get a "room mode" in the player they already have, not a second pla
 | Step | What | Done when |
 |---|---|---|
 | 1 | Backend: room registry, REST, WebSocket, clock pings, server-side song timer, tests with two fake clients and a fake clock | `npm test` covers join, double-skip, reconnect, host handover, room expiry. **Built 2026-10-11:** `services/rooms.ts`, `routes/rooms.ts` |
-| 2 | Web room mode + room view | Two browser tabs stay in sync (roadmap box 22's done-when), drift readout under 300 ms |
+| 2 | Web room mode + room view | Two browser tabs stay in sync (roadmap box 22's done-when), drift readout under 300 ms. **Built 2026-10-11:** `lib/roomClient.ts`, `RoomProvider`, `TogetherPage` (`/together`), room mode in `PlayerBar`; two headless Chromium sessions measured within ±0.25 s |
 | 3 | Control Center room monitor | Shows rooms, members, drift |
 | 4 | Android room mode | Phone and browser in sync; screen-off keeps the room |
 | 5 | Walkthrough | Two people, two places, one skips: the v0.3 done-when |

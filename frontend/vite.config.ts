@@ -18,8 +18,8 @@ export default defineConfig({
     port: 5180,
     strictPort: true,
     proxy: {
-      // Same-origin API in dev, so a phone only needs to reach this one port.
-      '/api': 'http://localhost:3000',
+      // Same-origin API in dev, so a phone only needs to reach this one port. `ws` carries the room-sync socket.
+      '/api': { target: 'http://localhost:3000', ws: true },
     },
   },
 })

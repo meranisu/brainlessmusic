@@ -60,7 +60,8 @@ export function NavOverflow({ overflow, primary, isOpen, onToggle, onClose, clas
         : 'text-blue-200 hover:bg-orange-500/12 hover:text-orange-300'
     }`;
 
-  /* From `lg` this button only serves `overflow`, so it hides when that's empty (guests). Below `lg` it's a phone's tabs. */
+  /* From `lg` this button only serves `overflow`, so it hides when that's empty (Listen together keeps it filled for
+     everyone today). Below `lg` it's a phone's tabs. */
   const emptyAtDesktop = overflow.length === 0 ? 'lg:hidden' : '';
 
   return (

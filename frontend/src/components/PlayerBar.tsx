@@ -9,7 +9,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useIsPhone } from '../hooks/useIsPhone';
 import { apiClient, buildCoverUrl, buildStreamUrl, prepareTrack, reportPlaybackFailure } from '../lib/apiClient';
@@ -45,6 +45,8 @@ import {
   VolumeMutedIcon,
 } from './icons';
 import { NowPlaying } from './NowPlaying';
+import { useRoom } from './RoomProvider';
+import { expectedPositionMs, type RoomState } from '../lib/roomClient';
 import type { PlaybackState, TrackSummary } from '../types/api';
 import { useToast } from './ToastProvider';
 
@@ -57,6 +59,14 @@ export type RepeatMode = 'off' | 'all' | 'one';
 const RESTART_THRESHOLD_SECONDS = 3;
 
 const SEEK_STEP_SECONDS = 5;
+
+/**
+ * In a room, off by this much (twice in a row) means seek back into step. Listeners are in different places, so a few
+ * hundred ms is inaudible (spec: `.docs/specs/room-sync.md`, "Drift").
+ */
+const ROOM_DRIFT_LIMIT_MS = 300;
+/** A song picked with Play in a room waits this long for the server to add it, then the jump is dropped. */
+const ROOM_PENDING_JUMP_MS = 10_000;
 
 /** A play counts at half the track or four minutes, whichever is first (Last.fm's rule). */
 const SCROBBLE_CAP_SECONDS = 240;
@@ -234,6 +244,8 @@ export interface PlayerContextValue {
   setTransitions: (prefs: TransitionPrefs) => void;
   /** False on iOS and iPadOS, which ignore `audio.volume`: fades are unavailable there, gapless still works. */
   canFade: boolean;
+  /** In a "Listen together" room: the transport drives the room for everyone, and shuffle and repeat are off. */
+  inRoom: boolean;
 }
 
 const PlayerContext = createContext<PlayerContextValue | undefined>(undefined);
@@ -327,6 +339,32 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   isGuestRef.current = Boolean(user?.isGuest);
   const { showToast } = useToast();
   const favoriteIds = useFavoriteIds();
+
+  // "Listen together": while a room is joined this player follows the room's state (`syncToRoom`) and its transport
+  // sends room commands. A ref, so lock-screen handlers and timers bound earlier always see the current room.
+  const roomCtx = useRoom();
+  const inRoom = roomCtx.room !== null;
+  const roomRef = useRef(roomCtx);
+  roomRef.current = roomCtx;
+  // The room entry the playing element holds, so the sync loop can tell when the room moved to another song.
+  const roomEntryRef = useRef<number | null>(null);
+  const roomQueueKeyRef = useRef('');
+  const roomTracksRef = useRef<QueueTrack[]>([]);
+  const roomLoadingRef = useRef(false);
+  const roomStartTimerRef = useRef<number | undefined>(undefined);
+  const driftStrikesRef = useRef(0);
+  const lastDriftRef = useRef<number | null>(null);
+  // Starting or jumping takes this device a moment, so aiming at the exact position lands behind it (measured ~0.7 s
+  // in Chromium). Learned from how late the last start or jump landed; 0 to 1 s.
+  const seekLeadRef = useRef(0);
+  const afterCorrectionRef = useRef(false);
+  // Play pressed in a room: the songs go in after the current one, and this jumps to the picked one once it's there.
+  const pendingRoomJumpRef = useRef<{ afterEntryId: number | undefined; offset: number; trackId: number; at: number } | null>(
+    null,
+  );
+  const syncRef = useRef<() => void>(() => {});
+  const isBufferingRef = useRef(false);
+  isBufferingRef.current = isBuffering;
 
   const current = queue[index] ?? null;
 
@@ -827,9 +865,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setVolume(volume > 0 ? 0 : preMuteVolumeRef.current);
   }
 
+  /** The room's playing entry, from the ref so handlers bound on an earlier render act on the room as it is now. */
+  function roomCurrentEntry() {
+    const room = roomRef.current.room;
+    return room ? room.queue[room.current] : undefined;
+  }
+
   function playQueue(tracks: QueueTrack[], startIndex: number) {
     if (tracks.length === 0) return;
     const at = Math.min(Math.max(startIndex, 0), tracks.length - 1);
+    if (roomRef.current.room) {
+      // In a room, Play adds to the shared queue after the current song and jumps there once the server has it,
+      // rather than replacing everyone's queue.
+      const after = roomCurrentEntry()?.entryId;
+      pendingRoomJumpRef.current = { afterEntryId: after, offset: at, trackId: tracks[at].id, at: Date.now() };
+      roomRef.current.send({ op: 'add', trackIds: tracks.map((t) => t.id), after });
+      return;
+    }
     originalQueueRef.current = tracks;
     setIsShuffled(false);
     setQueue(tracks);
@@ -850,6 +902,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   /** A skip the user asked for: the short fade out first (A71), then the jump. Auto-advance uses `goTo`. */
   function jumpTo(at: number) {
     if (at < 0 || at >= queue.length) return;
+    const room = roomRef.current.room;
+    if (room) {
+      const entry = room.queue[at];
+      if (entry) roomRef.current.send({ op: 'jump', entryId: entry.entryId });
+      return;
+    }
     const audio = audioRef.current;
     const action = ++fadeActionRef.current;
     pendingSkipRef.current = null;
@@ -868,6 +926,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }
 
   function next() {
+    const entry = roomCurrentEntry();
+    if (roomRef.current.room) {
+      // Names the song seen, so two people skipping at once move one song (the server refuses the second).
+      if (entry) roomRef.current.send({ op: 'next', entryId: entry.entryId });
+      return;
+    }
     if (index < queue.length - 1) return jumpTo(index + 1);
     if (repeat === 'all') return jumpTo(0);
   }
@@ -876,6 +940,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   function resumePlayback() {
     const audio = audioRef.current;
     if (!audio) return;
+    const room = roomRef.current.room;
+    if (room) {
+      // The room is already playing but this tab is silent: the browser blocked sound until a tap (a reload, or
+      // joining from a link). This tap starts it here only; the room didn't stop.
+      if (room.playback.playing) {
+        void audio.play().catch(() => {});
+        syncRef.current();
+      } else {
+        roomRef.current.send({ op: 'play' });
+      }
+      return;
+    }
     ++fadeActionRef.current;
     pausingRef.current = false;
     const skip = pendingSkipRef.current;
@@ -900,6 +976,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   function pausePlayback() {
     const audio = audioRef.current;
     if (!audio) return;
+    if (roomRef.current.room) {
+      roomRef.current.send({ op: 'pause' });
+      return;
+    }
     const action = ++fadeActionRef.current;
     const skip = pendingSkipRef.current;
     if (skip) {
@@ -925,6 +1005,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }
 
   function previous() {
+    if (roomRef.current.room) {
+      // The server applies the same 3 s restart rule.
+      const entry = roomCurrentEntry();
+      if (entry) roomRef.current.send({ op: 'previous', entryId: entry.entryId });
+      return;
+    }
     const audio = audioRef.current;
     if (audio && audio.currentTime > RESTART_THRESHOLD_SECONDS) {
       replanBoundary(audio);
@@ -945,7 +1031,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   function toggle() {
     const audio = audioRef.current;
     if (!audio || !current) return;
-    if (audio.paused) resumePlayback();
+    const room = roomRef.current.room;
+    // In a room, the room's state decides, not this tab's: a tab still waiting for a song's start time is "paused"
+    // locally while the room plays.
+    const paused = room ? !room.playback.playing || audio.paused : audio.paused;
+    if (paused) resumePlayback();
     else pausePlayback();
   }
 
@@ -960,6 +1050,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   function seek(seconds: number) {
     const audio = audioRef.current;
     if (!audio) return;
+    if (roomRef.current.room) {
+      const entry = roomCurrentEntry();
+      if (!entry) return;
+      const target = Math.min(Math.max(seconds, 0), entry.durationMs / 1000);
+      // Shown at once; the audio moves when the room's new state comes back.
+      setCurrentTime(target);
+      roomRef.current.send({ op: 'seek', entryId: entry.entryId, positionMs: Math.round(target * 1000) });
+      return;
+    }
     replanBoundary(audio);
     const max = duration || audio.duration || 0;
     const target = Math.min(Math.max(seconds, 0), max);
@@ -970,11 +1069,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }
 
   function cycleRepeat() {
+    // A room plays its queue once, the same for everyone.
+    if (roomRef.current.room) return;
     setRepeat((mode) => (mode === 'off' ? 'all' : mode === 'all' ? 'one' : 'off'));
   }
 
   async function toggleShuffle() {
-    if (queue.length < 2) return;
+    if (queue.length < 2 || roomRef.current.room) return;
 
     if (isShuffled) {
       const restored = originalQueueRef.current ?? queue;
@@ -1034,6 +1135,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   /** Closing the player means "I'm done", so the saved position goes too. Separate from `stop`: logout must keep it. */
   const stopAndForget = useCallback(() => {
+    // Closing the player in a room means leaving it too; the others play on.
+    if (roomRef.current.room) roomRef.current.leave();
     stop();
     void apiClient.delete('/me/playback-state').catch(() => {
       // The queue is already gone locally; a stale row will be overwritten by
@@ -1224,6 +1327,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   /** Runs on every `timeupdate` of the playing element: starts the boundary once, in the way the settings ask. */
   function checkBoundary(audio: HTMLAudioElement) {
+    // No gapless start or crossfade in a room: the server ends songs, and a fade behind a moving target is where the
+    // drift maths gets hard (spec, "Out").
+    if (roomRef.current.room) return;
     if (transitionRef.current || audio.paused || pausingRef.current || swappingRef.current) return;
     const { queue: tracks, index: at, repeat: mode } = stateRef.current;
     const track = tracks[at];
@@ -1266,6 +1372,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   /** The playing element ran out. A planned boundary that didn't start yet starts now; otherwise the old way. */
   function handleEnded() {
+    const roomNow = roomRef.current;
+    if (roomNow.room) {
+      // The server ends songs in a room and its next state is moments away. Only with the connection down does this
+      // tab move on alone, to the next song in the queue it last saw (spec, "The 30-second test").
+      if (roomNow.connection === 'live') return;
+      const at = stateRef.current.index;
+      const nextEntry = roomNow.room.queue[at + 1];
+      if (nextEntry) {
+        roomEntryRef.current = nextEntry.entryId;
+        goTo(at + 1);
+      }
+      return;
+    }
     const { queue: tracks, index: at, repeat: mode } = stateRef.current;
     const pending = transitionRef.current;
     clearTransition();
@@ -1299,9 +1418,172 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setIsPlaying(false);
   }
 
+  /** The room's queue as player tracks. */
+  function roomQueueTracks(room: RoomState): QueueTrack[] {
+    return room.queue.map((e) => ({
+      id: e.trackId,
+      title: e.title,
+      artist: e.artist,
+      duration: e.durationMs / 1000,
+      albumId: e.albumId,
+    }));
+  }
+
+  /** Play pressed in a room: once the server has added the songs, jump to the one picked. */
+  function runPendingRoomJump(room: RoomState) {
+    const pending = pendingRoomJumpRef.current;
+    if (!pending) return;
+    if (Date.now() - pending.at > ROOM_PENDING_JUMP_MS) {
+      pendingRoomJumpRef.current = null;
+      return;
+    }
+    const start =
+      pending.afterEntryId === undefined ? 0 : room.queue.findIndex((e) => e.entryId === pending.afterEntryId) + 1;
+    const target = start > 0 || pending.afterEntryId === undefined ? room.queue[start + pending.offset] : undefined;
+    if (!target || target.trackId !== pending.trackId || target.addedBy !== roomRef.current.you) return;
+    pendingRoomJumpRef.current = null;
+    roomRef.current.send({ op: 'jump', entryId: target.entryId });
+  }
+
+  /**
+   * Makes this tab match the room: the right song, playing or paused, at the right position. Runs on every room state
+   * and once a second. The formula and thresholds are the spec's ("Model", "Drift"); the server's clock comes from
+   * `RoomClient.serverNow()`.
+   */
+  function syncToRoom() {
+    const { room, connection, serverNow } = roomRef.current;
+    const audio = audioRef.current;
+    if (!room || !audio) return;
+    // Disconnected: carry on alone from the last state; `handleEnded` moves to the next song.
+    if (connection !== 'live') return;
+
+    const key = room.queue.map((e) => e.entryId).join(',');
+    if (key !== roomQueueKeyRef.current) {
+      roomQueueKeyRef.current = key;
+      roomTracksRef.current = roomQueueTracks(room);
+      originalQueueRef.current = roomTracksRef.current;
+      setIsShuffled(false);
+      setQueue(roomTracksRef.current);
+    }
+    runPendingRoomJump(room);
+
+    const entry = room.queue[room.current];
+    if (!entry) {
+      window.clearTimeout(roomStartTimerRef.current);
+      if (!audio.paused) audio.pause();
+      return;
+    }
+    if (stateRef.current.index !== room.current) setIndex(room.current);
+
+    const expected = expectedPositionMs(room, serverNow());
+    if (roomEntryRef.current !== entry.entryId) {
+      roomEntryRef.current = entry.entryId;
+      window.clearTimeout(roomStartTimerRef.current);
+      driftStrikesRef.current = 0;
+      const local = stateRef.current.queue[stateRef.current.index];
+      // Starting a room from what's playing: the song is already loaded, so the drift rule below lines it up instead
+      // of a reload.
+      const alreadyLoaded = local?.id === entry.trackId && audio.src !== '' && !roomLoadingRef.current;
+      if (!alreadyLoaded) {
+        roomLoadingRef.current = true;
+        void load(roomTracksRef.current, room.current, false, Math.max(0, expected) / 1000).finally(() => {
+          roomLoadingRef.current = false;
+          syncRef.current();
+        });
+        return;
+      }
+    }
+    if (roomLoadingRef.current) return;
+
+    const moveTo = (ms: number) => {
+      audio.currentTime = ms / 1000;
+      // A correction, not listening: keep it out of the scrobble count.
+      if (progressRef.current) progressRef.current.lastTime = ms / 1000;
+    };
+
+    if (!room.playback.playing) {
+      window.clearTimeout(roomStartTimerRef.current);
+      lastDriftRef.current = null;
+      if (!audio.paused) audio.pause();
+      if (Math.abs(audio.currentTime * 1000 - room.playback.positionMs) >= ROOM_DRIFT_LIMIT_MS) {
+        moveTo(room.playback.positionMs);
+      }
+      return;
+    }
+
+    if (expected < 0) {
+      // A new song's start time is still ahead: wait at the start and go on the dot.
+      if (!audio.paused) audio.pause();
+      if (audio.currentTime > 0) moveTo(0);
+      window.clearTimeout(roomStartTimerRef.current);
+      roomStartTimerRef.current = window.setTimeout(() => syncRef.current(), -expected);
+      return;
+    }
+    // Past the end: the server is about to move everyone on.
+    if (expected >= entry.durationMs) return;
+
+    if (audio.paused) {
+      moveTo(expected + seekLeadRef.current);
+      afterCorrectionRef.current = true;
+      driftStrikesRef.current = 0;
+      // Rejected when the browser wants a tap first (after a reload); the play button does that (`resumePlayback`).
+      void audio.play().catch(() => {});
+      return;
+    }
+
+    const drift = audio.currentTime * 1000 - expected;
+    lastDriftRef.current = Math.round(drift);
+    if (afterCorrectionRef.current && !isBufferingRef.current) {
+      // How far the last start or jump landed from where it should: aim that much further ahead next time.
+      afterCorrectionRef.current = false;
+      if (Math.abs(drift) < 2000) seekLeadRef.current = Math.min(Math.max(seekLeadRef.current - drift, 0), 1000);
+    }
+    if (Math.abs(drift) < ROOM_DRIFT_LIMIT_MS) {
+      driftStrikesRef.current = 0;
+      return;
+    }
+    // Two readings in a row, so one bad reading doesn't cause a jump.
+    driftStrikesRef.current += 1;
+    if (driftStrikesRef.current >= 2) {
+      moveTo(expected + seekLeadRef.current);
+      afterCorrectionRef.current = true;
+      driftStrikesRef.current = 0;
+    }
+  }
+
   // The mount-time listeners call these through refs, so they always see this render's values.
   boundaryRef.current = checkBoundary;
   endedRef.current = handleEnded;
+  syncRef.current = syncToRoom;
+
+  // Follow the room on every new state and on reconnect, then once a second for drift, reported every 5 s for the
+  // Control Center monitor.
+  const roomVersion = roomCtx.room?.version;
+  const roomConnection = roomCtx.connection;
+  useEffect(() => {
+    syncRef.current();
+  }, [roomVersion, roomConnection]);
+
+  useEffect(() => {
+    if (!inRoom) {
+      // Left: forget the room's song so the next room starts clean. The music plays on here, on its own.
+      roomEntryRef.current = null;
+      roomQueueKeyRef.current = '';
+      pendingRoomJumpRef.current = null;
+      lastDriftRef.current = null;
+      window.clearTimeout(roomStartTimerRef.current);
+      return;
+    }
+    const tick = window.setInterval(() => syncRef.current(), 1000);
+    const report = window.setInterval(
+      () => roomRef.current.reportStatus(lastDriftRef.current, isBufferingRef.current),
+      5000,
+    );
+    return () => {
+      window.clearInterval(tick);
+      window.clearInterval(report);
+    };
+  }, [inRoom]);
 
   // Lock-screen and notification controls. Secure-context only, so absent over plain http on a LAN.
   useEffect(() => {
@@ -1505,6 +1787,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     transitions,
     setTransitions,
     canFade,
+    inRoom,
   };
 
   return (
@@ -1529,7 +1812,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             <CoverArt kind="tracks" id={current.id} className="h-10 w-10 shrink-0 rounded-md" alt="" />
             <span className="min-w-0 flex-1">
               <span className="player-title block truncate text-sm text-white">{current.title}</span>
-              <span className="block truncate text-xs text-blue-300">{current.artist ?? 'Unknown Artist'}</span>
+              <span className="block truncate text-xs text-blue-300">
+                {roomCtx.room && (
+                  <span className={roomCtx.connection === 'live' ? 'text-orange-400' : 'text-blue-400'}>
+                    {roomCtx.connection === 'live' ? `Room ${roomCtx.room.code}` : 'Reconnecting…'} ·{' '}
+                  </span>
+                )}
+                {current.artist ?? 'Unknown Artist'}
+              </span>
             </span>
           </button>
           <button
@@ -1591,6 +1881,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 <span className="player-title truncate text-base text-white">{current.title}</span>
                 <span className="truncate text-xs text-blue-300">{current.artist ?? 'Unknown Artist'}</span>
                 <span className="ml-auto flex shrink-0 items-center gap-2 font-mono text-xs">
+                  {/* The one accent in this row while in a room: it explains why shuffle and repeat are off. */}
+                  {roomCtx.room && (
+                    <Link
+                      to="/together"
+                      className={roomCtx.connection === 'live' ? 'text-orange-400 hover:text-orange-300' : 'text-blue-400'}
+                      title="Listen together: open the room"
+                    >
+                      {roomCtx.connection === 'live' ? `Room ${roomCtx.room.code}` : 'Reconnecting…'}
+                    </Link>
+                  )}
                   {isBuffering && <span className="animate-pulse text-blue-400">Buffering…</span>}
                   {servedLabel && (
                     <span
@@ -1658,19 +1958,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               />
               <button
                 onClick={toggleShuffle}
-                disabled={queue.length < 2}
+                disabled={queue.length < 2 || inRoom}
                 className={`player-pill h-9 w-9 ${isShuffled ? 'is-active' : ''}`}
                 aria-pressed={isShuffled}
                 aria-label="Shuffle"
-                title="Smart shuffle: avoids the same artist back-to-back"
+                title={inRoom ? 'Shuffle is off in a room' : 'Smart shuffle: avoids the same artist back-to-back'}
               >
                 <ShuffleIcon className="h-4 w-4" />
               </button>
               <button
                 onClick={cycleRepeat}
+                disabled={inRoom}
                 className={`player-pill h-9 w-9 ${repeat !== 'off' ? 'is-active' : ''}`}
                 aria-label={`Repeat: ${repeat}`}
-                title={`Repeat: ${repeat}`}
+                title={inRoom ? 'Repeat is off in a room' : `Repeat: ${repeat}`}
               >
                 {repeat === 'one' ? <RepeatOneIcon className="h-4 w-4" /> : <RepeatIcon className="h-4 w-4" />}
               </button>

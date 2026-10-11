@@ -149,10 +149,13 @@ export function createRoomRegistry(deps: RegistryDeps) {
     };
   }
 
-  function broadcast(room: Room): void {
+  /** `skip`: a socket that gets this state another way (a newcomer's `welcome`), so it doesn't arrive twice. */
+  function broadcast(room: Room, skip?: Connection): void {
     room.version += 1;
     const message = { type: 'state', room: snapshot(room) };
-    for (const member of room.members.values()) member.connection?.send(message);
+    for (const member of room.members.values()) {
+      if (member.connection && member.connection !== skip) member.connection.send(message);
+    }
   }
 
   /** The server ends songs (spec, "The server ends songs"), so five members don't skip five times. */
@@ -431,7 +434,7 @@ export function createRoomRegistry(deps: RegistryDeps) {
       member.awayTimer = null;
       member.connection = connection;
       member.name = info.name;
-      broadcast(room);
+      broadcast(room, connection);
       return { ok: true, room: snapshot(room) };
     },
 

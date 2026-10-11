@@ -4,6 +4,30 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `RoomClient` (new: `connect`, `send`, `status`, `leave`, `stop`, `serverNow`), `expectedPositionMs()`: `frontend/src/lib/roomClient.ts`; `RoomProvider`, `useRoom()` (new): `frontend/src/components/RoomProvider.tsx`; `TogetherPage` (new): `frontend/src/pages/TogetherPage.tsx`
+**Date:** 2026-10-11
+**How added:** new feature (room sync spec step 2)
+**Purpose:** the web client of room sync: socket and clock, room state in React with rejoin after reload, and the start/join/room page.
+**Side effects:** one WebSocket per joined room; `GET /rooms/mine` on sign-in; `POST /rooms` to start one.
+**Before:** nothing, new.
+**After:** a browser can start, join, follow and leave rooms.
+
+**Function:** `syncToRoom()`, `runPendingRoomJump()`, `roomQueueTracks()` (new); `playQueue`, `jumpTo`, `next`, `previous`, `toggle`, `seek`, `resumePlayback`, `pausePlayback`, `cycleRepeat`, `toggleShuffle`, `checkBoundary`, `handleEnded`, `stopAndForget` (room branches): `frontend/src/components/PlayerBar.tsx`
+**Date:** 2026-10-11
+**How added:** new feature (room sync spec step 2)
+**Purpose:** in a room the player follows the room's state with drift correction and a learned seek lead, and its controls send room commands.
+**Side effects:** sends room commands and a drift report every 5 s; no crossfade or gapless scheduling while in a room.
+**Before:** the player only played its own queue.
+**After:** outside a room nothing changes; inside one, every control acts on the room.
+
+**Function:** `broadcast()` (new `skip` parameter), `connect()`: `backend/src/services/rooms.ts`
+**Date:** 2026-10-11
+**How added:** bug fix
+**Purpose:** a newcomer gets its `welcome` only, not a `state` of its own arrival first.
+**Side effects:** none.
+**Before:** the joining socket got `state` and then `welcome`.
+**After:** only `welcome`; the others get `state`.
+
 **Function:** `createRoomRegistry()` (new) and its methods `create`, `connect`, `disconnect`, `leave`, `command`, `status`, `snapshot`, `codeOfUser`, `overview`: `backend/src/services/rooms.ts`
 **Date:** 2026-10-11
 **How added:** new feature (roadmap box 22, room sync spec step 1)

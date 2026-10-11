@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { App } from './App.tsx';
 import { AuthProvider } from './auth/AuthContext.tsx';
 import { PlayerProvider } from './components/PlayerBar.tsx';
+import { RoomProvider } from './components/RoomProvider.tsx';
 import { ToastProvider } from './components/ToastProvider.tsx';
 import { UploadProvider } from './components/UploadProvider.tsx';
 import './index.css';
@@ -17,11 +18,14 @@ createRoot(document.getElementById('root')!).render(
       <BrowserRouter>
         <AuthProvider>
           <ToastProvider>
-            <PlayerProvider>
-              <UploadProvider>
-                <App />
-              </UploadProvider>
-            </PlayerProvider>
+            {/* Outside the player, which follows the joined room's state. */}
+            <RoomProvider>
+              <PlayerProvider>
+                <UploadProvider>
+                  <App />
+                </UploadProvider>
+              </PlayerProvider>
+            </RoomProvider>
           </ToastProvider>
         </AuthProvider>
       </BrowserRouter>

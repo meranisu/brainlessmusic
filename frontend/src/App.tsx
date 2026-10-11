@@ -23,6 +23,7 @@ const PlaylistDetailPage = lazy(() =>
 );
 const SearchPage = lazy(() => import('./pages/SearchPage').then((m) => ({ default: m.SearchPage })));
 const OptionsPage = lazy(() => import('./pages/OptionsPage').then((m) => ({ default: m.OptionsPage })));
+const TogetherPage = lazy(() => import('./pages/TogetherPage').then((m) => ({ default: m.TogetherPage })));
 const UploadPage = lazy(() => import('./pages/UploadPage').then((m) => ({ default: m.UploadPage })));
 const UsersPage = lazy(() => import('./pages/UsersPage').then((m) => ({ default: m.UsersPage })));
 const ControlCenterPage = lazy(() =>
@@ -54,6 +55,8 @@ export function App() {
             </Route>
             <Route path="/search" element={<SearchPage />} />
             <Route path="/options" element={<OptionsPage />} />
+            {/* Guests too: they join rooms with full controls (A100). */}
+            <Route path="/together" element={<TogetherPage />} />
             {/* Now the Library's Full view; redirected for bookmarks and the old nav link. */}
             <Route path="/manage" element={<Navigate to="/?view=full" replace />} />
             <Route element={<RequireAdmin />}>

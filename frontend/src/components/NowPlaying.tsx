@@ -20,6 +20,8 @@ import {
 } from './icons';
 import { useScrollLock } from '../hooks/useScrollLock';
 import type { PlayerContextValue } from './PlayerBar';
+import { Link } from 'react-router-dom';
+import { useRoom } from './RoomProvider';
 
 const WAVE_BARS = 44;
 
@@ -99,9 +101,11 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
     setVolume,
     toggleMute,
     stop,
+    inRoom,
   } = player;
 
   const favoriteIds = useFavoriteIds();
+  const { room, connection } = useRoom();
   // Set only mid-drag. Seeking on every tick would fire a range request each time; seek once on release.
   const [scrubTime, setScrubTime] = useState<number | null>(null);
 
@@ -149,9 +153,21 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
         <button onClick={onCollapse} className="btn-ghost btn-sm h-9 w-9 !px-0" aria-label="Close now playing">
           <ChevronDownIcon className="h-5 w-5" />
         </button>
-        <span className="font-display text-xs font-extrabold uppercase tracking-[0.22em] text-blue-400">
-          Playing from library
-        </span>
+        {room ? (
+          <Link
+            to="/together"
+            onClick={onCollapse}
+            className={`font-display text-xs font-extrabold uppercase tracking-[0.22em] ${
+              connection === 'live' ? 'text-orange-400' : 'text-blue-400'
+            }`}
+          >
+            {connection === 'live' ? `Playing in room ${room.code}` : 'Reconnecting to the room'}
+          </Link>
+        ) : (
+          <span className="font-display text-xs font-extrabold uppercase tracking-[0.22em] text-blue-400">
+            Playing from library
+          </span>
+        )}
         <span className="w-9 text-right font-mono text-xs tabular-nums text-blue-400">
           {index + 1}/{queue.length}
         </span>
@@ -182,17 +198,18 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
         </div>
         <button
           onClick={toggleShuffle}
-          disabled={queue.length < 2}
+          disabled={queue.length < 2 || inRoom}
           className={`${pill(isShuffled)} disabled:opacity-40`}
           aria-pressed={isShuffled}
-          aria-label="Shuffle"
+          aria-label={inRoom ? 'Shuffle (off in a room)' : 'Shuffle'}
         >
           <ShuffleIcon className="h-4.5 w-4.5" />
         </button>
         <button
           onClick={cycleRepeat}
-          className={pill(repeat !== 'off')}
-          aria-label={`Repeat: ${repeat}`}
+          disabled={inRoom}
+          className={`${pill(repeat !== 'off')} disabled:opacity-40`}
+          aria-label={inRoom ? 'Repeat (off in a room)' : `Repeat: ${repeat}`}
         >
           {repeat === 'one' ? <RepeatOneIcon className="h-4.5 w-4.5" /> : <RepeatIcon className="h-4.5 w-4.5" />}
         </button>

@@ -346,6 +346,16 @@ describe('room registry: host, dropouts and lifetimes', () => {
     assert.equal(rooms.codeOfUser(alice.userId), undefined);
   });
 
+  it('a newcomer gets no broadcast of their own arrival: their welcome carries it', () => {
+    const code = makeRoom();
+    const a = fakeSocket();
+    rooms.connect(code, alice, a.connection);
+    const b = fakeSocket();
+    rooms.connect(code, bob, b.connection);
+    assert.equal(b.sent.length, 0);
+    assert.equal(a.last()!.members.length, 2);
+  });
+
   it('tells every connected member about each change', () => {
     const code = makeRoom();
     const a = fakeSocket();

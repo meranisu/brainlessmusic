@@ -4,6 +4,35 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: "Listen together" on the web (room sync spec step 2)
+
+- **New page `/together`** (More menu, everyone including guests, A100): start a room from what's playing, or type a
+  six-letter code; the code is looked up as you type and shows who's in and what's on before joining. Inside a room:
+  the code as six tiles with Copy, who's there (Host, Guest, Away), now playing, and the queue with play now, move up
+  and down, and remove. The host can remove people and end the room (with a confirm step); anyone can leave.
+- **The player follows the room** (`PlayerBar`): `syncToRoom` loads the room's song, waits for a new song's start
+  time, and seeks when it's 300 ms or more off twice running. Play, pause, skip, previous, seek and picking a queue
+  row send room commands, from the bar, Now Playing, the keyboard and the lock screen. Play on an album or song adds
+  it after the current one and jumps there. Shuffle, repeat and crossfade are off in a room; closing the player leaves
+  the room. The bar and Now Playing show "Room CODE", or "Reconnecting…" while the socket is down; the music carries on
+  meanwhile, moving to the next song in the last queue seen.
+- **`lib/roomClient.ts`:** the socket, hello, NTP-style clock sync (median of the 3 quickest of the last 2 minutes'
+  samples; pings every 3 s for 30 s, then 20 s), reconnect backing off to 10 s, half-open detection. `RoomProvider`
+  holds the room in React and rejoins after a reload (`GET /rooms/mine`).
+- **Backend:** a newcomer no longer gets a `state` broadcast just before its `welcome`.
+- **Dev:** the Vite proxy passes WebSockets (`ws: true`).
+- **Found while testing and fixed:** the client never connected (an event fired from inside its constructor read the
+  instance before it existed, and the rejoin path swallowed the error); first-burst clock samples taken during page
+  load were 0.5 s off; every start and correction landed ~0.7 s late, now offset by a per-device seek lead.
+- Verified: frontend `npm run build` clean, `npm run lint` adds only the hook-export warning every provider has;
+  backend `npm test` 497 pass (one new test). Against a scratch backend on :3191 (own DB, three generated tones), two
+  headless Chromium sessions (an account and a guest): start, join by code, Play album, measured position against the
+  server clock within ±0.25 s, guest skip and pause reached the other session, both sockets force-closed for 15 s
+  (Away and "Reconnecting…" shown, back in step at 67 ms), no sideways scroll at 390 px, host ended the room, no
+  console errors other than the test tones' missing covers. **Not run:** a real phone, a real network drop (Playwright
+  offline mode doesn't close an open WebSocket, so the drop was forced in the page), and the autoplay-blocked
+  rejoin after a reload, which headless Chromium was told to allow.
+
 ## 2026-10-11: Room sync backend ("Listen together", roadmap box 22, spec step 1)
 
 - **New:** an in-memory room registry (`services/rooms.ts`) and its routes (`routes/rooms.ts`): `POST /api/rooms`,

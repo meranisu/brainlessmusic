@@ -38,6 +38,8 @@ function navItemsFor(isAdmin: boolean, isGuest: boolean): { primary: NavItem[]; 
           ]),
     ],
     overflow: [
+      // Everyone, guests included (A100). Behind More: a sixth tab doesn't fit the bar (see above).
+      { to: '/together', label: 'Listen together' },
       ...(isAdmin
         ? [
             { to: '/upload', label: 'Upload' },
