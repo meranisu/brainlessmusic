@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `UploadProvider`, `useUploads()` (new): `frontend/src/components/UploadProvider.tsx`; `UploadQueueList` (new): `UploadQueueList.tsx`; `UploadPage`, `ControlCenterPage`
+**Date:** 2026-10-11
+**How added:** new feature (owner request)
+**Purpose:** uploads keep running on other pages and can be watched from the Control Center.
+**Side effects:** a `beforeunload` listener while anything is queued or uploading; `uploadWithProgress()` and the queue logic moved from `UploadPage` into the provider unchanged.
+**Before:** the queue lived in `UploadPage` state, so leaving the page dropped it from view and the Control Center knew nothing of uploads.
+**After:** one queue for the whole tab, shown on the Upload page and in a Control Center Uploads section, with Clear finished and per-row Waiting/percentage.
+
 **Function:** `POST /tracks/upload` handler: `backend/src/routes/tracks.ts`; `uploadWithProgress()`, `addFiles()`, `UploadPage`: `frontend/src/pages/UploadPage.tsx`
 **Date:** 2026-10-11
 **How added:** upload review follow-up (owner request)

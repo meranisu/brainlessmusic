@@ -1,5 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
+import { useUploads } from '../components/UploadProvider';
+import { UploadQueueList } from '../components/UploadQueueList';
 import { apiClient } from '../lib/apiClient';
 import { formatBytes } from '../lib/format';
 import type {
@@ -159,6 +162,8 @@ export function ControlCenterPage() {
   });
 
   const system = center?.system;
+  const { queue: uploads } = useUploads();
+  const uploading = uploads.filter((u) => u.status === 'queued' || u.status === 'uploading').length;
 
   return (
     <div>
@@ -176,6 +181,25 @@ export function ControlCenterPage() {
         >
           {isFetching ? 'Refreshing…' : 'Refresh now'}
         </button>
+      </div>
+
+      {/* Outside the health data: uploads run in this tab, so they show even when the server checks fail. */}
+      <div className="mb-6">
+        <Section
+          title={uploading > 0 ? `Uploads (${uploading} in progress)` : 'Uploads'}
+          description="Started in this tab. They keep going on other pages; closing or reloading the tab stops them."
+        >
+          {uploads.length > 0 ? (
+            <UploadQueueList />
+          ) : (
+            <div className="card px-4 py-6 text-center text-sm text-blue-300">
+              No uploads in this tab.{' '}
+              <Link to="/upload" className="text-accent-ink underline">
+                Upload files
+              </Link>
+            </div>
+          )}
+        </Section>
       </div>
 
       {isLoading && (

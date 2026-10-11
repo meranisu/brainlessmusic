@@ -4,6 +4,24 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Uploads keep going on other pages; Control Center shows them
+
+- **The upload queue moved up to the app** (`UploadProvider`, mounted in `main.tsx`), so leaving the Upload page no
+  longer drops it. Uploads carry on while the admin browses, and the queue is the same wherever it's shown.
+- **Control Center has an Uploads section** at the top: the same list as the Upload page, with progress, Retry and
+  "Clear finished", titled "Uploads (n in progress)" while any run. Empty, it says "No uploads in this tab" and links
+  to the Upload page. It sits outside the health data, so it shows even when the server checks fail.
+- **Closing or reloading the tab mid-upload asks first** (`beforeunload`). Uploads live in the tab, so that still ends
+  them; the section's description says so.
+- **List rows wrap on a phone:** a long error or title moves to its own line instead of pushing the page sideways
+  (the Upload page had the same overflow before). Rows show "Waiting" or a percentage while not finished.
+- Verified: `cd frontend && npm run build` and `npm run lint` (one new warning, the same only-export-components one
+  `ToastProvider` has, for the `useUploads` hook). In headless Chromium against a scratch backend on :3091: started a
+  3.5 MB `.wav` throttled to 400 KB/s plus a fake `.mp3`, moved to the Library and then the Control Center without a
+  reload, saw "Uploads (1 in progress)" at 28% with the fake's error and Retry; closing the tab raised the
+  `beforeunload` prompt; the `.wav` finished and was filed; Clear finished brought the empty state back. No sideways
+  scroll at 390 px or 1200 px. **Not run:** on a real phone.
+
 ## 2026-10-11: Upload refuses files with no audio; web page takes .wav and .aac
 
 - **Backend:** `POST /tracks/upload` now returns 400 "No playable audio found" when the tag reader finds no duration.

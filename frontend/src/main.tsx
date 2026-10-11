@@ -6,6 +6,7 @@ import { App } from './App.tsx';
 import { AuthProvider } from './auth/AuthContext.tsx';
 import { PlayerProvider } from './components/PlayerBar.tsx';
 import { ToastProvider } from './components/ToastProvider.tsx';
+import { UploadProvider } from './components/UploadProvider.tsx';
 import './index.css';
 
 const queryClient = new QueryClient();
@@ -17,7 +18,9 @@ createRoot(document.getElementById('root')!).render(
         <AuthProvider>
           <ToastProvider>
             <PlayerProvider>
-              <App />
+              <UploadProvider>
+                <App />
+              </UploadProvider>
             </PlayerProvider>
           </ToastProvider>
         </AuthProvider>
