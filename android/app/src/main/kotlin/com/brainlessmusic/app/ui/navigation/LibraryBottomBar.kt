@@ -18,10 +18,10 @@ import com.brainlessmusic.app.ui.common.EdgeLine
 import com.brainlessmusic.app.ui.common.tabBarColor
 import androidx.compose.foundation.layout.Column
 import com.brainlessmusic.app.ui.common.TabIcon
+import com.brainlessmusic.app.ui.common.TabLabel
 import com.brainlessmusic.app.ui.common.tabColors
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.navigation.NavHostController
@@ -39,35 +39,35 @@ fun LibraryBottomBar(navController: NavHostController, onReselect: () -> Unit = 
             selected = currentRoute == Routes.HOME,
             onClick = { if (currentRoute == Routes.HOME) onReselect() else navController.navigateToTab(Routes.HOME) },
             icon = { TabIcon(selected = currentRoute == Routes.HOME) { Icon(AppIcons.home, contentDescription = null) } },
-            label = { Text("Home") },
+            label = { TabLabel("Home") },
             colors = tabColors(),
         )
         NavigationBarItem(
             selected = currentRoute == Routes.ARTISTS,
             onClick = { if (currentRoute == Routes.ARTISTS) onReselect() else navController.navigateToTab(Routes.ARTISTS) },
             icon = { TabIcon(selected = currentRoute == Routes.ARTISTS) { Icon(AppIcons.library, contentDescription = null) } },
-            label = { Text("Library") },
+            label = { TabLabel("Library") },
             colors = tabColors(),
         )
         NavigationBarItem(
             selected = currentRoute == Routes.SEARCH,
             onClick = { if (currentRoute == Routes.SEARCH) onReselect() else navController.navigateToTab(Routes.SEARCH) },
             icon = { TabIcon(selected = currentRoute == Routes.SEARCH) { Icon(AppIcons.search, contentDescription = null) } },
-            label = { Text("Search") },
+            label = { TabLabel("Search") },
             colors = tabColors(),
         )
         NavigationBarItem(
             selected = currentRoute == Routes.DOWNLOADS,
             onClick = { if (currentRoute == Routes.DOWNLOADS) onReselect() else navController.navigateToTab(Routes.DOWNLOADS) },
             icon = { TabIcon(selected = currentRoute == Routes.DOWNLOADS) { Icon(AppIcons.downloads, contentDescription = null) } },
-            label = { Text("Downloads") },
+            label = { TabLabel("Downloads") },
             colors = tabColors(),
         )
         NavigationBarItem(
             selected = currentRoute == Routes.SETTINGS,
             onClick = { if (currentRoute == Routes.SETTINGS) onReselect() else navController.navigateToTab(Routes.SETTINGS) },
             icon = { TabIcon(selected = currentRoute == Routes.SETTINGS) { Icon(AppIcons.settings, contentDescription = null) } },
-            label = { Text("Settings") },
+            label = { TabLabel("Settings") },
             colors = tabColors(),
         )
     }

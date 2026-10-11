@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Gear's bottom-bar labels fit
+
+- Owner's report: in Gear the bottom bar's text was a bit off, too big. Its labels took the label style, which in Gear
+  is Orbitron, too wide for a tab ("Downloads" ran past its slot). A new `TabLabel` sets them in Gear's text face,
+  Chakra Petch SemiBold 12 sp, on one line; the other skins keep Material's label. The lit key behind a tab's icon
+  is a little shorter (44 × 26 dp), so the labels sit where the other skins' do.
+- Verified: `./gradlew :app:compileDebugKotlin` builds. **Not run:** on a phone.
+
 ## 2026-10-11: The skin intro and the sign-in welcome play again
 
 - Owner's report: the skin-change intro and the sign-in welcome didn't work properly. Two causes, found by reading

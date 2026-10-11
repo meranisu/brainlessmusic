@@ -1,5 +1,31 @@
 [
   {
+    "version": "0.3.52",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "gear: the bottom bar's tab names fit now. they were in the wide heading font and \"downloads\" spilled over, they're in gear's text font now and sit straight"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.51",
     "date": "2026-10-11",
     "sections": [

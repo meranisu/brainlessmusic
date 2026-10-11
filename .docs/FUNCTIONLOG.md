@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `TabLabel()` (new), `TabIcon()` (changed): `android/.../ui/common/SkinParts.kt`; `LibraryBottomBar()` (changed): `android/.../ui/navigation/LibraryBottomBar.kt`
+**Date:** 2026-10-11
+**How added:** bug fix (owner report)
+**Purpose:** Gear's tab labels fit their tabs.
+**Side effects:** none.
+**Before:** Gear's tab names were in wide Orbitron and overran; the key behind the icon was 46 × 30 dp.
+**After:** Chakra Petch on one line in Gear; key 44 × 26 dp; other skins unchanged.
+
 **Function:** `BrainlessMusicTheme()` (changed): `android/.../ui/theme/Theme.kt`; `ArcadeWelcome()` (changed): `android/.../ui/splash/ArcadeWelcome.kt`
 **Date:** 2026-10-11
 **How added:** bug fix (owner report)

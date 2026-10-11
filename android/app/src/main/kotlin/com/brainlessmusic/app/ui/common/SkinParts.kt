@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.sp
 import com.brainlessmusic.app.data.local.Skin
 import com.brainlessmusic.app.ui.theme.BrandFontFamily
 import com.brainlessmusic.app.ui.theme.GearDisplayFontFamily
+import com.brainlessmusic.app.ui.theme.GearFontFamily
 import com.brainlessmusic.app.ui.theme.LocalSkin
 import com.brainlessmusic.app.ui.theme.laneCut
 
@@ -364,7 +365,7 @@ fun TabIcon(selected: Boolean, content: @Composable () -> Unit) {
         LocalSkin.current == Skin.GEAR -> Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
-                .size(width = 46.dp, height = 30.dp)
+                .size(width = 44.dp, height = 26.dp)
                 .then(
                     if (selected) {
                         Modifier.background(MaterialTheme.colorScheme.primary, CutCornerShape(5.dp))
@@ -378,6 +379,19 @@ fun TabIcon(selected: Boolean, content: @Composable () -> Unit) {
             content()
         }
         else -> content()
+    }
+}
+
+/**
+ * A bottom-bar tab's name. Gear sets it in its narrower text face (Chakra Petch) on one line: its label face, Orbitron,
+ * is too wide for a tab, and "Downloads" ran past its slot.
+ */
+@Composable
+fun TabLabel(text: String) {
+    if (LocalSkin.current == Skin.GEAR) {
+        Text(text, fontFamily = GearFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, maxLines = 1, softWrap = false)
+    } else {
+        Text(text)
     }
 }
 
