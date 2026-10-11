@@ -212,6 +212,46 @@ committed upstream.
 Tested 2026-10-10 against the local `brainless-app` only (deploy, rollback, deploy, local-edit guard); not yet
 run on smol.
 
+## Automatic deploys
+
+`scripts/auto-deploy.sh` runs `deploy.sh` by itself once GitHub CI (`.github/workflows/ci.yml`) has passed for the
+newest commit on `main`. A systemd timer on smol runs it every 5 minutes. smol asks GitHub; GitHub never connects to
+smol, and no secrets are stored on GitHub for this.
+
+Set it up once, on smol, from inside the clone, as the account that normally runs `deploy.sh` (it must be in the
+`docker` group):
+
+```bash
+git pull                                # first time only, to get the script
+sudo ./scripts/auto-deploy.sh install   # writes and starts brainless-auto-deploy.timer
+systemctl list-timers brainless-auto-deploy.timer   # when it runs next
+journalctl -u brainless-auto-deploy -n 50           # what it did
+sudo ./scripts/auto-deploy.sh uninstall # back to deploying by hand
+```
+
+What each check does:
+
+- **Nothing new:** nothing.
+- **CI still running, or not started:** nothing; the next check looks again. A push usually goes live 5 to 10
+  minutes after CI finishes.
+- **CI failed:** that commit is skipped and logged. The next commit that passes is deployed.
+- **Only Android, docs or workflow files changed:** the clone fast-forwards and the app is **not** restarted. Only
+  changes under `backend/`, `frontend/`, `Dockerfile`, `.dockerignore` or `docker-compose.yml` rebuild it.
+- **Otherwise:** `deploy.sh` runs as usual (database backup, build, restart, health check). If the app is unhealthy
+  afterwards, it runs `deploy.sh rollback`. A commit that failed to deploy is not retried; push a fix or run
+  `deploy.sh` by hand.
+
+Things to know:
+
+- A deploy restarts `brainless-app`, so whoever is listening gets cut off for a few seconds, and Listen together
+  rooms (kept in memory) end. That now happens whenever a backend or frontend change is pushed, at any hour.
+- Migrations run on production without anyone watching. The pre-deploy backup in `/data/backups/pre-deploy/` is the
+  way back.
+- `deploy.sh` fetches `main` again itself, so a push that lands in the second between the check and the deploy
+  would go out before its CI passes. The check re-fetches right before deploying to keep that gap small.
+- The state file `.git/auto-deploy-skipped` holds the last commit it gave up on. Delete it to make it try that
+  commit again.
+
 ## Uploads over 100 MB
 
 Cloudflare refuses request bodies over 100 MB on the Free and Pro plans, so a big hi-res FLAC can't be uploaded

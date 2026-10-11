@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Automatic deploys to smol once CI passes
+
+- New `scripts/auto-deploy.sh`, run every 5 minutes by a systemd timer it installs on smol (`sudo
+  ./scripts/auto-deploy.sh install`). When `origin/main` has a new commit, it asks the GitHub API whether `ci.yml`
+  passed for it. Pass: runs `deploy.sh`, and `deploy.sh rollback` if the app ends up unhealthy. Fail: skips that
+  commit. Still running: waits for the next check. Commits that touch nothing in the image (`android/`, `.docs/`,
+  workflows) only fast-forward the clone, so Android-only pushes don't restart production. A `flock` stops overlapping
+  runs. A commit it gave up on is kept in `.git/auto-deploy-skipped` and not retried.
+- `deploy.sh` itself is unchanged. Setup and caveats are in `.docs/ops/cloudflare-tunnel-deployment.md`, "Automatic
+  deploys".
+- Verified in a throwaway clone (`bash -n` clean; no shellcheck here): the CI lookup returned `success` for
+  87ea327, `none` for a commit from before CI existed, and `pending` while a run was going. A docs-only update
+  fast-forwarded without calling `deploy.sh`, and a second run did nothing. **Not run:** on smol, and against real
+  Docker.
+- The CI entry below says it was not run on GitHub. It since has: run 38142225525 passed both jobs.
+
 ## 2026-10-11: Android skins go app-wide; Hit circle styles the whole app
 
 - Owner's decisions A117-A119: one **Skin** setting (Settings → Appearance) restyles every screen and the player;
