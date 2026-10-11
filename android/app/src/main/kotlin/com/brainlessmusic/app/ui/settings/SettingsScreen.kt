@@ -83,6 +83,15 @@ import com.brainlessmusic.app.ui.theme.previewColorScheme
 import com.brainlessmusic.app.ui.theme.supportsMaterialYou
 import com.brainlessmusic.app.ui.update.UpdateViewModel
 import com.brainlessmusic.app.update.UpdateState
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import com.brainlessmusic.app.R
+import com.brainlessmusic.app.ui.theme.BrandFontFamily
+import com.brainlessmusic.app.ui.theme.accentInk
 
 // Cards here match the Library header: flat, a 1 dp outline, no shadow (DESIGN.md, Android).
 private val CardShape = RoundedCornerShape(20.dp)
@@ -171,15 +180,44 @@ fun SettingsScreen(
                 }
             }
 
-            // Which build this is, for when something needs reporting.
+            AppSignature()
+        }
+    }
+}
+
+/**
+ * The foot of Settings: the mark and the wordmark in Fredoka, like the login screen's, then which build this is, for
+ * when something needs reporting. The mark moved here from the Library title (owner, 2026-10-11).
+ */
+@Composable
+private fun AppSignature() {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 16.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Image(painterResource(R.drawable.ic_logo), contentDescription = null, modifier = Modifier.size(28.dp))
             Text(
-                "brainlessmusic ${BuildConfig.VERSION_NAME}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                text = buildAnnotatedString {
+                    append("brainless")
+                    pushStyle(SpanStyle(color = MaterialTheme.accentInk))
+                    append("music")
+                    pop()
+                },
+                color = MaterialTheme.colorScheme.onSurface,
+                fontFamily = BrandFontFamily,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.4).sp,
+                maxLines = 1,
             )
         }
+        Text(
+            "Version ${BuildConfig.VERSION_NAME}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 2.dp),
+        )
     }
 }
 

@@ -4,6 +4,13 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Android logo moves from the Library title to the foot of Settings
+
+- Owner's request. The Library top bar is the word "Library" only. Settings ends with `AppSignature()`: the mark
+  beside "brainlessmusic" in Fredoka (`BrandFontFamily`), "music" in `accentInk` like the login wordmark, then
+  "Version x.y.z" under it. It replaces the plain "brainlessmusic x.y.z" line.
+- Verified: `./gradlew :app:compileDebugKotlin` builds. **Not run:** on a phone.
+
 ## 2026-10-11: Android Home tidied: actions under the player card, lists in cards
 
 Owner's requests, 2026-10-11, all in `ui/profile/YouScreen.kt`:

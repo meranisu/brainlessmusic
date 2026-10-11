@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `AppSignature()` (new): `android/.../ui/settings/SettingsScreen.kt`; `LibraryScreen()` top bar: `ui/library/LibraryScreen.kt`
+**Date:** 2026-10-11
+**How added:** owner request
+**Purpose:** the app mark sits beside the Fredoka wordmark at the foot of Settings, with the version under it.
+**Side effects:** none.
+**Before:** the mark sat beside "Library" in the Library title; Settings ended with a plain "brainlessmusic x.y.z" line.
+**After:** Library's title is text only; Settings ends with mark + wordmark + version.
+
 **Function:** `StartRow()`, `Avatar()`, `ListCard()`, `CardActions()` (new); `PlayerCard()`, `GuestCard()`, `GuestHomeList()`, `YouScreen()` (changed); `ShuffleLibraryButton()` (removed): `android/.../ui/profile/YouScreen.kt`
 **Date:** 2026-10-11
 **How added:** owner request
