@@ -646,7 +646,10 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
     },
   );
 
-  fastify.post<{ Params: { id: string }; Body: { msPlayed?: number; playedAt?: unknown; clientPlayId?: unknown } }>(
+  fastify.post<{
+    Params: { id: string };
+    Body: { msPlayed?: number; playedAt?: unknown; clientPlayId?: unknown; skipped?: unknown };
+  }>(
     '/tracks/:id/scrobble',
     { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
@@ -685,7 +688,14 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
         clientPlayId = rawClientPlayId;
       }
 
-      const playId = recordScrobble(request.user!.id, id, msPlayed, playedAt, clientPlayId);
+      // A song cut short before the threshold (A113): recorded for time listened, never counted as a play.
+      const rawSkipped = request.body?.skipped;
+      if (rawSkipped !== undefined && rawSkipped !== null && typeof rawSkipped !== 'boolean') {
+        return reply.code(400).send({ error: 'skipped must be true or false' });
+      }
+      const skipped = rawSkipped === true;
+
+      const playId = recordScrobble(request.user!.id, id, msPlayed, playedAt, clientPlayId, skipped);
 
       const updated = findTrackById(id)!;
       return reply.code(201).send({

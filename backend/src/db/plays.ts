@@ -14,6 +14,8 @@ export interface PlayHistoryEntry {
   msPlayed: number | null;
   /** The file is gone from disk: shown, but it can't be played (the You tab's Recently played skips it). */
   missing: boolean;
+  /** Cut short before the scrobble threshold (A113). */
+  skipped: boolean;
 }
 
 export interface TrackPlayHistoryEntry {
@@ -46,6 +48,7 @@ let scrobbleTransaction:
       msPlayed: number | null,
       playedAt: string | null,
       clientPlayId: string | null,
+      skipped: boolean,
     ) => number)
   | null = null;
 
@@ -54,7 +57,8 @@ let scrobbleTransaction:
  * made offline happened (A87), in SQLite's `datetime('now')` shape; null means now. A late play never moves the track's
  * `last_played_at` back. The same play sent twice (the phone resends one whose answer it never got) is counted once:
  * the second send returns the first one's id. [clientPlayId], the app's own id for the play, is how that is matched
- * (C10); without one, an offline play is matched on `played_at`, which a skewed phone clock defeats.
+ * (C10); without one, an offline play is matched on `played_at`, which a skewed phone clock defeats. A [skipped] play
+ * (A113) is sent once, at its end, with its final length, and leaves the track's counters alone.
  */
 export function recordScrobble(
   userId: number,
@@ -62,9 +66,10 @@ export function recordScrobble(
   msPlayed: number | null,
   playedAt: string | null = null,
   clientPlayId: string | null = null,
+  skipped = false,
 ): number {
   scrobbleTransaction ??= buildScrobbleTransaction();
-  return scrobbleTransaction(userId, trackId, msPlayed, playedAt, clientPlayId);
+  return scrobbleTransaction(userId, trackId, msPlayed, playedAt, clientPlayId, skipped);
 }
 
 function buildScrobbleTransaction() {
@@ -75,6 +80,7 @@ function buildScrobbleTransaction() {
       msPlayed: number | null,
       playedAt: string | null,
       clientPlayId: string | null,
+      skipped: boolean,
     ): number => {
       if (clientPlayId) {
         const sent = db
@@ -91,12 +97,14 @@ function buildScrobbleTransaction() {
       const playId = Number(
         db
           .prepare(
-            `INSERT INTO play_history (user_id, track_id, ms_played, played_at, client_play_id)
-             VALUES (?, ?, ?, COALESCE(?, datetime('now')), ?)`,
+            `INSERT INTO play_history (user_id, track_id, ms_played, played_at, client_play_id, skipped, ms_final)
+             VALUES (?, ?, ?, COALESCE(?, datetime('now')), ?, ?, ?)`,
           )
-          .run(userId, trackId, msPlayed, playedAt, clientPlayId).lastInsertRowid,
+          .run(userId, trackId, msPlayed, playedAt, clientPlayId, skipped ? 1 : 0, skipped ? 1 : 0).lastInsertRowid,
       );
 
+      // A skip's length is already final (it's sent at its end), so it needs no `finishPlay`.
+      if (skipped) return playId;
       db.prepare(
         `UPDATE tracks
          SET play_count = play_count + 1,
@@ -135,7 +143,8 @@ export function listHistoryForUser(
          t.format as format,
          ph.played_at as playedAt,
          ph.ms_played as msPlayed,
-         t.missing_since IS NOT NULL as missing
+         t.missing_since IS NOT NULL as missing,
+         ph.skipped as skipped
        FROM play_history ph
        JOIN tracks t ON t.id = ph.track_id
        LEFT JOIN artists a ON a.id = t.artist_id
@@ -144,19 +153,19 @@ export function listHistoryForUser(
        ORDER BY ph.played_at DESC, ph.id DESC
        LIMIT ? OFFSET ?`,
     )
-    .all(userId, limit, offset) as (Omit<PlayHistoryEntry, 'missing'> & { missing: number })[];
-  return rows.map((row) => ({ ...row, missing: row.missing === 1 }));
+    .all(userId, limit, offset) as (Omit<PlayHistoryEntry, 'missing' | 'skipped'> & { missing: number; skipped: number })[];
+  return rows.map((row) => ({ ...row, missing: row.missing === 1, skipped: row.skipped === 1 }));
 }
 
 export function countHistoryForTrack(trackId: number): number {
   return (
-    db.prepare('SELECT COUNT(*) as count FROM play_history WHERE track_id = ?').get(trackId) as {
+    db.prepare('SELECT COUNT(*) as count FROM play_history WHERE track_id = ? AND skipped = 0').get(trackId) as {
       count: number;
     }
   ).count;
 }
 
-/** One track's history across all users: a shared log suits a server for a few friends. */
+/** One track's plays across all users, skips left out (A113): a shared log suits a server for a few friends. */
 export function listHistoryForTrack(
   trackId: number,
   limit: number,
@@ -172,7 +181,7 @@ export function listHistoryForTrack(
          ph.ms_played as msPlayed
        FROM play_history ph
        JOIN users u ON u.id = ph.user_id
-       WHERE ph.track_id = ?
+       WHERE ph.track_id = ? AND ph.skipped = 0
        ORDER BY ph.played_at DESC, ph.id DESC
        LIMIT ? OFFSET ?`,
     )

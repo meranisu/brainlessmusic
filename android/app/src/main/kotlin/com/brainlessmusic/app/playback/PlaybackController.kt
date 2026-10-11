@@ -761,6 +761,7 @@ class PlaybackController @Inject constructor(
         source = null
         generation++
         playNextPending = 0
+        recordSkip()
         reportListened(final = true)
         tracker = null
         trackerItem = null
@@ -1112,6 +1113,7 @@ class PlaybackController @Inject constructor(
     }
 
     private fun beginTrack() {
+        recordSkip()
         reportListened(final = true)
         val item = queue.getOrNull(player.currentMediaItemIndex)
         trackerItem = item
@@ -1157,6 +1159,29 @@ class PlaybackController @Inject constructor(
                     if (it.isRefusedForGood()) null else pendingPlays.add(item.trackId, listened, clientPlayId, playedAt)
                 },
             )
+        }
+    }
+
+    /**
+     * The song ending now never reached the threshold: send it as a skip (A113), once, with the time it was heard. One
+     * that never played at all (skipped past at once) isn't sent.
+     */
+    private fun recordSkip() {
+        val item = trackerItem ?: return
+        val heard = tracker ?: return
+        if (heard.scrobbled || heard.listenedMs <= 0) return
+        val listened = heard.listenedMs
+        val clientPlayId = UUID.randomUUID().toString()
+        val playedAt = Instant.now().toString()
+        // Joined by [stopAndFlush] like a play's final report, so a skip right before logout still goes as this account.
+        lastFinish = scope.launch {
+            if (!networkMonitor.online.value) {
+                pendingPlays.add(item.trackId, listened, clientPlayId, playedAt, skipped = true)
+                return@launch
+            }
+            libraryRepository.scrobble(item.trackId, listened, clientPlayId = clientPlayId, skipped = true).onFailure {
+                if (!it.isRefusedForGood()) pendingPlays.add(item.trackId, listened, clientPlayId, playedAt, skipped = true)
+            }
         }
     }
 

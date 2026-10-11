@@ -91,6 +91,7 @@ erDiagram
         INTEGER track_id FK
         TEXT played_at
         INTEGER ms_played
+        INTEGER skipped
     }
     favorites {
         INTEGER user_id PK_FK
@@ -227,6 +228,7 @@ have no other way to be reclaimed. It runs only when `POST /auth/guest` hits
 | `ms_played` | INTEGER | nullable | — | optional, client-reported. Time at the scrobble threshold, then the real total once `ms_final = 1` |
 | `ms_final` | INTEGER | NOT NULL | `0` | added in `0021`, boolean-as-int (A62): `ms_played` is the final listening time, sent by `PATCH /me/history/:id`. Stats count a `0` row as one full play of the song |
 | `client_play_id` | TEXT | nullable | — | Added `0026`. The app's own id for the play (`clientPlayId` on `POST /tracks/:id/scrobble`). `recordScrobble` returns the existing row for a repeat id instead of counting again (C10). Unique per user through `idx_play_history_client_play_id` (partial, `WHERE client_play_id IS NOT NULL`). NULL on older rows and from the web client |
+| `skipped` | INTEGER | NOT NULL | `0` | Added `0027`, boolean-as-int (A113): a song cut short before the scrobble threshold, sent once at its end with `ms_final = 1`. Counts toward time listened and `GET /me/history`; left out of plays, top lists, `GET /tracks/:id/history`, Smart shuffle's recency, and never bumps `tracks.play_count` / `last_played_at`. `0` on all rows before the migration |
 
 **FKs:** `user_id → users.id`, `track_id → tracks.id` (both `NO ACTION` / `NO ACTION`).
 **Indexes:** `idx_play_history_user_played_at` (composite, `user_id, played_at` — backs `GET /me/history`), `idx_play_history_track_id` (backs `GET /tracks/:id/history`), `idx_play_history_client_play_id` (unique, partial, `user_id, client_play_id` — `0026`, the resend check).
@@ -482,6 +484,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | `0023_guest_request_collected_at.sql` | `guest_code_requests.collected_at` — a lost collect can be repeated for 10 minutes (G1) |
 | `0024_add_user_session_version.sql` | `users.session_version` — a password change ends older sessions (C8) |
 | `0025_add_track_tags_edited_at.sql` | `tracks.tags_edited_at` — a rescan keeps an admin's tag edit (C9) |
+| `0027_add_play_history_skipped.sql` | `play_history.skipped` — songs cut short before the threshold are recorded as skips (A113) |
 | `0026_add_play_history_client_play_id.sql` | `play_history.client_play_id` + unique partial `idx_play_history_client_play_id` — a resent play is counted once (C10) |
 | `0021_add_play_history_ms_final.sql` | `play_history.ms_final`: marks plays whose `ms_played` is the real total (A62) |
 | `0020_add_user_theme.sql` | `users.theme` — the web theme follows the profile (A55) |
@@ -490,6 +493,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-10-11 | Migration `0027_add_play_history_skipped.sql` — `play_history.skipped`; column row, ER diagram and migration row. From the migration SQL and the test run | A113: an account that skips a lot showed 0 plays and 0 minutes after 30 minutes of listening |
 | 2026-10-11 | Migration `0026_add_play_history_client_play_id.sql` — `play_history.client_play_id` and its partial unique index; column row and migration row. From the migration SQL and the test run | C10 (codebase review): a play resent after a lost answer, or with a skewed phone clock, was counted twice |
 | 2026-10-11 | Migration `0025_add_track_tags_edited_at.sql` — `tracks.tags_edited_at`; column row and migration row. From the migration SQL and the test run | C9 (codebase review): the 12-hourly scan put the file's tags back over an admin's edit |
 | 2026-10-11 | Migration `0024_add_user_session_version.sql` — `users.session_version`; column row and migration row. From the migration SQL and the test run | C8 (codebase review): changing a password left every existing session working for up to 7 days |

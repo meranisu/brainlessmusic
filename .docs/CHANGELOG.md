@@ -4,6 +4,42 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Android pauses on a swipe from recents from the activity too (A58 backstop)
+
+- **Why:** on a Pixel, with "Keep playing when swiped away" off and not in a room, music kept playing after the app
+  was swiped from recent apps, and the media notification stayed. The code path in `PlaybackService.onTaskRemoved`
+  looks right and the cause isn't confirmed; no phone was available to log it.
+- **`MainActivity.onDestroy`:** on Android 12+ (where Back leaves the root activity alive and nothing in the app calls
+  `finish()`), a finishing, non-config-change destroy means the task was closed; with the setting off it pauses
+  through `sessionPlayer`, the same way the service does. Left to the service below Android 12.
+- **Logging:** `PlaybackService` logs "Task removed" with the setting and `playWhenReady`; `MainActivity` logs "Task
+  closed" with the setting, so a Logcat run on the phone shows which fired.
+- The notification staying is Media3 behaviour: `stopSelf()` is a no-op while a controller is bound
+  (androidx/media#805), and `PlaybackController` keeps one bound for the process. Not changed.
+- Verified: `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest` builds, 98 tests, 1 skipped, 0 failures.
+  **Not run:** on a phone, so the fix is unconfirmed until it's tried on the Pixel.
+
+## 2026-10-11: Skipped songs are recorded, as skips (A113)
+
+- **Why:** a song was only sent once half of it (or 4 minutes) had played, so a listener who skips a lot left no
+  trace. Account `user` listened for 30 minutes on smol and Home showed 0 plays, 0 minutes and an empty Recently
+  played. A live log on smol confirmed recording itself works (a full song sent `POST /scrobble` then `PATCH
+  /me/history/135`).
+- **Backend:** migration `0027` adds `play_history.skipped`. `POST /tracks/:id/scrobble` takes an optional boolean
+  `skipped` (400 for anything else); a skip is stored with `ms_final = 1` and leaves `tracks.play_count` and
+  `last_played_at` alone. `/me/stats` counts skips in time listened only: plays, songs, artists, top lists and the
+  previous-window ranks leave them out, as do `/me/stats/tracks/:id` plays, `GET /tracks/:id/history` and Smart
+  shuffle's recency. `GET /me/history` includes them, with a `skipped` flag.
+- **Android:** when a song ends, is skipped or the queue is replaced or stopped before the threshold, and it played
+  at all, `PlaybackController.recordSkip()` sends it with `skipped: true` and the time heard. Offline, it waits in
+  `pending_play` like a play (Room version 4 adds `skipped`, `MIGRATION_3_4`). `HistoryEntryDto` reads the flag.
+- **Not changed:** the web player still sends plays only.
+- Verified: `npm test` 499/499 pass, including two new tests in `listeningStats.test.ts` (a skip adds 12 s to time
+  listened, shows in history with `skipped: true`, and is left out of plays, top lists, the track's counters, its
+  per-song stat and its shared history; a non-boolean `skipped` is a 400). `npx tsc --noEmit` clean. Android: `./gradlew :app:compileDebugKotlin
+  :app:testDebugUnitTest` builds, 98 tests, 1 skipped (the live room test), 0 failures. **Not run:** on a phone, so the
+  skip send, the offline queue's skip rows and the Room 3 → 4 migration are untested on a device.
+
 ## 2026-10-11: Android checks GitHub for updates and installs them in-app (A104–A106)
 
 - **`update/UpdateRepository`**: on launch, at most once a day (quiet when offline, quiet for a skipped version),

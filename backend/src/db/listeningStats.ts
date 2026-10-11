@@ -87,9 +87,14 @@ function previousSinceFor(range: Exclude<StatsRange, 'all'>, since: string): str
 const TRACK_ORDER = `COUNT(*) DESC, SUM(${LISTENED_MS}) DESC, MAX(ph.played_at) DESC`;
 const ARTIST_ORDER = `COUNT(*) DESC, SUM(${LISTENED_MS}) DESC, MIN(a.name)`;
 
-// Totals over [scope]; the same sums for the current and the previous window.
-const TOTALS_SQL = (scope: string) => `SELECT COUNT(*) AS plays, COALESCE(SUM(${LISTENED_MS}), 0) AS msListened,
-         COUNT(DISTINCT ph.track_id) AS tracks, COUNT(DISTINCT t.artist_id) AS artists
+/** Leaves out skips (A113): they count toward time listened, never toward plays or the top lists. */
+const PLAYED_ONLY = 'ph.skipped = 0';
+
+// Totals over [scope]; the same sums for the current and the previous window. Time listened includes skips.
+const TOTALS_SQL = (scope: string) => `SELECT COALESCE(SUM(ph.skipped = 0), 0) AS plays,
+         COALESCE(SUM(${LISTENED_MS}), 0) AS msListened,
+         COUNT(DISTINCT CASE WHEN ${PLAYED_ONLY} THEN ph.track_id END) AS tracks,
+         COUNT(DISTINCT CASE WHEN ${PLAYED_ONLY} THEN t.artist_id END) AS artists
   FROM play_history ph JOIN tracks t ON t.id = ph.track_id
   WHERE ${scope}`;
 
@@ -111,7 +116,8 @@ function previousRanks(
       `WITH ranked AS (
          SELECT ${key} AS id, ROW_NUMBER() OVER (ORDER BY ${order}) AS rank
          FROM play_history ph JOIN tracks t ON t.id = ph.track_id ${filter.join ?? ''}
-         WHERE ph.user_id = @userId AND ph.played_at >= @from AND ph.played_at < @to ${filter.where ?? ''}
+         WHERE ph.user_id = @userId AND ph.played_at >= @from AND ph.played_at < @to AND ${PLAYED_ONLY}
+           ${filter.where ?? ''}
          GROUP BY ${key}
        )
        SELECT id, rank FROM ranked WHERE id IN (SELECT value FROM json_each(@ids))`,
@@ -141,7 +147,7 @@ export function getUserStats(userId: number, range: StatsRange, limit: number): 
     .prepare(
       `SELECT ph.track_id AS id, COUNT(*) AS plays, SUM(${LISTENED_MS}) AS msListened, MAX(ph.played_at) AS last
        FROM play_history ph JOIN tracks t ON t.id = ph.track_id
-       WHERE ${scope} AND t.missing_since IS NULL
+       WHERE ${scope} AND ${PLAYED_ONLY} AND t.missing_since IS NULL
        GROUP BY ph.track_id
        ORDER BY ${TRACK_ORDER}
        LIMIT @limit`,
@@ -157,7 +163,7 @@ export function getUserStats(userId: number, range: StatsRange, limit: number): 
     .prepare(
       `SELECT a.id AS id, a.name AS name, COUNT(*) AS plays, SUM(${LISTENED_MS}) AS msListened
        FROM play_history ph JOIN tracks t ON t.id = ph.track_id JOIN artists a ON a.id = t.artist_id
-       WHERE ${scope}
+       WHERE ${scope} AND ${PLAYED_ONLY}
        GROUP BY a.id
        ORDER BY ${ARTIST_ORDER}
        LIMIT @limit`,
@@ -169,7 +175,7 @@ export function getUserStats(userId: number, range: StatsRange, limit: number): 
       `SELECT al.id AS id, al.title AS title, a.name AS artist, COUNT(*) AS plays, SUM(${LISTENED_MS}) AS msListened
        FROM play_history ph JOIN tracks t ON t.id = ph.track_id JOIN albums al ON al.id = t.album_id
        LEFT JOIN artists a ON a.id = al.artist_id
-       WHERE ${scope}
+       WHERE ${scope} AND ${PLAYED_ONLY}
        GROUP BY al.id
        ORDER BY plays DESC, msListened DESC, al.title
        LIMIT @limit`,
@@ -205,12 +211,13 @@ export function getUserStats(userId: number, range: StatsRange, limit: number): 
   };
 }
 
-/** One song's numbers for one account, all time. Zero plays is a valid answer, not a 404. */
+/** One song's numbers for one account, all time. Zero plays is a valid answer, not a 404. Time includes skips (A113). */
 export function getTrackStat(userId: number, trackId: number): TrackStat {
   const row = db
     .prepare(
-      `SELECT COUNT(*) AS plays, COALESCE(SUM(${LISTENED_MS}), 0) AS msListened,
-              MIN(ph.played_at) AS firstPlayedAt, MAX(ph.played_at) AS lastPlayedAt
+      `SELECT COALESCE(SUM(ph.skipped = 0), 0) AS plays, COALESCE(SUM(${LISTENED_MS}), 0) AS msListened,
+              MIN(CASE WHEN ${PLAYED_ONLY} THEN ph.played_at END) AS firstPlayedAt,
+              MAX(CASE WHEN ${PLAYED_ONLY} THEN ph.played_at END) AS lastPlayedAt
        FROM play_history ph JOIN tracks t ON t.id = ph.track_id
        WHERE ph.user_id = ? AND ph.track_id = ?`,
     )

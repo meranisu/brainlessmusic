@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -29,6 +30,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.brainlessmusic.app.data.local.AppearanceSettings
+import com.brainlessmusic.app.data.local.PlaybackSettings
 import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.PlaybackResume
 import com.brainlessmusic.app.rooms.RoomSession
@@ -54,6 +56,10 @@ class MainActivity : ComponentActivity() {
     // From launch too, so a restarted app gets back into the room it was in.
     @Inject lateinit var roomSession: RoomSession
     @Inject lateinit var updates: UpdateRepository
+    @Inject lateinit var playbackSettings: PlaybackSettings
+
+    // Mirrored so onDestroy can read it without blocking. Null until the first read lands: then nothing is paused.
+    private var keepPlayingWhenSwipedAway: Boolean? = null
 
     // Activity-scoped, so the system splash and the nav graph's start screen wait on the same session check.
     private val startViewModel: StartViewModel by viewModels()
@@ -70,6 +76,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         val splash = installSplashScreen()
         super.onCreate(savedInstanceState)
+        lifecycleScope.launch { playbackSettings.keepPlayingWhenSwipedAway.collect { keepPlayingWhenSwipedAway = it } }
         // Held until we know where to go, so a cold start never shows an empty screen. Capped: the check can wait on
         // a slow network, and past that the in-app splash (with a progress bar) takes over in the same place.
         val launchedAt = SystemClock.uptimeMillis()
@@ -144,6 +151,21 @@ class MainActivity : ComponentActivity() {
         playbackResume.flush()
     }
 
+    /**
+     * A backstop for [com.brainlessmusic.app.playback.PlaybackService.onTaskRemoved] (A58): on a Pixel (2026-10-11)
+     * music played on after a swipe from recent apps with "Keep playing when swiped away" off. From Android 12, Back
+     * leaves the root activity alive, and nothing in the app calls finish(), so finishing here means the task was
+     * closed. Below 12 Back finishes it too, so this is left to the service there.
+     */
+    override fun onDestroy() {
+        val closed = isFinishing && !isChangingConfigurations && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+        if (closed) {
+            Log.i(TAG, "Task closed; keep playing when swiped away = $keepPlayingWhenSwipedAway")
+            if (keepPlayingWhenSwipedAway == false) playbackController.sessionPlayer.pause()
+        }
+        super.onDestroy()
+    }
+
     /** Asked when music first starts rather than at launch, when the reason for asking is obvious. */
     private fun askForNotificationsOnFirstPlayback() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
@@ -158,5 +180,6 @@ class MainActivity : ComponentActivity() {
 }
 
 private const val SPLASH_HOLD_MAX_MS = 1_200L
+private const val TAG = "MainActivity"
 private const val SPLASH_FADE_MS = 200L
 private const val SPLASH_REMOVE_GRACE_MS = 300L

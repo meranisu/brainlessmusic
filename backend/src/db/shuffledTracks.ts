@@ -23,12 +23,12 @@ export function listPlayableAlbumPlaces(): AlbumPlace[] {
     .all() as AlbumPlace[];
 }
 
-/** When [userId] last played each track, counting only plays at or before [asOf] (`YYYY-MM-DD HH:MM:SS`, UTC). */
+/** When [userId] last played each track, counting only plays (not skips, A113) at or before [asOf] (`YYYY-MM-DD HH:MM:SS`, UTC). */
 export function lastPlayedByUser(userId: number, asOf: string): Map<number, string> {
   const rows = db
     .prepare(
       `SELECT track_id AS trackId, MAX(played_at) AS playedAt FROM play_history
-       WHERE user_id = ? AND played_at <= ? GROUP BY track_id`,
+       WHERE user_id = ? AND played_at <= ? AND skipped = 0 GROUP BY track_id`,
     )
     .all(userId, asOf) as { trackId: number; playedAt: string }[];
   return new Map(rows.map((row) => [row.trackId, row.playedAt]));

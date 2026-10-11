@@ -68,11 +68,18 @@ class LibraryRepository @Inject constructor(
     /**
      * The new play's id (for [finishPlay]), or `null` for a guest or an older server. Guests are listen-only (A37): the
      * server refuses their plays, so they are not sent at all. [playedAt] (ISO) dates a play made offline (A87); null
-     * is now.
+     * is now. A [skipped] song (A113) is sent once, at its end, and counts for time listened only.
      */
-    suspend fun scrobble(trackId: Int, msPlayed: Long, playedAt: String? = null, clientPlayId: String? = null): Result<Int?> {
+    suspend fun scrobble(
+        trackId: Int,
+        msPlayed: Long,
+        playedAt: String? = null,
+        clientPlayId: String? = null,
+        skipped: Boolean = false,
+    ): Result<Int?> {
         if (tokenProvider.isGuest) return Result.success(null)
-        return callApi { it.scrobble(trackId, ScrobbleRequest(msPlayed, playedAt, clientPlayId)) }.map { it.playId }
+        val body = ScrobbleRequest(msPlayed, playedAt, clientPlayId, skipped.takeIf { it })
+        return callApi { it.scrobble(trackId, body) }.map { it.playId }
     }
 
     /** The play's real length, sent when the track ends, is skipped or pauses (A62). Later calls overwrite earlier ones. */

@@ -46,6 +46,8 @@ data class HistoryEntryDto(
     val format: String?,
     val playedAt: String,
     val missing: Boolean = false,
+    /** Cut short before the threshold (A113). Servers before 2026-10-11 don't send it. */
+    val skipped: Boolean = false,
 )
 
 data class TopAlbumDto(val id: Int, val title: String, val artist: String?, val plays: Int, val msListened: Long)

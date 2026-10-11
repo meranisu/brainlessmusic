@@ -2,6 +2,7 @@ package com.brainlessmusic.app.playback
 
 import android.app.PendingIntent
 import android.content.Intent
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -91,6 +92,7 @@ class PlaybackService : MediaSessionService() {
         val player = controller.sessionPlayer
         // Only in the service's first moments is the setting not loaded yet; then it's worth the short wait.
         val keepPlaying = keepPlayingWhenSwipedAway ?: runBlocking { settings.keepPlayingWhenSwipedAway.first() }
+        Log.i(TAG, "Task removed; keep playing = $keepPlaying, playWhenReady = ${player.playWhenReady}")
         if (!keepPlaying || !player.playWhenReady || player.mediaItemCount == 0) {
             pauseAllPlayersAndStopSelf()
         }
@@ -105,3 +107,5 @@ class PlaybackService : MediaSessionService() {
         super.onDestroy()
     }
 }
+
+private const val TAG = "PlaybackService"

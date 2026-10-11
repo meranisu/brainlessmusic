@@ -101,6 +101,8 @@ data class ScrobbleRequest(
     val playedAt: String? = null,
     /** The app's own id for this play (C10), the same on every send, so a resend is counted once. */
     val clientPlayId: String? = null,
+    /** True for a song cut short before the threshold (A113); left out (null) for a play. */
+    val skipped: Boolean? = null,
 )
 
 /** `POST /tracks/:id/scrobble` answers 201 with the updated counters; the client only needs to know it landed. */

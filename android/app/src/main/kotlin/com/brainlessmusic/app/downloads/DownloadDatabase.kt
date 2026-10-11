@@ -1,5 +1,6 @@
 package com.brainlessmusic.app.downloads
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Embedded
@@ -220,6 +221,8 @@ data class PendingPlay(
     val playedAt: String,
     /** Sent with the play so a resend is counted once (C10). Null on rows queued before version 3. */
     val clientPlayId: String? = null,
+    /** A song cut short before the threshold (A113). Since version 4. */
+    @ColumnInfo(defaultValue = "0") val skipped: Boolean = false,
 )
 
 @Dao
@@ -243,7 +246,7 @@ interface PendingPlayDao {
 /** Downloads and, since version 2, plays waiting for signal: both are what the phone keeps for offline use. */
 @Database(
     entities = [DownloadedTrack::class, DownloadGroup::class, DownloadGroupTrack::class, PendingPlay::class],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 abstract class DownloadDatabase : RoomDatabase() {
@@ -264,6 +267,12 @@ abstract class DownloadDatabase : RoomDatabase() {
         val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `pending_play` ADD COLUMN `clientPlayId` TEXT")
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `pending_play` ADD COLUMN `skipped` INTEGER NOT NULL DEFAULT 0")
             }
         }
     }

@@ -230,6 +230,44 @@ describe('listening stats', () => {
     );
   });
 
+  it('records skips for time listened and Recently played, never as plays (A113)', async () => {
+    const a = addTrack('A', 'Artist One', 'Album One', 200);
+    const b = addTrack('B', 'Artist Two', 'Album Two', 200);
+    await play(a);
+    const skip = await call('POST', `/tracks/${b}/scrobble`, token, { msPlayed: 12_000, skipped: true });
+    assert.equal(skip.statusCode, 201, skip.body);
+
+    const s = await stats();
+    assert.equal(s.totals.plays, 1);
+    assert.equal(s.totals.tracks, 1);
+    assert.equal(s.totals.artists, 1);
+    // The play counts as the whole song (no final report yet); the skip as the 12 s it was heard.
+    assert.equal(s.totals.msListened, 200_000 + 12_000);
+    assert.deepEqual(s.topTracks.map((t) => t.track.id), [a]);
+    assert.deepEqual(s.topArtists.map((x) => x.name), ['Artist One']);
+    assert.deepEqual(s.topAlbums.map((x) => x.title), ['Album One']);
+
+    const history = (await call('GET', '/me/history')).json() as { total: number; history: { trackId: number; skipped: boolean }[] };
+    assert.equal(history.total, 2);
+    assert.deepEqual(history.history.map((h) => [h.trackId, h.skipped]), [[b, true], [a, false]]);
+
+    const track = db.prepare('SELECT play_count, last_played_at FROM tracks WHERE id = ?').get(b) as {
+      play_count: number;
+      last_played_at: string | null;
+    };
+    assert.deepEqual(track, { play_count: 0, last_played_at: null });
+
+    const one = (await call('GET', `/me/stats/tracks/${b}`)).json() as { plays: number; msListened: number };
+    assert.deepEqual([one.plays, one.msListened], [0, 12_000]);
+    assert.equal((await call('GET', `/tracks/${b}/history`)).json().total, 0);
+  });
+
+  it('refuses a skipped flag that is not true or false', async () => {
+    const a = addTrack('A', 'X', 'Y');
+    const res = await call('POST', `/tracks/${a}/scrobble`, token, { msPlayed: 1_000, skipped: 'yes' });
+    assert.equal(res.statusCode, 400);
+  });
+
   it('is accounts only', async () => {
     assert.equal((await call('GET', '/me/stats', guestToken)).statusCode, 403);
     assert.equal((await call('GET', '/me/less-often', guestToken)).statusCode, 403);

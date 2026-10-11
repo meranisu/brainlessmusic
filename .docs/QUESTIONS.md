@@ -61,6 +61,12 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A113 — Skipped songs are recorded, marked as skips *(was Q113)*
+**Answered:** 2026-10-11 · **Option A.** Every song that plays at all is sent; one cut short before the threshold (half
+the song or 4 minutes) is marked `skipped`. Skips count toward minutes listened and show in Recently played, but not
+toward plays, top songs/artists/albums, a song's play count, or Smart shuffle's recency. Asked because account `user`
+listened for 30 minutes, skipping, and Home showed 0 plays.
+
 ### A112 — Real account names can't start with `guest-`
 **Answered:** 2026-10-11 · **A.** `guest-` is reserved for minted guest rows, so a real account (register, invite,
 upgrade) can't take a name that starts with it. Lands in [features/account-invites/planning.md](features/account-invites/planning.md).

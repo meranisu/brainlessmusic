@@ -4,6 +4,30 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `MainActivity.onDestroy()` (new), `MainActivity.keepPlayingWhenSwipedAway` (new): `android/.../MainActivity.kt`; `PlaybackService.onTaskRemoved()` (logging)
+**Date:** 2026-10-11
+**How added:** bug fix
+**Purpose:** a second place that pauses on a swipe from recent apps when "Keep playing when swiped away" is off (A58).
+**Side effects:** pauses the player through `sessionPlayer`; two Logcat lines.
+**Before:** only `PlaybackService.onTaskRemoved` paused; on a Pixel the music played on.
+**After:** on Android 12+ the activity's destroy pauses too; both log what they saw.
+
+**Function:** `recordScrobble()` (`skipped` parameter), `listHistoryForUser()`, `listHistoryForTrack()`, `countHistoryForTrack()`: `backend/src/db/plays.ts`; `getUserStats()`, `getTrackStat()`, `previousRanks()`: `backend/src/db/listeningStats.ts`; `lastPlayedByUser()`: `backend/src/db/shuffledTracks.ts`; `POST /tracks/:id/scrobble`: `backend/src/routes/tracks.ts`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** record songs cut short before the scrobble threshold as skips (A113).
+**Side effects:** inserts `play_history` rows with `skipped = 1`; those never touch `tracks.play_count` / `last_played_at`.
+**Before:** only plays past the threshold reached the server; every stat counted every row.
+**After:** skips count toward time listened and Recently played only; plays, top lists, a track's shared history and shuffle recency ignore them.
+
+**Function:** `recordSkip()` (new), `beginTrack()`, `stop()`: `android/.../playback/PlaybackController.kt`; `PendingPlays.add()` (`skipped`), `send()`: `playback/PendingPlays.kt`; `LibraryRepository.scrobble()` (`skipped`); `PendingPlay.skipped`, `DownloadDatabase.MIGRATION_3_4`: `downloads/DownloadDatabase.kt`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** the app sends a song that ended before the threshold as a skip, with the time heard; offline it queues like a play (A113).
+**Side effects:** one `POST /tracks/:id/scrobble` per skipped song that played at all; Room schema version 3 → 4.
+**Before:** a song skipped before half (or 4 minutes) sent nothing.
+**After:** it is recorded as a skip on the server.
+
 **Function:** `parseVersion()`, `compareVersions()`, `notesWithoutInstalling()`, `pickOffer()` (new): `android/.../update/Releases.kt`; `UpdateRepository` (`checkOnLaunch`, `checkNow`, `later`, `skip`, `download`, `installIntent`) (new): `update/UpdateRepository.kt`; `UpdateSheetHost`, `UpdateViewModel` (new): `ui/update/`; Settings "Check for updates" row: `SettingsScreen.kt`
 **Date:** 2026-10-11
 **How added:** new feature
