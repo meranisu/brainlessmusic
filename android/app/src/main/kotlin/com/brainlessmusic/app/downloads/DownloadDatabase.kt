@@ -13,6 +13,7 @@ import androidx.room.RoomDatabase
 import androidx.room.Transaction
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.brainlessmusic.app.playback.QueueItem
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -27,6 +28,19 @@ data class DownloadedTrack(
     val trackNumber: Int?,
     val durationSec: Double?,
     val format: String?,
+)
+
+/** The song as a queue entry; [coverUrl] is its group's saved cover, or its own art when there's signal. */
+fun DownloadedTrack.toQueueItem(coverUrl: String?) = QueueItem(
+    trackId = trackId,
+    title = title,
+    artist = artist,
+    album = album,
+    durationSec = durationSec,
+    coverUrl = coverUrl,
+    format = format,
+    albumId = albumId,
+    trackNumber = trackNumber,
 )
 
 /** An album or playlist someone tapped download on. [id] is `album:<id>` or `playlist:<id>`. */

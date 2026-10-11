@@ -17,7 +17,6 @@ import com.brainlessmusic.app.data.remote.dto.PlaylistDetailDto
 import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.playback.QueueItem
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -96,13 +95,16 @@ class DownloadRepository @Inject constructor(
      */
     private val reserved = mutableMapOf<Int, Long>()
 
-    private val loaded = CompletableDeferred<Unit>()
+    private val _loaded = MutableStateFlow(false)
 
     /**
      * Whether the stored downloads have been read. Until then [isDownloaded] is false for everything, so offline
-     * decisions must wait for it rather than conclude nothing is on the phone.
+     * decisions must wait for it rather than conclude nothing is on the phone. A flow so that waiting code hears about
+     * it even when nothing is downloaded (the downloads map then doesn't change).
      */
-    val isLoaded: Boolean get() = loaded.isCompleted
+    val loaded: StateFlow<Boolean> = _loaded.asStateFlow()
+
+    val isLoaded: Boolean get() = _loaded.value
 
     init {
         manager.addListener(object : DownloadManager.Listener {
@@ -134,10 +136,11 @@ class DownloadRepository @Inject constructor(
         scope.launch {
             // A broken index shows as nothing downloaded rather than taking the app down.
             val stored = runCatching { withContext(Dispatchers.IO) { readIndex() } }.getOrDefault(emptyMap())
+            // Loaded first: a collector woken by the map below must already see it.
+            _loaded.value = true
             // A listener update that landed first is newer than the index.
             _downloads.value = stored + _downloads.value
             _spaceUsed.value = readSpaceUsed()
-            loaded.complete(Unit)
             // Unfinished downloads left by a closed app carry on.
             if (stored.values.any { it.isActive }) {
                 runCatching { DownloadService.start(context, MusicDownloadService::class.java) }
@@ -272,31 +275,6 @@ class DownloadRepository @Inject constructor(
             remove(dao.deleteGroup(groupId, trackIds))
             coverPath?.let { withContext(Dispatchers.IO) { File(it).delete() } }
         }
-    }
-
-    /**
-     * A group's songs as a queue, artwork from the saved cover. [onlyDownloaded] leaves out songs not yet on the
-     * phone, for when there is no signal to stream them.
-     */
-    suspend fun queueOf(groupId: String, onlyDownloaded: Boolean): List<QueueItem> {
-        loaded.await()
-        val cover = dao.group(groupId)?.coverPath?.let { File(it).toUri().toString() }
-        return dao.tracksOf(groupId)
-            .filter { !onlyDownloaded || isDownloaded(it.trackId) }
-            .map {
-                QueueItem(
-                    trackId = it.trackId,
-                    title = it.title,
-                    artist = it.artist,
-                    album = it.album,
-                    durationSec = it.durationSec,
-                    // Single songs have no saved cover: their own art, when there's signal to fetch it.
-                    coverUrl = cover ?: libraryRepository.trackCoverUrl(it.trackId),
-                    format = it.format,
-                    albumId = it.albumId,
-                    trackNumber = it.trackNumber,
-                )
-            }
     }
 
     /** Best effort: with no cover the group still downloads and shows a blank square. */

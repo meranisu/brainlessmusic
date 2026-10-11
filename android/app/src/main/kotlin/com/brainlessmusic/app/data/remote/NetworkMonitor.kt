@@ -37,10 +37,12 @@ class NetworkMonitor @Inject constructor(@ApplicationContext context: Context) {
     private fun hasInternet(network: Network?): Boolean = connectivity.getNetworkCapabilities(network)?.usable() == true
 
     /**
-     * Validated, not just connected: hotel Wi-Fi before its sign-in page, or a router with no uplink, claims internet
-     * but carries nothing, and should count as offline so the downloads take over.
+     * Hotel Wi-Fi before its sign-in page claims internet but carries nothing, so a detected captive portal counts as
+     * offline and the downloads take over. Not "validated": a VPN, Private DNS or a network that blocks Android's check
+     * never validates while smol is reachable, and would be offline for good. A router with no uplink still looks
+     * online; songs then fail and skip one at a time, as before.
      */
     private fun NetworkCapabilities.usable(): Boolean =
         hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-            hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            !hasCapability(NetworkCapabilities.NET_CAPABILITY_CAPTIVE_PORTAL)
 }

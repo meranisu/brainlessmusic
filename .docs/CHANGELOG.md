@@ -4,6 +4,24 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android: offline downloads review, round 2 (D3, D5–D8)
+
+From `.docs/process/review-2026-10-11-offline-downloads-round2.md`. D1, D2 and D4 were already fixed by the
+codebase review (C17 in 87f2978, C5 in 3ee0161, C10 in d966018).
+
+- **D3. The offline-start re-check can't miss any more.** `DownloadRepository.loaded` is now a `StateFlow`, set before
+  the downloads map, and the player's collector keys on (loaded, downloaded songs). Before, the collector could run
+  between the map and the "loaded" flag, and with nothing downloaded it never ran at all, so a restored queue tried to
+  stream instead of skipping or saying nothing is downloaded.
+- **D5. Only a captive portal counts as offline**, not "not validated". A VPN, Private DNS or a network that blocks
+  Android's connectivity check never validates while smol is reachable, and was treated as offline for good. A router
+  with no uplink now looks online again; songs then fail and skip one at a time.
+- **D6. The login check after an offline start** compares the token again when `/auth/me` answers, so a logout or a
+  different sign-in meanwhile isn't overwritten with the old account's guest flag and name.
+- **D7.** Removed `DownloadRepository.queueOf()` and `DownloadsViewModel.retry()` / `remove()`, unused since the cover
+  grid.
+- **D8.** One `DownloadedTrack.toQueueItem(coverUrl)` beside the entity replaces three copies.
+
 ## 2026-10-11 — Android review fixes C30-C33: cache reads off the main thread, service thread leak, queue sheet, cleanup
 
 From `.docs/process/codebase-review-2026-10-11.md`; this closes the review.

@@ -290,6 +290,8 @@ class AuthRepository @Inject constructor(
             if (tokenProvider.current != token) return@launch
             runCatching { apiServiceFactory.get(serverUrl).me() }.fold(
                 onSuccess = {
+                    // Logged out, or in as someone else, while /auth/me ran: this answer is about a session that's gone.
+                    if (tokenProvider.current != token) return@fold
                     tokenProvider.isGuest = it.isGuest
                     sessionStore.saveIsGuest(it.isGuest)
                     sessionStore.saveDisplayName(nameOf(it))

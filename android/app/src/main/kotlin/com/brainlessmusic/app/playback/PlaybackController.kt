@@ -46,6 +46,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -206,8 +207,8 @@ class PlaybackController @Inject constructor(
         // A song finishing its download, or the stored downloads loading at start, changes which copy a queued song
         // should use and, offline, whether it can play at all.
         scope.launch {
-            downloads.downloads
-                .map { all -> all.filterValues { it.isDone }.keys }
+            // Keyed on loaded too: with nothing downloaded the set never changes, but loading must still be heard.
+            combine(downloads.loaded, downloads.downloads) { loaded, all -> loaded to all.filterValues { it.isDone }.keys }
                 .distinctUntilChanged()
                 .collect {
                     rebuildQueuedItems()

@@ -16,8 +16,8 @@ import com.brainlessmusic.app.downloads.KIND_ALBUM
 import com.brainlessmusic.app.downloads.KIND_PLAYLIST
 import com.brainlessmusic.app.downloads.TrackDownload
 import com.brainlessmusic.app.downloads.groupDownload
+import com.brainlessmusic.app.downloads.toQueueItem
 import com.brainlessmusic.app.playback.PlaybackController
-import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.ui.common.LoadState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -167,24 +167,10 @@ class DownloadsViewModel @Inject constructor(
 
     fun resumeAll() = downloads.resumeAll()
 
-    fun retry(row: DownloadRow, onRefused: (String) -> Unit) = downloads.downloadAgain(row.trackIds, onRefused)
-
-    fun remove(row: DownloadRow) = downloads.removeGroup(row.group.id, row.trackIds)
-
     fun removeSong(row: DownloadSongRow) = downloads.removeSong(row.song.track.trackId)
 }
 
-internal fun DownloadSongRow.toQueueItem() = QueueItem(
-    trackId = song.track.trackId,
-    title = song.track.title,
-    artist = song.track.artist,
-    album = song.track.album,
-    durationSec = song.track.durationSec,
-    coverUrl = coverUri,
-    format = song.track.format,
-    albumId = song.track.albumId,
-    trackNumber = song.track.trackNumber,
-)
+internal fun DownloadSongRow.toQueueItem() = song.track.toQueueItem(coverUri)
 
 /** "12 songs", or "8 of 12 songs" while some aren't on the phone. */
 internal fun songCount(done: Int, total: Int): String {

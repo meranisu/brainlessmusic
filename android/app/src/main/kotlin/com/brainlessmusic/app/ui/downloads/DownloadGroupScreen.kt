@@ -57,8 +57,8 @@ import com.brainlessmusic.app.downloads.DownloadedTrack
 import com.brainlessmusic.app.downloads.GroupDownload
 import com.brainlessmusic.app.downloads.TrackDownload
 import com.brainlessmusic.app.downloads.groupDownload
+import com.brainlessmusic.app.downloads.toQueueItem
 import com.brainlessmusic.app.playback.PlaybackController
-import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.ui.common.CoverImage
 import com.brainlessmusic.app.ui.common.LoadState
 import com.brainlessmusic.app.ui.common.LoadStateContent
@@ -124,18 +124,6 @@ class DownloadGroupViewModel @Inject constructor(
 
     fun removeAll(page: GroupPage) = downloads.removeGroup(groupId, page.songs.map { it.first.trackId })
 }
-
-private fun DownloadedTrack.toQueueItem(coverUrl: String?) = QueueItem(
-    trackId = trackId,
-    title = title,
-    artist = artist,
-    album = album,
-    durationSec = durationSec,
-    coverUrl = coverUrl,
-    format = format,
-    albumId = albumId,
-    trackNumber = trackNumber,
-)
 
 /** One downloaded album or playlist: its songs, each with its own state, play from any of them (A90). */
 @kotlin.OptIn(ExperimentalMaterial3Api::class)

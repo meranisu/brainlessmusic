@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `DownloadRepository.loaded` (now a `StateFlow`), `queueOf()` removed; `PlaybackController` downloads collector; `NetworkMonitor.usable()`; `AuthRepository.recheckWhenOnline()`; new `DownloadedTrack.toQueueItem()` — `android/.../downloads/DownloadDatabase.kt`; `DownloadsViewModel.retry()` / `remove()` removed
+**Date:** 2026-10-11
+**How added:** bug fix (offline downloads review round 2, D3, D5–D8)
+**Purpose:** a reliable offline-start re-check, a network check that doesn't strand VPN users offline, a race-free login check, less code.
+**Side effects:** none.
+**Before:** see the CHANGELOG entry of the same name.
+**After:** see the CHANGELOG entry of the same name.
+
 **Function:** `readSpaceUsed()`, `refreshSpaceUsed()` (new) — `android/app/src/main/kotlin/com/brainlessmusic/app/downloads/DownloadRepository.kt`
 **Date:** 2026-10-11
 **How added:** bug fix (review C30)
