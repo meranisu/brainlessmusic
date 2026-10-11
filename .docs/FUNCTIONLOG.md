@@ -4,6 +4,46 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `onSessionRefused()` (new), `request()`, `getMediaToken()` (changed) — `frontend/src/lib/apiClient.ts`
+**Date:** 2026-10-11
+**How added:** bug fix (review C7, C34)
+**Purpose:** tell the app when the server refuses the session it holds; store a media token only under its own session.
+**Side effects:** clears the stored token on a 401 that carried it, then calls listeners.
+**Before:** any 401 cleared the token silently; a media token was filed under whichever session existed when it arrived.
+**After:** listeners run (AuthProvider signs out); a media token for a replaced session is used once and not stored.
+
+**Function:** `AuthProvider` (changed) — `frontend/src/auth/AuthContext.tsx`
+**Date:** 2026-10-11
+**How added:** bug fix (review C7, C15)
+**Purpose:** sign out on a refused session; clear the query cache on every change of user.
+**Side effects:** `queryClient.clear()`.
+**Before:** the user stayed set after a 401; the cache outlived logout; a start-up network error cleared the token.
+**After:** a refused session shows the login screen; the cache is cleared on sign-in, logout and refusal; a network error keeps the token.
+
+**Function:** `TokenProvider.reportRefused()` / `refused` (new), `AuthInterceptor.intercept()` (changed) — `android/app/src/main/kotlin/com/brainlessmusic/app/data/remote/`
+**Date:** 2026-10-11
+**How added:** bug fix (review C7)
+**Purpose:** report a 401 from any request carrying the session token.
+**Side effects:** emits on a shared flow.
+**Before:** only `/auth/me` at start-up noticed a 401.
+**After:** every request does.
+
+**Function:** `AuthRepository.needsSignIn` (new), `endRefusedSession()` (changed) — `android/app/src/main/kotlin/com/brainlessmusic/app/data/repository/AuthRepository.kt`
+**Date:** 2026-10-11
+**How added:** bug fix (review C7)
+**Purpose:** end the session when any request is refused, and tell the UI.
+**Side effects:** as `endRefusedSession` (clears token, queued plays, credentials).
+**Before:** a 401 mid-use left the app signed in with every call failing.
+**After:** `needsSignIn` turns true until the next sign-in.
+
+**Function:** `BrainlessNavGraph()` (changed) — `android/app/src/main/kotlin/com/brainlessmusic/app/ui/navigation/BrainlessNavGraph.kt`
+**Date:** 2026-10-11
+**How added:** bug fix (review C7)
+**Purpose:** hold the graph on the splash until the session is restored; go to Login when it is refused.
+**Side effects:** navigation.
+**Before:** a back stack restored after process death loaded before the token was set; a refusal left the user in place.
+**After:** both go through sign-in.
+
 **Function:** `endRefusedSession()` (new) — `android/app/src/main/kotlin/com/brainlessmusic/app/data/repository/AuthRepository.kt`
 **Date:** 2026-10-11
 **How added:** bug fix (review C5)

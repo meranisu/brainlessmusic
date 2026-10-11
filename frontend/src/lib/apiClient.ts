@@ -28,6 +28,17 @@ export function setToken(token: string | null): void {
   localStorage.removeItem(MEDIA_TOKEN_STORAGE_KEY);
 }
 
+const sessionRefusedListeners = new Set<() => void>();
+
+/**
+ * Runs `listener` when the server refuses the stored session (a 401 on a request that carried it), after the token
+ * is cleared. Returns the unsubscribe.
+ */
+export function onSessionRefused(listener: () => void): () => void {
+  sessionRefusedListeners.add(listener);
+  return () => sessionRefusedListeners.delete(listener);
+}
+
 interface RequestOptions {
   method?: string;
   body?: unknown;
@@ -55,8 +66,11 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     body,
   });
 
-  if (res.status === 401) {
+  // Only the session this request carried: a 401 on a wrong password, or one that lands after another sign-in, must not
+  // sign anyone out.
+  if (res.status === 401 && token && getToken() === token) {
     setToken(null);
+    for (const listener of sessionRefusedListeners) listener();
   }
 
   if (res.status === 204) {
@@ -124,9 +138,12 @@ async function getMediaToken(): Promise<string> {
 
   // Collapse concurrent callers (a track list rendering many covers, later)
   // onto one mint request.
+  // The session it is minted under, read now: by the time the answer comes, someone else may have signed in.
+  const session = getToken() ?? '';
   inFlightMediaToken ??= request<MediaTokenResponse>('/auth/media-token', { method: 'POST' })
     .then((res) => {
-      cachedMediaToken = { token: res.token, expiresAt: Date.parse(res.expiresAt), session: getToken() ?? '' };
+      if (getToken() !== session) return res.token;
+      cachedMediaToken = { token: res.token, expiresAt: Date.parse(res.expiresAt), session };
       try {
         localStorage.setItem(MEDIA_TOKEN_STORAGE_KEY, JSON.stringify(cachedMediaToken));
       } catch {

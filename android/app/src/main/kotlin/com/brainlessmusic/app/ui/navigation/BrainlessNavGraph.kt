@@ -1,6 +1,9 @@
 package com.brainlessmusic.app.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NamedNavArgument
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -32,6 +35,27 @@ fun BrainlessNavGraph(
     startViewModel: StartViewModel,
     navController: NavHostController = rememberNavController(),
 ) {
+    val resolvedRoute by startViewModel.resolvedRoute.collectAsStateWithLifecycle()
+    val needsSignIn by startViewModel.needsSignIn.collectAsStateWithLifecycle()
+
+    // After the system kills the app in the background, the saved back stack comes back without the splash, so its
+    // screens would start loading before the session is restored, and every call would fail. Hold the graph until it is.
+    if (resolvedRoute == null) {
+        SplashScreen(viewModel = startViewModel, onResolved = {})
+        return
+    }
+
+    // The server refused the session mid-use (expired or revoked): back to sign-in, with nothing behind it. The splash
+    // and the login screen already lead there themselves.
+    LaunchedEffect(needsSignIn) {
+        if (!needsSignIn) return@LaunchedEffect
+        val here = navController.currentDestination?.route
+        if (here == Routes.LOGIN || here == Routes.SPLASH) return@LaunchedEffect
+        navController.navigate(Routes.LOGIN) {
+            popUpTo(navController.graph.id) { inclusive = true }
+        }
+    }
+
     NavHost(navController = navController, startDestination = Routes.SPLASH) {
         composable(Routes.SPLASH) {
             SplashScreen(

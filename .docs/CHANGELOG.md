@@ -4,6 +4,29 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Review fixes C7, C15, C34: an expired session goes back to sign-in, on web and Android
+
+From `.docs/process/codebase-review-2026-10-11.md`.
+
+- **C7, web** (`lib/apiClient.ts`, `auth/AuthContext.tsx`): a 401 cleared the stored token but never told
+  `AuthContext`, so the app stayed "signed in" with every request failing. A 401 on a request that carried the current
+  token now calls `onSessionRefused` listeners. `AuthProvider` then clears the user, the theme and the query cache, and
+  `RequireAuth` shows the login screen. A 401 with no token (a wrong password), or one that lands after another sign-in,
+  signs no one out. The start-up `/auth/me` no longer clears the token on a network error; that lost a guest's identity
+  for good.
+- **C7, Android**: `AuthInterceptor` reports every 401 to `TokenProvider.refused`, streams and covers included.
+  `AuthRepository` ends the session (`endRefusedSession`, which also drops queued plays per C5) and sets `needsSignIn`.
+  `BrainlessNavGraph` navigates to Login with the back stack cleared. After the system kills the app in the background,
+  the graph is held on the splash until `StartViewModel` has restored the session. The restored back stack used to
+  start loading before the token was set, so everything 401'd.
+- **C15** (`AuthContext.tsx`): the React Query cache is cleared on logout, on a refused session and on every sign-in,
+  so the next person in a tab never sees the last one's playlists or favorites.
+- **C34** (`apiClient.ts`): a media token is stored only under the session it was minted for, read when the request
+  starts rather than when the answer arrives.
+- Verified: `cd frontend && npm run build` passes and `npm run lint` shows no new warnings.
+  `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest` passes. **Not run:** neither app was opened. An expired
+  session, and a process kill on a phone, were not tried by hand.
+
 ## 2026-10-11 — Android review fixes C5, C6, C29: queued plays on a refused session, endless error skipping
 
 From `.docs/process/codebase-review-2026-10-11.md`.

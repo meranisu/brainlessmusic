@@ -22,6 +22,9 @@ class StartViewModel @Inject constructor(
     private val _resolvedRoute = MutableStateFlow<String?>(null)
     val resolvedRoute: StateFlow<String?> = _resolvedRoute.asStateFlow()
 
+    /** The server refused the session while the app was open; see [AuthRepository.needsSignIn]. */
+    val needsSignIn: StateFlow<Boolean> = authRepository.needsSignIn
+
     init {
         viewModelScope.launch {
             _resolvedRoute.value = when (val restored = authRepository.restoreSession()) {

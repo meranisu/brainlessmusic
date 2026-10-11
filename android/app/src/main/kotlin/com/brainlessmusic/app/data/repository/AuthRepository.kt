@@ -22,6 +22,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -48,6 +51,22 @@ class AuthRepository @Inject constructor(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
+    private val _needsSignIn = MutableStateFlow(false)
+
+    /**
+     * True from the moment the server refuses this session (401, from any request) until the next sign-in. The nav
+     * graph sends the listener to the login screen on it, instead of leaving every screen failing.
+     */
+    val needsSignIn: StateFlow<Boolean> = _needsSignIn.asStateFlow()
+
+    init {
+        scope.launch {
+            tokenProvider.refused.collect { token ->
+                // A 401 from a token already replaced (a sign-in since) says nothing about the current session.
+                if (token == tokenProvider.current) endRefusedSession()
+            }
+        }
+    }
 
     /** Theme saves go out one at a time, in the order picked, so the last tap is the one the profile keeps. */
     private val themeSaves = Mutex()
@@ -71,6 +90,7 @@ class AuthRepository @Inject constructor(
             val response = apiServiceFactory.get(validated).login(LoginRequest(username, password))
             tokenProvider.current = response.token
             tokenProvider.isGuest = false
+            _needsSignIn.value = false
             mediaUrlProvider.current = ApiServiceFactory.normalize(validated)
             sessionStore.saveSession(validated, username, response.token, isGuest = false)
             // Only for Settings' name and the theme; a failure here doesn't undo the login.
@@ -113,6 +133,7 @@ class AuthRepository @Inject constructor(
     /** Stores [token] as this phone's session and returns the display name `/auth/me` gives it. */
     private suspend fun adopt(serverUrl: String, token: String): String {
         tokenProvider.current = token
+        _needsSignIn.value = false
         val me = apiServiceFactory.get(serverUrl).me()
         tokenProvider.isGuest = me.isGuest
         mediaUrlProvider.current = ApiServiceFactory.normalize(serverUrl)
@@ -283,6 +304,7 @@ class AuthRepository @Inject constructor(
 
     /** The server said no to this session (401): sign out locally, and drop its queued plays with it. */
     private suspend fun endRefusedSession() {
+        _needsSignIn.value = true
         tokenProvider.current = null
         mediaUrlProvider.current = null
         pendingPlays.forget()

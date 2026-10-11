@@ -1,5 +1,6 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { apiClient, getToken, setToken } from '../lib/apiClient';
+import { apiClient, getToken, onSessionRefused, setToken } from '../lib/apiClient';
 import { applyTheme, clearTheme, hasLocalTheme, isTheme, loadTheme } from '../lib/theme';
 import type { User } from '../types/api';
 
@@ -43,6 +44,19 @@ function syncTheme(user: User) {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
+
+  // An expired or revoked session goes back to the login screen, as a logout would, instead of a signed-in shell
+  // where every request fails.
+  useEffect(
+    () =>
+      onSessionRefused(() => {
+        setUser(null);
+        clearTheme();
+        queryClient.clear();
+      }),
+    [queryClient],
+  );
 
   // Per sign-in, not per `/auth/me` refresh: a passcode change re-reads the user and must not undo a theme picked since.
   const userId = user?.id;
@@ -61,13 +75,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     apiClient
       .get<User>('/auth/me')
       .then(setUser)
-      .catch(() => setToken(null))
+      // A 401 has already cleared the token. Anything else (no signal, the server down) keeps it for the next load:
+      // clearing it lost a guest's identity for good.
+      .catch(() => {})
       .finally(() => setIsLoading(false));
   }, []);
 
   /** Store a token and find out who it belongs to. Shared by all three ways in. */
   async function signInWith(token: string): Promise<User> {
     setToken(token);
+    // Nothing cached for the last person in this tab may show for the next.
+    queryClient.clear();
     const who = await apiClient.get<User>('/auth/me');
     setUser(who);
     return who;
@@ -126,6 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
     setUser(null);
     clearTheme();
+    queryClient.clear();
   }
 
   return (
