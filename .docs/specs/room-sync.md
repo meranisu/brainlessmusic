@@ -1,6 +1,6 @@
 # Spec: Room sync
 
-**Status:** Agreed (2026-10-11); next is build step 1
+**Status:** Agreed (2026-10-11); step 1 (backend) built 2026-10-11, steps 2–5 not started
 **Layers:** 🔧 Backend / 🌐 Web / 📱 Android
 
 Roadmap boxes 21 (this spec), 22 (backend) and 23 (clients). *Done when (v0.3):* two people in different places hear
@@ -94,7 +94,9 @@ the way NTP does: it sends `ping {t0}`, the server answers `pong {t0, ts}`, the 
 
 - On connect: 8 pings, 100 ms apart. Keep the offset from the 3 lowest-RTT samples (median). Low-RTT samples have
   the least room for error.
-- Then one ping every 20 s. That also keeps the WebSocket inside Cloudflare's ~100 s idle limit.
+- Then one ping every 20 s. That also keeps the WebSocket inside Cloudflare's ~100 s idle limit. The server also
+  sends a WebSocket protocol ping every 30 s and drops a socket that missed the last one, so a phone that vanished
+  without closing shows as away within a minute.
 - Replace the offset only if a new sample's RTT is no worse than 1.5× the best seen in the last 2 minutes, so one slow
   round trip on mobile data doesn't knock everyone out of step.
 - Client time uses a monotonic clock (`performance.now()` on the web, `SystemClock.elapsedRealtime()` on Android), so
@@ -139,8 +141,9 @@ not two:
 | `play`, `pause` | — | already in that state |
 | `seek {positionMs}` | `entryId` | that song isn't current any more |
 | `next`, `previous` | `entryId` | that song isn't current any more (so two skips = one skip) |
+| `previous` past 3 s | `entryId` | restarts the song instead of going back, like every player |
 | `jump {entryId}` | — | entry is gone |
-| `add {trackIds[], after?}` | — | queue would pass 500 songs |
+| `add {trackIds[], after?}` | — | queue would pass 500 songs, or any song is hidden, missing or has no known length (the server can't end a song it can't time); none of the batch is added |
 | `remove {entryId}`, `move {entryId, toIndex}` | — | entry is gone |
 | `end`, `kick {userId}` | — | sender isn't the host |
 
@@ -151,8 +154,9 @@ Otherwise there is no locking: last command wins, which matches what people expe
 
 REST for things that happen once, one WebSocket for the live part.
 
-- `POST /api/rooms` → `{ code }`. Body: `{ queue: trackIds[], current, positionMs }` from the creator's player.
-- `GET /api/rooms/:code` → `{ exists, members, nowPlaying }`, for the "join" screen.
+- `POST /api/rooms` → `{ code }`. Body: `{ trackIds, current, positionMs, playing }` from the creator's player.
+- `GET /api/rooms/:code` → `{ code, members, nowPlaying }` or 404, for the "join" screen.
+- `GET /api/rooms/mine` → `{ code }` or `{ code: null }`, so a restarted client knows it was in a room.
 - `GET /api/admin/rooms` → all rooms for the monitor (`requireAdmin`).
 - `GET /api/rooms/ws`, the WebSocket.
 
@@ -170,7 +174,7 @@ same `hello`; once Cloudflare Access is on, its service-token headers go on the 
 | | `cmd` | `clientCmdId`, `op`, args from the table above |
 | | `status` | `driftMs`, `buffering` |
 | | `leave` | — |
-| server → client | `welcome` | full room snapshot, `you` |
+| server → client | `welcome` | full room snapshot, `you`, `serverNow` |
 | | `state` | full room snapshot (rooms are small; no diffs) |
 | | `pong` | `t0`, `ts` |
 | | `rejected` | `clientCmdId`, `reason` |
@@ -184,7 +188,8 @@ A snapshot of a 500-song queue is about 40 KB, sent only when something changes.
   and the old socket gets `closed {replaced}`.
 - A member whose socket drops is marked away, not removed, for 2 minutes. After that they're removed.
 - If the host is removed or leaves, the longest-present member becomes host.
-- A room with nobody connected is deleted after 5 minutes.
+- A room is deleted when its last member is removed, so at most 2 minutes after the last person drops out. A
+  room made but never opened goes the same way: its creator starts as an away member.
 - **Plays:** each account member's client records its own plays with the existing scrobble call, as today. Guests
   don't record plays (A37).
 
@@ -230,7 +235,7 @@ Both clients get a "room mode" in the player they already have, not a second pla
 
 | Step | What | Done when |
 |---|---|---|
-| 1 | Backend: room registry, REST, WebSocket, clock pings, server-side song timer, tests with two fake clients and a fake clock | `npm test` covers join, double-skip, reconnect, host handover, room expiry |
+| 1 | Backend: room registry, REST, WebSocket, clock pings, server-side song timer, tests with two fake clients and a fake clock | `npm test` covers join, double-skip, reconnect, host handover, room expiry. **Built 2026-10-11:** `services/rooms.ts`, `routes/rooms.ts` |
 | 2 | Web room mode + room view | Two browser tabs stay in sync (roadmap box 22's done-when), drift readout under 300 ms |
 | 3 | Control Center room monitor | Shows rooms, members, drift |
 | 4 | Android room mode | Phone and browser in sync; screen-off keeps the room |

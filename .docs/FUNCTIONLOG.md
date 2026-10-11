@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `createRoomRegistry()` (new) and its methods `create`, `connect`, `disconnect`, `leave`, `command`, `status`, `snapshot`, `codeOfUser`, `overview`: `backend/src/services/rooms.ts`
+**Date:** 2026-10-11
+**How added:** new feature (roadmap box 22, room sync spec step 1)
+**Purpose:** the room sync state machine: shared queue, playback anchor, server-side song timer, conflict rules for commands, membership, away grace and host handover.
+**Side effects:** in-memory only; timers through the injected `setTimer`; sends to and closes the `Connection`s it is given.
+**Before:** nothing, new function.
+**After:** rooms exist on the server; tested with a fake clock in `services/rooms.test.ts`.
+
+**Function:** `roomsRoute` (new: `POST /rooms`, `GET /rooms/mine`, `GET /rooms/:code`, `GET /admin/rooms`, WebSocket `GET /rooms/ws`), `memberFromToken()`, `memberInfo()`, `stillValid()`, exported `rooms` instance: `backend/src/routes/rooms.ts`; `buildApp()`: `backend/src/app.ts`
+**Date:** 2026-10-11
+**How added:** new feature (roadmap box 22)
+**Purpose:** the HTTP and WebSocket surface of room sync; hello-message auth, ping/pong clock samples, command and status messages, heartbeat.
+**Side effects:** reads `users` and track summaries; `buildApp()` now registers `@fastify/websocket` with a 64 KB message limit.
+**Before:** no WebSocket support in the server.
+**After:** clients can make, join and drive rooms; admins can list them.
+
 **Function:** `UploadProvider`, `useUploads()` (new): `frontend/src/components/UploadProvider.tsx`; `UploadQueueList` (new): `UploadQueueList.tsx`; `UploadPage`, `ControlCenterPage`
 **Date:** 2026-10-11
 **How added:** new feature (owner request)

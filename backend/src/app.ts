@@ -1,5 +1,6 @@
 import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
+import websocket from '@fastify/websocket';
 import Fastify from 'fastify';
 import { config } from './config.js';
 import { registerAuthDecorator } from './plugins/auth.js';
@@ -14,6 +15,7 @@ import healthRoute from './routes/health.js';
 import historyRoute from './routes/history.js';
 import libraryRoute from './routes/library.js';
 import playlistsRoute from './routes/playlists.js';
+import roomsRoute from './routes/rooms.js';
 import searchRoute from './routes/search.js';
 import lettersRoute from './routes/letters.js';
 import shuffledTracksRoute from './routes/shuffledTracks.js';
@@ -59,6 +61,9 @@ export function buildApp() {
     },
   });
 
+  // Room sync's live connection (`routes/rooms.ts`). The biggest client message, adding 500 songs, is about 4 KB.
+  app.register(websocket, { options: { maxPayload: 64 * 1024 } });
+
   // The API lives under /api because the web app has its own /albums, /search and /health pages on the same origin.
   app.register(
     async (api) => {
@@ -80,6 +85,7 @@ export function buildApp() {
       api.register(shuffledTracksRoute);
       api.register(usersRoute);
       api.register(guestCodesRoute);
+      api.register(roomsRoute);
     },
     { prefix: API_PREFIX },
   );

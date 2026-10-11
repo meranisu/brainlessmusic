@@ -4,6 +4,26 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Room sync backend ("Listen together", roadmap box 22, spec step 1)
+
+- **New:** an in-memory room registry (`services/rooms.ts`) and its routes (`routes/rooms.ts`): `POST /api/rooms`,
+  `GET /api/rooms/mine`, `GET /api/rooms/:code`, `GET /api/admin/rooms` (admin) and the WebSocket `GET /api/rooms/ws`.
+  Design: [specs/room-sync.md](specs/room-sync.md).
+- **The server holds the truth:** one shared queue and a `{playing, positionMs, anchorMs}` playback state; clients send
+  commands and get full snapshots back. The server ends songs on its own timer, with a 1.5 s load lead for each new
+  song. Commands that name a song (`next`, `previous`, `seek`) are refused as `stale` once it isn't current, so two
+  skips at once move one song.
+- **WebSocket auth** is the first message, `hello {token, code}`, within 5 s; it gets the same session-version check
+  as `authenticate`, repeated on every command. Pings answer with the server clock for client clock sync; protocol
+  pings every 30 s drop sockets that vanished.
+- **Membership:** up to 8; one room per user (a second device or another room takes over); a dropped member stays as
+  away for 2 minutes; the host role passes to the longest-present member; the room goes when its last member does.
+  Guests join with full controls (A100); only the host ends the room or removes people (A101).
+- **Dependency:** `@fastify/websocket` 11.3.1 (pinned; brings `ws` 8.22.0), `@types/ws` 8.18.1 (dev).
+- Verified: `cd backend && npm test`, 496 tests pass, including 26 new registry tests (fake clock) and 14 new route
+  and socket tests (`injectWS`); `npx tsc --noEmit` clean. The route gate table in `guestAccess.test.ts` lists the
+  new routes. **Not run:** against a real browser or phone; no client uses it yet (spec steps 2–4).
+
 ## 2026-10-11: Uploads keep going on other pages; Control Center shows them
 
 - **The upload queue moved up to the app** (`UploadProvider`, mounted in `main.tsx`), so leaving the Upload page no

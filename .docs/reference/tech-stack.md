@@ -11,7 +11,7 @@ See `.docs/history/backend-decision-history.md` for how this was arrived at.
   - Transcoding: `fluent-ffmpeg` (wraps system ffmpeg)
   - Database: SQLite via `better-sqlite3`
   - Auth: JWT + bcrypt
-  - WebSocket: native `ws` library or Fastify's WebSocket plugin (for room sync)
+  - WebSocket: `@fastify/websocket` (on top of `ws`) for room sync, picked 2026-10-11
 
 ## Database — SQLite
 

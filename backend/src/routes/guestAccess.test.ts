@@ -23,6 +23,8 @@ const EXPECTED: Record<string, Gate> = {
   'POST /auth/passcode-login': 'public',
   'GET /auth/registration-status': 'public',
   'GET /health': 'public',
+  // No preHandler, but not open: the socket's first message must carry a valid token (`routes/rooms.ts`).
+  'GET /rooms/ws': 'public',
   // Any signed-in user, guests included. `/admin/health` too: the empty-library screen shows a guest a running scan.
   'GET /admin/health': 'guest',
   'GET /albums': 'guest',
@@ -38,6 +40,10 @@ const EXPECTED: Record<string, Gate> = {
   'GET /me/playback-state': 'guest',
   'PUT /me/playback-state': 'guest',
   'GET /search': 'guest',
+  // Guests join rooms with full controls (A100).
+  'POST /rooms': 'guest',
+  'GET /rooms/mine': 'guest',
+  'GET /rooms/:code': 'guest',
   'POST /shuffle': 'guest',
   'GET /library/stats': 'guest',
   'PUT /me/theme': 'guest',
@@ -78,6 +84,7 @@ const EXPECTED: Record<string, Gate> = {
   'POST /tracks/:id/scrobble': 'account',
   // Admin only (A14).
   'GET /admin/control-center': 'admin',
+  'GET /admin/rooms': 'admin',
   'GET /admin/playback-failures': 'admin',
   'GET /library/browse': 'admin',
   'GET /library/missing': 'admin',
