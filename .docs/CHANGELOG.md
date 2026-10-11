@@ -4,6 +4,17 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: An arcade welcome on the way in
+
+- Owner's idea: entering the app plays a card-in, like signing in to an arcade machine. After a sign-in, or when the app
+  opens on a saved session (not on returning to it), a player card drops into a reader, the reader reads it, and the
+  screen says "Welcome back" with the display name (`ArcadeWelcome` in `ui/splash/`). In the skin's style, with a
+  skin-specific reader label and card mark. About 2 s over Home as it loads; a tap skips; none with animations off.
+- `StartViewModel` holds whether it is due (`welcome`, set on a restored session and by the login screen; cleared when
+  it starts, so a rotation doesn't replay it).
+- Verified: `./gradlew :app:compileDebugKotlin` builds; `:app:testDebugUnitTest` 105 tests, 1 skipped, 0 failed.
+  **Not run:** on a phone.
+
 ## 2026-10-11: Lane skin (after Arcaea), Lavender colours, and a skin-change intro
 
 - Owner's pick (A121): Lane goes next, app-wide. Researched first from the Arcaea wiki's screenshots (play screen, song

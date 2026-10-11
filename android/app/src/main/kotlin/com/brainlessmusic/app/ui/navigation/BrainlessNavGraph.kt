@@ -74,6 +74,7 @@ fun BrainlessNavGraph(
         composable(Routes.LOGIN) {
             LoginScreen(
                 onLoggedIn = {
+                    startViewModel.welcome()
                     navController.navigate(Routes.HOME) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }

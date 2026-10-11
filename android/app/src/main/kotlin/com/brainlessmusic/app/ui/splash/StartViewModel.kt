@@ -22,6 +22,22 @@ class StartViewModel @Inject constructor(
     private val _resolvedRoute = MutableStateFlow<String?>(null)
     val resolvedRoute: StateFlow<String?> = _resolvedRoute.asStateFlow()
 
+    private val _welcome = MutableStateFlow(false)
+
+    /** Whether the arcade welcome is due: after a sign-in, or when the app opens on a saved session. */
+    val welcome: StateFlow<Boolean> = _welcome.asStateFlow()
+
+    /** The name the welcome greets. */
+    val displayName = authRepository.displayName
+
+    fun welcome() {
+        _welcome.value = true
+    }
+
+    fun welcomed() {
+        _welcome.value = false
+    }
+
     /** The server refused the session while the app was open; see [AuthRepository.needsSignIn]. */
     val needsSignIn: StateFlow<Boolean> = authRepository.needsSignIn
 
@@ -29,8 +45,10 @@ class StartViewModel @Inject constructor(
         viewModelScope.launch {
             _resolvedRoute.value = when (val restored = authRepository.restoreSession()) {
                 // No signal: straight to what can play without it, if anything is downloaded.
-                is SessionRestoreResult.Restored ->
+                is SessionRestoreResult.Restored -> {
+                    _welcome.value = true
                     if (restored.offline && downloadDao.groupCount() > 0) Routes.DOWNLOADS else Routes.HOME
+                }
                 SessionRestoreResult.NoStoredSession,
                 SessionRestoreResult.StoredSessionInvalid,
                 -> Routes.LOGIN

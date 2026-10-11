@@ -103,3 +103,7 @@ never its artwork, and stay flat: rings and borders, no glow.
 
 Changing skin plays a short intro over the app (`SkinTransition`): Standard fades its name, Hit circle lands an
 approach ring and bursts, Lane closes and opens Arcaea's shutter. About 1.4 s; a tap skips it; off with animations off.
+
+Signing in plays an arcade card-in (`ArcadeWelcome`): after a sign-in, or when the app opens on a saved session, a player
+card drops into a reader, the reader's light sweeps it ("CARD READ", "PLAYER READY" or "SYNCHRONIZING" by skin), then
+"Welcome back" and the name. Skin type, shapes and colours; the card carries the skin's mark. About 2 s; a tap skips it.

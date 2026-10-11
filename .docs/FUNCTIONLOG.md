@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `ArcadeWelcome()`, `SkinMark()` (new): `android/.../ui/splash/ArcadeWelcome.kt`; `StartViewModel.welcome()`, `welcomed()` (new): `android/.../ui/splash/StartViewModel.kt`
+**Date:** 2026-10-11
+**How added:** owner request
+**Purpose:** an arcade card-in with "Welcome back" and the name on the way into the app.
+**Side effects:** takes touches while it plays; a tap ends it.
+**Before:** the app went straight from the splash or sign-in to Home.
+**After:** after a sign-in or a cold start on a saved session, about 2 s of welcome over Home.
+
 **Function:** `LaneDeck()`, `ScoreStrip()`, `LaneTrack()`, `drawLane()`, `LaneButton()`, `PlayDiamond()`, `Pure`, `PureText()` (new): `android/.../ui/playback/skins/Lane.kt`
 **Date:** 2026-10-11
 **How added:** owner request (A121)
