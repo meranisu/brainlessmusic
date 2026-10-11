@@ -9,7 +9,8 @@
           {
             "type": "ul",
             "items": [
-              "hit circle: the bottom sheets float now too, same as the mini player and tab bar. holding the cover, add to playlist, the queue, all of them pop up as a rounded card off the edges instead of stuck to the bottom"
+              "hit circle: the bottom sheets float now too, same as the mini player and tab bar. holding the cover, add to playlist, the queue, all of them pop up as a rounded card off the edges instead of stuck to the bottom",
+              "hit circle player: put repeat on one song and the end of the seek bar gets osu!'s reverse arrow, the little circle that says this slider goes back. it pulses while the song plays"
             ]
           }
         ]

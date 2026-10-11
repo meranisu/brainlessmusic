@@ -31,6 +31,9 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -158,6 +161,19 @@ fun ColumnScope.HitCircleDeck(
         }
     }
 
+    // Repeat one is osu!'s reverse arrow: a circle at the slider's end, arrow pointing back, pulsing while it plays.
+    val reverse = state.repeat == Repeat.ONE
+    val pulse = if (reverse && state.isPlaying && rememberAnimationsOn()) {
+        rememberInfiniteTransition(label = "reverse").animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(600, easing = LinearEasing)),
+            label = "reverse",
+        ).value
+    } else {
+        1f
+    }
+
     // The slider: an outlined track, the played part filled, the ball with its follow circle at the edge.
     SeekCanvas(
         fraction = fraction,
@@ -175,6 +191,7 @@ fun ColumnScope.HitCircleDeck(
         drawRoundRect(scheme.surfaceContainerHigh, Offset(0f, top), Size(size.width, h), r)
         drawRoundRect(scheme.primary, Offset(0f, top), Size(ballX, h), r)
         drawRoundRect(scheme.onSurface, Offset(0f, top), Size(size.width, h), r, style = Stroke(3.dp.toPx()))
+        if (reverse) drawReverseArrow(Offset(size.width - 14.dp.toPx(), cy), 14.dp.toPx(), 1.2f - 0.2f * pulse, scheme.surfaceContainerHigh, scheme.onSurface)
         drawCircle(scheme.secondary, radius = 19.dp.toPx(), center = Offset(ballX, cy), style = Stroke(2.dp.toPx()))
         drawCircle(scheme.onSurface, radius = 11.dp.toPx(), center = Offset(ballX, cy))
     }
@@ -238,6 +255,24 @@ private fun HitButton(
 }
 
 /** Play as the big hit circle; while playing, its approach ring keeps closing in on it. */
+/** A slider's reverse arrow: an end circle of [radius] with an arrow pointing back along the track, scaled by [pop]. */
+private fun DrawScope.drawReverseArrow(center: Offset, radius: Float, pop: Float, fill: Color, ink: Color) {
+    drawCircle(fill, radius = radius, center = center)
+    drawCircle(ink, radius = radius, center = center, style = Stroke(3.dp.toPx()))
+    val a = radius * 0.55f * pop
+    val arrow = Path().apply {
+        moveTo(center.x - a, center.y)
+        lineTo(center.x, center.y - a * 0.85f)
+        lineTo(center.x, center.y - a * 0.32f)
+        lineTo(center.x + a, center.y - a * 0.32f)
+        lineTo(center.x + a, center.y + a * 0.32f)
+        lineTo(center.x, center.y + a * 0.32f)
+        lineTo(center.x, center.y + a * 0.85f)
+        close()
+    }
+    drawPath(arrow, ink)
+}
+
 @Composable
 private fun PlayCircle(state: PlaybackUiState, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme

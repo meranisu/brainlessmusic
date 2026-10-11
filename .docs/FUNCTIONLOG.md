@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `drawReverseArrow()` (new); `HitCircleDeck()` (changed): `android/.../ui/playback/skins/HitCircle.kt`
+**Date:** 2026-10-11
+**How added:** owner request
+**Purpose:** repeat one marks the slider's end with osu!'s reverse arrow.
+**Side effects:** none.
+**Before:** the slider looked the same in every repeat mode.
+**After:** with repeat one, an end circle with a back arrow sits at the slider's end, pulsing every 600 ms while playing.
+
 **Function:** `SkinSheet()` (new): `android/.../ui/common/SkinParts.kt`
 **Date:** 2026-10-11
 **How added:** owner request

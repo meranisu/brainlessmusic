@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Hit circle, repeat one shows osu!'s reverse arrow
+
+- Owner's idea: with repeat one on, the Hit circle slider's end gets a reverse arrow, an end circle with an arrow
+  pointing back along the track, as an osu! slider shows when it repeats. It pulses while the song plays (still with
+  animations off); the ball passes over it at the end (`drawReverseArrow` in `skins/HitCircle.kt`). Repeat all and off
+  show none.
+- Verified: `./gradlew :app:compileDebugKotlin` builds. **Not run:** on a phone.
+
 ## 2026-10-11: Hit circle, bottom sheets float
 
 - Owner's request: in Hit circle the bottom sheets (song options from holding the cover, Add to playlist, Queue, the
