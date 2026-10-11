@@ -76,6 +76,18 @@ bar, readouts) after one of the A35 games, borrowing composition only, flat with
 - **Gear (DJMAX / SOUND VOLTEX):** the buttons as lanes at the bottom of a gear, the seek bar as a lane with a
   judgement line, track info in a song-select banner.
 
+Owner, same day: "lets add more from different rhythm games too". More candidates, each a different control layout:
+
+- **Pad (jubeat):** the controls as a 4x4 grid of square panels, the cover filling a 2x2 block in the middle.
+- **Drum (Taiko no Tatsujin):** a big drum as the play button (tap the face to play or pause, the rim to skip), and
+  the seek bar as a note lane.
+- **Dance pad (Pump It Up / DDR):** play in the centre panel, the other actions on the arrow panels around it.
+- **Face buttons (Project DIVA):** the four actions on triangle, circle, cross and square around play.
+- **Scan line (Cytus):** progress as a line sweeping across the cover, instead of a bar under it.
+- **Coaster (Groove Coaster):** the seek bar as a curving track with a marker riding along it.
+- **Slider (CHUNITHM):** the seek bar as a strip of 16 touch cells.
+- **Lane (Arcaea):** the seek bar as a lane leaning back into the distance, the bottom in light and the top in dark.
+
 Recommended: Hit circle, Deck and Ring first (the most distinct from each other); Gear later.
 
 ### Q115 — What makes the player "personal"?
