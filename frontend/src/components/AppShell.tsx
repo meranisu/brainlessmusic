@@ -10,7 +10,7 @@ import { GlobalSearch } from './GlobalSearch';
 import { HandoffDialog } from './HandoffDialog';
 import { ArcadeInterstitial, ArrivalVeil } from './ArcadeInterstitial';
 import { ShellBackdrop } from './BackdropDepth';
-import { CloseIcon, ExitIcon, GearIcon, SearchIcon } from './icons';
+import { CloseIcon, ExitIcon, FadersIcon, GearIcon, SearchIcon } from './icons';
 import { NavOverflow, type NavItem } from './NavOverflow';
 import { ScrollTopButton } from './ScrollTopButton';
 
@@ -24,7 +24,7 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
  * Tab order as data (active tab, click direction, what fits). Six tabs measured 933px at a 390px viewport, so only
  * `primary` sits on the bar from `lg` (at `md` it overflowed 785px into 721px); `overflow` lives behind More.
  */
-function navItemsFor(isAdmin: boolean, isGuest: boolean): { primary: NavItem[]; overflow: NavItem[] } {
+function navItemsFor(isGuest: boolean): { primary: NavItem[]; overflow: NavItem[] } {
   return {
     primary: [
       { to: '/', label: 'Library', end: true },
@@ -38,16 +38,11 @@ function navItemsFor(isAdmin: boolean, isGuest: boolean): { primary: NavItem[]; 
             { to: '/playlists', label: 'Playlists' },
           ]),
     ],
+    // Upload, Users and the Control Center are one dashboard with its own header button now (owner request,
+    // 2026-10-11), so More holds only what doesn't fit the bar.
     overflow: [
       // Everyone, guests included (A100). Behind More: a sixth tab doesn't fit the bar (see above).
       { to: '/together', label: 'Listen together' },
-      ...(isAdmin
-        ? [
-            { to: '/upload', label: 'Upload' },
-            { to: '/users', label: 'Users' },
-            { to: '/control-center', label: 'Control Center' },
-          ]
-        : []),
     ],
   };
 }
@@ -116,7 +111,7 @@ export function AppShell() {
 
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { primary, overflow } = navItemsFor(Boolean(user?.isAdmin), Boolean(user?.isGuest));
+  const { primary, overflow } = navItemsFor(Boolean(user?.isGuest));
   const current = activeIndex(primary, pathname);
 
   /** Leaves through a card (type, a held beat, fade to black), then navigates. The app stays mounted underneath. */
@@ -266,7 +261,26 @@ export function AppShell() {
           </div>
 
           <div className={`relative flex shrink-0 items-center gap-2 py-3 text-sm ${boot('boot-account')}`}>
-            {user?.isAdmin && <span className="badge-admin mr-1 hidden shrink-0 xl:inline">Admin</span>}
+            {/* The admin dashboard's own button (owner request, 2026-10-11), where the Admin badge was: it says the
+                same thing and does something. Icon and tip like Options: a text label squeezed search against More at every
+                width, since the bar stops growing at `max-w-6xl`. */}
+            {user?.isAdmin && (
+              <button
+                onClick={() =>
+                  leaveThrough({ text: 'Control Center', detail: 'Server, uploads and accounts' }, '/control-center')
+                }
+                aria-label="Control Center"
+                aria-current={pathname.startsWith('/control-center') ? 'page' : undefined}
+                data-tip="Control Center"
+                className={`tip btn-sm inline-flex shrink-0 items-center rounded-md border px-2 transition-colors ${
+                  pathname.startsWith('/control-center')
+                    ? 'border-orange-600 text-white'
+                    : 'border-transparent text-blue-300 hover:bg-blue-800 hover:text-white'
+                }`}
+              >
+                <FadersIcon className="h-5 w-5" />
+              </button>
+            )}
 
             {/* Icons (a gear and a door) to save width. `.tip` shows at once, unlike `title`; `aria-label` carries the text. */}
             <button

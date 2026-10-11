@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `AdminDashboard` (new): `frontend/src/pages/AdminDashboard.tsx`; `FadersIcon` (new): `icons.tsx`; `navItemsFor()`, header button: `AppShell.tsx`; routes: `App.tsx`
+**Date:** 2026-10-11
+**How added:** owner request
+**Purpose:** Upload and Users become tabs of the Control Center, which gets its own header button.
+**Side effects:** none.
+**Before:** three separate admin pages behind the More menu.
+**After:** one tabbed dashboard behind an admin-only header button; old addresses redirect.
+
 **Function:** `UploadQueueList` (`scrollable` prop, failed box), `hintFor()`, `extensionOf()` (new): `frontend/src/components/UploadQueueList.tsx`; `UploadError` (new), `uploadWithProgress()`, `runUpload`, `retry`: `frontend/src/components/UploadProvider.tsx`; `ScrollTopButton` (new): `frontend/src/components/ScrollTopButton.tsx`, rendered by `AppShell`
 **Date:** 2026-10-11
 **How added:** owner request

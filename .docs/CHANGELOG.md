@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Control Center is the admin dashboard, with Upload and Users as tabs
+
+- **One dashboard** at `/control-center` with tabs Overview (the old page), Upload and Users (`AdminDashboard`,
+  nested routes). Tabs, not a sidebar: DESIGN.md rules out the SaaS dashboard shell. Each tab is its own address,
+  so reloading or linking lands on it; uploads keep going while switching tabs. Owner request.
+- **Its own header button** for admins (a faders icon with a "Control Center" tip), where the Admin badge was; marked
+  current while on the dashboard. Icon only: a text label squeezed the search box against More at every width,
+  because the bar stops growing at `max-w-6xl`.
+- **More menu** holds only Listen together now. **Old addresses** `/upload` and `/users` redirect to their tabs.
+- The tab pages' titles became `h2` under the dashboard's `h1`, and their section titles `h3`.
+- Verified: `npm run build` clean, lint adds nothing. Headless Chromium against the scratch backend: the button at
+  1280 px and on a phone, More showing only Listen together, all three tabs, uploads continuing from the Upload tab
+  into Overview, both redirects, a reload staying on its tab, a guest seeing no button and "Admins only" at
+  `/control-center`, an 80 px gap between More and search at 1280 and 1600 px, no sideways scroll on a phone, and no
+  console errors.
+
 ## 2026-10-11: Upload list scrolls in its own box, failed uploads get their own box, back-to-top button
 
 - **Control Center uploads scroll inside a box** (about six rows, 20rem), so a big batch no longer pushes every other

@@ -79,9 +79,9 @@ export function UploadQueueList({ scrollable = false }: { scrollable?: boolean }
         // Its own box with a red border, so failures can't hide among finished uploads in a long batch.
         <section className={others.length > 0 ? 'mt-4' : ''} aria-labelledby="failed-uploads-title">
           <div className="mb-2 flex items-center justify-between gap-2">
-            <h3 id="failed-uploads-title" className="text-sm font-semibold text-red-300">
+            <h4 id="failed-uploads-title" className="text-sm font-semibold text-red-300">
               Failed ({failed.length})
-            </h3>
+            </h4>
             {failed.length > 1 && (
               <button onClick={() => failed.forEach(retry)} className="btn-secondary btn-sm">
                 Retry all {failed.length}

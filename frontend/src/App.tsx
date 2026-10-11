@@ -29,6 +29,7 @@ const UsersPage = lazy(() => import('./pages/UsersPage').then((m) => ({ default:
 const ControlCenterPage = lazy(() =>
   import('./pages/ControlCenterPage').then((m) => ({ default: m.ControlCenterPage })),
 );
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
 
 export function App() {
   return (
@@ -60,10 +61,15 @@ export function App() {
             {/* Now the Library's Full view; redirected for bookmarks and the old nav link. */}
             <Route path="/manage" element={<Navigate to="/?view=full" replace />} />
             <Route element={<RequireAdmin />}>
-              <Route path="/upload" element={<UploadPage />} />
-              <Route path="/users" element={<UsersPage />} />
-              <Route path="/control-center" element={<ControlCenterPage />} />
-              {/* The page's old name, kept for bookmarks. */}
+              {/* One dashboard with tabs (owner request, 2026-10-11): Overview, Upload, Users. */}
+              <Route path="/control-center" element={<AdminDashboard />}>
+                <Route index element={<ControlCenterPage />} />
+                <Route path="upload" element={<UploadPage />} />
+                <Route path="users" element={<UsersPage />} />
+              </Route>
+              {/* Old addresses, kept for bookmarks: the two pages before they became tabs, and the page's old name. */}
+              <Route path="/upload" element={<Navigate to="/control-center/upload" replace />} />
+              <Route path="/users" element={<Navigate to="/control-center/users" replace />} />
               <Route path="/health" element={<Navigate to="/control-center" replace />} />
             </Route>
           </Route>

@@ -14,10 +14,10 @@ export function UploadPage() {
   return (
     <div>
       <div className="mb-5">
-        <h1 className="text-xl font-semibold text-white">Upload</h1>
+        <h2 className="text-base font-semibold text-white">Upload</h2>
         <p className="mt-0.5 text-sm text-blue-300">
           Files are tagged, filed into the library, and available immediately. Uploads keep going on other pages; the
-          Control Center shows them too.
+          Overview tab shows them too.
         </p>
       </div>
 

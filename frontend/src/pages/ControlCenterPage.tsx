@@ -58,7 +58,8 @@ function StatTile({ label, value, hint }: { label: string; value: string | numbe
 function Section({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
   return (
     <section>
-      <h2 className="text-sm font-semibold text-white">{title}</h2>
+      {/* h3: under the tab's own "Overview" heading. */}
+      <h3 className="text-sm font-semibold text-white">{title}</h3>
       {description && <p className="mt-0.5 mb-2 text-xs text-blue-300">{description}</p>}
       <div className={description ? '' : 'mt-2'}>{children}</div>
     </section>
@@ -230,7 +231,8 @@ export function ControlCenterPage() {
     <div>
       <div className="mb-5 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-white">Control Center</h1>
+          {/* A tab of the dashboard now (`AdminDashboard`), which carries the page title. */}
+          <h2 className="text-base font-semibold text-white">Overview</h2>
           <p className="mt-0.5 text-sm text-blue-300">Auto-refreshes every 10s.</p>
         </div>
         <button
@@ -256,7 +258,7 @@ export function ControlCenterPage() {
           ) : (
             <div className="card px-4 py-6 text-center text-sm text-blue-300">
               No uploads in this tab.{' '}
-              <Link to="/upload" className="text-accent-ink underline">
+              <Link to="/control-center/upload" className="text-accent-ink underline">
                 Upload files
               </Link>
             </div>

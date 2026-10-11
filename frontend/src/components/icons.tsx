@@ -152,6 +152,16 @@ export function GearIcon({ className = 'h-4 w-4' }: IconProps) {
   );
 }
 
+/** Three mixing-desk faders at different levels: the Control Center button. Controls, in a music app's terms. */
+export function FadersIcon({ className = 'h-4 w-4' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 4v16M12 4v16M18 4v16" />
+      <path d="M4 15h4M10 8h4M16 12h4" strokeWidth="3" />
+    </svg>
+  );
+}
+
 /** A closed folder, for browse-dialog rows. */
 export function FolderIcon({ className = 'h-4 w-4' }: IconProps) {
   return (
