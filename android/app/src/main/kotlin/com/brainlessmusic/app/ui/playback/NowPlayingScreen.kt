@@ -77,6 +77,7 @@ import com.brainlessmusic.app.data.local.SeekStyle
 import com.brainlessmusic.app.data.remote.dto.TrackStatDto
 import com.brainlessmusic.app.ui.playback.skins.HitCircleDeck
 import com.brainlessmusic.app.ui.playback.skins.LaneDeck
+import com.brainlessmusic.app.ui.playback.skins.GearDeck
 import com.brainlessmusic.app.ui.theme.AppIcons
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -171,7 +172,8 @@ fun NowPlayingScreen(
                             contentDescription = if (dataSaver) "Data saver on" else "Data saver off",
                         )
                     }
-                    if (current != null && songActions.canEdit && !pills) {
+                    // Gear likes and adds from its FX keys instead.
+                    if (current != null && songActions.canEdit && !pills && skin != Skin.GEAR) {
                         LikeButton(current.trackId, viewModel = songActions)
                         IconButton(onClick = { addingToPlaylist = true }) {
                             Icon(AppIcons.playlistAdd, contentDescription = "Add to playlist")
@@ -281,6 +283,29 @@ fun NowPlayingScreen(
                     onNext = viewModel::next,
                     onRepeat = viewModel::cycleRepeat,
                 )
+                Skin.GEAR -> {
+                    val liked by songActions.likedIds.collectAsStateWithLifecycle()
+                    GearDeck(
+                        state = state,
+                        item = current,
+                        fraction = fraction,
+                        shownMs = shownMs,
+                        record = record,
+                        liked = current.trackId in liked,
+                        canEdit = songActions.canEdit,
+                        coverGestures = coverGestures,
+                        coverLayer = coverLayer,
+                        onFraction = { dragFraction = it },
+                        onFinished = seekTo,
+                        onShuffle = viewModel::cycleShuffle,
+                        onPrevious = viewModel::previous,
+                        onPlayPause = viewModel::togglePlayPause,
+                        onNext = viewModel::next,
+                        onRepeat = viewModel::cycleRepeat,
+                        onLike = { songActions.toggleLike(current.trackId) },
+                        onAddToPlaylist = { addingToPlaylist = true },
+                    )
+                }
                 Skin.STANDARD -> {
                     // The cover is the largest square that fits above the controls. Swipe it to skip, hold it for the song menu.
                     Box(

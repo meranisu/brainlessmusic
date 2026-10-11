@@ -313,7 +313,7 @@ private fun QueueRowItem(
                     .padding(start = RowInnerPadding, end = if (handle != null) 4.dp else RowInnerPadding)
                     .heightIn(min = 56.dp),
             ) {
-                if (LocalSkin.current == Skin.HIT_CIRCLE) {
+                if (LocalSkin.current == Skin.HIT_CIRCLE || LocalSkin.current == Skin.GEAR) {
                     QueueMarker(position, Modifier.padding(end = 12.dp))
                 } else if (isCurrent && markPlaying) {
                     PlayingMarker(Modifier.padding(end = 12.dp))

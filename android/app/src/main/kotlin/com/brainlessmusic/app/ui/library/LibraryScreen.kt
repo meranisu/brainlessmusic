@@ -1,5 +1,9 @@
 package com.brainlessmusic.app.ui.library
 
+import com.brainlessmusic.app.data.local.Skin
+import com.brainlessmusic.app.ui.theme.LocalSkin
+import com.brainlessmusic.app.ui.common.GearDifficultyColors
+import com.brainlessmusic.app.ui.common.GearInk
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
@@ -254,6 +258,10 @@ private fun HeaderButton(icon: ImageVector, description: String, onClick: () -> 
 /** A pill that floats over the list rather than sitting in the layout, so content scrolls under it. */
 @Composable
 private fun LibraryTabBar(selected: LibraryTab, onSelect: (LibraryTab) -> Unit, modifier: Modifier = Modifier) {
+    if (LocalSkin.current == Skin.GEAR) {
+        DifficultyTabs(selected, onSelect, modifier)
+        return
+    }
     if (dockedHeader) {
         SlantTabs(selected, onSelect, modifier)
         return
@@ -317,6 +325,43 @@ private fun SlantTabs(selected: LibraryTab, onSelect: (LibraryTab) -> Unit, modi
                     tab.label,
                     style = MaterialTheme.typography.labelMedium,
                     color = if (isSelected) scheme.onPrimary else scheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Gear's tabs: the game's difficulty boxes side by side, each in its colour, the open one filled with it and the rest
+ * outlined in it, as the song select shows NOV, ADV, EXH and MXM.
+ */
+@Composable
+private fun DifficultyTabs(selected: LibraryTab, onSelect: (LibraryTab) -> Unit, modifier: Modifier = Modifier) {
+    val scheme = MaterialTheme.colorScheme
+    val shape = MaterialTheme.shapes.small
+    Row(
+        modifier = modifier.height(HeaderHeight),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        LibraryTab.entries.forEachIndexed { i, tab ->
+            val isSelected = tab == selected
+            val color = GearDifficultyColors[i % GearDifficultyColors.size]
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(38.dp)
+                    .clip(shape)
+                    .background(if (isSelected) color else scheme.surfaceContainerHigh)
+                    .border(2.dp, color, shape)
+                    .selectable(selected = isSelected, role = Role.Tab, onClick = { onSelect(tab) }),
+            ) {
+                Text(
+                    tab.label.uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (isSelected) GearInk else scheme.onSurfaceVariant,
                     maxLines = 1,
                 )
             }

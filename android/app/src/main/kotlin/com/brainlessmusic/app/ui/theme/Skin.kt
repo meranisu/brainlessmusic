@@ -107,16 +107,51 @@ internal class SlantShape(private val slant: Dp) : Shape {
     }
 }
 
+private fun TextStyle.gearDisplay(weight: FontWeight) = copy(fontFamily = GearDisplayFontFamily, fontWeight = weight)
+
+private fun TextStyle.gear(weight: FontWeight) = copy(fontFamily = GearFontFamily, fontWeight = weight)
+
+/**
+ * Gear (A125): SOUND VOLTEX's wide, squared lettering in Orbitron for display, headlines and labels; titles and
+ * reading text in Chakra Petch, which keeps the squared, chamfered feel but fits a long song title.
+ */
+private val GearTypography = Typography.run {
+    Typography(
+        displayLarge = displayLarge.gearDisplay(FontWeight.Bold), displayMedium = displayMedium.gearDisplay(FontWeight.Bold),
+        displaySmall = displaySmall.gearDisplay(FontWeight.Bold), headlineLarge = headlineLarge.gearDisplay(FontWeight.SemiBold),
+        headlineMedium = headlineMedium.gearDisplay(FontWeight.SemiBold), headlineSmall = headlineSmall.gearDisplay(FontWeight.SemiBold),
+        titleLarge = titleLarge.gear(FontWeight.SemiBold), titleMedium = titleMedium.gear(FontWeight.SemiBold),
+        titleSmall = titleSmall.gear(FontWeight.SemiBold), bodyLarge = bodyLarge.gear(FontWeight.Normal),
+        bodyMedium = bodyMedium.gear(FontWeight.Normal), bodySmall = bodySmall.gear(FontWeight.Normal),
+        labelLarge = labelLarge.gearDisplay(FontWeight.SemiBold), labelMedium = labelMedium.gearDisplay(FontWeight.Medium),
+        labelSmall = labelSmall.gearDisplay(FontWeight.Medium),
+    )
+}
+
+/** SOUND VOLTEX's panels: every corner chamfered, never rounded. */
+private val GearShapes = Shapes(
+    extraSmall = CutCornerShape(3.dp),
+    small = CutCornerShape(6.dp),
+    medium = CutCornerShape(8.dp),
+    large = CutCornerShape(12.dp),
+    extraLarge = CutCornerShape(16.dp),
+)
+
+/** Gear's song-list rows: square on the left, the right end cut to a point, like the game's song-select entries. */
+private val GearRowShape = CutCornerShape(topStart = 0.dp, topEnd = 14.dp, bottomEnd = 14.dp, bottomStart = 0.dp)
+
 internal fun Skin.typography(): Typography = when (this) {
     Skin.STANDARD -> Typography
     Skin.HIT_CIRCLE -> HitCircleTypography
     Skin.LANE -> LaneTypography
+    Skin.GEAR -> GearTypography
 }
 
 internal fun Skin.shapes(): Shapes = when (this) {
     Skin.STANDARD -> Shapes()
     Skin.HIT_CIRCLE -> HitCircleShapes
     Skin.LANE -> LaneShapes
+    Skin.GEAR -> GearShapes
 }
 
 private val StandardCardShape = RoundedCornerShape(20.dp)
@@ -125,7 +160,7 @@ private val StandardCardShape = RoundedCornerShape(20.dp)
 val MaterialTheme.cardShape: Shape
     @Composable @ReadOnlyComposable get() = when (LocalSkin.current) {
         Skin.STANDARD -> StandardCardShape
-        Skin.HIT_CIRCLE, Skin.LANE -> shapes.large
+        Skin.HIT_CIRCLE, Skin.LANE, Skin.GEAR -> shapes.large
     }
 
 private val StandardRowShape = RoundedCornerShape(12.dp)
@@ -135,7 +170,7 @@ private val StandardRowShape = RoundedCornerShape(12.dp)
 @ReadOnlyComposable
 fun tileShape(standard: Dp): Shape = when (LocalSkin.current) {
     Skin.STANDARD -> RoundedCornerShape(standard)
-    Skin.HIT_CIRCLE, Skin.LANE -> MaterialTheme.shapes.medium
+    Skin.HIT_CIRCLE, Skin.LANE, Skin.GEAR -> MaterialTheme.shapes.medium
 }
 
 /** A highlighted or dragged list row (queue, playlist). Hit circle makes it a pill, like osu!'s song-select entries. */
@@ -144,12 +179,13 @@ val MaterialTheme.rowShape: Shape
         Skin.STANDARD -> StandardRowShape
         Skin.HIT_CIRCLE -> RoundedCornerShape(50)
         Skin.LANE -> LaneRowShape
+        Skin.GEAR -> GearRowShape
     }
 
 private val LaneRowShape = SlantShape(10.dp)
 
 /**
- * Covers and avatars: round in Hit circle, corner-cut in Lane, otherwise the rounded square a caller asks for. A radius of 0 is a cell of a
+ * Covers and avatars: round in Hit circle, corner-cut in Lane, chamfered all round in Gear, otherwise the rounded square a caller asks for. A radius of 0 is a cell of a
  * larger picture (a mosaic) and stays square; the whole picture takes the shape.
  */
 @Composable
@@ -158,6 +194,7 @@ fun coverShape(cornerRadius: Dp): Shape = when {
     cornerRadius == 0.dp -> RectangleShape
     LocalSkin.current == Skin.HIT_CIRCLE -> CircleShape
     LocalSkin.current == Skin.LANE -> laneCut(cornerRadius)
+    LocalSkin.current == Skin.GEAR -> CutCornerShape(cornerRadius / 2)
     else -> RoundedCornerShape(cornerRadius)
 }
 
@@ -287,6 +324,72 @@ private class LaneHitNode(
             radius = radius,
             center = c,
             style = Stroke(2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(dash * 0.6f, dash * 0.4f))),
+        )
+    }
+}
+
+/**
+ * Gear's tap: a CRITICAL, a square chip flashing at the finger with a square frame thrown out around it, instead of
+ * Material's ripple. Flat, no bloom. Reaches every plain `clickable`, as [ApproachRingIndication] does. With
+ * animations off only the tint shows.
+ */
+internal class GearHitIndication(private val color: Color, private val animate: Boolean) : IndicationNodeFactory {
+    override fun create(interactionSource: InteractionSource): DelegatableNode = GearHitNode(interactionSource, color, animate)
+
+    override fun equals(other: Any?) = other is GearHitIndication && other.color == color && other.animate == animate
+
+    override fun hashCode() = 31 * color.hashCode() + animate.hashCode() + 2
+}
+
+private class GearHitNode(
+    private val source: InteractionSource,
+    private val color: Color,
+    private val animate: Boolean,
+) : Modifier.Node(), DrawModifierNode {
+    private val progress = Animatable(1f)
+    private var center: Offset? = null
+    private var pressed = false
+
+    override fun onAttach() {
+        coroutineScope.launch {
+            source.interactions.collect { interaction ->
+                when (interaction) {
+                    is PressInteraction.Press -> {
+                        pressed = true
+                        center = interaction.pressPosition
+                        invalidateDraw()
+                        if (animate) {
+                            coroutineScope.launch {
+                                progress.snapTo(0f)
+                                progress.animateTo(1f, tween(260, easing = FastOutSlowInEasing)) { invalidateDraw() }
+                                invalidateDraw()
+                            }
+                        }
+                    }
+                    is PressInteraction.Release, is PressInteraction.Cancel -> {
+                        pressed = false
+                        invalidateDraw()
+                    }
+                }
+            }
+        }
+    }
+
+    override fun ContentDrawScope.draw() {
+        drawContent()
+        if (pressed) drawRect(color.copy(alpha = 0.10f))
+        val c = center ?: return
+        val p = progress.value
+        if (!animate || p >= 1f) return
+        val fade = 1f - p
+        val chip = 9.dp.toPx() * (1f - 0.4f * p)
+        drawRect(color.copy(alpha = 0.6f * fade), Offset(c.x - chip, c.y - chip), Size(chip * 2, chip * 2))
+        val frame = 12.dp.toPx() + 22.dp.toPx() * p
+        drawRect(
+            color.copy(alpha = 0.9f * fade),
+            Offset(c.x - frame, c.y - frame),
+            Size(frame * 2, frame * 2),
+            style = Stroke(2.dp.toPx()),
         )
     }
 }

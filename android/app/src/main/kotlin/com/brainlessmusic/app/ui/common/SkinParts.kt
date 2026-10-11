@@ -62,10 +62,24 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.brainlessmusic.app.data.local.Skin
 import com.brainlessmusic.app.ui.theme.BrandFontFamily
+import com.brainlessmusic.app.ui.theme.GearDisplayFontFamily
 import com.brainlessmusic.app.ui.theme.LocalSkin
 import com.brainlessmusic.app.ui.theme.laneCut
 
 // The small pieces every screen shares that change with the skin (A118). Standard draws exactly what it did before.
+
+/** SOUND VOLTEX's fixed console colours, the same in every colour theme: the right knob's laser and the FX keys. */
+val GearLaserRight = Color(0xFFFF2FD0)
+val GearFx = Color(0xFFFF8A1F)
+
+/** The critical line's red. */
+val GearCritical = Color(0xFFFF3355)
+
+/** SOUND VOLTEX's difficulty colours: NOVICE, ADVANCED, EXHAUST, MAXIMUM. */
+val GearDifficultyColors = listOf(Color(0xFF7A5CFF), Color(0xFFFFD400), Color(0xFFFF3355), Color(0xFFD8DCE8))
+
+/** The ink on a lit difficulty box or key, dark on all four colours and on the FX orange. */
+val GearInk = Color(0xFF0A0F2C)
 
 /** Whether the playing song in a list gets a [PlayingMarker]; Standard marks it with bold accent text only. */
 val markPlaying: Boolean
@@ -74,6 +88,13 @@ val markPlaying: Boolean
 /** The mark for the playing song in a list: a small hit circle in Hit circle, a filled diamond in Lane. */
 @Composable
 fun PlayingMarker(modifier: Modifier = Modifier) {
+    if (LocalSkin.current == Skin.GEAR) {
+        // A BT chip, the note the game's white keys hit.
+        Box(modifier.size(16.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(width = 16.dp, height = 7.dp).background(MaterialTheme.colorScheme.primary, CutCornerShape(2.dp)))
+        }
+        return
+    }
     if (LocalSkin.current == Skin.LANE) {
         Box(modifier.size(16.dp), contentAlignment = Alignment.Center) { Diamond(11.dp, MaterialTheme.colorScheme.primary) }
         return
@@ -94,12 +115,42 @@ fun Diamond(side: Dp, color: Color, modifier: Modifier = Modifier, stroke: Dp? =
 
 /**
  * A queue row's lead mark, [position] songs from the playing one. Hit circle numbers the run like osu!'s combo: the
- * playing song is a filled circle, the next ones count 1, 2, 3, and played ones fade. Standard has none.
+ * playing song is a filled circle, the next ones count 1, 2, 3, and played ones fade. Gear does the same with
+ * two-digit keys. Standard and Lane have none.
  */
 @Composable
 fun QueueMarker(position: Int, modifier: Modifier = Modifier) {
-    if (LocalSkin.current != Skin.HIT_CIRCLE) return
     val scheme = MaterialTheme.colorScheme
+    if (LocalSkin.current == Skin.GEAR) {
+        // Gear numbers the coming tracks as the game counts its stages, "01", "02"; the playing one is a lit key.
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = modifier
+                .size(width = 32.dp, height = 22.dp)
+                .alpha(if (position < 0) 0.4f else 1f)
+                .then(
+                    if (position == 0) {
+                        Modifier.background(scheme.primary, CutCornerShape(4.dp))
+                    } else {
+                        Modifier.border(1.5.dp, scheme.outline, CutCornerShape(4.dp))
+                    },
+                ),
+        ) {
+            if (position > 0) {
+                Text(
+                    if (position < 100) "%02d".format(position) else "99+",
+                    fontFamily = GearDisplayFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 10.sp,
+                    color = scheme.onSurface,
+                )
+            } else if (position == 0) {
+                Icon(AppIcons.play, contentDescription = null, tint = scheme.onPrimary, modifier = Modifier.size(12.dp))
+            }
+        }
+        return
+    }
+    if (LocalSkin.current != Skin.HIT_CIRCLE) return
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
@@ -129,6 +180,17 @@ fun MiniProgress(progress: Float, modifier: Modifier = Modifier) {
     when (LocalSkin.current) {
         Skin.STANDARD -> LinearProgressIndicator(progress = { progress }, modifier = modifier.fillMaxWidth().height(2.dp))
         Skin.HIT_CIRCLE -> Unit
+        Skin.GEAR -> {
+            // The song as a laser running up to the critical line: cyan behind, the line's red tick at the head.
+            val scheme = MaterialTheme.colorScheme
+            Canvas(modifier.fillMaxWidth().height(6.dp)) {
+                val y = size.height / 2
+                val x = size.width * progress.coerceIn(0f, 1f)
+                drawLine(scheme.outlineVariant, Offset(0f, y), Offset(size.width, y), 2.dp.toPx())
+                drawLine(scheme.primary, Offset(0f, y), Offset(x, y), 3.dp.toPx())
+                drawLine(GearCritical, Offset(x, 0f), Offset(x, size.height), 3.dp.toPx())
+            }
+        }
         Skin.LANE -> {
             val scheme = MaterialTheme.colorScheme
             Canvas(modifier.fillMaxWidth().height(6.dp)) {
@@ -179,6 +241,12 @@ fun MiniCover(url: String?, progress: Float) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun segmentShape(index: Int, count: Int): Shape = when {
+    LocalSkin.current == Skin.GEAR -> when {
+        count == 1 -> CutCornerShape(8.dp)
+        index == 0 -> CutCornerShape(topStart = 8.dp, bottomStart = 8.dp)
+        index == count - 1 -> CutCornerShape(topEnd = 8.dp, bottomEnd = 8.dp)
+        else -> RectangleShape
+    }
     LocalSkin.current != Skin.LANE -> SegmentedButtonDefaults.itemShape(index, count)
     count == 1 -> CutCornerShape(topStart = 10.dp, bottomEnd = 10.dp)
     index == 0 -> CutCornerShape(topStart = 10.dp)
@@ -211,17 +279,27 @@ fun SkinDragHandle() {
 fun tabBarColor(): Color =
     if (LocalSkin.current != Skin.STANDARD) MaterialTheme.colorScheme.surfaceContainerHighest else NavigationBarDefaults.containerColor
 
-/** The line Lane closes a docked bar with, as Arcaea edges its panels; nothing in the other skins. */
+/**
+ * The line a docked bar is closed with: Lane's outline, as Arcaea edges its panels, or Gear's cyan console edge;
+ * nothing in the other skins.
+ */
 @Composable
 fun EdgeLine(modifier: Modifier = Modifier) {
-    if (LocalSkin.current != Skin.LANE) return
-    Box(modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outline))
+    when (LocalSkin.current) {
+        Skin.LANE -> Box(modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outline))
+        Skin.GEAR -> Box(modifier.fillMaxWidth().height(2.dp).background(MaterialTheme.colorScheme.primary))
+        else -> Unit
+    }
 }
 
 /** The mini player's play button: an icon button, or in Lane a small accent diamond like its player's. */
 @Composable
 fun MiniPlayButton(playing: Boolean, buffering: Boolean, onClick: () -> Unit) {
     val label = if (playing) "Pause" else "Play"
+    if (LocalSkin.current == Skin.GEAR) {
+        GearMiniKey(playing, buffering, label, onClick)
+        return
+    }
     if (LocalSkin.current != Skin.LANE) {
         IconButton(onClick = onClick) {
             if (buffering && !playing) {
@@ -249,9 +327,9 @@ fun MiniPlayButton(playing: Boolean, buffering: Boolean, onClick: () -> Unit) {
     }
 }
 
-/** Lane docks a screen's header (the Library's tabs) as a full-width strip; the others float it as a pill. */
+/** Lane and Gear dock a screen's header (the Library's tabs) as a full-width strip; the others float it as a pill. */
 val dockedHeader: Boolean
-    @Composable get() = LocalSkin.current == Skin.LANE
+    @Composable get() = LocalSkin.current == Skin.LANE || LocalSkin.current == Skin.GEAR
 
 /** Hit circle floats the mini player and the tab bar as outlined pills off the edge; Standard docks them. */
 val floatingBars: Boolean
@@ -266,6 +344,12 @@ fun tabColors(): NavigationBarItemColors = when (LocalSkin.current) {
         selectedIconColor = MaterialTheme.colorScheme.primary,
         selectedTextColor = MaterialTheme.colorScheme.primary,
     )
+    // The selected tab is a lit key ([TabIcon]), so its icon takes the key's ink.
+    Skin.GEAR -> NavigationBarItemDefaults.colors(
+        indicatorColor = Color.Transparent,
+        selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+        selectedTextColor = MaterialTheme.colorScheme.primary,
+    )
 }
 
 /** A bottom-bar icon: Hit circle rings the selected tab's, like a circle waiting to be hit; Lane sets it in a diamond. */
@@ -276,6 +360,19 @@ fun TabIcon(selected: Boolean, content: @Composable () -> Unit) {
             contentAlignment = Alignment.Center,
             modifier = Modifier.size(34.dp).border(2.5.dp, MaterialTheme.colorScheme.primary, CircleShape),
         ) { content() }
+        // Gear: every tab a BT key on the console, the open one lit.
+        LocalSkin.current == Skin.GEAR -> Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(width = 46.dp, height = 30.dp)
+                .then(
+                    if (selected) {
+                        Modifier.background(MaterialTheme.colorScheme.primary, CutCornerShape(5.dp))
+                    } else {
+                        Modifier.border(1.5.dp, MaterialTheme.colorScheme.outline, CutCornerShape(5.dp))
+                    },
+                ),
+        ) { content() }
         selected && LocalSkin.current == Skin.LANE -> Box(contentAlignment = Alignment.Center, modifier = Modifier.size(36.dp)) {
             Diamond(25.dp, MaterialTheme.colorScheme.primary, stroke = 1.5.dp)
             content()
@@ -285,9 +382,9 @@ fun TabIcon(selected: Boolean, content: @Composable () -> Unit) {
 }
 
 /**
- * A bottom sheet. Hit circle and Lane show it as an outlined card in the middle of the screen (Q123; Lane on the
- * owner's word, 2026-10-11): Hit circle's rounded, Lane's an Arcaea panel with two corners cut. Standard docks it as
- * Material's sheet.
+ * A bottom sheet. The game skins show it as an outlined card in the middle of the screen (Q123; Lane on the owner's
+ * word, 2026-10-11): Hit circle's rounded, Lane's an Arcaea panel with two corners cut, Gear's chamfered all round.
+ * Standard docks it as Material's sheet.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -304,7 +401,11 @@ fun SkinSheet(
     }
     // A dialog, not a sheet: nothing to drag, so no handle, and `sheetState` goes unused. Capped in height so a long
     // list (the queue) scrolls inside the card rather than running off the screen.
-    val shape = if (skin == Skin.LANE) laneCut(28.dp) else RoundedCornerShape(28.dp)
+    val shape = when (skin) {
+        Skin.LANE -> laneCut(28.dp)
+        Skin.GEAR -> CutCornerShape(14.dp)
+        else -> RoundedCornerShape(28.dp)
+    }
     val maxHeight = (LocalConfiguration.current.screenHeightDp * 0.85f).dp
     Dialog(onDismissRequest = onDismissRequest, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
@@ -319,5 +420,25 @@ fun SkinSheet(
                 .padding(vertical = 12.dp),
             content = content,
         )
+    }
+}
+
+/** Gear's mini play key: a small white BT key with the navy glyph, as on the console. */
+@Composable
+private fun GearMiniKey(playing: Boolean, buffering: Boolean, label: String, onClick: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(48.dp)
+            .clickable(role = Role.Button, onClickLabel = null, onClick = onClick)
+            .semantics { contentDescription = label },
+    ) {
+        Box(Modifier.size(width = 40.dp, height = 30.dp).background(scheme.onSurface, CutCornerShape(5.dp)))
+        if (buffering && !playing) {
+            CircularProgressIndicator(modifier = Modifier.size(16.dp), color = scheme.surface, strokeWidth = 2.dp)
+        } else {
+            Icon(if (playing) AppIcons.pause else AppIcons.play, contentDescription = null, tint = scheme.surface, modifier = Modifier.size(18.dp))
+        }
     }
 }

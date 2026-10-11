@@ -85,6 +85,15 @@ val LavenderPalette = Palette(
     accentOnBand = Color(0xFF8A63E0), // 3.6:1
 )
 
+// Phone-only (A127): SOUND VOLTEX's console, the mockup's navy with the left laser's cyan as the accent.
+val VoltagePalette = Palette(
+    ground = Color(0xFF0A0F2C), blue950 = Color(0xFF0E1438), blue900 = Color(0xFF121A44), blue800 = Color(0xFF1C2766),
+    blue700 = Color(0xFF26306B), blue400 = Color(0xFF7D8FD8), blue300 = Color(0xFFAAB8EE), blue100 = Color(0xFFE6ECFF),
+    white = Color(0xFFF7F9FF), accent = Color(0xFF00E5FF), dangerDark = Color(0xFFFF99B8), dangerLight = Color(0xFFB0103A),
+    accentOnLight = Color(0xFF00707F), // 4.9:1 on blue100
+    accentOnBand = Color(0xFF0099AA), // 3.25:1
+)
+
 fun ColorTheme.palette(): Palette = when (this) {
     ColorTheme.DEEP_BLUE -> DeepBluePalette
     ColorTheme.CRIMSON -> CrimsonPalette
@@ -93,6 +102,7 @@ fun ColorTheme.palette(): Palette = when (this) {
     ColorTheme.MAGENTA -> MagentaPalette
     ColorTheme.PASTEL -> PastelPalette
     ColorTheme.LAVENDER -> LavenderPalette
+    ColorTheme.VOLTAGE -> VoltagePalette
     // Its real colours come from the wallpaper (`BrainlessMusicTheme`); this is the fallback below Android 12.
     ColorTheme.MATERIAL_YOU -> DeepBluePalette
 }

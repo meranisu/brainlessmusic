@@ -22,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -39,7 +40,8 @@ private fun span(p: Float, from: Float, to: Float) = ((p - from) / (to - from)).
 /**
  * Plays when the skin changes (owner, 2026-10-11): its name with a moment from its game, over the app as it
  * restyles beneath. Standard fades its name in and out, Hit circle closes an approach ring on a circle that bursts,
- * Lane slams Arcaea's shutter and opens it. About 1.4 s; a tap skips it; with animations off it never shows.
+ * Lane slams Arcaea's shutter and opens it, Gear runs SOUND VOLTEX's lane in to a critical line that slams across.
+ * About 1.4 s; a tap skips it; with animations off it never shows.
  */
 @Composable
 fun SkinTransition(skin: Skin) {
@@ -73,6 +75,7 @@ fun SkinTransition(skin: Skin) {
             Skin.STANDARD -> StandardIntro(p)
             Skin.HIT_CIRCLE -> HitCircleIntro(p)
             Skin.LANE -> LaneIntro(p)
+            Skin.GEAR -> GearIntro(p)
         }
     }
 }
@@ -171,5 +174,70 @@ private fun LaneIntro(p: Float) {
         letterSpacing = 4.sp,
         color = scheme.onBackground,
         modifier = Modifier.graphicsLayer { alpha = if (shut > 0.98f) span(p, 0.25f, 0.35f) else 0f },
+    )
+}
+
+@Composable
+private fun GearIntro(p: Float) {
+    val scheme = MaterialTheme.colorScheme
+    val v = veil(p)
+    // The lane runs in from the horizon, then the critical line slams across it and the screen jolts once.
+    val run = span(p, 0.04f, 0.4f)
+    val ran = 1f - (1f - run) * (1f - run)
+    val slam = span(p, 0.38f, 0.48f)
+    val jolt = if (slam > 0f && slam < 1f) (1f - slam) * 10f * (if ((p * 60).toInt() % 2 == 0) 1f else -1f) else 0f
+    val laserRight = Color(0xFFFF2FD0)
+    val critical = Color(0xFFFF3355)
+    Canvas(Modifier.fillMaxSize().graphicsLayer { translationX = jolt.dp.toPx() }) {
+        drawRect(scheme.background, alpha = v)
+        val w = size.width
+        val h = size.height
+        val lineY = h * 0.62f
+        val topY = lineY - (lineY - h * 0.12f) * ran
+        val nearW = w * 0.86f
+        // The far end narrows as the lane stretches away.
+        val farW = nearW * (1f - 0.76f * ran)
+        val lane = Path().apply {
+            moveTo(w / 2 - farW / 2, topY); lineTo(w / 2 + farW / 2, topY)
+            lineTo(w / 2 + nearW / 2, lineY + h * 0.2f); lineTo(w / 2 - nearW / 2, lineY + h * 0.2f); close()
+        }
+        drawPath(lane, scheme.surfaceContainerHigh, alpha = v)
+        for (k in 1..3) {
+            val a = k / 4f
+            drawLine(
+                scheme.outline,
+                Offset(w / 2 - farW / 2 + farW * a, topY),
+                Offset(w / 2 - nearW / 2 + nearW * a, lineY + h * 0.2f),
+                1.dp.toPx(),
+                alpha = v * 0.6f,
+            )
+        }
+        drawLine(scheme.primary, Offset(w / 2 - farW / 2, topY), Offset(w / 2 - nearW / 2, lineY + h * 0.2f), 3.dp.toPx(), alpha = v)
+        drawLine(laserRight, Offset(w / 2 + farW / 2, topY), Offset(w / 2 + nearW / 2, lineY + h * 0.2f), 3.dp.toPx(), alpha = v)
+        if (slam > 0f) {
+            val half = (w / 2) * slam
+            drawLine(critical, Offset(w / 2 - half, lineY), Offset(w / 2 + half, lineY), 5.dp.toPx(), alpha = v)
+            // The two knob cursors ride in along the line.
+            val c = 12.dp.toPx()
+            val lx = w * 0.18f * slam + (1f - slam) * -c
+            val rx = w - w * 0.18f * slam + (1f - slam) * c
+            drawPath(Path().apply { moveTo(lx, lineY - c); lineTo(lx + c, lineY + c * 0.4f); lineTo(lx - c, lineY + c * 0.4f); close() }, scheme.primary, alpha = v)
+            drawPath(Path().apply { moveTo(rx, lineY - c); lineTo(rx + c, lineY + c * 0.4f); lineTo(rx - c, lineY + c * 0.4f); close() }, laserRight, alpha = v)
+        }
+    }
+    Text(
+        "GEAR",
+        fontFamily = GearDisplayFontFamily,
+        fontWeight = FontWeight.Black,
+        fontSize = 40.sp,
+        letterSpacing = 4.sp,
+        color = scheme.onBackground,
+        modifier = Modifier.padding(bottom = 140.dp).graphicsLayer {
+            alpha = v * span(p, 0.45f, 0.55f)
+            val s = 1.25f - 0.25f * span(p, 0.45f, 0.55f)
+            scaleX = s
+            scaleY = s
+            translationX = jolt.dp.toPx()
+        },
     )
 }

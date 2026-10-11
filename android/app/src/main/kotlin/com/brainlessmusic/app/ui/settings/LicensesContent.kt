@@ -57,6 +57,8 @@ private val Fonts = listOf(
     Credit("Fredoka", "Copyright 2016 The Fredoka Project Authors. The wordmark, and Hit circle's headings", OFL, text = R.raw.license_ofl_1_1),
     Credit("Barlow Condensed", "Copyright 2017 The Barlow Project Authors. Song titles at display size", OFL, text = R.raw.license_ofl_1_1),
     Credit("Exo 2", "Copyright 2013 The Exo 2 Project Authors. The Lane skin's type", OFL, text = R.raw.license_ofl_1_1),
+    Credit("Orbitron", "Copyright 2018 The Orbitron Project Authors, Reserved Font Name \"Orbitron\". The Gear skin's headings", OFL, text = R.raw.license_ofl_1_1),
+    Credit("Chakra Petch", "Copyright 2018 The Chakra Petch Project Authors. The Gear skin's text", OFL, text = R.raw.license_ofl_1_1),
 )
 
 private val Icons = listOf(
@@ -72,6 +74,7 @@ private val Icons = listOf(
         "ISC License",
         text = R.raw.license_lucide_isc,
     ),
+    Credit("Phosphor Icons 2.1.1", "Copyright (c) 2023 Phosphor Icons. The Gear skin's icons", "MIT License", text = R.raw.license_phosphor_mit),
     Credit("Material Icons", "Google. The Standard skin's icons", APACHE, link = APACHE_URL),
 )
 

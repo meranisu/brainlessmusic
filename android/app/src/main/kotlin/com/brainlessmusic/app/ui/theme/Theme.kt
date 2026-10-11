@@ -185,6 +185,10 @@ fun BrainlessMusicTheme(
                     LocalIndication provides LaneHitIndication(colorScheme.primary, animationsOn),
                     content = content,
                 )
+                Skin.GEAR -> CompositionLocalProvider(
+                    LocalIndication provides GearHitIndication(colorScheme.primary, animationsOn),
+                    content = content,
+                )
             }
         }
     }

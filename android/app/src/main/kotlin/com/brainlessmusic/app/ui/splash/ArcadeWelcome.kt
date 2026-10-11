@@ -49,6 +49,7 @@ private fun readingLabel(skin: Skin) = when (skin) {
     Skin.STANDARD -> "CARD READ"
     Skin.HIT_CIRCLE -> "PLAYER READY"
     Skin.LANE -> "SYNCHRONIZING"
+    Skin.GEAR -> "ENTRY"
 }
 
 /**
@@ -163,7 +164,7 @@ fun ArcadeWelcome(viewModel: StartViewModel) {
     }
 }
 
-/** The skin's sign on the player card: a hit circle, Arcaea's diamond, or the plain card's stripe. */
+/** The skin's sign on the player card: a hit circle, Arcaea's diamond, two knobs, or the plain card's stripe. */
 @Composable
 private fun SkinMark(skin: Skin) {
     val ink = MaterialTheme.colorScheme.onPrimary
@@ -178,6 +179,13 @@ private fun SkinMark(skin: Skin) {
                     moveTo(c.x, c.y - d); lineTo(c.x + d, c.y); lineTo(c.x, c.y + d); lineTo(c.x - d, c.y); close()
                 }
                 drawPath(path, ink, style = Stroke(3.dp.toPx()))
+            }
+            Skin.GEAR -> {
+                // The console's two knobs, joined by the critical line.
+                val r = 11.dp.toPx()
+                drawLine(ink, Offset(c.x - 30.dp.toPx(), c.y), Offset(c.x + 30.dp.toPx(), c.y), 3.dp.toPx())
+                drawCircle(ink, radius = r, center = Offset(c.x - 30.dp.toPx(), c.y), style = Stroke(4.dp.toPx()))
+                drawCircle(ink, radius = r, center = Offset(c.x + 30.dp.toPx(), c.y), style = Stroke(4.dp.toPx()))
             }
         }
     }

@@ -104,10 +104,27 @@ never its artwork, and stay flat: rings and borders, no glow.
   bar under an edge line, `EdgeLine`, a shade up from the mini player, `tabBarColor`), the mini player's play is a small diamond (`MiniPlayButton`), the
   Library's tabs are a docked strip of slanted segments, and
   segmented pickers cut their outer ends (`segmentShape`).
+- **Gear** (after SOUND VOLTEX, A125-A128; research in `.docs/features/player-skins/gear-research.md`): Orbitron for
+  display, headlines and labels, Chakra Petch for titles and text; every panel chamfered, rows cut to a point on the
+  right like the game's song-select entries; a tap flashes a square chip with a frame thrown out around it. Icons are
+  Phosphor Bold, Fill for play, pause and a liked heart (MIT, credited in Settings → Licenses). The player is
+  `GearDeck`: a banner with the jacket (a difficulty box on its corner from the play count: NOV, ADV, EXH, MXM), a
+  score strip (10,000,000 × plays ÷ plays and skips, eight digits rolling up, the game's grade S to D, its clear medal),
+  the lane in the game's black with a cyan wall left and magenta right, the red critical line climbing it (tap or drag
+  to seek) with the knob cursors on it lit for shuffle and repeat, chips falling while playing, and beside it a gauge
+  that turns from blue to pink once the play counts (A113's threshold). The console sits on a band a shade apart:
+  knobs for shuffle and repeat whose notch turns per mode, white BT keys for previous, play (wide) and next, orange FX
+  keys for like and add (hidden for guests); a press pops "CRITICAL". The lane's black, the lasers' cyan and magenta,
+  FX orange and the critical red are fixed in every theme (`GearLaserRight`, `GearFx`, `GearCritical`). The bars
+  dock under a cyan edge; tabs are BT keys, the open one lit; the mini player's progress is a laser with the critical
+  line's red tick, its play a small white key; the Library's tabs are the game's difficulty boxes (`GearDifficultyColors`);
+  the queue numbers coming tracks "01", "02" on keys; sheets open as a chamfered card in the middle of the screen.
+  Voltage (phone-only) is its matching colour theme.
 
 Changing skin plays a short intro over the app (`SkinTransition`): Standard fades its name, Hit circle lands an
-approach ring and bursts, Lane closes and opens Arcaea's shutter. About 1.4 s; a tap skips it; off with animations off.
+approach ring and bursts, Lane closes and opens Arcaea's shutter, Gear runs the lane in and slams the critical line
+across with a jolt. About 1.4 s; a tap skips it; off with animations off.
 
 Signing in plays an arcade card-in (`ArcadeWelcome`): after a sign-in, or when the app opens on a saved session, a player
-card drops into a reader, the reader's light sweeps it ("CARD READ", "PLAYER READY" or "SYNCHRONIZING" by skin), then
+card drops into a reader, the reader's light sweeps it ("CARD READ", "PLAYER READY", "SYNCHRONIZING" or "ENTRY" by skin), then
 "Welcome back" and the name. Skin type, shapes and colours; the card carries the skin's mark. About 2 s; a tap skips it.

@@ -26,6 +26,22 @@ val LaneFontFamily = FontFamily(
     },
 )
 
+/** Gear's display face (A125): Orbitron, wide and squared like SOUND VOLTEX's lettering. One variable file. */
+@OptIn(ExperimentalTextApi::class)
+val GearDisplayFontFamily = FontFamily(
+    listOf(FontWeight.Medium, FontWeight.SemiBold, FontWeight.Bold, FontWeight.Black).map { weight ->
+        Font(R.font.orbitron, weight, variationSettings = FontVariation.Settings(FontVariation.weight(weight.weight)))
+    },
+)
+
+/** Gear's reading face (A125): Chakra Petch, squared and chamfered but narrow enough for long titles. */
+val GearFontFamily = FontFamily(
+    Font(R.font.chakrapetch_regular, FontWeight.Normal),
+    Font(R.font.chakrapetch_medium, FontWeight.Medium),
+    Font(R.font.chakrapetch_semibold, FontWeight.SemiBold),
+    Font(R.font.chakrapetch_bold, FontWeight.Bold),
+)
+
 /** Track titles at display size (`.font-display`). Weight carries the title; never uppercase it, mixed-script titles break. */
 val DisplayFontFamily = FontFamily(Font(R.font.barlow_condensed_extrabold, FontWeight.ExtraBold))
 

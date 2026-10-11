@@ -1,5 +1,33 @@
 [
   {
+    "version": "0.3.48",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "new skin: **gear**, after sound voltex. settings → skin - the player is a cabinet now: the lane with the red critical line climbing it as the song plays (drag it to seek), knobs for shuffle and repeat, white keys for back / play / next, orange keys for like and add - every song gets a score out of 10,000,000 from how often you finish it vs skip it, plus a grade (S to D) and a clear medal like ULTIMATE CHAIN - the gauge next to the lane turns pink once the song counts as a play - library tabs are the difficulty boxes, the queue numbers your tracks 01, 02, 03, and a lil intro when you switch to it",
+              "new colour theme: **voltage**, navy and cyan to go with it",
+              "new fonts and icons for gear: orbitron, chakra petch, phosphor (credited in licenses)"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.47",
     "date": "2026-10-11",
     "sections": [

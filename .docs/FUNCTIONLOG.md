@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `GearDeck()`, `listeningScore()`, `gearGrade()` and the player's parts (new): `android/.../ui/playback/skins/Gear.kt`; `GearIntro()` (new): `android/.../ui/theme/SkinTransition.kt`; `GearHitIndication` (new), `typography()`/`shapes()`/`rowShape`/`coverShape` (changed): `android/.../ui/theme/Skin.kt`; `GearIcons` (new): `android/.../ui/theme/GearIcons.kt`; `QueueMarker()`, `PlayingMarker()`, `MiniProgress()`, `MiniPlayButton()`, `EdgeLine()`, `TabIcon()`, `tabColors()`, `segmentShape()`, `SkinSheet()`, `dockedHeader` (changed): `android/.../ui/common/SkinParts.kt`; `DifficultyTabs()` (new): `android/.../ui/library/LibraryScreen.kt`
+**Date:** 2026-10-11
+**How added:** new feature (A114, A125-A128)
+**Purpose:** the Gear skin, after SOUND VOLTEX, app-wide, with its Voltage colour theme.
+**Side effects:** none; reads the song's existing record (`GET /me/stats/tracks/:id`) and like state.
+**Before:** three skins (Standard, Hit circle, Lane).
+**After:** Gear is a fourth; `Skin.GEAR` and `ColorTheme.VOLTAGE` added.
+
 **Function:** `LaneDeck()`, `ScoreStrip()`, `LaneButton()` (changed): `android/.../ui/playback/skins/Lane.kt`
 **Date:** 2026-10-11
 **How added:** owner request; bug fix (owner report)

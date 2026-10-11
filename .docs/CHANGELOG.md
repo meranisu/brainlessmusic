@@ -4,6 +4,28 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Gear, the SOUND VOLTEX skin, and the Voltage colour theme
+
+- The fourth skin in the mockup's order, after research (`.docs/features/player-skins/gear-research.md`) and the
+  owner's picks A125-A128: Orbitron (display, headlines, labels) with Chakra Petch (titles, text); Phosphor Bold icons,
+  Fill for play, pause and a liked heart (`GearIcons.kt`, generated from Phosphor 2.1.1's SVGs, all 48 rendered to a
+  contact sheet and checked); the Voltage colour theme, phone-only, from the mockup's swatch (cyan accent on navy;
+  the light accent darkened to 4.9:1).
+- Theme parts: chamfered shapes, rows cut to a point on the right, a square-chip tap feedback (`GearHitIndication`).
+- Player (`GearDeck`): song banner with a play-count difficulty box on the jacket; a score strip with the listening
+  score (10,000,000 × plays ÷ (plays + skips), A128), the game's grade and clear medal; the lane with the red critical
+  line at the song's position (tap or drag to seek), knob cursors for shuffle and repeat, falling BT and FX chips; a
+  gauge beside it that turns pink once the play counts (A113's half-song-or-4-minutes); the console with knobs
+  (shuffle, repeat), BT keys (previous, play, next) and FX keys (like, add to playlist; hidden for guests). Gear hides
+  the top bar's like and add, which its FX keys replace.
+- App-wide parts: bars dock under a cyan edge, tabs as BT keys, the mini player's progress as a laser with a red
+  tick and its play as a small key, the Library's tabs as difficulty boxes, queue rows numbered on keys, sheets as a
+  chamfered card in the middle of the screen, segmented pickers chamfered at the ends; a skin intro (the lane runs in
+  and the critical line slams across); the sign-in reads "ENTRY".
+- Orbitron, Chakra Petch and Phosphor credited in Settings → Licenses (OFL, OFL, MIT).
+- Verified: `./gradlew :app:compileDebugKotlin` builds; `./gradlew testDebugUnitTest`: 110 tests, 1 skipped, 0
+  failed (new `GearScoreTest`: score and grade thresholds). **Not run:** on a phone; no screen of it has been seen.
+
 ## 2026-10-11: Lane's player, a floor a shade apart; the score strip in light mode
 
 - Owner's request: in Lane's player the lower half, from the buttons down (the stream readout and Up next card sit on

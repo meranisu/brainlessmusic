@@ -32,6 +32,9 @@ enum class ColorTheme(val label: String, val detail: String, val webId: String?)
     /** After Arcaea, Lane's match (A116): phone-only until the web has it, so no web id. */
     LAVENDER("Lavender", "After Arcaea", null),
 
+    /** After SOUND VOLTEX, Gear's match (A127): phone-only, like Lavender. */
+    VOLTAGE("Voltage", "After SOUND VOLTEX", null),
+
     /** Android 12+ only; older phones fall back to Deep blue and do not offer it. Kept on the phone, not the profile (A78). */
     MATERIAL_YOU("Material You", "From your wallpaper", null),
     ;
@@ -62,6 +65,7 @@ enum class Skin(val label: String, val detail: String) {
     STANDARD("Standard", "The original look"),
     HIT_CIRCLE("Hit circle", "After osu!: round covers and buttons, a ring on every tap, a slider player. Pairs with Magenta"),
     LANE("Lane", "After Arcaea: slanted panels, thin type, a lane you seek along. Pairs with Lavender"),
+    GEAR("Gear", "After SOUND VOLTEX: a console of keys and knobs, wide type, a lane up to the critical line. Pairs with Voltage"),
     ;
 
     /** Game skins show your record for the song in the player (A115). */
