@@ -1,5 +1,31 @@
 [
   {
+    "version": "0.3.36",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "hit circle player: when shuffle or repeat is on, its circle fills in with your accent colour like the play button, so you can tell at a glance"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.35",
     "date": "2026-10-11",
     "sections": [

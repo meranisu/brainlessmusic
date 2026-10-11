@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `HitButton()` (changed): `android/.../ui/playback/skins/HitCircle.kt`
+**Date:** 2026-10-11
+**How added:** owner request
+**Purpose:** shuffle and repeat read as on at a glance in the Hit circle player.
+**Side effects:** none.
+**Before:** on tinted only the icon.
+**After:** on fills the circle in the accent, like the play circle.
+
 **Function:** `LicensesContent()`, `CreditRow()`, `LicenseText()` (new): `android/.../ui/settings/LicensesContent.kt`; `SettingsPage.LICENSES` (new), `SettingsScreen()`, `SettingsPageScreen()` (changed)
 **Date:** 2026-10-11
 **How added:** owner request

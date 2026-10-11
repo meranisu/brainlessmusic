@@ -4,6 +4,12 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Hit circle player, shuffle and repeat fill when on
+
+- Owner's request: an active shuffle or repeat circle is filled in the accent with the icon in `onPrimary`, like the
+  play circle, instead of only tinting the icon (`HitButton` in `skins/HitCircle.kt`). Off stays dark.
+- Verified: `./gradlew :app:compileDebugKotlin` builds. **Not run:** on a phone.
+
 ## 2026-10-11: Android Settings → Licenses
 
 - Owner's request: credits on a page of their own rather than under Skin. Settings has a Licenses row (above the

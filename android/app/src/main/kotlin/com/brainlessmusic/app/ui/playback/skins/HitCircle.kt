@@ -207,8 +207,9 @@ private fun HitButton(
             onClick = onClick,
             enabled = enabled,
             shape = CircleShape,
-            color = scheme.surfaceContainerHigh,
-            contentColor = if (lit) scheme.primary else scheme.onSurface,
+            // On (shuffle, repeat) fills the circle in the accent, like the play circle; off stays hollow-dark.
+            color = if (lit) scheme.primary else scheme.surfaceContainerHigh,
+            contentColor = if (lit) scheme.onPrimary else scheme.onSurface,
             modifier = Modifier.size(size).border(3.dp, scheme.onSurface, CircleShape),
         ) {
             Box(contentAlignment = Alignment.Center) { Icon(icon, contentDescription = label, modifier = Modifier.size(22.dp)) }
