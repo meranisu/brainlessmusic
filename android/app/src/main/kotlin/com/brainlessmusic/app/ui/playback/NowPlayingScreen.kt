@@ -89,8 +89,10 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.brainlessmusic.app.data.local.ControlsStyle
+import com.brainlessmusic.app.data.local.PlayerSkin
 import com.brainlessmusic.app.data.local.SeekStyle
+import com.brainlessmusic.app.data.remote.dto.TrackStatDto
+import com.brainlessmusic.app.ui.playback.skins.HitCircleDeck
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,7 +106,8 @@ fun NowPlayingScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val seekStyle by viewModel.seekStyle.collectAsStateWithLifecycle()
-    val pills = viewModel.controlsStyle.collectAsStateWithLifecycle().value == ControlsStyle.PILLS
+    val skin by viewModel.playerSkin.collectAsStateWithLifecycle()
+    val pills = skin == PlayerSkin.PILLS
     val dataSaver by viewModel.dataSaver.collectAsStateWithLifecycle()
     val room by viewModel.room.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -220,101 +223,134 @@ fun NowPlayingScreen(
             }
         }
 
+        // Your record for the song, for the skins that show one (A115): fetched as it starts, so it is the record
+        // you came in with.
+        val record by produceState<TrackStatDto?>(null, current.trackId, skin) {
+            value = null
+            if (skin.showsRecord) value = songActions.record(current.trackId)
+        }
+
+        // Swipe the cover to skip, hold it for the song menu: the same in every skin.
+        val coverGestures = Modifier
+            .swipeToSkip(
+                offset = skip,
+                canNext = state.hasNext,
+                canPrevious = state.hasPrevious,
+                onNext = viewModel::next,
+                onPrevious = viewModel::previousTrack,
+            )
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onLongPress = {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        showMenu = true
+                    },
+                )
+            }
+            .semantics { onLongClick(label = "Song options") { showMenu = true; true } }
+        val coverLayer = Modifier.graphicsLayer {
+            translationX = skip.value
+            alpha = 1f - (abs(skip.value) / size.width.coerceAtLeast(1f)).coerceIn(0f, 0.6f)
+        }
+        val seekTo: () -> Unit = {
+            dragFraction?.let { viewModel.seekTo((it * durationMs).toLong()) }
+            dragFraction = null
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .padding(horizontal = 24.dp),
         ) {
-            // The cover is the largest square that fits above the controls. Swipe it to skip, hold it for the song menu.
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .swipeToSkip(
-                        offset = skip,
-                        canNext = state.hasNext,
-                        canPrevious = state.hasPrevious,
-                        onNext = viewModel::next,
-                        onPrevious = viewModel::previousTrack,
-                    )
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onLongPress = {
-                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                showMenu = true
-                            },
+            when (skin) {
+                PlayerSkin.HIT_CIRCLE -> HitCircleDeck(
+                    state = state,
+                    item = current,
+                    fraction = fraction,
+                    shownMs = shownMs,
+                    record = record,
+                    coverGestures = coverGestures,
+                    coverLayer = coverLayer,
+                    onFraction = { dragFraction = it },
+                    onFinished = seekTo,
+                    onShuffle = viewModel::cycleShuffle,
+                    onPrevious = viewModel::previous,
+                    onPlayPause = viewModel::togglePlayPause,
+                    onNext = viewModel::next,
+                    onRepeat = viewModel::cycleRepeat,
+                )
+                PlayerSkin.STANDARD, PlayerSkin.PILLS -> {
+                    // The cover is the largest square that fits above the controls. Swipe it to skip, hold it for the song menu.
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .then(coverGestures),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CoverImage(
+                            url = current.coverUrl,
+                            contentDescription = current.album,
+                            cornerRadius = 20.dp,
+                            modifier = Modifier
+                                .aspectRatio(1f)
+                                .then(coverLayer),
                         )
                     }
-                    .semantics { onLongClick(label = "Song options") { showMenu = true; true } },
-                contentAlignment = Alignment.Center,
-            ) {
-                CoverImage(
-                    url = current.coverUrl,
-                    contentDescription = current.album,
-                    cornerRadius = 20.dp,
-                    modifier = Modifier
-                        .aspectRatio(1f)
-                        .graphicsLayer {
-                            translationX = skip.value
-                            alpha = 1f - (abs(skip.value) / size.width.coerceAtLeast(1f)).coerceIn(0f, 0.6f)
-                        },
-                )
-            }
 
-            // Three lines, left-aligned: what it is, who made it, what it came from.
-            Column(modifier = Modifier.fillMaxWidth().padding(top = 20.dp)) {
-                Text(
-                    current.title,
-                    style = MaterialTheme.typography.headlineMedium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    current.artist ?: "Unknown artist",
-                    style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    current.album ?: "Unknown album",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+                    // Three lines, left-aligned: what it is, who made it, what it came from.
+                    Column(modifier = Modifier.fillMaxWidth().padding(top = 20.dp)) {
+                        Text(
+                            current.title,
+                            style = MaterialTheme.typography.headlineMedium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            current.artist ?: "Unknown artist",
+                            style = MaterialTheme.typography.bodyLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            current.album ?: "Unknown album",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
 
-            if (pills) {
-                PillRow(
-                    state = state,
-                    trackId = current.trackId,
-                    viewModel = viewModel,
-                    songActions = songActions,
-                    onAddToPlaylist = { addingToPlaylist = true },
-                    modifier = Modifier.padding(top = 16.dp),
-                )
-            }
+                    if (pills) {
+                        PillRow(
+                            state = state,
+                            trackId = current.trackId,
+                            viewModel = viewModel,
+                            songActions = songActions,
+                            onAddToPlaylist = { addingToPlaylist = true },
+                            modifier = Modifier.padding(top = 16.dp),
+                        )
+                    }
 
-            SeekBar(
-                style = seekStyle,
-                bars = bars ?: placeholderBars(current.trackId),
-                fraction = fraction,
-                playing = state.isPlaying,
-                enabled = state.durationMs > 0,
-                onFraction = { dragFraction = it },
-                onFinished = {
-                    dragFraction?.let { viewModel.seekTo((it * durationMs).toLong()) }
-                    dragFraction = null
-                },
-                modifier = Modifier.padding(top = 12.dp),
-            )
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(formatDuration(shownMs / 1000.0), style = MaterialTheme.typography.bodySmall)
-                Text(formatDuration(state.durationMs / 1000.0), style = MaterialTheme.typography.bodySmall)
-            }
+                    SeekBar(
+                        style = seekStyle,
+                        bars = bars ?: placeholderBars(current.trackId),
+                        fraction = fraction,
+                        playing = state.isPlaying,
+                        enabled = state.durationMs > 0,
+                        onFraction = { dragFraction = it },
+                        onFinished = seekTo,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(formatDuration(shownMs / 1000.0), style = MaterialTheme.typography.bodySmall)
+                        Text(formatDuration(state.durationMs / 1000.0), style = MaterialTheme.typography.bodySmall)
+                    }
 
-            TransportRow(state, viewModel, pills)
+                    TransportRow(state, viewModel, pills)
+                }
+            }
 
             state.error?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
@@ -525,22 +561,22 @@ private fun RowScope.Pill(icon: ImageVector, label: String, lit: Boolean, onClic
 private fun litColor(lit: Boolean): Color =
     if (lit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
 
-private fun shuffleIcon(mode: ShuffleMode): ImageVector = when (mode) {
+internal fun shuffleIcon(mode: ShuffleMode): ImageVector = when (mode) {
     ShuffleMode.OFF, ShuffleMode.SHUFFLE -> Icons.Filled.Shuffle
     ShuffleMode.REDISCOVER -> Icons.Filled.History
     ShuffleMode.ALBUMS -> Icons.Filled.Album
 }
 
-private fun shuffleLabel(mode: ShuffleMode): String = when (mode) {
+internal fun shuffleLabel(mode: ShuffleMode): String = when (mode) {
     ShuffleMode.OFF -> "Shuffle off"
     ShuffleMode.SHUFFLE -> "Shuffle on"
     ShuffleMode.REDISCOVER -> "Rediscover: songs you have not played in a while first"
     ShuffleMode.ALBUMS -> "Album shuffle: random albums, in track order"
 }
 
-private fun repeatIcon(repeat: Repeat): ImageVector = if (repeat == Repeat.ONE) Icons.Filled.RepeatOne else Icons.Filled.Repeat
+internal fun repeatIcon(repeat: Repeat): ImageVector = if (repeat == Repeat.ONE) Icons.Filled.RepeatOne else Icons.Filled.Repeat
 
-private fun repeatLabel(repeat: Repeat): String = when (repeat) {
+internal fun repeatLabel(repeat: Repeat): String = when (repeat) {
     Repeat.OFF -> "Repeat off"
     Repeat.ALL -> "Repeating the queue"
     Repeat.ONE -> "Repeating this track"

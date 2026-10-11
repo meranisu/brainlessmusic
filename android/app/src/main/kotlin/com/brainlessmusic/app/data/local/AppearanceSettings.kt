@@ -51,10 +51,15 @@ enum class SeekStyle(val label: String) {
     WAVEFORM("Waveform"),
 }
 
-/** How the Now Playing buttons are drawn. */
-enum class ControlsStyle(val label: String, val detail: String) {
+/**
+ * How the Now Playing screen is laid out (A114). Standard and Pills keep the stock layout; the rest are after rhythm games,
+ * draw in the current colour theme (A116) and show your record for the song (A115). Stored under the old
+ * `controls_style` key, so a Pills pick from v0.3.31 carries over.
+ */
+enum class PlayerSkin(val label: String, val detail: String, val showsRecord: Boolean = false) {
     STANDARD("Standard", "Shuffle and repeat beside a filled play button"),
     PILLS("Pills", "Like, shuffle, repeat and add to playlist as a row of rounded buttons, with an outlined play button"),
+    HIT_CIRCLE("Hit circle", "After osu!: a round cover, hit circle buttons and a slider. Pairs with Magenta", showsRecord = true),
 }
 
 /** How the app looks. Same DataStore as [SessionStore]; survives logout for the same reason [PlaybackSettings] does. */
@@ -83,11 +88,11 @@ class AppearanceSettings @Inject constructor(
         dataStore.edit { it[SEEK_STYLE_KEY] = style.name }
     }
 
-    val controlsStyle: Flow<ControlsStyle> = dataStore.data.map { prefs ->
-        ControlsStyle.entries.firstOrNull { it.name == prefs[CONTROLS_STYLE_KEY] } ?: ControlsStyle.STANDARD
+    val playerSkin: Flow<PlayerSkin> = dataStore.data.map { prefs ->
+        PlayerSkin.entries.firstOrNull { it.name == prefs[CONTROLS_STYLE_KEY] } ?: PlayerSkin.STANDARD
     }
 
-    suspend fun setControlsStyle(style: ControlsStyle) {
+    suspend fun setPlayerSkin(style: PlayerSkin) {
         dataStore.edit { it[CONTROLS_STYLE_KEY] = style.name }
     }
 

@@ -4,6 +4,23 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Player skins begin: Hit circle (osu!), with your record for the song
+
+- Owner's decisions A114 to A116. "Player buttons" in Settings → Appearance becomes **Player skin** (`PlayerSkin`, same
+  DataStore key, so a Pills pick carries over). Skins come one at a time in the mockup's order; this is the first.
+- **Hit circle** (`ui/playback/skins/HitCircle.kt`): a round cover ringed like a hit circle, title in Fredoka, a slider
+  seek bar with ball and follow circle, and the buttons as numbered hit circles. Play is the big one; while playing an
+  approach ring keeps closing on it (fixed 1.1 s; the library has no BPM to time it by). Still under animations off.
+  Swipe to skip and hold for the menu work on the cover as in Standard. Colours come from the theme (A116); Magenta,
+  already after osu!, is its match.
+- **Score strip (A115):** your grade, plays and time for the song, with a lamp (New, Failed, Clear, Full combo) from
+  plays vs skips, `clearFor()` in `skins/SongRecord.kt`. Accounts only. Fetched as the song starts.
+- **Backend:** `GET /me/stats/tracks/:id` now returns `skips` (`getTrackStat`). An older server leaves it out and the
+  app reads 0.
+- `SeekCanvas()` split out of `SeekBar()` so skins draw their own bars with the same touch and accessibility handling.
+- Verified: backend `npm test` 499/499 and `tsc --noEmit` clean; Android `compileDebugKotlin` + `testDebugUnitTest`
+  105 tests, 1 skipped, 0 failed (new `SongRecordTest`). **Not run:** on a phone.
+
 ## 2026-10-11: Android player, a Pills button style and a Waveform seek bar
 
 - Owner's idea, from a screenshot: rounded pill buttons, a hollow play button and a visualiser-like seek bar, as

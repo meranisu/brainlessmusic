@@ -71,7 +71,7 @@ import com.brainlessmusic.app.BuildConfig
 import com.brainlessmusic.app.data.local.BetweenSongs
 import com.brainlessmusic.app.data.local.ColorTheme
 import com.brainlessmusic.app.data.local.FADE_LENGTHS
-import com.brainlessmusic.app.data.local.ControlsStyle
+import com.brainlessmusic.app.data.local.PlayerSkin
 import com.brainlessmusic.app.data.local.SeekStyle
 import com.brainlessmusic.app.data.local.ThemeMode
 import com.brainlessmusic.app.ui.downloads.DownloadSettings
@@ -241,7 +241,7 @@ fun SettingsPageScreen(
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val colorTheme by viewModel.colorTheme.collectAsStateWithLifecycle()
     val seekStyle by viewModel.seekStyle.collectAsStateWithLifecycle()
-    val controlsStyle by viewModel.controlsStyle.collectAsStateWithLifecycle()
+    val playerSkin by viewModel.playerSkin.collectAsStateWithLifecycle()
     val username by viewModel.username.collectAsStateWithLifecycle()
     val displayName by viewModel.displayName.collectAsStateWithLifecycle()
     val renameResult by viewModel.renameResult.collectAsStateWithLifecycle()
@@ -337,10 +337,10 @@ fun SettingsPageScreen(
                             }
                         }
                         Divider()
-                        Block(title = "Player buttons", detail = "How the buttons look on the Now Playing screen.") {
+                        Block(title = "Player skin", detail = "How the Now Playing screen is laid out. Colours come from the theme above.") {
                             Column(Modifier.selectableGroup()) {
-                                ControlsStyle.entries.forEach { style ->
-                                    ControlsStyleOption(style, selected = style == controlsStyle, onClick = { viewModel.setControlsStyle(style) })
+                                PlayerSkin.entries.forEach { style ->
+                                    PlayerSkinOption(style, selected = style == playerSkin, onClick = { viewModel.setPlayerSkin(style) })
                                 }
                             }
                         }
@@ -651,7 +651,7 @@ private fun BetweenSongsOption(option: BetweenSongs, selected: Boolean, onClick:
 }
 
 @Composable
-private fun ControlsStyleOption(style: ControlsStyle, selected: Boolean, onClick: () -> Unit) {
+private fun PlayerSkinOption(style: PlayerSkin, selected: Boolean, onClick: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier

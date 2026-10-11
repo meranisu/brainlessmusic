@@ -68,6 +68,8 @@ export interface UserStats {
 export interface TrackStat {
   trackId: number;
   plays: number;
+  /** Times cut short before the scrobble threshold (A113); the player's clear lamp weighs them against plays (A115). */
+  skips: number;
   msListened: number;
   firstPlayedAt: string | null;
   lastPlayedAt: string | null;
@@ -215,7 +217,8 @@ export function getUserStats(userId: number, range: StatsRange, limit: number): 
 export function getTrackStat(userId: number, trackId: number): TrackStat {
   const row = db
     .prepare(
-      `SELECT COALESCE(SUM(ph.skipped = 0), 0) AS plays, COALESCE(SUM(${LISTENED_MS}), 0) AS msListened,
+      `SELECT COALESCE(SUM(ph.skipped = 0), 0) AS plays, COALESCE(SUM(ph.skipped = 1), 0) AS skips,
+              COALESCE(SUM(${LISTENED_MS}), 0) AS msListened,
               MIN(CASE WHEN ${PLAYED_ONLY} THEN ph.played_at END) AS firstPlayedAt,
               MAX(CASE WHEN ${PLAYED_ONLY} THEN ph.played_at END) AS lastPlayedAt
        FROM play_history ph JOIN tracks t ON t.id = ph.track_id

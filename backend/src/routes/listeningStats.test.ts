@@ -203,6 +203,7 @@ describe('listening stats', () => {
     await play(a);
     const one = (await call('GET', `/me/stats/tracks/${a}`)).json() as { plays: number; msListened: number; firstPlayedAt: string };
     assert.equal(one.plays, 2);
+    assert.equal((one as unknown as { skips: number }).skips, 0);
     assert.equal(one.msListened, 200_000);
     assert.ok(one.firstPlayedAt);
     assert.equal((await call('GET', '/me/stats/tracks/99999')).statusCode, 404);
@@ -257,8 +258,8 @@ describe('listening stats', () => {
     };
     assert.deepEqual(track, { play_count: 0, last_played_at: null });
 
-    const one = (await call('GET', `/me/stats/tracks/${b}`)).json() as { plays: number; msListened: number };
-    assert.deepEqual([one.plays, one.msListened], [0, 12_000]);
+    const one = (await call('GET', `/me/stats/tracks/${b}`)).json() as { plays: number; skips: number; msListened: number };
+    assert.deepEqual([one.plays, one.skips, one.msListened], [0, 1, 12_000]);
     assert.equal((await call('GET', `/tracks/${b}/history`)).json().total, 0);
   });
 

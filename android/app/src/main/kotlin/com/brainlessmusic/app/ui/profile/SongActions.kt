@@ -132,6 +132,9 @@ class SongActionsViewModel @Inject constructor(
     private val _myStat = MutableStateFlow<TrackStatDto?>(null)
     val myStat: StateFlow<TrackStatDto?> = _myStat.asStateFlow()
 
+    /** Your numbers for a song, for a player skin's score strip (A115). Null for guests, offline, or on failure. */
+    suspend fun record(trackId: Int): TrackStatDto? = if (canEdit) profile.trackStat(trackId).getOrNull() else null
+
     fun loadDetail(trackId: Int) {
         detailJob?.cancel()
         _detail.value = LoadState.Loading

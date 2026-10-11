@@ -25,6 +25,8 @@ data class TopArtistDto(val id: Int, val name: String, val plays: Int, val msLis
 data class TrackStatDto(
     val trackId: Int,
     val plays: Int,
+    /** Songs cut short (A113). Missing from servers before A115, so 0 there. */
+    val skips: Int = 0,
     val msListened: Long,
     val firstPlayedAt: String?,
     val lastPlayedAt: String?,

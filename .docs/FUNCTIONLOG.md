@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `HitCircleDeck()`, `HitButton()`, `PlayCircle()` (new): `android/.../ui/playback/skins/HitCircle.kt`; `clearFor()`, `recordLine()`, `rememberAnimationsOn()` (new): `skins/SongRecord.kt`; `SeekCanvas()` (new, split from `SeekBar()`): `ui/playback/SeekBar.kt`; `SongActionsViewModel.record()` (new); `NowPlayingScreen()` (changed); `getTrackStat()` (changed): `backend/src/db/listeningStats.ts`
+**Date:** 2026-10-11
+**How added:** owner request (A114-A116)
+**Purpose:** the first rhythm-game player skin, Hit circle, and the per-song score strip with a clear lamp.
+**Side effects:** one `GET /me/stats/tracks/:id` per song while a skin with a record is on (accounts only).
+**Before:** Settings offered Standard or Pills buttons; per-song stats had no skip count.
+**After:** Settings → Player skin offers Standard, Pills, Hit circle; per-song stats include `skips`.
+
 **Function:** `PillRow()`, `Pill()`, `RingPlayButton()`, `barsFromPeaks()`, `placeholderBars()`, `drawWaveform()`, `ControlsStyleOption()`, `LibraryRepository.waveform()`, `ApiService.waveform()` (new); `TransportRow()`, `NowPlayingScreen()`, `SeekBar()` (changed): `android/.../ui/playback/`, `ui/settings/SettingsScreen.kt`, `data/`
 **Date:** 2026-10-11
 **How added:** owner request

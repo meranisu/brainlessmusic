@@ -37,6 +37,7 @@ import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.brainlessmusic.app.data.local.SeekStyle
 import kotlin.math.PI
@@ -92,6 +93,42 @@ fun SeekBar(
     }
     val amplitude by animateDpAsState(if (playing) 3.dp else 0.dp, label = "amplitude")
 
+    SeekCanvas(
+        fraction = fraction,
+        onFraction = onFraction,
+        onFinished = onFinished,
+        modifier = modifier,
+        height = if (style == SeekStyle.WAVEFORM) 56.dp else 40.dp,
+        enabled = enabled,
+        interactive = interactive,
+    ) { x ->
+        val cy = size.height / 2
+        when (style) {
+            SeekStyle.SQUIGGLE -> drawSquiggle(x, cy, amplitude.toPx(), phase, played, rest)
+            SeekStyle.LINE -> drawThinLine(x, cy, played, rest)
+            SeekStyle.PILL -> drawPill(x, cy, played, rest)
+            SeekStyle.DOTS -> drawDots(x, cy, played, rest)
+            SeekStyle.WAVEFORM -> drawWaveform(x, bars ?: placeholderBars(0), played, rest)
+            SeekStyle.CLASSIC -> Unit
+        }
+    }
+}
+
+/**
+ * The touch, drag and accessibility handling every drawn seek bar shares; [onDraw] paints it, given the played edge
+ * `x` in pixels. Player skins draw their own bars through this.
+ */
+@Composable
+fun SeekCanvas(
+    fraction: Float,
+    onFraction: (Float) -> Unit,
+    onFinished: () -> Unit,
+    modifier: Modifier = Modifier,
+    height: Dp = 40.dp,
+    enabled: Boolean = true,
+    interactive: Boolean = true,
+    onDraw: DrawScope.(x: Float) -> Unit,
+) {
     var widthPx by remember { mutableIntStateOf(1) }
     val f = fraction.coerceIn(0f, 1f)
 
@@ -121,7 +158,7 @@ fun SeekBar(
     Canvas(
         modifier = modifier
             .fillMaxWidth()
-            .height(if (style == SeekStyle.WAVEFORM) 56.dp else 40.dp)
+            .height(height)
             .padding(horizontal = 4.dp)
             .onSizeChanged { widthPx = it.width.coerceAtLeast(1) }
             .then(touch)
@@ -136,16 +173,7 @@ fun SeekBar(
                 }
             },
     ) {
-        val cy = size.height / 2
-        val x = size.width * f
-        when (style) {
-            SeekStyle.SQUIGGLE -> drawSquiggle(x, cy, amplitude.toPx(), phase, played, rest)
-            SeekStyle.LINE -> drawThinLine(x, cy, played, rest)
-            SeekStyle.PILL -> drawPill(x, cy, played, rest)
-            SeekStyle.DOTS -> drawDots(x, cy, played, rest)
-            SeekStyle.WAVEFORM -> drawWaveform(x, bars ?: placeholderBars(0), played, rest)
-            SeekStyle.CLASSIC -> Unit
-        }
+        onDraw(size.width * f)
     }
 }
 

@@ -1,5 +1,39 @@
 [
   {
+    "version": "0.3.32",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "player skins are here, starting with osu!"
+          },
+          {
+            "type": "ul",
+            "items": [
+              "settings → appearance → **player skin** (it used to say player buttons). standard and pills are still there",
+              "new skin: **hit circle**. round cover, buttons as numbered hit circles, a slider to seek, and an approach ring that keeps closing in on play while the music's going",
+              "it uses whatever colour theme you have on. magenta is the osu!-ish one",
+              "you also get your record for each song: plays, time listened, a grade and a lamp. finish a song 3+ times without skipping it and it's a full combo. skip it more than you finish it and... failed",
+              "more skins coming, one game at a time"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it. the failed lamp needs the server update too; until then every song you've played looks clean"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.31",
     "date": "2026-10-11",
     "sections": [
