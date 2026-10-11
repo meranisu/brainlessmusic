@@ -27,21 +27,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Sort
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.DownloadDone
-import androidx.compose.material.icons.filled.DownloadForOffline
-import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.LibraryMusic
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -95,6 +80,7 @@ import com.brainlessmusic.app.ui.navigation.AppBottomBar
 import com.brainlessmusic.app.ui.navigation.Routes
 import com.brainlessmusic.app.ui.theme.coverShape
 import com.brainlessmusic.app.ui.theme.cardShape
+import com.brainlessmusic.app.ui.theme.AppIcons
 
 // Flat panels with a 1 dp outline, as Settings and the Library header (DESIGN.md: no shadows, no glow).
 
@@ -240,7 +226,7 @@ private fun NothingDownloaded(
             modifier = Modifier.size(88.dp),
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.DownloadForOffline, contentDescription = null, modifier = Modifier.size(44.dp))
+                Icon(AppIcons.downloads, contentDescription = null, modifier = Modifier.size(44.dp))
             }
         }
         Text(
@@ -263,13 +249,13 @@ private fun NothingDownloaded(
             modifier = Modifier.padding(top = 24.dp).fillMaxWidth(),
         ) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                HowToRow(Icons.Filled.Download, "On an album or playlist, tap the download icon.")
-                HowToRow(Icons.Filled.TouchApp, "Or press and hold any song, then tap Download.")
+                HowToRow(AppIcons.download, "On an album or playlist, tap the download icon.")
+                HowToRow(AppIcons.touch, "Or press and hold any song, then tap Download.")
             }
         }
         if (online) {
             Button(onClick = onBrowse, modifier = Modifier.padding(top = 24.dp)) {
-                Icon(Icons.Filled.LibraryMusic, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(AppIcons.library, contentDescription = null, modifier = Modifier.size(18.dp))
                 Text("Browse your library", modifier = Modifier.padding(start = 8.dp))
             }
         } else {
@@ -340,10 +326,10 @@ private fun StoragePanel(ui: DownloadsUi) {
 private fun PlayButtons(onPlayAll: () -> Unit, onShuffleAll: () -> Unit, modifier: Modifier = Modifier) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SmallFloatingActionButton(onClick = onPlayAll, shape = CircleShape) {
-            Icon(Icons.Filled.PlayArrow, contentDescription = "Play all downloads")
+            Icon(AppIcons.play, contentDescription = "Play all downloads")
         }
         FloatingActionButton(onClick = onShuffleAll, shape = CircleShape) {
-            Icon(Icons.Filled.Shuffle, contentDescription = "Shuffle all downloads")
+            Icon(AppIcons.shuffle, contentDescription = "Shuffle all downloads")
         }
     }
 }
@@ -362,12 +348,12 @@ private fun InProgressPanel(ui: DownloadsUi, onPause: () -> Unit, onResume: () -
                 )
                 if (ui.paused) {
                     TextButton(onClick = onResume) {
-                        Icon(Icons.Filled.Download, contentDescription = null)
+                        Icon(AppIcons.download, contentDescription = null)
                         Text("Resume all", modifier = Modifier.padding(start = 6.dp))
                     }
                 } else {
                     TextButton(onClick = onPause) {
-                        Icon(Icons.Filled.Pause, contentDescription = null)
+                        Icon(AppIcons.pause, contentDescription = null)
                         Text("Pause all", modifier = Modifier.padding(start = 6.dp))
                     }
                 }
@@ -405,10 +391,10 @@ private fun SearchRow(query: String, onQuery: (String) -> Unit, sort: DownloadSo
             value = query,
             onValueChange = onQuery,
             placeholder = { Text("Search downloads") },
-            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+            leadingIcon = { Icon(AppIcons.search, contentDescription = null) },
             trailingIcon = {
                 if (query.isNotEmpty()) {
-                    IconButton(onClick = { onQuery("") }) { Icon(Icons.Filled.Close, contentDescription = "Clear search") }
+                    IconButton(onClick = { onQuery("") }) { Icon(AppIcons.close, contentDescription = "Clear search") }
                 }
             },
             singleLine = true,
@@ -420,7 +406,7 @@ private fun SearchRow(query: String, onQuery: (String) -> Unit, sort: DownloadSo
         Box {
             IconButton(onClick = { sortOpen = true }, modifier = Modifier.padding(start = 4.dp)) {
                 Icon(
-                    Icons.AutoMirrored.Filled.Sort,
+                    AppIcons.sort,
                     contentDescription = "Sort, ${sort.label}",
                     // Tinted while the order isn't the usual one, so a changed sort doesn't go unnoticed.
                     tint = if (sort == DownloadSort.RECENT) LocalContentColor.current else MaterialTheme.colorScheme.primary,
@@ -430,7 +416,7 @@ private fun SearchRow(query: String, onQuery: (String) -> Unit, sort: DownloadSo
                 DownloadSort.entries.forEach {
                     DropdownMenuItem(
                         text = { Text(it.label) },
-                        trailingIcon = { if (it == sort) Icon(Icons.Filled.Check, contentDescription = "Selected") },
+                        trailingIcon = { if (it == sort) Icon(AppIcons.check, contentDescription = "Selected") },
                         onClick = {
                             sortOpen = false
                             onSort(it)
@@ -529,13 +515,13 @@ internal fun StateBadge(state: GroupDownload, modifier: Modifier = Modifier) {
         Box(contentAlignment = Alignment.Center) {
             when (state) {
                 GroupDownload.Done ->
-                    Icon(Icons.Filled.DownloadDone, contentDescription = "Downloaded", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                    Icon(AppIcons.downloadDone, contentDescription = "Downloaded", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                 is GroupDownload.Running ->
                     CircularProgressIndicator(progress = { state.percent / 100f }, modifier = Modifier.size(20.dp), strokeWidth = 2.5.dp)
                 GroupDownload.Failed ->
-                    Icon(Icons.Filled.ErrorOutline, contentDescription = "Download failed", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                    Icon(AppIcons.error, contentDescription = "Download failed", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
                 GroupDownload.None ->
-                    Icon(Icons.Filled.Download, contentDescription = "Partly downloaded", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                    Icon(AppIcons.download, contentDescription = "Partly downloaded", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
             }
         }
     }
@@ -585,7 +571,7 @@ internal fun SongRow(
                 TrackStateIcon(download)
                 Box {
                     IconButton(onClick = { menuOpen = true }) {
-                        Icon(Icons.Filled.MoreVert, contentDescription = "Options for $title")
+                        Icon(AppIcons.more, contentDescription = "Options for $title")
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         menu { menuOpen = false }
@@ -604,7 +590,7 @@ private fun TrackStateIcon(download: TrackDownload?) {
     val mod = Modifier.size(20.dp)
     when {
         download?.isDone == true ->
-            Icon(Icons.Filled.DownloadDone, contentDescription = "On the phone", tint = MaterialTheme.colorScheme.primary, modifier = mod)
+            Icon(AppIcons.downloadDone, contentDescription = "On the phone", tint = MaterialTheme.colorScheme.primary, modifier = mod)
         download?.isActive == true ->
             CircularProgressIndicator(
                 progress = { download.percent / 100f },
@@ -612,9 +598,9 @@ private fun TrackStateIcon(download: TrackDownload?) {
                 modifier = mod.semantics { contentDescription = "Downloading, ${download.percent.toInt()}%" },
             )
         download?.isFailed == true ->
-            Icon(Icons.Filled.ErrorOutline, contentDescription = "Download failed", tint = MaterialTheme.colorScheme.error, modifier = mod)
+            Icon(AppIcons.error, contentDescription = "Download failed", tint = MaterialTheme.colorScheme.error, modifier = mod)
         else ->
-            Icon(Icons.Filled.Download, contentDescription = "Not downloaded", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = mod)
+            Icon(AppIcons.download, contentDescription = "Not downloaded", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = mod)
     }
 }
 

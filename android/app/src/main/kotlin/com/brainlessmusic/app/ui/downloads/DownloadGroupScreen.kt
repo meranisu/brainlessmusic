@@ -13,11 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -75,6 +70,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import java.io.File
 import javax.inject.Inject
+import com.brainlessmusic.app.ui.theme.AppIcons
 
 /** A downloaded album or playlist as its page shows it; [group] null once it has been removed. */
 data class GroupPage(
@@ -169,13 +165,13 @@ fun DownloadGroupScreen(
             TopAppBar(
                 title = { Text(page?.group?.name ?: "Download", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                    IconButton(onClick = onBack) { Icon(AppIcons.back, contentDescription = "Back") }
                 },
                 actions = {
                     if (page?.group != null) {
                         Box {
                             IconButton(onClick = { menuOpen = true }) {
-                                Icon(Icons.Filled.MoreVert, contentDescription = "Options for ${page.group.name}")
+                                Icon(AppIcons.more, contentDescription = "Options for ${page.group.name}")
                             }
                             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                                 val missing = page.songs.filter { it.second?.isDone != true && it.second?.isActive != true }
@@ -289,11 +285,11 @@ private fun GroupHeader(page: GroupPage, onPlay: () -> Unit, onShuffle: () -> Un
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = onPlay) {
-                Icon(Icons.Filled.PlayArrow, contentDescription = null)
+                Icon(AppIcons.play, contentDescription = null)
                 Text("Play", modifier = Modifier.padding(start = 6.dp))
             }
             OutlinedButton(onClick = onShuffle) {
-                Icon(Icons.Filled.Shuffle, contentDescription = null)
+                Icon(AppIcons.shuffle, contentDescription = null)
                 Text("Shuffle", modifier = Modifier.padding(start = 6.dp))
             }
         }

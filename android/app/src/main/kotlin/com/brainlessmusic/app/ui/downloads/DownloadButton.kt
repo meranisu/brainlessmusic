@@ -1,10 +1,6 @@
 package com.brainlessmusic.app.ui.downloads
 
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.DownloadDone
-import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -22,6 +18,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.brainlessmusic.app.downloads.GroupDownload
+import com.brainlessmusic.app.ui.theme.AppIcons
 
 /**
  * An album's or playlist's download button: download, a progress ring while it runs, a tick when every song is on the
@@ -52,7 +49,7 @@ internal fun DownloadButton(state: GroupDownload, what: String, onDownload: () -
     }
     when (state) {
         GroupDownload.None -> IconButton(onClick = onDownload) {
-            Icon(Icons.Filled.Download, contentDescription = "Download $what")
+            Icon(AppIcons.download, contentDescription = "Download $what")
         }
         is GroupDownload.Running -> IconButton(onClick = { confirming = true }) {
             CircularProgressIndicator(
@@ -65,14 +62,14 @@ internal fun DownloadButton(state: GroupDownload, what: String, onDownload: () -
         }
         GroupDownload.Done -> IconButton(onClick = { confirming = true }) {
             Icon(
-                Icons.Filled.DownloadDone,
+                AppIcons.downloadDone,
                 contentDescription = "Downloaded. Remove download",
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
         GroupDownload.Failed -> IconButton(onClick = onDownload) {
             Icon(
-                Icons.Filled.ErrorOutline,
+                AppIcons.error,
                 contentDescription = "Download failed. Retry",
                 tint = MaterialTheme.colorScheme.error,
             )

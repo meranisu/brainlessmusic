@@ -1,7 +1,10 @@
 package com.brainlessmusic.app.ui.playback
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
@@ -11,9 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -30,9 +30,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.brainlessmusic.app.ui.common.CoverImage
+import com.brainlessmusic.app.ui.common.MiniCover
+import com.brainlessmusic.app.ui.common.floatingBars
 import com.brainlessmusic.app.ui.common.MiniProgress
 import kotlin.math.abs
+import com.brainlessmusic.app.ui.theme.AppIcons
 
 /**
  * Above the navigation bar, in its `surfaceContainer` color so the two read as one. Draws nothing with an empty queue.
@@ -56,9 +58,15 @@ fun MiniPlayer(
         0f
     }
 
+    // Floating (Hit circle): the system bar's inset and a margin go outside the pill, not inside it.
+    val floating = floatingBars
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = if (floating) RoundedCornerShape(50) else RectangleShape,
+        border = if (floating) BorderStroke(1.dp, MaterialTheme.colorScheme.outline) else null,
         modifier = modifier
+            .then(if (floating && extendUnderSystemBar) Modifier.windowInsetsPadding(WindowInsets.navigationBars) else Modifier)
+            .then(if (floating) Modifier.padding(horizontal = 12.dp, vertical = 4.dp) else Modifier)
             .fillMaxWidth()
             .swipeToSkip(
                 offset = swipe,
@@ -71,7 +79,7 @@ fun MiniPlayer(
             .clickable(onClick = onClick),
     ) {
         Column(
-            modifier = if (extendUnderSystemBar) Modifier.windowInsetsPadding(WindowInsets.navigationBars) else Modifier,
+            modifier = if (extendUnderSystemBar && !floating) Modifier.windowInsetsPadding(WindowInsets.navigationBars) else Modifier,
         ) {
             MiniProgress(progress)
             Row(
@@ -88,11 +96,7 @@ fun MiniPlayer(
                             alpha = 1f - (abs(swipe.value) / size.width.coerceAtLeast(1f)).coerceIn(0f, 0.6f)
                         },
                 ) {
-                    CoverImage(
-                        url = current.coverUrl,
-                        contentDescription = null,
-                        modifier = Modifier.size(44.dp),
-                    )
+                    MiniCover(current.coverUrl, progress)
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -118,7 +122,7 @@ fun MiniPlayer(
                         CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                     } else {
                         Icon(
-                            imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                            imageVector = if (state.isPlaying) AppIcons.pause else AppIcons.play,
                             contentDescription = if (state.isPlaying) "Pause" else "Play",
                         )
                     }

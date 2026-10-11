@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `AppIcons` (new, every icon by meaning), `OsuIcons` (new, Font Awesome vectors): `ui/theme/`; `MiniCover()`, `tabColors()`, `floatingBars` (new), `MiniProgress()` (changed): `ui/common/SkinParts.kt`; `MiniPlayer()`, `LibraryBottomBar()`, `SettingsScreen()` and 20 other screens' icon references (changed)
+**Date:** 2026-10-11
+**How added:** owner request
+**Purpose:** Hit circle uses osu!'s icon set, rings the mini player's cover with progress, and floats the bottom bars.
+**Side effects:** none.
+**Before:** Material icons everywhere; docked mini player with a progress line; Material's pill on the selected tab.
+**After:** under Hit circle: Font Awesome icons, ring progress round the cover, floating outlined pills, ringed tab only.
+
 **Function:** `Skin`, `PlayerButtons` (new enums, replace `PlayerSkin`), `AppearanceSettings.skin` / `setSkin()` / `playerButtons` / `setPlayerButtons()`: `data/local/AppearanceSettings.kt`; `LocalSkin`, `cardShape`, `tileShape()`, `rowShape`, `coverShape()`, `ApproachRingIndication` (new): `ui/theme/Skin.kt`; `BrainlessMusicTheme()` (changed, `skin`); `PlayingMarker()`, `MiniProgress()`, `TabIcon()`, `markPlaying` (new): `ui/common/SkinParts.kt`; `CoverImage()`, `CoverMosaic()`, `MiniPlayer()`, `LibraryBottomBar()`, album `TrackRow()`, queue rows, `SettingsScreen()` (changed)
 **Date:** 2026-10-11
 **How added:** owner request (A117-A119)

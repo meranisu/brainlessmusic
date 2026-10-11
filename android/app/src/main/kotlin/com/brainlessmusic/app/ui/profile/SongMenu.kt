@@ -10,17 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
-import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
-import androidx.compose.material.icons.automirrored.filled.TrendingDown
-import androidx.compose.material.icons.filled.Album
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.DownloadDone
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -56,6 +45,7 @@ import com.brainlessmusic.app.ui.common.CoverImage
 import com.brainlessmusic.app.ui.common.LoadState
 import com.brainlessmusic.app.ui.common.formatDuration
 import com.brainlessmusic.app.ui.theme.SheetStatusBarFollowsApp
+import com.brainlessmusic.app.ui.theme.AppIcons
 
 private enum class MenuStep { MENU, PLAYLIST, DETAILS }
 
@@ -114,7 +104,7 @@ fun SongMenuSheet(
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
             if (showPlayNext) {
-                MenuRow(Icons.AutoMirrored.Filled.PlaylistPlay, "Play next") {
+                MenuRow(AppIcons.playlistPlay, "Play next") {
                     toast(viewModel.playNext(item))
                     onDismiss()
                 }
@@ -122,47 +112,47 @@ fun SongMenuSheet(
             if (viewModel.canEdit) {
                 val isLiked = item.trackId in liked
                 MenuRow(
-                    if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                    if (isLiked) AppIcons.favorite else AppIcons.favoriteBorder,
                     if (isLiked) "Unlike" else "Like",
                     tint = if (isLiked) MaterialTheme.colorScheme.primary else null,
                 ) {
                     viewModel.toggleLike(item.trackId)
                     onDismiss()
                 }
-                MenuRow(Icons.AutoMirrored.Filled.PlaylistAdd, "Add to playlist") { step = MenuStep.PLAYLIST }
+                MenuRow(AppIcons.playlistAdd, "Add to playlist") { step = MenuStep.PLAYLIST }
             }
             val download = downloadStates[item.trackId]
             when {
-                download?.isDone == true -> MenuRow(Icons.Filled.DownloadDone, "Remove download") {
+                download?.isDone == true -> MenuRow(AppIcons.downloadDone, "Remove download") {
                     viewModel.removeDownload(item.trackId)
                     toast("Removed from this phone.")
                     onDismiss()
                 }
-                download?.isActive == true -> MenuRow(Icons.Filled.Download, "Stop download") {
+                download?.isActive == true -> MenuRow(AppIcons.download, "Stop download") {
                     viewModel.removeDownload(item.trackId)
                     onDismiss()
                 }
-                else -> MenuRow(Icons.Filled.Download, "Download") {
+                else -> MenuRow(AppIcons.download, "Download") {
                     viewModel.download(item, toast)
                     onDismiss()
                 }
             }
             val albumId = item.albumId
             if (albumId != null && onOpenAlbum != null) {
-                MenuRow(Icons.Filled.Album, "Go to album") {
+                MenuRow(AppIcons.album, "Go to album") {
                     onDismiss()
                     onOpenAlbum(albumId)
                 }
             }
             if (item.artist != null && onOpenArtist != null) {
-                MenuRow(Icons.Filled.Person, "Go to artist") {
+                MenuRow(AppIcons.person, "Go to artist") {
                     onDismiss()
                     viewModel.openArtist(item.trackId, onOpenArtist, toast)
                 }
             }
             if (viewModel.canEdit) {
                 MenuRow(
-                    Icons.AutoMirrored.Filled.TrendingDown,
+                    AppIcons.lessOften,
                     "Play less often",
                     detail = "Shuffle picks it about one pass in four. Undo it in You, under Songs you hear less.",
                 ) {
@@ -170,7 +160,7 @@ fun SongMenuSheet(
                     onDismiss()
                 }
             }
-            MenuRow(Icons.Outlined.Info, "Details") { step = MenuStep.DETAILS }
+            MenuRow(AppIcons.info, "Details") { step = MenuStep.DETAILS }
         }
     }
 }

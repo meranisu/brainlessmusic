@@ -4,8 +4,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Album
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -18,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import com.brainlessmusic.app.ui.theme.coverShape
+import com.brainlessmusic.app.ui.theme.AppIcons
 
 /** Cover art, or a disc icon when there is no URL, the load fails, or it is still loading. Round in Hit circle. */
 @Composable
@@ -45,7 +44,7 @@ fun CoverImage(
             )
         } else {
             Icon(
-                imageVector = Icons.Filled.Album,
+                imageVector = AppIcons.album,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )

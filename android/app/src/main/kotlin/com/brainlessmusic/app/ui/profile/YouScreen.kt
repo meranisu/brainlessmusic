@@ -25,15 +25,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.QueueMusic
-import androidx.compose.material.icons.automirrored.filled.TrendingDown
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -97,6 +88,7 @@ import com.brainlessmusic.app.ui.theme.cardShape
 import com.brainlessmusic.app.ui.theme.coverShape
 import java.util.Calendar
 import com.brainlessmusic.app.ui.theme.tileShape
+import com.brainlessmusic.app.ui.theme.AppIcons
 
 // Flat outlined cards, like Settings and the Library header (DESIGN.md, Android).
 
@@ -281,7 +273,7 @@ private fun GuestHomeList(
                     item {
                         SectionTitle("Songs to try") {
                             IconButton(onClick = viewModel::refresh) {
-                                Icon(Icons.Filled.Refresh, contentDescription = "New picks")
+                                Icon(AppIcons.refresh, contentDescription = "New picks")
                             }
                         }
                     }
@@ -332,7 +324,7 @@ private fun GuestCard(home: GuestHome) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Avatar {
                     Icon(
-                        Icons.Filled.Person,
+                        AppIcons.person,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.size(24.dp),
@@ -377,11 +369,11 @@ private fun StartRow(onShuffle: () -> Unit, onTogether: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Button(onClick = onShuffle, contentPadding = padding, modifier = Modifier.weight(1f)) {
-            Icon(Icons.Filled.Shuffle, contentDescription = null, modifier = Modifier.size(18.dp))
+            Icon(AppIcons.shuffle, contentDescription = null, modifier = Modifier.size(18.dp))
             Text("Shuffle library", maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 8.dp))
         }
         OutlinedButton(onClick = onTogether, contentPadding = padding, modifier = Modifier.weight(1f)) {
-            Icon(Icons.Filled.Groups, contentDescription = null, modifier = Modifier.size(18.dp))
+            Icon(AppIcons.groups, contentDescription = null, modifier = Modifier.size(18.dp))
             Text("Listen together", maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 8.dp))
         }
     }
@@ -421,14 +413,14 @@ private fun CardActions(onPlay: () -> Unit, onShuffle: () -> Unit, what: String)
             onClick = onPlay,
             modifier = Modifier.weight(1f).semantics { contentDescription = "Play $what" },
         ) {
-            Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+            Icon(AppIcons.play, contentDescription = null, modifier = Modifier.size(18.dp))
             Text("Play", modifier = Modifier.padding(start = 8.dp))
         }
         FilledTonalButton(
             onClick = onShuffle,
             modifier = Modifier.weight(1f).semantics { contentDescription = "Shuffle $what" },
         ) {
-            Icon(Icons.Filled.Shuffle, contentDescription = null, modifier = Modifier.size(18.dp))
+            Icon(AppIcons.shuffle, contentDescription = null, modifier = Modifier.size(18.dp))
             Text("Shuffle", modifier = Modifier.padding(start = 8.dp))
         }
     }
@@ -790,9 +782,9 @@ private fun LibraryTiles(counts: ProfileCountsDto, onOpenLiked: () -> Unit, onOp
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).height(IntrinsicSize.Min),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        LibraryTile(Icons.Filled.Favorite, counts.liked, "Liked", "Liked songs", onOpenLiked, Modifier.weight(1f))
-        LibraryTile(Icons.AutoMirrored.Filled.QueueMusic, counts.playlists, "Playlists", "Playlists", onOpenPlaylists, Modifier.weight(1f))
-        LibraryTile(Icons.AutoMirrored.Filled.TrendingDown, counts.lessOften, "Hear less", "Songs you hear less", onOpenLessOften, Modifier.weight(1f))
+        LibraryTile(AppIcons.favorite, counts.liked, "Liked", "Liked songs", onOpenLiked, Modifier.weight(1f))
+        LibraryTile(AppIcons.queue, counts.playlists, "Playlists", "Playlists", onOpenPlaylists, Modifier.weight(1f))
+        LibraryTile(AppIcons.lessOften, counts.lessOften, "Hear less", "Songs you hear less", onOpenLessOften, Modifier.weight(1f))
     }
 }
 

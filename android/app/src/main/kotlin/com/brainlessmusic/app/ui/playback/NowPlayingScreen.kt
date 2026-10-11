@@ -17,23 +17,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
-import androidx.compose.material.icons.automirrored.filled.QueueMusic
-import androidx.compose.material.icons.filled.Album
-import androidx.compose.material.icons.filled.DataSaverOff
-import androidx.compose.material.icons.filled.DataSaverOn
-import androidx.compose.material.icons.filled.DownloadDone
-import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.RepeatOne
-import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
@@ -84,8 +67,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
@@ -95,6 +76,7 @@ import com.brainlessmusic.app.data.local.Skin
 import com.brainlessmusic.app.data.local.SeekStyle
 import com.brainlessmusic.app.data.remote.dto.TrackStatDto
 import com.brainlessmusic.app.ui.playback.skins.HitCircleDeck
+import com.brainlessmusic.app.ui.theme.AppIcons
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -156,7 +138,7 @@ fun NowPlayingScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Close")
+                        Icon(AppIcons.arrowDown, contentDescription = "Close")
                     }
                 },
                 // Data saver, lit while on, for everyone, and only while some queued song would stream (A95); like and
@@ -168,7 +150,7 @@ fun NowPlayingScreen(
                             contentColor = if (room.room != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         ),
                     ) {
-                        Icon(Icons.Filled.Groups, contentDescription = if (room.room != null) "Open the room" else "Listen together")
+                        Icon(AppIcons.groups, contentDescription = if (room.room != null) "Open the room" else "Listen together")
                     }
                     if (state.queueStreams) IconButton(
                         onClick = {
@@ -184,14 +166,14 @@ fun NowPlayingScreen(
                         ),
                     ) {
                         Icon(
-                            if (dataSaver) Icons.Filled.DataSaverOn else Icons.Filled.DataSaverOff,
+                            if (dataSaver) AppIcons.dataSaverOn else AppIcons.dataSaverOff,
                             contentDescription = if (dataSaver) "Data saver on" else "Data saver off",
                         )
                     }
                     if (current != null && songActions.canEdit && !pills) {
                         LikeButton(current.trackId, viewModel = songActions)
                         IconButton(onClick = { addingToPlaylist = true }) {
-                            Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = "Add to playlist")
+                            Icon(AppIcons.playlistAdd, contentDescription = "Add to playlist")
                         }
                     }
                 },
@@ -416,11 +398,11 @@ private fun TransportRow(state: PlaybackUiState, viewModel: PlaybackViewModel, p
             horizontalArrangement = Arrangement.spacedBy(32.dp, Alignment.CenterHorizontally),
         ) {
             IconButton(onClick = viewModel::previous, enabled = canPrevious) {
-                Icon(Icons.Filled.SkipPrevious, contentDescription = "Previous", modifier = Modifier.size(32.dp))
+                Icon(AppIcons.previous, contentDescription = "Previous", modifier = Modifier.size(32.dp))
             }
             RingPlayButton(state, onClick = viewModel::togglePlayPause)
             IconButton(onClick = viewModel::next, enabled = state.hasNext) {
-                Icon(Icons.Filled.SkipNext, contentDescription = "Next", modifier = Modifier.size(32.dp))
+                Icon(AppIcons.next, contentDescription = "Next", modifier = Modifier.size(32.dp))
             }
         }
         return
@@ -440,7 +422,7 @@ private fun TransportRow(state: PlaybackUiState, viewModel: PlaybackViewModel, p
             Icon(shuffleIcon(state.shuffleMode), contentDescription = shuffleLabel(state.shuffleMode))
         }
         IconButton(onClick = viewModel::previous, enabled = canPrevious) {
-            Icon(Icons.Filled.SkipPrevious, contentDescription = "Previous", modifier = Modifier.size(36.dp))
+            Icon(AppIcons.previous, contentDescription = "Previous", modifier = Modifier.size(36.dp))
         }
         FilledIconButton(onClick = viewModel::togglePlayPause, modifier = Modifier.size(72.dp)) {
             if (state.isBuffering && !state.isPlaying) {
@@ -451,14 +433,14 @@ private fun TransportRow(state: PlaybackUiState, viewModel: PlaybackViewModel, p
                 )
             } else {
                 Icon(
-                    imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                    imageVector = if (state.isPlaying) AppIcons.pause else AppIcons.play,
                     contentDescription = if (state.isPlaying) "Pause" else "Play",
                     modifier = Modifier.size(40.dp),
                 )
             }
         }
         IconButton(onClick = viewModel::next, enabled = state.hasNext) {
-            Icon(Icons.Filled.SkipNext, contentDescription = "Next", modifier = Modifier.size(36.dp))
+            Icon(AppIcons.next, contentDescription = "Next", modifier = Modifier.size(36.dp))
         }
         IconButton(
             onClick = viewModel::cycleRepeat,
@@ -490,7 +472,7 @@ private fun RingPlayButton(state: PlaybackUiState, onClick: () -> Unit) {
                 )
             } else {
                 Icon(
-                    imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                    imageVector = if (state.isPlaying) AppIcons.pause else AppIcons.play,
                     contentDescription = if (state.isPlaying) "Pause" else "Play",
                     modifier = Modifier.size(36.dp),
                 )
@@ -517,7 +499,7 @@ private fun PillRow(
         if (songActions.canEdit) {
             val isLiked = trackId in liked
             Pill(
-                icon = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                icon = if (isLiked) AppIcons.favorite else AppIcons.favoriteBorder,
                 label = if (isLiked) "Unlike" else "Like",
                 lit = isLiked,
                 onClick = { songActions.toggleLike(trackId) },
@@ -538,7 +520,7 @@ private fun PillRow(
             onClick = viewModel::cycleRepeat,
         )
         if (songActions.canEdit) {
-            Pill(icon = Icons.AutoMirrored.Filled.PlaylistAdd, label = "Add to playlist", lit = false, onClick = onAddToPlaylist)
+            Pill(icon = AppIcons.playlistAdd, label = "Add to playlist", lit = false, onClick = onAddToPlaylist)
         }
     }
 }
@@ -563,10 +545,11 @@ private fun RowScope.Pill(icon: ImageVector, label: String, lit: Boolean, onClic
 private fun litColor(lit: Boolean): Color =
     if (lit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
 
+@Composable
 internal fun shuffleIcon(mode: ShuffleMode): ImageVector = when (mode) {
-    ShuffleMode.OFF, ShuffleMode.SHUFFLE -> Icons.Filled.Shuffle
-    ShuffleMode.REDISCOVER -> Icons.Filled.History
-    ShuffleMode.ALBUMS -> Icons.Filled.Album
+    ShuffleMode.OFF, ShuffleMode.SHUFFLE -> AppIcons.shuffle
+    ShuffleMode.REDISCOVER -> AppIcons.history
+    ShuffleMode.ALBUMS -> AppIcons.album
 }
 
 internal fun shuffleLabel(mode: ShuffleMode): String = when (mode) {
@@ -576,7 +559,8 @@ internal fun shuffleLabel(mode: ShuffleMode): String = when (mode) {
     ShuffleMode.ALBUMS -> "Album shuffle: random albums, in track order"
 }
 
-internal fun repeatIcon(repeat: Repeat): ImageVector = if (repeat == Repeat.ONE) Icons.Filled.RepeatOne else Icons.Filled.Repeat
+@Composable
+internal fun repeatIcon(repeat: Repeat): ImageVector = if (repeat == Repeat.ONE) AppIcons.repeatOne else AppIcons.repeat
 
 internal fun repeatLabel(repeat: Repeat): String = when (repeat) {
     Repeat.OFF -> "Repeat off"
@@ -629,7 +613,7 @@ private fun UpNextCard(next: QueueItem?, remaining: Int, onClick: () -> Unit, mo
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(start = 8.dp)) {
                 Icon(
-                    Icons.AutoMirrored.Filled.QueueMusic,
+                    AppIcons.queue,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -678,7 +662,7 @@ private fun StreamReadout(stream: StreamInfo?, modifier: Modifier = Modifier) {
             if (onPhone) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Icon(
-                        Icons.Filled.DownloadDone,
+                        AppIcons.downloadDone,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(14.dp),

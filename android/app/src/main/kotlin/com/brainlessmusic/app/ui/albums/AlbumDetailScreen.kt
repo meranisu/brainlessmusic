@@ -14,11 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -62,6 +57,7 @@ import com.brainlessmusic.app.ui.profile.SongActionsViewModel
 import com.brainlessmusic.app.ui.profile.SongMenuSheet
 import com.brainlessmusic.app.ui.common.PlayingMarker
 import com.brainlessmusic.app.ui.common.markPlaying
+import com.brainlessmusic.app.ui.theme.AppIcons
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,7 +88,7 @@ fun AlbumDetailScreen(
                 title = { Text(title) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(AppIcons.back, contentDescription = "Back")
                     }
                 },
             )
@@ -181,11 +177,11 @@ internal fun PlayShuffleRow(onPlay: () -> Unit, onShuffle: () -> Unit, trailing:
         modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
     ) {
         Button(onClick = onPlay) {
-            Icon(Icons.Filled.PlayArrow, contentDescription = null)
+            Icon(AppIcons.play, contentDescription = null)
             Text("Play", modifier = Modifier.padding(start = 6.dp))
         }
         OutlinedButton(onClick = onShuffle) {
-            Icon(Icons.Filled.Shuffle, contentDescription = null)
+            Icon(AppIcons.shuffle, contentDescription = null)
             Text("Shuffle", modifier = Modifier.padding(start = 6.dp))
         }
         trailing()
@@ -225,7 +221,7 @@ private fun TrackRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(formatDuration(track.duration), style = MaterialTheme.typography.bodySmall)
                 IconButton(onClick = onMenu) {
-                    Icon(Icons.Filled.MoreVert, contentDescription = "Song options")
+                    Icon(AppIcons.more, contentDescription = "Song options")
                 }
             }
         },

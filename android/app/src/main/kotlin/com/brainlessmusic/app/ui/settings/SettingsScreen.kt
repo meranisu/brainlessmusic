@@ -24,16 +24,6 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.DownloadForOffline
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -96,6 +86,7 @@ import com.brainlessmusic.app.ui.theme.BrandFontFamily
 import com.brainlessmusic.app.ui.theme.accentInk
 import com.brainlessmusic.app.ui.theme.cardShape
 import com.brainlessmusic.app.ui.theme.tileShape
+import com.brainlessmusic.app.ui.theme.AppIcons
 
 // Cards here match the Library header: flat, a 1 dp outline, no shadow (DESIGN.md, Android).
 
@@ -134,28 +125,28 @@ fun SettingsScreen(
         ) {
             Card {
                 PageRow(
-                    icon = Icons.Filled.Palette,
+                    icon = AppIcons.palette,
                     title = SettingsPage.APPEARANCE.title,
                     summary = "${themeMode.label} · ${colorTheme.label}",
                     onClick = { onOpenPage(SettingsPage.APPEARANCE) },
                 )
                 Divider()
                 PageRow(
-                    icon = Icons.Filled.PlayCircle,
+                    icon = AppIcons.playCircle,
                     title = SettingsPage.PLAYBACK.title,
                     summary = "Resuming, swiping the app away",
                     onClick = { onOpenPage(SettingsPage.PLAYBACK) },
                 )
                 Divider()
                 PageRow(
-                    icon = Icons.Filled.DownloadForOffline,
+                    icon = AppIcons.downloads,
                     title = SettingsPage.DOWNLOADS.title,
                     summary = downloadSummary(),
                     onClick = { onOpenPage(SettingsPage.DOWNLOADS) },
                 )
                 Divider()
                 PageRow(
-                    icon = Icons.Filled.AccountCircle,
+                    icon = AppIcons.account,
                     title = SettingsPage.ACCOUNT.title,
                     summary = if (viewModel.isGuest) "Guest" else username ?: "Logged in",
                     onClick = { onOpenPage(SettingsPage.ACCOUNT) },
@@ -166,7 +157,7 @@ fun SettingsScreen(
             if (updateViewModel.enabled) {
                 Card {
                     PageRow(
-                        icon = Icons.Filled.SystemUpdate,
+                        icon = AppIcons.update,
                         title = "Check for updates",
                         summary = when (val s = update) {
                             UpdateState.Checking -> "Checking…"
@@ -279,7 +270,7 @@ fun SettingsPageScreen(
                 title = { Text(page.title) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(AppIcons.back, contentDescription = "Back")
                     }
                 },
             )
@@ -336,6 +327,15 @@ fun SettingsPageScreen(
                                 Skin.entries.forEach { option ->
                                     ChoiceOption(option.label, option.detail, selected = option == skin, onClick = { viewModel.setSkin(option) })
                                 }
+                            }
+                            // Font Awesome Free's icons are CC BY 4.0, which asks for this credit where they are used.
+                            if (skin == Skin.HIT_CIRCLE) {
+                                Text(
+                                    "Hit circle's icons are Font Awesome Free by Fonticons, Inc., CC BY 4.0.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 8.dp),
+                                )
                             }
                         }
                         // A game skin brings its own player; these two only shape Standard's.
@@ -483,7 +483,7 @@ fun SettingsPageScreen(
                                 onClick = { if (viewModel.isGuest) confirmingGuestLogout = true else viewModel.logout(onLoggedOut) },
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                             ) {
-                                Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null)
+                                Icon(AppIcons.logout, contentDescription = null)
                                 Text("Log out", modifier = Modifier.padding(start = 8.dp))
                             }
                         }
@@ -530,7 +530,7 @@ private fun PageRow(icon: ImageVector, title: String, summary: String, onClick: 
             Text(summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Icon(
-            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            AppIcons.arrowRight,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -630,7 +630,7 @@ private fun ColorThemeTile(
             }
             if (selected) {
                 Icon(
-                    Icons.Filled.CheckCircle,
+                    AppIcons.checkCircle,
                     contentDescription = null,
                     tint = scheme.primary,
                     modifier = Modifier.padding(start = 4.dp).size(20.dp),

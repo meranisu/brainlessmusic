@@ -4,8 +4,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -26,6 +24,7 @@ import com.brainlessmusic.app.ui.playback.MiniPlayer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
+import com.brainlessmusic.app.ui.theme.AppIcons
 
 @HiltViewModel
 class ConnectivityViewModel @Inject constructor(networkMonitor: NetworkMonitor) : ViewModel() {
@@ -66,7 +65,7 @@ private fun OfflineBanner(onOpenDownloads: (() -> Unit)?) {
                 .fillMaxWidth()
                 .padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
         ) {
-            Icon(Icons.Filled.CloudOff, contentDescription = null)
+            Icon(AppIcons.cloudOff, contentDescription = null)
             Text(
                 if (onOpenDownloads != null) "You're offline." else "You're offline. Downloads still play.",
                 style = MaterialTheme.typography.bodyMedium,

@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Hit circle gets osu!'s icons, a ringed mini cover and floating bars
+
+Owner's requests, Android, all under Hit circle only (Standard is unchanged):
+
+- **Icons:** every icon now goes through `AppIcons` (`ui/theme/AppIcons.kt`, 50 meanings): Material under Standard, Font
+  Awesome Free 6.5.2 under Hit circle (`OsuIcons.kt`, generated from FA's SVGs; osu!lazer draws its UI with Font
+  Awesome). Repeat-one is FA's repeat with FA's "1" set in the loop. CC BY 4.0: credited in Settings under Skin and in
+  the file header. 23 screens switched from `Icons.*` to `AppIcons.*`.
+- **Mini player:** the progress line is gone; the round cover is ringed by the song's progress, clockwise from the top
+  (`MiniCover`).
+- **Bottom bar:** no Material pill behind the selected tab; its ring is the mark (`tabColors()`).
+- **Floating:** the mini player and the tab bar float as outlined pills (1 dp border, no shadow) with a margin, above
+  the system bar (`floatingBars`). The gap shows the page background; content does not scroll beneath them.
+- Verified: `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest` 105 tests, 1 skipped, 0 failed. **Not run:** on a
+  phone.
+
 ## 2026-10-11: Auto-deploy ships exactly the commit CI passed for
 
 - `deploy.sh` takes an optional `DEPLOY_REF=<commit>` (default `origin/main`) and refuses a commit that isn't on

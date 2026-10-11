@@ -1,5 +1,39 @@
 [
   {
+    "version": "0.3.35",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "more osu! in hit circle"
+          },
+          {
+            "type": "ul",
+            "items": [
+              "new icons. hit circle now uses the same icon style osu! does (font awesome), everywhere in the app",
+              "the mini player and the tab bar float now, as rounded pills off the edges",
+              "the mini player's cover has a ring around it that fills up as the song plays",
+              "the tab you're on is just ringed now, no more grey blob behind it",
+              "standard looks exactly the same as before"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it. and if you were still seeing \"skip this version\" in the update popup, that was your old version drawing it. it's gone from v0.3.33 on"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.34",
     "date": "2026-10-11",
     "sections": [

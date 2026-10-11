@@ -26,10 +26,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -72,6 +68,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.brainlessmusic.app.BuildConfig
 import com.brainlessmusic.app.ui.common.BrandMark
 import com.brainlessmusic.app.ui.theme.BrandFontFamily
+import com.brainlessmusic.app.ui.theme.AppIcons
 
 /** The web title screen in Material colors: beat mosaic, a solid band with the wordmark, and true corner readouts. */
 @Composable
@@ -225,7 +222,7 @@ private fun ChooseEntry(onLogin: () -> Unit, onGuest: () -> Unit) {
 private fun BackRow(label: String, onBack: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            Icon(AppIcons.back, contentDescription = "Back")
         }
         Text(label, style = MaterialTheme.typography.titleMedium)
     }
@@ -265,7 +262,7 @@ private fun LoginForm(
         trailingIcon = {
             IconButton(onClick = onTogglePassword) {
                 Icon(
-                    imageVector = if (passwordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                    imageVector = if (passwordVisible) AppIcons.visibilityOff else AppIcons.visibility,
                     contentDescription = if (passwordVisible) "Hide password" else "Show password",
                 )
             }

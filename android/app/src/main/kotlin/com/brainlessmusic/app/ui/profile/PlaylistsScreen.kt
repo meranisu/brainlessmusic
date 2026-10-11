@@ -5,10 +5,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.QueueMusic
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -45,6 +41,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.brainlessmusic.app.ui.theme.AppIcons
 
 @HiltViewModel
 class PlaylistsViewModel @Inject constructor(
@@ -112,10 +109,10 @@ fun PlaylistsScreen(
             TopAppBar(
                 title = { Text("Playlists") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                    IconButton(onClick = onBack) { Icon(AppIcons.back, contentDescription = "Back") }
                 },
                 actions = {
-                    IconButton(onClick = { naming = true }) { Icon(Icons.Filled.Add, contentDescription = "New playlist") }
+                    IconButton(onClick = { naming = true }) { Icon(AppIcons.add, contentDescription = "New playlist") }
                 },
             )
         },
@@ -133,7 +130,7 @@ fun PlaylistsScreen(
             LazyColumn(Modifier.fillMaxSize()) {
                 items(playlists, key = { it.id }) { playlist ->
                     ListItem(
-                        leadingContent = { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null) },
+                        leadingContent = { Icon(AppIcons.queue, contentDescription = null) },
                         headlineContent = { Text(playlist.name) },
                         supportingContent = { Text(if (playlist.trackCount == 1) "1 song" else "${playlist.trackCount} songs") },
                         modifier = Modifier.clickable { onOpenPlaylist(playlist.id) },

@@ -11,11 +11,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.QueueMusic
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -59,6 +54,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.brainlessmusic.app.ui.theme.AppIcons
 
 /**
  * Liking a song and adding it to a playlist, from anywhere a song is shown (A65); accounts only. Also the long-press
@@ -198,7 +194,7 @@ fun LikeButton(trackId: Int, modifier: Modifier = Modifier, viewModel: SongActio
     val isLiked = trackId in liked
     IconButton(onClick = { viewModel.toggleLike(trackId) }, modifier = modifier) {
         Icon(
-            if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+            if (isLiked) AppIcons.favorite else AppIcons.favoriteBorder,
             contentDescription = if (isLiked) "Unlike" else "Like",
             tint = if (isLiked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -245,7 +241,7 @@ fun AddToPlaylistSheet(
         LazyColumn(modifier = Modifier.navigationBarsPadding()) {
             item {
                 ListItem(
-                    leadingContent = { Icon(Icons.Filled.Add, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                    leadingContent = { Icon(AppIcons.add, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                     headlineContent = { Text("New playlist") },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     modifier = Modifier.clickable { naming = true },
@@ -253,7 +249,7 @@ fun AddToPlaylistSheet(
             }
             items(playlists.orEmpty(), key = { it.id }) { playlist ->
                 ListItem(
-                    leadingContent = { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null) },
+                    leadingContent = { Icon(AppIcons.queue, contentDescription = null) },
                     headlineContent = { Text(playlist.name) },
                     supportingContent = { Text(if (playlist.trackCount == 1) "1 song" else "${playlist.trackCount} songs") },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),

@@ -34,10 +34,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -98,6 +94,7 @@ import com.brainlessmusic.app.ui.navigation.AppBottomBar
 import com.brainlessmusic.app.ui.navigation.Routes
 import com.brainlessmusic.app.ui.profile.SongMenuSheet
 import kotlinx.coroutines.launch
+import com.brainlessmusic.app.ui.theme.AppIcons
 
 // The floating header (tabs, or the search field) covers the top of the list, so every list starts this far down.
 private val TabBarClearance = 68.dp
@@ -221,10 +218,10 @@ private fun LibraryHeader(
     ) {
         if (searching) {
             SongFilterField(text = filter, onChange = onFilterChange, modifier = Modifier.weight(1f))
-            HeaderButton(Icons.Filled.Close, "Close search", onCloseSearch)
+            HeaderButton(AppIcons.close, "Close search", onCloseSearch)
         } else {
             LibraryTabBar(selected = tab, onSelect = onSelectTab)
-            HeaderButton(Icons.Filled.Search, "Search songs", onOpenSearch)
+            HeaderButton(AppIcons.search, "Search songs", onOpenSearch)
         }
     }
 }
@@ -406,7 +403,7 @@ private fun SongsTab(viewModel: LibraryViewModel, navController: NavHostControll
                 shape = CircleShape,
                 modifier = Modifier.align(Alignment.BottomEnd).padding(end = ListEndPadding + 8.dp, bottom = 16.dp),
             ) {
-                Icon(Icons.Filled.Shuffle, contentDescription = "Shuffle all")
+                Icon(AppIcons.shuffle, contentDescription = "Shuffle all")
             }
         }
     }
@@ -436,7 +433,7 @@ private fun SongFilterField(text: String, onChange: (String) -> Unit, modifier: 
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 14.dp)) {
-            Icon(Icons.Filled.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(AppIcons.search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             Box(Modifier.weight(1f).padding(horizontal = 10.dp)) {
                 if (text.isEmpty()) {
                     Text("Filter songs", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -457,7 +454,7 @@ private fun SongFilterField(text: String, onChange: (String) -> Unit, modifier: 
             }
             if (text.isNotEmpty()) {
                 IconButton(onClick = { onChange("") }) {
-                    Icon(Icons.Filled.Close, contentDescription = "Clear filter")
+                    Icon(AppIcons.close, contentDescription = "Clear filter")
                 }
             }
         }

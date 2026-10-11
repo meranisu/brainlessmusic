@@ -23,13 +23,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DragHandle
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -98,6 +91,7 @@ import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import javax.inject.Inject
 import com.brainlessmusic.app.ui.theme.rowShape
+import com.brainlessmusic.app.ui.theme.AppIcons
 
 private val RemoveColor = Color(0xFFDC2626)
 
@@ -285,12 +279,12 @@ fun PlaylistDetailScreen(
             TopAppBar(
                 title = { Text(playlist?.name ?: "Playlist", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                    IconButton(onClick = onBack) { Icon(AppIcons.back, contentDescription = "Back") }
                 },
                 actions = {
                     if (playlist != null) {
                         Box {
-                            IconButton(onClick = { menuOpen = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More") }
+                            IconButton(onClick = { menuOpen = true }) { Icon(AppIcons.more, contentDescription = "More") }
                             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                                 DropdownMenuItem(text = { Text("Rename") }, onClick = {
                                     menuOpen = false
@@ -337,11 +331,11 @@ fun PlaylistDetailScreen(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     ) {
                         Button(onClick = { viewModel.play(0) }) {
-                            Icon(Icons.Filled.PlayArrow, contentDescription = null)
+                            Icon(AppIcons.play, contentDescription = null)
                             Text("Play", modifier = Modifier.padding(start = 6.dp))
                         }
                         OutlinedButton(onClick = { viewModel.play(0, shuffle = true) }) {
-                            Icon(Icons.Filled.Shuffle, contentDescription = null)
+                            Icon(AppIcons.shuffle, contentDescription = null)
                             Text("Shuffle", modifier = Modifier.padding(start = 6.dp))
                         }
                         Text(
@@ -377,7 +371,7 @@ fun PlaylistDetailScreen(
                             },
                             handle = {
                                 Icon(
-                                    Icons.Filled.DragHandle,
+                                    AppIcons.dragHandle,
                                     contentDescription = "Drag to move",
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.draggableHandle(
@@ -428,7 +422,7 @@ private fun PlaylistRow(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Remove", color = Color.White, style = MaterialTheme.typography.labelLarge)
-                        Icon(Icons.Filled.Delete, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+                        Icon(AppIcons.delete, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
                     }
                 }
             }

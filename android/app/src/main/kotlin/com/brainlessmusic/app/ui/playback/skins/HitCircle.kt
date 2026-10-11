@@ -17,11 +17,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -56,6 +51,7 @@ import com.brainlessmusic.app.ui.playback.repeatLabel
 import com.brainlessmusic.app.ui.playback.shuffleIcon
 import com.brainlessmusic.app.ui.playback.shuffleLabel
 import com.brainlessmusic.app.ui.theme.BrandFontFamily
+import com.brainlessmusic.app.ui.theme.AppIcons
 
 /** osu!'s grade letters for a [Clear]: a long unbroken run earns the silver SS. */
 private fun grade(clear: Clear, plays: Int): String = when (clear) {
@@ -187,9 +183,9 @@ fun ColumnScope.HitCircleDeck(
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         HitButton(shuffleIcon(state.shuffleMode), shuffleLabel(state.shuffleMode), number = 1, lit = state.shuffle, enabled = !state.inRoom, onClick = onShuffle)
-        HitButton(Icons.Filled.SkipPrevious, "Previous", number = 2, enabled = state.hasPrevious || state.positionMs > 3_000, onClick = onPrevious)
+        HitButton(AppIcons.previous, "Previous", number = 2, enabled = state.hasPrevious || state.positionMs > 3_000, onClick = onPrevious)
         PlayCircle(state, onPlayPause)
-        HitButton(Icons.Filled.SkipNext, "Next", number = 3, enabled = state.hasNext, onClick = onNext)
+        HitButton(AppIcons.next, "Next", number = 3, enabled = state.hasNext, onClick = onNext)
         HitButton(repeatIcon(state.repeat), repeatLabel(state.repeat), number = 4, lit = state.repeat != Repeat.OFF, enabled = !state.inRoom, onClick = onRepeat)
     }
 }
@@ -268,7 +264,7 @@ private fun PlayCircle(state: PlaybackUiState, onClick: () -> Unit) {
                     CircularProgressIndicator(modifier = Modifier.size(28.dp), color = scheme.onPrimary, strokeWidth = 3.dp)
                 } else {
                     Icon(
-                        if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        if (state.isPlaying) AppIcons.pause else AppIcons.play,
                         contentDescription = if (state.isPlaying) "Pause" else "Play",
                         modifier = Modifier.size(36.dp),
                     )

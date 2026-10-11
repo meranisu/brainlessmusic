@@ -18,12 +18,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.TrendingDown
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DragHandle
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -70,6 +64,7 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 import com.brainlessmusic.app.ui.common.PlayingMarker
 import com.brainlessmusic.app.ui.common.markPlaying
 import com.brainlessmusic.app.ui.theme.rowShape
+import com.brainlessmusic.app.ui.theme.AppIcons
 
 // Rows and the header sit on the player's 24 dp sides, like its Up next card, with that card's 12 dp inside a row.
 private val SidePadding = 24.dp
@@ -198,10 +193,10 @@ fun QueueSheet(
                     value = query,
                     onValueChange = { query = it },
                     placeholder = { Text("Search the queue") },
-                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                    leadingIcon = { Icon(AppIcons.search, contentDescription = null) },
                     trailingIcon = if (searching) {
                         {
-                            IconButton(onClick = { query = "" }) { Icon(Icons.Filled.Clear, contentDescription = "Clear search") }
+                            IconButton(onClick = { query = "" }) { Icon(AppIcons.clear, contentDescription = "Clear search") }
                         }
                     } else {
                         null
@@ -239,7 +234,7 @@ fun QueueSheet(
                                 } else {
                                     {
                                         Icon(
-                                            Icons.Filled.DragHandle,
+                                            AppIcons.dragHandle,
                                             contentDescription = "Drag to move",
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier.draggableHandle(
@@ -352,8 +347,8 @@ private fun SwipeBackground(direction: SwipeToDismissBoxValue) {
         contentAlignment = alignment,
     ) {
         when (direction) {
-            SwipeToDismissBoxValue.EndToStart -> SwipeLabel(Icons.Filled.Delete, "Remove", iconFirst = false)
-            SwipeToDismissBoxValue.StartToEnd -> SwipeLabel(Icons.AutoMirrored.Filled.TrendingDown, "Less often", iconFirst = true)
+            SwipeToDismissBoxValue.EndToStart -> SwipeLabel(AppIcons.delete, "Remove", iconFirst = false)
+            SwipeToDismissBoxValue.StartToEnd -> SwipeLabel(AppIcons.lessOften, "Less often", iconFirst = true)
             SwipeToDismissBoxValue.Settled -> Unit
         }
     }
