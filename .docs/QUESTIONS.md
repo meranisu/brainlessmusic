@@ -31,6 +31,8 @@ is never asked twice.
 | [Q5](#q5--tag-editing-scope) | Tag-editing scope | 2026-09-09 | No |
 | [Q77](#q77--how-does-the-android-app-get-past-cloudflare-access) | How does the Android app get past Cloudflare Access? | 2026-10-11 | Yes, before Access goes on |
 | [Q78](#q78--who-goes-on-the-access-email-list) | Who goes on the Access email list? | 2026-10-11 | Yes, before Access goes on |
+| [Q114](#q114--which-arcade-player-skins-come-first) | Which arcade player skins come first? | 2026-10-11 | Yes, for player skins |
+| [Q115](#q115--what-makes-the-player-personal) | What makes the player "personal"? | 2026-10-11 | Yes, for player skins |
 
 ### Q5 — Tag-editing scope
 **Asked:** 2026-09-09 · **Blocking:** no
@@ -58,6 +60,33 @@ includes friends using a guest code on the web: without their email on the list 
 
 - **A. You and the friends who use the web (recommended).** Each friend's email goes on the list once.
 - **B. Only you.** Friends use the Android app only (with Q77's token), never the web.
+
+### Q114 — Which arcade player skins come first?
+**Asked:** 2026-10-11 · **Blocking:** yes, for player skins
+
+Owner, after the Pills and Waveform options: "design and add multiple designs, make it fresh, make it personal, make it
+arcade". The proposal is one "Player skin" setting that swaps the whole Now Playing deck (buttons, play button, seek
+bar, readouts) after one of the A35 games, borrowing composition only, flat with no glow (DESIGN.md). Candidates:
+
+- **Hit circle (osu!):** the cover framed as a hit circle, the ring play button with an approach ring that closes in
+  time with the song, a slider-ball seek bar. Builds on the Pills ring.
+- **Deck (beatmania IIDX):** a turntable disc that spins while playing, the buttons as a row of seven key caps
+  (alternating light and dark), a segmented LED-style seek bar and a big time readout.
+- **Ring (maimai):** the cover in a round "screen" with eight buttons around its rim, like the cabinet.
+- **Gear (DJMAX / SOUND VOLTEX):** the buttons as lanes at the bottom of a gear, the seek bar as a lane with a
+  judgement line, track info in a song-select banner.
+
+Recommended: Hit circle, Deck and Ring first (the most distinct from each other); Gear later.
+
+### Q115 — What makes the player "personal"?
+**Asked:** 2026-10-11 · **Blocking:** yes, for player skins
+
+- **A. Your record for the song, arcade style (recommended).** Each skin shows a score panel for the current song from
+  `GET /me/stats/tracks/:id`: your plays, time listened, first played, and a clear lamp / grade worked out from plays
+  vs skips (A113), e.g. a song you always finish lamps "Full combo", one you mostly skip "Failed".
+- **B. Your name on the cabinet.** A player-card strip with your name and avatar, like an e-amusement card.
+- **C. Both.**
+- **D. Just the skins**, nothing personal beyond choosing one.
 
 ## Answered
 
