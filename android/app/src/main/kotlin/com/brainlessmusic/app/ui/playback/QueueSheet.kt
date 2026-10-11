@@ -110,6 +110,9 @@ fun QueueSheet(
     var rows by remember { mutableStateOf(fromState) }
     var dragFrom by remember { mutableStateOf<Int?>(null) }
     LaunchedEffect(fromState) { if (dragFrom == null) rows = fromState }
+    // For a drop that moves nothing: no state change follows it, so the rows catch up with any change made during
+    // the drag (a refill appending songs) here, or they'd stay stale until the next edit (C32).
+    val latestFromState by rememberUpdatedState(fromState)
 
     val searching = query.isNotBlank()
     val shown = if (searching) {
@@ -241,7 +244,7 @@ fun QueueSheet(
                                                     val from = dragFrom
                                                     val to = rows.indexOfFirst { it.key == row.key }
                                                     dragFrom = null
-                                                    if (from != null && to >= 0 && from != to) onMove(from, to)
+                                                    if (from != null && to >= 0 && from != to) onMove(from, to) else rows = latestFromState
                                                 },
                                             ).padding(8.dp),
                                         )

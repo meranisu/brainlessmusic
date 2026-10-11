@@ -4,6 +4,30 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `readSpaceUsed()`, `refreshSpaceUsed()` (new) — `android/app/src/main/kotlin/com/brainlessmusic/app/downloads/DownloadRepository.kt`
+**Date:** 2026-10-11
+**How added:** bug fix (review C30)
+**Purpose:** read the download cache's size off the main thread.
+**Side effects:** updates `spaceUsed`.
+**Before:** `cache.cacheSpace` on the main thread, blocking on the cache's start-up scan.
+**After:** read on `Dispatchers.IO`.
+
+**Function:** `PlaybackService.onCreate()`, `onTaskRemoved()`, `onDestroy()` — `android/app/src/main/kotlin/com/brainlessmusic/app/playback/PlaybackService.kt`
+**Date:** 2026-10-11
+**How added:** bug fix (review C31)
+**Purpose:** no blocking read in `onCreate`, no leaked executor thread.
+**Side effects:** shuts the bitmap executor down on destroy.
+**Before:** `runBlocking` DataStore read in `onCreate`; a new executor per creation, never shut down.
+**After:** the setting loads in the background (blocking only in an early swipe-away); one executor, shut down.
+
+**Function:** `QueueSheet` drop handling — `android/app/src/main/kotlin/com/brainlessmusic/app/ui/playback/QueueSheet.kt`; `DownloadDao.removeFromGroup()`, `deleteGroup()` — `.../downloads/DownloadDatabase.kt`
+**Date:** 2026-10-11
+**How added:** bug fix / refactor (review C32, C33)
+**Purpose:** resync queue rows after a no-op drop; one orphan-cleanup path.
+**Side effects:** none new.
+**Before:** a no-op drop left stale rows; `deleteGroup` duplicated `dropUnlinked`; `removeFromGroup` returned an unused Boolean.
+**After:** rows resync; `dropUnlinked` is shared; `removeFromGroup` returns Unit; `groupsHolding` removed.
+
 **Function:** `runMigrations()` — `backend/src/db/migrator.ts`
 **Date:** 2026-10-11
 **How added:** hardening (review C22)

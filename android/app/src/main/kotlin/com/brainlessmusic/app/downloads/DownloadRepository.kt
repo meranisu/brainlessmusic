@@ -127,7 +127,7 @@ class DownloadRepository @Inject constructor(
                     _downloads.value -= it
                     reserved -= it
                 }
-                _spaceUsed.value = cache.cacheSpace
+                refreshSpaceUsed()
                 pollWhileActive()
             }
         })
@@ -136,7 +136,7 @@ class DownloadRepository @Inject constructor(
             val stored = runCatching { withContext(Dispatchers.IO) { readIndex() } }.getOrDefault(emptyMap())
             // A listener update that landed first is newer than the index.
             _downloads.value = stored + _downloads.value
-            _spaceUsed.value = cache.cacheSpace
+            _spaceUsed.value = readSpaceUsed()
             loaded.complete(Unit)
             // Unfinished downloads left by a closed app carry on.
             if (stored.values.any { it.isActive }) {
@@ -255,7 +255,7 @@ class DownloadRepository @Inject constructor(
         // What the queue still has to write: its reserved sizes, less what the cache already holds of them.
         val written = manager.currentDownloads.associate { trackIdOf(it.request.id) to it.bytesDownloaded }
         val stillToCome = reserved.entries.sumOf { (id, size) -> (size - (written[id] ?: 0L)).coerceAtLeast(0L) }
-        if (cache.cacheSpace + stillToCome + sizes.sum() > limit) {
+        if (readSpaceUsed() + stillToCome + sizes.sum() > limit) {
             return@withLock "Not enough room under your $limitGb GB download limit. Change it in Settings, Downloads."
         }
         missing.zip(sizes).forEach { (id, size) -> reserved[id] = size }
@@ -342,8 +342,18 @@ class DownloadRepository @Inject constructor(
     private fun put(download: Download) {
         val id = trackIdOf(download.request.id) ?: return
         _downloads.value += id to download.toTrackDownload()
-        _spaceUsed.value = cache.cacheSpace
+        refreshSpaceUsed()
         pollWhileActive()
+    }
+
+    /**
+     * `cacheSpace` waits for the cache's own start-up, which reads its index and scans every downloaded file, so it is
+     * never read on the main thread: with a big offline library that froze the app at launch (C30).
+     */
+    private suspend fun readSpaceUsed(): Long = withContext(Dispatchers.IO) { cache.cacheSpace }
+
+    private fun refreshSpaceUsed() {
+        scope.launch { _spaceUsed.value = readSpaceUsed() }
     }
 
     /** The manager reports state changes but not progress, so progress is read twice a second while anything runs. */
@@ -355,7 +365,7 @@ class DownloadRepository @Inject constructor(
                 if (running.isNotEmpty()) {
                     _downloads.value += running.mapNotNull { d -> trackIdOf(d.request.id)?.let { it to d.toTrackDownload() } }
                 }
-                _spaceUsed.value = cache.cacheSpace
+                _spaceUsed.value = readSpaceUsed()
                 delay(500)
             }
         }

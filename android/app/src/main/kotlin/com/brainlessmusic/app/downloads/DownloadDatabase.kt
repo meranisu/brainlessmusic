@@ -144,9 +144,6 @@ abstract class DownloadDao {
     @Query("SELECT COUNT(*) FROM download_group_track WHERE groupId = :groupId")
     protected abstract suspend fun linkCount(groupId: String): Int
 
-    @Query("SELECT COUNT(*) FROM download_group_track WHERE trackId = :trackId")
-    abstract suspend fun groupsHolding(trackId: Int): Int
-
     /** Adds one song to the end of [group], creating it the first time (the single-songs group). */
     @Transaction
     open suspend fun addToGroup(group: DownloadGroup, track: DownloadedTrack) {
@@ -155,12 +152,12 @@ abstract class DownloadDao {
         putLinks(listOf(DownloadGroupTrack(group.id, track.trackId, lastPosition(group.id) + 1)))
     }
 
-    /** Takes one song out of [groupId], dropping the group once it is empty. Returns whether no group holds it now. */
+    /** Takes one song out of [groupId], dropping the group once it is empty, and the song's row if no group holds it. */
     @Transaction
-    open suspend fun removeFromGroup(groupId: String, trackId: Int): Boolean {
+    open suspend fun removeFromGroup(groupId: String, trackId: Int) {
         deleteLink(groupId, trackId)
         if (linkCount(groupId) == 0) deleteGroupRow(groupId)
-        return dropUnlinked().contains(trackId) || groupsHolding(trackId) == 0
+        dropUnlinked()
     }
 
     @Query("DELETE FROM download_group")
@@ -193,8 +190,7 @@ abstract class DownloadDao {
     open suspend fun deleteGroup(groupId: String, alsoCheck: List<Int> = emptyList()): List<Int> {
         deleteGroupRow(groupId)
         deleteLinks(groupId)
-        val orphans = unlinkedTrackIds()
-        if (orphans.isNotEmpty()) deleteTracks(orphans)
+        val orphans = dropUnlinked()
         val stillHeld = linkedTrackIds().toSet()
         return (orphans + alsoCheck.filter { it !in stillHeld }).distinct()
     }

@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android review fixes C30-C33: cache reads off the main thread, service thread leak, queue sheet, cleanup
+
+From `.docs/process/codebase-review-2026-10-11.md`; this closes the review.
+
+- **C30** (`DownloadRepository`): `cache.cacheSpace` waits for SimpleCache's start-up, which reads its index and
+  scans every downloaded file. It was read on the main thread at cold start and on every download change, risking
+  an ANR with a big offline library. All reads now go through `readSpaceUsed()` on `Dispatchers.IO`.
+- **C31** (`PlaybackService`): the cover loader's executor is now one field, shut down in `onDestroy`; each recreation
+  used to leak a thread. The swipe-away setting is no longer read with `runBlocking` in `onCreate`. It loads in the
+  background, and `onTaskRemoved` blocks for it only if it hasn't arrived yet.
+- **C32** (`QueueSheet`): a drop that moves nothing triggers no state change, so rows changed during the drag (a refill
+  appending songs) stayed stale. That drop now resyncs the rows.
+- **C33** (`DownloadDatabase`): `deleteGroup` calls `dropUnlinked()` instead of repeating it. `removeFromGroup` no
+  longer computes a Boolean nobody used, and the unused `groupsHolding` query is gone.
+- Verified: `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest` passes. **Not run on a device.**
+
 ## 2026-10-11 — Review fixes C22-C27, C35: migrations, uploads, ffmpeg timeout, bootstrap admin, listener map
 
 From `.docs/process/codebase-review-2026-10-11.md`, the lower-priority items.

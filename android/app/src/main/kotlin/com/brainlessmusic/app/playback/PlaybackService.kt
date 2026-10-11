@@ -40,8 +40,12 @@ class PlaybackService : MediaSessionService() {
     private var session: MediaSession? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
-    // Mirrored from the setting so onTaskRemoved can read it without blocking; true matches the setting's default.
-    private var keepPlayingWhenSwipedAway = true
+    // Mirrored from the setting so onTaskRemoved can read it without blocking. Null until the first read lands.
+    @Volatile
+    private var keepPlayingWhenSwipedAway: Boolean? = null
+
+    /** The cover loader's thread, shut down with the service so each recreation doesn't leave one behind (C31). */
+    private val bitmapExecutor = Executors.newSingleThreadExecutor()
 
     override fun onCreate() {
         super.onCreate()
@@ -56,7 +60,7 @@ class PlaybackService : MediaSessionService() {
             // Cover art needs the bearer token; the default loader would show no artwork.
             .setBitmapLoader(
                 DataSourceBitmapLoader(
-                    MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor()),
+                    MoreExecutors.listeningDecorator(bitmapExecutor),
                     // DefaultDataSource adds file:// for downloaded covers; http still goes through the shared client.
                     DefaultDataSource.Factory(this, OkHttpDataSource.Factory(okHttpClient)),
                 ),
@@ -76,8 +80,7 @@ class PlaybackService : MediaSessionService() {
                 }
             })
             .build()
-        // Read once now, so a swipe-away in the service's first moments sees the real setting, not the default.
-        keepPlayingWhenSwipedAway = runBlocking { settings.keepPlayingWhenSwipedAway.first() }
+        // Not read with runBlocking here: onCreate is on the main thread (C31). A swipe-away before this lands waits for it.
         scope.launch { settings.keepPlayingWhenSwipedAway.collect { keepPlayingWhenSwipedAway = it } }
     }
 
@@ -86,7 +89,9 @@ class PlaybackService : MediaSessionService() {
     /** Swiping the app away stops the service unless music is actually playing and the user chose to keep it (A58). */
     override fun onTaskRemoved(rootIntent: Intent?) {
         val player = controller.sessionPlayer
-        if (!keepPlayingWhenSwipedAway || !player.playWhenReady || player.mediaItemCount == 0) {
+        // Only in the service's first moments is the setting not loaded yet; then it's worth the short wait.
+        val keepPlaying = keepPlayingWhenSwipedAway ?: runBlocking { settings.keepPlayingWhenSwipedAway.first() }
+        if (!keepPlaying || !player.playWhenReady || player.mediaItemCount == 0) {
             pauseAllPlayersAndStopSelf()
         }
     }
@@ -96,6 +101,7 @@ class PlaybackService : MediaSessionService() {
         // Release the session but never the player: it belongs to PlaybackController.
         session?.release()
         session = null
+        bitmapExecutor.shutdown()
         super.onDestroy()
     }
 }
