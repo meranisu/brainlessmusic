@@ -38,7 +38,7 @@ Results at review time:
         (`PlaybackController.kt:963-973`).
       - With signal but smol down (502/530) or a revoked token, it loops seek, prepare, fail with no end. That drains
         battery and data, and no error is shown. A one-song queue loops on itself.
-- [ ] **C7. Expired sessions break silently on both clients.**
+- [x] **C7. Expired sessions break silently on both clients.** Fixed in bbb6de3.
       - Web: `setToken(null)` clears storage but never tells `AuthContext`, so `user` stays set
         (`frontend/src/lib/apiClient.ts:58-60`). Every page errors and it never goes to login.
       - Android: no 401 handling while the app runs, only in `restoreSession` and `recheckWhenOnline`. After the
@@ -76,7 +76,7 @@ Results at review time:
       - After a gapless or crossfade boundary, it rewrites the spare element instead.
 - [ ] **C14. A shuffle response overwrites a newer queue** (`PlayerBar.tsx:956-984`).
       - If another album starts before `POST /shuffle` returns, the queue is replaced with the old one, shuffled.
-- [ ] **C15. The React Query cache is never cleared on logout or login** (`main.tsx:11`, `AuthContext.tsx:125-129`).
+- [x] **C15. The React Query cache is never cleared on logout or login** Fixed in bbb6de3. (`main.tsx:11`, `AuthContext.tsx:125-129`).
       - The next user briefly sees the last user's data.
       - `['favorites','ids']` has no user in its key (`FavoriteButton.tsx:11-16`), so the last user's favorites show
         for up to 30 s.
@@ -131,7 +131,7 @@ Results at review time:
 - [ ] **C32. Android: the queue sheet can keep a stale list after a no-op drag** (`QueueSheet.kt:110-112`, `:240-244`).
 - [ ] **C33. Android: `deleteGroup` duplicates `dropUnlinked()`** (`DownloadDatabase.kt:150-166`).
       - `removeFromGroup`'s Boolean result is unused (`:131`, caller `DownloadRepository.kt:179`).
-- [ ] **C34. Web: the background media-token fetch is stored under whichever session exists when it returns**
+- [x] **C34. Web: the background media-token fetch is stored under whichever session exists when it returns** Fixed in bbb6de3.
       (`apiClient.ts:127-129`). Narrow.
 - [ ] **C35. Web: `revokeObjectURL` runs right after `a.click()`** (`guestCodeCard.ts:63-68`).
       - Some older browsers then save nothing.
