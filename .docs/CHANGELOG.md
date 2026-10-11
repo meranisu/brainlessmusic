@@ -4,6 +4,27 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Review fixes C11-C14, C16: web player async races, tag form wiped on refetch
+
+From `.docs/process/codebase-review-2026-10-11.md`. Each was an `await` finishing after something newer had taken
+over, without noticing.
+
+- **C11** (`PlayerBar.tsx`, `load()`): the skip after a failed load called `goTo`, which read this render's `queue`.
+  That was still the previous queue when a new album's first song failed, so a song from the old queue played, or
+  playback stopped silently (session restore too). It now loads the next index of the `tracks` it was given, and reads
+  the repeat mode from `stateRef`.
+- **C12** (`reconnect()`): it now captures the load token and gives up after each `await` once a newer load owns the
+  element. A Next pressed during the reconnect wait no longer seeks the new song to the old one's position.
+- **C13** (`setDataSaver()`): the swap also gives up when a newer load or a gapless/crossfade boundary has happened
+  since it started. `load()` aborts any swap in progress and clears `swappingRef`. A skip during the ~6 s conversion
+  wait no longer puts the old song's low-quality stream under the new song's title.
+- `load()` and `reconnect()` read data saver from `stateRef`, not the render's closure.
+- **C14** (`toggleShuffle()`): a shuffle answer is dropped if the queue changed while it was on its way.
+- **C16** (`TrackDetailDrawer.tsx`): the form fills once per track. A refetch (counting a play of that track
+  invalidates it) no longer wipes unsaved edits.
+- Verified: `cd frontend && npm run build` passes; `npm run lint` shows no new warnings. **Not run in a browser**:
+  none of these timings were reproduced by hand.
+
 ## 2026-10-11 — Review fix C10: a resent play is counted once (migration 0026)
 
 - A play was matched to an earlier send only by exact `played_at`. When the phone's clock ran ahead,

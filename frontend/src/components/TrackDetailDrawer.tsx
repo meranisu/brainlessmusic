@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDuration } from '../lib/format';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { useScrollLock } from '../hooks/useScrollLock';
 import { apiClient, ApiError } from '../lib/apiClient';
@@ -43,8 +43,12 @@ export function TrackDetailDrawer({ trackId, initialTab, onClose }: TrackDetailD
   const [hidden, setHidden] = useState(false);
   const [notRecommended, setNotRecommended] = useState(false);
 
+  // Filled once per track. A refetch (counting a play of this very track invalidates it, and so does window focus)
+  // must not wipe edits that haven't been saved; after a save the form already shows what was saved.
+  const filledFor = useRef<number | null>(null);
   useEffect(() => {
-    if (!data) return;
+    if (!data || filledFor.current === data.id) return;
+    filledFor.current = data.id;
     setTitle(data.title);
     setArtist(data.artist ?? '');
     setAlbum(data.album ?? '');

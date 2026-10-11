@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `load()`, `reconnect()`, `setDataSaver()`, `toggleShuffle()` — `frontend/src/components/PlayerBar.tsx`
+**Date:** 2026-10-11
+**How added:** bug fix (review C11-C14)
+**Purpose:** let only the newest load act on the audio element and the queue.
+**Side effects:** `load()` now aborts an in-progress data-saver swap and clears `swappingRef`.
+**Before:** the failed-load skip used a stale queue; reconnect, data-saver swap and shuffle wrote after a newer song or queue had taken over.
+**After:** each checks the load token (or queue identity) after every await and gives up if superseded.
+
+**Function:** `TrackDetailDrawer` form fill effect — `frontend/src/components/TrackDetailDrawer.tsx`
+**Date:** 2026-10-11
+**How added:** bug fix (review C16)
+**Purpose:** fill the tag form from the server once per track.
+**Side effects:** none.
+**Before:** every refetch overwrote the form, losing unsaved edits.
+**After:** fills only when a new track's data first arrives.
+
 **Function:** `recordScrobble()` — `backend/src/db/plays.ts`; scrobble route — `backend/src/routes/tracks.ts`
 **Date:** 2026-10-11
 **How added:** bug fix (review C10)

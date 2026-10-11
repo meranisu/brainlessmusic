@@ -549,9 +549,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const audio = audioRef.current;
     if (!audio) return;
 
+    // A skip during the wait loads another song on this element; this attempt must then leave it alone, not seek the
+    // new song to the old one's position. `load()` clears `swappingRef` for itself.
+    const token = loadTokenRef.current;
+    const superseded = () => token !== loadTokenRef.current;
+
     async function attempt(forceCompat: boolean): Promise<void> {
-      audio!.src = await buildStreamUrl(track.id, dataSaver ? 'low' : undefined, forceCompat);
+      const url = await buildStreamUrl(track.id, stateRef.current.dataSaver ? 'low' : undefined, forceCompat);
+      if (superseded()) return;
+      audio!.src = url;
       await waitForMetadata(audio!);
+      if (superseded()) return;
       audio!.currentTime = resumeAt;
       if (progressRef.current) progressRef.current.lastTime = resumeAt;
       setCurrentTime(resumeAt);
@@ -562,6 +570,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       try {
         await attempt(false);
       } catch (err) {
+        if (superseded()) return;
         // One silent retry through the compat transcode (see `load()`).
         if (err instanceof StreamLoadError && isRetryableMediaError(err.info.mediaErrorCode)) {
           await attempt(true);
@@ -569,9 +578,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           throw err;
         }
       }
+      if (superseded()) return;
       swappingRef.current = false;
       if (wasPlaying) await audio.play();
     } catch (err) {
+      if (superseded()) return;
       swappingRef.current = false;
       setIsPlaying(false);
       const info = err instanceof StreamLoadError ? err.info : EMPTY_FAILURE_INFO;
@@ -593,6 +604,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const token = ++loadTokenRef.current;
     hasStartedRef.current = false;
     pausingRef.current = false;
+    // A data-saver swap or reconnect still working on the last song gives way to this one.
+    swapRef.current.abort?.abort();
+    swapRef.current = { token: swapRef.current.token + 1, abort: null };
+    swappingRef.current = false;
     // An explicit load replaces whatever the spare held or was fading out.
     clearTransition();
     retireSpare();
@@ -615,7 +630,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     // `play()` rejects on an undecodable source; wrapped so that path gets `StreamLoadError` diagnostics too.
     async function attempt(forceCompat: boolean): Promise<void> {
-      const url = await buildStreamUrl(track.id, dataSaver ? 'low' : undefined, forceCompat);
+      const url = await buildStreamUrl(track.id, stateRef.current.dataSaver ? 'low' : undefined, forceCompat);
       if (token !== loadTokenRef.current) return;
       audio!.src = url;
       if (resumeAt > 0) {
@@ -663,7 +678,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       });
 
       // Skip past a bad file like `next()` would, capped at one pass over the queue.
-      const nextIndex = at < tracks.length - 1 ? at + 1 : repeat === 'all' && tracks.length > 0 ? 0 : -1;
+      // `tracks` and the repeat mode as they are now: this render's `queue` and `repeat` may predate the queue just loaded.
+      const repeatMode = stateRef.current.repeat;
+      const nextIndex = at < tracks.length - 1 ? at + 1 : repeatMode === 'all' && tracks.length > 0 ? 0 : -1;
       consecutiveLoadFailuresRef.current += 1;
       const failureCount = consecutiveLoadFailuresRef.current;
 
@@ -672,7 +689,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (failureCount <= 2) {
           showToast(`Skipped "${track.title}": it could not be played${info.detail}`, 'error');
         }
-        goTo(nextIndex);
+        setIndex(nextIndex);
+        void load(tracks, nextIndex);
         return;
       }
 
@@ -708,6 +726,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const controller = new AbortController();
     const token = swapRef.current.token + 1;
     swapRef.current = { token, abort: controller };
+    // A skip (`load()` also bumps the swap token) or a gapless/crossfade boundary since then: the element and song this
+    // swap set out to change are gone.
+    const loadToken = loadTokenRef.current;
+    const superseded = () => token !== swapRef.current.token || loadToken !== loadTokenRef.current;
 
     // Set once `src` is touched, so a failure can restore the working source.
     let previousSrc: string | null = null;
@@ -722,7 +744,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       // Doubles as the readout probe and as the "is it ready yet" wait: the
       // response does not arrive until the file exists.
       const served = await probeServedStream(url, controller.signal);
-      if (token !== swapRef.current.token) return;
+      if (superseded()) return;
       if (!served) throw new Error('The converted copy could not be prepared');
 
       // Read after the wait: the track kept playing.
@@ -734,6 +756,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       reassigned = true;
       audio.src = url;
       await waitForMetadata(audio);
+      if (superseded()) return;
       audio.currentTime = resumeAt;
       // The same listen continues; re-anchor so the jump to `resumeAt` isn't counted.
       if (progressRef.current) progressRef.current.lastTime = resumeAt;
@@ -741,10 +764,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       swappingRef.current = false;
       if (wasPlaying) await audio.play();
     } catch (err) {
-      if (token !== swapRef.current.token) {
-        swappingRef.current = false;
-        return; // superseded, not failed
-      }
+      if (superseded()) return; // superseded, not failed; whatever took over owns `swappingRef`
       // An abort (a newer press, or the page leaving) isn't a refusal, so the preference stays.
       if (err instanceof DOMException && err.name === 'AbortError') {
         swappingRef.current = false;
@@ -965,11 +985,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const asked = queue;
     try {
       // Server-side, because avoiding back-to-back artists needs artist ids.
       const { tracks } = await apiClient.post<{ tracks: TrackSummary[] }>('/shuffle', {
         trackIds: queue.map((t) => t.id),
       });
+      // Another album or playlist started while this was on its way: its queue isn't the one shuffled.
+      if (stateRef.current.queue !== asked) return;
 
       // The playing track stays put.
       const rest = current ? tracks.filter((t) => t.id !== current.id) : tracks;
