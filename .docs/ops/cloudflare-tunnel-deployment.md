@@ -183,7 +183,7 @@ screen.
 
 ## Updating to a new version
 
-On the box, from inside the clone:
+This happens on its own since 2026-10-11; see "Automatic deploys" below. By hand, on the box, from inside the clone:
 
 ```bash
 ./scripts/deploy.sh             # pull main, back up the DB, rebuild, restart, wait for healthy
@@ -247,8 +247,8 @@ Things to know:
   rooms (kept in memory) end. That now happens whenever a backend or frontend change is pushed, at any hour.
 - Migrations run on production without anyone watching. The pre-deploy backup in `/data/backups/pre-deploy/` is the
   way back.
-- `deploy.sh` fetches `main` again itself, so a push that lands in the second between the check and the deploy
-  would go out before its CI passes. The check re-fetches right before deploying to keep that gap small.
+- The deploy is pinned to the commit CI passed for (`DEPLOY_REF`), so a push that lands mid-check waits for its own
+  CI run instead of riding along.
 - The state file `.git/auto-deploy-skipped` holds the last commit it gave up on. Delete it to make it try that
   commit again.
 

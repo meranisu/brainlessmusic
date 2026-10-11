@@ -61,6 +61,13 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A120 — Production deploys itself once CI passes *(updates A47)*
+**Answered:** 2026-10-11, in chat ("how about cd then?", then "yes sure"). smol's `brainless-auto-deploy.timer` runs
+`scripts/auto-deploy.sh` every 5 minutes: once `.github/workflows/ci.yml` passes for the newest `main`, it runs
+`deploy.sh` pinned to that commit (`DEPLOY_REF`) and rolls back if the app comes up unhealthy. The owner installed it
+on smol the same day. A push to `main` that touches the image now ships to production without a hand step;
+`deploy.sh` by hand still works. How it works: `.docs/ops/cloudflare-tunnel-deployment.md`, "Automatic deploys".
+
 ### A119 — Hit circle goes app-wide first; the current design stays the default *(was Q119)*
 **Answered:** 2026-10-11, in chat: "a, also retain the current design as default theme". The app-wide skin system is
 built now with Hit circle as its first skin; Deck and the rest ship app-wide from the start. Today's look is kept as
@@ -446,8 +453,8 @@ metrics to join later without touching every component. Matches what shipped wit
 ### A47 — A change reaches smol through `./scripts/deploy.sh` *(was Q39)*
 **Answered:** 2026-10-10 · **The owner runs `./scripts/deploy.sh` on smol.** First run done on 2026-10-10; the owner
 reports the changes went live. That run brought A37 (guest limits) and migration `0017` (A38) to production. How the
-script works: `.docs/ops/cloudflare-tunnel-deployment.md`, "Updating to a new version". Still the owner's job, run on
-smol; ask before touching it.
+script works: `.docs/ops/cloudflare-tunnel-deployment.md`, "Updating to a new version". Since A120 the timer on smol runs it
+after CI passes; by hand still works. Ask before changing anything on smol.
 
 ### A46 — How should the A–Z rail cover non-Latin titles? *(was Q46)*
 **Answered:** 2026-10-10 · **One entry per script the library has.** `getLetterIndex` (`backend/src/db/letterIndex.ts`)

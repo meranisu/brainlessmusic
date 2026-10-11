@@ -5,6 +5,9 @@
 #   ./scripts/deploy.sh --force    same, even with no new commits (e.g. after a .env change)
 #   ./scripts/deploy.sh rollback   go back to the image that ran before the last deploy
 #
+# DEPLOY_REF=<commit> deploys that commit of main instead of the newest. auto-deploy.sh passes the commit CI
+# passed for, so a push that lands meanwhile waits for its own CI run.
+#
 # Run on the server from inside the clone. Only brainless-app restarts; cloudflared keeps running.
 
 set -euo pipefail
@@ -90,7 +93,7 @@ EOF
 }
 
 deploy() {
-  local force=${1:-} replaced_image=""
+  local force=${1:-} replaced_image="" ref
 
   command -v docker >/dev/null || fail "docker is not installed."
   docker compose version >/dev/null 2>&1 || fail "'docker compose' is missing (on Manjaro: sudo pacman -S docker-compose)."
@@ -110,7 +113,9 @@ deploy() {
   say "Checking GitHub for new commits"
   git fetch --quiet origin "$BRANCH"
   local incoming
-  incoming=$(git log --oneline "HEAD..origin/$BRANCH")
+  ref=${DEPLOY_REF:-origin/$BRANCH}
+  git merge-base --is-ancestor "$ref" "origin/$BRANCH" 2>/dev/null || fail "$ref is not a commit on origin/$BRANCH."
+  incoming=$(git log --oneline "HEAD..$ref")
   if [ -z "$incoming" ] && [ "$force" != "--force" ]; then
     echo "Already up to date ($(git log -1 --format='%h %s')). Nothing to do."
     echo "To rebuild anyway (e.g. after editing .env): $0 --force"
@@ -149,8 +154,8 @@ deploy() {
 
   if [ -n "$incoming" ]; then
     say "Pulling"
-    git merge --ff-only --quiet "origin/$BRANCH" \
-      || fail "could not fast-forward to origin/$BRANCH (this clone has its own commits?)."
+    git merge --ff-only --quiet "$ref" \
+      || fail "could not fast-forward to $ref (this clone has its own commits?)."
   fi
 
   say "Building the new image (a few minutes; the site stays up meanwhile)"
@@ -178,6 +183,6 @@ deploy() {
 case "${1:-}" in
   rollback) rollback ;;
   ""|--force) deploy "${1:-}" ;;
-  -h|--help) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//' ;;
+  -h|--help) sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//' ;;
   *) fail "unknown option '$1'. Use --help." ;;
 esac

@@ -4,6 +4,17 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Auto-deploy ships exactly the commit CI passed for
+
+- `deploy.sh` takes an optional `DEPLOY_REF=<commit>` (default `origin/main`) and refuses a commit that isn't on
+  `origin/main`. `auto-deploy.sh` passes the commit it checked, replacing the re-fetch-and-compare workaround, so a
+  push landing mid-check can no longer go out before its own CI passes. Owner approved touching `deploy.sh`.
+- Docs moved from "the owner runs deploy.sh" to automatic: A120 in `QUESTIONS.md` (A47 points to it), root
+  `CLAUDE.md`, `STATUS.md`, and the deployment guide.
+- Verified in a throwaway clone with `docker` stubbed and the `.env` check removed from the test copy:
+  `DEPLOY_REF=685de32` stopped there with `origin/main` at 27e7752, `deadbeef` was refused, and no `DEPLOY_REF` went
+  to the newest. `bash -n` clean on both scripts. **Not run:** on smol.
+
 ## 2026-10-11: Automatic deploys to smol once CI passes
 
 - New `scripts/auto-deploy.sh`, run every 5 minutes by a systemd timer it installs on smol (`sudo

@@ -85,15 +85,9 @@ check() {
     exit 0
   fi
 
-  # deploy.sh deploys whatever origin/main is when it fetches. If a push landed during this check, its CI hasn't
-  # passed yet, so leave it to the next check.
-  git fetch --quiet origin "$BRANCH"
-  if [ "$(git rev-parse "origin/$BRANCH")" != "$target" ]; then
-    log "$short: a newer commit arrived meanwhile, checking that one next time."
-    exit 0
-  fi
   log "$short: CI passed, deploying."
-  if ./scripts/deploy.sh; then
+  # Pinned to $target: deploy.sh fetches again, and a push that lands meanwhile hasn't passed CI yet.
+  if DEPLOY_REF=$target ./scripts/deploy.sh; then
     exit 0
   fi
   echo "$target" >"$STATE_FILE"

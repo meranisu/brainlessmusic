@@ -17,7 +17,7 @@ WSL2), `frontend/` (React), `android/` (Kotlin/Compose). Scope and order: [.docs
   machine: `brainless-app` on that server's `:3000`, exposed to the domain by `cloudflared` running *on that server*. So a rebuild here
   never reaches it, and **no `cloudflared` is needed on this machine for it**. A local quick tunnel
   (`cloudflared tunnel --url http://localhost:3000`) is only a throwaway link for testing a local build and mints a new random URL each
-  start. How that box was set up is in [.docs/ops/cloudflare-tunnel-deployment.md](.docs/ops/cloudflare-tunnel-deployment.md) ("As actually deployed"); updates are `./scripts/deploy.sh`, run by the owner *on smol* ("Updating to a new version") — ask before touching it.
+  start. How that box was set up is in [.docs/ops/cloudflare-tunnel-deployment.md](.docs/ops/cloudflare-tunnel-deployment.md) ("As actually deployed"); updates are automatic since 2026-10-11 (A120): a timer on smol runs `scripts/auto-deploy.sh`, which deploys `main` through `./scripts/deploy.sh` once CI passes ("Automatic deploys"). **So a push to `main` that touches `backend/` or `frontend/` ships to production and restarts it.** Ask before changing anything on smol.
   The Android app has this host baked in (`SERVER_URL` in `android/app/build.gradle.kts`; `-PserverUrl=` for a dev backend), so its login screen has no address field.
 - **Never read `backend/.env`** or any file that may hold secrets.
 - **Owner questions** get a `Q<n>` in [.docs/QUESTIONS.md](.docs/QUESTIONS.md) *before* they are asked, and its `## Answered` section
