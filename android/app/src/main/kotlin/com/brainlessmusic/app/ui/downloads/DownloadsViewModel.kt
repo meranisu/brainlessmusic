@@ -14,12 +14,15 @@ import com.brainlessmusic.app.downloads.DownloadedTrackWithCover
 import com.brainlessmusic.app.downloads.GroupDownload
 import com.brainlessmusic.app.downloads.KIND_ALBUM
 import com.brainlessmusic.app.downloads.KIND_PLAYLIST
+import com.brainlessmusic.app.downloads.KIND_SONGS
+import com.brainlessmusic.app.downloads.SONGS_GROUP
 import com.brainlessmusic.app.downloads.TrackDownload
 import com.brainlessmusic.app.downloads.groupDownload
 import com.brainlessmusic.app.downloads.toQueueItem
 import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.ui.common.LoadState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,6 +30,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import java.io.File
 import javax.inject.Inject
@@ -37,15 +41,12 @@ data class DownloadRow(
     val trackIds: List<Int>,
     val doneCount: Int,
     val state: GroupDownload,
-) {
-    /** A file URI Coil and the media notification can both read. */
-    val coverUri: String? get() = group.coverPath?.let { File(it).toUri().toString() }
-}
+    /** Covers for the tile: the group's own, or for "Songs" its newest songs' (four make a mosaic). */
+    val covers: List<String?> = listOf(group.coverPath?.let { File(it).toUri().toString() }),
+)
 
 /** One downloaded song, for the Songs filter and the in-progress list. */
-data class DownloadSongRow(val song: DownloadedTrackWithCover, val download: TrackDownload?) {
-    val coverUri: String? get() = song.coverPath?.let { File(it).toUri().toString() }
-}
+data class DownloadSongRow(val song: DownloadedTrackWithCover, val download: TrackDownload?, val coverUri: String?)
 
 enum class DownloadFilter(val label: String) { ALL("All"), ALBUMS("Albums"), PLAYLISTS("Playlists"), SONGS("Songs") }
 
@@ -70,7 +71,12 @@ private data class Stored(
     val groups: List<DownloadGroup>,
     val links: Map<String, List<Int>>,
     val songs: List<DownloadedTrackWithCover>,
-)
+    /** The saved cover of each song downloaded on its own, by track id. */
+    val songCovers: Map<Int, String?>,
+) {
+    /** The newest four of [ids]' own covers, for the Songs tile. */
+    fun songCovers(ids: List<Int>): List<String?> = ids.asReversed().take(4).map { songCovers[it] }
+}
 
 private data class Live(
     val downloads: Map<Int, TrackDownload>,
@@ -98,8 +104,9 @@ class DownloadsViewModel @Inject constructor(
     val online: StateFlow<Boolean> = networkMonitor.online
 
     private val stored = combine(dao.groups(), dao.groupTracks(), dao.allTracks()) { groups, links, songs ->
-        Stored(groups, links.groupBy({ it.groupId }, { it.trackId }), songs)
-    }
+        val byGroup = links.groupBy({ it.groupId }, { it.trackId })
+        Stored(groups, byGroup, songs, byGroup[SONGS_GROUP].orEmpty().associateWith { downloads.songCoverUri(it) })
+    }.flowOn(Dispatchers.IO)
 
     private val live = combine(
         downloads.downloads,
@@ -114,9 +121,14 @@ class DownloadsViewModel @Inject constructor(
         combine(stored, live) { s, l ->
             val rows = s.groups.map { g ->
                 val ids = s.links[g.id].orEmpty()
-                DownloadRow(g, ids, ids.count { l.downloads[it]?.isDone == true }, groupDownload(ids, l.downloads))
+                val row = DownloadRow(g, ids, ids.count { l.downloads[it]?.isDone == true }, groupDownload(ids, l.downloads))
+                if (g.kind == KIND_SONGS) row.copy(covers = s.songCovers(ids)) else row
             }
-            val songs = s.songs.map { DownloadSongRow(it, l.downloads[it.track.trackId]) }
+            val songs = s.songs.map { song ->
+                // A song downloaded on its own has no group cover; it has its own.
+                val cover = song.coverPath?.let { File(it).toUri().toString() } ?: s.songCovers[song.track.trackId]
+                DownloadSongRow(song, l.downloads[song.track.trackId], cover)
+            }
             LoadState.Content(
                 DownloadsUi(
                     groups = rows,

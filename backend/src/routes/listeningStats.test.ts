@@ -35,14 +35,14 @@ beforeEach(() => {
   rootId = insertLibraryRoot('/library', null).id;
 });
 
-function addTrack(title: string, artistName: string, albumTitle: string, duration = 200): number {
+function addTrack(title: string, artistName: string, albumTitle: string, duration = 200, trackNumber = 1): number {
   return upsertTrack({
     path: `/library/${title}.mp3`,
     title,
     artistName,
     albumTitle,
     albumYear: null,
-    trackNumber: 1,
+    trackNumber,
     duration,
     format: 'MP3',
     fileSize: 1000,
@@ -165,6 +165,26 @@ describe('listening stats', () => {
     assert.deepEqual((await stats('?range=month', otherToken)).previousTotals, { plays: 0, msListened: 0, tracks: 0, artists: 0 });
   });
 
+  it('leaves artist ids with no artists row out of the previous ranking (A91)', async () => {
+    const gone = addTrack('Gone', 'Gone Artist', 'Gone Album');
+    const kept = addTrack('Kept', 'Kept Artist', 'Kept Album');
+    const backdate = (id: number) =>
+      db.prepare("UPDATE play_history SET played_at = datetime('now', '-10 days') WHERE id = ?").run(id);
+    // The week before: the gone artist most, then the kept one.
+    for (const id of [gone, gone, kept]) backdate(await play(id));
+    await play(kept);
+    // A track left pointing at a deleted artist row; foreign keys have to be off to make one.
+    db.pragma('foreign_keys = OFF');
+    try {
+      db.prepare('DELETE FROM artists WHERE name = ?').run('Gone Artist');
+    } finally {
+      db.pragma('foreign_keys = ON');
+    }
+
+    const week = await stats('?range=week');
+    assert.deepEqual(week.topArtists.map((x) => [x.name, x.previousRank]), [['Kept Artist', 1]]);
+  });
+
   it('counts liked, less often and playlists, and is empty for a new account', async () => {
     const a = addTrack('A', 'X', 'Y');
     await app.inject({ method: 'PUT', url: `/api/tracks/${a}/favorite`, headers: { authorization: `Bearer ${token}` } });
@@ -194,8 +214,8 @@ describe('listening stats', () => {
   });
 
   it('history rows carry the album, track number and whether the file is gone (A91)', async () => {
-    const a = addTrack('A', 'X', 'Album One');
-    const b = addTrack('B', 'X', 'Album One');
+    const a = addTrack('A', 'X', 'Album One', 200, 1);
+    const b = addTrack('B', 'X', 'Album One', 200, 2);
     await play(a);
     await play(b);
     db.prepare("UPDATE tracks SET missing_since = datetime('now') WHERE id = ?").run(b);
@@ -206,7 +226,7 @@ describe('listening stats', () => {
       .history;
     assert.deepEqual(
       rows.sort((x, y) => x.trackId - y.trackId).map((r) => [r.trackId, r.albumId, r.trackNumber, r.missing]),
-      [[a, albumId, 1, false], [b, albumId, 1, true]],
+      [[a, albumId, 1, false], [b, albumId, 2, true]],
     );
   });
 

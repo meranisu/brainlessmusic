@@ -50,8 +50,10 @@ import com.brainlessmusic.app.data.repository.ProfileRepository
 import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.ui.common.LoadState
+import com.brainlessmusic.app.ui.theme.SheetStatusBarFollowsApp
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -135,10 +137,23 @@ class SongActionsViewModel @Inject constructor(
         _detail.value = LoadState.Loading
         _myStat.value = null
         detailJob = viewModelScope.launch {
-            if (canEdit) launch { _myStat.value = profile.trackStat(trackId).getOrNull() }
-            _detail.value = library.getTrackDetail(trackId).fold(
+            // Both in one update, so the dialog doesn't grow under a thumb when your numbers land late.
+            val stat = if (canEdit) async { profile.trackStat(trackId).getOrNull() } else null
+            val result = library.getTrackDetail(trackId)
+            _myStat.value = stat?.await()
+            _detail.value = result.fold(
                 onSuccess = { LoadState.Content(it) },
                 onFailure = { LoadState.Error(it.loadMessage()) },
+            )
+        }
+    }
+
+    /** Looks up the song's artist (the queue only has its name), then [onOpen]; [onFail] gets a line to show. */
+    fun openArtist(trackId: Int, onOpen: (Int) -> Unit, onFail: (String) -> Unit) {
+        viewModelScope.launch {
+            library.getTrackDetail(trackId).fold(
+                onSuccess = { detail -> detail.artistId?.let(onOpen) ?: onFail("This song has no artist page.") },
+                onFailure = { onFail("Couldn't reach the server. Try again.") },
             )
         }
     }
@@ -217,6 +232,7 @@ fun AddToPlaylistSheet(
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        SheetStatusBarFollowsApp()
         Text(
             "Add \"$trackTitle\" to",
             style = MaterialTheme.typography.titleMedium,

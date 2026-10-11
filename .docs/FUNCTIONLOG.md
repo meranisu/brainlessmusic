@@ -4,6 +4,46 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `LibraryShuffle.start()` (new) — `android/.../playback/LibraryShuffle.kt`; `LibraryViewModel.shuffleAll()`, `YouViewModel.shuffleLibrary()` (new), `greeting()`, `ShuffleLibraryButton` (new), `LibraryBottomBar.navigateToTab()`, `StartViewModel` start route
+**Date:** 2026-10-11
+**How added:** new feature (A97, A98)
+**Purpose:** the You tab becomes Home, the first tab and the navigation anchor, leading with Shuffle my library.
+**Side effects:** none new; the shuffle calls `GET /browse/shuffled` as before.
+**Before:** Library was the anchor and start screen; the library shuffle lived in `LibraryViewModel` and failed silently.
+**After:** Home is the anchor and start screen; both screens use `LibraryShuffle`, which returns a line on failure.
+
+**Function:** `getTrackDetailById()` — `backend/src/db/browse.ts`; `SongActionsViewModel.openArtist()` (new), `SongMenuSheet(onOpenArtist)` — `android/.../ui/profile/`; `PlaybackController.streamInfo()`, `StreamReadout`; `LibraryTiles` (new, replaces `LibraryRow`) — `YouScreen.kt`
+**Date:** 2026-10-11
+**How added:** new feature (A95, A96)
+**Purpose:** Go to artist from the song sheet; "On this phone" in the player; Your library reachable at the top of You.
+**Side effects:** one `GET /tracks/:id` per Go to artist tap.
+**Before:** no artist row; the player showed buffer/network for downloaded songs; Your library sat at the bottom of You.
+**After:** as in the 2026-10-11 "Player On this phone, Go to artist, Your library tiles" CHANGELOG entry.
+
+**Function:** `CoverMosaic` (new), `DownloadRow.covers`, `DownloadSongRow.coverUri` — `android/.../ui/downloads/`; `DownloadRepository.downloadSong()`, `removeSong()`, `removeGroup()`, `songCoverUri()` (new) — `android/.../downloads/DownloadRepository.kt`; `SheetStatusBarFollowsApp()`, `LocalDarkTheme` (new) — `android/.../ui/theme/Theme.kt`
+**Date:** 2026-10-11
+**How added:** bug fix
+**Purpose:** covers for songs downloaded one at a time; sheets that keep the app's status bar icon colour.
+**Side effects:** writes and deletes cover files under `filesDir/download-covers/`.
+**Before:** the "Songs" group and its songs had no cover; sheets took icon colour from the phone's dark setting.
+**After:** each such song saves its own cover, shown as a mosaic on the tile and page; sheets follow the app's setting.
+
+**Function:** `ThemeMode.isDark()` (new) — `android/.../ui/theme/Theme.kt`; `PageRow`, `Card`, `ColorThemeTile` — `android/.../ui/settings/SettingsScreen.kt`
+**Date:** 2026-10-11
+**How added:** refactor (A94)
+**Purpose:** one rule for whether the app is dark; Settings back to the app's outlined style.
+**Side effects:** none.
+**Before:** the dark rule was copied in `MainActivity` and `SettingsPageScreen`; `PageRow`/`Card`/`ColorThemeTile` as in A92/A93.
+**After:** both call `ThemeMode.isDark()`; the three composables are as before A92 (0c03a5e^).
+
+**Function:** `YouViewModel.setRange()`, `switching` (new), `SongActionsViewModel.loadDetail()` — `android/.../ui/profile/`; `previousRanks()` — `backend/src/db/listeningStats.ts`
+**Date:** 2026-10-11
+**How added:** bug fix
+**Purpose:** a range switch that keeps the page up; Details that lands in one update; a narrower previous-rank query.
+**Side effects:** none.
+**Before:** `setRange` reset the state to `Loading`; `loadDetail` set your numbers from a separate launch; `previousRanks` always `LEFT JOIN`ed artists.
+**After:** `setRange` loads behind the shown content with `switching` set; `loadDetail` awaits both before updating; `previousRanks` takes `{ join, where }`.
+
 **Function:** `Card`, `PageRow` — `android/.../ui/settings/SettingsScreen.kt`
 **Date:** 2026-10-11
 **How added:** bug fix (A93)

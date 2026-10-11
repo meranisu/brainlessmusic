@@ -1139,6 +1139,7 @@ class PlaybackController @Inject constructor(
                 else -> Repeat.OFF
             },
             stream = if (queue.isEmpty()) null else streamInfo(),
+            queueStreams = queue.any { !downloads.isDownloaded(it.trackId) },
         )
     }
 
@@ -1157,6 +1158,7 @@ class PlaybackController @Inject constructor(
             bufferedAheadMs = (player.bufferedPosition - player.currentPosition).coerceAtLeast(0),
             networkKbps = estimate.takeIf { it > 0 }?.let { it / 1000 },
             dataSaver = saver,
+            onPhone = !saver && queue.getOrNull(player.currentMediaItemIndex)?.let { downloads.isDownloaded(it.trackId) } == true,
         )
     }
 

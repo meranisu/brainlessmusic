@@ -14,9 +14,11 @@ import com.brainlessmusic.app.data.remote.dto.ArtistSummaryDto
 import com.brainlessmusic.app.data.remote.dto.LetterEntryDto
 import com.brainlessmusic.app.data.remote.dto.TrackSummaryDto
 import com.brainlessmusic.app.data.repository.LibraryRepository
+import com.brainlessmusic.app.playback.LibraryShuffle
 import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.PlaybackResume
 import com.brainlessmusic.app.playback.QueueSource
+import com.brainlessmusic.app.playback.QUEUE_FROM_TAP
 import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.playback.queueItem
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -47,14 +49,12 @@ private const val PAGE_SIZE = 100
 // Wait for a pause in typing before asking the server, so each keystroke is not a request.
 private const val FILTER_DEBOUNCE_MS = 300L
 
-// How many songs are fetched up front (the server's page cap); the queue is topped up from there as it runs down.
-private const val QUEUE_FROM_TAP = 200
-
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
     private val libraryRepository: LibraryRepository,
     private val playbackController: PlaybackController,
     private val playbackResume: PlaybackResume,
+    private val libraryShuffle: LibraryShuffle,
 ) : ViewModel() {
 
     private val _tab = MutableStateFlow(LibraryTab.SONGS)
@@ -152,27 +152,9 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Plays the library in a seeded server shuffle (each song once per pass), in the mode picked on the shuffle button
-     * (while it is off, the last mode it was on in), with player shuffle on.
-     */
+    /** Shuffles the whole library; [onNothing] gets the line to show when that didn't start anything. */
     fun shuffleAll(onNothing: (String) -> Unit) {
-        val pass = QueueSource.Shuffled.fresh(playbackController.libraryShuffleMode())
-        viewModelScope.launch {
-            libraryRepository.getShuffledPage(pass.seed, pass.mode.apiName ?: "shuffle", pass.asOf, 0, QUEUE_FROM_TAP).onSuccess { page ->
-                if (page.tracks.isEmpty()) {
-                    // Every song is sitting this pass out ("less often"), or there are none: say so, don't do nothing.
-                    onNothing("Nothing to shuffle this time. Songs you hear less often sit some shuffles out.")
-                    return@onSuccess
-                }
-                playbackController.playQueue(
-                    items = page.tracks.map(libraryRepository::queueItem),
-                    startIndex = 0,
-                    source = pass.copy(nextOffset = page.tracks.size),
-                    shuffle = true,
-                )
-            }
-        }
+        viewModelScope.launch { libraryShuffle.start()?.let(onNothing) }
     }
 
     private fun <T : Any> pager(fetch: suspend (offset: Int, limit: Int) -> Result<OffsetPage<T>>): Flow<PagingData<T>> =

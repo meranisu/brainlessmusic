@@ -29,6 +29,8 @@ data class StreamInfo(
     val networkKbps: Long?,
     /** This track was asked for as the data-saver copy. */
     val dataSaver: Boolean = false,
+    /** This track plays from its download, so buffering and the network say nothing about it (A95). */
+    val onPhone: Boolean = false,
 )
 
 data class PlaybackUiState(
@@ -55,6 +57,8 @@ data class PlaybackUiState(
     val fromLibrary: Boolean = false,
     val repeat: Repeat = Repeat.OFF,
     val stream: StreamInfo? = null,
+    /** Some song in the queue would stream rather than play from the phone; data saver only matters then (A95). */
+    val queueStreams: Boolean = true,
 ) {
     val current: QueueItem? get() = queue.getOrNull(currentIndex)
     val hasQueue: Boolean get() = queue.isNotEmpty()

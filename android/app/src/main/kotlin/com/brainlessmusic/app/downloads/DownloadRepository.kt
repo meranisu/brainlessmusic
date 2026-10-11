@@ -201,6 +201,8 @@ class DownloadRepository @Inject constructor(
     fun downloadSong(item: QueueItem, onDone: (String) -> Unit) {
         scope.launch {
             roomFor(listOf(item.trackId))?.let { onDone(it); return@launch }
+            // Saved first, so the row and the Songs tile have their picture when they appear.
+            saveCover(songCoverKey(item.trackId), libraryRepository.trackCoverUrl(item.trackId))
             dao.addToGroup(
                 DownloadGroup(SONGS_GROUP, KIND_SONGS, "Songs", "Downloaded one at a time", null, System.currentTimeMillis()),
                 DownloadedTrack(item.trackId, item.title, item.artist, item.album, item.albumId, item.trackNumber, item.durationSec, item.format),
@@ -218,8 +220,17 @@ class DownloadRepository @Inject constructor(
         scope.launch {
             dao.removeFromGroup(SONGS_GROUP, trackId)
             remove(listOf(trackId))
+            withContext(Dispatchers.IO) { songCoverFile(trackId).delete() }
         }
     }
+
+    /**
+     * The cover of a song downloaded on its own, as a file URI; the "Songs" group has none of its own. Null when it
+     * couldn't be saved.
+     */
+    fun songCoverUri(trackId: Int): String? = songCoverFile(trackId).takeIf { it.exists() }?.toUri()?.toString()
+
+    private fun songCoverFile(trackId: Int) = coverFile(songCoverKey(trackId))
 
     /** Everything off the phone: files, the list and the saved covers. */
     fun deleteAll() {
@@ -273,7 +284,10 @@ class DownloadRepository @Inject constructor(
         scope.launch {
             val coverPath = dao.group(groupId)?.coverPath
             remove(dao.deleteGroup(groupId, trackIds))
-            coverPath?.let { withContext(Dispatchers.IO) { File(it).delete() } }
+            withContext(Dispatchers.IO) {
+                coverPath?.let { File(it).delete() }
+                if (groupId == SONGS_GROUP) trackIds.forEach { songCoverFile(it).delete() }
+            }
         }
     }
 
@@ -284,7 +298,7 @@ class DownloadRepository @Inject constructor(
             runCatching {
                 okHttpClient.newCall(Request.Builder().url(url).build()).execute().use { response ->
                     val body = response.body?.takeIf { response.isSuccessful } ?: return@use null
-                    val file = File(context.filesDir, "$COVERS_DIR/${groupId.replace(':', '-')}")
+                    val file = coverFile(groupId)
                     file.parentFile?.mkdirs()
                     file.outputStream().use { body.byteStream().copyTo(it) }
                     file.absolutePath
@@ -292,6 +306,8 @@ class DownloadRepository @Inject constructor(
             }.getOrNull()
         }
     }
+
+    private fun coverFile(key: String) = File(context.filesDir, "$COVERS_DIR/${key.replace(':', '-')}")
 
     fun pauseAll() = DownloadService.sendPauseDownloads(context, MusicDownloadService::class.java, false)
 
@@ -369,6 +385,7 @@ const val KIND_ALBUM = "album"
 const val KIND_PLAYLIST = "playlist"
 const val KIND_SONGS = "songs"
 const val SONGS_GROUP = "songs"
+private fun songCoverKey(trackId: Int) = "song:$trackId"
 private const val COVERS_DIR = "download-covers"
 private const val BYTES_PER_GB = 1_000_000_000L
 

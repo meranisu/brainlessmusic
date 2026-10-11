@@ -79,7 +79,3 @@ Built (2026-10-10): the brand palette is the default, not Material dynamic colou
 Fredoka (`Type.kt`, fonts in `res/font`). Floating surfaces have a 1 dp `outline` border, not a shadow. All six web themes
 are in Settings → Colours (`Color.kt`, one `Palette` each), and each also has a light scheme for the system setting.
 Colours also offers Material You (wallpaper colours, Android 12+) as an opt-in. It is never the default.
-
-**Exception, Settings (A92):** no outlines. The main Settings page is an arcade options menu (names large on the left,
-value in the accent on the right, the pressed row filled with the accent). Its sub-pages use one filled card each, set
-off by the fill alone; row dividers stay.

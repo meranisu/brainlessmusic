@@ -11,10 +11,15 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
 import com.brainlessmusic.app.data.local.ColorTheme
+import com.brainlessmusic.app.data.local.ThemeMode
 
 // Dark-first, like the web app. Every surface role is set, so Material derives no shades of its own, and the tint is
 // off: elevation is a border, never a lighter fill (DESIGN.md, "Flat and solid").
@@ -84,6 +89,15 @@ private fun Palette.lightScheme(): ColorScheme = lightColorScheme(
 )
 
 /** The scheme [theme] would use in [darkTheme], for previews such as the Settings swatches. Same rules as the app's. */
+/** Whether this setting paints the app dark right now. The one rule, so Settings' previews match the app. */
+@Composable
+@ReadOnlyComposable
+fun ThemeMode.isDark(): Boolean = when (this) {
+    ThemeMode.SYSTEM -> isSystemInDarkTheme()
+    ThemeMode.LIGHT -> false
+    ThemeMode.DARK -> true
+}
+
 @Composable
 fun previewColorScheme(theme: ColorTheme, darkTheme: Boolean): ColorScheme {
     val context = LocalContext.current
@@ -104,6 +118,20 @@ val MaterialTheme.accentInk: Color
 
 /** Whether this phone can take colours from the wallpaper (Material You, Android 12+). */
 val supportsMaterialYou: Boolean get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+
+/** Whether the app is dark, by its own setting rather than the phone's. */
+val LocalDarkTheme = staticCompositionLocalOf { false }
+
+/**
+ * Call first inside a `ModalBottomSheet`. Its window takes status bar icons from the phone's dark setting, so with the
+ * app dark and the phone light, a fully open sheet turned the icons black. This sets them from the app's instead.
+ */
+@Composable
+fun SheetStatusBarFollowsApp() {
+    val window = (LocalView.current.parent as? DialogWindowProvider)?.window ?: return
+    val dark = LocalDarkTheme.current
+    SideEffect { WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = !dark }
+}
 
 /** The brand palette by default (A36). [ColorTheme.MATERIAL_YOU] takes the wallpaper's scheme on Android 12+. */
 @Composable
@@ -128,7 +156,7 @@ fun BrainlessMusicTheme(
         else -> colorTheme.palette().accentOnLight
     }
 
-    CompositionLocalProvider(LocalAccentInk provides accentInk) {
+    CompositionLocalProvider(LocalAccentInk provides accentInk, LocalDarkTheme provides darkTheme) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = Typography,

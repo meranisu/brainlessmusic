@@ -361,6 +361,7 @@ private fun SongsTab(viewModel: LibraryViewModel, navController: NavHostControll
             item = viewModel.queueItem(track),
             onDismiss = { menuFor = null },
             onOpenAlbum = { navController.navigate(Routes.albumDetail(it)) },
+            onOpenArtist = { navController.navigate(Routes.artistDetail(it)) },
         )
     }
     val items = viewModel.songs.collectAsLazyPagingItems()

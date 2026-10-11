@@ -63,6 +63,7 @@ import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.playback.RemovedEntry
 import com.brainlessmusic.app.playback.ShuffleMode
 import com.brainlessmusic.app.ui.common.formatDuration
+import com.brainlessmusic.app.ui.theme.SheetStatusBarFollowsApp
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -164,6 +165,7 @@ fun QueueSheet(
             Box(Modifier.padding(top = underStatusBar)) { BottomSheetDefaults.DragHandle() }
         },
     ) {
+        SheetStatusBarFollowsApp()
         Box {
             Column {
                 // One line: the title on the left edge, the count and shuffle mode on the right, sharing a baseline.

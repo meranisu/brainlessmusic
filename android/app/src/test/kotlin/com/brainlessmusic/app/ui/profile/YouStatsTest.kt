@@ -56,4 +56,13 @@ class YouStatsTest {
         assertEquals("99", shortPlaces(99))
         assertEquals("99+", shortPlaces(145))
     }
+
+    @Test
+    fun `the Home greeting follows the clock and leaves out a missing name`() {
+        assertEquals("Good morning, imran", greeting(5, "imran"))
+        assertEquals("Good afternoon, imran", greeting(12, "imran"))
+        assertEquals("Good evening, imran", greeting(18, "imran"))
+        assertEquals("Good evening", greeting(2, null))
+        assertEquals("Good morning", greeting(11, " "))
+    }
 }

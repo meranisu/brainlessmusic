@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -54,13 +55,14 @@ import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.ui.common.CoverImage
 import com.brainlessmusic.app.ui.common.LoadState
 import com.brainlessmusic.app.ui.common.formatDuration
+import com.brainlessmusic.app.ui.theme.SheetStatusBarFollowsApp
 
 private enum class MenuStep { MENU, PLAYLIST, DETAILS }
 
 /**
- * What a long press on a song opens: play next, like, add to a playlist, its album, play less often, and its details.
- * Account-only rows hide for guests. [showPlayNext] is off where the song is the one playing; [onOpenAlbum] null hides
- * the album row.
+ * What a long press on a song opens: play next, like, add to a playlist, its album and artist, play less often, and its details.
+ * Account-only rows hide for guests. [showPlayNext] is off where the song is the one playing; [onOpenAlbum] or
+ * [onOpenArtist] null hides that row.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,6 +70,7 @@ fun SongMenuSheet(
     item: QueueItem,
     onDismiss: () -> Unit,
     onOpenAlbum: ((Int) -> Unit)? = null,
+    onOpenArtist: ((Int) -> Unit)? = null,
     showPlayNext: Boolean = true,
     viewModel: SongActionsViewModel = hiltViewModel(),
 ) {
@@ -90,6 +93,7 @@ fun SongMenuSheet(
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        SheetStatusBarFollowsApp()
         Column(Modifier.navigationBarsPadding().padding(bottom = 8.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -148,6 +152,12 @@ fun SongMenuSheet(
                 MenuRow(Icons.Filled.Album, "Go to album") {
                     onDismiss()
                     onOpenAlbum(albumId)
+                }
+            }
+            if (item.artist != null && onOpenArtist != null) {
+                MenuRow(Icons.Filled.Person, "Go to artist") {
+                    onDismiss()
+                    viewModel.openArtist(item.trackId, onOpenArtist, toast)
                 }
             }
             if (viewModel.canEdit) {

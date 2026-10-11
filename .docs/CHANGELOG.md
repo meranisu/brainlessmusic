@@ -4,6 +4,80 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android: the You tab becomes Home (A97, A98)
+
+- **Home is the first tab and where the app opens.** Tabs: Home, Library, Search, Downloads, Settings. Home replaces
+  Library as the anchor every tab pops back to (`navigateToTab`, the offline banner, the start route, login, logout);
+  `Routes.YOU` is now `Routes.HOME`. An offline start with downloads still opens Downloads, on top of Home.
+- **Layout (A97):** the greeting is the top bar title ("Good evening, imran"), then Shuffle my library, Recently
+  played, the library tiles, the range picker, the player card, Top songs and Top artists. Shuffle shows at once and
+  stays usable while the stats load or fail.
+- **Guests (A98):** the greeting without a name, Shuffle my library, and a line on why stats need an account.
+- **Shared library shuffle:** `LibraryShuffle` (playback) now backs both Library's shuffle button and Home. It used to
+  do nothing when the server couldn't be reached; it now says so.
+- Verified: `./gradlew compileDebugKotlin :app:testDebugUnitTest` succeeds (`YouStatsTest` 5/5, new greeting test).
+  **Not run:** no phone or emulator here, so navigation (cold start, back from each tab, offline start, guests) has not
+  been tried. Plan: [features/home-tab/planning.md](features/home-tab/planning.md).
+
+## 2026-10-11 — Player "On this phone" (A95), Go to artist, Your library tiles on You (A96)
+
+- **Player, downloaded songs (A95):** the readout keeps the format line and swaps "buffered … ahead · network …" for
+  a download-done icon and "On this phone" (`StreamInfo.onPhone`). The data saver button hides when no song in the queue
+  would stream (`PlaybackUiState.queueStreams`).
+- **Go to artist** in the long-press song sheet, next to Go to album, wherever the sheet opens (Library, Search, album,
+  playlist, You, Now Playing). The queue only knows the artist's name, so a tap looks the id up from
+  `GET /tracks/:id`, which now returns `artistId` (`getTrackDetailById`). From Now Playing the artist opens in the
+  player's place, like the album. Needs a connection, like Go to album.
+- **Your library on You (A96):** Liked, Playlists and Hear less are three tiles under the player card, above the range
+  picker, instead of a card at the bottom of the page (`LibraryTiles`). They don't fade with a range switch.
+- Verified: `cd backend && npm test` 453/453 (new test: `GET /tracks/:id` carries `artistId`); backend `tsc --noEmit`
+  clean; `./gradlew compileDebugKotlin :app:testDebugUnitTest` succeeds. **Not run:** no phone or emulator here.
+
+## 2026-10-11 — Android: Downloads grid covers, smaller tiles; sheets keep light status bar icons in dark mode
+
+- **Songs tile had no picture.** Songs downloaded one at a time go into the "Songs" group, which never saved a cover,
+  so its tile and those songs' rows were blank. `downloadSong` now saves each song's cover (`download-covers/song-<id>`)
+  before the row appears; the Songs tile and its page header show the newest four as a 2×2 mosaic (`CoverMosaic`),
+  or one cover with fewer. The covers are local files, so they show offline, and songs played from Downloads carry
+  them into the player. Removing a song, the Songs group or everything deletes them.
+- **Smaller grid:** tiles are `Adaptive(minSize = 100.dp)`, three to a row on a phone (was two).
+- **Song rows say what they are:** the Songs filter shows "Artist · Album".
+- **Black status bar icons over the queue sheet in dark mode.** Material3 1.3.0's `ModalBottomSheet` window takes
+  its status bar icon colour from the phone's dark setting, not the app's, so with the app dark and the phone light a
+  fully open sheet showed black icons. `SheetStatusBarFollowsApp()` (`Theme.kt`, via new `LocalDarkTheme`) sets them
+  from the app's setting in the queue sheet, the song menu and song details.
+- Verified: `./gradlew compileDebugKotlin :app:testDebugUnitTest` succeeds. **Not run:** no phone or emulator here,
+  so none of this has been seen; older single-song downloads have no saved cover until downloaded again.
+
+## 2026-10-11 — Android: Settings matches the rest of the app again (A94)
+
+- `SettingsScreen.kt` and `DownloadSettings.kt` restored to their pre-A92 state (0c03a5e^): the main page is one
+  outlined card of rows (icon, name, what's set, chevron), and sub-pages use the app's outlined cards, outlined
+  buttons and bordered colour tiles. DESIGN.md no longer lists Settings as an exception.
+- This also removes the review findings on the A93 code: the dark-mode segmented buttons whose selected segment matched
+  the others, the second page opened by a quick second tap, and the row turning disabled during the flash.
+- The "is the app dark?" rule now lives once, `ThemeMode.isDark()` in `Theme.kt`, used by `MainActivity` and Settings.
+- Verified: `./gradlew compileDebugKotlin` and `:app:testDebugUnitTest` succeed. **Not run:** no phone or emulator,
+  so the restored look has not been seen.
+
+## 2026-10-11 — You tab: smooth range switch; review fixes for 3724daa
+
+- **Range switch no longer blanks the page.** Picking Week/Month/Year set the whole tab back to `Loading`, so the
+  page, range tabs included, dropped to the skeleton and redrew. Now the page stays up: the summary card, top songs
+  and top artists fade to half strength until the new numbers land, then rows move into place
+  (`YouViewModel.setRange`, `switching`; `YouScreen.kt`, `rangeAlpha`, `animateItem`). A failed switch still shows
+  the error screen. A quick second pick doesn't clear the fade early.
+- **Song Details lands in one update.** Your numbers and the file details arrive together, so the dialog no longer
+  grows under a thumb when your numbers come in late. Your numbers still show when the file details fail.
+- **Previous-window ranks** join `artists` only for the artist ranking, as an inner join, instead of a `LEFT JOIN` on
+  every ranking plus `a.id IS NOT NULL` (`previousRanks` takes `{ join, where }`).
+- **Tests:** a new test covers an artist id with no artists row in the window before; the history test now uses
+  different track numbers, so it would catch the wrong column.
+- Left as they are: `compared` (review #4). If none of last week's plays are still listed, NEW is the correct label.
+- Verified: `cd backend && npm test` 452/452 pass (one earlier run had two failures in "listing tracks", untouched
+  here; they passed on the next run). Android `compileDebugKotlin` and `:app:testDebugUnitTest` succeed. **Not run:** no phone or emulator,
+  so the range fade has not been seen.
+
 ## 2026-10-11 — Android: Settings review fixes, brighter dark cards and a tap flash (A93)
 
 - **Cards stand out again in the dark.** Without outlines, the sub-page card (`surfaceContainer`) sat 1.07-1.43:1

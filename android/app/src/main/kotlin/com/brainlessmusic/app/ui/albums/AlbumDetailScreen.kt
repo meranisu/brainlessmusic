@@ -66,13 +66,14 @@ import com.brainlessmusic.app.ui.profile.SongMenuSheet
 fun AlbumDetailScreen(
     onBack: () -> Unit,
     onOpenNowPlaying: () -> Unit,
+    onOpenArtist: (Int) -> Unit,
     viewModel: AlbumDetailViewModel = hiltViewModel(),
     songActions: SongActionsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var menuFor by remember { mutableStateOf<Pair<AlbumDetailDto, AlbumTrackDto>?>(null) }
     menuFor?.let { (album, track) ->
-        SongMenuSheet(item = viewModel.queueItem(album, track), onDismiss = { menuFor = null }, viewModel = songActions)
+        SongMenuSheet(item = viewModel.queueItem(album, track), onDismiss = { menuFor = null }, onOpenArtist = onOpenArtist, viewModel = songActions)
     }
     val playback by viewModel.playback.collectAsStateWithLifecycle()
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()

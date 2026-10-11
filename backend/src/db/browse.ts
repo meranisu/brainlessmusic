@@ -59,6 +59,8 @@ export interface TrackSummary {
 }
 
 export interface TrackDetail extends TrackSummary {
+  /** For the song menu's "Go to artist"; `null` with no artist tag. */
+  artistId: number | null;
   trackNumber: number | null;
   fileSize: number;
   bitrate: number | null;
@@ -370,6 +372,7 @@ export function getTrackDetailById(id: number): TrackDetail | undefined {
          a.name as artist,
          al.title as album,
          t.album_id as albumId,
+         t.artist_id as artistId,
          t.duration as duration,
          t.format as format,
          t.hidden as hidden,

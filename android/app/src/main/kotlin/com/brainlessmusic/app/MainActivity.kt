@@ -15,7 +15,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.DisposableEffect
@@ -29,12 +28,12 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.brainlessmusic.app.data.local.AppearanceSettings
-import com.brainlessmusic.app.data.local.ThemeMode
 import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.PlaybackResume
 import com.brainlessmusic.app.ui.navigation.BrainlessNavGraph
 import com.brainlessmusic.app.ui.splash.StartViewModel
 import com.brainlessmusic.app.ui.theme.BrainlessMusicTheme
+import com.brainlessmusic.app.ui.theme.isDark
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.flow.first
@@ -98,11 +97,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val mode by appearance.themeMode.collectAsStateWithLifecycle(initialValue = initialMode)
             val colorTheme by appearance.colorTheme.collectAsStateWithLifecycle(initialValue = initialColors)
-            val darkTheme = when (mode) {
-                ThemeMode.SYSTEM -> isSystemInDarkTheme()
-                ThemeMode.LIGHT -> false
-                ThemeMode.DARK -> true
-            }
+            val darkTheme = mode.isDark()
             // The system bars' icon colors have to follow the app's choice, not the phone's.
             DisposableEffect(darkTheme, splashGone, focusGains) {
                 enableEdgeToEdge(

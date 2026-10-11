@@ -8,7 +8,7 @@ object Routes {
     const val ARTISTS = "artists"
     const val SEARCH = "search"
     const val SETTINGS = "settings"
-    const val YOU = "you"
+    const val HOME = "home"
     const val DOWNLOADS = "downloads"
     const val DOWNLOAD_GROUP = "downloads/{groupId}"
 

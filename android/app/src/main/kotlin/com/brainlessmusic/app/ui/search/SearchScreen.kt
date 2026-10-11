@@ -62,6 +62,7 @@ fun SearchScreen(
             item = viewModel.queueItem(track),
             onDismiss = { menuFor = null },
             onOpenAlbum = { navController.navigate(Routes.albumDetail(it)) },
+            onOpenArtist = { navController.navigate(Routes.artistDetail(it)) },
         )
     }
 

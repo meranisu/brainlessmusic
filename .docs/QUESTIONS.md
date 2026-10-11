@@ -71,6 +71,33 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A98 — Guests get a smaller Home *(was Q100)*
+**Answered:** 2026-10-11, picked option A. Guests see the greeting and Shuffle my library; the stats parts don't show.
+Plan: [features/home-tab/planning.md](features/home-tab/planning.md).
+
+### A97 — The You tab becomes Home: playing first, then stats *(was Q99)*
+**Answered:** 2026-10-11, picked option A. Home is the first tab and where the app opens (offline starts still open
+Downloads). Order: greeting, Shuffle my library, Recently played, the library tiles, then the ranged stats.
+Plan: [features/home-tab/planning.md](features/home-tab/planning.md).
+
+### A96 — Your library becomes three tiles under the You header *(was Q98)*
+**Answered:** 2026-10-11, picked option A. Liked, Playlists and Hear less sit as three tappable tiles (icon, count,
+name) right under the player card, above the range picker; the Your library card at the bottom goes. Landed in
+`YouScreen.kt` (`LibraryTiles`).
+
+### A95 — A downloaded song says "On this phone" in the player *(was Q97)*
+**Answered:** 2026-10-11, picked option A. Now Playing keeps the format line for a song playing from the phone and
+swaps the buffer/network line for a download-done icon and "On this phone". The data saver button hides when no song
+in the queue would stream. Landed in `NowPlayingScreen.kt` (`StreamReadout`) and `PlaybackController.streamInfo()`.
+
+### A94 — Settings back in line with the rest of the app; A92 and A93 undone *(was Q96)*
+**Answered:** 2026-10-11, in chat: "all of it but on the main page of the settings, rever to just appearance playback
+and everything like before". Owner asked for Settings to match the app. `SettingsScreen.kt` and `DownloadSettings.kt`
+are back to their state before A92 (0c03a5e^): the main page is one outlined card of icon rows, sub-pages use outlined
+cards, outlined buttons and bordered colour tiles. DESIGN.md's Settings exception is removed. This supersedes
+[A92](#a92--settings-goes-borderless-arcade-menu-on-the-main-page-filled-cards-below-was-q94) and
+[A93](#a93--borderless-settings-brighter-dark-cards-a-cursor-flash-on-tap-was-q95).
+
 ### A93 — Borderless Settings: brighter dark cards, a cursor flash on tap *(was Q95)*
 **Answered:** 2026-10-11, in chat: "lets fix". Both review findings fixed. **1.** In the dark, the sub-page card moves
 up to `surfaceContainerHighest` (card/ground now 1.24-1.67, was 1.07-1.43), and inside it tonal buttons, switch

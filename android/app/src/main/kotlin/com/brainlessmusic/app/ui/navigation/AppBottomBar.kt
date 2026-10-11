@@ -48,7 +48,7 @@ fun AppBottomBar(
         if (!online) {
             OfflineBanner(
                 onOpenDownloads = if (route == Routes.DOWNLOADS) null else {
-                    { navController.navigate(Routes.DOWNLOADS) { popUpTo(Routes.ARTISTS); launchSingleTop = true } }
+                    { navController.navigate(Routes.DOWNLOADS) { popUpTo(Routes.HOME); launchSingleTop = true } }
                 },
             )
         }

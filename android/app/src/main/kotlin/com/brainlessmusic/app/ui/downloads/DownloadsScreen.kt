@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -57,6 +58,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
@@ -105,8 +107,8 @@ fun DownloadsScreen(navController: NavHostController, viewModel: DownloadsViewMo
             skeleton = { SkeletonListRows() },
         ) { ui ->
             LazyVerticalGrid(
-                // Two columns on a phone, more on a wide screen.
-                columns = GridCells.Adaptive(minSize = 150.dp),
+                // Three columns on a phone, more on a wide screen.
+                columns = GridCells.Adaptive(minSize = 100.dp),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -276,13 +278,8 @@ private fun DownloadTile(row: DownloadRow, onOpen: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Box {
-            CoverImage(
-                url = row.coverUri,
-                contentDescription = null,
-                modifier = Modifier.fillMaxWidth().aspectRatio(1f),
-                cornerRadius = 14.dp,
-            )
-            StateBadge(row.state, Modifier.align(Alignment.BottomEnd).padding(8.dp))
+            CoverMosaic(row.covers, Modifier.fillMaxWidth().aspectRatio(1f))
+            StateBadge(row.state, Modifier.align(Alignment.BottomEnd).padding(6.dp))
         }
         Text(row.group.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(
@@ -292,6 +289,22 @@ private fun DownloadTile(row: DownloadRow, onOpen: () -> Unit) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+    }
+}
+
+/** One cover, or with four or more a 2×2 mosaic of the first four, so the Songs tile shows what's in it. */
+@Composable
+internal fun CoverMosaic(covers: List<String?>, modifier: Modifier = Modifier) {
+    if (covers.size < 4) {
+        CoverImage(url = covers.firstOrNull(), contentDescription = null, modifier = modifier, cornerRadius = 14.dp)
+        return
+    }
+    Column(modifier.clip(RoundedCornerShape(14.dp))) {
+        covers.take(4).chunked(2).forEach { pair ->
+            Row(Modifier.weight(1f)) {
+                pair.forEach { CoverImage(url = it, contentDescription = null, modifier = Modifier.weight(1f).fillMaxHeight(), cornerRadius = 0.dp) }
+            }
+        }
     }
 }
 
@@ -327,7 +340,7 @@ private fun LazyGridScope.songRows(ui: DownloadsUi, onPlay: (DownloadSongRow) ->
     items(ui.songs, key = { "song-${it.song.track.trackId}" }, span = { GridItemSpan(maxLineSpan) }) { row ->
         SongRow(
             title = row.song.track.title,
-            supporting = row.song.track.artist ?: "Unknown artist",
+            supporting = listOfNotNull(row.song.track.artist ?: "Unknown artist", row.song.track.album).joinToString(" · "),
             coverUri = row.coverUri,
             download = row.download,
             onClick = { onPlay(row) },

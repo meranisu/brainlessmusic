@@ -242,6 +242,7 @@ fun PlaylistDetailScreen(
     onBack: () -> Unit,
     onOpenNowPlaying: () -> Unit,
     onOpenAlbum: (Int) -> Unit,
+    onOpenArtist: (Int) -> Unit,
     viewModel: PlaylistDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -252,7 +253,7 @@ fun PlaylistDetailScreen(
     var confirmingDelete by remember { mutableStateOf(false) }
     var songMenuFor by remember { mutableStateOf<PlaylistTrackDto?>(null) }
     songMenuFor?.let { track ->
-        SongMenuSheet(item = viewModel.queueItem(track), onDismiss = { songMenuFor = null }, onOpenAlbum = onOpenAlbum)
+        SongMenuSheet(item = viewModel.queueItem(track), onDismiss = { songMenuFor = null }, onOpenAlbum = onOpenAlbum, onOpenArtist = onOpenArtist)
     }
     val playlist = (state as? LoadState.Content)?.data
     val context = LocalContext.current

@@ -332,3 +332,30 @@ describe('GET /library/stats', () => {
     assert.deepEqual(res.json(), { tracks: 0, seconds: 0, bytes: 0, formats: [] });
   });
 });
+
+describe('GET /tracks/:id', () => {
+  it('carries the artist id, for the song menu\'s "Go to artist"', async () => {
+    const rootId = insertLibraryRoot('/library', null).id;
+    const track = upsertTrack({
+      path: '/library/a.mp3',
+      title: 'A',
+      artistName: 'Some Artist',
+      albumTitle: 'Some Album',
+      albumYear: null,
+      trackNumber: 1,
+      duration: 200,
+      format: 'MP3',
+      fileSize: 1000,
+      rootId,
+    });
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/tracks/${track.id}`,
+      headers: { authorization: `Bearer ${listenerToken}` },
+    });
+    assert.equal(res.statusCode, 200, res.body);
+    const artistId = (res.json() as { artistId: number | null }).artistId;
+    assert.equal(artistId, findTrackById(track.id)?.artist_id);
+    assert.ok(artistId);
+  });
+});

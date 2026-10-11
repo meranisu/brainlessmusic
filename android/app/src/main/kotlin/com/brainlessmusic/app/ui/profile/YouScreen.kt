@@ -1,5 +1,7 @@
 package com.brainlessmusic.app.ui.profile
 
+import android.widget.Toast
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,12 +26,12 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -53,8 +56,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -70,16 +75,19 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.brainlessmusic.app.data.remote.dto.HistoryEntryDto
+import com.brainlessmusic.app.data.remote.dto.ProfileCountsDto
 import com.brainlessmusic.app.data.remote.dto.TopTrackDto
 import com.brainlessmusic.app.data.remote.dto.UserStatsDto
 import com.brainlessmusic.app.data.repository.StatsRange
 import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.ui.common.CoverImage
+import com.brainlessmusic.app.ui.common.LoadState
 import com.brainlessmusic.app.ui.common.LoadStateContent
 import com.brainlessmusic.app.ui.common.SkeletonLead
 import com.brainlessmusic.app.ui.common.SkeletonListRows
 import com.brainlessmusic.app.ui.navigation.AppBottomBar
 import com.brainlessmusic.app.ui.theme.DisplayFontFamily
+import java.util.Calendar
 
 // Flat outlined cards, like Settings and the Library header (DESIGN.md, Android).
 private val CardShape = RoundedCornerShape(20.dp)
@@ -103,123 +111,133 @@ fun YouScreen(
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
     val username by viewModel.username.collectAsStateWithLifecycle()
     val recent by viewModel.recent.collectAsStateWithLifecycle()
+    val switching by viewModel.switching.collectAsStateWithLifecycle()
+    // Picking another range keeps this one up, faded, until the new numbers land.
+    val rangeAlpha by animateFloatAsState(if (switching) 0.5f else 1f, label = "rangeAlpha")
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onResume() }
 
     var menuFor by remember { mutableStateOf<QueueItem?>(null) }
-    menuFor?.let { item -> SongMenuSheet(item = item, onDismiss = { menuFor = null }, onOpenAlbum = onOpenAlbum) }
+    menuFor?.let { item -> SongMenuSheet(item = item, onDismiss = { menuFor = null }, onOpenAlbum = onOpenAlbum, onOpenArtist = onOpenArtist) }
+
+    val context = LocalContext.current
+    val shuffle = { viewModel.shuffleLibrary { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() } }
+
+    val title = greeting(Calendar.getInstance().get(Calendar.HOUR_OF_DAY), if (viewModel.isGuest) null else username)
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("You") }) },
+        topBar = { TopAppBar(title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) }) },
         bottomBar = { AppBottomBar(navController) },
     ) { padding ->
         if (viewModel.isGuest) {
-            GuestNote(Modifier.padding(padding))
+            // Guests get something to play, and why the rest isn't here (A98).
+            Column(Modifier.padding(padding)) {
+                ShuffleLibraryButton(shuffle)
+                GuestNote()
+            }
             return@Scaffold
         }
-        LoadStateContent(
-            state = state,
-            onRetry = viewModel::load,
-            modifier = Modifier.padding(padding),
-            loadingLabel = "Loading your profile",
-            skeleton = { SkeletonListRows(lead = SkeletonLead.COVER, trailing = true) },
-        ) { stats: UserStatsDto ->
-            // Rank changes only mean something when the server compared with a window before that had plays (A91);
-            // with nothing played then, every song would read NEW.
-            val compared = (stats.previousTotals?.plays ?: 0) > 0
-            PullToRefreshBox(isRefreshing = refreshing, onRefresh = viewModel::refresh) {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 16.dp),
-                ) {
-                    item { PlayerCard(username, stats, range) }
-                    item { RangePicker(range, viewModel::setRange) }
+        Column(Modifier.padding(padding)) {
+            // Shuffle doesn't wait for the stats; once they land it scrolls with them, in the same place.
+            if (state !is LoadState.Content) ShuffleLibraryButton(shuffle)
+            LoadStateContent(
+                state = state,
+                onRetry = viewModel::load,
+                modifier = Modifier.weight(1f),
+                loadingLabel = "Loading your stats",
+                skeleton = { SkeletonListRows(lead = SkeletonLead.COVER, trailing = true) },
+            ) { stats: UserStatsDto ->
+                // Rank changes only mean something when the server compared with a window before that had plays (A91);
+                // with nothing played then, every song would read NEW.
+                val compared = (stats.previousTotals?.plays ?: 0) > 0
+                val ofRange = Modifier.graphicsLayer { alpha = rangeAlpha }
+                PullToRefreshBox(isRefreshing = refreshing, onRefresh = viewModel::refresh) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 16.dp),
+                    ) {
+                        // Something to play first, then your listening (A97).
+                        item { ShuffleLibraryButton(shuffle) }
 
-                    if (recent.isNotEmpty()) {
-                        item { SectionTitle("Recently played") }
+                        if (recent.isNotEmpty()) {
+                            item { SectionTitle("Recently played") }
+                            item {
+                                RecentRow(
+                                    recent = recent,
+                                    coverUrl = viewModel::trackCoverUrl,
+                                    onPlay = { index -> viewModel.playRecent(recent, index) },
+                                    onMenu = { menuFor = viewModel.queueItem(it) },
+                                )
+                            }
+                        }
+
+                        // Not ranged, so above the range picker, where it's seen without much scrolling (A96).
+                        item { LibraryTiles(stats.counts, onOpenLiked, onOpenPlaylists, onOpenLessOften) }
+                        item { RangePicker(range, viewModel::setRange) }
+                        item { Box(ofRange) { PlayerCard(username, stats, range) } }
+
                         item {
-                            RecentRow(
-                                recent = recent,
-                                coverUrl = viewModel::trackCoverUrl,
-                                onPlay = { index -> viewModel.playRecent(recent, index) },
-                                onMenu = { menuFor = viewModel.queueItem(it) },
+                            SectionTitle(
+                                "Top songs",
+                                trailing = if (stats.topTracks.isEmpty()) null else {
+                                    {
+                                        IconButton(onClick = { viewModel.playAllTop(stats, shuffle = false) }) {
+                                            Icon(Icons.Filled.PlayArrow, contentDescription = "Play top songs")
+                                        }
+                                        IconButton(onClick = { viewModel.playAllTop(stats, shuffle = true) }) {
+                                            Icon(Icons.Filled.Shuffle, contentDescription = "Shuffle top songs")
+                                        }
+                                    }
+                                },
                             )
                         }
-                    }
-
-                    item {
-                        SectionTitle(
-                            "Top songs",
-                            trailing = if (stats.topTracks.isEmpty()) null else {
-                                {
-                                    IconButton(onClick = { viewModel.playAllTop(stats, shuffle = false) }) {
-                                        Icon(Icons.Filled.PlayArrow, contentDescription = "Play top songs")
-                                    }
-                                    IconButton(onClick = { viewModel.playAllTop(stats, shuffle = true) }) {
-                                        Icon(Icons.Filled.Shuffle, contentDescription = "Shuffle top songs")
-                                    }
+                        if (stats.topTracks.isEmpty()) {
+                            item { Box(ofRange) { EmptyLine(emptyTopSongs(range)) } }
+                        }
+                        stats.topTracks.firstOrNull()?.let { top ->
+                            item(key = "t${top.track.id}") {
+                                Box(ofRange.animateItem()) {
+                                    TopSongHero(
+                                        top = top,
+                                        coverUrl = viewModel.trackCoverUrl(top.track.id),
+                                        movement = movement(1, top.previousRank, compared),
+                                        onClick = { viewModel.playTop(stats, 0) },
+                                        onLongClick = { menuFor = viewModel.queueItem(top.track) },
+                                    )
                                 }
-                            },
-                        )
-                    }
-                    if (stats.topTracks.isEmpty()) {
-                        item { EmptyLine(emptyTopSongs(range)) }
-                    }
-                    stats.topTracks.firstOrNull()?.let { top ->
-                        item(key = "t${top.track.id}") {
-                            TopSongHero(
-                                top = top,
-                                coverUrl = viewModel.trackCoverUrl(top.track.id),
-                                movement = movement(1, top.previousRank, compared),
-                                onClick = { viewModel.playTop(stats, 0) },
-                                onLongClick = { menuFor = viewModel.queueItem(top.track) },
-                            )
+                            }
                         }
-                    }
-                    itemsIndexed(stats.topTracks.drop(1), key = { _, t -> "t${t.track.id}" }) { i, top ->
-                        val index = i + 1
-                        RankedRow(
-                            rank = index + 1,
-                            coverUrl = viewModel.trackCoverUrl(top.track.id),
-                            title = top.track.title,
-                            subtitle = top.track.artist ?: "Unknown artist",
-                            plays = top.plays,
-                            msListened = top.msListened,
-                            movement = movement(index + 1, top.previousRank, compared),
-                            onClick = { viewModel.playTop(stats, index) },
-                            onLongClick = { menuFor = viewModel.queueItem(top.track) },
-                        )
-                    }
-
-                    if (stats.topArtists.isNotEmpty()) {
-                        item { SectionTitle("Top artists") }
-                        itemsIndexed(stats.topArtists, key = { _, a -> "a${a.id}" }) { index, artist ->
-                            RankedRow(
-                                rank = index + 1,
-                                coverUrl = null,
-                                title = artist.name,
-                                subtitle = null,
-                                plays = artist.plays,
-                                msListened = artist.msListened,
-                                movement = movement(index + 1, artist.previousRank, compared),
-                                onClick = { onOpenArtist(artist.id) },
-                            )
+                        itemsIndexed(stats.topTracks.drop(1), key = { _, t -> "t${t.track.id}" }) { i, top ->
+                            val index = i + 1
+                            Box(ofRange.animateItem()) {
+                                RankedRow(
+                                    rank = index + 1,
+                                    coverUrl = viewModel.trackCoverUrl(top.track.id),
+                                    title = top.track.title,
+                                    subtitle = top.track.artist ?: "Unknown artist",
+                                    plays = top.plays,
+                                    msListened = top.msListened,
+                                    movement = movement(index + 1, top.previousRank, compared),
+                                    onClick = { viewModel.playTop(stats, index) },
+                                    onLongClick = { menuFor = viewModel.queueItem(top.track) },
+                                )
+                            }
                         }
-                    }
 
-                    item { SectionTitle("Your library") }
-                    item {
-                        Surface(
-                            shape = CardShape,
-                            color = MaterialTheme.colorScheme.surfaceContainer,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                        ) {
-                            Column {
-                                LibraryRow(Icons.Filled.Favorite, "Liked songs", stats.counts.liked, onOpenLiked)
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                                LibraryRow(Icons.AutoMirrored.Filled.QueueMusic, "Playlists", stats.counts.playlists, onOpenPlaylists)
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                                LibraryRow(Icons.AutoMirrored.Filled.TrendingDown, "Songs you hear less", stats.counts.lessOften, onOpenLessOften)
+                        if (stats.topArtists.isNotEmpty()) {
+                            item { SectionTitle("Top artists") }
+                            itemsIndexed(stats.topArtists, key = { _, a -> "a${a.id}" }) { index, artist ->
+                                Box(ofRange.animateItem()) {
+                                    RankedRow(
+                                        rank = index + 1,
+                                        coverUrl = null,
+                                        title = artist.name,
+                                        subtitle = null,
+                                        plays = artist.plays,
+                                        msListened = artist.msListened,
+                                        movement = movement(index + 1, artist.previousRank, compared),
+                                        onClick = { onOpenArtist(artist.id) },
+                                    )
+                                }
                             }
                         }
                     }
@@ -230,21 +248,36 @@ fun YouScreen(
 }
 
 @Composable
-private fun GuestNote(modifier: Modifier) {
-    Column(
-        modifier = modifier.fillMaxSize().padding(32.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
+private fun GuestNote() {
+    Text(
+        "Guests can listen, but plays, likes and playlists are only kept for accounts, so your stats and library show " +
+            "here once you have one.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+    )
+}
+
+/** Home's first action (A97): the whole library, shuffled on the server. */
+@Composable
+private fun ShuffleLibraryButton(onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).heightIn(min = 48.dp),
     ) {
-        Text("Your profile needs an account", style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
-        Text(
-            "Guests can listen, but plays, likes and playlists are only kept for accounts.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 8.dp),
-        )
+        Icon(Icons.Filled.Shuffle, contentDescription = null)
+        Text("Shuffle my library", modifier = Modifier.padding(start = 8.dp))
     }
+}
+
+/** "Good morning" to "Good evening" by the phone's clock, with the name when there is one. */
+internal fun greeting(hour: Int, name: String?): String {
+    val part = when (hour) {
+        in 5..11 -> "Good morning"
+        in 12..17 -> "Good afternoon"
+        else -> "Good evening"
+    }
+    return if (name.isNullOrBlank()) part else "$part, $name"
 }
 
 /**
@@ -563,18 +596,40 @@ private fun RankedRow(
     )
 }
 
+/** Liked, Playlists and Hear less as three tiles: icon and count, then the name (A96). */
 @Composable
-private fun LibraryRow(icon: ImageVector, title: String, count: Int, onClick: () -> Unit) {
-    ListItem(
-        leadingContent = { Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-        headlineContent = { Text(title) },
-        trailingContent = {
+private fun LibraryTiles(counts: ProfileCountsDto, onOpenLiked: () -> Unit, onOpenPlaylists: () -> Unit, onOpenLessOften: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).height(IntrinsicSize.Min),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        LibraryTile(Icons.Filled.Favorite, counts.liked, "Liked", "Liked songs", onOpenLiked, Modifier.weight(1f))
+        LibraryTile(Icons.AutoMirrored.Filled.QueueMusic, counts.playlists, "Playlists", "Playlists", onOpenPlaylists, Modifier.weight(1f))
+        LibraryTile(Icons.AutoMirrored.Filled.TrendingDown, counts.lessOften, "Hear less", "Songs you hear less", onOpenLessOften, Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun LibraryTile(icon: ImageVector, count: Int, label: String, spoken: String, onClick: () -> Unit, modifier: Modifier) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        modifier = modifier.fillMaxHeight(),
+    ) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp).clearAndSetSemantics { contentDescription = "$spoken, $count" }) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(count.toString(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                Text(count.toString(), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 8.dp))
             }
-        },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        modifier = Modifier.clickable(onClick = onClick),
-    )
+            Text(
+                label,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
 }

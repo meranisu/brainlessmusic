@@ -48,6 +48,8 @@ data class TrackDetailDto(
     val artist: String?,
     val album: String?,
     val albumId: Int?,
+    /** For "Go to artist"; null from servers before 2026-10-11 or with no artist tag. */
+    val artistId: Int? = null,
     val trackNumber: Int?,
     val duration: Double?,
     val format: String?,

@@ -2,8 +2,8 @@ package com.brainlessmusic.app.ui.navigation
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DownloadForOffline
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
@@ -23,6 +23,12 @@ fun LibraryBottomBar(navController: NavHostController, onReselect: () -> Unit = 
 
     NavigationBar {
         NavigationBarItem(
+            selected = currentRoute == Routes.HOME,
+            onClick = { if (currentRoute == Routes.HOME) onReselect() else navController.navigateToTab(Routes.HOME) },
+            icon = { Icon(Icons.Filled.Home, contentDescription = null) },
+            label = { Text("Home") },
+        )
+        NavigationBarItem(
             selected = currentRoute == Routes.ARTISTS,
             onClick = { if (currentRoute == Routes.ARTISTS) onReselect() else navController.navigateToTab(Routes.ARTISTS) },
             icon = { Icon(Icons.Filled.LibraryMusic, contentDescription = null) },
@@ -41,12 +47,6 @@ fun LibraryBottomBar(navController: NavHostController, onReselect: () -> Unit = 
             label = { Text("Downloads") },
         )
         NavigationBarItem(
-            selected = currentRoute == Routes.YOU,
-            onClick = { if (currentRoute == Routes.YOU) onReselect() else navController.navigateToTab(Routes.YOU) },
-            icon = { Icon(Icons.Filled.Person, contentDescription = null) },
-            label = { Text("You") },
-        )
-        NavigationBarItem(
             selected = currentRoute == Routes.SETTINGS,
             onClick = { if (currentRoute == Routes.SETTINGS) onReselect() else navController.navigateToTab(Routes.SETTINGS) },
             icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
@@ -55,11 +55,11 @@ fun LibraryBottomBar(navController: NavHostController, onReselect: () -> Unit = 
     }
 }
 
-/** Pops to the fixed `ARTISTS` anchor; fine for flat tabs, not for nested per-tab stacks. */
+/** Pops to the fixed `HOME` anchor (A97); fine for flat tabs, not for nested per-tab stacks. */
 private fun NavHostController.navigateToTab(route: String) {
     if (currentDestination?.route == route) return
     navigate(route) {
-        popUpTo(Routes.ARTISTS) { inclusive = false }
+        popUpTo(Routes.HOME) { inclusive = false }
         launchSingleTop = true
     }
 }

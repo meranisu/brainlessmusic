@@ -55,20 +55,22 @@ import com.brainlessmusic.app.downloads.DownloadGroup
 import com.brainlessmusic.app.downloads.DownloadRepository
 import com.brainlessmusic.app.downloads.DownloadedTrack
 import com.brainlessmusic.app.downloads.GroupDownload
+import com.brainlessmusic.app.downloads.KIND_SONGS
 import com.brainlessmusic.app.downloads.TrackDownload
 import com.brainlessmusic.app.downloads.groupDownload
 import com.brainlessmusic.app.downloads.toQueueItem
 import com.brainlessmusic.app.playback.PlaybackController
-import com.brainlessmusic.app.ui.common.CoverImage
 import com.brainlessmusic.app.ui.common.LoadState
 import com.brainlessmusic.app.ui.common.LoadStateContent
 import com.brainlessmusic.app.ui.common.SkeletonListRows
 import com.brainlessmusic.app.ui.navigation.Routes
 import com.brainlessmusic.app.ui.playback.MiniPlayer
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import java.io.File
 import javax.inject.Inject
@@ -78,7 +80,17 @@ data class GroupPage(
     val group: DownloadGroup?,
     val songs: List<Pair<DownloadedTrack, TrackDownload?>>,
     val state: GroupDownload,
+    /** The group's cover, or for "Songs" each song's own, by track id. */
+    val songCovers: Map<Int, String?> = emptyMap(),
 ) {
+    /** The header's covers: the group's own, or the newest four songs' for "Songs". */
+    val covers: List<String?>
+        get() = if (group?.kind == KIND_SONGS) {
+            songs.asReversed().take(4).map { songCovers[it.first.trackId] }
+        } else {
+            listOf(group?.coverPath?.let { File(it).toUri().toString() })
+        }
+
     val doneCount: Int get() = songs.count { it.second?.isDone == true }
 }
 
@@ -98,8 +110,9 @@ class DownloadGroupViewModel @Inject constructor(
     val page: StateFlow<LoadState<GroupPage>> =
         combine(dao.groupFlow(groupId), dao.tracksOfFlow(groupId), downloads.downloads) { group, tracks, states ->
             val songs = tracks.map { it to states[it.trackId] }
-            LoadState.Content(GroupPage(group, songs, groupDownload(tracks.map { it.trackId }, states)))
-        }.stateIn<LoadState<GroupPage>>(viewModelScope, SharingStarted.WhileSubscribed(5_000), LoadState.Loading)
+            val songCovers = if (group?.kind == KIND_SONGS) tracks.associate { it.trackId to downloads.songCoverUri(it.trackId) } else emptyMap()
+            LoadState.Content(GroupPage(group, songs, groupDownload(tracks.map { it.trackId }, states), songCovers))
+        }.flowOn(Dispatchers.IO).stateIn<LoadState<GroupPage>>(viewModelScope, SharingStarted.WhileSubscribed(5_000), LoadState.Loading)
 
     /**
      * Plays the page from [index] (or shuffled). With no signal only the songs on the phone go in, starting from the
@@ -113,7 +126,10 @@ class DownloadGroupViewModel @Inject constructor(
             return
         }
         val start = if (shuffle) usable.indices.random() else usable.indexOfFirst { it.index >= index }.coerceAtLeast(0)
-        val items = usable.map { (_, s) -> s.first.toQueueItem(cover ?: libraryRepository.trackCoverUrl(s.first.trackId)) }
+        val items = usable.map { (_, s) ->
+            val id = s.first.trackId
+            s.first.toQueueItem(cover ?: page.songCovers[id] ?: libraryRepository.trackCoverUrl(id))
+        }
         playbackController.playQueue(items, start, shuffle = if (shuffle) true else null)
     }
 
@@ -250,12 +266,7 @@ private fun GroupHeader(page: GroupPage, onPlay: () -> Unit, onShuffle: () -> Un
     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box {
-                CoverImage(
-                    url = group.coverPath?.let { File(it).toUri().toString() },
-                    contentDescription = null,
-                    modifier = Modifier.size(112.dp),
-                    cornerRadius = 14.dp,
-                )
+                CoverMosaic(page.covers, Modifier.size(112.dp))
                 StateBadge(page.state, Modifier.align(Alignment.BottomEnd).padding(6.dp))
             }
             Column(Modifier.padding(start = 16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {

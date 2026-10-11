@@ -6,7 +6,7 @@ import androidx.navigation.NavHostController
 
 /**
  * Pops [entry] only while it is the settled top screen. An unguarded `popBackStack()` from a back arrow pops twice on
- * a double tap or a tap during the exit animation, takes the Library with it and leaves the NavHost empty: a blank
+ * a double tap or a tap during the exit animation, takes Home (the anchor) with it and leaves the NavHost empty: a blank
  * screen that ignores every touch until the app is killed.
  */
 fun NavHostController.popFrom(entry: NavBackStackEntry) {

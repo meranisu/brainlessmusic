@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.DataSaverOff
 import androidx.compose.material.icons.filled.DataSaverOn
+import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
@@ -83,6 +84,7 @@ import kotlinx.coroutines.launch
 fun NowPlayingScreen(
     onBack: () -> Unit,
     onOpenAlbum: (Int) -> Unit,
+    onOpenArtist: (Int) -> Unit,
     viewModel: PlaybackViewModel = hiltViewModel(),
     songActions: SongActionsViewModel = hiltViewModel(),
 ) {
@@ -124,9 +126,10 @@ fun NowPlayingScreen(
                         Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Close")
                     }
                 },
-                // Data saver, lit while on, for everyone; like and add to a playlist (A65) hide themselves for guests.
+                // Data saver, lit while on, for everyone, and only while some queued song would stream (A95); like and
+                // add to a playlist (A65) hide themselves for guests.
                 actions = {
-                    IconButton(
+                    if (state.queueStreams) IconButton(
                         onClick = {
                             viewModel.setDataSaver(!dataSaver)
                             Toast.makeText(
@@ -282,6 +285,7 @@ fun NowPlayingScreen(
             item = current,
             onDismiss = { showMenu = false },
             onOpenAlbum = onOpenAlbum,
+            onOpenArtist = onOpenArtist,
             showPlayNext = false,
             viewModel = songActions,
         )
@@ -430,7 +434,7 @@ private fun UpNextCard(next: QueueItem?, remaining: Int, onClick: () -> Unit, mo
     }
 }
 
-/** What is actually coming down the wire, in two short lines. Hidden until the player knows anything. */
+/** What is playing, in two short lines: the format, then the stream or "On this phone". Hidden until the player knows anything. */
 @Composable
 private fun StreamReadout(stream: StreamInfo?, modifier: Modifier = Modifier) {
     val format = stream?.let { info ->
@@ -442,13 +446,14 @@ private fun StreamReadout(stream: StreamInfo?, modifier: Modifier = Modifier) {
             info.bitrateKbps?.let { "$it kbps" },
         ).joinToString(" · ")
     }?.takeIf { it.isNotEmpty() }
-    val network = stream?.let { info ->
+    val network = stream?.takeUnless { it.onPhone }?.let { info ->
         listOfNotNull(
             "buffered ${formatDuration(info.bufferedAheadMs / 1000.0)} ahead",
             info.networkKbps?.let { "network ~%.1f Mbps".format(it / 1000.0) },
         ).joinToString(" · ")
     }
-    if (format == null && network == null) return
+    val onPhone = stream?.onPhone == true
+    if (format == null && network == null && !onPhone) return
 
     Surface(
         shape = RoundedCornerShape(12.dp),
@@ -457,6 +462,18 @@ private fun StreamReadout(stream: StreamInfo?, modifier: Modifier = Modifier) {
     ) {
         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
             format?.let { Text(it, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+            // Buffering and the network say nothing about a song played from its download (A95).
+            if (onPhone) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Icon(
+                        Icons.Filled.DownloadDone,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Text("On this phone", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
             network?.let {
                 Text(
                     it,

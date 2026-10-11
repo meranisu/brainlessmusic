@@ -9,12 +9,14 @@ import com.brainlessmusic.app.data.repository.AuthRepository
 import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.data.repository.ProfileRepository
 import com.brainlessmusic.app.data.repository.StatsRange
+import com.brainlessmusic.app.playback.LibraryShuffle
 import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.playback.queueItem
 import com.brainlessmusic.app.ui.common.LoadState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -24,12 +26,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** The You tab (A61): who you are and what you listen to, over a range you pick. */
+/** The Home tab (A97, was You, A61): something to play, then what you listen to over a range you pick. */
 @HiltViewModel
 class YouViewModel @Inject constructor(
     private val profile: ProfileRepository,
     private val libraryRepository: LibraryRepository,
     private val playbackController: PlaybackController,
+    private val libraryShuffle: LibraryShuffle,
     authRepository: AuthRepository,
 ) : ViewModel() {
 
@@ -46,6 +49,10 @@ class YouViewModel @Inject constructor(
 
     private val _refreshing = MutableStateFlow(false)
     val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
+
+    // A new range is loading while the old one stays on screen, dimmed, so the page doesn't drop to a skeleton.
+    private val _switching = MutableStateFlow(false)
+    val switching: StateFlow<Boolean> = _switching.asStateFlow()
 
     // Recently played (A91) doesn't follow the range. A failed load keeps the last list rather than blanking the row.
     private val _recent = MutableStateFlow<List<HistoryEntryDto>>(emptyList())
@@ -68,7 +75,24 @@ class YouViewModel @Inject constructor(
     fun setRange(range: StatsRange) {
         if (range == _range.value) return
         _range.value = range
-        load()
+        if (_state.value !is LoadState.Content) {
+            load()
+            return
+        }
+        statsJob?.cancel()
+        statsJob = viewModelScope.launch {
+            _refreshing.value = false
+            _switching.value = true
+            try {
+                profile.stats(range).fold(
+                    onSuccess = { _state.value = LoadState.Content(it) },
+                    onFailure = { _state.value = LoadState.Error(it.loadMessage()) },
+                )
+            } finally {
+                // A newer pick cancels this one; leave the dimming to it.
+                if (statsJob === coroutineContext.job) _switching.value = false
+            }
+        }
     }
 
     // One stats request at a time. A newer one cancels the older, so a slow Month answer can't land under Week.
@@ -78,6 +102,7 @@ class YouViewModel @Inject constructor(
         statsJob?.cancel()
         statsJob = viewModelScope.launch {
             _refreshing.value = false
+            _switching.value = false
             _state.value = LoadState.Loading
             profile.stats(_range.value).fold(
                 onSuccess = { _state.value = LoadState.Content(it) },
@@ -104,12 +129,18 @@ class YouViewModel @Inject constructor(
         statsJob?.cancel()
         statsJob = viewModelScope.launch {
             _refreshing.value = showSpinner
+            _switching.value = false
             try {
                 profile.stats(_range.value).onSuccess { _state.value = LoadState.Content(it) }
             } finally {
                 _refreshing.value = false
             }
         }
+    }
+
+    /** Home's Shuffle my library (A97); [onMessage] gets the line to show when nothing started. */
+    fun shuffleLibrary(onMessage: (String) -> Unit) {
+        viewModelScope.launch { libraryShuffle.start()?.let(onMessage) }
     }
 
     /** Plays your top songs as the queue, from the one tapped. */

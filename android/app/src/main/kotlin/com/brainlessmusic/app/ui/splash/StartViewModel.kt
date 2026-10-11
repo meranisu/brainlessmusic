@@ -30,7 +30,7 @@ class StartViewModel @Inject constructor(
             _resolvedRoute.value = when (val restored = authRepository.restoreSession()) {
                 // No signal: straight to what can play without it, if anything is downloaded.
                 is SessionRestoreResult.Restored ->
-                    if (restored.offline && downloadDao.groupCount() > 0) Routes.DOWNLOADS else Routes.ARTISTS
+                    if (restored.offline && downloadDao.groupCount() > 0) Routes.DOWNLOADS else Routes.HOME
                 SessionRestoreResult.NoStoredSession,
                 SessionRestoreResult.StoredSessionInvalid,
                 -> Routes.LOGIN

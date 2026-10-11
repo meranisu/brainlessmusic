@@ -95,12 +95,13 @@ const TOTALS_SQL = (scope: string) => `SELECT COUNT(*) AS plays, COALESCE(SUM(${
 
 /**
  * Each of [ids]' rank among everything played in the previous window, ranked the same way as the top list. Ranked over
- * the whole window, not just [ids], so a song that was 40th shows as 40th.
+ * the whole window, not just [ids], so a song that was 40th shows as 40th. [filter] is a join or condition that leaves
+ * out what the top list leaves out.
  */
 function previousRanks(
   key: 'ph.track_id' | 't.artist_id',
   order: string,
-  extraWhere: string,
+  filter: { join?: string; where?: string },
   params: { userId: number; from: string; to: string },
   ids: number[],
 ): Map<number, number> {
@@ -109,8 +110,8 @@ function previousRanks(
     .prepare(
       `WITH ranked AS (
          SELECT ${key} AS id, ROW_NUMBER() OVER (ORDER BY ${order}) AS rank
-         FROM play_history ph JOIN tracks t ON t.id = ph.track_id LEFT JOIN artists a ON a.id = t.artist_id
-         WHERE ph.user_id = @userId AND ph.played_at >= @from AND ph.played_at < @to AND ${key} IS NOT NULL ${extraWhere}
+         FROM play_history ph JOIN tracks t ON t.id = ph.track_id ${filter.join ?? ''}
+         WHERE ph.user_id = @userId AND ph.played_at >= @from AND ph.played_at < @to ${filter.where ?? ''}
          GROUP BY ${key}
        )
        SELECT id, rank FROM ranked WHERE id IN (SELECT value FROM json_each(@ids))`,
@@ -181,9 +182,9 @@ export function getUserStats(userId: number, range: StatsRange, limit: number): 
     previousTotals = db
       .prepare(TOTALS_SQL('ph.user_id = @userId AND ph.played_at >= @from AND ph.played_at < @to'))
       .get(window) as StatsTotals;
-    const trackRanks = previousRanks('ph.track_id', TRACK_ORDER, 'AND t.missing_since IS NULL', window, topTracks.map((x) => x.track.id));
+    const trackRanks = previousRanks('ph.track_id', TRACK_ORDER, { where: 'AND t.missing_since IS NULL' }, window, topTracks.map((x) => x.track.id));
     for (const x of topTracks) x.previousRank = trackRanks.get(x.track.id) ?? null;
-    const artistRanks = previousRanks('t.artist_id', ARTIST_ORDER, 'AND a.id IS NOT NULL', window, topArtists.map((x) => x.id));
+    const artistRanks = previousRanks('t.artist_id', ARTIST_ORDER, { join: 'JOIN artists a ON a.id = t.artist_id' }, window, topArtists.map((x) => x.id));
     for (const x of topArtists) x.previousRank = artistRanks.get(x.id) ?? null;
   }
 

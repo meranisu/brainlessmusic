@@ -61,8 +61,8 @@ fun BrainlessNavGraph(
             SplashScreen(
                 viewModel = startViewModel,
                 onResolved = { route ->
-                    // Downloads is a tab, and tabs sit on the Library anchor, so an offline start opens both.
-                    val first = if (route == Routes.DOWNLOADS) Routes.ARTISTS else route
+                    // Downloads is a tab, and tabs sit on the Home anchor, so an offline start opens both.
+                    val first = if (route == Routes.DOWNLOADS) Routes.HOME else route
                     navController.navigate(first) {
                         popUpTo(Routes.SPLASH) { inclusive = true }
                     }
@@ -73,7 +73,7 @@ fun BrainlessNavGraph(
         composable(Routes.LOGIN) {
             LoginScreen(
                 onLoggedIn = {
-                    navController.navigate(Routes.ARTISTS) {
+                    navController.navigate(Routes.HOME) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
                 },
@@ -111,6 +111,7 @@ fun BrainlessNavGraph(
             AlbumDetailScreen(
                 onBack = { navController.popFrom(entry) },
                 onOpenNowPlaying = { navController.openNowPlaying() },
+                onOpenArtist = { navController.navigate(Routes.artistDetail(it)) },
             )
         }
         composable(Routes.NOW_PLAYING) { entry ->
@@ -122,9 +123,14 @@ fun BrainlessNavGraph(
                         popUpTo(Routes.NOW_PLAYING) { inclusive = true }
                     }
                 },
+                onOpenArtist = { artistId ->
+                    navController.navigate(Routes.artistDetail(artistId)) {
+                        popUpTo(Routes.NOW_PLAYING) { inclusive = true }
+                    }
+                },
             )
         }
-        composable(Routes.YOU) {
+        composable(Routes.HOME) {
             YouScreen(
                 navController = navController,
                 onOpenArtist = { id -> navController.navigate(Routes.artistDetail(id)) },
@@ -155,6 +161,7 @@ fun BrainlessNavGraph(
                 onBack = { navController.popFrom(entry) },
                 onOpenNowPlaying = { navController.openNowPlaying() },
                 onOpenAlbum = { navController.navigate(Routes.albumDetail(it)) },
+                onOpenArtist = { navController.navigate(Routes.artistDetail(it)) },
             )
         }
         composable(Routes.SETTINGS) {
@@ -173,10 +180,10 @@ fun BrainlessNavGraph(
                 page = page,
                 onBack = { navController.popFrom(entry) },
                 onOpenNowPlaying = { navController.openNowPlaying() },
-                // The pages sit on the Library anchor too, so popping that clears every tab.
+                // The pages sit on the Home anchor too, so popping that clears every tab.
                 onLoggedOut = {
                     navController.navigate(Routes.LOGIN) {
-                        popUpTo(Routes.ARTISTS) { inclusive = true }
+                        popUpTo(Routes.HOME) { inclusive = true }
                     }
                 },
             )
