@@ -42,6 +42,16 @@ val GearFontFamily = FontFamily(
     Font(R.font.chakrapetch_bold, FontWeight.Bold),
 )
 
+/**
+ * Ring's one face (A129): M PLUS Rounded 1c, the face maimai's own site sets its text in. Cut down to Latin, symbols
+ * and kana (the full files are 3.5 MB a weight); kanji fall back to the phone's own Japanese face.
+ */
+val RingFontFamily = FontFamily(
+    Font(R.font.mplusrounded1c_medium, FontWeight.Medium),
+    Font(R.font.mplusrounded1c_bold, FontWeight.Bold),
+    Font(R.font.mplusrounded1c_extrabold, FontWeight.ExtraBold),
+)
+
 /** Track titles at display size (`.font-display`). Weight carries the title; never uppercase it, mixed-script titles break. */
 val DisplayFontFamily = FontFamily(Font(R.font.barlow_condensed_extrabold, FontWeight.ExtraBold))
 

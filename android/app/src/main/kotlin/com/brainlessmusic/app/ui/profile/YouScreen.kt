@@ -163,11 +163,12 @@ fun YouScreen(
                         item { LibraryTiles(stats.counts, onOpenLiked, onOpenPlaylists, onOpenLessOften) }
                         item { RangePicker(range, viewModel::setRange) }
                         // The game skins read the range in their game's manner: Gear as SOUND VOLTEX's EFFECT RADAR,
-                        // Hit circle as numbered hit circles, Lane as Arcaea's potential.
+                        // Hit circle as numbered hit circles, Lane as Arcaea's potential, Ring as maimai's rating plate.
                         when (skin) {
                             Skin.GEAR -> item { Box(ofRange) { ListeningRadar(stats, range) } }
                             Skin.HIT_CIRCLE -> item { Box(ofRange) { HitCircleListening(stats, range) } }
                             Skin.LANE -> item { Box(ofRange) { LaneListening(stats, range) } }
+                            Skin.RING -> item { Box(ofRange) { RingListening(stats, range) } }
                             Skin.STANDARD -> Unit
                         }
 

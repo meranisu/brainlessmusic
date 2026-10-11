@@ -61,6 +61,24 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A132 — Ring's score is an achievement percentage *(was Q132)*
+**Answered:** 2026-10-12, in chat: "recommend". Achievement = 100% × plays / (plays + skips), plus 1% only for a full
+combo, four decimals (0.0000% to 101.0000%), with maimai's rank (D to SSS+, thresholds in
+`.docs/features/player-skins/ring-research.md` section 3) and lamp (CLEAR, FC). Ring only.
+
+### A131 — Ring's theme is "Candy", working in Light and Dark *(was Q131)*
+**Answered:** 2026-10-12, in chat: "recommended". The mockup's swatch (pink `#ff4fa3`, sky blue `#22bff5`, yellow
+`#ffc928`) with the game's bluer navy ink, made for both modes; Ring leaves the Light/Dark setting alone. Phone-only,
+like Lavender and Voltage.
+
+### A130 — Ring's icons are MingCute *(was Q130)*
+**Answered:** 2026-10-12, in chat: "pick again the recommende". MingCute (Apache 2.0), line and fill.
+
+### A129 — Ring's font is M PLUS Rounded 1c *(was Q129)*
+**Answered:** 2026-10-12, in chat: "pick the recommended". Replaces the mockup's Fredoka, which stays Hit circle's.
+Also from the same message: the round screen sits in the centre of the player and uses the full space.
+
+
 ### A128 — Gear shows a score and grade from plays and skips *(was Q128)*
 **Answered:** 2026-10-11, in chat: "a". Score = 10,000,000 × plays / (plays + skips), eight digits, with SOUND
 VOLTEX's grade (S to D, HEAVENLY HAVEN thresholds) beside the medal. Gear only; other skins keep the medal alone.

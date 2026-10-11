@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `RingDeck`, `achievement()`, `achievementText()`, `ringRank()`, `ringDifficulty()` (new): `android/.../ui/playback/skins/Ring.kt`; `RingListening`, `listeningRating()` (new): `android/.../ui/profile/ListeningCards.kt`; `RingButtonIndication` (new): `android/.../ui/theme/Skin.kt`; `RingIcons` (new): `RingIcons.kt`; `starPath()`, `RingMiniButton` (new), `PlayingMarker`, `MiniProgress`, `TabIcon`, `TabLabel`, `MiniPlayButton`, `EdgeLine`: `android/.../ui/common/SkinParts.kt`; `GenreChips` (new): `android/.../ui/library/LibraryScreen.kt`; `RingIntro` (new): `SkinTransition.kt`
+**Date:** 2026-10-12
+**How added:** new feature
+**Purpose:** the Ring skin (after maimai DX) and its Candy colour theme (A129-A132).
+**Side effects:** none; reads the same plays and skips the other skins' records use. Standard is untouched.
+**Before:** three game skins (Hit circle, Lane, Gear).
+**After:** a fourth game skin, Ring, and a Candy colour theme in Settings → Appearance.
+
 **Function:** `HitCircleListening`, `LaneListening`, `potential()` (new): `android/.../ui/profile/ListeningCards.kt`; `listeningOverall()` (new), `Axes` now internal: `ListeningRadar.kt`; `TabIcon`, `TabLabel`, `tabColors`: `android/.../ui/common/SkinParts.kt`
 **Date:** 2026-10-12
 **How added:** feature (owner request)

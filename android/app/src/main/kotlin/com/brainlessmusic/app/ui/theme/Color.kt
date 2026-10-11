@@ -94,6 +94,16 @@ val VoltagePalette = Palette(
     accentOnBand = Color(0xFF0099AA), // 3.25:1
 )
 
+// Phone-only (A131): maimai's cabinet, pink, sky and yellow buttons around a navy-inked screen. The one theme built
+// light as much as dark: the pale end is the game's cream-blue ground, the deep end its navy ink.
+val CandyPalette = Palette(
+    ground = Color(0xFF0A1033), blue950 = Color(0xFF0F1A44), blue900 = Color(0xFF182657), blue800 = Color(0xFF23347A),
+    blue700 = Color(0xFF3A4C9A), blue400 = Color(0xFF8C9BD6), blue300 = Color(0xFFB4C0E6), blue100 = Color(0xFFF2F6FC),
+    white = Color(0xFFFFFFFF), accent = Color(0xFFFF4FA3), dangerDark = Color(0xFFFFA2B8), dangerLight = Color(0xFFB0103A),
+    accentOnLight = Color(0xFFC81E70), // 5.0:1 on blue100
+    accentOnBand = Color(0xFFE0358A), // 3.8:1
+)
+
 fun ColorTheme.palette(): Palette = when (this) {
     ColorTheme.DEEP_BLUE -> DeepBluePalette
     ColorTheme.CRIMSON -> CrimsonPalette
@@ -103,6 +113,7 @@ fun ColorTheme.palette(): Palette = when (this) {
     ColorTheme.PASTEL -> PastelPalette
     ColorTheme.LAVENDER -> LavenderPalette
     ColorTheme.VOLTAGE -> VoltagePalette
+    ColorTheme.CANDY -> CandyPalette
     // Its real colours come from the wallpaper (`BrainlessMusicTheme`); this is the fallback below Android 12.
     ColorTheme.MATERIAL_YOU -> DeepBluePalette
 }

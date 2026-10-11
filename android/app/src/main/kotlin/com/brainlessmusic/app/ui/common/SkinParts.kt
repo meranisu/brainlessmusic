@@ -73,6 +73,7 @@ import com.brainlessmusic.app.ui.theme.BrandFontFamily
 import com.brainlessmusic.app.ui.theme.GearDisplayFontFamily
 import com.brainlessmusic.app.ui.theme.GearFontFamily
 import com.brainlessmusic.app.ui.theme.LocalSkin
+import com.brainlessmusic.app.ui.theme.RingFontFamily
 import com.brainlessmusic.app.ui.theme.laneCut
 
 // The small pieces every screen shares that change with the skin (A118). Standard draws exactly what it did before.
@@ -90,11 +91,46 @@ val GearDifficultyColors = listOf(Color(0xFF7A5CFF), Color(0xFFFFD400), Color(0x
 /** The ink on a lit difficulty box or key, dark on all four colours and on the FX orange. */
 val GearInk = Color(0xFF0A0F2C)
 
+/** maimai's cabinet colours, the same in every colour theme: the sky-blue arrow buttons and the yellow tabs. */
+val RingSky = Color(0xFF1597D8)
+val RingYellow = Color(0xFFFFC928)
+
+/** The slide star's blue, a shade lighter than the buttons. */
+val RingStar = Color(0xFF22BFF5)
+
+/** maimai's navy ink, for text on the yellow and lavender lights. */
+val RingInk = Color(0xFF13306E)
+
+/** One of maimai's difficulties: its name, its colour, and the ink that reads on that colour. */
+data class RingDifficulty(val name: String, val color: Color, val ink: Color)
+
+/** BASIC, ADVANCED, EXPERT, MASTER, Re:MASTER, in maimai's green, yellow, red, purple and white (lavender here, to show on white). */
+val RingDifficulties = listOf(
+    RingDifficulty("BASIC", Color(0xFF2B8442), Color.White),
+    RingDifficulty("ADVANCED", RingYellow, RingInk),
+    RingDifficulty("EXPERT", Color(0xFFD63B32), Color.White),
+    RingDifficulty("MASTER", Color(0xFF9B4DCA), Color.White),
+    RingDifficulty("Re:MASTER", Color(0xFFC9B2F0), RingInk),
+)
+
+/** A five-pointed star, maimai's slide star, centred on [center] with points [radius] out. */
+fun starPath(center: Offset, radius: Float): Path = Path().apply {
+    val inner = radius * 0.47f
+    for (i in 0 until 10) {
+        val r = if (i % 2 == 0) radius else inner
+        val a = Math.toRadians(-90.0 + i * 36.0)
+        val x = center.x + r * kotlin.math.cos(a).toFloat()
+        val y = center.y + r * kotlin.math.sin(a).toFloat()
+        if (i == 0) moveTo(x, y) else lineTo(x, y)
+    }
+    close()
+}
+
 /** Whether the playing song in a list gets a [PlayingMarker]; Standard marks it with bold accent text only. */
 val markPlaying: Boolean
     @Composable get() = LocalSkin.current != Skin.STANDARD
 
-/** The mark for the playing song in a list: a small hit circle in Hit circle, a filled diamond in Lane. */
+/** The mark for the playing song in a list: a small hit circle in Hit circle, a filled diamond in Lane, a lit button in Ring. */
 @Composable
 fun PlayingMarker(modifier: Modifier = Modifier) {
     if (LocalSkin.current == Skin.GEAR) {
@@ -106,6 +142,17 @@ fun PlayingMarker(modifier: Modifier = Modifier) {
     }
     if (LocalSkin.current == Skin.LANE) {
         Box(modifier.size(16.dp), contentAlignment = Alignment.Center) { Diamond(11.dp, MaterialTheme.colorScheme.primary) }
+        return
+    }
+    if (LocalSkin.current == Skin.RING) {
+        // A lit cabinet button: a ring with its light on inside.
+        Box(
+            modifier
+                .size(16.dp)
+                .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                .padding(4.dp)
+                .background(MaterialTheme.colorScheme.primary, CircleShape),
+        )
         return
     }
     Box(modifier.size(16.dp).border(3.dp, MaterialTheme.colorScheme.primary, CircleShape))
@@ -198,6 +245,17 @@ fun MiniProgress(progress: Float, modifier: Modifier = Modifier) {
                 drawLine(scheme.outlineVariant, Offset(0f, y), Offset(size.width, y), 2.dp.toPx())
                 drawLine(scheme.primary, Offset(0f, y), Offset(x, y), 3.dp.toPx())
                 drawLine(GearCritical, Offset(x, 0f), Offset(x, size.height), 3.dp.toPx())
+            }
+        }
+        Skin.RING -> {
+            // The song as a rounded bar with the slide star riding its head.
+            val scheme = MaterialTheme.colorScheme
+            Canvas(modifier.fillMaxWidth().height(10.dp)) {
+                val y = size.height / 2
+                val x = size.width * progress.coerceIn(0f, 1f)
+                drawLine(scheme.outlineVariant, Offset(0f, y), Offset(size.width, y), 3.dp.toPx(), cap = StrokeCap.Round)
+                drawLine(scheme.primary, Offset(0f, y), Offset(x, y), 3.dp.toPx(), cap = StrokeCap.Round)
+                drawPath(starPath(Offset(x.coerceIn(5.dp.toPx(), size.width - 5.dp.toPx()), y), 5.dp.toPx()), RingStar)
             }
         }
         Skin.LANE -> {
@@ -297,6 +355,7 @@ fun EdgeLine(modifier: Modifier = Modifier) {
     when (LocalSkin.current) {
         Skin.LANE -> Box(modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outline))
         Skin.GEAR -> Box(modifier.fillMaxWidth().height(2.dp).background(MaterialTheme.colorScheme.primary))
+        Skin.RING -> Box(modifier.fillMaxWidth().height(2.dp).background(MaterialTheme.colorScheme.outlineVariant))
         else -> Unit
     }
 }
@@ -307,6 +366,10 @@ fun MiniPlayButton(playing: Boolean, buffering: Boolean, onClick: () -> Unit) {
     val label = if (playing) "Pause" else "Play"
     if (LocalSkin.current == Skin.GEAR) {
         GearMiniKey(playing, buffering, label, onClick)
+        return
+    }
+    if (LocalSkin.current == Skin.RING) {
+        RingMiniButton(playing, buffering, label, onClick)
         return
     }
     if (LocalSkin.current != Skin.LANE) {
@@ -350,7 +413,7 @@ fun tabColors(): NavigationBarItemColors = when (LocalSkin.current) {
     Skin.STANDARD -> NavigationBarItemDefaults.colors()
     // The selected tab is lit ([TabIcon]: Hit circle's filled circle, Lane's slanted key, Gear's BT key), so its icon
     // takes the light's ink.
-    Skin.HIT_CIRCLE, Skin.LANE, Skin.GEAR -> NavigationBarItemDefaults.colors(
+    Skin.HIT_CIRCLE, Skin.LANE, Skin.GEAR, Skin.RING -> NavigationBarItemDefaults.colors(
         indicatorColor = Color.Transparent,
         selectedIconColor = MaterialTheme.colorScheme.onPrimary,
         selectedTextColor = MaterialTheme.colorScheme.primary,
@@ -407,6 +470,19 @@ fun TabIcon(selected: Boolean, content: @Composable () -> Unit) {
                     },
                 ),
         ) { content() }
+        // Ring: every tab one of the cabinet's round buttons, the open one lit, its pale rim inside the coloured edge.
+        LocalSkin.current == Skin.RING -> Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(38.dp)
+                .then(
+                    if (selected) {
+                        Modifier.border(2.dp, scheme.primary, CircleShape).padding(3.dp).background(scheme.primary, CircleShape)
+                    } else {
+                        Modifier.border(2.dp, scheme.outlineVariant, CircleShape)
+                    },
+                ),
+        ) { Box(Modifier.size(20.dp), contentAlignment = Alignment.Center) { content() } }
         selected && LocalSkin.current == Skin.LANE -> Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier.size(width = 52.dp, height = 28.dp).background(scheme.primary, SlantShape(9.dp)),
@@ -427,6 +503,7 @@ fun TabLabel(text: String) {
         Skin.HIT_CIRCLE -> Text(text, fontFamily = BrandFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, maxLines = 1, softWrap = false)
         Skin.LANE -> Text(text, fontFamily = LaneFontFamily, fontWeight = FontWeight.Medium, fontSize = 12.sp, maxLines = 1, softWrap = false)
         Skin.GEAR -> Text(text, fontFamily = GearFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, maxLines = 1, softWrap = false)
+        Skin.RING -> Text(text, fontFamily = RingFontFamily, fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1, softWrap = false)
     }
 }
 
@@ -488,6 +565,26 @@ private fun GearMiniKey(playing: Boolean, buffering: Boolean, label: String, onC
             CircularProgressIndicator(modifier = Modifier.size(16.dp), color = scheme.surface, strokeWidth = 2.dp)
         } else {
             Icon(if (playing) AppIcons.pause else AppIcons.play, contentDescription = null, tint = scheme.surface, modifier = Modifier.size(18.dp))
+        }
+    }
+}
+
+/** Ring's mini play button: a small lit cabinet button, the accent with a pale rim. */
+@Composable
+private fun RingMiniButton(playing: Boolean, buffering: Boolean, label: String, onClick: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(48.dp)
+            .clickable(role = Role.Button, onClickLabel = null, onClick = onClick)
+            .semantics { contentDescription = label },
+    ) {
+        Box(Modifier.size(40.dp).background(scheme.primary, CircleShape).border(3.dp, scheme.surface, CircleShape))
+        if (buffering && !playing) {
+            CircularProgressIndicator(modifier = Modifier.size(16.dp), color = scheme.onPrimary, strokeWidth = 2.dp)
+        } else {
+            Icon(if (playing) AppIcons.pause else AppIcons.play, contentDescription = null, tint = scheme.onPrimary, modifier = Modifier.size(18.dp))
         }
     }
 }

@@ -78,6 +78,7 @@ import com.brainlessmusic.app.data.remote.dto.TrackStatDto
 import com.brainlessmusic.app.ui.playback.skins.HitCircleDeck
 import com.brainlessmusic.app.ui.playback.skins.LaneDeck
 import com.brainlessmusic.app.ui.playback.skins.GearDeck
+import com.brainlessmusic.app.ui.playback.skins.RingDeck
 import com.brainlessmusic.app.ui.theme.AppIcons
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -172,8 +173,8 @@ fun NowPlayingScreen(
                             contentDescription = if (dataSaver) "Data saver on" else "Data saver off",
                         )
                     }
-                    // Gear likes and adds from its FX keys instead.
-                    if (current != null && songActions.canEdit && !pills && skin != Skin.GEAR) {
+                    // Gear likes and adds from its FX keys instead, Ring from its rim buttons.
+                    if (current != null && songActions.canEdit && !pills && skin != Skin.GEAR && skin != Skin.RING) {
                         LikeButton(current.trackId, viewModel = songActions)
                         IconButton(onClick = { addingToPlaylist = true }) {
                             Icon(AppIcons.playlistAdd, contentDescription = "Add to playlist")
@@ -304,6 +305,30 @@ fun NowPlayingScreen(
                         onRepeat = viewModel::cycleRepeat,
                         onLike = { songActions.toggleLike(current.trackId) },
                         onAddToPlaylist = { addingToPlaylist = true },
+                    )
+                }
+                Skin.RING -> {
+                    val liked by songActions.likedIds.collectAsStateWithLifecycle()
+                    RingDeck(
+                        state = state,
+                        item = current,
+                        fraction = fraction,
+                        shownMs = shownMs,
+                        record = record,
+                        liked = current.trackId in liked,
+                        canEdit = songActions.canEdit,
+                        coverGestures = coverGestures,
+                        coverLayer = coverLayer,
+                        onFraction = { dragFraction = it },
+                        onFinished = seekTo,
+                        onShuffle = viewModel::cycleShuffle,
+                        onPrevious = viewModel::previous,
+                        onPlayPause = viewModel::togglePlayPause,
+                        onNext = viewModel::next,
+                        onRepeat = viewModel::cycleRepeat,
+                        onLike = { songActions.toggleLike(current.trackId) },
+                        onAddToPlaylist = { addingToPlaylist = true },
+                        onQueue = { showQueue = true },
                     )
                 }
                 Skin.STANDARD -> {

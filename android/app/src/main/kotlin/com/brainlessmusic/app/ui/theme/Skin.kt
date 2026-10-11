@@ -140,11 +140,43 @@ private val GearShapes = Shapes(
 /** Gear's song-list rows: square on the left, the right end cut to a point, like the game's song-select entries. */
 private val GearRowShape = CutCornerShape(topStart = 0.dp, topEnd = 14.dp, bottomEnd = 14.dp, bottomStart = 0.dp)
 
+private fun TextStyle.ring(weight: FontWeight) = copy(fontFamily = RingFontFamily, fontWeight = weight)
+
+/**
+ * Ring (A129): everything in M PLUS Rounded 1c, as maimai sets its site and screens in one heavy rounded face: big text
+ * and labels extra-bold like the cabinet's lettering, titles bold, reading text medium.
+ */
+private val RingTypography = Typography.run {
+    Typography(
+        displayLarge = displayLarge.ring(FontWeight.ExtraBold), displayMedium = displayMedium.ring(FontWeight.ExtraBold),
+        displaySmall = displaySmall.ring(FontWeight.ExtraBold), headlineLarge = headlineLarge.ring(FontWeight.ExtraBold),
+        headlineMedium = headlineMedium.ring(FontWeight.ExtraBold), headlineSmall = headlineSmall.ring(FontWeight.ExtraBold),
+        titleLarge = titleLarge.ring(FontWeight.Bold), titleMedium = titleMedium.ring(FontWeight.Bold),
+        titleSmall = titleSmall.ring(FontWeight.Bold), bodyLarge = bodyLarge.ring(FontWeight.Medium),
+        bodyMedium = bodyMedium.ring(FontWeight.Medium), bodySmall = bodySmall.ring(FontWeight.Medium),
+        labelLarge = labelLarge.ring(FontWeight.ExtraBold), labelMedium = labelMedium.ring(FontWeight.Bold),
+        labelSmall = labelSmall.ring(FontWeight.Bold),
+    )
+}
+
+/** maimai's panels and song cards: soft, generous corners, rounder than Standard's, never cut. */
+private val RingShapes = Shapes(
+    extraSmall = RoundedCornerShape(10.dp),
+    small = RoundedCornerShape(14.dp),
+    medium = RoundedCornerShape(20.dp),
+    large = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(32.dp),
+)
+
+/** Ring's list rows: a rounded card, like the song cards on maimai's select screen. */
+private val RingRowShape = RoundedCornerShape(18.dp)
+
 internal fun Skin.typography(): Typography = when (this) {
     Skin.STANDARD -> Typography
     Skin.HIT_CIRCLE -> HitCircleTypography
     Skin.LANE -> LaneTypography
     Skin.GEAR -> GearTypography
+    Skin.RING -> RingTypography
 }
 
 internal fun Skin.shapes(): Shapes = when (this) {
@@ -152,6 +184,7 @@ internal fun Skin.shapes(): Shapes = when (this) {
     Skin.HIT_CIRCLE -> HitCircleShapes
     Skin.LANE -> LaneShapes
     Skin.GEAR -> GearShapes
+    Skin.RING -> RingShapes
 }
 
 private val StandardCardShape = RoundedCornerShape(20.dp)
@@ -160,7 +193,7 @@ private val StandardCardShape = RoundedCornerShape(20.dp)
 val MaterialTheme.cardShape: Shape
     @Composable @ReadOnlyComposable get() = when (LocalSkin.current) {
         Skin.STANDARD -> StandardCardShape
-        Skin.HIT_CIRCLE, Skin.LANE, Skin.GEAR -> shapes.large
+        Skin.HIT_CIRCLE, Skin.LANE, Skin.GEAR, Skin.RING -> shapes.large
     }
 
 private val StandardRowShape = RoundedCornerShape(12.dp)
@@ -170,7 +203,7 @@ private val StandardRowShape = RoundedCornerShape(12.dp)
 @ReadOnlyComposable
 fun tileShape(standard: Dp): Shape = when (LocalSkin.current) {
     Skin.STANDARD -> RoundedCornerShape(standard)
-    Skin.HIT_CIRCLE, Skin.LANE, Skin.GEAR -> MaterialTheme.shapes.medium
+    Skin.HIT_CIRCLE, Skin.LANE, Skin.GEAR, Skin.RING -> MaterialTheme.shapes.medium
 }
 
 /** A highlighted or dragged list row (queue, playlist). Hit circle makes it a pill, like osu!'s song-select entries. */
@@ -180,12 +213,14 @@ val MaterialTheme.rowShape: Shape
         Skin.HIT_CIRCLE -> RoundedCornerShape(50)
         Skin.LANE -> LaneRowShape
         Skin.GEAR -> GearRowShape
+        Skin.RING -> RingRowShape
     }
 
 private val LaneRowShape = SlantShape(10.dp)
 
 /**
- * Covers and avatars: round in Hit circle, corner-cut in Lane, chamfered all round in Gear, otherwise the rounded square a caller asks for. A radius of 0 is a cell of a
+ * Covers and avatars: round in Hit circle, corner-cut in Lane, chamfered all round in Gear, softer-cornered in Ring (maimai's
+ * jackets), otherwise the rounded square a caller asks for. A radius of 0 is a cell of a
  * larger picture (a mosaic) and stays square; the whole picture takes the shape.
  */
 @Composable
@@ -195,6 +230,7 @@ fun coverShape(cornerRadius: Dp): Shape = when {
     LocalSkin.current == Skin.HIT_CIRCLE -> CircleShape
     LocalSkin.current == Skin.LANE -> laneCut(cornerRadius)
     LocalSkin.current == Skin.GEAR -> CutCornerShape(cornerRadius / 2)
+    LocalSkin.current == Skin.RING -> RoundedCornerShape(cornerRadius * 1.5f)
     else -> RoundedCornerShape(cornerRadius)
 }
 
@@ -391,5 +427,66 @@ private class GearHitNode(
             Size(frame * 2, frame * 2),
             style = Stroke(2.dp.toPx()),
         )
+    }
+}
+
+/**
+ * Ring's tap: one of maimai's cabinet buttons lighting under the finger, a filled disc with a pale rim that fades out
+ * where it was pressed. It does not spread, unlike Hit circle's approach ring and Lane's flung ring. Reaches every plain
+ * `clickable`, as [ApproachRingIndication] does. With animations off only the tint shows.
+ */
+internal class RingButtonIndication(private val color: Color, private val rim: Color, private val animate: Boolean) : IndicationNodeFactory {
+    override fun create(interactionSource: InteractionSource): DelegatableNode = RingButtonNode(interactionSource, color, rim, animate)
+
+    override fun equals(other: Any?) = other is RingButtonIndication && other.color == color && other.rim == rim && other.animate == animate
+
+    override fun hashCode() = 31 * (31 * color.hashCode() + rim.hashCode()) + animate.hashCode() + 3
+}
+
+private class RingButtonNode(
+    private val source: InteractionSource,
+    private val color: Color,
+    private val rim: Color,
+    private val animate: Boolean,
+) : Modifier.Node(), DrawModifierNode {
+    private val progress = Animatable(1f)
+    private var center: Offset? = null
+    private var pressed = false
+
+    override fun onAttach() {
+        coroutineScope.launch {
+            source.interactions.collect { interaction ->
+                when (interaction) {
+                    is PressInteraction.Press -> {
+                        pressed = true
+                        center = interaction.pressPosition
+                        invalidateDraw()
+                        if (animate) {
+                            coroutineScope.launch {
+                                progress.snapTo(0f)
+                                progress.animateTo(1f, tween(320, easing = FastOutSlowInEasing)) { invalidateDraw() }
+                                invalidateDraw()
+                            }
+                        }
+                    }
+                    is PressInteraction.Release, is PressInteraction.Cancel -> {
+                        pressed = false
+                        invalidateDraw()
+                    }
+                }
+            }
+        }
+    }
+
+    override fun ContentDrawScope.draw() {
+        drawContent()
+        if (pressed) drawRect(color.copy(alpha = 0.10f))
+        val c = center ?: return
+        val p = progress.value
+        if (!animate || p >= 1f) return
+        val fade = 1f - p
+        val r = 20.dp.toPx()
+        drawCircle(color.copy(alpha = 0.55f * fade), radius = r, center = c)
+        drawCircle(rim.copy(alpha = 0.9f * fade), radius = r, center = c, style = Stroke(3.dp.toPx()))
     }
 }

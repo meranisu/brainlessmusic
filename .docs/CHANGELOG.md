@@ -4,6 +4,32 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Ring, the maimai skin, and the Candy colour theme (Android)
+
+- The fifth skin, after research (`.docs/features/player-skins/ring-research.md`: official site screens, open-source
+  maimai tools for the rank and DX-score tables) and the owner's picks A129-A132: M PLUS Rounded 1c throughout,
+  subset with fonttools to Latin, symbols and kana (about 430 KB a weight instead of 3.5 MB; kanji fall back to the
+  phone's Japanese face); MingCute 3.0.2 icons (`RingIcons.kt`, generated from the SVGs, line set with Filled for
+  play, pause, skip and a liked heart; all 48 rendered to a contact sheet and picked by eye); the Candy colour theme,
+  phone-only, the mockup's pink, sky and yellow with maimai's navy, made for light and dark (light accent 5.0:1).
+- Owner on the design canvas: the round screen centred and as wide as the phone, a little lower than first drawn;
+  the ring's colour from the play count.
+- Theme parts: rounded shapes, rows as rounded cards, a tap that lights a cabinet button under the finger
+  (`RingButtonIndication`).
+- Player (`RingDeck`): the cabinet as wide as the phone, centred above the title; the cover as the round screen with
+  the combo on it; the judgement ring fills clockwise in the play-count difficulty colour (BASIC to Re:MASTER), with
+  the slide star at its head; dragging around the ring seeks by angle (not across 12 o'clock); eight buttons on the
+  ring at the cabinet's angles: repeat, add, next, play, queue, previous, like, shuffle (like and add dimmed for
+  guests, shuffle and repeat in a room); the time in the bottom gap; the achievement (A132) with its rank and lamp.
+  Ring hides the top bar's like and add, which its rim buttons replace.
+- App-wide parts: tabs as round lit buttons, a star-headed progress bar and a lit play button in the mini player,
+  genre-chip Library tabs, a lit-button playing marker, a skin intro (eight buttons light clockwise as the star runs
+  the ring), the sign-in reads "WELCOME", and Home's DX RATING plate (`RingListening`).
+- M PLUS Rounded 1c and MingCute credited in Settings → Licenses (OFL, Apache 2.0).
+- Verified: `./gradlew :app:compileDebugKotlin` builds; `./gradlew :app:testDebugUnitTest`: 123 tests, 1 skipped, 0
+  failed (new `RingScoreTest`: achievement, ranks, difficulty, rating). **Not run:** on a phone; there is no phone or
+  emulator on this machine, so no screen of Ring has been seen.
+
 ## 2026-10-12: Listening on Home for Hit circle and Lane, and their bottom bars restyled (Android)
 
 - **Listening for every game skin.** Gear's listening radar now has a match in the other two, the same six readings

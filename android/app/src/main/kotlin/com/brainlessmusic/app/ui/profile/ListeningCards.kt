@@ -45,6 +45,15 @@ import com.brainlessmusic.app.ui.theme.BrandFontFamily
 import com.brainlessmusic.app.ui.theme.LaneFontFamily
 import com.brainlessmusic.app.ui.theme.SlantShape
 import com.brainlessmusic.app.ui.theme.cardShape
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.drawBehind
+import com.brainlessmusic.app.ui.common.RingDifficulties
+import com.brainlessmusic.app.ui.common.RingInk
+import com.brainlessmusic.app.ui.common.RingSky
+import com.brainlessmusic.app.ui.common.RingYellow
+import com.brainlessmusic.app.ui.theme.RingFontFamily
 import java.util.Locale
 
 /** The readings for the range, and a 0-to-1 grow that runs once each time they change (held at 1 with animations off). */
@@ -232,6 +241,126 @@ fun LaneListening(stats: UserStatsDto, range: StatsRange) {
                                     .fillMaxWidth((values[i] * grow()).coerceIn(0f, 1f))
                                     .clip(SlantShape(7.dp))
                                     .background(scheme.primary),
+                            )
+                        }
+                        Text(
+                            percent(values[i]),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = scheme.onSurfaceVariant,
+                            textAlign = TextAlign.End,
+                            modifier = Modifier.width(44.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** One of maimai's rating tiers: where it starts, its name and its plate colours (flat bands for rainbow). */
+private class RatingTier(val from: Int, val name: String, val bands: List<Color>, val ink: Color)
+
+private val RatingTiers = listOf(
+    RatingTier(0, "White", listOf(Color(0xFFE8ECF4)), RingInk),
+    RatingTier(1_000, "Blue", listOf(Color(0xFF2F7FD0)), Color.White),
+    RatingTier(2_000, "Green", listOf(Color(0xFF2B8442)), Color.White),
+    RatingTier(4_000, "Yellow", listOf(RingYellow), RingInk),
+    RatingTier(7_000, "Red", listOf(Color(0xFFD63B32)), Color.White),
+    RatingTier(10_000, "Purple", listOf(Color(0xFF9B4DCA)), Color.White),
+    RatingTier(12_000, "Bronze", listOf(Color(0xFF9C5B2E)), Color.White),
+    RatingTier(13_000, "Silver", listOf(Color(0xFFC3CBD8)), RingInk),
+    RatingTier(14_000, "Gold", listOf(Color(0xFFF7D774)), RingInk),
+    RatingTier(14_500, "Platinum", listOf(Color(0xFFD6EEF0)), RingInk),
+    RatingTier(
+        15_000,
+        "Rainbow",
+        listOf(Color(0xFFFFB3D4), Color(0xFFFFE08A), Color(0xFFB8F0C8), Color(0xFFA8E4FF), Color(0xFFD8C4FF)),
+        RingInk,
+    ),
+)
+
+/** The overall reading on maimai DX's rating scale, 0 to 16,750 (the top of its rainbow tiers). */
+internal fun listeningRating(overall: Float): Int = (overall.coerceIn(0f, 1f) * 16_750).toInt()
+
+/**
+ * Ring's listening on Home: the same six readings, as maimai rates a player. The overall reading is a DX RATING plate,
+ * five digits in dark boxes on a plate coloured by its tier (white up to rainbow, rainbow as flat bands, no gradient),
+ * and the six follow as rounded bars in the cabinet's button colours.
+ */
+@Composable
+fun RingListening(stats: UserStatsDto, range: StatsRange) {
+    val scheme = MaterialTheme.colorScheme
+    val (values, grow) = rememberReadings(stats, range)
+    val rating = listeningRating(listeningOverall(values))
+    val tier = RatingTiers.last { rating >= it.from }
+    val next = RatingTiers.firstOrNull { it.from > rating }
+    val shown = (rating * grow()).toInt().toString().padStart(5, '0')
+    val barColors = listOf(scheme.primary, RingSky, RingYellow, RingDifficulties[0].color, RingDifficulties[3].color, RingDifficulties[2].color)
+    ListeningSurface {
+        Column(
+            Modifier
+                .padding(16.dp)
+                .clearAndSetSemantics { contentDescription = "Listening rating $rating, ${tier.name}: ${described(values)}" },
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .drawBehind {
+                        val w = size.width / tier.bands.size
+                        tier.bands.forEachIndexed { i, c -> drawRect(c, Offset(w * i, 0f), Size(w + 1f, size.height)) }
+                    }
+                    .border(3.dp, scheme.surfaceContainer, RoundedCornerShape(18.dp))
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("LISTENING", fontFamily = RingFontFamily, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp, letterSpacing = 1.sp, color = tier.ink)
+                    Text("RATING", fontFamily = RingFontFamily, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, letterSpacing = 1.sp, color = tier.ink)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                    shown.forEach { digit ->
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.size(width = 28.dp, height = 38.dp).background(Color(0xFF262F4D), RoundedCornerShape(7.dp)),
+                        ) {
+                            Text(digit.toString(), fontFamily = RingFontFamily, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = Color.White)
+                        }
+                    }
+                }
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp, start = 4.dp, end = 4.dp)) {
+                Text(
+                    "${tier.name} · your ${range.label.lowercase()}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = scheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                if (next != null) {
+                    Text("${next.name} at ${next.from}", style = MaterialTheme.typography.labelMedium, color = scheme.onSurfaceVariant)
+                }
+            }
+            Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Axes.forEachIndexed { i, axis ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            axis.name.lowercase().replaceFirstChar { it.uppercase() },
+                            style = MaterialTheme.typography.labelLarge,
+                            modifier = Modifier.width(80.dp),
+                        )
+                        Box(
+                            Modifier
+                                .weight(1f)
+                                .height(12.dp)
+                                .clip(CircleShape)
+                                .background(scheme.surfaceContainerHighest),
+                        ) {
+                            Box(
+                                Modifier
+                                    .fillMaxHeight()
+                                    .fillMaxWidth((values[i] * grow()).coerceIn(0f, 1f))
+                                    .clip(CircleShape)
+                                    .background(barColors[i % barColors.size]),
                             )
                         }
                         Text(

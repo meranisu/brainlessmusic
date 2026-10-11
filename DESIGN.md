@@ -127,10 +127,31 @@ never its artwork, and stay flat: rings and borders, no glow.
   Voltage (phone-only) is its matching colour theme. The lane shows the CHAIN (songs played through in a row since
   the app started, broken by a skip) as the game does, and Home adds a listening radar under the range picker, six
   axes in the EFFECT RADAR's colours (`ListeningRadar`).
+- **Ring** (after maimai DX, A129-A132; research in `.docs/features/player-skins/ring-research.md`, design canvas
+  linked there): M PLUS Rounded 1c throughout (bundled cut down to Latin, symbols and kana; kanji fall back to the
+  phone's Japanese face), extra-bold for display and labels; soft, generous corners, list rows as rounded cards, covers
+  rounder than Standard's; a tap lights a cabinet button under the finger (a filled disc with a pale rim that fades, no
+  spreading ring). Icons are MingCute 3.0.2, the line set with Filled for play, pause, skip and a liked heart (Apache
+  2.0, credited in Settings → Licenses). The player is `RingDeck`: the cabinet as wide as the phone, centred in the
+  space above the title, the cover as its round screen; the song's progress is the judgement ring, filling clockwise
+  from 12 o'clock in the song's difficulty colour from your play count (BASIC under 3, ADVANCED to 9, EXPERT to 19,
+  MASTER to 49, Re:MASTER from 50; a tab on the top arc names it with the count as its level), the slide star rides
+  its head, and a drag that starts on the ring between buttons seeks by angle. The eight buttons sit on the ring at
+  the cabinet's angles (none on an axis), clockwise from the top right: repeat, add to playlist, next, play (large,
+  where maimai has NEXT), queue, previous, like, shuffle; lit means on, unlit is the bezel's colour edged in the
+  button's. The time sits in the bottom gap; the combo stands on the cover as maimai's centre readout. Under it the
+  achievement (100% × plays ÷ plays and skips, plus 1% for a full combo, four decimals rolling up), its rank D to SSS+
+  in outlined gold, and the lamp (CLEAR, FC). The sky, yellow and navy are fixed in every theme (`RingSky`,
+  `RingYellow`, `RingInk`, `RingDifficulties`). Tabs are round cabinet buttons, the open one lit; the mini player's
+  progress is a rounded bar with the slide star at its head, its play a small lit button; the Library's tabs are
+  maimai's genre chips, a colour each; sheets open as a rounded card in the middle of the screen. Candy (phone-only,
+  made for light as much as dark) is its matching colour theme. Home adds a DX RATING plate (`RingListening`): the
+  six readings' overall on maimai's 0 to 16,750 scale in five digit boxes, the plate in its tier's colour (rainbow as
+  flat bands).
 
 Changing skin plays a short intro over the app (`SkinTransition`): Standard fades its name, Hit circle lands an
 approach ring and bursts, Lane closes and opens Arcaea's shutter, Gear runs the lane in and slams the critical line
-across with a jolt. About 1.4 s; a tap skips it; off with animations off.
+across with a jolt, Ring lights its eight buttons clockwise as the slide star runs the ring. About 1.4 s; a tap skips it; off with animations off.
 
 Signing in plays an arcade card-in (`ArcadeWelcome`): after a sign-in, or when the app opens on a saved session, a player
 card drops into a reader, the reader's light sweeps it ("CARD READ", "PLAYER READY", "SYNCHRONIZING" or "ENTRY" by skin), then

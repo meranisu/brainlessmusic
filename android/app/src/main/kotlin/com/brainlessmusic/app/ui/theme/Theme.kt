@@ -183,6 +183,7 @@ fun BrainlessMusicTheme(
                 Skin.HIT_CIRCLE -> ApproachRingIndication(colorScheme.primary, animationsOn)
                 Skin.LANE -> LaneHitIndication(colorScheme.primary, animationsOn)
                 Skin.GEAR -> GearHitIndication(colorScheme.primary, animationsOn)
+                Skin.RING -> RingButtonIndication(colorScheme.primary, colorScheme.surface, animationsOn)
             }
             CompositionLocalProvider(LocalIndication provides indication, content = content)
         }

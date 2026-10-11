@@ -35,6 +35,9 @@ enum class ColorTheme(val label: String, val detail: String, val webId: String?)
     /** After SOUND VOLTEX, Gear's match (A127): phone-only, like Lavender. */
     VOLTAGE("Voltage", "After SOUND VOLTEX", null),
 
+    /** After maimai, Ring's match (A131): phone-only, like Lavender; made for light as much as dark. */
+    CANDY("Candy", "After maimai", null),
+
     /** Android 12+ only; older phones fall back to Deep blue and do not offer it. Kept on the phone, not the profile (A78). */
     MATERIAL_YOU("Material You", "From your wallpaper", null),
     ;
@@ -66,6 +69,7 @@ enum class Skin(val label: String, val detail: String) {
     HIT_CIRCLE("Hit circle", "After osu!: round covers and buttons, a ring on every tap, a slider player. Pairs with Magenta"),
     LANE("Lane", "After Arcaea: slanted panels, thin type, a lane you seek along. Pairs with Lavender"),
     GEAR("Gear", "After SOUND VOLTEX: a console of keys and knobs, wide type, a lane up to the critical line. Pairs with Voltage"),
+    RING("Ring", "After maimai: a round screen with eight buttons on its rim, soft rounded type. Pairs with Candy"),
     ;
 
     /** Game skins show your record for the song in the player (A115). */

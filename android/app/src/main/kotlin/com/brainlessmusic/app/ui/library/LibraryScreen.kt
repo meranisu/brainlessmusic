@@ -4,6 +4,11 @@ import com.brainlessmusic.app.data.local.Skin
 import com.brainlessmusic.app.ui.theme.LocalSkin
 import com.brainlessmusic.app.ui.common.GearDifficultyColors
 import com.brainlessmusic.app.ui.common.GearInk
+import com.brainlessmusic.app.ui.common.RingDifficulties
+import com.brainlessmusic.app.ui.common.RingInk
+import com.brainlessmusic.app.ui.common.RingSky
+import com.brainlessmusic.app.ui.common.RingYellow
+import androidx.compose.ui.graphics.Color
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
@@ -262,6 +267,10 @@ private fun LibraryTabBar(selected: LibraryTab, onSelect: (LibraryTab) -> Unit, 
         DifficultyTabs(selected, onSelect, modifier)
         return
     }
+    if (LocalSkin.current == Skin.RING) {
+        GenreChips(selected, onSelect, modifier)
+        return
+    }
     if (dockedHeader) {
         SlantTabs(selected, onSelect, modifier)
         return
@@ -362,6 +371,44 @@ private fun DifficultyTabs(selected: LibraryTab, onSelect: (LibraryTab) -> Unit,
                     tab.label.uppercase(),
                     style = MaterialTheme.typography.labelSmall,
                     color = if (isSelected) GearInk else scheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Ring's tabs: maimai's genre chips, a pill each in its own cabinet colour, the open one lit (filled, with a pale rim)
+ * and the rest outlined in theirs.
+ */
+@Composable
+private fun GenreChips(selected: LibraryTab, onSelect: (LibraryTab) -> Unit, modifier: Modifier = Modifier) {
+    val scheme = MaterialTheme.colorScheme
+    val colors = listOf(scheme.primary, RingSky, RingYellow, RingDifficulties[0].color)
+    val inks = listOf(scheme.onPrimary, Color.White, RingInk, Color.White)
+    Row(
+        modifier = modifier.height(HeaderHeight),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        LibraryTab.entries.forEachIndexed { i, tab ->
+            val isSelected = tab == selected
+            val color = colors[i % colors.size]
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(38.dp)
+                    .clip(CircleShape)
+                    .background(if (isSelected) color else scheme.surfaceContainerHigh)
+                    .border(if (isSelected) 3.dp else 2.dp, if (isSelected) scheme.surfaceContainerHigh else color, CircleShape)
+                    .selectable(selected = isSelected, role = Role.Tab, onClick = { onSelect(tab) }),
+            ) {
+                Text(
+                    tab.label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (isSelected) inks[i % inks.size] else scheme.onSurface,
                     maxLines = 1,
                 )
             }

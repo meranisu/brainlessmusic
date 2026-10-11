@@ -31,7 +31,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.text.TextStyle
 import com.brainlessmusic.app.data.local.Skin
+import com.brainlessmusic.app.ui.common.RingInk
+import com.brainlessmusic.app.ui.common.RingSky
+import com.brainlessmusic.app.ui.common.RingStar
+import com.brainlessmusic.app.ui.common.RingYellow
+import com.brainlessmusic.app.ui.common.starPath
 import kotlinx.coroutines.launch
 
 /** Part of [p] that falls between [from] and [to], as 0 to 1. */
@@ -40,7 +48,8 @@ private fun span(p: Float, from: Float, to: Float) = ((p - from) / (to - from)).
 /**
  * Plays when the skin changes (owner, 2026-10-11): its name with a moment from its game, over the app as it
  * restyles beneath. Standard fades its name in and out, Hit circle closes an approach ring on a circle that bursts,
- * Lane slams Arcaea's shutter and opens it, Gear runs SOUND VOLTEX's lane in to a critical line that slams across.
+ * Lane slams Arcaea's shutter and opens it, Gear runs SOUND VOLTEX's lane in to a critical line that slams across,
+ * Ring lights maimai's eight buttons round the screen one by one as the slide star runs the ring.
  * About 1.4 s; a tap skips it; with animations off it never shows.
  */
 @Composable
@@ -76,6 +85,7 @@ fun SkinTransition(skin: Skin) {
             Skin.HIT_CIRCLE -> HitCircleIntro(p)
             Skin.LANE -> LaneIntro(p)
             Skin.GEAR -> GearIntro(p)
+            Skin.RING -> RingIntro(p)
         }
     }
 }
@@ -240,4 +250,52 @@ private fun GearIntro(p: Float) {
             translationX = jolt.dp.toPx()
         },
     )
+}
+
+@Composable
+private fun RingIntro(p: Float) {
+    val scheme = MaterialTheme.colorScheme
+    val v = veil(p)
+    // The screen's ring draws in, its eight buttons light clockwise from the top right, and the slide star runs the
+    // ring once behind them.
+    val open = span(p, 0.03f, 0.25f)
+    val run = span(p, 0.2f, 0.62f)
+    val colors = listOf(RingYellow, scheme.primary, RingSky, scheme.primary, RingSky, RingSky, scheme.primary, RingYellow)
+    Canvas(Modifier.fillMaxSize()) {
+        drawRect(scheme.background, alpha = v)
+        val c = Offset(size.width / 2, size.height * 0.42f)
+        val r = size.width * 0.38f * (0.85f + 0.15f * open)
+        drawCircle(scheme.surfaceContainer, radius = r + 30.dp.toPx(), center = c, alpha = v * open)
+        drawArc(
+            scheme.outlineVariant, 0f, 360f, false, Offset(c.x - r, c.y - r), Size(r * 2, r * 2),
+            style = Stroke(6.dp.toPx()), alpha = v * open,
+        )
+        if (run > 0f) {
+            drawArc(
+                scheme.primary, -90f, 360f * run, false, Offset(c.x - r, c.y - r), Size(r * 2, r * 2),
+                style = Stroke(6.dp.toPx(), cap = StrokeCap.Round), alpha = v,
+            )
+            val a = 2 * Math.PI * run
+            drawPath(starPath(Offset(c.x + r * kotlin.math.sin(a).toFloat(), c.y - r * kotlin.math.cos(a).toFloat()), 14.dp.toPx()), RingStar, alpha = v)
+        }
+        for (n in 0 until 8) {
+            val a = Math.toRadians(22.5 + 45.0 * n)
+            val at = Offset(c.x + r * kotlin.math.sin(a).toFloat(), c.y - r * kotlin.math.cos(a).toFloat())
+            val lit = span(p, 0.22f + 0.05f * n, 0.27f + 0.05f * n)
+            drawCircle(scheme.surfaceContainer, radius = 22.dp.toPx(), center = at, alpha = v * open)
+            drawCircle(colors[n], radius = 22.dp.toPx(), center = at, style = Stroke(3.dp.toPx()), alpha = v * open)
+            if (lit > 0f) drawCircle(colors[n], radius = 22.dp.toPx() * lit, center = at, alpha = v)
+        }
+    }
+    val shown = span(p, 0.6f, 0.7f)
+    Box(Modifier.padding(bottom = 120.dp).graphicsLayer {
+        alpha = v * shown
+        val s = 1.3f - 0.3f * shown
+        scaleX = s
+        scaleY = s
+    }) {
+        val style = TextStyle(fontFamily = RingFontFamily, fontWeight = FontWeight.ExtraBold, fontSize = 48.sp, letterSpacing = 3.sp)
+        Text("RING", style = style.copy(color = RingInk, drawStyle = Stroke(width = 10f)))
+        Text("RING", style = style.copy(color = RingYellow))
+    }
 }

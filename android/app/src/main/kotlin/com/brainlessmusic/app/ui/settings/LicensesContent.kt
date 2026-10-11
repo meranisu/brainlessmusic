@@ -59,6 +59,12 @@ private val Fonts = listOf(
     Credit("Exo 2", "Copyright 2013 The Exo 2 Project Authors. The Lane skin's type", OFL, text = R.raw.license_ofl_1_1),
     Credit("Orbitron", "Copyright 2018 The Orbitron Project Authors, Reserved Font Name \"Orbitron\". The Gear skin's headings", OFL, text = R.raw.license_ofl_1_1),
     Credit("Chakra Petch", "Copyright 2018 The Chakra Petch Project Authors. The Gear skin's text", OFL, text = R.raw.license_ofl_1_1),
+    Credit(
+        "M PLUS Rounded 1c",
+        "Copyright 2016 The Rounded M+ Project Authors. The Ring skin's type, cut down to Latin, symbols and kana",
+        OFL,
+        text = R.raw.license_ofl_1_1,
+    ),
 )
 
 private val Icons = listOf(
@@ -75,6 +81,7 @@ private val Icons = listOf(
         text = R.raw.license_lucide_isc,
     ),
     Credit("Phosphor Icons 2.1.1", "Copyright (c) 2023 Phosphor Icons. The Gear skin's icons", "MIT License", text = R.raw.license_phosphor_mit),
+    Credit("MingCute 3.0.2", "MingCute Design (Richard9394). The Ring skin's icons", APACHE, text = R.raw.license_apache_2_0),
     Credit("Material Icons", "Google. The Standard skin's icons", APACHE, link = APACHE_URL),
 )
 

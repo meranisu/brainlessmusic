@@ -50,6 +50,7 @@ private fun readingLabel(skin: Skin) = when (skin) {
     Skin.HIT_CIRCLE -> "PLAYER READY"
     Skin.LANE -> "SYNCHRONIZING"
     Skin.GEAR -> "ENTRY"
+    Skin.RING -> "WELCOME"
 }
 
 /**
@@ -167,7 +168,7 @@ fun ArcadeWelcome(viewModel: StartViewModel) {
     }
 }
 
-/** The skin's sign on the player card: a hit circle, Arcaea's diamond, two knobs, or the plain card's stripe. */
+/** The skin's sign on the player card: a hit circle, Arcaea's diamond, two knobs, maimai's ringed screen, or the plain card's stripe. */
 @Composable
 private fun SkinMark(skin: Skin) {
     val ink = MaterialTheme.colorScheme.onPrimary
@@ -182,6 +183,15 @@ private fun SkinMark(skin: Skin) {
                     moveTo(c.x, c.y - d); lineTo(c.x + d, c.y); lineTo(c.x, c.y + d); lineTo(c.x - d, c.y); close()
                 }
                 drawPath(path, ink, style = Stroke(3.dp.toPx()))
+            }
+            Skin.RING -> {
+                // The round screen with its eight buttons.
+                val r = 22.dp.toPx()
+                drawCircle(ink, radius = r, center = c, style = Stroke(4.dp.toPx()))
+                for (n in 0 until 8) {
+                    val a = Math.toRadians(22.5 + 45.0 * n)
+                    drawCircle(ink, radius = 4.dp.toPx(), center = Offset(c.x + (r + 8.dp.toPx()) * kotlin.math.sin(a).toFloat(), c.y - (r + 8.dp.toPx()) * kotlin.math.cos(a).toFloat()))
+                }
             }
             Skin.GEAR -> {
                 // The console's two knobs, joined by the critical line.
