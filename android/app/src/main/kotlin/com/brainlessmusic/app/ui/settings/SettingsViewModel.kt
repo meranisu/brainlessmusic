@@ -6,7 +6,8 @@ import com.brainlessmusic.app.data.local.AppearanceSettings
 import com.brainlessmusic.app.data.local.BetweenSongs
 import com.brainlessmusic.app.data.local.ColorTheme
 import com.brainlessmusic.app.data.local.PlaybackSettings
-import com.brainlessmusic.app.data.local.PlayerSkin
+import com.brainlessmusic.app.data.local.PlayerButtons
+import com.brainlessmusic.app.data.local.Skin
 import com.brainlessmusic.app.data.local.SeekStyle
 import com.brainlessmusic.app.data.local.ThemeMode
 import com.brainlessmusic.app.data.local.TransitionPrefs
@@ -91,11 +92,18 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { appearance.setSeekStyle(style) }
     }
 
-    val playerSkin: StateFlow<PlayerSkin> = appearance.playerSkin
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlayerSkin.STANDARD)
+    val skin: StateFlow<Skin> = appearance.skin
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Skin.STANDARD)
 
-    fun setPlayerSkin(style: PlayerSkin) {
-        viewModelScope.launch { appearance.setPlayerSkin(style) }
+    fun setSkin(skin: Skin) {
+        viewModelScope.launch { appearance.setSkin(skin) }
+    }
+
+    val playerButtons: StateFlow<PlayerButtons> = appearance.playerButtons
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlayerButtons.STANDARD)
+
+    fun setPlayerButtons(buttons: PlayerButtons) {
+        viewModelScope.launch { appearance.setPlayerButtons(buttons) }
     }
 
     /** Saved to the profile too, except Material You (A78). */

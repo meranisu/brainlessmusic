@@ -1,6 +1,8 @@
 package com.brainlessmusic.app.ui.theme
 
 import android.os.Build
+import android.provider.Settings
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
@@ -11,6 +13,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
@@ -19,6 +22,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
 import com.brainlessmusic.app.data.local.ColorTheme
+import com.brainlessmusic.app.data.local.Skin
 import com.brainlessmusic.app.data.local.ThemeMode
 
 // Dark-first, like the web app. Every surface role is set, so Material derives no shades of its own, and the tint is
@@ -133,11 +137,15 @@ fun SheetStatusBarFollowsApp() {
     SideEffect { WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = !dark }
 }
 
-/** The brand palette by default (A36). [ColorTheme.MATERIAL_YOU] takes the wallpaper's scheme on Android 12+. */
+/**
+ * The brand palette by default (A36). [ColorTheme.MATERIAL_YOU] takes the wallpaper's scheme on Android 12+. [skin]
+ * sets type, shapes and tap feedback (A117); colours stay with [colorTheme].
+ */
 @Composable
 fun BrainlessMusicTheme(
     colorTheme: ColorTheme = ColorTheme.DEEP_BLUE,
     darkTheme: Boolean = isSystemInDarkTheme(),
+    skin: Skin = Skin.STANDARD,
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
@@ -156,11 +164,24 @@ fun BrainlessMusicTheme(
         else -> colorTheme.palette().accentOnLight
     }
 
-    CompositionLocalProvider(LocalAccentInk provides accentInk, LocalDarkTheme provides darkTheme) {
+    val animationsOn = remember {
+        Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
+    }
+
+    CompositionLocalProvider(LocalAccentInk provides accentInk, LocalDarkTheme provides darkTheme, LocalSkin provides skin) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = Typography,
-            content = content,
-        )
+            typography = skin.typography(),
+            shapes = skin.shapes(),
+        ) {
+            when (skin) {
+                Skin.STANDARD -> content()
+                // Inside MaterialTheme, which sets the ripple this replaces.
+                Skin.HIT_CIRCLE -> CompositionLocalProvider(
+                    LocalIndication provides ApproachRingIndication(colorScheme.primary, animationsOn),
+                    content = content,
+                )
+            }
+        }
     }
 }

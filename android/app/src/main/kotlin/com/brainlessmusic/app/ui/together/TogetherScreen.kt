@@ -62,6 +62,7 @@ import com.brainlessmusic.app.rooms.RoomConnection
 import com.brainlessmusic.app.rooms.RoomMember
 import com.brainlessmusic.app.rooms.RoomUiState
 import com.brainlessmusic.app.ui.theme.accentInk
+import com.brainlessmusic.app.ui.theme.tileShape
 
 /**
  * "Listen together" (A102): start a room, join one by its code, or, inside one, the code to pass on, who's in and the
@@ -116,7 +117,7 @@ fun TogetherScreen(
 @Composable
 private fun Panel(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = tileShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = modifier.fillMaxWidth(),

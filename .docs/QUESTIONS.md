@@ -31,9 +31,6 @@ is never asked twice.
 | [Q5](#q5--tag-editing-scope) | Tag-editing scope | 2026-09-09 | No |
 | [Q77](#q77--how-does-the-android-app-get-past-cloudflare-access) | How does the Android app get past Cloudflare Access? | 2026-10-11 | Yes, before Access goes on |
 | [Q78](#q78--who-goes-on-the-access-email-list) | Who goes on the Access email list? | 2026-10-11 | Yes, before Access goes on |
-| [Q117](#q117--does-a-skin-style-the-whole-app) | Does a skin style the whole app? | 2026-10-11 | Yes, for app skins |
-| [Q118](#q118--how-deep-does-an-app-skin-go) | How deep does an app skin go? | 2026-10-11 | Yes, for app skins |
-| [Q119](#q119--hit-circle-app-wide-before-deck) | Hit circle app-wide before Deck? | 2026-10-11 | Yes, for app skins |
 
 ### Q5 — Tag-editing scope
 **Asked:** 2026-09-09 · **Blocking:** no
@@ -62,38 +59,22 @@ includes friends using a guest code on the web: without their email on the list 
 - **A. You and the friends who use the web (recommended).** Each friend's email goes on the list once.
 - **B. Only you.** Friends use the Android app only (with Q77's token), never the web.
 
-### Q117 — Does a skin style the whole app?
-**Asked:** 2026-10-11 · **Blocking:** yes, for app skins
-
-Owner, after trying Hit circle: "taking the design language into the entire app, so it's basically a skin/theme".
-This reopens A48 (a theme is colour only) and A116 (a skin sets the player's layout; colours are separate themes).
-
-- **A. One Skin setting styles everything; colours stay separate (recommended).** Settings → Appearance → Skin
-  replaces Player skin and restyles the whole app; Colours stays its own pick, so Hit circle can be worn in Deep blue
-  or Magenta. Keeps A116.
-- **B. A skin is one package: layout, type and its colours.** Picking Hit circle also sets Magenta. Simpler to choose,
-  less to mix.
-- **C. Two settings: an app skin and a player skin.** Most freedom; most combinations to keep looking right.
-
-### Q118 — How deep does an app skin go?
-**Asked:** 2026-10-11 · **Blocking:** yes, for app skins
-
-- **A. The design language, everywhere (recommended).** Every skin sets: typeface, corner shapes (round for Hit
-  circle, square for Deck), cover shape, button style, list rows and the selected-item marker, the mini player and its
-  seek line, the bottom bar, sheets and dialogs, and small motion (the approach ring on taps). All screens follow
-  through shared components, so each new skin costs a token set plus a few signature parts.
-- **B. A plus signature screens.** A also gets one bespoke screen per skin (Hit circle's Home as a song-select carousel,
-  say). Much more work per skin; the sequence slows a lot.
-- **C. Lighter: typeface and corner shapes only** across the app, with the full treatment kept to the player.
-
-### Q119 — Hit circle app-wide before Deck?
-**Asked:** 2026-10-11 · **Blocking:** yes, for app skins
-
-- **A. Yes (recommended).** Build the app-wide skin system now with Hit circle as its first skin and try it; every
-  skin after that (Deck first) ships app-wide from the start.
-- **B. No.** Carry on with player skins in sequence; take them app-wide later, all at once.
-
 ## Answered
+
+### A119 — Hit circle goes app-wide first; the current design stays the default *(was Q119)*
+**Answered:** 2026-10-11, in chat: "a, also retain the current design as default theme". The app-wide skin system is
+built now with Hit circle as its first skin; Deck and the rest ship app-wide from the start. Today's look is kept as
+the **Standard** skin and is what everyone gets until they pick another.
+
+### A118 — An app skin carries the full design language *(was Q118)*
+**Answered:** 2026-10-11, in chat: "a". A skin sets typeface, corner shapes, cover and avatar shape, button style, list
+rows and the tap feedback, the mini player and its progress line, the bottom bar, sheets and dialogs, through shared
+components, so each new skin is mostly a token set plus a few signature parts. No bespoke per-skin screens.
+
+### A117 — One Skin setting styles the whole app; colours stay separate *(was Q117)*
+**Answered:** 2026-10-11, in chat: "a". Settings → Appearance → Skin replaces Player skin and restyles every screen,
+the player included. Colours stays its own pick (A116 holds). Supersedes A48's "a theme is colour only" for layout and
+type: a theme is still colour only, and the skin now owns type, shape and layout.
 
 ### A116 — Each game's colours become a theme of their own *(was Q116)*
 **Answered:** 2026-10-11, in chat: "c". The game palettes join Settings → Colours as separate themes, picked on their

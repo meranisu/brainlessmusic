@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `Skin`, `PlayerButtons` (new enums, replace `PlayerSkin`), `AppearanceSettings.skin` / `setSkin()` / `playerButtons` / `setPlayerButtons()`: `data/local/AppearanceSettings.kt`; `LocalSkin`, `cardShape`, `tileShape()`, `rowShape`, `coverShape()`, `ApproachRingIndication` (new): `ui/theme/Skin.kt`; `BrainlessMusicTheme()` (changed, `skin`); `PlayingMarker()`, `MiniProgress()`, `TabIcon()`, `markPlaying` (new): `ui/common/SkinParts.kt`; `CoverImage()`, `CoverMosaic()`, `MiniPlayer()`, `LibraryBottomBar()`, album `TrackRow()`, queue rows, `SettingsScreen()` (changed)
+**Date:** 2026-10-11
+**How added:** owner request (A117-A119)
+**Purpose:** a skin restyles the whole Android app; Hit circle is the first, Standard keeps the original look.
+**Side effects:** new DataStore key `skin`; `controls_style` now holds only Standard/Pills (a stored `HIT_CIRCLE` is read as the skin).
+**Before:** a player skin changed only Now Playing.
+**After:** the skin sets type, shapes, covers, tap feedback, mini player, bottom bar and the player across every screen.
+
 **Function:** `UpdateRepository.skip()`, `UpdateViewModel.skip()` (removed); `UpdateRepository.checkOnLaunch()`, `UpdateSheetHost()` (changed): `android/.../update/`, `ui/update/`
 **Date:** 2026-10-11
 **How added:** owner request (reverses A105)

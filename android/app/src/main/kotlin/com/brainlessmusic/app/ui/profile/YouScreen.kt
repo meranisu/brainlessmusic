@@ -93,10 +93,12 @@ import com.brainlessmusic.app.ui.common.SkeletonListRows
 import com.brainlessmusic.app.ui.navigation.AppBottomBar
 import com.brainlessmusic.app.ui.navigation.Routes
 import com.brainlessmusic.app.ui.theme.DisplayFontFamily
+import com.brainlessmusic.app.ui.theme.cardShape
+import com.brainlessmusic.app.ui.theme.coverShape
 import java.util.Calendar
+import com.brainlessmusic.app.ui.theme.tileShape
 
 // Flat outlined cards, like Settings and the Library header (DESIGN.md, Android).
-private val CardShape = RoundedCornerShape(20.dp)
 
 // Wide enough for "10" in the display face, so every title in a list starts at the same x.
 private val RankWidth = 32.dp
@@ -321,7 +323,7 @@ private fun GuestHomeList(
 @Composable
 private fun GuestCard(home: GuestHome) {
     Surface(
-        shape = CardShape,
+        shape = MaterialTheme.cardShape,
         color = MaterialTheme.colorScheme.surfaceContainer,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
@@ -390,7 +392,7 @@ private fun StartRow(onShuffle: () -> Unit, onTogether: () -> Unit) {
 private fun Avatar(content: @Composable () -> Unit) {
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(10.dp)),
+        modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.primaryContainer, coverShape(10.dp)),
     ) { content() }
 }
 
@@ -398,7 +400,7 @@ private fun Avatar(content: @Composable () -> Unit) {
 @Composable
 private fun ListCard(content: @Composable ColumnScope.() -> Unit) {
     Surface(
-        shape = CardShape,
+        shape = MaterialTheme.cardShape,
         color = MaterialTheme.colorScheme.surfaceContainer,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
@@ -450,7 +452,7 @@ internal fun greeting(hour: Int, name: String?): String {
 private fun PlayerCard(username: String?, stats: UserStatsDto, range: StatsRange) {
     val name = username ?: "You"
     Surface(
-        shape = CardShape,
+        shape = MaterialTheme.cardShape,
         color = MaterialTheme.colorScheme.surfaceContainer,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
@@ -798,7 +800,7 @@ private fun LibraryTiles(counts: ProfileCountsDto, onOpenLiked: () -> Unit, onOp
 private fun LibraryTile(icon: ImageVector, count: Int, label: String, spoken: String, onClick: () -> Unit, modifier: Modifier) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
+        shape = tileShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = modifier.fillMaxHeight(),

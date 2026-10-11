@@ -52,14 +52,22 @@ enum class SeekStyle(val label: String) {
 }
 
 /**
- * How the Now Playing screen is laid out (A114). Standard and Pills keep the stock layout; the rest are after rhythm games,
- * draw in the current colour theme (A116) and show your record for the song (A115). Stored under the old
- * `controls_style` key, so a Pills pick from v0.3.31 carries over.
+ * The whole app's design language (A117-A119): type, shapes, covers, tap feedback, mini player, bottom bar and the Now
+ * Playing layout. Colours stay with [ColorTheme] (A116). Standard is the app as it was, and the default.
  */
-enum class PlayerSkin(val label: String, val detail: String, val showsRecord: Boolean = false) {
+enum class Skin(val label: String, val detail: String) {
+    STANDARD("Standard", "The original look"),
+    HIT_CIRCLE("Hit circle", "After osu!: round covers and buttons, a ring on every tap, a slider player. Pairs with Magenta"),
+    ;
+
+    /** Game skins show your record for the song in the player (A115). */
+    val showsRecord: Boolean get() = this != STANDARD
+}
+
+/** The Standard skin's player buttons. Stored under `controls_style`, as since v0.3.31. */
+enum class PlayerButtons(val label: String, val detail: String) {
     STANDARD("Standard", "Shuffle and repeat beside a filled play button"),
     PILLS("Pills", "Like, shuffle, repeat and add to playlist as a row of rounded buttons, with an outlined play button"),
-    HIT_CIRCLE("Hit circle", "After osu!: a round cover, hit circle buttons and a slider. Pairs with Magenta", showsRecord = true),
 }
 
 /** How the app looks. Same DataStore as [SessionStore]; survives logout for the same reason [PlaybackSettings] does. */
@@ -88,12 +96,22 @@ class AppearanceSettings @Inject constructor(
         dataStore.edit { it[SEEK_STYLE_KEY] = style.name }
     }
 
-    val playerSkin: Flow<PlayerSkin> = dataStore.data.map { prefs ->
-        PlayerSkin.entries.firstOrNull { it.name == prefs[CONTROLS_STYLE_KEY] } ?: PlayerSkin.STANDARD
+    /** v0.3.32 kept Hit circle in `controls_style`; a phone that picked it there wears it app-wide now. */
+    val skin: Flow<Skin> = dataStore.data.map { prefs ->
+        Skin.entries.firstOrNull { it.name == prefs[SKIN_KEY] }
+            ?: if (prefs[CONTROLS_STYLE_KEY] == "HIT_CIRCLE") Skin.HIT_CIRCLE else Skin.STANDARD
     }
 
-    suspend fun setPlayerSkin(style: PlayerSkin) {
-        dataStore.edit { it[CONTROLS_STYLE_KEY] = style.name }
+    suspend fun setSkin(skin: Skin) {
+        dataStore.edit { it[SKIN_KEY] = skin.name }
+    }
+
+    val playerButtons: Flow<PlayerButtons> = dataStore.data.map { prefs ->
+        if (prefs[CONTROLS_STYLE_KEY] == PlayerButtons.PILLS.name) PlayerButtons.PILLS else PlayerButtons.STANDARD
+    }
+
+    suspend fun setPlayerButtons(buttons: PlayerButtons) {
+        dataStore.edit { it[CONTROLS_STYLE_KEY] = buttons.name }
     }
 
     /** What was picked on this phone, or null if nothing ever was (the profile then gets nothing from it). */
@@ -112,6 +130,7 @@ class AppearanceSettings @Inject constructor(
         val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         val SEEK_STYLE_KEY = stringPreferencesKey("seek_style")
         val CONTROLS_STYLE_KEY = stringPreferencesKey("controls_style")
+        val SKIN_KEY = stringPreferencesKey("skin")
         val COLOR_THEME_KEY = stringPreferencesKey("color_theme")
     }
 }

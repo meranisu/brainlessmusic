@@ -4,7 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.brainlessmusic.app.data.local.AppearanceSettings
 import com.brainlessmusic.app.data.local.PlaybackSettings
-import com.brainlessmusic.app.data.local.PlayerSkin
+import com.brainlessmusic.app.data.local.PlayerButtons
+import com.brainlessmusic.app.data.local.Skin
 import com.brainlessmusic.app.data.local.SeekStyle
 import com.brainlessmusic.app.data.repository.AuthRepository
 import com.brainlessmusic.app.data.repository.LibraryRepository
@@ -42,8 +43,11 @@ class PlaybackViewModel @Inject constructor(
     val seekStyle: StateFlow<SeekStyle> = appearance.seekStyle
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SeekStyle.SQUIGGLE)
 
-    val playerSkin: StateFlow<PlayerSkin> = appearance.playerSkin
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlayerSkin.STANDARD)
+    val skin: StateFlow<Skin> = appearance.skin
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Skin.STANDARD)
+
+    val playerButtons: StateFlow<PlayerButtons> = appearance.playerButtons
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlayerButtons.STANDARD)
 
     /** Bar heights (0..1) for the Waveform seek bar, or null while offline or when the server has none. */
     suspend fun waveformBars(trackId: Int): List<Float>? =

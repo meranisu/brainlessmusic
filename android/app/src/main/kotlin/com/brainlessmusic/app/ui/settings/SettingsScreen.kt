@@ -71,7 +71,8 @@ import com.brainlessmusic.app.BuildConfig
 import com.brainlessmusic.app.data.local.BetweenSongs
 import com.brainlessmusic.app.data.local.ColorTheme
 import com.brainlessmusic.app.data.local.FADE_LENGTHS
-import com.brainlessmusic.app.data.local.PlayerSkin
+import com.brainlessmusic.app.data.local.PlayerButtons
+import com.brainlessmusic.app.data.local.Skin
 import com.brainlessmusic.app.data.local.SeekStyle
 import com.brainlessmusic.app.data.local.ThemeMode
 import com.brainlessmusic.app.ui.downloads.DownloadSettings
@@ -93,10 +94,10 @@ import androidx.compose.ui.unit.sp
 import com.brainlessmusic.app.R
 import com.brainlessmusic.app.ui.theme.BrandFontFamily
 import com.brainlessmusic.app.ui.theme.accentInk
+import com.brainlessmusic.app.ui.theme.cardShape
+import com.brainlessmusic.app.ui.theme.tileShape
 
 // Cards here match the Library header: flat, a 1 dp outline, no shadow (DESIGN.md, Android).
-private val CardShape = RoundedCornerShape(20.dp)
-private val TileShape = RoundedCornerShape(14.dp)
 
 /** The pages under Settings, each its own screen off the list. */
 enum class SettingsPage(val route: String, val title: String) {
@@ -241,7 +242,8 @@ fun SettingsPageScreen(
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val colorTheme by viewModel.colorTheme.collectAsStateWithLifecycle()
     val seekStyle by viewModel.seekStyle.collectAsStateWithLifecycle()
-    val playerSkin by viewModel.playerSkin.collectAsStateWithLifecycle()
+    val skin by viewModel.skin.collectAsStateWithLifecycle()
+    val playerButtons by viewModel.playerButtons.collectAsStateWithLifecycle()
     val username by viewModel.username.collectAsStateWithLifecycle()
     val displayName by viewModel.displayName.collectAsStateWithLifecycle()
     val renameResult by viewModel.renameResult.collectAsStateWithLifecycle()
@@ -329,18 +331,29 @@ fun SettingsPageScreen(
                             }
                         }
                         Divider()
-                        Block(title = "Progress bar", detail = "How the seek bar looks on the Now Playing screen.") {
+                        Block(title = "Skin", detail = "How the whole app is shaped and set, the player included. Colours come from above.") {
                             Column(Modifier.selectableGroup()) {
-                                SeekStyle.entries.forEach { style ->
-                                    SeekStyleOption(style, selected = style == seekStyle, onClick = { viewModel.setSeekStyle(style) })
+                                Skin.entries.forEach { option ->
+                                    ChoiceOption(option.label, option.detail, selected = option == skin, onClick = { viewModel.setSkin(option) })
                                 }
                             }
                         }
-                        Divider()
-                        Block(title = "Player skin", detail = "How the Now Playing screen is laid out. Colours come from the theme above.") {
-                            Column(Modifier.selectableGroup()) {
-                                PlayerSkin.entries.forEach { style ->
-                                    PlayerSkinOption(style, selected = style == playerSkin, onClick = { viewModel.setPlayerSkin(style) })
+                        // A game skin brings its own player; these two only shape Standard's.
+                        if (skin == Skin.STANDARD) {
+                            Divider()
+                            Block(title = "Player buttons", detail = "How the buttons look on the Now Playing screen.") {
+                                Column(Modifier.selectableGroup()) {
+                                    PlayerButtons.entries.forEach { option ->
+                                        ChoiceOption(option.label, option.detail, selected = option == playerButtons, onClick = { viewModel.setPlayerButtons(option) })
+                                    }
+                                }
+                            }
+                            Divider()
+                            Block(title = "Progress bar", detail = "How the seek bar looks on the Now Playing screen.") {
+                                Column(Modifier.selectableGroup()) {
+                                    SeekStyle.entries.forEach { style ->
+                                        SeekStyleOption(style, selected = style == seekStyle, onClick = { viewModel.setSeekStyle(style) })
+                                    }
                                 }
                             }
                         }
@@ -528,7 +541,7 @@ private fun PageRow(icon: ImageVector, title: String, summary: String, onClick: 
 @Composable
 private fun Card(content: @Composable ColumnScope.() -> Unit) {
     Surface(
-        shape = CardShape,
+        shape = MaterialTheme.cardShape,
         color = MaterialTheme.colorScheme.surfaceContainer,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = Modifier.fillMaxWidth(),
@@ -593,7 +606,7 @@ private fun ColorThemeTile(
     val scheme = MaterialTheme.colorScheme
     val preview = previewColorScheme(theme, darkTheme)
     Surface(
-        shape = TileShape,
+        shape = tileShape(14.dp),
         color = scheme.surfaceContainer,
         border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) scheme.primary else scheme.outlineVariant),
         modifier = modifier.selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
@@ -651,7 +664,7 @@ private fun BetweenSongsOption(option: BetweenSongs, selected: Boolean, onClick:
 }
 
 @Composable
-private fun PlayerSkinOption(style: PlayerSkin, selected: Boolean, onClick: () -> Unit) {
+private fun ChoiceOption(label: String, detail: String, selected: Boolean, onClick: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -662,8 +675,8 @@ private fun PlayerSkinOption(style: PlayerSkin, selected: Boolean, onClick: () -
     ) {
         RadioButton(selected = selected, onClick = null)
         Column(modifier = Modifier.padding(start = 12.dp)) {
-            Text(style.label, style = MaterialTheme.typography.bodyMedium)
-            Text(style.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(label, style = MaterialTheme.typography.bodyMedium)
+            Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

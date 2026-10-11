@@ -4,6 +4,24 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Android skins go app-wide; Hit circle styles the whole app
+
+- Owner's decisions A117-A119: one **Skin** setting (Settings → Appearance) restyles every screen and the player;
+  colours stay a separate pick; the original look is kept as **Standard**, the default. Player buttons and Progress
+  bar now show only under Standard, which they shape. A Hit circle pick from v0.3.32 (`controls_style`) carries over
+  as the app skin; a Pills pick stays Pills.
+- New `ui/theme/Skin.kt`: `LocalSkin`, per-skin `Typography` and `Shapes`, `cardShape` / `tileShape()` / `rowShape` /
+  `coverShape()`, and `ApproachRingIndication`, Hit circle's tap (a ring closing on the finger on every plain
+  `clickable`; Material's own buttons keep their ripple; animations off leaves only the pressed tint).
+  `BrainlessMusicTheme(skin = ...)`, read synchronously at start like the colours so the first frame is right.
+- New `ui/common/SkinParts.kt`: `PlayingMarker` (album and queue rows), `MiniProgress` (mini player), `TabIcon` (bottom
+  bar). `CoverImage`, the Home avatar, skeletons, the downloads mosaic, Home/Settings/Downloads cards, tiles and queue
+  and playlist rows read the skin; every Standard radius and part is unchanged.
+- Hit circle: Fredoka for headings, titles and labels; round covers and avatars; larger radii and pill rows; ringed
+  selected tab; slider progress in the mini player; `HitCircleDeck` as the player. DESIGN.md documents skins.
+- Verified: `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest` 105 tests, 1 skipped, 0 failed. **Not run:** on a
+  phone; Standard was checked by reading every changed value, not on screen.
+
 ## 2026-10-11: CI for backend and frontend on every push
 
 - New `.github/workflows/ci.yml`: on every push to `main`, every pull request, or by hand. Two jobs. **backend**:

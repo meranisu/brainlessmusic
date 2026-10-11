@@ -4,7 +4,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material3.Icon
@@ -18,8 +17,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
+import com.brainlessmusic.app.ui.theme.coverShape
 
-/** Cover art, or a disc icon when there is no URL, the load fails, or it is still loading. */
+/** Cover art, or a disc icon when there is no URL, the load fails, or it is still loading. Round in Hit circle. */
 @Composable
 fun CoverImage(
     url: String?,
@@ -32,7 +32,7 @@ fun CoverImage(
 
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(cornerRadius))
+            .clip(coverShape(cornerRadius))
             .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center,
     ) {

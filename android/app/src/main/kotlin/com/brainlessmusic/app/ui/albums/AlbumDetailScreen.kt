@@ -60,6 +60,8 @@ import com.brainlessmusic.app.ui.common.formatDuration
 import com.brainlessmusic.app.ui.playback.MiniPlayer
 import com.brainlessmusic.app.ui.profile.SongActionsViewModel
 import com.brainlessmusic.app.ui.profile.SongMenuSheet
+import com.brainlessmusic.app.ui.common.PlayingMarker
+import com.brainlessmusic.app.ui.common.markPlaying
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -202,11 +204,15 @@ private fun TrackRow(
     val haptics = LocalHapticFeedback.current
     ListItem(
         leadingContent = {
-            Text(
-                track.trackNumber?.toString() ?: "–",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            if (isCurrent && markPlaying) {
+                PlayingMarker()
+            } else {
+                Text(
+                    track.trackNumber?.toString() ?: "–",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         },
         headlineContent = {
             Text(

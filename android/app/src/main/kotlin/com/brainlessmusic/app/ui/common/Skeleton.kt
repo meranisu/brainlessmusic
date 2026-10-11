@@ -46,6 +46,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import com.brainlessmusic.app.ui.theme.coverShape
 
 /** Varied so a column of bars reads as names of different lengths, not a stack of identical stripes. */
 private val TitleFractions = listOf(0.4f, 0.6f, 0.33f, 0.5f, 0.66f, 0.25f, 0.42f, 0.58f)
@@ -143,7 +144,7 @@ private fun SkeletonRow(index: Int, lead: SkeletonLead, trailing: Boolean) {
                 Spacer(Modifier.width(16.dp))
             }
             SkeletonLead.COVER -> {
-                SkeletonBlock(Modifier.size(40.dp), RoundedCornerShape(8.dp))
+                SkeletonBlock(Modifier.size(40.dp), coverShape(8.dp))
                 Spacer(Modifier.width(16.dp))
             }
         }
@@ -175,7 +176,7 @@ fun SkeletonAlbumGrid(
     ) {
         items(count) { i ->
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                SkeletonBlock(Modifier.fillMaxWidth().aspectRatio(1f), RoundedCornerShape(8.dp))
+                SkeletonBlock(Modifier.fillMaxWidth().aspectRatio(1f), coverShape(8.dp))
                 SkeletonBlock(Modifier.fillMaxWidth(if (i % 2 == 0) 0.5f else 0.75f).height(12.dp))
                 SkeletonBlock(Modifier.fillMaxWidth(if (i % 3 == 0) 0.66f else 0.4f).height(10.dp))
             }
@@ -190,7 +191,7 @@ fun SkeletonAlbumHeader(coverSize: Dp = 88.dp) {
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        SkeletonBlock(Modifier.size(coverSize), RoundedCornerShape(8.dp))
+        SkeletonBlock(Modifier.size(coverSize), coverShape(8.dp))
         Column(Modifier.padding(start = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             SkeletonBlock(Modifier.width(180.dp).height(20.dp))
             SkeletonBlock(Modifier.width(120.dp).height(12.dp))

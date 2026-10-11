@@ -93,9 +93,10 @@ import com.brainlessmusic.app.ui.common.LoadStateContent
 import com.brainlessmusic.app.ui.common.SkeletonListRows
 import com.brainlessmusic.app.ui.navigation.AppBottomBar
 import com.brainlessmusic.app.ui.navigation.Routes
+import com.brainlessmusic.app.ui.theme.coverShape
+import com.brainlessmusic.app.ui.theme.cardShape
 
 // Flat panels with a 1 dp outline, as Settings and the Library header (DESIGN.md: no shadows, no glow).
-private val PanelShape = RoundedCornerShape(20.dp)
 
 /**
  * Everything kept on the phone, as a cover grid like the music select (A89): the space it takes, Play all, what is
@@ -256,7 +257,7 @@ private fun NothingDownloaded(
             modifier = Modifier.padding(top = 8.dp),
         )
         Surface(
-            shape = PanelShape,
+            shape = MaterialTheme.cardShape,
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
             color = Color.Transparent,
             modifier = Modifier.padding(top = 24.dp).fillMaxWidth(),
@@ -301,7 +302,7 @@ private fun LazyGridScope.fullWidth(key: String, content: @Composable () -> Unit
 private fun StoragePanel(ui: DownloadsUi) {
     val context = LocalContext.current
     val used = Formatter.formatShortFileSize(context, ui.spaceUsed)
-    Surface(shape = PanelShape, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline), color = Color.Transparent) {
+    Surface(shape = MaterialTheme.cardShape, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline), color = Color.Transparent) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(used, style = MaterialTheme.typography.headlineMedium)
@@ -350,7 +351,7 @@ private fun PlayButtons(onPlayAll: () -> Unit, onShuffleAll: () -> Unit, modifie
 /** What is downloading now, three songs at most, with pause and resume for the whole queue. */
 @Composable
 private fun InProgressPanel(ui: DownloadsUi, onPause: () -> Unit, onResume: () -> Unit) {
-    Surface(shape = PanelShape, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline), color = Color.Transparent) {
+    Surface(shape = MaterialTheme.cardShape, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline), color = Color.Transparent) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val count = ui.active.size
@@ -411,7 +412,7 @@ private fun SearchRow(query: String, onQuery: (String) -> Unit, sort: DownloadSo
                 }
             },
             singleLine = true,
-            shape = PanelShape,
+            shape = MaterialTheme.cardShape,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = { focus.clearFocus() }),
             modifier = Modifier.weight(1f),
@@ -500,7 +501,7 @@ internal fun CoverMosaic(covers: List<String?>, modifier: Modifier = Modifier) {
     }
     val perColumn = MosaicColumns[shown.size - 2]
     var next = 0
-    Row(modifier.clip(RoundedCornerShape(14.dp))) {
+    Row(modifier.clip(coverShape(14.dp))) {
         perColumn.forEach { count ->
             val column = shown.subList(next, next + count)
             next += count

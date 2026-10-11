@@ -67,11 +67,13 @@ import com.brainlessmusic.app.ui.theme.SheetStatusBarFollowsApp
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import com.brainlessmusic.app.ui.common.PlayingMarker
+import com.brainlessmusic.app.ui.common.markPlaying
+import com.brainlessmusic.app.ui.theme.rowShape
 
 // Rows and the header sit on the player's 24 dp sides, like its Up next card, with that card's 12 dp inside a row.
 private val SidePadding = 24.dp
 private val RowInnerPadding = 12.dp
-private val RowShape = RoundedCornerShape(12.dp)
 
 // Fixed rather than themed: red and blue read as "remove" and "less" in every colour theme, and the default theme's
 // accent is already orange.
@@ -290,10 +292,10 @@ private fun QueueRowItem(
         enableDismissFromStartToEnd = !isCurrent && canPlayLessOften,
         enableDismissFromEndToStart = !isCurrent,
         backgroundContent = { SwipeBackground(swipe.dismissDirection) },
-        modifier = Modifier.padding(horizontal = SidePadding, vertical = 2.dp).clip(RowShape),
+        modifier = Modifier.padding(horizontal = SidePadding, vertical = 2.dp).clip(MaterialTheme.rowShape),
     ) {
         Surface(
-            shape = RowShape,
+            shape = MaterialTheme.rowShape,
             color = if (isCurrent) MaterialTheme.colorScheme.secondaryContainer else BottomSheetDefaults.ContainerColor,
             shadowElevation = elevation,
         ) {
@@ -306,6 +308,7 @@ private fun QueueRowItem(
                     .padding(start = RowInnerPadding, end = if (handle != null) 4.dp else RowInnerPadding)
                     .heightIn(min = 56.dp),
             ) {
+                if (isCurrent && markPlaying) PlayingMarker(Modifier.padding(end = 12.dp))
                 Column(Modifier.weight(1f).padding(vertical = 8.dp)) {
                     Text(
                         row.item.title,
@@ -345,7 +348,7 @@ private fun SwipeBackground(direction: SwipeToDismissBoxValue) {
         SwipeToDismissBoxValue.Settled -> Color.Transparent to Alignment.Center
     }
     Box(
-        modifier = Modifier.fillMaxSize().background(color, RowShape).padding(horizontal = 20.dp),
+        modifier = Modifier.fillMaxSize().background(color, MaterialTheme.rowShape).padding(horizontal = 20.dp),
         contentAlignment = alignment,
     ) {
         when (direction) {

@@ -17,7 +17,6 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -32,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.brainlessmusic.app.ui.common.CoverImage
+import com.brainlessmusic.app.ui.common.MiniProgress
 import kotlin.math.abs
 
 /**
@@ -73,12 +73,7 @@ fun MiniPlayer(
         Column(
             modifier = if (extendUnderSystemBar) Modifier.windowInsetsPadding(WindowInsets.navigationBars) else Modifier,
         ) {
-            LinearProgressIndicator(
-                progress = { progress },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(2.dp),
-            )
+            MiniProgress(progress)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),

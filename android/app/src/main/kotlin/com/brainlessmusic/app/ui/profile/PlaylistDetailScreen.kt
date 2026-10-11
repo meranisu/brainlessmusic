@@ -97,8 +97,8 @@ import kotlinx.coroutines.sync.withLock
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import javax.inject.Inject
+import com.brainlessmusic.app.ui.theme.rowShape
 
-private val RowShape = RoundedCornerShape(12.dp)
 private val RemoveColor = Color(0xFFDC2626)
 
 /** A song taken out of a playlist, and the order to put back on Undo. */
@@ -424,7 +424,7 @@ private fun PlaylistRow(
             if (swipe.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
                 Box(
                     contentAlignment = Alignment.CenterEnd,
-                    modifier = Modifier.fillMaxSize().background(RemoveColor, RowShape).padding(horizontal = 20.dp),
+                    modifier = Modifier.fillMaxSize().background(RemoveColor, MaterialTheme.rowShape).padding(horizontal = 20.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Remove", color = Color.White, style = MaterialTheme.typography.labelLarge)
@@ -433,9 +433,9 @@ private fun PlaylistRow(
                 }
             }
         },
-        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp).clip(RowShape),
+        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp).clip(MaterialTheme.rowShape),
     ) {
-        Surface(shape = RowShape, color = MaterialTheme.colorScheme.surface, shadowElevation = elevation) {
+        Surface(shape = MaterialTheme.rowShape, color = MaterialTheme.colorScheme.surface, shadowElevation = elevation) {
             ListItem(
                 headlineContent = { Text(track.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 supportingContent = {

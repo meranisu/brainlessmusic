@@ -78,6 +78,7 @@ import com.brainlessmusic.app.ui.profile.LikeButton
 import com.brainlessmusic.app.ui.profile.SongActionsViewModel
 import com.brainlessmusic.app.ui.profile.SongMenuSheet
 import com.brainlessmusic.app.ui.theme.accentInk
+import com.brainlessmusic.app.ui.theme.tileShape
 import kotlin.math.abs
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -89,7 +90,8 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.brainlessmusic.app.data.local.PlayerSkin
+import com.brainlessmusic.app.data.local.PlayerButtons
+import com.brainlessmusic.app.data.local.Skin
 import com.brainlessmusic.app.data.local.SeekStyle
 import com.brainlessmusic.app.data.remote.dto.TrackStatDto
 import com.brainlessmusic.app.ui.playback.skins.HitCircleDeck
@@ -106,8 +108,8 @@ fun NowPlayingScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val seekStyle by viewModel.seekStyle.collectAsStateWithLifecycle()
-    val skin by viewModel.playerSkin.collectAsStateWithLifecycle()
-    val pills = skin == PlayerSkin.PILLS
+    val skin by viewModel.skin.collectAsStateWithLifecycle()
+    val pills = skin == Skin.STANDARD && viewModel.playerButtons.collectAsStateWithLifecycle().value == PlayerButtons.PILLS
     val dataSaver by viewModel.dataSaver.collectAsStateWithLifecycle()
     val room by viewModel.room.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -264,7 +266,7 @@ fun NowPlayingScreen(
                 .padding(horizontal = 24.dp),
         ) {
             when (skin) {
-                PlayerSkin.HIT_CIRCLE -> HitCircleDeck(
+                Skin.HIT_CIRCLE -> HitCircleDeck(
                     state = state,
                     item = current,
                     fraction = fraction,
@@ -280,7 +282,7 @@ fun NowPlayingScreen(
                     onNext = viewModel::next,
                     onRepeat = viewModel::cycleRepeat,
                 )
-                PlayerSkin.STANDARD, PlayerSkin.PILLS -> {
+                Skin.STANDARD -> {
                     // The cover is the largest square that fits above the controls. Swipe it to skip, hold it for the song menu.
                     Box(
                         modifier = Modifier
@@ -593,7 +595,7 @@ private fun remainingInQueue(state: PlaybackUiState): Int {
 @Composable
 private fun UpNextCard(next: QueueItem?, remaining: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = tileShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = modifier
@@ -666,7 +668,7 @@ private fun StreamReadout(stream: StreamInfo?, modifier: Modifier = Modifier) {
     if (format == null && network == null && !onPhone) return
 
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = tileShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         modifier = modifier,
     ) {

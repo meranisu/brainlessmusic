@@ -113,10 +113,13 @@ class MainActivity : ComponentActivity() {
         }
         // Read once, synchronously (two tiny preferences): otherwise every cold start would paint one frame in the
         // default colours before the saved choice arrived.
-        val (initialMode, initialColors) = runBlocking { appearance.themeMode.first() to appearance.colorTheme.first() }
+        val (initialMode, initialColors, initialSkin) = runBlocking {
+            Triple(appearance.themeMode.first(), appearance.colorTheme.first(), appearance.skin.first())
+        }
         setContent {
             val mode by appearance.themeMode.collectAsStateWithLifecycle(initialValue = initialMode)
             val colorTheme by appearance.colorTheme.collectAsStateWithLifecycle(initialValue = initialColors)
+            val skin by appearance.skin.collectAsStateWithLifecycle(initialValue = initialSkin)
             val darkTheme = mode.isDark()
             // The system bars' icon colors have to follow the app's choice, not the phone's.
             DisposableEffect(darkTheme, splashGone, focusGains) {
@@ -132,7 +135,7 @@ class MainActivity : ComponentActivity() {
                 )
                 onDispose { }
             }
-            BrainlessMusicTheme(colorTheme = colorTheme, darkTheme = darkTheme) {
+            BrainlessMusicTheme(colorTheme = colorTheme, darkTheme = darkTheme, skin = skin) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     BrainlessNavGraph(startViewModel = startViewModel)
                     UpdateSheetHost()

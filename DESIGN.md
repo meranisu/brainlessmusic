@@ -52,7 +52,7 @@ theme (Q45, `frontend/src/index.css:3-6`). Accent-coloured text on a card uses `
   osu!), Pastel (Material tonal). Each names its source in `theme.ts:6-13`. That stated source is their purpose, so
   Magenta's vivid and Pastel's soft palettes are intentional, not defaults.
 - The chosen theme is saved on the profile and follows it across devices ([A55](.docs/QUESTIONS.md#a55--the-theme-follows-the-profile-was-q20)).
-- A theme controls **colour only**. Layout and type stay the same ([A48](.docs/QUESTIONS.md#a48--a-theme-controls-colour-only-was-q19), decided 2026-10-10).
+- A theme controls **colour only** ([A48](.docs/QUESTIONS.md#a48--a-theme-controls-colour-only-was-q19)). On Android, type, shape and layout now belong to a separate **skin** (A117, see Android below); the web has no skins yet.
 
 ## Typography
 
@@ -79,3 +79,15 @@ Built (2026-10-10): the brand palette is the default, not Material dynamic colou
 Fredoka (`Type.kt`, fonts in `res/font`). Floating surfaces have a 1 dp `outline` border, not a shadow. All six web themes
 are in Settings → Colours (`Color.kt`, one `Palette` each), and each also has a light scheme for the system setting.
 Colours also offers Material You (wallpaper colours, Android 12+) as an opt-in. It is never the default.
+
+**Skins** (A114-A119, 2026-10-11): Settings → Appearance → Skin restyles the whole app, the player included; colour stays
+with the theme, so any skin can be worn in any colours. **Standard is the app as described above and the default**; a
+skin must leave Standard's values untouched. A skin sets typography and Material `Shapes` (`ui/theme/Skin.kt`), the
+cover and avatar shape (`coverShape`), card, tile and row shapes (`cardShape`, `tileShape`, `rowShape`), the tap
+feedback (a `LocalIndication`), and the shared parts in `ui/common/SkinParts.kt` (playing marker, mini player progress,
+bottom-bar tab). Its Now Playing layout lives in `ui/playback/skins/`. Skins borrow a game's controls and composition,
+never its artwork, and stay flat: rings and borders, no glow.
+
+- **Hit circle** (after osu!): Fredoka for headings, titles and labels; round covers and avatars; larger corner radii and
+  pill rows; a tapped row or tile gets an approach ring closing on the finger; the mini player's progress is a slider
+  with a ball; the selected tab is ringed; the player is `HitCircleDeck`. Magenta is its matching colour theme.
