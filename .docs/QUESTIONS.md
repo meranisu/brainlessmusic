@@ -61,6 +61,33 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A112 — Real account names can't start with `guest-`
+**Answered:** 2026-10-11 · **A.** `guest-` is reserved for minted guest rows, so a real account (register, invite,
+upgrade) can't take a name that starts with it. Lands in [features/account-invites/planning.md](features/account-invites/planning.md).
+
+### A111 — Usernames are case-insensitive
+**Answered:** 2026-10-11 · **A.** `Imran` and `imran` are one name: unique regardless of case, and login matches
+regardless of case. Before the migration, smol's database is checked for accounts that differ only by case. That
+query runs on smol, so the owner runs it (see the plan).
+
+### A110 — Invites come after room sync
+**Answered:** 2026-10-11 · **A.** Built once room sync (roadmap boxes 22 and 23) is done.
+
+### A109 — No invite screen on Android in the first version
+**Answered:** 2026-10-11 · **A.** The friend accepts the invite on the web, then uses Log in on Android.
+
+### A108 — Invite links are one use and last 7 days
+**Answered:** 2026-10-11 · **A.** Like guest codes (A43): used once, expire after 7 days.
+
+### A107 — Upgrading a guest keeps the same user, started by the admin
+**Answered:** 2026-10-11 · **A.** The admin starts it from the Users page with an invite link tied to that guest.
+Accepting turns the same `users` row into an account (`kind = 'account'`), so resume and history stay; the guest's
+codes are revoked and the session that accepted stays signed in.
+
+*A107–A112 were asked in chat on 2026-10-11 as Q105–Q110, at the same time another session used Q105–Q107 for the
+updater (now A104–A106). Those six Q numbers were never written here, so they're filed by A number only; Q108–Q110
+are retired so the clash can't repeat.*
+
 ### A106 — The update sheet shows every release since yours *(was Q107)*
 **Answered:** 2026-10-11 · **A.** Notes for every release newer than the installed one, newest first. Lands in the
 in-app updater plan (`features/app-self-update/planning.md`, written once room sync is done).
