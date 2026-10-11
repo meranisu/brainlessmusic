@@ -86,17 +86,17 @@ Results at review time:
 
 ## Android offline and downloads
 
-- [ ] **C17. The pending-play retry stops after one try.** Confirmed in a second pass.
+- [x] **C17. The pending-play retry stops after one try.** Fixed in 87f2978. Confirmed in a second pass.
       - `scheduleRetry()` sees its own coroutine as `isActive` and returns (`PendingPlays.kt:108`).
-- [ ] **C18. The startup flush runs before the token is set**, and the online restore never flushes again.
+- [x] **C18. The startup flush runs before the token is set** Fixed in 87f2978., and the online restore never flushes again.
       Confirmed in a second pass.
       - `PendingPlays.kt:51`, `AuthRepository.kt:229-241`.
-- [ ] **C19. Downloads stay paused after signing in again.** Confirmed in a second pass.
+- [x] **C19. Downloads stay paused after signing in again.** Fixed in 87f2978. Confirmed in a second pass.
       - Only `download()` resumes them, and the sign-in banner stays up (`DownloadRepository.kt:91-94`, `:124-127`).
-- [ ] **C20. The storage limit ignores queued downloads.** Confirmed in a second pass.
+- [x] **C20. The storage limit ignores queued downloads.** Fixed in 87f2978. Confirmed in a second pass.
       - `roomFor` checks `cache.cacheSpace` only (`DownloadRepository.kt:214`), so two big groups started back to back
         both pass.
-- [ ] **C21. Cancellation is reported as an error.** Checked.
+- [x] **C21. Cancellation is reported as an error.** Fixed in 87f2978. Checked.
       - `callApi`'s `runCatching` catches `CancellationException` (`LibraryRepository.kt:105-108`).
       - In search, a cancelled in-flight query sets `LoadState.Error`, so results flicker as you type, against A83
         (`SearchViewModel.kt:42`, `:66-72`).
@@ -117,7 +117,7 @@ Results at review time:
       - It's keyed by user id plus User-Agent and swept only when an admin opens the control center
         (`services/streamMonitor.ts:59`, `:70`).
 - [ ] **C27. Upload staging files leak on abort or on a filing error** (`routes/tracks.ts:193`, `:221-224`). Admin-only.
-- [ ] **C28. Android: `roomFor` fires one GET per missing song with no cap in the code** (`DownloadRepository.kt:211-213`).
+- [x] **C28. Android: `roomFor` fires one GET per missing song with no cap in the code** Fixed in 87f2978. (`DownloadRepository.kt:211-213`).
       - OkHttp's limit of 5 per host applies, so a big playlist is slow to start rather than a flood.
 - [x] **C29. Android: `sendThenClear` timeout race** Fixed in 3ee0161. (`PendingPlays.kt:83`).
       - A `flush()`-started send can keep going through its snapshot after the clear. Narrow.
