@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Lane, the missing icons back; the tab bar a shade apart
+
+- Owner's report: icons missing in Lane, the play/pause button among them. The Lucide generator read `<polygon>` and
+  `<polyline>` points as `x,y` pairs, but Lucide writes them space-separated, so seven icons came out as invalid path
+  data and drew nothing: Play, Previous, Next, Download, Log out, the circled Play and Trending down. The parser now
+  pairs the numbers itself; `LaneIcons.kt` regenerated. All 48 were rendered to a contact sheet and checked by eye.
+- Owner's request: Lane's bottom bar takes `surfaceContainerHighest`, a shade up from the mini player docked above it
+  (`tabBarColor`). Standard and Hit circle keep Material's.
+- Verified: `./gradlew :app:compileDebugKotlin` builds; the icon paths rendered with ImageMagick. **Not run:** on a phone.
+
 ## 2026-10-11: Lane, docked bars and tabs in its own style
 
 - Owner's request: in Lane, the Library's tabs (Songs, Albums, Artists, Genres) stop floating as a pill and dock as a

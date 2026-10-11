@@ -100,7 +100,7 @@ never its artwork, and stay flat: rings and borders, no glow.
   memory; grades D to EX+), and the song as a four-lane track in perspective that fills to a judgement line and seeks
   by vertical drag, notes falling toward it while playing; buttons are hexagons, play a diamond, and a tap pops "PURE".
   Lavender (phone-only) is its matching colour theme. Nothing floats in Lane: the mini player and tab bar dock (the tab
-  bar under an edge line, `EdgeLine`), the mini player's play is a small diamond (`MiniPlayButton`), sheets dock with a
+  bar under an edge line, `EdgeLine`, a shade up from the mini player, `tabBarColor`), the mini player's play is a small diamond (`MiniPlayButton`), sheets dock with a
   slanted handle between diamonds (`SkinDragHandle`), the Library's tabs are a docked strip of slanted segments, and
   segmented pickers cut their outer ends (`segmentShape`).
 

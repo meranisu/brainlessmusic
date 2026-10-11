@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `LaneIcons` (regenerated): `android/.../ui/theme/LaneIcons.kt`; `tabBarColor()` (new): `android/.../ui/common/SkinParts.kt`
+**Date:** 2026-10-11
+**How added:** bug fix (owner report); owner request
+**Purpose:** Lane's polygon-based icons draw again; its tab bar sits a shade apart from the mini player.
+**Side effects:** none.
+**Before:** seven Lane icons were invalid path data and drew nothing; the tab bar matched the mini player's fill.
+**After:** all 48 draw; Lane's tab bar is `surfaceContainerHighest`.
+
 **Function:** `segmentShape()`, `SkinDragHandle()`, `EdgeLine()`, `MiniPlayButton()`, `dockedHeader` (new): `android/.../ui/common/SkinParts.kt`; `SlantTabs()` (new), `LibraryTabBar()`, `HeaderButton()`, `SongFilterField()` (changed): `android/.../ui/library/LibraryScreen.kt`
 **Date:** 2026-10-11
 **How added:** owner request

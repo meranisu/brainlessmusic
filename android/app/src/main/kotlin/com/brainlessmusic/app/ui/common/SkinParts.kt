@@ -44,6 +44,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItemColors
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.SheetState
@@ -205,6 +206,11 @@ fun SkinDragHandle() {
         Diamond(5.dp, scheme.primary)
     }
 }
+
+/** The tab bar's fill: Material's, or in Lane a shade up, so it reads apart from the mini player docked above it. */
+@Composable
+fun tabBarColor(): Color =
+    if (LocalSkin.current == Skin.LANE) MaterialTheme.colorScheme.surfaceContainerHighest else NavigationBarDefaults.containerColor
 
 /** The line Lane closes a docked bar with, as Arcaea edges its panels; nothing in the other skins. */
 @Composable

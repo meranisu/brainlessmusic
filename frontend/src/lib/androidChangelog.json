@@ -1,5 +1,32 @@
 [
   {
+    "version": "0.3.44",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "lane: the play button had no icon when paused, and a few others were blank too (previous, next, download, log out). my bad, they're all back",
+              "lane: the bottom bar is a shade lighter now so it doesn't blend into the mini player"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.43",
     "date": "2026-10-11",
     "sections": [
