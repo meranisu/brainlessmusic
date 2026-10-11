@@ -4,6 +4,20 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android: Settings without borders (A92)
+
+- **Main page** is an arcade options menu (`PageRow`): each page name large in Barlow Condensed (`headlineSmall`),
+  what's set now on the right in `accentInk`, a chevron. Pressed or focused, the row fills with the accent and its
+  text turns `onPrimary`, like the select screen's cursor. The rows sit on the ground with dividers, no card. Icons
+  dropped. Playback's value is now the "Between songs" choice instead of a fixed description.
+- **Sub-pages** keep one card each, now `surfaceContainer` fill with no outline. Dividers stay.
+- **Colour tiles** lose their border: unselected sit on `surfaceContainerHighest`, the picked one fills with the
+  accent and keeps its check, so it isn't told by colour alone.
+- **Buttons** (Reset, Log out, Save name, Delete all in Downloads) go from outlined to `FilledTonalButton`.
+- DESIGN.md records Settings as the exception to "solid borders for elevation".
+- Verified: `./gradlew compileDebugKotlin` succeeds. **Not run:** no phone or emulator here, so the screens have not
+  been seen; unit tests not run (no logic changed).
+
 ## 2026-10-11 — Android: the Downloads tab as a cover grid, with a page per album and playlist (A89, A90)
 
 - **Cover grid** (A89): two columns of covers on a phone (more on a wider screen), each with its download state on a

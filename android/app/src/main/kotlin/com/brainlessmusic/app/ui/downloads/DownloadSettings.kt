@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -110,6 +110,6 @@ internal fun DownloadSettings(
     }
     divider()
     block("Delete all downloads", "Takes every downloaded song off this phone.") {
-        OutlinedButton(onClick = { confirmDelete = true }, enabled = used > 0) { Text("Delete all") }
+        FilledTonalButton(onClick = { confirmDelete = true }, enabled = used > 0) { Text("Delete all") }
     }
 }

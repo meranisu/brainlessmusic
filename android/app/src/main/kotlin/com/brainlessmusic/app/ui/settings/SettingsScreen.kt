@@ -1,12 +1,13 @@
 package com.brainlessmusic.app.ui.settings
 
-import androidx.compose.material.icons.filled.DownloadForOffline
 import com.brainlessmusic.app.ui.downloads.DownloadSettings
 import com.brainlessmusic.app.ui.downloads.downloadSummary
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,17 +33,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -62,9 +60,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -78,12 +77,14 @@ import com.brainlessmusic.app.data.local.ThemeMode
 import com.brainlessmusic.app.ui.navigation.AppBottomBar
 import com.brainlessmusic.app.ui.playback.MiniPlayer
 import com.brainlessmusic.app.ui.playback.SeekBar
+import com.brainlessmusic.app.ui.theme.accentInk
 import com.brainlessmusic.app.ui.theme.previewColorScheme
 import com.brainlessmusic.app.ui.theme.supportsMaterialYou
 
-// Cards here match the Library header: flat, a 1 dp outline, no shadow (DESIGN.md, Android).
+// Settings is the borderless exception to DESIGN.md's outlines (A92): flat fills, no stroke, no shadow.
 private val CardShape = RoundedCornerShape(20.dp)
 private val TileShape = RoundedCornerShape(14.dp)
+private val RowShape = RoundedCornerShape(12.dp)
 
 /** The pages under Settings, each its own screen off the list. */
 enum class SettingsPage(val route: String, val title: String) {
@@ -104,6 +105,7 @@ fun SettingsScreen(
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val colorTheme by viewModel.colorTheme.collectAsStateWithLifecycle()
     val username by viewModel.username.collectAsStateWithLifecycle()
+    val transitions by viewModel.transitions.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Settings") }) },
@@ -116,32 +118,29 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            Card {
+            // An options menu, not a card: the rows sit straight on the ground (A92).
+            Column {
                 PageRow(
-                    icon = Icons.Filled.Palette,
                     title = SettingsPage.APPEARANCE.title,
-                    summary = "${themeMode.label} · ${colorTheme.label}",
+                    value = "${themeMode.label} · ${colorTheme.label}",
                     onClick = { onOpenPage(SettingsPage.APPEARANCE) },
                 )
                 Divider()
                 PageRow(
-                    icon = Icons.Filled.PlayCircle,
                     title = SettingsPage.PLAYBACK.title,
-                    summary = "Resuming, swiping the app away",
+                    value = transitions.betweenSongs.label,
                     onClick = { onOpenPage(SettingsPage.PLAYBACK) },
                 )
                 Divider()
                 PageRow(
-                    icon = Icons.Filled.DownloadForOffline,
                     title = SettingsPage.DOWNLOADS.title,
-                    summary = downloadSummary(),
+                    value = downloadSummary(),
                     onClick = { onOpenPage(SettingsPage.DOWNLOADS) },
                 )
                 Divider()
                 PageRow(
-                    icon = Icons.Filled.AccountCircle,
                     title = SettingsPage.ACCOUNT.title,
-                    summary = if (viewModel.isGuest) "Guest" else username ?: "Logged in",
+                    value = if (viewModel.isGuest) "Guest" else username ?: "Logged in",
                     onClick = { onOpenPage(SettingsPage.ACCOUNT) },
                 )
             }
@@ -158,7 +157,7 @@ fun SettingsScreen(
     }
 }
 
-/** One page under Settings: a back arrow, its settings on one outlined card, and the mini player. */
+/** One page under Settings: a back arrow, its settings on one filled card, and the mini player. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsPageScreen(
@@ -380,7 +379,7 @@ fun SettingsPageScreen(
                                     null -> "Swipe a song right in the queue to hear it less. This puts them all back to normal."
                                 },
                             ) {
-                                OutlinedButton(
+                                FilledTonalButton(
                                     onClick = viewModel::resetLessOften,
                                     enabled = lessOftenReset != true,
                                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
@@ -397,7 +396,7 @@ fun SettingsPageScreen(
                                 "Logged in on this phone as ${username ?: "this account"}."
                             },
                         ) {
-                            OutlinedButton(
+                            FilledTonalButton(
                                 onClick = { if (viewModel.isGuest) confirmingGuestLogout = true else viewModel.logout(onLoggedOut) },
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                             ) {
@@ -418,7 +417,7 @@ fun SettingsPageScreen(
                                     supportingText = renameResult?.let { { Text(it) } },
                                     modifier = Modifier.fillMaxWidth(),
                                 )
-                                OutlinedButton(
+                                FilledTonalButton(
                                     onClick = { viewModel.rename(nameField) },
                                     enabled = !isRenaming && nameField.trim() != (displayName ?: ""),
                                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
@@ -432,36 +431,54 @@ fun SettingsPageScreen(
     }
 }
 
-/** A row on the Settings list that opens a page: icon, name, what's set now, and a chevron. */
+/**
+ * A row on the Settings list that opens a page, laid out like an arcade options screen: the page name large on the
+ * left, what's set now on the right. Pressed or focused, the row fills with the accent, like the select screen's cursor.
+ */
 @Composable
-private fun PageRow(icon: ImageVector, title: String, summary: String, onClick: () -> Unit) {
+private fun PageRow(title: String, value: String, onClick: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val focused by interaction.collectIsFocusedAsState()
+    val lit = pressed || focused
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(16.dp),
+            .heightIn(min = 64.dp)
+            .background(if (lit) scheme.primary else Color.Transparent, RowShape)
+            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-        Column(Modifier.weight(1f).padding(horizontal = 16.dp)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
-            Text(summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        Text(
+            title,
+            style = MaterialTheme.typography.headlineSmall,
+            color = if (lit) scheme.onPrimary else scheme.onSurface,
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (lit) scheme.onPrimary else MaterialTheme.accentInk,
+            textAlign = TextAlign.End,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f).padding(start = 16.dp),
+        )
         Icon(
             Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = if (lit) scheme.onPrimary else scheme.onSurfaceVariant,
         )
     }
 }
 
-/** Settings on one outlined card. */
+/** Settings on one filled card. The fill alone sets it off from the ground; no outline (A92). */
 @Composable
 private fun Card(content: @Composable ColumnScope.() -> Unit) {
     Surface(
         shape = CardShape,
         color = MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(content = content)
@@ -511,7 +528,7 @@ private fun Divider() {
 
 /**
  * One colour theme: a swatch of its ground and accent as they'd look in the current light or dark setting, the name,
- * and what it's after. Picked shows a thicker accent border and a check, so it isn't told by colour alone.
+ * and what it's after. Picked fills with the accent and shows a check, so it isn't told by colour alone.
  */
 @Composable
 private fun ColorThemeTile(
@@ -523,10 +540,11 @@ private fun ColorThemeTile(
 ) {
     val scheme = MaterialTheme.colorScheme
     val preview = previewColorScheme(theme, darkTheme)
+    val ink = if (selected) scheme.onPrimary else scheme.onSurface
+    val inkVariant = if (selected) scheme.onPrimary else scheme.onSurfaceVariant
     Surface(
         shape = TileShape,
-        color = scheme.surfaceContainer,
-        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) scheme.primary else scheme.outlineVariant),
+        color = if (selected) scheme.primary else scheme.surfaceContainerHighest,
         modifier = modifier.selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
     ) {
         Row(
@@ -543,14 +561,14 @@ private fun ColorThemeTile(
                 Box(Modifier.size(12.dp).background(preview.primary, CircleShape))
             }
             Column(Modifier.weight(1f).padding(start = 10.dp)) {
-                Text(theme.label, style = MaterialTheme.typography.bodyMedium, color = scheme.onSurface)
-                Text(theme.detail, style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+                Text(theme.label, style = MaterialTheme.typography.bodyMedium, color = ink)
+                Text(theme.detail, style = MaterialTheme.typography.bodySmall, color = inkVariant)
             }
             if (selected) {
                 Icon(
                     Icons.Filled.CheckCircle,
                     contentDescription = null,
-                    tint = scheme.primary,
+                    tint = scheme.onPrimary,
                     modifier = Modifier.padding(start = 4.dp).size(20.dp),
                 )
             }

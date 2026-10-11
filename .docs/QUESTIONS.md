@@ -71,6 +71,13 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A92 — Settings goes borderless: arcade menu on the main page, filled cards below *(was Q94)*
+**Answered:** 2026-10-11, in chat: "go with d, only the card outlines". The Settings main page is an arcade options
+menu: page names large in Barlow Condensed on the ground, the current value on the right in the accent, and the row
+fills with the accent when pressed. Sub-pages keep one card each, filled with no outline. Row dividers stay. Colour
+tiles drop their border (picked = accent fill plus check); outlined buttons become tonal. Landed in
+`SettingsScreen.kt`, `DownloadSettings.kt` and DESIGN.md (Android).
+
 ### A90 — The Downloads tab gets all four additions *(was Q92)*
 **Answered:** 2026-10-11, in the question picker: a storage header (space against the limit, counts) with Play all /
 Shuffle all downloads; filter chips (All, Albums, Playlists, Songs); a page per album or playlist with each song's

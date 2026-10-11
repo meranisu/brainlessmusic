@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `PageRow`, `Card`, `ColorThemeTile` — `android/.../ui/settings/SettingsScreen.kt`
+**Date:** 2026-10-11
+**How added:** refactor (A92)
+**Purpose:** Settings without borders: an arcade options menu on the main page, filled cards on the sub-pages.
+**Side effects:** none.
+**Before:** icon, name and summary rows in an outlined card; outlined cards and tiles below.
+**After:** as in the 2026-10-11 "Settings without borders" CHANGELOG entry.
+
 **Function:** `DownloadsScreen` (rewritten: `StoragePanel`, `InProgressPanel`, `FilterRow`, `DownloadTile`, `StateBadge`, `SongRow`, `RemoveGroupDialog`), `DownloadsViewModel` (rewritten: `ui`, `playAll()`, `playSong()`, `pauseAll()`, `resumeAll()`, `tilesFor()`), new `DownloadGroupScreen` / `DownloadGroupViewModel` — `android/.../ui/downloads/`; `DownloadRepository.paused`, `pauseAll()`, `resumeAll()`, `downloadAgain()`; `DownloadDao.allTracks()`, `groupFlow()`, `tracksOfFlow()`; `Routes.DOWNLOAD_GROUP`
 **Date:** 2026-10-11
 **How added:** new feature (A89, A90)
