@@ -98,7 +98,8 @@ never its artwork, and stay flat: rings and borders, no glow.
   of the screen with two corners cut (`SkinSheet`; long ones, like the queue, scroll inside it). Icons are Lucide line icons at a 1.5 stroke (ISC, credited in Settings → Licenses). The player is
   `LaneDeck`: an information pane, a slanted score banner in Arcaea's words (Track lost/complete, Full recall, Pure
   memory; grades D to EX+), and the song as a four-lane track in perspective that fills to a judgement line and seeks
-  by vertical drag, notes falling toward it while playing; buttons are hexagons, play a diamond, and a tap pops "PURE".
+  by vertical drag, notes falling toward it while playing; buttons are hexagons on a floor a shade apart (full-bleed,
+  under an edge line), play a diamond, and a tap pops "PURE".
   Lavender (phone-only) is its matching colour theme. Nothing floats in Lane: the mini player and tab bar dock (the tab
   bar under an edge line, `EdgeLine`, a shade up from the mini player, `tabBarColor`), the mini player's play is a small diamond (`MiniPlayButton`), the
   Library's tabs are a docked strip of slanted segments, and

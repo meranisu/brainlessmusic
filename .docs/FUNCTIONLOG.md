@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `LaneDeck()`, `ScoreStrip()`, `LaneButton()` (changed): `android/.../ui/playback/skins/Lane.kt`
+**Date:** 2026-10-11
+**How added:** owner request; bug fix (owner report)
+**Purpose:** Lane's floor reads apart from the lane; the score strip shows in light mode.
+**Side effects:** none.
+**Before:** the buttons sat on the page's own colour; the strip's fill matched the light page, so it vanished.
+**After:** a full-bleed `surfaceContainer` floor under an edge line; the strip is white in light mode and outlined in both.
+
 **Function:** `SkinSheet()` (changed): `android/.../ui/common/SkinParts.kt`
 **Date:** 2026-10-11
 **How added:** owner request

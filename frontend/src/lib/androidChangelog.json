@@ -1,5 +1,32 @@
 [
   {
+    "version": "0.3.47",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "lane: the bottom half of the player (the buttons and everything under them) is its own shade now, so it doesn't blend into the lane",
+              "lane: fixed the score banner (\"new track\" etc.) basically disappearing in light mode. it has an outline now too"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.46",
     "date": "2026-10-11",
     "sections": [

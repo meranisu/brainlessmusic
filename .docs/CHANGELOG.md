@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Lane's player, a floor a shade apart; the score strip in light mode
+
+- Owner's request: in Lane's player the lower half, from the buttons down (the stream readout and Up next card sit on
+  it), is a band of `surfaceContainer` under an edge line, running to both screen edges and the bottom, so it reads
+  apart from the lane above. Unlit floor buttons move up a shade (`surfaceContainerHighest`) to stay apart from it.
+- Owner's report: in light mode the score strip ("New track" and the rest) didn't show. Its fill,
+  `surfaceContainerHighest`, is the page's own blue in the light scheme. In light mode it now takes the card white,
+  and in both modes it has an outline that traces its slant.
+- Verified: `./gradlew :app:compileDebugKotlin` builds. **Not run:** on a phone.
+
 ## 2026-10-11: Lane's sheets open in the middle of the screen
 
 - Owner's request: in Lane every sheet (song actions, Add to playlist, queue, update) opens as a card in the middle of

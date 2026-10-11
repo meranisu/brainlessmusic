@@ -1,5 +1,7 @@
 package com.brainlessmusic.app.ui.playback.skins
 
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -71,6 +73,7 @@ import com.brainlessmusic.app.ui.playback.repeatIcon
 import com.brainlessmusic.app.ui.playback.repeatLabel
 import com.brainlessmusic.app.ui.playback.shuffleIcon
 import com.brainlessmusic.app.ui.playback.shuffleLabel
+import com.brainlessmusic.app.ui.theme.LocalDarkTheme
 import com.brainlessmusic.app.ui.theme.AppIcons
 import com.brainlessmusic.app.ui.theme.LaneFontFamily
 import com.brainlessmusic.app.ui.theme.SlantShape
@@ -175,9 +178,19 @@ fun ColumnScope.LaneDeck(
         modifier = Modifier.weight(1f).padding(top = 10.dp),
     )
 
-    // The floor: Arcaea's light lower half, where the buttons sit. A room plays once, in order: shuffle and repeat off.
+    // The floor: Arcaea's lower half, where the buttons sit, a shade apart from the sky above (owner, 2026-10-11). The
+    // band runs past the screen's side padding to both edges and on down to the bottom, under an edge line. A room
+    // plays once, in order: shuffle and repeat off.
     Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 12.dp)
+            .drawBehind {
+                val bleed = 24.dp.toPx()
+                drawRect(scheme.surfaceContainer, Offset(-bleed, 0f), Size(size.width + 2 * bleed, size.height + 4_000f))
+                drawLine(scheme.outline, Offset(-bleed, 0f), Offset(size.width + bleed, 0f), 1.dp.toPx())
+            }
+            .padding(top = 14.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
@@ -200,7 +213,10 @@ private fun ScoreStrip(record: TrackStatDto) {
             .fillMaxWidth()
             .padding(top = 8.dp)
             .clip(SlantShape(14.dp))
-            .background(scheme.surfaceContainerHighest)
+            // A shade up from the page in the dark; in the light the highest container is the page's own blue, so
+            // the band takes the card white, and the outline shows its slant either way.
+            .background(if (LocalDarkTheme.current) scheme.surfaceContainerHighest else scheme.surfaceContainerHigh)
+            .border(1.dp, scheme.outline, SlantShape(14.dp))
             .padding(horizontal = 22.dp, vertical = 6.dp),
     ) {
         // Arcaea prints its grades as two offset outlines; here the accent with the secondary behind it.
@@ -377,7 +393,7 @@ private fun LaneButton(icon: ImageVector, label: String, onClick: () -> Unit, li
             modifier = Modifier
                 .size(width = 54.dp, height = 40.dp)
                 .clip(shape)
-                .background(if (lit) scheme.primary else scheme.surfaceContainerHigh)
+                .background(if (lit) scheme.primary else scheme.surfaceContainerHighest)
                 .border(1.5.dp, if (lit) scheme.primary else scheme.outline, shape)
                 .clickable(enabled = enabled, onClickLabel = null, role = Role.Button) {
                     pure.fire()
