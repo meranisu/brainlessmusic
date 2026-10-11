@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -80,6 +81,16 @@ import com.brainlessmusic.app.ui.theme.accentInk
 import kotlin.math.abs
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.brainlessmusic.app.data.local.ControlsStyle
+import com.brainlessmusic.app.data.local.SeekStyle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,6 +104,7 @@ fun NowPlayingScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val seekStyle by viewModel.seekStyle.collectAsStateWithLifecycle()
+    val pills = viewModel.controlsStyle.collectAsStateWithLifecycle().value == ControlsStyle.PILLS
     val dataSaver by viewModel.dataSaver.collectAsStateWithLifecycle()
     val room by viewModel.room.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -171,7 +183,7 @@ fun NowPlayingScreen(
                             contentDescription = if (dataSaver) "Data saver on" else "Data saver off",
                         )
                     }
-                    if (current != null && songActions.canEdit) {
+                    if (current != null && songActions.canEdit && !pills) {
                         LikeButton(current.trackId, viewModel = songActions)
                         IconButton(onClick = { addingToPlaylist = true }) {
                             Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = "Add to playlist")
@@ -193,6 +205,20 @@ fun NowPlayingScreen(
         val durationMs = state.durationMs.coerceAtLeast(1)
         val fraction = dragFraction ?: (state.positionMs.toFloat() / durationMs)
         val shownMs = fraction.coerceIn(0f, 1f) * durationMs
+
+        // Fetched only for the Waveform style. A busy server (503) or a blip gets two more tries; offline keeps the
+        // stand-in shape.
+        val bars by produceState<List<Float>?>(null, current.trackId, seekStyle) {
+            value = null
+            if (seekStyle != SeekStyle.WAVEFORM) return@produceState
+            repeat(3) { attempt ->
+                if (attempt > 0) delay(5_000)
+                viewModel.waveformBars(current.trackId)?.let {
+                    value = it
+                    return@produceState
+                }
+            }
+        }
 
         Column(
             modifier = Modifier
@@ -259,8 +285,20 @@ fun NowPlayingScreen(
                 )
             }
 
+            if (pills) {
+                PillRow(
+                    state = state,
+                    trackId = current.trackId,
+                    viewModel = viewModel,
+                    songActions = songActions,
+                    onAddToPlaylist = { addingToPlaylist = true },
+                    modifier = Modifier.padding(top = 16.dp),
+                )
+            }
+
             SeekBar(
                 style = seekStyle,
+                bars = bars ?: placeholderBars(current.trackId),
                 fraction = fraction,
                 playing = state.isPlaying,
                 enabled = state.durationMs > 0,
@@ -276,7 +314,7 @@ fun NowPlayingScreen(
                 Text(formatDuration(state.durationMs / 1000.0), style = MaterialTheme.typography.bodySmall)
             }
 
-            TransportRow(state, viewModel)
+            TransportRow(state, viewModel, pills)
 
             state.error?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
@@ -330,7 +368,25 @@ fun NowPlayingScreen(
 }
 
 @Composable
-private fun TransportRow(state: PlaybackUiState, viewModel: PlaybackViewModel) {
+private fun TransportRow(state: PlaybackUiState, viewModel: PlaybackViewModel, pills: Boolean) {
+    val canPrevious = state.hasPrevious || state.positionMs > 3_000
+    if (pills) {
+        // Shuffle and repeat live in the pill row; this row is only the three that move through the music.
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(32.dp, Alignment.CenterHorizontally),
+        ) {
+            IconButton(onClick = viewModel::previous, enabled = canPrevious) {
+                Icon(Icons.Filled.SkipPrevious, contentDescription = "Previous", modifier = Modifier.size(32.dp))
+            }
+            RingPlayButton(state, onClick = viewModel::togglePlayPause)
+            IconButton(onClick = viewModel::next, enabled = state.hasNext) {
+                Icon(Icons.Filled.SkipNext, contentDescription = "Next", modifier = Modifier.size(32.dp))
+            }
+        }
+        return
+    }
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -341,25 +397,11 @@ private fun TransportRow(state: PlaybackUiState, viewModel: PlaybackViewModel) {
         IconButton(
             onClick = viewModel::cycleShuffle,
             enabled = !state.inRoom,
-            colors = IconButtonDefaults.iconButtonColors(
-                contentColor = if (state.shuffle) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            ),
+            colors = IconButtonDefaults.iconButtonColors(contentColor = litColor(state.shuffle)),
         ) {
-            Icon(
-                imageVector = when (state.shuffleMode) {
-                    ShuffleMode.OFF, ShuffleMode.SHUFFLE -> Icons.Filled.Shuffle
-                    ShuffleMode.REDISCOVER -> Icons.Filled.History
-                    ShuffleMode.ALBUMS -> Icons.Filled.Album
-                },
-                contentDescription = when (state.shuffleMode) {
-                    ShuffleMode.OFF -> "Shuffle off"
-                    ShuffleMode.SHUFFLE -> "Shuffle on"
-                    ShuffleMode.REDISCOVER -> "Rediscover: songs you have not played in a while first"
-                    ShuffleMode.ALBUMS -> "Album shuffle: random albums, in track order"
-                },
-            )
+            Icon(shuffleIcon(state.shuffleMode), contentDescription = shuffleLabel(state.shuffleMode))
         }
-        IconButton(onClick = viewModel::previous, enabled = state.hasPrevious || state.positionMs > 3_000) {
+        IconButton(onClick = viewModel::previous, enabled = canPrevious) {
             Icon(Icons.Filled.SkipPrevious, contentDescription = "Previous", modifier = Modifier.size(36.dp))
         }
         FilledIconButton(onClick = viewModel::togglePlayPause, modifier = Modifier.size(72.dp)) {
@@ -383,20 +425,125 @@ private fun TransportRow(state: PlaybackUiState, viewModel: PlaybackViewModel) {
         IconButton(
             onClick = viewModel::cycleRepeat,
             enabled = !state.inRoom,
-            colors = IconButtonDefaults.iconButtonColors(
-                contentColor = if (state.repeat != Repeat.OFF) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            ),
+            colors = IconButtonDefaults.iconButtonColors(contentColor = litColor(state.repeat != Repeat.OFF)),
         ) {
-            Icon(
-                imageVector = if (state.repeat == Repeat.ONE) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
-                contentDescription = when (state.repeat) {
-                    Repeat.OFF -> "Repeat off"
-                    Repeat.ALL -> "Repeating the queue"
-                    Repeat.ONE -> "Repeating this track"
-                },
-            )
+            Icon(repeatIcon(state.repeat), contentDescription = repeatLabel(state.repeat))
         }
     }
+}
+
+/** The Pills style's play button: an accent ring around the icon instead of a filled disc. */
+@Composable
+private fun RingPlayButton(state: PlaybackUiState, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        border = BorderStroke(3.dp, MaterialTheme.colorScheme.primary),
+        modifier = Modifier.size(72.dp),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            if (state.isBuffering && !state.isPlaying) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(28.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    strokeWidth = 3.dp,
+                )
+            } else {
+                Icon(
+                    imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                    contentDescription = if (state.isPlaying) "Pause" else "Play",
+                    modifier = Modifier.size(36.dp),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The Pills style's row above the seek bar: like, shuffle, repeat, add to playlist. Like and add hide for guests
+ * (A65), and in this style they leave the top bar so they are not shown twice.
+ */
+@Composable
+private fun PillRow(
+    state: PlaybackUiState,
+    trackId: Int,
+    viewModel: PlaybackViewModel,
+    songActions: SongActionsViewModel,
+    onAddToPlaylist: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val liked by songActions.likedIds.collectAsStateWithLifecycle()
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (songActions.canEdit) {
+            val isLiked = trackId in liked
+            Pill(
+                icon = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                label = if (isLiked) "Unlike" else "Like",
+                lit = isLiked,
+                onClick = { songActions.toggleLike(trackId) },
+            )
+        }
+        Pill(
+            icon = shuffleIcon(state.shuffleMode),
+            label = shuffleLabel(state.shuffleMode),
+            lit = state.shuffle,
+            enabled = !state.inRoom,
+            onClick = viewModel::cycleShuffle,
+        )
+        Pill(
+            icon = repeatIcon(state.repeat),
+            label = repeatLabel(state.repeat),
+            lit = state.repeat != Repeat.OFF,
+            enabled = !state.inRoom,
+            onClick = viewModel::cycleRepeat,
+        )
+        if (songActions.canEdit) {
+            Pill(icon = Icons.AutoMirrored.Filled.PlaylistAdd, label = "Add to playlist", lit = false, onClick = onAddToPlaylist)
+        }
+    }
+}
+
+@Composable
+private fun RowScope.Pill(icon: ImageVector, label: String, lit: Boolean, onClick: () -> Unit, enabled: Boolean = true) {
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = litColor(lit),
+        modifier = Modifier.weight(1f).height(48.dp),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = label, modifier = Modifier.alpha(if (enabled) 1f else 0.38f))
+        }
+    }
+}
+
+@Composable
+private fun litColor(lit: Boolean): Color =
+    if (lit) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+
+private fun shuffleIcon(mode: ShuffleMode): ImageVector = when (mode) {
+    ShuffleMode.OFF, ShuffleMode.SHUFFLE -> Icons.Filled.Shuffle
+    ShuffleMode.REDISCOVER -> Icons.Filled.History
+    ShuffleMode.ALBUMS -> Icons.Filled.Album
+}
+
+private fun shuffleLabel(mode: ShuffleMode): String = when (mode) {
+    ShuffleMode.OFF -> "Shuffle off"
+    ShuffleMode.SHUFFLE -> "Shuffle on"
+    ShuffleMode.REDISCOVER -> "Rediscover: songs you have not played in a while first"
+    ShuffleMode.ALBUMS -> "Album shuffle: random albums, in track order"
+}
+
+private fun repeatIcon(repeat: Repeat): ImageVector = if (repeat == Repeat.ONE) Icons.Filled.RepeatOne else Icons.Filled.Repeat
+
+private fun repeatLabel(repeat: Repeat): String = when (repeat) {
+    Repeat.OFF -> "Repeat off"
+    Repeat.ALL -> "Repeating the queue"
+    Repeat.ONE -> "Repeating this track"
 }
 
 /** Tracks after the current one, in play order (the shuffled order when shuffle is on). */

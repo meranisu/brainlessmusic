@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.brainlessmusic.app.data.local.AppearanceSettings
 import com.brainlessmusic.app.data.local.PlaybackSettings
+import com.brainlessmusic.app.data.local.ControlsStyle
 import com.brainlessmusic.app.data.local.SeekStyle
 import com.brainlessmusic.app.data.repository.AuthRepository
 import com.brainlessmusic.app.data.repository.LibraryRepository
@@ -41,6 +42,13 @@ class PlaybackViewModel @Inject constructor(
     val seekStyle: StateFlow<SeekStyle> = appearance.seekStyle
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SeekStyle.SQUIGGLE)
 
+    val controlsStyle: StateFlow<ControlsStyle> = appearance.controlsStyle
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ControlsStyle.STANDARD)
+
+    /** Bar heights (0..1) for the Waveform seek bar, or null while offline or when the server has none. */
+    suspend fun waveformBars(trackId: Int): List<Float>? =
+        libraryRepository.waveform(trackId).getOrNull()?.takeIf { it.isNotEmpty() }?.let(::barsFromPeaks)
+
     /** The same setting as Settings → Playback → Data saver. */
     val dataSaver: StateFlow<Boolean> = playbackSettings.dataSaver
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
@@ -74,3 +82,18 @@ class PlaybackViewModel @Inject constructor(
         return entry
     }
 }
+
+/**
+ * Each track scaled to its own loudest peak, under a ceiling that rises with how loud it really is (A8), so a quiet
+ * track still draws short. Same numbers as the web's `barsFromPeaks`; the bar count is chosen where it is drawn.
+ */
+internal fun barsFromPeaks(peaks: List<Int>): List<Float> {
+    val raw = peaks.map { it.coerceIn(0, 255) / 255f }
+    val loudest = raw.max()
+    val ceiling = QUIET_TRACK_CEILING + (1 - QUIET_TRACK_CEILING) * loudest
+    val scale = if (loudest > 0f) ceiling / loudest else 0f
+    // Silence stays a visible stub rather than a gap.
+    return raw.map { maxOf(0.06f, it * scale) }
+}
+
+private const val QUIET_TRACK_CEILING = 0.55f

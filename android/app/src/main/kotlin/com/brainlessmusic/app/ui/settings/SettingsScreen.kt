@@ -71,6 +71,7 @@ import com.brainlessmusic.app.BuildConfig
 import com.brainlessmusic.app.data.local.BetweenSongs
 import com.brainlessmusic.app.data.local.ColorTheme
 import com.brainlessmusic.app.data.local.FADE_LENGTHS
+import com.brainlessmusic.app.data.local.ControlsStyle
 import com.brainlessmusic.app.data.local.SeekStyle
 import com.brainlessmusic.app.data.local.ThemeMode
 import com.brainlessmusic.app.ui.downloads.DownloadSettings
@@ -240,6 +241,7 @@ fun SettingsPageScreen(
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val colorTheme by viewModel.colorTheme.collectAsStateWithLifecycle()
     val seekStyle by viewModel.seekStyle.collectAsStateWithLifecycle()
+    val controlsStyle by viewModel.controlsStyle.collectAsStateWithLifecycle()
     val username by viewModel.username.collectAsStateWithLifecycle()
     val displayName by viewModel.displayName.collectAsStateWithLifecycle()
     val renameResult by viewModel.renameResult.collectAsStateWithLifecycle()
@@ -331,6 +333,14 @@ fun SettingsPageScreen(
                             Column(Modifier.selectableGroup()) {
                                 SeekStyle.entries.forEach { style ->
                                     SeekStyleOption(style, selected = style == seekStyle, onClick = { viewModel.setSeekStyle(style) })
+                                }
+                            }
+                        }
+                        Divider()
+                        Block(title = "Player buttons", detail = "How the buttons look on the Now Playing screen.") {
+                            Column(Modifier.selectableGroup()) {
+                                ControlsStyle.entries.forEach { style ->
+                                    ControlsStyleOption(style, selected = style == controlsStyle, onClick = { viewModel.setControlsStyle(style) })
                                 }
                             }
                         }
@@ -636,6 +646,24 @@ private fun BetweenSongsOption(option: BetweenSongs, selected: Boolean, onClick:
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+    }
+}
+
+@Composable
+private fun ControlsStyleOption(style: ControlsStyle, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .padding(vertical = 4.dp),
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Column(modifier = Modifier.padding(start = 12.dp)) {
+            Text(style.label, style = MaterialTheme.typography.bodyMedium)
+            Text(style.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `PillRow()`, `Pill()`, `RingPlayButton()`, `barsFromPeaks()`, `placeholderBars()`, `drawWaveform()`, `ControlsStyleOption()`, `LibraryRepository.waveform()`, `ApiService.waveform()` (new); `TransportRow()`, `NowPlayingScreen()`, `SeekBar()` (changed): `android/.../ui/playback/`, `ui/settings/SettingsScreen.kt`, `data/`
+**Date:** 2026-10-11
+**How added:** owner request
+**Purpose:** an optional Pills look for the Now Playing buttons and a Waveform seek bar drawn from the server's peaks.
+**Side effects:** one `GET /tracks/:id/waveform` per track while the Waveform style is on (cached in memory); new DataStore key `controls_style`.
+**Before:** one button layout; seek styles had no use for the waveform.
+**After:** Settings picks Standard or Pills, and Waveform is a sixth progress-bar style.
+
 **Function:** `lazyPage()` (new): `frontend/src/lib/lazyPage.ts`; lazy page constants in `App.tsx`, `auth/RequireAuth.tsx` (changed)
 **Date:** 2026-10-11
 **How added:** bug fix

@@ -46,6 +46,15 @@ enum class SeekStyle(val label: String) {
     LINE("Thin line"),
     PILL("Pill"),
     DOTS("Dots"),
+
+    /** The song's own loudness as bars, from `GET /tracks/:id/waveform`; a stand-in shape until it arrives or offline. */
+    WAVEFORM("Waveform"),
+}
+
+/** How the Now Playing buttons are drawn. */
+enum class ControlsStyle(val label: String, val detail: String) {
+    STANDARD("Standard", "Shuffle and repeat beside a filled play button"),
+    PILLS("Pills", "Like, shuffle, repeat and add to playlist as a row of rounded buttons, with an outlined play button"),
 }
 
 /** How the app looks. Same DataStore as [SessionStore]; survives logout for the same reason [PlaybackSettings] does. */
@@ -74,6 +83,14 @@ class AppearanceSettings @Inject constructor(
         dataStore.edit { it[SEEK_STYLE_KEY] = style.name }
     }
 
+    val controlsStyle: Flow<ControlsStyle> = dataStore.data.map { prefs ->
+        ControlsStyle.entries.firstOrNull { it.name == prefs[CONTROLS_STYLE_KEY] } ?: ControlsStyle.STANDARD
+    }
+
+    suspend fun setControlsStyle(style: ControlsStyle) {
+        dataStore.edit { it[CONTROLS_STYLE_KEY] = style.name }
+    }
+
     /** What was picked on this phone, or null if nothing ever was (the profile then gets nothing from it). */
     suspend fun storedColorTheme(): ColorTheme? =
         dataStore.data.first()[COLOR_THEME_KEY]?.let { name -> ColorTheme.entries.firstOrNull { it.name == name } }
@@ -89,6 +106,7 @@ class AppearanceSettings @Inject constructor(
     private companion object {
         val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         val SEEK_STYLE_KEY = stringPreferencesKey("seek_style")
+        val CONTROLS_STYLE_KEY = stringPreferencesKey("controls_style")
         val COLOR_THEME_KEY = stringPreferencesKey("color_theme")
     }
 }

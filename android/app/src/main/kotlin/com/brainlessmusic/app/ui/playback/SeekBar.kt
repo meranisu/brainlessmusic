@@ -44,7 +44,8 @@ import kotlin.math.sin
 
 /**
  * The progress bar in a [SeekStyle]. [onFraction] reports touches as 0..1; [onFinished] fires on lift, when the
- * caller seeks. [interactive] = false is the Settings preview.
+ * caller seeks. [interactive] = false is the Settings preview. [bars] (0..1) are the Waveform style's heights; null
+ * draws [placeholderBars].
  */
 @Composable
 fun SeekBar(
@@ -56,6 +57,7 @@ fun SeekBar(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     interactive: Boolean = true,
+    bars: List<Float>? = null,
 ) {
     if (style == SeekStyle.CLASSIC) {
         Slider(
@@ -119,7 +121,7 @@ fun SeekBar(
     Canvas(
         modifier = modifier
             .fillMaxWidth()
-            .height(40.dp)
+            .height(if (style == SeekStyle.WAVEFORM) 56.dp else 40.dp)
             .padding(horizontal = 4.dp)
             .onSizeChanged { widthPx = it.width.coerceAtLeast(1) }
             .then(touch)
@@ -141,6 +143,7 @@ fun SeekBar(
             SeekStyle.LINE -> drawThinLine(x, cy, played, rest)
             SeekStyle.PILL -> drawPill(x, cy, played, rest)
             SeekStyle.DOTS -> drawDots(x, cy, played, rest)
+            SeekStyle.WAVEFORM -> drawWaveform(x, bars ?: placeholderBars(0), played, rest)
             SeekStyle.CLASSIC -> Unit
         }
     }
@@ -197,4 +200,41 @@ private fun DrawScope.drawDots(x: Float, cy: Float, played: Color, rest: Color) 
         drawCircle(if (cx <= x) played else rest, radius, Offset(cx, cy))
     }
     drawCircle(played, radius = 7.dp.toPx(), center = Offset(x, cy))
+}
+
+/**
+ * Bars at the song's loudness, played ones in the accent. No handle: the split between the two colours is the
+ * position. [heights] are resampled to as many bars as fit, each taking the loudest value in its slice.
+ */
+private fun DrawScope.drawWaveform(x: Float, heights: List<Float>, played: Color, rest: Color) {
+    if (heights.isEmpty()) return
+    val barW = 5.dp.toPx()
+    val gap = 3.dp.toPx()
+    val count = ((size.width + gap) / (barW + gap)).toInt().coerceAtLeast(8)
+    val step = (size.width - barW) / (count - 1)
+    val span = heights.size.toFloat() / count
+    val r = CornerRadius(barW / 2)
+    for (i in 0 until count) {
+        val from = (i * span).toInt().coerceAtMost(heights.size - 1)
+        val to = ((i + 1) * span).toInt().coerceIn(from + 1, heights.size)
+        var h = 0f
+        for (j in from until to) h = maxOf(h, heights[j])
+        val barH = (size.height * h).coerceAtLeast(barW)
+        val left = step * i
+        drawRoundRect(
+            if (left + barW / 2 <= x) played else rest,
+            Offset(left, (size.height - barH) / 2),
+            Size(barW, barH),
+            r,
+        )
+    }
+}
+
+/**
+ * A stand-in for a song's waveform while it loads, offline, or in the Settings preview: steady per [seed] so it does
+ * not jump between frames, and plainly regular so it is not mistaken for the real thing.
+ */
+fun placeholderBars(seed: Int): List<Float> = List(48) { i ->
+    val wobble = sin((i + seed % 7) * 0.9f) * 0.18f + sin((i + seed % 5) * 0.37f) * 0.12f
+    (0.45f + wobble).coerceIn(0.12f, 0.8f)
 }

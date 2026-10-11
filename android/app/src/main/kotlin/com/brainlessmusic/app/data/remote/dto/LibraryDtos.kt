@@ -95,6 +95,9 @@ data class SearchResultsDto(
     val tracks: List<TrackSummaryDto>,
 )
 
+/** 128 peaks, 0-255, absolute (A8: scaling per track happens where they are drawn). */
+data class WaveformDto(val peaks: List<Int>)
+
 data class ScrobbleRequest(
     val msPlayed: Long,
     /** Only for a play made offline and sent later (A87); Gson leaves it out when null. */

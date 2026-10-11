@@ -4,6 +4,19 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Android player, a Pills button style and a Waveform seek bar
+
+- Owner's idea, from a screenshot: rounded pill buttons, a hollow play button and a visualiser-like seek bar, as
+  options rather than a new default.
+- **Settings → Appearance → Player buttons** (new, `ControlsStyle`): Standard (unchanged) or Pills. Pills puts like,
+  shuffle, repeat and add to playlist in a row of rounded buttons above the seek bar (like and add leave the top bar,
+  and hide for guests as before), and the transport becomes previous, an accent ring play button, next.
+- **Progress bar → Waveform** (new `SeekStyle`): bars at the song's loudness from `GET /tracks/:id/waveform`, scaled per
+  track with the web's A8 rule (`barsFromPeaks`, ported). Played bars in the accent; no handle. Peaks are kept in
+  memory per track; offline, or before they arrive, a steady stand-in shape is drawn. A 503 gets two retries 5 s apart.
+- Verified: `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest` pass, including new `WaveformBarsTest` (3/3).
+  **Not run:** on a phone.
+
 ## 2026-10-11: Web, Enter on the title screen no longer goes blank after a deploy
 
 - Owner report: clicking Enter showed a blank page until a refresh. Cause: every page is its own lazily loaded chunk

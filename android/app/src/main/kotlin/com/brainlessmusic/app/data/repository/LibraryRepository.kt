@@ -62,6 +62,14 @@ class LibraryRepository @Inject constructor(
     suspend fun getTrackDetail(id: Int): Result<TrackDetailDto> =
         callApi { it.trackDetail(id) }
 
+    /** Kept for the process: peaks only change with the file. A failure (offline, busy, no file) is not kept. */
+    private val waveforms = java.util.concurrent.ConcurrentHashMap<Int, List<Int>>()
+
+    suspend fun waveform(trackId: Int): Result<List<Int>> {
+        waveforms[trackId]?.let { return Result.success(it) }
+        return callApi { it.waveform(trackId).peaks }.onSuccess { waveforms[trackId] = it }
+    }
+
     suspend fun search(query: String): Result<SearchResultsDto> =
         callApi { it.search(query) }
 
