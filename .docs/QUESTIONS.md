@@ -100,6 +100,19 @@ subtitle only once the count is known.
 turn it back on in the last mode it was on in (Shuffle, Rediscover or Albums), saved across launches. The Now Playing
 button still cycles from off to Shuffle. Built in the 2026-10-12 "shuffle buttons remember the last mode" CHANGELOG entry.
 
+### A81 — Themed launcher icon: same art, recoloured per theme *(was Q85)*
+**Answered:** 2026-10-11, in chat: "q85: recommened". The disc and waveform stay; each theme gets its own ground,
+circle, accent and a lighter dot from its palette. A side-by-side preview comes before merging. Plan:
+`.docs/features/android-themed-launcher-icon/planning.md`.
+
+### A80 — The launcher icon switches only in the background, while nothing plays *(was Q84)*
+**Answered:** 2026-10-11, in chat: "q84: pick the recommended". The switch waits until the app is in the background
+and nothing is playing; otherwise it happens at the next cold start. A switch never stops music.
+
+### A79 — Themed launcher icon is opt-in, off by default *(was Q83)*
+**Answered:** 2026-10-11, in chat: "q83: off by default". A "Match app icon to theme" switch in Settings, off by
+default. With it on, a theme that arrives from the profile (A78) changes the icon too.
+
 ### A78 — Android colours follow the profile, Material You stays on the phone *(was Q79)*
 **Answered:** 2026-10-11, in chat: "f2: yes", taken as the recommended option A. The app reads the profile's theme
 (`theme` on `/auth/me`) on login, guest entry and cold start, and saves picks with `PUT /me/theme`. Material You is
