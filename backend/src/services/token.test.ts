@@ -10,7 +10,7 @@ import {
   verifySessionToken,
 } from './token.js';
 
-const user = { id: 7, username: 'imran' };
+const user = { id: 7, username: 'imran', sessionVersion: 3 };
 
 describe('session tokens', () => {
   it('round-trips the user', () => {
@@ -21,6 +21,11 @@ describe('session tokens', () => {
     // The whole point of the scope claim: a token that leaked via a URL must
     // not buy access to the rest of the API.
     assert.throws(() => verifySessionToken(signMediaToken(user)), /cannot be used as a bearer/);
+  });
+
+  it('reads a token with no session version as version 0', () => {
+    const legacy = jwt.sign({ sub: 7, username: 'imran' }, config.jwtSecret, { expiresIn: '1h' });
+    assert.equal(verifySessionToken(legacy).sessionVersion, 0);
   });
 
   it('rejects a token signed with the wrong secret', () => {

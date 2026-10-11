@@ -5,6 +5,8 @@ import { verifyMediaToken, verifySessionToken } from '../services/token.js';
 export interface AuthUser {
   id: number;
   username: string;
+  /** The `session_version` the token was signed with. */
+  sessionVersion?: number;
 }
 
 declare module 'fastify' {
@@ -24,9 +26,13 @@ function bearerFrom(request: FastifyRequest): string | undefined {
   return header?.startsWith('Bearer ') ? header.slice('Bearer '.length) : undefined;
 }
 
-/** A valid signature doesn't mean the user still exists; pruned or deleted users are refused before their token expires. */
-function rejectDeletedUser(request: FastifyRequest, reply: FastifyReply): FastifyReply | undefined {
-  if (!findUserById(request.user!.id)) {
+/**
+ * A valid signature doesn't mean the session still stands: a deleted or pruned user, or a password changed since the
+ * token was signed (C8), is refused before the token expires.
+ */
+function rejectStaleSession(request: FastifyRequest, reply: FastifyReply): FastifyReply | undefined {
+  const user = findUserById(request.user!.id);
+  if (!user || user.session_version !== (request.user!.sessionVersion ?? 0)) {
     request.user = undefined;
     return reply.code(401).send({ error: 'Invalid or expired token' });
   }
@@ -47,7 +53,7 @@ export function registerAuthDecorator(app: FastifyInstance): void {
       return reply.code(401).send({ error: 'Invalid or expired token' });
     }
 
-    return rejectDeletedUser(request, reply);
+    return rejectStaleSession(request, reply);
   });
 
   // For URLs a browser element loads (`<audio src>`, cover art): a bearer header first, else a `?token=` media token,
@@ -67,7 +73,7 @@ export function registerAuthDecorator(app: FastifyInstance): void {
       return reply.code(401).send({ error: 'Invalid or expired token' });
     }
 
-    return rejectDeletedUser(request, reply);
+    return rejectStaleSession(request, reply);
   });
 
   // Runs after `authenticate` and re-reads is_admin, so a revoked role applies at once.

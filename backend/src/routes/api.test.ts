@@ -662,6 +662,40 @@ describe('user management', () => {
     assert.equal(old.statusCode, 401, 'the old password should not');
   });
 
+  it('ends every session signed before a password reset, and the media tokens minted from them', async () => {
+    const listenerId = findUserByUsername(listener)!.id;
+    const me = (token: string) =>
+      app.inject({ method: 'GET', url: '/api/auth/me', headers: { authorization: `Bearer ${token}` } });
+    const mediaToken = signMediaToken({ id: listenerId, username: listener });
+    assert.equal((await me(listenerToken)).statusCode, 200);
+
+    await app.inject({
+      method: 'PATCH',
+      url: `/api/users/${listenerId}`,
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { password: 'a brand new password' },
+    });
+
+    assert.equal((await me(listenerToken)).statusCode, 401, 'the old session is over');
+    const cover = await app.inject({ method: 'GET', url: `/api/tracks/1/cover?token=${mediaToken}` });
+    assert.equal(cover.statusCode, 401, 'so is its media token');
+
+    const login = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { username: listener, password: 'a brand new password' },
+    });
+    assert.equal((await me((login.json() as { token: string }).token)).statusCode, 200, 'a new sign-in works');
+    assert.equal((await me(adminToken)).statusCode, 200, "other users' sessions are untouched");
+  });
+
+  it('still accepts a token signed before session versions existed', async () => {
+    const id = findUserByUsername(listener)!.id;
+    const legacy = jwt.sign({ sub: id, username: listener }, config.jwtSecret, { expiresIn: '1h' });
+    const res = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { authorization: `Bearer ${legacy}` } });
+    assert.equal(res.statusCode, 200);
+  });
+
   it('rejects a too-short password', async () => {
     const listenerId = findUserByUsername(listener)!.id;
     const res = await app.inject({

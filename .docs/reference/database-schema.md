@@ -116,6 +116,7 @@ erDiagram
 | `last_seen_at` | TEXT | — | — | Last `GET /auth/me` by this row; NULL until the first one. Only read by `pruneIdleGuests`, which falls back to `created_at`. Added `0012` |
 | `theme` | TEXT | — | — | Web theme id (`blue`, `red`, …, from `frontend/src/lib/theme.ts`), set by `PUT /me/theme` and returned on `/auth/me`. NULL until chosen; the web client then uploads the browser's own choice once. Shape-checked only (`/^[a-z][a-z0-9-]{0,31}$/`). Added `0020` (A55) |
 | `display_name` | TEXT | — | — | What to call this user (A68), set by `PUT /me/name` or at guest sign-in; `/auth/me` returns it as `displayName`, falling back to `username`. New guests always get one (`Guest NNNN` if unnamed); NULL on rows from before `0022` and on accounts that never set one. Not unique. Added `0022` |
+| `session_version` | INTEGER | NOT NULL | `0` | Bumped on every password change (`setPasswordHash`, `setPasswordHashById`). Session and media tokens carry it as `sv`; `authenticate` and `authenticateMedia` refuse a token whose `sv` no longer matches, so a reset ends older sessions (C8). A token with no `sv` (signed before `0024`) counts as 0. Added `0024` |
 
 **FKs:** none (root entity).
 **Indexes:** unique index on `username` (auto, from the `UNIQUE` constraint); `idx_users_kind_last_seen` on `(kind, last_seen_at)` — both guest queries filter on kind and order by staleness.
@@ -477,6 +478,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | `0019_create_less_often.sql` | `less_often` (composite PK), per-account "play less often" marks |
 | `0022_guest_accounts.sql` | `users.display_name`, `guest_code_requests` + `idx_guest_code_requests_status`, `guest_code_signins` + `idx_guest_code_signins_code` (A67-A70) |
 | `0023_guest_request_collected_at.sql` | `guest_code_requests.collected_at` — a lost collect can be repeated for 10 minutes (G1) |
+| `0024_add_user_session_version.sql` | `users.session_version` — a password change ends older sessions (C8) |
 | `0021_add_play_history_ms_final.sql` | `play_history.ms_final`: marks plays whose `ms_played` is the real total (A62) |
 | `0020_add_user_theme.sql` | `users.theme` — the web theme follows the profile (A55) |
 
@@ -484,6 +486,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-10-11 | Migration `0024_add_user_session_version.sql` — `users.session_version`; column row and migration row. From the migration SQL and the test run | C8 (codebase review): changing a password left every existing session working for up to 7 days |
 | 2026-10-11 | Migration `0023_guest_request_collected_at.sql` — `guest_code_requests.collected_at`. From the migration SQL and the test run | G1 (guest-accounts review): an approved request whose one answer never reached the device left a guest nobody could sign in as |
 | 2026-10-11 | Migration `0022_guest_accounts.sql` — `users.display_name`; new `guest_code_requests` and `guest_code_signins` sections; `guest_codes` notes and relationship rows updated. Written from the migration SQL and the test run, not introspected from the live DB | A67-A70: a guest code becomes a reusable key to one guest, with names, a request queue and a sign-in log |
 | 2026-10-11 | Migration `0021_add_play_history_ms_final.sql` — `play_history.ms_final`; column rows updated. From the migration SQL and the test run | A62: real listening time for the profile stats. `0020` is another change in progress, not this one |

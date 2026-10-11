@@ -25,10 +25,11 @@ import {
   setPasscodeHashById,
   setUserTheme,
   touchLastSeen,
+  type UserRow,
 } from '../db/users.js';
 import { hashPasscode, hashPassword, verifyPasscode, verifyPassword } from '../services/password.js';
 import { createRateLimiter, type RateLimiter, type RateLimitResult } from '../services/rateLimit.js';
-import { signMediaToken, signToken, tokenExpiresAt } from '../services/token.js';
+import { signMediaToken, signToken, tokenExpiresAt, type TokenUser } from '../services/token.js';
 import { clientIp } from '../utils/clientIp.js';
 
 interface Credentials {
@@ -62,6 +63,11 @@ function signinDetails(request: FastifyRequest, platform: string | null) {
   const userAgent = request.headers['user-agent'];
   return { platform, userAgent: typeof userAgent === 'string' ? userAgent : null, ip: clientIp(request) };
 }
+/** What a session token carries for `user`, its current session version included (C8). */
+function tokenUserOf(user: UserRow): TokenUser {
+  return { id: user.id, username: user.username, sessionVersion: user.session_version };
+}
+
 const passcodeLoginLimiter = createRateLimiter();
 const passwordLoginLimiter = createRateLimiter();
 /** Failed sign-ins per username, from every address together, so rotating addresses buys no extra guesses. */
@@ -178,12 +184,12 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
         request.log.info(`${claimed.minted ? 'Minted' : 'Signed in'} guest ${claimed.user.username} on a guest code`);
         return reply
           .code(claimed.minted ? 201 : 200)
-          .send({ token: signToken({ id: claimed.user.id, username: claimed.user.username }) });
+          .send({ token: signToken(tokenUserOf(claimed.user)) });
       }
 
       const guest = insertGuest(name);
       request.log.info(`Minted guest ${guest.username}`);
-      return reply.code(201).send({ token: signToken({ id: guest.id, username: guest.username }) });
+      return reply.code(201).send({ token: signToken(tokenUserOf(guest)) });
     },
   );
 
@@ -245,7 +251,7 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       request.log.info(`Guest ${result.user.username} collected request ${id}${result.repeat ? ' again' : ''}`);
       return reply.send({
         status: 'approved',
-        token: signToken({ id: result.user.id, username: result.user.username }),
+        token: signToken(tokenUserOf(result.user)),
         code: result.code,
       });
     },
@@ -320,7 +326,7 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       return reply.code(401).send({ error: 'invalid username or password' });
     }
 
-    const token = signToken({ id: user.id, username: user.username });
+    const token = signToken(tokenUserOf(user));
     return reply.send({ token });
   });
 
@@ -351,7 +357,7 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       return reply.code(401).send({ error: 'invalid username or passcode' });
     }
 
-    const token = signToken({ id: user.id, username: user.username });
+    const token = signToken(tokenUserOf(user));
     return reply.send({ token });
   });
 

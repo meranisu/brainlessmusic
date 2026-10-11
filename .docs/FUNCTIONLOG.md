@@ -4,6 +4,30 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `signToken()`, `signMediaToken()`, `verifySessionToken()`, `verifyMediaToken()` (changed), `userFrom()` (new) — `backend/src/services/token.ts`
+**Date:** 2026-10-11
+**How added:** hardening (review C8)
+**Purpose:** carry the user's session version in every token.
+**Side effects:** none.
+**Before:** tokens carried only id and username.
+**After:** they also carry `sv`; verifying returns `sessionVersion` (0 when absent).
+
+**Function:** `rejectStaleSession()` (replaces `rejectDeletedUser()`) — `backend/src/plugins/auth.ts`
+**Date:** 2026-10-11
+**How added:** hardening (review C8)
+**Purpose:** refuse a token whose user is gone or whose password has changed since it was signed.
+**Side effects:** one user lookup per authenticated request (as before).
+**Before:** refused only deleted users.
+**After:** also refuses a session version mismatch.
+
+**Function:** `setPasswordHash()`, `setPasswordHashById()` — `backend/src/db/users.ts`; `tokenUserOf()` (new) — `backend/src/routes/auth.ts`
+**Date:** 2026-10-11
+**How added:** hardening (review C8)
+**Purpose:** bump `session_version` with every password change; sign tokens with the current version.
+**Side effects:** UPDATE on `users`.
+**Before:** a password change left existing tokens valid.
+**After:** every older token is refused.
+
 **Function:** `onSessionRefused()` (new), `request()`, `getMediaToken()` (changed) — `frontend/src/lib/apiClient.ts`
 **Date:** 2026-10-11
 **How added:** bug fix (review C7, C34)

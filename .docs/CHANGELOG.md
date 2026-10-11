@@ -4,6 +4,21 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Review fix C8: a password change ends older sessions (migration 0024)
+
+- JWTs had no link to the user row past its id, so after an admin reset a compromised account's password, the
+  attacker's token kept working for up to `JWT_EXPIRES_IN` (7 days).
+- Migration `0024_add_user_session_version.sql` adds `users.session_version` (default 0). `setPasswordHash` and
+  `setPasswordHashById` bump it. That covers the admin reset (`PATCH /users/:id`) and the `set-password` script.
+- Session and media tokens carry it as `sv` (`services/token.ts`). `authenticate` and `authenticateMedia` refuse a
+  token whose `sv` doesn't match the row (`plugins/auth.ts`, `rejectStaleSession`), as they already did for a deleted
+  user. Tokens signed before this change have no `sv`, which counts as 0, so the upgrade signs nobody out.
+- An admin resetting their own password also ends their own session. The web and Android clients now go to sign-in
+  on that (C7).
+- Verified: `cd backend && npm test` 440/440 pass. New tests: a reset ends the old session and its media token but not
+  other users' sessions; a token with no `sv` is still accepted; tokens round-trip `sessionVersion`.
+  Backend `tsc --noEmit` is clean. Not deployed.
+
 ## 2026-10-11 — Review fixes C7, C15, C34: an expired session goes back to sign-in, on web and Android
 
 From `.docs/process/codebase-review-2026-10-11.md`.

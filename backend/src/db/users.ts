@@ -18,6 +18,8 @@ export interface UserRow {
   theme: string | null;
   /** What to call this user (A68); NULL shows `username`. See `0022`. */
   display_name: string | null;
+  /** Bumped on every password change; tokens signed with an older one are refused (C8). See `0024`. */
+  session_version: number;
 }
 
 /** Longest display name, in characters. */
@@ -67,8 +69,9 @@ export function setAdmin(username: string, isAdmin: boolean): UserRow | undefine
 }
 
 /** Admins reset other people's passwords from the Users page; `npm run set-password` remains for recovery. */
+/** Also ends every session signed before the change (C8). */
 export function setPasswordHash(username: string, passwordHash: string): UserRow | undefined {
-  db.prepare('UPDATE users SET password_hash = ? WHERE username = ?').run(passwordHash, username);
+  db.prepare('UPDATE users SET password_hash = ?, session_version = session_version + 1 WHERE username = ?').run(passwordHash, username);
   return findUserByUsername(username);
 }
 
@@ -201,8 +204,9 @@ export function setAdminById(id: number, isAdmin: boolean): UserRow | undefined 
   return findUserById(id);
 }
 
+/** Also ends every session signed before the change (C8). */
 export function setPasswordHashById(id: number, passwordHash: string): UserRow | undefined {
-  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(passwordHash, id);
+  db.prepare('UPDATE users SET password_hash = ?, session_version = session_version + 1 WHERE id = ?').run(passwordHash, id);
   return findUserById(id);
 }
 
