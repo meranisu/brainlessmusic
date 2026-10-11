@@ -208,6 +208,10 @@ interface ApiService {
     @GET("rooms/mine")
     suspend fun myRoom(): RoomCodeResponse
 
+    // Answers 204 with no body. For a Leave pressed while the socket is reconnecting.
+    @POST("rooms/leave")
+    suspend fun leaveRoom()
+
     @GET("rooms/{code}")
     suspend fun lookupRoom(@Path("code") code: String): RoomLookupDto
 }

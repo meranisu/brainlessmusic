@@ -459,7 +459,8 @@ export function createRoomRegistry(deps: RegistryDeps) {
       const room = rooms.get(code);
       if (!room || !room.members.has(userId)) return { ok: false, reason: 'not-found' };
       const result = apply(room, userId, cmd);
-      if (result.ok && rooms.has(room.code)) {
+      // `end` deletes the room and `kick` already broadcast from `removeMember`: one state per change, not two.
+      if (result.ok && rooms.has(room.code) && cmd.op !== 'kick') {
         scheduleSongEnd(room);
         broadcast(room);
       }

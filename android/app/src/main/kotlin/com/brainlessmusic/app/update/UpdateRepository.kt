@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -77,7 +78,8 @@ class UpdateRepository @Inject constructor(
             val prefs = dataStore.data.first()
             val now = System.currentTimeMillis()
             if (now - (prefs[LAST_CHECK_KEY] ?: 0L) < DAY_MS) return@launch
-            val offer = fetchOffer().getOrNull()
+            // Only a check that reached GitHub counts: an offline launch tries again next time, not a day later.
+            val offer = fetchOffer().getOrElse { return@launch }
             dataStore.edit { it[LAST_CHECK_KEY] = now }
             if (offer == null) return@launch
             _state.value = UpdateState.Available(offer)
@@ -190,6 +192,9 @@ class UpdateRepository @Inject constructor(
                 file.outputStream().use { output ->
                     val buffer = ByteArray(64 * 1024)
                     while (true) {
+                        // A blocking read never notices a cancel by itself; without this a cancelled download would
+                        // keep writing Downloading over whatever state came after.
+                        ensureActive()
                         val read = input.read(buffer)
                         if (read < 0) break
                         output.write(buffer, 0, read)

@@ -47,7 +47,20 @@ class RoomSocket(
     private var attempt = 0
     private var lastHeard = 0L
     private var cmdCounter = 0
-    private val pendingOps = HashMap<String, String>()
+    // Ops remembered for naming a rejection. Accepted commands get no reply, so only the newest few are kept.
+    private val pendingOps = object : LinkedHashMap<String, String>() {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?) = size > PENDING_OPS_KEPT
+    }
+
+    /**
+     * The current socket has had `welcome`. Before that the server takes nothing but `hello`, and OkHttp would flush
+     * anything sent while connecting ahead of it (the hello goes out after a hop to the main thread): the server would
+     * close the socket as `no-hello` and drop us from the room. So every other message waits for this.
+     */
+    private var joined = false
+
+    /** The socket to talk on, or null before `welcome`. */
+    private val live: WebSocket? get() = socket?.takeIf { joined }
     private var reconnectJob: Job? = null
     private var pingJob: Job? = null
 
@@ -60,7 +73,7 @@ class RoomSocket(
     fun connect() = open()
 
     fun send(command: RoomCommand) {
-        val ws = socket ?: return
+        val ws = live ?: return
         val id = "c${++cmdCounter}"
         pendingOps[id] = command.op
         val body = JsonObject().apply {
@@ -87,7 +100,7 @@ class RoomSocket(
 
     /** For the Control Center monitor: how far this phone is from the room, every 5 s. */
     fun status(driftMs: Long?, buffering: Boolean) {
-        socket?.send(JsonObject().apply {
+        live?.send(JsonObject().apply {
             addProperty("type", "status")
             addProperty("driftMs", driftMs)
             addProperty("buffering", buffering)
@@ -95,14 +108,20 @@ class RoomSocket(
     }
 
     /** Leaves the room for good. */
-    fun leave() {
-        socket?.send("""{"type":"leave"}""")
+    /**
+     * Leaves the room for good. Returns false when the socket couldn't carry it (reconnecting): the caller then leaves
+     * over REST, or the server would keep us for its away grace and a restart would put us straight back in.
+     */
+    fun leave(): Boolean {
+        val sent = live?.send("""{"type":"leave"}""") == true
         stop()
+        return sent
     }
 
     /** Stops without telling the server (a sign-out): it marks us away and drops us after its grace period. */
     fun stop() {
         stopped = true
+        joined = false
         clearTimers()
         val ws = socket
         socket = null
@@ -152,6 +171,7 @@ class RoomSocket(
                 scope.launch {
                     if (webSocket !== socket) return@launch
                     socket = null
+                    joined = false
                     clearTimers()
                     scheduleReconnect()
                 }
@@ -163,6 +183,7 @@ class RoomSocket(
     private fun handle(message: JsonObject, arrivedAt: Long) {
         when (message.get("type")?.asString) {
             "welcome" -> {
+                joined = true
                 attempt = 0
                 startClockSync()
                 parseRoom(message)?.let { events.onState(it, message.get("you")?.asInt) }
@@ -215,7 +236,7 @@ class RoomSocket(
     }
 
     private fun ping() {
-        socket?.send("""{"type":"ping","t0":${now()}}""")
+        live?.send("""{"type":"ping","t0":${now()}}""")
     }
 
     private fun scheduleReconnect() {
@@ -230,6 +251,7 @@ class RoomSocket(
     }
 
     private companion object {
+        const val PENDING_OPS_KEPT = 50
         const val SYNC_PINGS = 8
         const val SYNC_PING_GAP_MS = 100L
         const val EARLY_PING_EVERY_MS = 3_000L

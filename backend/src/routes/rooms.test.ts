@@ -159,6 +159,19 @@ describe('rooms REST', () => {
     assert.deepEqual((await mine(bobToken)).json(), { code: null });
   });
 
+  it('leaves over REST, for a Leave pressed while the socket is down', async () => {
+    const { code } = (await createRoom(aliceToken)).json();
+    const auth = { authorization: `Bearer ${aliceToken}` };
+    const leave = () => app.inject({ method: 'POST', url: '/api/rooms/leave', headers: auth });
+    assert.equal((await leave()).statusCode, 204);
+    assert.deepEqual((await app.inject({ method: 'GET', url: '/api/rooms/mine', headers: auth })).json(), { code: null });
+    // Alice was the only member, so the room went with her.
+    const lookup = await app.inject({ method: 'GET', url: `/api/rooms/${code}`, headers: auth });
+    assert.equal(lookup.statusCode, 404);
+    // Not in a room: still fine.
+    assert.equal((await leave()).statusCode, 204);
+  });
+
   it('keeps the room list to admins', async () => {
     await createRoom(aliceToken);
     const list = () =>

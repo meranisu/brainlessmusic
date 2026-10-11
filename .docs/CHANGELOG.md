@@ -4,6 +4,34 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Listen together and in-app update fixes from the code review
+
+Ten findings from a review of the room sync and updater work (2026-10-11), all fixed:
+
+- **Android phones dropped out of a room on reconnect.** `RoomSocket` let status reports, commands and pings onto a
+  socket still connecting; OkHttp flushed them ahead of the hello (sent after a main-thread hop), so the server closed
+  it as `no-hello` and the client took that as final. Everything but `hello` now waits for `welcome` (`joined`).
+  Reproduced first: the extended `RoomSocketLiveTest` (a status every 2 ms through a forced drop) failed on the old
+  socket ("timed out waiting for back live") and passes on the new one.
+- **Web went live before it had a clock.** `RoomClient` switched to `live` on a fixed timer; with no pong yet,
+  `serverNow()` was `performance.now()` and the start-time wait overflowed into a setTimeout spin. `live` now waits for
+  the first pong. Checked in Chromium with every pong held 3 s: not live meanwhile, 3 timers in that second, live
+  once a pong landed.
+- **Leave while reconnecting was lost** on both clients, so the server kept the member and a reload rejoined. New
+  `POST /rooms/leave` (guest-level, 204), used when the socket can't carry the leave. Chromium: forced the socket
+  down, pressed Leave room, `/rooms/mine` then answered `null`.
+- **Web Play in a room** sent the whole list (songs before the picked one, no cap; a long list hit the 500 cap and
+  added nothing). Now the picked song onward, 50 at most, as Android. Chromium: Play on Tone 3 of 4 added 3 and 4 and
+  the room jumped to 3.
+- **Web reload in a room:** the saved-playback restore could replace the room's song while it was still loading;
+  it now stands aside in a room. A superseded room load no longer clears the loading flag of the newer one.
+- **Kick broadcast twice** (`removeMember` and `command` both did). Now once; new registry test, and the live test
+  checks one state per kick.
+- **Updater:** an offline launch no longer counts as the day's check; a cancelled download stops writing progress.
+- `pendingOps` on web and Android keep only the newest 50 (accepted commands get no reply).
+- Verified: backend `npm test` 501/501; `npm run build` clean, lint adds nothing; Android unit suite 114 tests,
+  1 skipped, 0 failures; `RoomSocketLiveTest` passes against a scratch server. Not run on a phone.
+
 ## 2026-10-11: Gear's bottom-bar labels fit
 
 - Owner's report: in Gear the bottom bar's text was a bit off, too big. Its labels took the label style, which in Gear

@@ -43,6 +43,7 @@ const EXPECTED: Record<string, Gate> = {
   // Guests join rooms with full controls (A100).
   'POST /rooms': 'guest',
   'GET /rooms/mine': 'guest',
+  'POST /rooms/leave': 'guest',
   'GET /rooms/:code': 'guest',
   'POST /shuffle': 'guest',
   'GET /library/stats': 'guest',

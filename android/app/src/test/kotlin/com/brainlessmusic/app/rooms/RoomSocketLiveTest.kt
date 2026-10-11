@@ -120,16 +120,24 @@ class RoomSocketLiveTest {
         onMain { sa.status(42, false) }
 
         // The host removes the guest; the guest's socket stops for good.
+        val statesBeforeKick = a.states.size
         onMain { sa.send(RoomCommand.Kick(b.you!!)) }
         waitFor("kicked") { b.closed.contains(RoomClosedReason.KICKED) }
         waitFor("a sees one member") { a.last.members.size == 1 }
+        Thread.sleep(300)
+        assertEquals("one state per kick", 1, a.states.size - statesBeforeKick)
 
         // A dropped socket comes back by itself.
         onMain { sa.javaClass.getDeclaredField("socket").apply { isAccessible = true }.let { (it.get(sa) as okhttp3.WebSocket).cancel() } }
+        // Status reports keep coming while the socket reconnects (the player sends one every 5 s). They used to be
+        // flushed ahead of the hello and get the phone closed as no-hello; now they wait for welcome.
+        val statusSpam = scope.launch { repeat(2_000) { sa.status(7, false); kotlinx.coroutines.delay(2) } }
         val before = a.connections.size
         waitFor("reconnecting") { a.connections.drop(before).contains(RoomConnection.CONNECTING) }
         waitFor("back live", 8_000) { a.connections.drop(before).lastOrNull() == RoomConnection.LIVE }
         println("connections a: ${a.connections}")
+        statusSpam.cancel()
+        assertTrue("dropped from the room during reconnect: ${a.closed}", a.closed.isEmpty())
 
         onMain { sa.send(RoomCommand.End) }
         waitFor("ended") { a.closed.contains(RoomClosedReason.ENDED) }

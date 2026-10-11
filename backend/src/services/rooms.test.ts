@@ -293,6 +293,18 @@ describe('room registry: host, dropouts and lifetimes', () => {
     assert.equal(rooms.snapshot(code), undefined);
   });
 
+  it('removing someone sends everyone one state, not two', () => {
+    const code = makeRoom();
+    const aliceSocket = fakeSocket();
+    rooms.connect(code, alice, aliceSocket.connection);
+    rooms.connect(code, bob, fakeSocket().connection);
+    const before = aliceSocket.sent.length;
+    const version = rooms.snapshot(code)!.version;
+    assert.deepEqual(rooms.command(code, alice.userId, { op: 'kick', userId: bob.userId }), { ok: true });
+    assert.equal(aliceSocket.sent.length - before, 1);
+    assert.equal(rooms.snapshot(code)!.version, version + 1);
+  });
+
   it('hands the host role to the longest-present member when the host leaves', () => {
     const code = makeRoom();
     rooms.connect(code, alice, fakeSocket().connection);

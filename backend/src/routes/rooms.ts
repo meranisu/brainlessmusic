@@ -101,6 +101,14 @@ const roomsRoute: FastifyPluginAsync = async (fastify) => {
     code: rooms.codeOfUser(request.user!.id) ?? null,
   }));
 
+  // Leave without the socket: a Leave pressed while reconnecting would otherwise be lost, and the server would keep the
+  // member (and `/rooms/mine` would put them back in) for the away grace period. 204 whether or not they were in one.
+  fastify.post('/rooms/leave', { preHandler: fastify.authenticate }, async (request, reply) => {
+    const code = rooms.codeOfUser(request.user!.id);
+    if (code) rooms.leave(code, request.user!.id);
+    return reply.code(204).send();
+  });
+
   // For the join screen: who's there and what's on, before connecting.
   fastify.get<{ Params: { code: string } }>(
     '/rooms/:code',

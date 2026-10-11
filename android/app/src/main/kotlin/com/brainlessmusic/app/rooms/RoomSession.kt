@@ -145,7 +145,10 @@ class RoomSession @Inject constructor(
     fun leave() {
         val leaving = socket
         socket = null
-        leaving?.leave()
+        if (leaving?.leave() == false) {
+            // Reconnecting: the socket couldn't carry it, so the leave goes over REST.
+            scope.launch { runCatching { apiServiceFactory.get(serverConfig.url).leaveRoom() } }
+        }
         _state.value = RoomUiState()
         controller.exitRoom()
     }

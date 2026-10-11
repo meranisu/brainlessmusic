@@ -1,4 +1,4 @@
-import { getToken } from './apiClient';
+import { apiClient, getToken } from './apiClient';
 
 /**
  * The live half of room sync ("Listen together", A102): one WebSocket to `/api/rooms/ws`, the server's clock, and
@@ -77,6 +77,8 @@ const BEST_SAMPLES = 3;
 const RECONNECT_STEPS_MS = [1000, 2000, 4000, 8000, 10_000];
 /** A drop isn't noticed until a ping goes unanswered, so give up on the socket after this long silent. */
 const SILENT_LIMIT_MS = PING_EVERY_MS + 10_000;
+/** Ops remembered for naming a rejection. Accepted commands get no reply, so only the newest few are kept. */
+const PENDING_OPS_KEPT = 50;
 
 function wsUrl(): string {
   const base = import.meta.env.VITE_API_BASE_URL ?? '/api';
@@ -98,7 +100,11 @@ export class RoomClient {
   /** `serverClock - performance.now()`, from the lowest round trips seen. */
   private offset = 0;
   private hasOffset = false;
+  /** The burst is over but no pong has come back yet: `live` waits for the first one. */
+  private liveOnFirstSample = false;
   private samples: { rtt: number; offset: number; at: number }[] = [];
+  /** `welcome` arrived on the current socket; the server takes nothing but `hello` before it. */
+  private joined = false;
   private readonly code: string;
   private readonly events: RoomClientEvents;
 
@@ -125,6 +131,7 @@ export class RoomClient {
     if (this.socket?.readyState !== WebSocket.OPEN) return;
     const clientCmdId = `c${++this.cmdCounter}`;
     this.pendingOps.set(clientCmdId, command.op);
+    if (this.pendingOps.size > PENDING_OPS_KEPT) this.pendingOps.delete(this.pendingOps.keys().next().value!);
     this.socket.send(JSON.stringify({ type: 'cmd', clientCmdId, ...command }));
   }
 
@@ -133,9 +140,18 @@ export class RoomClient {
     this.socket.send(JSON.stringify({ type: 'status', driftMs, buffering }));
   }
 
-  /** Leaves the room for good. */
+  /**
+   * Leaves the room for good. With the socket down (reconnecting) the leave goes over REST instead, or the server would
+   * keep us for its away grace and a reload would put us straight back in.
+   */
   leave(): void {
-    if (this.socket?.readyState === WebSocket.OPEN) this.socket.send(JSON.stringify({ type: 'leave' }));
+    if (this.socket?.readyState === WebSocket.OPEN && this.joined) {
+      this.socket.send(JSON.stringify({ type: 'leave' }));
+    } else {
+      void apiClient.post('/rooms/leave', {}).catch(() => {
+        // Unreachable: the server drops us after its grace period anyway.
+      });
+    }
     this.stop();
   }
 
@@ -178,6 +194,7 @@ export class RoomClient {
     socket.onclose = () => {
       if (socket !== this.socket) return;
       this.socket = null;
+      this.joined = false;
       this.clearTimers();
       this.scheduleReconnect();
     };
@@ -187,6 +204,7 @@ export class RoomClient {
     switch (message.type) {
       case 'welcome': {
         this.attempt = 0;
+        this.joined = true;
         this.startClockSync();
         this.events.onState(message.room as RoomState, message.you as number);
         // `live` once the first burst of pings settles the clock; until then positions would be guesses.
@@ -220,8 +238,14 @@ export class RoomClient {
     for (let i = 0; i < SYNC_PINGS; i++) {
       this.syncTimers.push(window.setTimeout(() => this.ping(), i * SYNC_PING_GAP_MS));
     }
+    // `live` only with a clock: before the first pong `serverNow()` isn't on the server's clock at all, and positions
+    // computed from it are off by years. A slow link waits for its first reply instead.
+    this.liveOnFirstSample = false;
     this.syncTimers.push(
-      window.setTimeout(() => this.events.onConnection('live'), SYNC_PINGS * SYNC_PING_GAP_MS + 200),
+      window.setTimeout(() => {
+        if (this.hasOffset) this.events.onConnection('live');
+        else this.liveOnFirstSample = true;
+      }, SYNC_PINGS * SYNC_PING_GAP_MS + 200),
     );
     const startedAt = performance.now();
     const tick = () => {
@@ -254,6 +278,10 @@ export class RoomClient {
     const offsets = best.map((s) => s.offset).sort((a, b) => a - b);
     this.offset = offsets[Math.floor(offsets.length / 2)];
     this.hasOffset = true;
+    if (this.liveOnFirstSample) {
+      this.liveOnFirstSample = false;
+      this.events.onConnection('live');
+    }
   }
 
   private scheduleReconnect(): void {

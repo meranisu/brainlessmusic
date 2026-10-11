@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `RoomSocket` (`joined`, `live`, `leave(): Boolean`), `RoomSession.leave()`: `android/.../rooms/`; `UpdateRepository.checkOnLaunch()`, `fetchApk()`: `android/.../update/`; `RoomClient` (`leave`, live gating, `pendingOps` cap): `frontend/src/lib/roomClient.ts`; `playQueue`, restore, room load: `frontend/src/components/PlayerBar.tsx`; `POST /rooms/leave` (new): `backend/src/routes/rooms.ts`; `command()`: `backend/src/services/rooms.ts`
+**Date:** 2026-10-12
+**How added:** bug fix (code review)
+**Purpose:** fixes from the 2026-10-11 review of room sync and the updater.
+**Side effects:** a REST leave when the socket is down.
+**Before:** phones could be dropped on reconnect, the web could go live with no clock, a Leave could be lost, Play in a room added the whole list.
+**After:** each of those behaves; see the changelog entry.
+
 **Function:** `TabLabel()` (new), `TabIcon()` (changed): `android/.../ui/common/SkinParts.kt`; `LibraryBottomBar()` (changed): `android/.../ui/navigation/LibraryBottomBar.kt`
 **Date:** 2026-10-11
 **How added:** bug fix (owner report)

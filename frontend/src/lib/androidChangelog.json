@@ -1,5 +1,37 @@
 [
   {
+    "version": "0.3.53",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "listen together fixes:"
+          },
+          {
+            "type": "ul",
+            "items": [
+              "your phone could get kicked out of a room when it reconnected after a signal drop. my bad, that's fixed, it stays in now",
+              "pressing leave room while it's reconnecting actually leaves now. before, the server kept you in and reopening the app put you back in the room",
+              "the update check doesn't give up for the day if you open the app with no signal, it tries again next time"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it. the server side updates by itself"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.52",
     "date": "2026-10-11",
     "sections": [

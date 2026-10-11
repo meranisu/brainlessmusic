@@ -67,6 +67,8 @@ const SEEK_STEP_SECONDS = 5;
 const ROOM_DRIFT_LIMIT_MS = 300;
 /** A song picked with Play in a room waits this long for the server to add it, then the jump is dropped. */
 const ROOM_PENDING_JUMP_MS = 10_000;
+/** Play on a song in a room adds it and up to this many in all, so a long list can't fill the room's 500. */
+const ROOM_ADD_MAX = 50;
 
 /** A play counts at half the track or four minutes, whichever is first (Last.fm's rule). */
 const SCROBBLE_CAP_SECONDS = 240;
@@ -351,6 +353,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const roomQueueKeyRef = useRef('');
   const roomTracksRef = useRef<QueueTrack[]>([]);
   const roomLoadingRef = useRef(false);
+  // Which room load is the newest: an older one settling must not clear `roomLoadingRef` while a newer one runs.
+  const roomLoadSeqRef = useRef(0);
   const roomStartTimerRef = useRef<number | undefined>(undefined);
   const driftStrikesRef = useRef(0);
   const lastDriftRef = useRef<number | null>(null);
@@ -877,9 +881,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (roomRef.current.room) {
       // In a room, Play adds to the shared queue after the current song and jumps there once the server has it,
       // rather than replacing everyone's queue.
+      // From the picked song on, at most ROOM_ADD_MAX: the songs before it aren't what was asked for, and a long list
+      // would hit the room's 500-song cap and add nothing (the same rule as Android's `roomPlay`).
       const after = roomCurrentEntry()?.entryId;
-      pendingRoomJumpRef.current = { afterEntryId: after, offset: at, trackId: tracks[at].id, at: Date.now() };
-      roomRef.current.send({ op: 'add', trackIds: tracks.map((t) => t.id), after });
+      const picked = tracks.slice(at, at + ROOM_ADD_MAX);
+      pendingRoomJumpRef.current = { afterEntryId: after, offset: 0, trackId: picked[0].id, at: Date.now() };
+      roomRef.current.send({ op: 'add', trackIds: picked.map((t) => t.id), after });
       return;
     }
     originalQueueRef.current = tracks;
@@ -1209,6 +1216,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       .then(async ({ state }) => {
         const audio = audioRef.current;
         if (!state || state.queue.length === 0 || !audio || audio.src) return;
+        // In a room (a reload rejoins before this answers), the room's song wins. `audio.src` alone misses a room song
+        // still loading: `load` sets it only after building the stream URL.
+        if (roomRef.current.room || roomLoadingRef.current || roomEntryRef.current !== null) return;
 
         originalQueueRef.current = state.queue;
         setQueue(state.queue);
@@ -1486,7 +1496,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const alreadyLoaded = local?.id === entry.trackId && audio.src !== '' && !roomLoadingRef.current;
       if (!alreadyLoaded) {
         roomLoadingRef.current = true;
+        const seq = ++roomLoadSeqRef.current;
         void load(roomTracksRef.current, room.current, false, Math.max(0, expected) / 1000).finally(() => {
+          if (seq !== roomLoadSeqRef.current) return;
           roomLoadingRef.current = false;
           syncRef.current();
         });
