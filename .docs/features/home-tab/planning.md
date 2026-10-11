@@ -50,3 +50,4 @@ listening stats (A97); guests get a smaller Home (A98).
 | Date | Phase affected | What changed | Why | Still fits the Plan phase? |
 |---|---|---|---|---|
 | 2026-10-11 | Interior | The greeting is the top bar title, not a header under it | A "Home" title with a greeting right below says the same thing twice | Yes |
+| 2026-10-11 | Interior | Order is now Shuffle, card, library tiles, range picker, Recently played, Top songs, Top artists | Owner asked after using it on the phone | Yes, Shuffle still leads |

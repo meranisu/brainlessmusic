@@ -155,8 +155,12 @@ fun YouScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = 16.dp),
                     ) {
-                        // Something to play first, then your listening (A97).
+                        // Something to play first, then who you are and your library, then what you've played
+                        // (owner's order, 2026-10-11).
                         item { ShuffleLibraryButton(shuffle) }
+                        item { Box(ofRange) { PlayerCard(username, stats, range) } }
+                        item { LibraryTiles(stats.counts, onOpenLiked, onOpenPlaylists, onOpenLessOften) }
+                        item { RangePicker(range, viewModel::setRange) }
 
                         if (recent.isNotEmpty()) {
                             item { SectionTitle("Recently played") }
@@ -169,11 +173,6 @@ fun YouScreen(
                                 )
                             }
                         }
-
-                        // Not ranged, so above the range picker, where it's seen without much scrolling (A96).
-                        item { LibraryTiles(stats.counts, onOpenLiked, onOpenPlaylists, onOpenLessOften) }
-                        item { RangePicker(range, viewModel::setRange) }
-                        item { Box(ofRange) { PlayerCard(username, stats, range) } }
 
                         item {
                             SectionTitle(

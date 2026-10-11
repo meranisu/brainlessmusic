@@ -4,6 +4,13 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android: Home order changed
+
+- **Home now runs:** Shuffle my library, your card (name, hours, plays, songs), the Liked / Playlists / Hear less
+  tiles, the range picker, Recently played, Top songs, Top artists. Recently played used to sit right under Shuffle,
+  with the card below the range picker. Owner's order; it replaces the A97 order below Shuffle.
+- Verified: `./gradlew compileDebugKotlin`. **Not run:** not tried on a phone.
+
 ## 2026-10-11 — Android: Songs tile mosaic of up to six covers
 
 - **The Songs tile and its page header combine up to six covers**, laid out by count: one fills the tile, two side by
