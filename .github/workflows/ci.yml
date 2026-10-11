@@ -1,0 +1,76 @@
+# Checks every push to main and every pull request: backend tests, frontend type check + build + lint.
+# Publishes nothing. This is the gate any automatic deploy to smol should wait on.
+#
+# Run it by hand: Actions tab → CI → Run workflow, or `gh workflow run ci.yml`.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch makes the older run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      # Transcode, waveform, upload and scanner tests run the real ffmpeg/ffprobe, as production does.
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
+      - run: npm ci
+
+      - name: Type check
+        run: npx tsc -p tsconfig.json --noEmit
+
+      # The only supported way to run the suite: it points every path at backend/.test-tmp/.
+      - run: npm test
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The prebuild step dates each Android release note from git history.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: Build (type check + vite)
+        run: npm run build
+
+      # The Docker build has no android/ folder and ships the committed JSON as-is, so a stale one would reach smol.
+      - name: Android changelog JSON is committed
+        run: |
+          git diff --exit-code -- src/lib/androidChangelog.json \
+            || { echo "::error::Run 'npm run build' in frontend/ and commit src/lib/androidChangelog.json"; exit 1; }
+
+      - run: npm run lint

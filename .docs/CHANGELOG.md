@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: CI for backend and frontend on every push
+
+- New `.github/workflows/ci.yml`: on every push to `main`, every pull request, or by hand. Two jobs. **backend**:
+  installs ffmpeg (the transcode, waveform, upload and scanner tests call it), `tsc --noEmit`, `npm test`. **frontend**:
+  `npm run build` (tsc + vite), checks `src/lib/androidChangelog.json` matches the release notes (the Docker build
+  ships the committed copy), `npm run lint`. Publishes nothing. Step 1 toward automatic deploys to smol, which would
+  wait on this passing.
+- Verified locally with the same commands: backend `tsc --noEmit` clean, `npm test` 499/499; frontend build passes,
+  changelog JSON unchanged, lint exit 0 (warnings only). **Not run:** on GitHub Actions (not pushed yet).
+
 ## 2026-10-11: Android update sheet drops "Skip this version"
 
 - Owner's request, reversing A105: it did the same job as Later. The sheet offers Install now and Later; Later keeps it
