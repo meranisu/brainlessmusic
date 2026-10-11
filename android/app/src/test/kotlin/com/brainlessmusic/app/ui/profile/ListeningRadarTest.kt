@@ -54,4 +54,13 @@ class ListeningRadarTest {
         assertEquals(0.5f, v[5], 0.001f)
         assertTrue(v.all { it in 0f..1f })
     }
+
+    @Test
+    fun `the overall reading is the mean, and potential runs 0 to 13`() {
+        assertEquals(0.5f, listeningOverall(listOf(0f, 1f, 0.5f, 0.5f, 0.25f, 0.75f)), 0.001f)
+        assertEquals(0f, listeningOverall(emptyList()), 0f)
+        assertEquals(0f, potential(0f), 0f)
+        assertEquals(6.5f, potential(0.5f), 0.001f)
+        assertEquals(13f, potential(1.4f), 0f)
+    }
 }

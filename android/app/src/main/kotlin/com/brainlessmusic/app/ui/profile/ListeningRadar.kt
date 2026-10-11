@@ -39,9 +39,9 @@ import kotlin.math.exp
 import kotlin.math.sin
 
 /** One axis of the radar: its name and colour, after the six of SOUND VOLTEX's EFFECT RADAR, clockwise from the top. */
-private data class Axis(val name: String, val color: Color)
+internal data class Axis(val name: String, val color: Color)
 
-private val Axes = listOf(
+internal val Axes = listOf(
     Axis("PLAYS", Color(0xFF00E5FF)),
     Axis("TIME", Color(0xFFFF3355)),
     Axis("VARIETY", Color(0xFFFF2FD0)),
@@ -83,6 +83,9 @@ internal fun radarValues(stats: UserStatsDto, days: Long): List<Float> {
         liked.toFloat() / (liked + 50),
     )
 }
+
+/** The six readings as one, 0 to 1: their mean. Hit circle shows it as a percentage, Lane as Arcaea's potential. */
+internal fun listeningOverall(values: List<Float>): Float = if (values.isEmpty()) 0f else values.average().toFloat().coerceIn(0f, 1f)
 
 /**
  * Gear's listening radar on Home (A114 follow-up): your listening over the picked range as SOUND VOLTEX's EFFECT RADAR

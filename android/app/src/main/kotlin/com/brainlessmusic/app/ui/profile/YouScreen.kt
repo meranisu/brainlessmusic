@@ -150,7 +150,7 @@ fun YouScreen(
                 // with nothing played then, every song would read NEW.
                 val compared = (stats.previousTotals?.plays ?: 0) > 0
                 val ofRange = Modifier.graphicsLayer { alpha = rangeAlpha }
-                val gear = LocalSkin.current == Skin.GEAR
+                val skin = LocalSkin.current
                 PullToRefreshBox(isRefreshing = refreshing, onRefresh = viewModel::refresh) {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
@@ -162,8 +162,14 @@ fun YouScreen(
                         item { StartRow(onShuffle = shuffle, onTogether = together) }
                         item { LibraryTiles(stats.counts, onOpenLiked, onOpenPlaylists, onOpenLessOften) }
                         item { RangePicker(range, viewModel::setRange) }
-                        // Gear reads the range as SOUND VOLTEX's EFFECT RADAR.
-                        if (gear) item { Box(ofRange) { ListeningRadar(stats, range) } }
+                        // The game skins read the range in their game's manner: Gear as SOUND VOLTEX's EFFECT RADAR,
+                        // Hit circle as numbered hit circles, Lane as Arcaea's potential.
+                        when (skin) {
+                            Skin.GEAR -> item { Box(ofRange) { ListeningRadar(stats, range) } }
+                            Skin.HIT_CIRCLE -> item { Box(ofRange) { HitCircleListening(stats, range) } }
+                            Skin.LANE -> item { Box(ofRange) { LaneListening(stats, range) } }
+                            Skin.STANDARD -> Unit
+                        }
 
                         if (recent.isNotEmpty()) {
                             item { SectionTitle("Recently played") }

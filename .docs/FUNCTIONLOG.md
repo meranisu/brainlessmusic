@@ -4,6 +4,13 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `HitCircleListening`, `LaneListening`, `potential()` (new): `android/.../ui/profile/ListeningCards.kt`; `listeningOverall()` (new), `Axes` now internal: `ListeningRadar.kt`; `TabIcon`, `TabLabel`, `tabColors`: `android/.../ui/common/SkinParts.kt`
+**Date:** 2026-10-12
+**How added:** feature (owner request)
+**Purpose:** listening on Home for Hit circle and Lane, in their games' manner; their bottom bars restyled.
+**Side effects:** none; Standard's Home and tab bar are untouched.
+**Before:** only Gear showed a listening reading; Hit circle ringed the selected tab, Lane outlined it in a diamond.
+
 **Function:** `RoomSocket` (`joined`, `live`, `leave(): Boolean`), `RoomSession.leave()`: `android/.../rooms/`; `UpdateRepository.checkOnLaunch()`, `fetchApk()`: `android/.../update/`; `RoomClient` (`leave`, live gating, `pendingOps` cap): `frontend/src/lib/roomClient.ts`; `playQueue`, restore, room load: `frontend/src/components/PlayerBar.tsx`; `POST /rooms/leave` (new): `backend/src/routes/rooms.ts`; `command()`: `backend/src/services/rooms.ts`
 **Date:** 2026-10-12
 **How added:** bug fix (code review)

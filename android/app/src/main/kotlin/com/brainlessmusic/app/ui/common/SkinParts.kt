@@ -1,6 +1,14 @@
 package com.brainlessmusic.app.ui.common
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.draw.drawBehind
+import com.brainlessmusic.app.ui.playback.skins.rememberAnimationsOn
+import com.brainlessmusic.app.ui.theme.LaneFontFamily
 import com.brainlessmusic.app.ui.theme.SlantShape
 import com.brainlessmusic.app.ui.theme.AppIcons
 import androidx.compose.ui.semantics.semantics
@@ -340,27 +348,52 @@ val floatingBars: Boolean
 @Composable
 fun tabColors(): NavigationBarItemColors = when (LocalSkin.current) {
     Skin.STANDARD -> NavigationBarItemDefaults.colors()
-    Skin.HIT_CIRCLE, Skin.LANE -> NavigationBarItemDefaults.colors(
-        indicatorColor = Color.Transparent,
-        selectedIconColor = MaterialTheme.colorScheme.primary,
-        selectedTextColor = MaterialTheme.colorScheme.primary,
-    )
-    // The selected tab is a lit key ([TabIcon]), so its icon takes the key's ink.
-    Skin.GEAR -> NavigationBarItemDefaults.colors(
+    // The selected tab is lit ([TabIcon]: Hit circle's filled circle, Lane's slanted key, Gear's BT key), so its icon
+    // takes the light's ink.
+    Skin.HIT_CIRCLE, Skin.LANE, Skin.GEAR -> NavigationBarItemDefaults.colors(
         indicatorColor = Color.Transparent,
         selectedIconColor = MaterialTheme.colorScheme.onPrimary,
         selectedTextColor = MaterialTheme.colorScheme.primary,
     )
 }
 
-/** A bottom-bar icon: Hit circle rings the selected tab's, like a circle waiting to be hit; Lane sets it in a diamond. */
+/**
+ * A bottom-bar icon. Hit circle lights the selected tab as a hit circle, an approach ring closing on it as it opens,
+ * the others outlined circles waiting their turn; Lane lights it as a slanted key, Arcaea's song-row shape; Gear makes
+ * every tab a BT key, the open one lit.
+ */
 @Composable
 fun TabIcon(selected: Boolean, content: @Composable () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
     when {
-        selected && LocalSkin.current == Skin.HIT_CIRCLE -> Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.size(34.dp).border(2.5.dp, MaterialTheme.colorScheme.primary, CircleShape),
-        ) { content() }
+        LocalSkin.current == Skin.HIT_CIRCLE -> {
+            val animate = rememberAnimationsOn()
+            val approach = remember { Animatable(1f) }
+            LaunchedEffect(selected) {
+                if (selected && animate) {
+                    approach.snapTo(0f)
+                    approach.animateTo(1f, tween(320, easing = LinearOutSlowInEasing))
+                }
+            }
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(34.dp)
+                    .drawBehind {
+                        val p = approach.value
+                        if (selected && p < 1f) {
+                            drawCircle(scheme.primary.copy(alpha = 1f - p), radius = size.minDimension / 2 * (2f - p), style = Stroke(2.dp.toPx()))
+                        }
+                    }
+                    .then(
+                        if (selected) {
+                            Modifier.background(scheme.primary, CircleShape).border(2.dp, scheme.onSurface.copy(alpha = 0.5f), CircleShape)
+                        } else {
+                            Modifier.border(1.5.dp, scheme.outline, CircleShape)
+                        },
+                    ),
+            ) { Box(Modifier.size(20.dp), contentAlignment = Alignment.Center) { content() } }
+        }
         // Gear: every tab a BT key on the console, the open one lit.
         LocalSkin.current == Skin.GEAR -> Box(
             contentAlignment = Alignment.Center,
@@ -374,24 +407,26 @@ fun TabIcon(selected: Boolean, content: @Composable () -> Unit) {
                     },
                 ),
         ) { content() }
-        selected && LocalSkin.current == Skin.LANE -> Box(contentAlignment = Alignment.Center, modifier = Modifier.size(36.dp)) {
-            Diamond(25.dp, MaterialTheme.colorScheme.primary, stroke = 1.5.dp)
-            content()
-        }
+        selected && LocalSkin.current == Skin.LANE -> Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.size(width = 52.dp, height = 28.dp).background(scheme.primary, SlantShape(9.dp)),
+        ) { content() }
         else -> content()
     }
 }
 
 /**
- * A bottom-bar tab's name. Gear sets it in its narrower text face (Chakra Petch) on one line: its label face, Orbitron,
- * is too wide for a tab, and "Downloads" ran past its slot.
+ * A bottom-bar tab's name, on one line. Gear sets it in its narrower text face (Chakra Petch): its label face, Orbitron,
+ * is too wide for a tab, and "Downloads" ran past its slot. Hit circle's is Fredoka, Lane's Exo 2, both at 12 sp so
+ * "Downloads" fits.
  */
 @Composable
 fun TabLabel(text: String) {
-    if (LocalSkin.current == Skin.GEAR) {
-        Text(text, fontFamily = GearFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, maxLines = 1, softWrap = false)
-    } else {
-        Text(text)
+    when (LocalSkin.current) {
+        Skin.STANDARD -> Text(text)
+        Skin.HIT_CIRCLE -> Text(text, fontFamily = BrandFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, maxLines = 1, softWrap = false)
+        Skin.LANE -> Text(text, fontFamily = LaneFontFamily, fontWeight = FontWeight.Medium, fontSize = 12.sp, maxLines = 1, softWrap = false)
+        Skin.GEAR -> Text(text, fontFamily = GearFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, maxLines = 1, softWrap = false)
     }
 }
 

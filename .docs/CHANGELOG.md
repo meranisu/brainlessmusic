@@ -4,6 +4,18 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Listening on Home for Hit circle and Lane, and their bottom bars restyled (Android)
+
+- **Listening for every game skin.** Gear's listening radar now has a match in the other two, the same six readings
+  (plays, time, variety, reach, devotion, loved) in each game's manner: Hit circle sets them as osu! numbered hit
+  circles, each ringed to its reading, under a large circle with the overall reading and an approach ring that closes
+  as it lands (`HitCircleListening`); Lane gives the overall reading as Arcaea's potential, 0.00 to 13.00, in its
+  diamond badge coloured by band, with the six as slanted bars (`LaneListening`). Both sit under the range picker.
+- **Bottom bars.** Hit circle's selected tab is now a lit hit circle (filled accent, white edge) with an approach ring
+  closing on it when opened, the others outlined circles; Lane's is a lit parallelogram key in place of the diamond
+  outline. Both now take their own face for tab names at 12 sp on one line (Fredoka, Exo 2), so "Downloads" fits.
+- Checked: `compileDebugKotlin` and the unit tests (115, 1 skipped, 0 failed). Not run on a phone.
+
 ## 2026-10-12: Listen together and in-app update fixes from the code review
 
 Ten findings from a review of the room sync and updater work (2026-10-11), all fixed:
