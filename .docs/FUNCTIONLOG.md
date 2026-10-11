@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** new `DownloadModule` (`provideDownloadCache()`, `provideDownloadManager()`) — `android/.../di/DownloadModule.kt`; new `MusicDownloadService`, `DownloadRepository` (`download()`, `remove()`, `isDownloaded()`), `TrackCacheKey` / `trackCacheKey()`, `downloadId()`, `trackIdOf()` — `android/.../downloads/`
+**Date:** 2026-10-11
+**How added:** new feature (offline downloads, step 2)
+**Purpose:** download songs at original quality and keep their state for the screens and the player.
+**Side effects:** writes song files under the app's `filesDir/downloads`; a Media3 download database; a foreground service with a notification; network requests to `GET /tracks/:id/stream`.
+**Before:** nothing — new functions.
+**After:** an album can be downloaded and its state follows each song.
+
+**Function:** `PlaybackController` (new `dataSourceFactory`, `newExoPlayer()`, `toMediaItem()`); `AlbumDetailViewModel` (new `download`, `download()`, `removeDownload()`, `albumDownload()`); `AlbumDetailScreen` (new `DownloadButton`, `RemoveDownloadDialog`; `PlayShuffleRow` takes a `trailing` slot)
+**Date:** 2026-10-11
+**How added:** new feature (offline downloads, step 2)
+**Purpose:** play downloaded songs from the phone; the album page's download button.
+**Side effects:** none beyond the download service.
+**Before:** the player always streamed; data saver applied to every queued song.
+**After:** downloaded songs are read from the phone at original quality, data saver or not.
+
 **Function:** `AuthRepository.restoreSession()`, `AuthRepository.login()`, `AuthRepository.adopt()`; `SessionStore.saveSession()` (new `isGuest` parameter), new `SessionStore.readIsGuest()`, `saveIsGuest()` — `android/.../data/`
 **Date:** 2026-10-11
 **How added:** bug fix (offline downloads spec, step 1)

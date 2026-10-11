@@ -5,6 +5,8 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -14,10 +16,16 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.DownloadDone
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,6 +50,8 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -73,6 +83,15 @@ fun AlbumDetailScreen(
     }
     val playback by viewModel.playback.collectAsStateWithLifecycle()
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
+    val download by viewModel.download.collectAsStateWithLifecycle()
+    var confirmRemove by remember { mutableStateOf<AlbumDetailDto?>(null) }
+    confirmRemove?.let { album ->
+        RemoveDownloadDialog(
+            running = download is AlbumDownload.Running,
+            onConfirm = { viewModel.removeDownload(album); confirmRemove = null },
+            onDismiss = { confirmRemove = null },
+        )
+    }
     val context = LocalContext.current
     val title = when (val s = state) {
         is LoadState.Content -> s.data.title
@@ -110,7 +129,14 @@ fun AlbumDetailScreen(
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     item { AlbumHeader(album, coverUrl = viewModel.coverUrl()) }
                     item {
-                        PlayShuffleRow(onPlay = { viewModel.playFrom(album, 0) }, onShuffle = { viewModel.shuffle(album) })
+                        PlayShuffleRow(onPlay = { viewModel.playFrom(album, 0) }, onShuffle = { viewModel.shuffle(album) }) {
+                            Spacer(Modifier.weight(1f))
+                            DownloadButton(
+                                state = download,
+                                onDownload = { viewModel.download(album) },
+                                onRemove = { confirmRemove = album },
+                            )
+                        }
                     }
                     itemsIndexed(album.tracks, key = { _, track -> track.id }) { index, track ->
                         TrackRow(
@@ -159,9 +185,10 @@ private fun AlbumHeader(album: AlbumDetailDto, coverUrl: String?) {
 
 /** Same buttons as a playlist's: a tapped song turns shuffle off, so this is how to shuffle the album. */
 @Composable
-internal fun PlayShuffleRow(onPlay: () -> Unit, onShuffle: () -> Unit) {
+internal fun PlayShuffleRow(onPlay: () -> Unit, onShuffle: () -> Unit, trailing: @Composable RowScope.() -> Unit = {}) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
     ) {
         Button(onClick = onPlay) {
@@ -172,7 +199,57 @@ internal fun PlayShuffleRow(onPlay: () -> Unit, onShuffle: () -> Unit) {
             Icon(Icons.Filled.Shuffle, contentDescription = null)
             Text("Shuffle", modifier = Modifier.padding(start = 6.dp))
         }
+        trailing()
     }
+}
+
+/** Download, a progress ring while it runs (tap to cancel), a tick when every song is on the phone, or retry. */
+@Composable
+private fun DownloadButton(state: AlbumDownload, onDownload: () -> Unit, onRemove: () -> Unit) {
+    when (state) {
+        AlbumDownload.None -> IconButton(onClick = onDownload) {
+            Icon(Icons.Filled.Download, contentDescription = "Download album")
+        }
+        is AlbumDownload.Running -> IconButton(onClick = onRemove) {
+            CircularProgressIndicator(
+                progress = { state.percent / 100f },
+                modifier = Modifier
+                    .size(24.dp)
+                    .semantics { contentDescription = "Downloading, ${state.percent}%. Stop download" },
+                strokeWidth = 3.dp,
+            )
+        }
+        AlbumDownload.Done -> IconButton(onClick = onRemove) {
+            Icon(
+                Icons.Filled.DownloadDone,
+                contentDescription = "Downloaded. Remove download",
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
+        AlbumDownload.Failed -> IconButton(onClick = onDownload) {
+            Icon(
+                Icons.Filled.ErrorOutline,
+                contentDescription = "Download failed. Retry",
+                tint = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+}
+
+@Composable
+private fun RemoveDownloadDialog(running: Boolean, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (running) "Stop downloading?" else "Remove download?") },
+        text = {
+            Text(
+                if (running) "Songs already downloaded are removed too."
+                else "The album stays in your library. It just won't play without signal.",
+            )
+        },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(if (running) "Stop" else "Remove") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 /** Tap plays from here; the ⋮ button or a long press opens the song menu. */

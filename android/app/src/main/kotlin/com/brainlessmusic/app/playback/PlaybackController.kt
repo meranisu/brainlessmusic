@@ -14,6 +14,8 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.cache.Cache
+import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -26,6 +28,8 @@ import com.brainlessmusic.app.data.local.PlaybackSettings
 import com.brainlessmusic.app.data.local.TransitionPrefs
 import com.brainlessmusic.app.data.local.isNextOnAlbum
 import com.brainlessmusic.app.data.repository.LibraryRepository
+import com.brainlessmusic.app.downloads.DownloadRepository
+import com.brainlessmusic.app.downloads.TrackCacheKey
 import com.google.common.util.concurrent.ListenableFuture
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -60,6 +64,9 @@ class PlaybackController @Inject constructor(
     private val okHttpClient: OkHttpClient,
     private val libraryRepository: LibraryRepository,
     private val settings: PlaybackSettings,
+    private val downloads: DownloadRepository,
+    // Lazy: opening the download folder is disk work, and waits until the player is first built.
+    private val downloadCache: dagger.Lazy<Cache>,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -837,9 +844,22 @@ class PlaybackController @Inject constructor(
      * The crossfade's tail player is built the same way but takes no audio focus (it would take it from the main player)
      * and isn't wired to the session or the listener: it only plays out the old song while it fades.
      */
+    /**
+     * A downloaded song is read from the phone, with or without signal; anything else comes from the server. Read-only:
+     * streaming never writes into the download folder, which nothing ever evicts.
+     */
+    private val dataSourceFactory by lazy {
+        CacheDataSource.Factory()
+            .setCache(downloadCache.get())
+            .setUpstreamDataSourceFactory(OkHttpDataSource.Factory(okHttpClient))
+            .setCacheWriteDataSinkFactory(null)
+            .setCacheKeyFactory(TrackCacheKey)
+            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+    }
+
     private fun newExoPlayer(handleAudioFocus: Boolean): ExoPlayer =
         ExoPlayer.Builder(context)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(OkHttpDataSource.Factory(okHttpClient)))
+            .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)
@@ -1047,7 +1067,8 @@ class PlaybackController @Inject constructor(
     }
 
     private fun toMediaItem(item: QueueItem): MediaItem? {
-        val url = libraryRepository.streamUrl(item.trackId, dataSaver) ?: return null
+        // A downloaded song plays its original from the phone: the smaller copy would only cost data.
+        val url = libraryRepository.streamUrl(item.trackId, dataSaver && !downloads.isDownloaded(item.trackId)) ?: return null
         return MediaItem.Builder()
             .setMediaId(item.trackId.toString())
             .setUri(url)

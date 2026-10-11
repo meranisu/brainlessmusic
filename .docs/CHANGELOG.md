@@ -4,6 +4,28 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android: download an album and play it without signal (offline downloads, step 2)
+
+- **Download engine.** Media3's `DownloadManager` with a never-evicting `SimpleCache` in app-private storage
+  (`filesDir/downloads`), run by a new foreground `MusicDownloadService` with a progress notification. Two songs at a
+  time, original quality, any network (A85). `PlatformScheduler` restarts the queue when the signal returns, even with
+  the app closed. Downloads go through the shared OkHttp client, so they carry the same bearer header as playback.
+- **The player reads downloads first.** Its source is now a read-only `CacheDataSource` over the download folder, so a
+  downloaded song plays from the phone with or without signal; anything else streams as before, and streaming never
+  writes into the folder. Downloader and player share one cache key per track and copy (`track:<id>:orig|low`).
+- **Data saver skips downloaded songs**: they play their original from the phone, since the smaller copy would only
+  cost data.
+- **Album page:** a download button at the end of the Play / Shuffle row. Download, a progress ring (tap to stop), a
+  tick when every song is on the phone (tap to remove), or a retry icon. Stopping or removing asks first.
+- Manifest: `FOREGROUND_SERVICE_DATA_SYNC`, the download service (`dataSync`), and Media3's job service.
+- Not in this step: the Downloads screen, offline browsing, playlists and single songs, the storage limit, and
+  skipping songs that aren't downloaded when there's no signal (spec steps 3 and 4). Removing an album removes all its
+  songs; once playlists can be downloaded, a song they share must stay (step 3).
+- Manifest also gets `RECEIVE_BOOT_COMPLETED`: `PlatformScheduler` keeps its job across a phone restart, and lint
+  fails the build without it.
+- Verified: `./gradlew assembleDebug lintDebug testDebugUnitTest` succeeds: 58 tests (4 new in `DownloadsTest`),
+  0 failures; lint 0 errors, no new warnings. Not run on a phone: no download has actually been made yet.
+
 ## 2026-10-11 — Android: opening the app with no signal keeps you signed in; search keeps old results (A83, A84)
 
 - **Offline start (offline downloads spec, step 1).** `restoreSession()` cleared the stored session on any `/auth/me`
