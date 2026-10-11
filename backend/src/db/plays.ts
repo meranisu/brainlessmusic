@@ -6,10 +6,13 @@ export interface PlayHistoryEntry {
   title: string;
   artist: string | null;
   album: string | null;
+  albumId: number | null;
   duration: number | null;
   format: string | null;
   playedAt: string;
   msPlayed: number | null;
+  /** The file is gone from disk: shown, but it can't be played (the You tab's Recently played skips it). */
+  missing: boolean;
 }
 
 export interface TrackPlayHistoryEntry {
@@ -95,7 +98,7 @@ export function listHistoryForUser(
   limit: number,
   offset: number,
 ): PlayHistoryEntry[] {
-  return db
+  const rows = db
     .prepare(
       `SELECT
          ph.id as id,
@@ -103,10 +106,12 @@ export function listHistoryForUser(
          t.title as title,
          a.name as artist,
          al.title as album,
+         t.album_id as albumId,
          t.duration as duration,
          t.format as format,
          ph.played_at as playedAt,
-         ph.ms_played as msPlayed
+         ph.ms_played as msPlayed,
+         t.missing_since IS NOT NULL as missing
        FROM play_history ph
        JOIN tracks t ON t.id = ph.track_id
        LEFT JOIN artists a ON a.id = t.artist_id
@@ -115,7 +120,8 @@ export function listHistoryForUser(
        ORDER BY ph.played_at DESC, ph.id DESC
        LIMIT ? OFFSET ?`,
     )
-    .all(userId, limit, offset) as PlayHistoryEntry[];
+    .all(userId, limit, offset) as (Omit<PlayHistoryEntry, 'missing'> & { missing: number })[];
+  return rows.map((row) => ({ ...row, missing: row.missing === 1 }));
 }
 
 export function countHistoryForTrack(trackId: number): number {

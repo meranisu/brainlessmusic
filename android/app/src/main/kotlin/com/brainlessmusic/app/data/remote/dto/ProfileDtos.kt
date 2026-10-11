@@ -6,6 +6,8 @@ data class UserStatsDto(
     val since: String?,
     val memberSince: String,
     val totals: StatsTotalsDto,
+    /** The window just before, same length (A91). Null for all time, and from servers before 2026-10-11. */
+    val previousTotals: StatsTotalsDto? = null,
     val topTracks: List<TopTrackDto>,
     val topArtists: List<TopArtistDto>,
     val topAlbums: List<TopAlbumDto>,
@@ -14,9 +16,36 @@ data class UserStatsDto(
 
 data class StatsTotalsDto(val plays: Int, val msListened: Long, val tracks: Int, val artists: Int)
 
-data class TopTrackDto(val track: TrackSummaryDto, val plays: Int, val msListened: Long)
+/** [previousRank]: where it ranked in the window before, or null if it wasn't played then. Only read with previousTotals. */
+data class TopTrackDto(val track: TrackSummaryDto, val plays: Int, val msListened: Long, val previousRank: Int? = null)
 
-data class TopArtistDto(val id: Int, val name: String, val plays: Int, val msListened: Long)
+data class TopArtistDto(val id: Int, val name: String, val plays: Int, val msListened: Long, val previousRank: Int? = null)
+
+/** `GET /me/stats/tracks/:id`: one song's numbers for this account, all time. */
+data class TrackStatDto(
+    val trackId: Int,
+    val plays: Int,
+    val msListened: Long,
+    val firstPlayedAt: String?,
+    val lastPlayedAt: String?,
+)
+
+/** `GET /me/history`, newest play first. */
+data class HistoryPageDto(val total: Int, val history: List<HistoryEntryDto>)
+
+data class HistoryEntryDto(
+    val id: Int,
+    val trackId: Int,
+    val title: String,
+    val artist: String?,
+    val album: String?,
+    // Nullable: servers before 2026-10-11 don't send them.
+    val albumId: Int? = null,
+    val duration: Double?,
+    val format: String?,
+    val playedAt: String,
+    val missing: Boolean = false,
+)
 
 data class TopAlbumDto(val id: Int, val title: String, val artist: String?, val plays: Int, val msListened: Long)
 

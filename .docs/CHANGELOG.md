@@ -4,6 +4,26 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — You tab upgrade: player card, recently played, rank changes (A91)
+
+- **Backend, `/me/stats`**: for week, month and year it now also returns `previousTotals` (the same sums over the
+  window just before, same length) and `previousRank` on each top song and artist (its rank over everything played in
+  that window, or null if it wasn't played). All time returns `previousTotals: null` and no `previousRank`
+  (`db/listeningStats.ts`, `previousRanks`, `previousSinceFor`). Top-list orders moved into `TRACK_ORDER` /
+  `ARTIST_ORDER` so the window-function ranking matches the list exactly.
+- **Backend, `/me/history`**: each row also carries `albumId` and `missing` (`db/plays.ts`, `listHistoryForUser`).
+- **Android, You tab** (`YouScreen.kt`): a player card (initial, name, then listening time, plays and songs large in
+  Barlow Condensed, and "2 h more than the 7 days before"); a Recently played row of covers from `/me/history`
+  (distinct songs, missing files skipped); Play and Shuffle on the Top songs heading; #1 as a large cover row; ranks
+  in the display face at a fixed width with ▲n / ▼n / NEW under them; long press on any song opens the song menu.
+- **Android, song menu → Details**: adds your plays, time listened, first and last play from `/me/stats/tracks/:id`,
+  everywhere the menu opens. Guests don't make the call.
+- Older servers: the new fields are optional in the app's DTOs, so it shows no arrows, no delta and no Go to album on
+  recent songs until smol is updated.
+- Verified: `cd backend && npm test` 431/431 pass (two new tests: previous ranks and totals, history fields);
+  backend `tsc --noEmit` clean; `./gradlew :app:compileDebugKotlin` succeeds; `./gradlew :app:testDebugUnitTest` passes
+  (new `YouStatsTest`, 3 tests). **Not run:** no phone or emulator attached, so the screen has not been seen or used.
+
 ## 2026-10-11 — Android: Settings without borders (A92)
 
 - **Main page** is an arcade options menu (`PageRow`): each page name large in Barlow Condensed (`headlineSmall`),

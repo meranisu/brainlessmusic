@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.brainlessmusic.app.data.remote.dto.TrackDetailDto
+import com.brainlessmusic.app.data.remote.dto.TrackStatDto
 import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.ui.common.CoverImage
 import com.brainlessmusic.app.ui.common.LoadState
@@ -185,6 +186,7 @@ private fun MenuRow(
 @Composable
 private fun SongDetailsDialog(trackId: Int, onDismiss: () -> Unit, viewModel: SongActionsViewModel) {
     val detail by viewModel.detail.collectAsStateWithLifecycle()
+    val mine by viewModel.myStat.collectAsStateWithLifecycle()
     LaunchedEffect(trackId) { viewModel.loadDetail(trackId) }
 
     AlertDialog(
@@ -199,6 +201,10 @@ private fun SongDetailsDialog(trackId: Int, onDismiss: () -> Unit, viewModel: So
                 is LoadState.Error -> Text(state.message, color = MaterialTheme.colorScheme.error)
                 is LoadState.Content -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     detailRows(state.data).forEach { (label, value) -> DetailRow(label, value) }
+                    mine?.let { stat ->
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        myRows(stat).forEach { (label, value) -> DetailRow(label, value) }
+                    }
                 }
             }
         },
@@ -219,6 +225,15 @@ private fun detailRows(d: TrackDetailDto): List<Pair<String, String>> = listOfNo
     d.lastPlayedAt?.let { "Last played" to formatDay(it) },
     d.dateAdded?.let { "Added" to formatDay(it) },
 )
+
+/** Your own listening, under the file's details (A91). "Plays" above counts everyone's. */
+private fun myRows(s: TrackStatDto): List<Pair<String, String>> =
+    if (s.plays == 0) listOf("You" to "Not played yet") else listOfNotNull(
+        "Your plays" to "${s.plays}",
+        "You listened" to formatListened(s.msListened),
+        s.firstPlayedAt?.let { "First played" to formatDay(it) },
+        s.lastPlayedAt?.let { "You last played" to formatDay(it) },
+    )
 
 @Composable
 private fun DetailRow(label: String, value: String) {

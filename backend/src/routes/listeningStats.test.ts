@@ -62,8 +62,9 @@ async function play(trackId: number, msPlayed = 30_000, auth = token): Promise<n
 
 interface Stats {
   totals: { plays: number; msListened: number; tracks: number; artists: number };
-  topTracks: { track: { id: number }; plays: number; msListened: number }[];
-  topArtists: { name: string; plays: number }[];
+  previousTotals: { plays: number; msListened: number; tracks: number; artists: number } | null;
+  topTracks: { track: { id: number }; plays: number; msListened: number; previousRank?: number | null }[];
+  topArtists: { name: string; plays: number; previousRank?: number | null }[];
   topAlbums: { title: string; plays: number }[];
   counts: { liked: number; lessOften: number; playlists: number };
   memberSince: string;
@@ -132,6 +133,38 @@ describe('listening stats', () => {
     assert.equal((await call('GET', '/me/stats?range=decade')).statusCode, 400);
   });
 
+  it('compares with the window before: previous ranks and totals (A91)', async () => {
+    const a = addTrack('A', 'Artist One', 'Album One');
+    const b = addTrack('B', 'Artist Two', 'Album Two');
+    const c = addTrack('C', 'Artist Three', 'Album Three');
+    const backdate = (id: number, modifier: string) =>
+      db.prepare("UPDATE play_history SET played_at = datetime('now', ?) WHERE id = ?").run(modifier, id);
+    // The week before: B twice, A once. Older than two weeks: C, which counts for neither window.
+    backdate(await play(b), '-10 days');
+    backdate(await play(b), '-10 days');
+    backdate(await play(a), '-9 days');
+    backdate(await play(c), '-20 days');
+    // This week: A three times, B twice, C once.
+    for (const id of [a, a, a, b, b, c]) await play(id);
+
+    const week = await stats('?range=week');
+    assert.deepEqual(week.topTracks.map((t) => [t.track.id, t.previousRank]), [[a, 2], [b, 1], [c, null]]);
+    assert.deepEqual(week.topArtists.map((x) => [x.name, x.previousRank]), [
+      ['Artist One', 2],
+      ['Artist Two', 1],
+      ['Artist Three', null],
+    ]);
+    assert.equal(week.previousTotals?.plays, 3);
+    assert.equal(week.previousTotals?.tracks, 2);
+
+    // All time has nothing before it.
+    const all = await stats();
+    assert.equal(all.previousTotals, null);
+    assert.equal(all.topTracks[0].previousRank, undefined);
+    // A new account still gets an empty comparison, not an error.
+    assert.deepEqual((await stats('?range=month', otherToken)).previousTotals, { plays: 0, msListened: 0, tracks: 0, artists: 0 });
+  });
+
   it('counts liked, less often and playlists, and is empty for a new account', async () => {
     const a = addTrack('A', 'X', 'Y');
     await app.inject({ method: 'PUT', url: `/api/tracks/${a}/favorite`, headers: { authorization: `Bearer ${token}` } });
@@ -158,6 +191,22 @@ describe('listening stats', () => {
     const list = (await call('GET', '/me/less-often')).json() as { total: number; tracks: { id: number; title: string }[] };
     assert.equal(list.total, 1);
     assert.deepEqual(list.tracks.map((t) => t.title), ['A']);
+  });
+
+  it('history rows carry the album and whether the file is gone (A91)', async () => {
+    const a = addTrack('A', 'X', 'Album One');
+    const b = addTrack('B', 'X', 'Album One');
+    await play(a);
+    await play(b);
+    db.prepare("UPDATE tracks SET missing_since = datetime('now') WHERE id = ?").run(b);
+    const albumId = (db.prepare('SELECT album_id AS id FROM tracks WHERE id = ?').get(a) as { id: number }).id;
+
+    const res = await call('GET', '/me/history?limit=10');
+    const rows = (res.json() as { history: { trackId: number; albumId: number; missing: boolean }[] }).history;
+    assert.deepEqual(
+      rows.sort((x, y) => x.trackId - y.trackId).map((r) => [r.trackId, r.albumId, r.missing]),
+      [[a, albumId, false], [b, albumId, true]],
+    );
   });
 
   it('is accounts only', async () => {

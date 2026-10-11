@@ -7,6 +7,8 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import com.brainlessmusic.app.data.repository.toMessage
+import com.brainlessmusic.app.data.remote.dto.UserStatsDto
+import com.brainlessmusic.app.data.repository.StatsRange
 
 /** "3 h 20 min", "45 min", "under a minute": listening time at a glance, not to the second. */
 fun formatListened(ms: Long): String {
@@ -46,3 +48,36 @@ fun formatDay(sqlite: String): String = runCatching {
 }.getOrDefault(sqlite)
 
 fun Throwable.loadMessage(): String = (this as? ConnectionException)?.error?.toMessage() ?: "Something went wrong."
+
+/**
+ * The player card's big listening number and its label: minutes under an hour, then hours, with one decimal below ten
+ * so "1.5 hours" doesn't read as 1. The exact time is in each song's row.
+ */
+fun listenedHeadline(ms: Long): Pair<String, String> {
+    val minutes = ms / 60_000
+    if (minutes < 60) return minutes.toString() to if (minutes == 1L) "min listened" else "mins listened"
+    val hours = ms / 3_600_000.0
+    val value = if (hours < 10) "%.1f".format(Locale.ENGLISH, hours).removeSuffix(".0") else hours.toLong().toString()
+    return value to if (value == "1") "hour listened" else "hours listened"
+}
+
+/**
+ * How this range's listening time compares with the window before it (A91), or null when there is nothing to compare:
+ * all time, an old server, or nothing played back then.
+ */
+fun listenedDelta(stats: UserStatsDto, range: StatsRange): String? {
+    val previous = stats.previousTotals ?: return null
+    if (previous.plays == 0) return null
+    val before = when (range) {
+        StatsRange.WEEK -> "the 7 days before"
+        StatsRange.MONTH -> "the 30 days before"
+        StatsRange.YEAR -> "the year before"
+        StatsRange.ALL -> return null
+    }
+    val diff = stats.totals.msListened - previous.msListened
+    return when {
+        kotlin.math.abs(diff) < 60_000 -> "About the same as $before"
+        diff > 0 -> "${formatListened(diff)} more than $before"
+        else -> "${formatListened(-diff)} less than $before"
+    }
+}

@@ -104,6 +104,7 @@ fun BrainlessNavGraph(
             YouScreen(
                 navController = navController,
                 onOpenArtist = { id -> navController.navigate(Routes.artistDetail(id)) },
+                onOpenAlbum = { navController.navigate(Routes.albumDetail(it)) },
                 onOpenLiked = { navController.navigate(Routes.songList(SongListKind.LIKED.route)) { launchSingleTop = true } },
                 onOpenLessOften = { navController.navigate(Routes.songList(SongListKind.LESS_OFTEN.route)) { launchSingleTop = true } },
                 onOpenPlaylists = { navController.navigate(Routes.PLAYLISTS) { launchSingleTop = true } },

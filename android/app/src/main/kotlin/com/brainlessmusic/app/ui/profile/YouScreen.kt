@@ -1,29 +1,38 @@
 package com.brainlessmusic.app.ui.profile
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -34,39 +43,56 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import com.brainlessmusic.app.data.remote.dto.HistoryEntryDto
+import com.brainlessmusic.app.data.remote.dto.TopTrackDto
 import com.brainlessmusic.app.data.remote.dto.UserStatsDto
 import com.brainlessmusic.app.data.repository.StatsRange
+import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.ui.common.CoverImage
 import com.brainlessmusic.app.ui.common.LoadStateContent
 import com.brainlessmusic.app.ui.common.SkeletonLead
 import com.brainlessmusic.app.ui.common.SkeletonListRows
 import com.brainlessmusic.app.ui.navigation.AppBottomBar
+import com.brainlessmusic.app.ui.theme.DisplayFontFamily
 
 // Flat outlined cards, like Settings and the Library header (DESIGN.md, Android).
 private val CardShape = RoundedCornerShape(20.dp)
+
+// Wide enough for "10" in the display face, so every title in a list starts at the same x.
+private val RankWidth = 32.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun YouScreen(
     navController: NavHostController,
     onOpenArtist: (Int) -> Unit,
+    onOpenAlbum: (Int) -> Unit,
     onOpenLiked: () -> Unit,
     onOpenLessOften: () -> Unit,
     onOpenPlaylists: () -> Unit,
@@ -76,7 +102,11 @@ fun YouScreen(
     val range by viewModel.range.collectAsStateWithLifecycle()
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
     val username by viewModel.username.collectAsStateWithLifecycle()
+    val recent by viewModel.recent.collectAsStateWithLifecycle()
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onResume() }
+
+    var menuFor by remember { mutableStateOf<QueueItem?>(null) }
+    menuFor?.let { item -> SongMenuSheet(item = item, onDismiss = { menuFor = null }, onOpenAlbum = onOpenAlbum) }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("You") }) },
@@ -93,19 +123,59 @@ fun YouScreen(
             loadingLabel = "Loading your profile",
             skeleton = { SkeletonListRows(lead = SkeletonLead.COVER, trailing = true) },
         ) { stats: UserStatsDto ->
+            // Rank changes only mean something when the server compared with the window before (A91).
+            val compared = stats.previousTotals != null
             PullToRefreshBox(isRefreshing = refreshing, onRefresh = viewModel::refresh) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 16.dp),
                 ) {
-                    item { Header(username, stats) }
+                    item { PlayerCard(username, stats, range) }
                     item { RangePicker(range, viewModel::setRange) }
 
-                    item { SectionTitle("Top songs") }
+                    if (recent.isNotEmpty()) {
+                        item { SectionTitle("Recently played") }
+                        item {
+                            RecentRow(
+                                recent = recent,
+                                coverUrl = viewModel::trackCoverUrl,
+                                onPlay = viewModel::playRecent,
+                                onMenu = { menuFor = viewModel.queueItem(it) },
+                            )
+                        }
+                    }
+
+                    item {
+                        SectionTitle(
+                            "Top songs",
+                            trailing = if (stats.topTracks.isEmpty()) null else {
+                                {
+                                    IconButton(onClick = { viewModel.playAllTop(stats, shuffle = false) }) {
+                                        Icon(Icons.Filled.PlayArrow, contentDescription = "Play top songs")
+                                    }
+                                    IconButton(onClick = { viewModel.playAllTop(stats, shuffle = true) }) {
+                                        Icon(Icons.Filled.Shuffle, contentDescription = "Shuffle top songs")
+                                    }
+                                }
+                            },
+                        )
+                    }
                     if (stats.topTracks.isEmpty()) {
                         item { EmptyLine(emptyTopSongs(range)) }
                     }
-                    itemsIndexed(stats.topTracks, key = { _, t -> "t${t.track.id}" }) { index, top ->
+                    stats.topTracks.firstOrNull()?.let { top ->
+                        item(key = "t${top.track.id}") {
+                            TopSongHero(
+                                top = top,
+                                coverUrl = viewModel.trackCoverUrl(top.track.id),
+                                movement = movement(1, top.previousRank, compared),
+                                onClick = { viewModel.playTop(stats, 0) },
+                                onLongClick = { menuFor = viewModel.queueItem(top.track) },
+                            )
+                        }
+                    }
+                    itemsIndexed(stats.topTracks.drop(1), key = { _, t -> "t${t.track.id}" }) { i, top ->
+                        val index = i + 1
                         RankedRow(
                             rank = index + 1,
                             coverUrl = viewModel.trackCoverUrl(top.track.id),
@@ -113,7 +183,9 @@ fun YouScreen(
                             subtitle = top.track.artist ?: "Unknown artist",
                             plays = top.plays,
                             msListened = top.msListened,
+                            movement = movement(index + 1, top.previousRank, compared),
                             onClick = { viewModel.playTop(stats, index) },
+                            onLongClick = { menuFor = viewModel.queueItem(top.track) },
                         )
                     }
 
@@ -127,6 +199,7 @@ fun YouScreen(
                                 subtitle = null,
                                 plays = artist.plays,
                                 msListened = artist.msListened,
+                                movement = movement(index + 1, artist.previousRank, compared),
                                 onClick = { onOpenArtist(artist.id) },
                             )
                         }
@@ -173,55 +246,73 @@ private fun GuestNote(modifier: Modifier) {
     }
 }
 
-/** Initial in a circle, the name, since when, and the range's totals. */
+/**
+ * The rhythm-game player card (A91): who you are on top, then the range's three numbers large in the display face, and
+ * how the listening time compares with the window before.
+ */
 @Composable
-private fun Header(username: String?, stats: UserStatsDto) {
+private fun PlayerCard(username: String?, stats: UserStatsDto, range: StatsRange) {
     val name = username ?: "You"
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    Surface(
+        shape = CardShape,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.size(64.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
-        ) {
-            Text(
-                name.take(1).uppercase(),
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(56.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(14.dp)),
+                ) {
+                    Text(
+                        name.take(1).uppercase(),
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+                Column(Modifier.padding(start = 14.dp)) {
+                    Text(name, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        "Listening since ${formatMonthYear(stats.memberSince)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 14.dp))
+            val (listenedValue, listenedLabel) = listenedHeadline(stats.totals.msListened)
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+                BigStat(listenedValue, listenedLabel, Modifier.weight(1f))
+                VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.fillMaxHeight())
+                BigStat(stats.totals.plays.toString(), if (stats.totals.plays == 1) "play" else "plays", Modifier.weight(1f))
+                VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.fillMaxHeight())
+                BigStat(stats.totals.tracks.toString(), if (stats.totals.tracks == 1) "song" else "songs", Modifier.weight(1f))
+            }
+            listenedDelta(stats, range)?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                )
+            }
         }
-        Column(Modifier.padding(start = 16.dp)) {
-            Text(name, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(
-                "Listening since ${formatMonthYear(stats.memberSince)}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-    ) {
-        Stat(formatListened(stats.totals.msListened), "listened", Modifier.weight(1f))
-        Stat(stats.totals.plays.toString(), if (stats.totals.plays == 1) "play" else "plays", Modifier.weight(1f))
-        Stat(stats.totals.tracks.toString(), if (stats.totals.tracks == 1) "song" else "songs", Modifier.weight(1f))
     }
 }
 
 @Composable
-private fun Stat(value: String, label: String, modifier: Modifier) {
-    Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = modifier,
-    ) {
-        Column(Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(value, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+private fun BigStat(value: String, label: String, modifier: Modifier) {
+    Column(modifier.padding(horizontal = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, style = MaterialTheme.typography.headlineLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -238,6 +329,107 @@ private fun RangePicker(range: StatsRange, onPick: (StatsRange) -> Unit) {
     }
 }
 
+/** The last songs played, as covers in a row. Not tied to the range: it is what you just heard. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun RecentRow(
+    recent: List<HistoryEntryDto>,
+    coverUrl: (Int) -> String?,
+    onPlay: (Int) -> Unit,
+    onMenu: (HistoryEntryDto) -> Unit,
+) {
+    val haptics = LocalHapticFeedback.current
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        itemsIndexed(recent, key = { _, e -> e.trackId }) { index, entry ->
+            Column(
+                Modifier
+                    .width(112.dp)
+                    .combinedClickable(
+                        onClick = { onPlay(index) },
+                        onLongClickLabel = "Song options",
+                        onLongClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onMenu(entry)
+                        },
+                    ),
+            ) {
+                CoverImage(url = coverUrl(entry.trackId), contentDescription = null, modifier = Modifier.size(112.dp))
+                Text(
+                    entry.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+                Text(
+                    entry.artist ?: "Unknown artist",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+/** #1 gets the big cover, like the chosen song on a music select (DESIGN.md); the rest follow as rows. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun TopSongHero(
+    top: TopTrackDto,
+    coverUrl: String?,
+    movement: Movement?,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+) {
+    val haptics = LocalHapticFeedback.current
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onClick,
+                onLongClickLabel = "Song options",
+                onLongClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onLongClick()
+                },
+            )
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        CoverImage(url = coverUrl, contentDescription = null, modifier = Modifier.size(120.dp), cornerRadius = 12.dp)
+        Column(Modifier.weight(1f).padding(start = 16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "#1",
+                    style = MaterialTheme.typography.displaySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.semantics { contentDescription = "Number 1" },
+                )
+                movement?.let { MovementTag(it, Modifier.padding(start = 10.dp)) }
+            }
+            Text(top.track.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(
+                top.track.artist ?: "Unknown artist",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                "${plays(top.plays)} · ${formatListened(top.msListened)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+    }
+}
+
 private fun emptyTopSongs(range: StatsRange): String = when (range) {
     StatsRange.WEEK -> "Nothing played in the last 7 days."
     StatsRange.MONTH -> "Nothing played in the last 30 days."
@@ -246,13 +438,22 @@ private fun emptyTopSongs(range: StatsRange): String = when (range) {
 }
 
 @Composable
-private fun SectionTitle(title: String) {
-    Text(
-        title,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 20.dp, end = 16.dp, top = 20.dp, bottom = 4.dp).semantics { heading() },
-    )
+private fun SectionTitle(title: String, trailing: (@Composable () -> Unit)? = null) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = if (trailing == null) 20.dp else 8.dp),
+    ) {
+        Text(
+            title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier
+                .weight(1f)
+                .padding(bottom = if (trailing == null) 4.dp else 0.dp)
+                .semantics { heading() },
+        )
+        trailing?.invoke()
+    }
 }
 
 @Composable
@@ -265,7 +466,41 @@ private fun EmptyLine(text: String) {
     )
 }
 
-/** Rank, optional cover, name, and what it adds up to: plays and time listened. */
+/** Where a song or artist moved since the window before (A91). The same place shows nothing. */
+sealed interface Movement {
+    data class Up(val places: Int) : Movement
+    data class Down(val places: Int) : Movement
+    data object New : Movement
+}
+
+fun movement(rank: Int, previousRank: Int?, compared: Boolean): Movement? = when {
+    !compared -> null
+    previousRank == null -> Movement.New
+    previousRank > rank -> Movement.Up(previousRank - rank)
+    previousRank < rank -> Movement.Down(rank - previousRank)
+    else -> null
+}
+
+/** Up and new in the accent, as the news; down stays quiet. */
+@Composable
+private fun MovementTag(movement: Movement, modifier: Modifier = Modifier) {
+    val (text, spoken) = when (movement) {
+        is Movement.Up -> "▲${movement.places}" to "Up ${movement.places}"
+        is Movement.Down -> "▼${movement.places}" to "Down ${movement.places}"
+        Movement.New -> "NEW" to "New this time"
+    }
+    Text(
+        text,
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.Bold,
+        color = if (movement is Movement.Down) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary,
+        maxLines = 1,
+        modifier = modifier.clearAndSetSemantics { contentDescription = spoken },
+    )
+}
+
+/** Rank in the display face, like a leaderboard, then optional cover, name, and what it adds up to. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun RankedRow(
     rank: Int,
@@ -274,19 +509,26 @@ private fun RankedRow(
     subtitle: String?,
     plays: Int,
     msListened: Long,
+    movement: Movement?,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
 ) {
+    val haptics = LocalHapticFeedback.current
     ListItem(
         leadingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    rank.toString(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.End,
-                    modifier = Modifier.padding(end = 12.dp),
-                )
-                if (coverUrl != null) CoverImage(url = coverUrl, contentDescription = null, modifier = Modifier.size(44.dp))
+                Column(Modifier.width(RankWidth), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        rank.toString(),
+                        style = MaterialTheme.typography.titleLarge.copy(fontFamily = DisplayFontFamily),
+                        color = if (rank <= 3) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                    movement?.let { MovementTag(it) }
+                }
+                if (coverUrl != null) {
+                    CoverImage(url = coverUrl, contentDescription = null, modifier = Modifier.padding(start = 8.dp).size(44.dp))
+                }
             }
         },
         headlineContent = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
@@ -302,7 +544,18 @@ private fun RankedRow(
             }
         },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        modifier = Modifier.clickable(onClick = onClick),
+        modifier = if (onLongClick == null) {
+            Modifier.combinedClickable(onClick = onClick)
+        } else {
+            Modifier.combinedClickable(
+                onClick = onClick,
+                onLongClickLabel = "Song options",
+                onLongClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onLongClick()
+                },
+            )
+        },
     )
 }
 

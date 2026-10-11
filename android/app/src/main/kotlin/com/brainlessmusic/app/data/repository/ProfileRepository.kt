@@ -6,12 +6,14 @@ import com.brainlessmusic.app.data.remote.ServerConfig
 import com.brainlessmusic.app.data.remote.TokenProvider
 import com.brainlessmusic.app.data.remote.dto.AddPlaylistTrackRequest
 import com.brainlessmusic.app.data.remote.dto.FavoritesPageDto
+import com.brainlessmusic.app.data.remote.dto.HistoryEntryDto
 import com.brainlessmusic.app.data.remote.dto.LessOftenPageDto
 import com.brainlessmusic.app.data.remote.dto.PlaylistDetailDto
 import com.brainlessmusic.app.data.remote.dto.PlaylistNameRequest
 import com.brainlessmusic.app.data.remote.dto.PlaylistRefDto
 import com.brainlessmusic.app.data.remote.dto.PlaylistSummaryDto
 import com.brainlessmusic.app.data.remote.dto.ReorderPlaylistRequest
+import com.brainlessmusic.app.data.remote.dto.TrackStatDto
 import com.brainlessmusic.app.data.remote.dto.UserStatsDto
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -58,6 +60,17 @@ class ProfileRepository @Inject constructor(
     private val pendingLikes = HashMap<Int, Boolean>()
 
     suspend fun stats(range: StatsRange): Result<UserStatsDto> = callApi { it.stats(range.query, TOP_LIMIT) }
+
+    /** This account's numbers for one song, all time (A91). */
+    suspend fun trackStat(trackId: Int): Result<TrackStatDto> = callApi { it.trackStat(trackId) }
+
+    /**
+     * The last [count] different songs played, newest first, skipping files that are gone. Reads a few plays per song,
+     * since a song on repeat fills the history with itself.
+     */
+    suspend fun recentlyPlayed(count: Int): Result<List<HistoryEntryDto>> = callApi { api ->
+        api.history(limit = count * 5).history.filter { !it.missing }.distinctBy { it.trackId }.take(count)
+    }
 
     /** Loads the liked set once per process; [force] reloads it (pull to refresh, a new login). */
     suspend fun loadLikedIds(force: Boolean = false) {

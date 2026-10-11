@@ -36,6 +36,8 @@ import com.brainlessmusic.app.data.remote.dto.SearchResultsDto
 import com.brainlessmusic.app.data.remote.dto.ShuffledTracksPageDto
 import com.brainlessmusic.app.data.remote.dto.TracksPageDto
 import com.brainlessmusic.app.data.remote.dto.UserStatsDto
+import com.brainlessmusic.app.data.remote.dto.TrackStatDto
+import com.brainlessmusic.app.data.remote.dto.HistoryPageDto
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -145,6 +147,12 @@ interface ApiService {
     // Profile (A61): stats, liked songs, songs heard less, playlists. Accounts only.
     @GET("me/stats")
     suspend fun stats(@Query("range") range: String, @Query("limit") limit: Int): UserStatsDto
+
+    @GET("me/stats/tracks/{id}")
+    suspend fun trackStat(@Path("id") id: Int): TrackStatDto
+
+    @GET("me/history")
+    suspend fun history(@Query("limit") limit: Int, @Query("offset") offset: Int = 0): HistoryPageDto
 
     @GET("me/favorites")
     suspend fun favorites(@Query("limit") limit: Int, @Query("offset") offset: Int): FavoritesPageDto

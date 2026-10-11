@@ -44,6 +44,7 @@ import androidx.lifecycle.viewModelScope
 import com.brainlessmusic.app.data.remote.dto.PlaylistSummaryDto
 import com.brainlessmusic.app.data.repository.AddToPlaylistResult
 import com.brainlessmusic.app.data.remote.dto.TrackDetailDto
+import com.brainlessmusic.app.data.remote.dto.TrackStatDto
 import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.data.repository.ProfileRepository
 import com.brainlessmusic.app.playback.PlaybackController
@@ -51,6 +52,7 @@ import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.ui.common.LoadState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -125,14 +127,21 @@ class SongActionsViewModel @Inject constructor(
     // The newest details request; a slower one for another song must not land over it.
     private var detailJob: Job? = null
 
+    // This account's own numbers for the song (A91). Null for guests, while loading, or if it failed: the tags still show.
+    private val _myStat = MutableStateFlow<TrackStatDto?>(null)
+    val myStat: StateFlow<TrackStatDto?> = _myStat.asStateFlow()
+
     fun loadDetail(trackId: Int) {
         detailJob?.cancel()
         _detail.value = LoadState.Loading
+        _myStat.value = null
         detailJob = viewModelScope.launch {
+            val mine = if (canEdit) async { profile.trackStat(trackId).getOrNull() } else null
             _detail.value = library.getTrackDetail(trackId).fold(
                 onSuccess = { LoadState.Content(it) },
                 onFailure = { LoadState.Error(it.loadMessage()) },
             )
+            _myStat.value = mine?.await()
         }
     }
 

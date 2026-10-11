@@ -76,6 +76,8 @@ Phases 2 and 3 are the core; 4–7 can follow in any order.
       reorder songs. All over the existing `/playlists` endpoints, reorder included (`PATCH /playlists/:id/tracks/reorder`,
       `routes/playlists.ts:168`).
 - [x] Empty states for a new account, and the guest line.
+- [x] Upgrade after the first build (A91): recently played, your numbers in Details, rank changes. Tracked in
+      [you-tab-upgrade](../you-tab-upgrade/planning.md).
 - [ ] Fix the review findings P1 to P16 in
       [process/profile-queue-review-2026-10-11.md](../../process/profile-queue-review-2026-10-11.md), P1 to P5 first.
 

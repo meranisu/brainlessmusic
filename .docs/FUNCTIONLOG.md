@@ -4,6 +4,38 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `getUserStats()` (changed), `previousRanks()`, `previousSinceFor()` (new) — `backend/src/db/listeningStats.ts`
+**Date:** 2026-10-11
+**How added:** new feature (A91)
+**Purpose:** compare a stats range with the window just before it: `previousTotals` and per-song / per-artist `previousRank`.
+**Side effects:** none (reads only).
+**Before:** totals and top lists for the range only.
+**After:** week, month and year also return the previous window's totals and each top entry's previous rank; all time returns `previousTotals: null`.
+
+**Function:** `listHistoryForUser()` — `backend/src/db/plays.ts`
+**Date:** 2026-10-11
+**How added:** new feature (A91)
+**Purpose:** history rows for the You tab's Recently played.
+**Side effects:** none.
+**Before:** no album id and no missing-file flag.
+**After:** each row carries `albumId` and `missing` (boolean).
+
+**Function:** `YouScreen` (reworked: `PlayerCard`, `BigStat`, `RecentRow`, `TopSongHero`, `MovementTag`, `RankedRow`), `movement()`, `Movement` — `android/.../ui/profile/YouScreen.kt`; `listenedHeadline()`, `listenedDelta()` — `ProfileFormat.kt`; `YouViewModel.recent`, `playAllTop()`, `playRecent()`, `queueItem()`; `ProfileRepository.trackStat()`, `recentlyPlayed()`
+**Date:** 2026-10-11
+**How added:** new feature (A91)
+**Purpose:** the You tab as a player profile: card header, recently played, Play / Shuffle, #1 large, rank changes, song menu.
+**Side effects:** two more requests when the tab loads, refreshes or resumes (`GET /me/history?limit=60`).
+**Before:** letter avatar and three stat boxes, top songs and artists as plain rows, tap only.
+**After:** as in the 2026-10-11 "You tab upgrade" CHANGELOG entry.
+
+**Function:** `SongActionsViewModel.loadDetail()` (changed), `myStat`; `myRows()` — `android/.../ui/profile/SongActions.kt`, `SongMenu.kt`
+**Date:** 2026-10-11
+**How added:** new feature (A91)
+**Purpose:** your own numbers for a song in the song menu's Details.
+**Side effects:** one `GET /me/stats/tracks/:id` per Details open, accounts only.
+**Before:** Details showed the file's tags and everyone's play count.
+**After:** adds Your plays, You listened, First played and You last played (or "Not played yet").
+
 **Function:** `PageRow`, `Card`, `ColorThemeTile` — `android/.../ui/settings/SettingsScreen.kt`
 **Date:** 2026-10-11
 **How added:** refactor (A92)

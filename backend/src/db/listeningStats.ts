@@ -24,13 +24,19 @@ export interface StatsTotals {
   artists: number;
 }
 
-export interface TopTrackStat {
+/**
+ * Where the song or artist ranked in the window just before this one (A91): null when it wasn't played then. Left out
+ * for all time, which has nothing before it.
+ */
+type PreviousRank = { previousRank?: number | null };
+
+export interface TopTrackStat extends PreviousRank {
   track: TrackSummary;
   plays: number;
   msListened: number;
 }
 
-export interface TopArtistStat {
+export interface TopArtistStat extends PreviousRank {
   id: number;
   name: string;
   plays: number;
@@ -51,6 +57,8 @@ export interface UserStats {
   since: string | null;
   memberSince: string;
   totals: StatsTotals;
+  /** The same totals for the window just before this one, same length; null for all time (A91). */
+  previousTotals: StatsTotals | null;
   topTracks: TopTrackStat[];
   topArtists: TopArtistStat[];
   topAlbums: TopAlbumStat[];
@@ -70,6 +78,47 @@ function sinceFor(range: StatsRange): string | null {
   return (db.prepare('SELECT datetime(\'now\', ?) AS since').get(RANGE_MODIFIER[range]) as { since: string }).since;
 }
 
+/** Where the window before [since] starts: as far back again as [range] reaches. */
+function previousSinceFor(range: Exclude<StatsRange, 'all'>, since: string): string {
+  return (db.prepare('SELECT datetime(?, ?) AS since').get(since, RANGE_MODIFIER[range]) as { since: string }).since;
+}
+
+// Top-list orders, as aggregate expressions so the previous window's ranking (a window function) can reuse them.
+const TRACK_ORDER = `COUNT(*) DESC, SUM(${LISTENED_MS}) DESC, MAX(ph.played_at) DESC`;
+const ARTIST_ORDER = `COUNT(*) DESC, SUM(${LISTENED_MS}) DESC, MIN(a.name)`;
+
+// Totals over [scope]; the same sums for the current and the previous window.
+const TOTALS_SQL = (scope: string) => `SELECT COUNT(*) AS plays, COALESCE(SUM(${LISTENED_MS}), 0) AS msListened,
+         COUNT(DISTINCT ph.track_id) AS tracks, COUNT(DISTINCT t.artist_id) AS artists
+  FROM play_history ph JOIN tracks t ON t.id = ph.track_id
+  WHERE ${scope}`;
+
+/**
+ * Each of [ids]' rank among everything played in the previous window, ranked the same way as the top list. Ranked over
+ * the whole window, not just [ids], so a song that was 40th shows as 40th.
+ */
+function previousRanks(
+  key: 'ph.track_id' | 't.artist_id',
+  order: string,
+  extraWhere: string,
+  params: { userId: number; from: string; to: string },
+  ids: number[],
+): Map<number, number> {
+  if (ids.length === 0) return new Map();
+  const rows = db
+    .prepare(
+      `WITH ranked AS (
+         SELECT ${key} AS id, ROW_NUMBER() OVER (ORDER BY ${order}) AS rank
+         FROM play_history ph JOIN tracks t ON t.id = ph.track_id LEFT JOIN artists a ON a.id = t.artist_id
+         WHERE ph.user_id = @userId AND ph.played_at >= @from AND ph.played_at < @to AND ${key} IS NOT NULL ${extraWhere}
+         GROUP BY ${key}
+       )
+       SELECT id, rank FROM ranked WHERE id IN (SELECT value FROM json_each(@ids))`,
+    )
+    .all({ ...params, ids: JSON.stringify(ids) }) as { id: number; rank: number }[];
+  return new Map(rows.map((r) => [r.id, r.rank]));
+}
+
 function count(sql: string, userId: number): number {
   return (db.prepare(sql).get(userId) as { c: number }).c;
 }
@@ -84,14 +133,7 @@ export function getUserStats(userId: number, range: StatsRange, limit: number): 
   const params = { userId, since: since ?? '', limit };
   const scope = 'ph.user_id = @userId AND ph.played_at >= @since';
 
-  const totals = db
-    .prepare(
-      `SELECT COUNT(*) AS plays, COALESCE(SUM(${LISTENED_MS}), 0) AS msListened,
-              COUNT(DISTINCT ph.track_id) AS tracks, COUNT(DISTINCT t.artist_id) AS artists
-       FROM play_history ph JOIN tracks t ON t.id = ph.track_id
-       WHERE ${scope}`,
-    )
-    .get(params) as StatsTotals;
+  const totals = db.prepare(TOTALS_SQL(scope)).get(params) as StatsTotals;
 
   // Missing files are left out of the top lists: they can't be played from there.
   const trackRows = db
@@ -100,12 +142,12 @@ export function getUserStats(userId: number, range: StatsRange, limit: number): 
        FROM play_history ph JOIN tracks t ON t.id = ph.track_id
        WHERE ${scope} AND t.missing_since IS NULL
        GROUP BY ph.track_id
-       ORDER BY plays DESC, msListened DESC, last DESC
+       ORDER BY ${TRACK_ORDER}
        LIMIT @limit`,
     )
     .all(params) as { id: number; plays: number; msListened: number }[];
   const summaries = new Map(getTrackSummariesByIds(trackRows.map((r) => r.id)).map((s) => [s.id, s]));
-  const topTracks = trackRows.flatMap((row) => {
+  const topTracks: TopTrackStat[] = trackRows.flatMap((row) => {
     const track = summaries.get(row.id);
     return track ? [{ track, plays: row.plays, msListened: row.msListened }] : [];
   });
@@ -116,7 +158,7 @@ export function getUserStats(userId: number, range: StatsRange, limit: number): 
        FROM play_history ph JOIN tracks t ON t.id = ph.track_id JOIN artists a ON a.id = t.artist_id
        WHERE ${scope}
        GROUP BY a.id
-       ORDER BY plays DESC, msListened DESC, a.name
+       ORDER BY ${ARTIST_ORDER}
        LIMIT @limit`,
     )
     .all(params) as TopArtistStat[];
@@ -133,11 +175,24 @@ export function getUserStats(userId: number, range: StatsRange, limit: number): 
     )
     .all(params) as TopAlbumStat[];
 
+  let previousTotals: StatsTotals | null = null;
+  if (range !== 'all' && since) {
+    const window = { userId, from: previousSinceFor(range, since), to: since };
+    previousTotals = db
+      .prepare(TOTALS_SQL('ph.user_id = @userId AND ph.played_at >= @from AND ph.played_at < @to'))
+      .get(window) as StatsTotals;
+    const trackRanks = previousRanks('ph.track_id', TRACK_ORDER, 'AND t.missing_since IS NULL', window, topTracks.map((x) => x.track.id));
+    for (const x of topTracks) x.previousRank = trackRanks.get(x.track.id) ?? null;
+    const artistRanks = previousRanks('t.artist_id', ARTIST_ORDER, '', window, topArtists.map((x) => x.id));
+    for (const x of topArtists) x.previousRank = artistRanks.get(x.id) ?? null;
+  }
+
   return {
     range,
     since,
     memberSince: user.created_at,
     totals,
+    previousTotals,
     topTracks,
     topArtists,
     topAlbums,
