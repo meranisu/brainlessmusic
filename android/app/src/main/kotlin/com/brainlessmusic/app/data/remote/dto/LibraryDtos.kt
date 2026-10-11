@@ -41,6 +41,24 @@ data class AlbumTrackDto(
     val format: String?,
 )
 
+/** `GET /tracks/:id`: the file's tags and what the server knows about it. [bitrate] is in bits per second. */
+data class TrackDetailDto(
+    val id: Int,
+    val title: String,
+    val artist: String?,
+    val album: String?,
+    val albumId: Int?,
+    val trackNumber: Int?,
+    val duration: Double?,
+    val format: String?,
+    val bitrate: Int?,
+    val sampleRate: Int?,
+    val fileSize: Long?,
+    val playCount: Int,
+    val dateAdded: String?,
+    val lastPlayedAt: String?,
+)
+
 data class AlbumDetailDto(
     val id: Int,
     val title: String,

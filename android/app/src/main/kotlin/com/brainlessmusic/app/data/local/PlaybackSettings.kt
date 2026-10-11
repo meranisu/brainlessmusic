@@ -67,6 +67,16 @@ class PlaybackSettings @Inject constructor(
         dataStore.edit { it[REPEAT_KEY] = mode }
     }
 
+    /**
+     * Whether songs stream as the server's smaller data-saver copy (`?quality=low`) instead of the file. Off by default.
+     * The server sends the file anyway when it is already small.
+     */
+    val dataSaver: Flow<Boolean> = dataStore.data.map { it[DATA_SAVER_KEY] ?: false }
+
+    suspend fun setDataSaver(enabled: Boolean) {
+        dataStore.edit { it[DATA_SAVER_KEY] = enabled }
+    }
+
     /** Gapless, crossfade or fade out then in, the pause fade and the album rule (A71, A72). */
     val transitions: Flow<TransitionPrefs> = dataStore.data.map { prefs ->
         val defaults = TransitionPrefs()
@@ -107,5 +117,6 @@ class PlaybackSettings @Inject constructor(
         val FADE_SECONDS_KEY = intPreferencesKey("fade_seconds")
         val FADE_ON_PAUSE_KEY = booleanPreferencesKey("fade_on_pause")
         val KEEP_ALBUMS_GAPLESS_KEY = booleanPreferencesKey("keep_albums_gapless")
+        val DATA_SAVER_KEY = booleanPreferencesKey("data_saver")
     }
 }

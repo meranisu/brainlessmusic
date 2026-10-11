@@ -160,6 +160,7 @@ fun SettingsPageScreen(
     val autoPlay by viewModel.autoPlayOnResume.collectAsStateWithLifecycle()
     val keepPlaying by viewModel.keepPlayingWhenSwipedAway.collectAsStateWithLifecycle()
     val keepShuffle by viewModel.keepShuffle.collectAsStateWithLifecycle()
+    val dataSaver by viewModel.dataSaver.collectAsStateWithLifecycle()
     val transitions by viewModel.transitions.collectAsStateWithLifecycle()
     val lessOftenReset by viewModel.lessOftenReset.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
@@ -296,6 +297,17 @@ fun SettingsPageScreen(
                             },
                             checked = keepShuffle,
                             onCheckedChange = viewModel::setKeepShuffle,
+                        )
+                        Divider()
+                        SwitchRow(
+                            title = "Data saver",
+                            detail = if (dataSaver) {
+                                "Songs stream as 64 kbps copies, a fraction of the original size. The song playing now finishes as it started."
+                            } else {
+                                "Songs stream as the original files. Turn this on for mobile data."
+                            },
+                            checked = dataSaver,
+                            onCheckedChange = viewModel::setDataSaver,
                         )
                         Divider()
                         // One choice of three, so they rule each other out (A71).

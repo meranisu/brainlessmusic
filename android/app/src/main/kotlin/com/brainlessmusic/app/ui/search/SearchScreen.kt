@@ -1,6 +1,8 @@
 package com.brainlessmusic.app.ui.search
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,7 +25,12 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -39,6 +46,7 @@ import com.brainlessmusic.app.ui.common.SkeletonListRows
 import com.brainlessmusic.app.ui.common.formatDuration
 import com.brainlessmusic.app.ui.navigation.AppBottomBar
 import com.brainlessmusic.app.ui.navigation.Routes
+import com.brainlessmusic.app.ui.profile.SongMenuSheet
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,6 +56,14 @@ fun SearchScreen(
 ) {
     val query by viewModel.query.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
+    var menuFor by remember { mutableStateOf<TrackSummaryDto?>(null) }
+    menuFor?.let { track ->
+        SongMenuSheet(
+            item = viewModel.queueItem(track),
+            onDismiss = { menuFor = null },
+            onOpenAlbum = { navController.navigate(Routes.albumDetail(it)) },
+        )
+    }
 
     // No TopAppBar: a text field in its title slot comes out cramped and unstyled.
     Scaffold(
@@ -108,7 +124,11 @@ fun SearchScreen(
                     if (results.tracks.isNotEmpty()) {
                         item { SectionHeader("Tracks") }
                         itemsIndexed(results.tracks, key = { _, track -> "track-${track.id}" }) { index, track ->
-                            TrackResultRow(track) { viewModel.playTracks(results.tracks, index) }
+                            TrackResultRow(
+                                track,
+                                onClick = { viewModel.playTracks(results.tracks, index) },
+                                onLongClick = { menuFor = track },
+                            )
                         }
                     }
                 }
@@ -150,14 +170,23 @@ private fun AlbumResultRow(album: AlbumSummaryDto, coverUrl: String?, onClick: (
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun TrackResultRow(track: TrackSummaryDto, onClick: () -> Unit) {
+private fun TrackResultRow(track: TrackSummaryDto, onClick: () -> Unit, onLongClick: () -> Unit) {
+    val haptics = LocalHapticFeedback.current
     ListItem(
         headlineContent = { Text(track.title) },
         supportingContent = { Text(listOfNotNull(track.artist, track.album).joinToString(" · ")) },
         trailingContent = { Text(formatDuration(track.duration), style = MaterialTheme.typography.bodySmall) },
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .combinedClickable(
+                onClick = onClick,
+                onLongClickLabel = "Song options",
+                onLongClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onLongClick()
+                },
+            ),
     )
 }

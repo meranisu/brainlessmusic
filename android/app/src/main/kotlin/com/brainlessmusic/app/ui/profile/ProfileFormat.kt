@@ -29,4 +29,13 @@ fun formatMonthYear(sqlite: String): String {
     return "${names[month - 1]} ${parts[0]}"
 }
 
+/** `2026-09-03 10:12:44` (SQLite) to `3 Sep 2026`; anything unexpected is shown as it came. */
+fun formatDay(sqlite: String): String {
+    val parts = sqlite.take(10).split("-")
+    val month = parts.getOrNull(1)?.toIntOrNull()?.takeIf { it in 1..12 } ?: return sqlite
+    val day = parts.getOrNull(2)?.toIntOrNull() ?: return sqlite
+    val names = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+    return "$day ${names[month - 1]} ${parts[0]}"
+}
+
 fun Throwable.loadMessage(): String = (this as? ConnectionException)?.error?.toMessage() ?: "Something went wrong."

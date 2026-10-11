@@ -17,6 +17,7 @@ import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.PlaybackResume
 import com.brainlessmusic.app.playback.QueueSource
+import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.playback.queueItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -130,6 +131,9 @@ class LibraryViewModel @Inject constructor(
      * Queues the tapped song and the ones after it in the list it was tapped in ([row]'s filter), topping up as it runs
      * down.
      */
+    /** For the long-press song menu. */
+    fun queueItem(track: TrackSummaryDto): QueueItem = libraryRepository.queueItem(track)
+
     fun playSongsFrom(index: Int, row: SongListRow) {
         val filter = row.filter
         // Shuffled, the unfiltered list plays the tapped song and then the library shuffled (see `loadQueue`), so the

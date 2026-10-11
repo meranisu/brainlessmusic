@@ -76,7 +76,15 @@ fun BrainlessNavGraph(
             )
         }
         composable(Routes.NOW_PLAYING) { entry ->
-            NowPlayingScreen(onBack = { navController.popFrom(entry) })
+            NowPlayingScreen(
+                onBack = { navController.popFrom(entry) },
+                // The album opens in the player's place, so back from it goes to where the player was opened.
+                onOpenAlbum = { albumId ->
+                    navController.navigate(Routes.albumDetail(albumId)) {
+                        popUpTo(Routes.NOW_PLAYING) { inclusive = true }
+                    }
+                },
+            )
         }
         composable(Routes.YOU) {
             YouScreen(
@@ -104,7 +112,11 @@ fun BrainlessNavGraph(
             Routes.PLAYLIST_DETAIL,
             arguments = listOf(intArg(Routes.ARG_PLAYLIST_ID)),
         ) { entry ->
-            PlaylistDetailScreen(onBack = { navController.popFrom(entry) }, onOpenNowPlaying = { navController.openNowPlaying() })
+            PlaylistDetailScreen(
+                onBack = { navController.popFrom(entry) },
+                onOpenNowPlaying = { navController.openNowPlaying() },
+                onOpenAlbum = { navController.navigate(Routes.albumDetail(it)) },
+            )
         }
         composable(Routes.SETTINGS) {
             SettingsScreen(

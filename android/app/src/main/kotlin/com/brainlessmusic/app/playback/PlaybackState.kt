@@ -27,6 +27,8 @@ data class StreamInfo(
     val bufferedAheadMs: Long,
     /** ExoPlayer's running estimate of the connection, not a measurement of this track. */
     val networkKbps: Long?,
+    /** This track was asked for as the data-saver copy. */
+    val dataSaver: Boolean = false,
 )
 
 data class PlaybackUiState(

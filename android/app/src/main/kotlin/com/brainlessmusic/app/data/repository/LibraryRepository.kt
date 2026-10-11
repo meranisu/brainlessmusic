@@ -17,6 +17,7 @@ import com.brainlessmusic.app.data.remote.dto.SavePlaybackStateRequest
 import com.brainlessmusic.app.data.remote.dto.ScrobbleRequest
 import com.brainlessmusic.app.data.remote.dto.SearchResultsDto
 import com.brainlessmusic.app.data.remote.dto.ShuffledTracksPageDto
+import com.brainlessmusic.app.data.remote.dto.TrackDetailDto
 import com.brainlessmusic.app.data.remote.dto.TracksPageDto
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -57,6 +58,9 @@ class LibraryRepository @Inject constructor(
     suspend fun getAlbumDetail(id: Int): Result<AlbumDetailDto> =
         callApi { it.albumDetail(id) }
 
+    suspend fun getTrackDetail(id: Int): Result<TrackDetailDto> =
+        callApi { it.trackDetail(id) }
+
     suspend fun search(query: String): Result<SearchResultsDto> =
         callApi { it.search(query) }
 
@@ -86,7 +90,9 @@ class LibraryRepository @Inject constructor(
     suspend fun clearLessOften(): Result<Unit> = callApi { it.clearLessOften() }
 
     /** Seekable, and authenticated by the shared client's bearer header, so no `?token=` is needed. */
-    fun streamUrl(trackId: Int): String? = mediaUrlProvider.current?.let { "${it}tracks/$trackId/stream" }
+    /** [dataSaver] asks for the server's smaller copy; it serves the file instead when that is already small. */
+    fun streamUrl(trackId: Int, dataSaver: Boolean = false): String? =
+        mediaUrlProvider.current?.let { "${it}tracks/$trackId/stream" + if (dataSaver) "?quality=low" else "" }
 
     /** `null` with no session; the cover then fails to load like any network error. */
     fun albumCoverUrl(albumId: Int): String? = mediaUrlProvider.current?.let { "${it}albums/$albumId/cover" }

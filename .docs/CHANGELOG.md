@@ -4,6 +4,27 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android: song menu on long press, swipe gestures, tighter queue sheet, data saver
+
+- **Song menu.** A long press on a song in Library → Songs, an album, a playlist or search results, or on the cover in
+  Now Playing, opens a sheet (an album's ⋮ button opens it too, replacing its old three-item dropdown): Play next (not for the
+  song already playing), Like/Unlike, Add to playlist, Go to album, Play less often, Details. Details reads
+  `GET /tracks/:id` (format, bitrate, sample rate, file size, track number, plays, last played, added). Guests get Play
+  next, Go to album and Details only. "Play less often" is the per-user A60 mark (shuffle picks it about one pass in
+  four), not the admin-wide "not recommended" flag; the owner confirmed it is the "do not recommend" they meant.
+- **Swipes.** Mini player: left for next, right for previous, up to open the player. Now Playing: swipe the cover left or
+  right to skip, swipe anywhere down to close; the screen follows the finger and springs back short of 96 dp. A swipe
+  back always goes to the previous song, unlike the button, which restarts a song past 3 s.
+- **Queue sheet.** Header on one line ("Queue" left, count and shuffle mode right). Rows sit on the player's 24 dp sides
+  with 12 dp inside, like the Up next card, with body-medium titles and small durations. The drag handle has a bigger
+  touch area.
+- **Data saver.** Settings → Playback → Data saver streams `?quality=low` (the server's 64 kbps Opus copy; it sends the
+  file when that is already small). Toggling switches every queued song but the one playing, which keeps its copy so a
+  seek stays in the same file. The stream readout leads with "Data saver". The same setting is also an icon in the
+  Now Playing top bar (lit while on), with a toast saying the next songs change.
+- Verified: `./gradlew compileDebugKotlin testDebugUnitTest` clean (no test covers these paths). Not run on a phone or
+  emulator: the gestures, menu and data saver switch-over are untested by hand.
+
 ## 2026-10-12 — Android: the shuffle buttons remember the last mode (A82)
 
 - After a tapped song turns shuffle off, shuffle all and a playlist's Shuffle turn it back on in the last mode it was on

@@ -156,6 +156,8 @@ class PlaybackController @Inject constructor(
     // Off: a tapped song turns shuffle off (see `playQueue`).
     private var keepShuffle = false
     private var wantRepeat = Player.REPEAT_MODE_OFF
+    // Mirrors the data saver setting; read by `toMediaItem`.
+    private var dataSaver = false
 
     // Where the queue is topped up from as it runs low (see QueueSource). `generation` changes whenever the queue is
     // replaced, so a top-up that was in flight for the old queue is dropped instead of landing on the new one.
@@ -177,6 +179,26 @@ class PlaybackController @Inject constructor(
         }
         scope.launch { settings.transitions.collect { transitions = it } }
         scope.launch { settings.keepShuffle.collect { keepShuffle = it } }
+        scope.launch { settings.dataSaver.collect(::applyDataSaver) }
+    }
+
+    /**
+     * Switches every queued song but the playing one to the data-saver copy or back. The playing one keeps its file:
+     * a seek re-requests bytes by offset, and they must come from the same copy.
+     */
+    private fun applyDataSaver(enabled: Boolean) {
+        if (enabled == dataSaver) return
+        dataSaver = enabled
+        val current = player.currentMediaItemIndex
+        if (current !in queue.indices) return
+        // A changed URI makes ExoPlayer add-and-remove rather than update, which reshuffles; put the order back after.
+        val order = if (player.shuffleModeEnabled) shuffledSequence() else null
+        val before = queue.subList(0, current).mapNotNull(::toMediaItem)
+        val after = queue.subList(current + 1, queue.size).mapNotNull(::toMediaItem)
+        if (before.size != current || after.size != queue.size - current - 1) return
+        if (after.isNotEmpty()) player.replaceMediaItems(current + 1, queue.size, after)
+        if (before.isNotEmpty()) player.replaceMediaItems(0, current, before)
+        order?.let { player.setShuffleOrder(DefaultShuffleOrder(it.toIntArray(), System.nanoTime())) }
     }
 
     /**
@@ -433,6 +455,19 @@ class PlaybackController @Inject constructor(
             }
         } else {
             skipWithFade { player.seekToPreviousMediaItem() }
+        }
+    }
+
+    /** A swipe back: the track before, however far into this one it is. The first track restarts. */
+    fun skipToPreviousTrack() {
+        if (queue.isEmpty()) return
+        if (player.hasPreviousMediaItem()) {
+            skipWithFade { player.seekToPreviousMediaItem() }
+        } else {
+            skipWithFade {
+                player.seekTo(0)
+                publish()
+            }
         }
     }
 
@@ -973,15 +1008,18 @@ class PlaybackController @Inject constructor(
     private fun streamInfo(): StreamInfo {
         val format = player.audioFormat
         val estimate = DefaultBandwidthMeter.getSingletonInstance(context).bitrateEstimate
+        val saver = player.currentMediaItem?.localConfiguration?.uri?.getQueryParameter("quality") == "low"
         return StreamInfo(
-            // The server's name for the container beats a MIME type ("flac" over "audio/flac").
-            codec = queue.getOrNull(player.currentMediaItemIndex)?.format?.takeIf { it.isNotBlank() }?.let(::prettyFormat)
+            // The server's name for the container beats a MIME type ("flac" over "audio/flac"), but names the file, not
+            // a data-saver copy, so that one goes by what the player decoded.
+            codec = queue.getOrNull(player.currentMediaItemIndex)?.format?.takeIf { it.isNotBlank() && !saver }?.let(::prettyFormat)
                 ?: format?.sampleMimeType?.let(::codecName),
             sampleRateHz = format?.sampleRate?.takeIf { it > 0 },
             channels = format?.channelCount?.takeIf { it > 0 },
             bitrateKbps = format?.bitrate?.takeIf { it > 0 }?.let { it / 1000 },
             bufferedAheadMs = (player.bufferedPosition - player.currentPosition).coerceAtLeast(0),
             networkKbps = estimate.takeIf { it > 0 }?.let { it / 1000 },
+            dataSaver = saver,
         )
     }
 
@@ -1011,7 +1049,7 @@ class PlaybackController @Inject constructor(
     }
 
     private fun toMediaItem(item: QueueItem): MediaItem? {
-        val url = libraryRepository.streamUrl(item.trackId) ?: return null
+        val url = libraryRepository.streamUrl(item.trackId, dataSaver) ?: return null
         return MediaItem.Builder()
             .setMediaId(item.trackId.toString())
             .setUri(url)

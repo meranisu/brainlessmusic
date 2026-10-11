@@ -5,7 +5,9 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -60,6 +62,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -95,6 +99,7 @@ import com.brainlessmusic.app.ui.common.SkeletonListRows
 import com.brainlessmusic.app.ui.common.formatDuration
 import com.brainlessmusic.app.ui.navigation.AppBottomBar
 import com.brainlessmusic.app.ui.navigation.Routes
+import com.brainlessmusic.app.ui.profile.SongMenuSheet
 import kotlinx.coroutines.launch
 
 // The floating header (tabs, or the search field) covers the top of the list, so every list starts this far down.
@@ -150,7 +155,7 @@ fun LibraryScreen(
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             when (tab) {
-                LibraryTab.SONGS -> SongsTab(viewModel, songsState)
+                LibraryTab.SONGS -> SongsTab(viewModel, navController, songsState)
                 LibraryTab.ALBUMS -> AlbumsTab(viewModel, navController, albumsState)
                 LibraryTab.ARTISTS -> ArtistsTab(viewModel, navController, artistsState)
                 LibraryTab.GENRES -> GenresTab()
@@ -348,8 +353,16 @@ private fun <T : Any> PagedContent(
 }
 
 @Composable
-private fun SongsTab(viewModel: LibraryViewModel, listState: LazyListState) {
+private fun SongsTab(viewModel: LibraryViewModel, navController: NavHostController, listState: LazyListState) {
     val context = LocalContext.current
+    var menuFor by remember { mutableStateOf<TrackSummaryDto?>(null) }
+    menuFor?.let { track ->
+        SongMenuSheet(
+            item = viewModel.queueItem(track),
+            onDismiss = { menuFor = null },
+            onOpenAlbum = { navController.navigate(Routes.albumDetail(it)) },
+        )
+    }
     val items = viewModel.songs.collectAsLazyPagingItems()
     val letters by viewModel.letters.collectAsStateWithLifecycle()
     val filter by viewModel.songFilter.collectAsStateWithLifecycle()
@@ -374,7 +387,15 @@ private fun SongsTab(viewModel: LibraryViewModel, listState: LazyListState) {
             ) {
                 items(count = items.itemCount, key = items.itemKey { it.track.id }) { index ->
                     val row = items[index]
-                    if (row != null) SongRow(row.track, onClick = { viewModel.playSongsFrom(index, row) }) else PlaceholderRow()
+                    if (row != null) {
+                        SongRow(
+                            row.track,
+                            onClick = { viewModel.playSongsFrom(index, row) },
+                            onLongClick = { menuFor = row.track },
+                        )
+                    } else {
+                        PlaceholderRow()
+                    }
                 }
             }
             // The letters index the whole library, so they would point at the wrong rows of a filtered list; while
@@ -449,8 +470,10 @@ private fun SongFilterField(text: String, onChange: (String) -> Unit, modifier: 
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun SongRow(song: TrackSummaryDto, onClick: () -> Unit) {
+private fun SongRow(song: TrackSummaryDto, onClick: () -> Unit, onLongClick: () -> Unit) {
+    val haptics = LocalHapticFeedback.current
     ListItem(
         headlineContent = { Text(song.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         supportingContent = {
@@ -462,7 +485,14 @@ private fun SongRow(song: TrackSummaryDto, onClick: () -> Unit) {
             )
         },
         trailingContent = { Text(formatDuration(song.duration), style = MaterialTheme.typography.bodySmall) },
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().combinedClickable(
+            onClick = onClick,
+            onLongClickLabel = "Song options",
+            onLongClick = {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                onLongClick()
+            },
+        ),
     )
 }
 

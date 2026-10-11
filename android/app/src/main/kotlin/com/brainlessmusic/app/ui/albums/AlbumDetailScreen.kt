@@ -1,7 +1,7 @@
 package com.brainlessmusic.app.ui.albums
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,8 +14,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -34,6 +32,8 @@ import androidx.compose.ui.Alignment
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -50,8 +50,8 @@ import com.brainlessmusic.app.ui.common.SkeletonLead
 import com.brainlessmusic.app.ui.common.SkeletonListRows
 import com.brainlessmusic.app.ui.common.formatDuration
 import com.brainlessmusic.app.ui.playback.MiniPlayer
-import com.brainlessmusic.app.ui.profile.AddToPlaylistSheet
 import com.brainlessmusic.app.ui.profile.SongActionsViewModel
+import com.brainlessmusic.app.ui.profile.SongMenuSheet
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,10 +62,9 @@ fun AlbumDetailScreen(
     songActions: SongActionsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val liked by songActions.likedIds.collectAsStateWithLifecycle()
-    var addingToPlaylist by remember { mutableStateOf<AlbumTrackDto?>(null) }
-    addingToPlaylist?.let { track ->
-        AddToPlaylistSheet(track.id, track.title, onDismiss = { addingToPlaylist = null }, viewModel = songActions)
+    var menuFor by remember { mutableStateOf<Pair<AlbumDetailDto, AlbumTrackDto>?>(null) }
+    menuFor?.let { (album, track) ->
+        SongMenuSheet(item = viewModel.queueItem(album, track), onDismiss = { menuFor = null }, viewModel = songActions)
     }
     val playback by viewModel.playback.collectAsStateWithLifecycle()
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
@@ -110,11 +109,7 @@ fun AlbumDetailScreen(
                             track = track,
                             isCurrent = playback.current?.trackId == track.id,
                             onClick = { viewModel.playFrom(album, index) },
-                            onPlayNext = { viewModel.playNext(album, track) },
-                            // Accounts only (A65); guests keep just "Play next".
-                            liked = if (songActions.canEdit) track.id in liked else null,
-                            onToggleLike = { songActions.toggleLike(track.id) },
-                            onAddToPlaylist = { addingToPlaylist = track },
+                            onMenu = { menuFor = album to track },
                         )
                     }
                 }
@@ -154,17 +149,16 @@ private fun AlbumHeader(album: AlbumDetailDto, coverUrl: String?) {
     }
 }
 
+/** Tap plays from here; the ⋮ button or a long press opens the song menu. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TrackRow(
     track: AlbumTrackDto,
     isCurrent: Boolean,
     onClick: () -> Unit,
-    onPlayNext: () -> Unit,
-    liked: Boolean?,
-    onToggleLike: () -> Unit,
-    onAddToPlaylist: () -> Unit,
+    onMenu: () -> Unit,
 ) {
-    var menuOpen by remember { mutableStateOf(false) }
+    val haptics = LocalHapticFeedback.current
     ListItem(
         leadingContent = {
             Text(
@@ -183,38 +177,18 @@ private fun TrackRow(
         trailingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(formatDuration(track.duration), style = MaterialTheme.typography.bodySmall)
-                Box {
-                    IconButton(onClick = { menuOpen = true }) {
-                        Icon(Icons.Filled.MoreVert, contentDescription = "More")
-                    }
-                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                        DropdownMenuItem(
-                            text = { Text("Play next") },
-                            onClick = {
-                                menuOpen = false
-                                onPlayNext()
-                            },
-                        )
-                        if (liked != null) {
-                            DropdownMenuItem(
-                                text = { Text(if (liked) "Unlike" else "Like") },
-                                onClick = {
-                                    menuOpen = false
-                                    onToggleLike()
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Add to playlist") },
-                                onClick = {
-                                    menuOpen = false
-                                    onAddToPlaylist()
-                                },
-                            )
-                        }
-                    }
+                IconButton(onClick = onMenu) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = "Song options")
                 }
             }
         },
-        modifier = Modifier.clickable(onClick = onClick),
+        modifier = Modifier.combinedClickable(
+            onClick = onClick,
+            onLongClickLabel = "Song options",
+            onLongClick = {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                onMenu()
+            },
+        ),
     )
 }

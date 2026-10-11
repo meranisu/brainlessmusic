@@ -9,6 +9,7 @@ import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.data.repository.toMessage
 import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.PlaybackUiState
+import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.playback.queueItem
 import com.brainlessmusic.app.data.remote.dto.AlbumTrackDto
 import com.brainlessmusic.app.ui.common.LoadState
@@ -75,7 +76,6 @@ class AlbumDetailViewModel @Inject constructor(
         playbackController.playQueue(album.tracks.map { libraryRepository.queueItem(album, it) }, index)
     }
 
-    fun playNext(album: AlbumDetailDto, track: AlbumTrackDto) {
-        playbackController.playNext(libraryRepository.queueItem(album, track))
-    }
+    /** For the song menu. */
+    fun queueItem(album: AlbumDetailDto, track: AlbumTrackDto): QueueItem = libraryRepository.queueItem(album, track)
 }

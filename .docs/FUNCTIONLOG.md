@@ -4,6 +4,38 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** new `SongMenuSheet`, `SongDetailsDialog` — `android/.../ui/profile/SongMenu.kt`; `SongActionsViewModel` gains `playNext()`, `playLessOften()`, `detail` / `loadDetail()`; new `ApiService.trackDetail()`, `LibraryRepository.getTrackDetail()`, `TrackDetailDto`; `LibraryScreen` `SongRow` / `SongsTab`; `LibraryViewModel.queueItem()`; `NowPlayingScreen` (new `onOpenAlbum`); `AlbumDetailScreen` `TrackRow` and new `AlbumDetailViewModel.queueItem()` (its `playNext()` removed); `PlaylistDetailScreen` (new `onOpenAlbum`), `PlaylistRow`, `PlaylistDetailViewModel.queueItem()` now public; `SearchScreen` `TrackResultRow`, new `SearchViewModel.queueItem()`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** a long press on a song (Library, album, playlist, search) or on the player's cover opens a song menu: play next, like, add to playlist, go to album, play less often, details (`GET /tracks/:id`).
+**Side effects:** play less often calls `PUT /tracks/:id/less-often`, the same mark as a right swipe in the queue.
+**Before:** a long press did nothing.
+**After:** as above; guests see only play next, go to album and details.
+
+**Function:** new `Modifier.swipeToSkip()`, `Modifier.verticalSwipe()` — `android/.../ui/playback/SwipeGestures.kt`; new `PlaybackController.skipToPreviousTrack()`, `PlaybackViewModel.previousTrack()`; `MiniPlayer`, `NowPlayingScreen`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** swipe the mini player or the player's cover left/right to skip, the mini player up to open the player, the player down to close it.
+**Side effects:** none beyond the skips; a swipe back always changes song (no restart-after-3-seconds rule).
+**Before:** only the buttons skipped; the player closed only from its arrow or back.
+**After:** as above.
+
+**Function:** `QueueSheet` header, `QueueRowItem` — `android/.../ui/playback/QueueSheet.kt`
+**Date:** 2026-10-11
+**How added:** layout change
+**Purpose:** the header is one line (Queue left, count and mode right); rows sit on the player's 24 dp sides with 12 dp inside, in smaller text.
+**Side effects:** none.
+**Before:** a centred two-line header; rows inset 8 dp with ListItem's 16 dp and its larger text.
+**After:** as above.
+
+**Function:** new `PlaybackSettings.dataSaver` / `setDataSaver()`; new `PlaybackController.applyDataSaver()`, `toMediaItem()`, `streamInfo()`; `LibraryRepository.streamUrl()` (new `dataSaver` parameter); `StreamInfo.dataSaver`; `SettingsViewModel.dataSaver` / `setDataSaver()`; the "Data saver" row in `SettingsScreen`; `PlaybackViewModel.dataSaver` / `setDataSaver()` and the Now Playing top-bar icon
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** Settings → Playback → Data saver streams the server's 64 kbps copy (`?quality=low`).
+**Side effects:** DataStore key `data_saver`; toggling replaces every queued media item but the playing one, then restores the shuffle order.
+**Before:** Android always streamed the original file.
+**After:** as above; the stream readout leads with "Data saver" and names the decoded codec for such a track.
+
 **Function:** `PlaybackController.libraryShuffleMode()`, `playQueue()`, `setShuffleMode()` — `android/.../playback/PlaybackController.kt`; new `PlaybackSettings.lastShuffleMode`, `setShuffleMode()`
 **Date:** 2026-10-12
 **How added:** new feature

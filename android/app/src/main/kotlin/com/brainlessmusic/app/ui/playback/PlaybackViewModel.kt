@@ -3,6 +3,7 @@ package com.brainlessmusic.app.ui.playback
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.brainlessmusic.app.data.local.AppearanceSettings
+import com.brainlessmusic.app.data.local.PlaybackSettings
 import com.brainlessmusic.app.data.local.SeekStyle
 import com.brainlessmusic.app.data.repository.AuthRepository
 import com.brainlessmusic.app.data.repository.LibraryRepository
@@ -21,6 +22,7 @@ import javax.inject.Inject
 class PlaybackViewModel @Inject constructor(
     private val controller: PlaybackController,
     appearance: AppearanceSettings,
+    private val playbackSettings: PlaybackSettings,
     private val libraryRepository: LibraryRepository,
     authRepository: AuthRepository,
 ) : ViewModel() {
@@ -33,10 +35,19 @@ class PlaybackViewModel @Inject constructor(
     val seekStyle: StateFlow<SeekStyle> = appearance.seekStyle
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SeekStyle.SQUIGGLE)
 
+    /** The same setting as Settings → Playback → Data saver. */
+    val dataSaver: StateFlow<Boolean> = playbackSettings.dataSaver
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setDataSaver(enabled: Boolean) {
+        viewModelScope.launch { playbackSettings.setDataSaver(enabled) }
+    }
+
     fun togglePlayPause() = controller.togglePlayPause()
     fun seekTo(positionMs: Long) = controller.seekTo(positionMs)
     fun next() = controller.skipToNext()
     fun previous() = controller.skipToPrevious()
+    fun previousTrack() = controller.skipToPreviousTrack()
     fun skipTo(index: Int) = controller.skipToIndex(index)
     fun cycleShuffle() = controller.cycleShuffle()
     fun cycleRepeat() = controller.cycleRepeat()

@@ -2,7 +2,8 @@ package com.brainlessmusic.app.ui.profile
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -52,6 +53,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
@@ -129,7 +132,8 @@ class PlaylistDetailViewModel @Inject constructor(
         playbackController.playQueue(playlist.tracks.map(::queueItem), startIndex, shuffle = if (shuffle) true else null)
     }
 
-    private fun queueItem(track: PlaylistTrackDto) = QueueItem(
+    /** Also for the song menu. */
+    fun queueItem(track: PlaylistTrackDto) = QueueItem(
         trackId = track.id,
         title = track.title,
         artist = track.artist,
@@ -210,6 +214,7 @@ class PlaylistDetailViewModel @Inject constructor(
 fun PlaylistDetailScreen(
     onBack: () -> Unit,
     onOpenNowPlaying: () -> Unit,
+    onOpenAlbum: (Int) -> Unit,
     viewModel: PlaylistDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -218,6 +223,10 @@ fun PlaylistDetailScreen(
     var menuOpen by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf(false) }
     var confirmingDelete by remember { mutableStateOf(false) }
+    var songMenuFor by remember { mutableStateOf<PlaylistTrackDto?>(null) }
+    songMenuFor?.let { track ->
+        SongMenuSheet(item = viewModel.queueItem(track), onDismiss = { songMenuFor = null }, onOpenAlbum = onOpenAlbum)
+    }
     val playlist = (state as? LoadState.Content)?.data
     val context = LocalContext.current
     val showFailure: (String) -> Unit = { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
@@ -322,6 +331,7 @@ fun PlaylistDetailScreen(
                             track = track,
                             elevation = elevation,
                             onClick = { viewModel.play(rows.indexOfFirst { it.id == track.id }.coerceAtLeast(0)) },
+                            onLongClick = { songMenuFor = track },
                             onRemove = {
                                 val removed = viewModel.remove(track.id) ?: return@PlaylistRow
                                 scope.launch {
@@ -353,16 +363,18 @@ fun PlaylistDetailScreen(
     }
 }
 
-/** Swipe left to remove (red, bin), drag the handle to move. */
-@OptIn(ExperimentalMaterial3Api::class)
+/** Swipe left to remove (red, bin), drag the handle to move, hold for the song menu. */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun PlaylistRow(
     track: PlaylistTrackDto,
     elevation: androidx.compose.ui.unit.Dp,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     onRemove: () -> Unit,
     handle: @Composable () -> Unit,
 ) {
+    val haptics = LocalHapticFeedback.current
     val swipe = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
             if (value == SwipeToDismissBoxValue.EndToStart) onRemove()
@@ -405,7 +417,14 @@ private fun PlaylistRow(
                     }
                 },
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                modifier = Modifier.clickable(onClick = onClick),
+                modifier = Modifier.combinedClickable(
+                    onClick = onClick,
+                    onLongClickLabel = "Song options",
+                    onLongClick = {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onLongClick()
+                    },
+                ),
             )
         }
     }

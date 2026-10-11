@@ -40,7 +40,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.brainlessmusic.app.data.remote.dto.PlaylistSummaryDto
 import com.brainlessmusic.app.data.repository.AddToPlaylistResult
+import com.brainlessmusic.app.data.remote.dto.TrackDetailDto
+import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.data.repository.ProfileRepository
+import com.brainlessmusic.app.playback.PlaybackController
+import com.brainlessmusic.app.playback.QueueItem
+import com.brainlessmusic.app.ui.common.LoadState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -48,10 +53,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** Liking a song and adding it to a playlist, from anywhere a song is shown (A65). Accounts only. */
+/**
+ * Liking a song and adding it to a playlist, from anywhere a song is shown (A65); accounts only. Also the long-press
+ * song menu's play next, play less often and details ([SongMenuSheet]).
+ */
 @HiltViewModel
 class SongActionsViewModel @Inject constructor(
     private val profile: ProfileRepository,
+    private val library: LibraryRepository,
+    private val playback: PlaybackController,
 ) : ViewModel() {
 
     val canEdit: Boolean = !profile.isGuest
@@ -73,6 +83,33 @@ class SongActionsViewModel @Inject constructor(
                 if (!profile.likesLoaded) return@launch
             }
             profile.setLiked(trackId, trackId !in likedIds.value)
+        }
+    }
+
+    fun playNext(item: QueueItem) = playback.playNext(item)
+
+    /** Fewer shuffle passes for this song from now on (A60), the same mark as a right swipe in the queue. */
+    fun playLessOften(trackId: Int, title: String, onDone: (String) -> Unit) {
+        viewModelScope.launch {
+            onDone(
+                profile.setLessOften(trackId, true).fold(
+                    onSuccess = { "You'll hear \"$title\" less often" },
+                    onFailure = { "Couldn't change it. Try again." },
+                ),
+            )
+        }
+    }
+
+    private val _detail = MutableStateFlow<LoadState<TrackDetailDto>>(LoadState.Loading)
+    val detail: StateFlow<LoadState<TrackDetailDto>> = _detail.asStateFlow()
+
+    fun loadDetail(trackId: Int) {
+        _detail.value = LoadState.Loading
+        viewModelScope.launch {
+            _detail.value = library.getTrackDetail(trackId).fold(
+                onSuccess = { LoadState.Content(it) },
+                onFailure = { LoadState.Error(it.loadMessage()) },
+            )
         }
     }
 

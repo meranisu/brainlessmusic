@@ -50,6 +50,13 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settings.setKeepPlayingWhenSwipedAway(enabled) }
     }
 
+    val dataSaver: StateFlow<Boolean> = settings.dataSaver
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setDataSaver(enabled: Boolean) {
+        viewModelScope.launch { settings.setDataSaver(enabled) }
+    }
+
     /** Between songs, fade length, the album rule and the pause fade (A71, A72). */
     val transitions: StateFlow<TransitionPrefs> = settings.transitions
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TransitionPrefs())

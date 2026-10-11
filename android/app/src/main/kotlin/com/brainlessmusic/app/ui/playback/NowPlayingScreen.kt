@@ -1,6 +1,9 @@
 package com.brainlessmusic.app.ui.playback
 
+import android.widget.Toast
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +18,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.DataSaverOff
+import androidx.compose.material.icons.filled.DataSaverOn
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
@@ -41,10 +46,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -60,22 +72,50 @@ import com.brainlessmusic.app.ui.common.formatDuration
 import com.brainlessmusic.app.ui.profile.AddToPlaylistSheet
 import com.brainlessmusic.app.ui.profile.LikeButton
 import com.brainlessmusic.app.ui.profile.SongActionsViewModel
+import com.brainlessmusic.app.ui.profile.SongMenuSheet
 import com.brainlessmusic.app.ui.theme.accentInk
+import kotlin.math.abs
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NowPlayingScreen(
     onBack: () -> Unit,
+    onOpenAlbum: (Int) -> Unit,
     viewModel: PlaybackViewModel = hiltViewModel(),
     songActions: SongActionsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val seekStyle by viewModel.seekStyle.collectAsStateWithLifecycle()
+    val dataSaver by viewModel.dataSaver.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     val current = state.current
     var showQueue by remember { mutableStateOf(false) }
     var addingToPlaylist by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
+    val haptics = LocalHapticFeedback.current
+    // The screen follows a downward drag and closes past 96 dp; the cover follows a sideways one to skip.
+    val dismiss = remember { Animatable(0f) }
+    val skip = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
 
     Scaffold(
+        modifier = Modifier
+            .graphicsLayer { translationY = dismiss.value }
+            .verticalSwipe(
+                down = true,
+                distance = 96.dp,
+                offset = dismiss,
+                onSwipe = {
+                    onBack()
+                    // Back is ignored mid-transition; if the screen is still here, it comes back down rather than stick.
+                    scope.launch {
+                        delay(600)
+                        dismiss.animateTo(0f)
+                    }
+                },
+            ),
         topBar = {
             TopAppBar(
                 title = { Text("Now playing") },
@@ -84,8 +124,26 @@ fun NowPlayingScreen(
                         Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Close")
                     }
                 },
-                // Like and add to a playlist (A65); both hide themselves for guests.
+                // Data saver, lit while on, for everyone; like and add to a playlist (A65) hide themselves for guests.
                 actions = {
+                    IconButton(
+                        onClick = {
+                            viewModel.setDataSaver(!dataSaver)
+                            Toast.makeText(
+                                context,
+                                if (dataSaver) "Data saver off. Next songs stream as the originals." else "Data saver on. Next songs stream smaller.",
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            contentColor = if (dataSaver) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                    ) {
+                        Icon(
+                            if (dataSaver) Icons.Filled.DataSaverOn else Icons.Filled.DataSaverOff,
+                            contentDescription = if (dataSaver) "Data saver on" else "Data saver off",
+                        )
+                    }
                     if (current != null && songActions.canEdit) {
                         LikeButton(current.trackId, viewModel = songActions)
                         IconButton(onClick = { addingToPlaylist = true }) {
@@ -115,13 +173,39 @@ fun NowPlayingScreen(
                 .padding(padding)
                 .padding(horizontal = 24.dp),
         ) {
-            // The cover is the largest square that fits above the controls.
-            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+            // The cover is the largest square that fits above the controls. Swipe it to skip, hold it for the song menu.
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .swipeToSkip(
+                        offset = skip,
+                        canNext = state.hasNext,
+                        canPrevious = state.hasPrevious,
+                        onNext = viewModel::next,
+                        onPrevious = viewModel::previousTrack,
+                    )
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onLongPress = {
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                showMenu = true
+                            },
+                        )
+                    }
+                    .semantics { onLongClick(label = "Song options") { showMenu = true; true } },
+                contentAlignment = Alignment.Center,
+            ) {
                 CoverImage(
                     url = current.coverUrl,
                     contentDescription = current.album,
                     cornerRadius = 20.dp,
-                    modifier = Modifier.aspectRatio(1f),
+                    modifier = Modifier
+                        .aspectRatio(1f)
+                        .graphicsLayer {
+                            translationX = skip.value
+                            alpha = 1f - (abs(skip.value) / size.width.coerceAtLeast(1f)).coerceIn(0f, 0.6f)
+                        },
                 )
             }
 
@@ -189,6 +273,16 @@ fun NowPlayingScreen(
             trackId = current.trackId,
             trackTitle = current.title,
             onDismiss = { addingToPlaylist = false },
+            viewModel = songActions,
+        )
+    }
+
+    if (showMenu && current != null) {
+        SongMenuSheet(
+            item = current,
+            onDismiss = { showMenu = false },
+            onOpenAlbum = onOpenAlbum,
+            showPlayNext = false,
             viewModel = songActions,
         )
     }
@@ -341,6 +435,7 @@ private fun UpNextCard(next: QueueItem?, remaining: Int, onClick: () -> Unit, mo
 private fun StreamReadout(stream: StreamInfo?, modifier: Modifier = Modifier) {
     val format = stream?.let { info ->
         listOfNotNull(
+            if (info.dataSaver) "Data saver" else null,
             info.codec,
             info.sampleRateHz?.let { "%.1f kHz".format(it / 1000.0) },
             info.channels?.let { if (it == 2) "stereo" else if (it == 1) "mono" else "$it ch" },

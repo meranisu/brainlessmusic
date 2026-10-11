@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
@@ -27,8 +28,6 @@ import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -68,9 +67,9 @@ import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
-// Text in the sheet lines up with the player's 24 dp sides; ListItem adds its own 16 dp inside the row.
+// Rows and the header sit on the player's 24 dp sides, like its Up next card, with that card's 12 dp inside a row.
 private val SidePadding = 24.dp
-private val RowInset = SidePadding - 16.dp
+private val RowInnerPadding = 12.dp
 private val RowShape = RoundedCornerShape(12.dp)
 
 // Fixed rather than themed: red and blue read as "remove" and "less" in every colour theme, and the default theme's
@@ -164,25 +163,30 @@ fun QueueSheet(
     ) {
         Box {
             Column {
-                Text(
-                    "Queue",
-                    style = MaterialTheme.typography.titleMedium,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Text(
-                    "${state.queue.size} track${if (state.queue.size == 1) "" else "s"}" + when (state.shuffleMode) {
-                        ShuffleMode.OFF -> ""
-                        ShuffleMode.SHUFFLE -> " · shuffled"
-                        // A fixed queue (album, playlist, search) has no play history to go on, so it plays shuffled.
-                        ShuffleMode.REDISCOVER -> if (state.fromLibrary) " · rediscover" else " · shuffled"
-                        ShuffleMode.ALBUMS -> " · album shuffle"
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                // One line: the title on the left edge, the count and shuffle mode on the right, sharing a baseline.
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = SidePadding),
+                ) {
+                    Text(
+                        "Queue",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.alignByBaseline(),
+                    )
+                    Text(
+                        "${state.queue.size} track${if (state.queue.size == 1) "" else "s"}" + when (state.shuffleMode) {
+                            ShuffleMode.OFF -> ""
+                            ShuffleMode.SHUFFLE -> " · shuffled"
+                            // A fixed queue (album, playlist, search) has no play history to go on, so it plays shuffled.
+                            ShuffleMode.REDISCOVER -> if (state.fromLibrary) " · rediscover" else " · shuffled"
+                            ShuffleMode.ALBUMS -> " · album shuffle"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.End,
+                        maxLines = 1,
+                        modifier = Modifier.weight(1f).padding(start = 12.dp).alignByBaseline(),
+                    )
+                }
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
@@ -231,7 +235,7 @@ fun QueueSheet(
                                             Icons.Filled.DragHandle,
                                             contentDescription = "Drag to move",
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.draggableHandle(
+                                            modifier = Modifier.padding(8.dp).draggableHandle(
                                                 onDragStarted = { dragFrom = rows.indexOfFirst { it.key == row.key } },
                                                 onDragStopped = {
                                                     val from = dragFrom
@@ -281,32 +285,48 @@ private fun QueueRowItem(
         enableDismissFromStartToEnd = !isCurrent && canPlayLessOften,
         enableDismissFromEndToStart = !isCurrent,
         backgroundContent = { SwipeBackground(swipe.dismissDirection) },
-        modifier = Modifier.padding(horizontal = RowInset, vertical = 2.dp).clip(RowShape),
+        modifier = Modifier.padding(horizontal = SidePadding, vertical = 2.dp).clip(RowShape),
     ) {
         Surface(
             shape = RowShape,
             color = if (isCurrent) MaterialTheme.colorScheme.secondaryContainer else BottomSheetDefaults.ContainerColor,
             shadowElevation = elevation,
         ) {
-            ListItem(
-                headlineContent = {
+            // The handle brings its own 8 dp of touch room, so the row's end padding is smaller with it.
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onClick)
+                    .padding(start = RowInnerPadding, end = if (handle != null) 4.dp else RowInnerPadding)
+                    .heightIn(min = 56.dp),
+            ) {
+                Column(Modifier.weight(1f).padding(vertical = 8.dp)) {
                     Text(
                         row.item.title,
+                        style = MaterialTheme.typography.bodyMedium,
                         fontWeight = if (isCurrent) FontWeight.Bold else null,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                },
-                supportingContent = row.item.artist?.let { artist -> { Text(artist, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
-                trailingContent = {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(formatDuration(row.item.durationSec), style = MaterialTheme.typography.bodySmall)
-                        handle?.invoke()
+                    row.item.artist?.let { artist ->
+                        Text(
+                            artist,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
-                },
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                modifier = Modifier.clickable(onClick = onClick),
-            )
+                }
+                Text(
+                    formatDuration(row.item.durationSec),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 12.dp),
+                )
+                handle?.invoke()
+            }
         }
     }
 }

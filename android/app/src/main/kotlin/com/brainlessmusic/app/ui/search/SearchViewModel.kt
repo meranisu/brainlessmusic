@@ -10,6 +10,7 @@ import com.brainlessmusic.app.data.repository.toMessage
 import com.brainlessmusic.app.data.remote.dto.TrackSummaryDto
 import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.QueueItem
+import com.brainlessmusic.app.playback.queueItem
 import com.brainlessmusic.app.ui.common.LoadState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -73,23 +74,11 @@ class SearchViewModel @Inject constructor(
 
     fun albumCoverUrl(albumId: Int): String? = libraryRepository.albumCoverUrl(albumId)
 
+    /** For the song menu. */
+    fun queueItem(track: TrackSummaryDto): QueueItem = libraryRepository.queueItem(track)
+
     /** The visible track results become the queue, starting at the one tapped. */
     fun playTracks(tracks: List<TrackSummaryDto>, index: Int) {
-        playbackController.playQueue(
-            tracks.map {
-                QueueItem(
-                    trackId = it.id,
-                    title = it.title,
-                    artist = it.artist,
-                    album = it.album,
-                    durationSec = it.duration,
-                    coverUrl = libraryRepository.trackCoverUrl(it.id),
-                    format = it.format,
-                    albumId = it.albumId,
-                    trackNumber = it.trackNumber,
-                )
-            },
-            index,
-        )
+        playbackController.playQueue(tracks.map(::queueItem), index)
     }
 }
