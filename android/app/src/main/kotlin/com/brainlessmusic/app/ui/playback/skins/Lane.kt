@@ -1,5 +1,6 @@
 package com.brainlessmusic.app.ui.playback.skins
 
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.animation.core.Animatable
@@ -175,6 +176,7 @@ fun ColumnScope.LaneDeck(
         enabled = state.durationMs > 0,
         onFraction = onFraction,
         onFinished = onFinished,
+        combo = state.chain,
         modifier = Modifier.weight(1f).padding(top = 10.dp),
     )
 
@@ -245,7 +247,8 @@ private fun ScoreStrip(record: TrackStatDto) {
 
 /**
  * The song as Arcaea's track, four lanes narrowing into the distance. The played part fills from the bottom to a
- * judgement line at [fraction]; a tap or vertical drag seeks. While [playing], notes fall toward the line.
+ * judgement line at [fraction]; a tap or vertical drag seeks. While [playing], notes fall toward the line. [combo]
+ * (songs played through in a row) stands in the far part of the track, as Arcaea sets its combo.
  */
 @Composable
 private fun LaneTrack(
@@ -254,6 +257,7 @@ private fun LaneTrack(
     enabled: Boolean,
     onFraction: (Float) -> Unit,
     onFinished: () -> Unit,
+    combo: Int,
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -294,24 +298,27 @@ private fun LaneTrack(
         Modifier
     }
 
-    Canvas(
-        modifier
-            .fillMaxWidth()
-            .onSizeChanged { heightPx = it.height.coerceAtLeast(1) }
-            .then(touch)
-            .semantics {
-                contentDescription = "Song position"
-                progressBarRangeInfo = ProgressBarRangeInfo(f, 0f..1f)
-                if (enabled) {
-                    setProgress { target ->
-                        onFraction(target.coerceIn(0f, 1f))
-                        onFinished()
-                        true
+    Box(modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+        Canvas(
+            Modifier
+                .fillMaxSize()
+                .onSizeChanged { heightPx = it.height.coerceAtLeast(1) }
+                .then(touch)
+                .semantics {
+                    contentDescription = "Song position"
+                    progressBarRangeInfo = ProgressBarRangeInfo(f, 0f..1f)
+                    if (enabled) {
+                        setProgress { target ->
+                            onFraction(target.coerceIn(0f, 1f))
+                            onFinished()
+                            true
+                        }
                     }
-                }
-            },
-    ) {
-        drawLane(f, phase, floor = scheme.inverseSurface, ink = scheme.inverseOnSurface, accent = scheme.primary, arc = scheme.secondary)
+                },
+        ) {
+            drawLane(f, phase, floor = scheme.inverseSurface, ink = scheme.inverseOnSurface, accent = scheme.primary, arc = scheme.secondary)
+        }
+        if (combo > 0) LaneCombo(combo, Modifier.padding(top = 36.dp))
     }
 }
 
@@ -479,5 +486,33 @@ private fun PureText(pure: Pure, modifier: Modifier = Modifier) {
             modifier = Modifier.padding(horizontal = 3.dp),
         )
         Diamond(4.dp, scheme.primary)
+    }
+}
+
+/**
+ * Arcaea's combo, in the track's far part: the count in thin type with "COMBO" under it, in the floor's ink. It kicks
+ * on each new link, unless animations are off. Doesn't take touches, so the track under it still seeks.
+ */
+@Composable
+private fun LaneCombo(combo: Int, modifier: Modifier = Modifier) {
+    val scheme = MaterialTheme.colorScheme
+    val animate = rememberAnimationsOn()
+    val kick = remember { Animatable(1f) }
+    LaunchedEffect(combo) {
+        if (!animate) return@LaunchedEffect
+        kick.snapTo(1.2f)
+        kick.animateTo(1f, tween(240, easing = FastOutSlowInEasing))
+    }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+            .graphicsLayer {
+                scaleX = kick.value
+                scaleY = kick.value
+            }
+            .semantics(mergeDescendants = true) { contentDescription = "Combo $combo" },
+    ) {
+        Text(combo.toString(), fontFamily = LaneFontFamily, fontWeight = FontWeight.Light, fontSize = 30.sp, color = scheme.inverseOnSurface)
+        Text("COMBO", fontFamily = LaneFontFamily, fontWeight = FontWeight.Medium, fontSize = 9.sp, letterSpacing = 3.sp, color = scheme.inverseOnSurface.copy(alpha = 0.7f))
     }
 }

@@ -1,5 +1,31 @@
 [
   {
+    "version": "0.3.50",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "hit circle and lane get the combo too now, same as gear's chain: how many songs you've let play through in a row, back to zero when you skip - hit circle: osu! style \"12x\" in the bottom left of the cover - lane: the number and COMBO on the track, like arcaea"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.49",
     "date": "2026-10-11",
     "sections": [

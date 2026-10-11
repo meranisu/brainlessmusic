@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `ComboCounter()` (new), `HitCircleDeck()` (changed): `android/.../ui/playback/skins/HitCircle.kt`; `LaneCombo()` (new), `LaneTrack()` (changed): `android/.../ui/playback/skins/Lane.kt`
+**Date:** 2026-10-11
+**How added:** owner request
+**Purpose:** the play chain shown as each game's combo.
+**Side effects:** none.
+**Before:** only Gear showed the chain.
+**After:** Hit circle shows "12x" at the cover's bottom left; Lane shows the count and "COMBO" in the track's far part.
+
 **Function:** `scrobble()`, `recordSkip()`, `publish()` (changed): `android/.../playback/PlaybackController.kt`; `ChainCount()` (new), `GearLane()` (changed): `android/.../ui/playback/skins/Gear.kt`; `ListeningRadar()`, `radarValues()`, `rangeDays()` (new): `android/.../ui/profile/ListeningRadar.kt`
 **Date:** 2026-10-11
 **How added:** new feature (owner's go-ahead)

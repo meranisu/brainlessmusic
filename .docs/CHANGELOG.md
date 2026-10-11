@@ -4,6 +4,15 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: The combo in Hit circle and Lane too
+
+- Owner's request: Gear's CHAIN (`PlaybackUiState.chain`, songs played through in a row, broken by a skip) now shows
+  in the other game skins in their own games' manner. Hit circle: osu!'s combo counter at the bottom left of the
+  cover, "12x" in Fredoka, a faint copy swelling out of it on each new link. Lane: Arcaea's combo in the track's far
+  part, the count in thin Exo 2 with "COMBO" under it, kicking on each link. Both hide at 0, hold still with
+  animations off, and take no touches (Lane's track still seeks under it).
+- Verified: `./gradlew testDebugUnitTest`: 114 tests, 1 skipped, 0 failed (compiles). **Not run:** on a phone.
+
 ## 2026-10-11: Gear's CHAIN, and a listening radar on Home
 
 - Owner's go-ahead on two follow-ups from the Gear research. **CHAIN:** the playback controller counts songs heard

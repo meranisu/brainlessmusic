@@ -1,5 +1,8 @@
 package com.brainlessmusic.app.ui.playback.skins
 
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -120,6 +123,7 @@ fun ColumnScope.HitCircleDeck(
         ) {
             CoverImage(url = item.coverUrl, contentDescription = item.album, cornerRadius = 0.dp, modifier = Modifier.fillMaxSize())
         }
+        if (state.chain > 0) ComboCounter(state.chain, Modifier.align(Alignment.BottomStart))
     }
 
     Text(
@@ -365,4 +369,41 @@ private fun HitBurst(hit: Hit, size: Dp, modifier: Modifier = Modifier) {
             .background(accent.copy(alpha = 0.45f), CircleShape)
             .border(3.dp, accent, CircleShape),
     )
+}
+
+/**
+ * osu!'s combo counter, bottom left: the songs played through in a row ([PlaybackUiState.chain], broken by a skip) as
+ * "12x". Each new link swells a faint copy out from it, as osu!'s does, unless animations are off.
+ */
+@Composable
+private fun ComboCounter(combo: Int, modifier: Modifier = Modifier) {
+    val scheme = MaterialTheme.colorScheme
+    val animate = rememberAnimationsOn()
+    val swell = remember { Animatable(1f) }
+    LaunchedEffect(combo) {
+        if (!animate) return@LaunchedEffect
+        swell.snapTo(0f)
+        swell.animateTo(1f, tween(400, easing = FastOutSlowInEasing))
+    }
+    val text = "${combo}x"
+    Box(modifier.semantics(mergeDescendants = true) { contentDescription = "Combo $combo" }) {
+        val p = swell.value
+        if (p < 1f) {
+            Text(
+                text,
+                fontFamily = BrandFontFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 34.sp,
+                color = scheme.primary,
+                modifier = Modifier.graphicsLayer {
+                    val s = 1f + 0.5f * p
+                    scaleX = s
+                    scaleY = s
+                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 1f)
+                    alpha = 0.6f * (1f - p)
+                },
+            )
+        }
+        Text(text, fontFamily = BrandFontFamily, fontWeight = FontWeight.Bold, fontSize = 34.sp, color = scheme.onSurface)
+    }
 }
