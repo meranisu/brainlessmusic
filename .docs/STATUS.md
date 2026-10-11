@@ -1,6 +1,6 @@
 # Project Status
 
-_Last updated: 2026-10-11 (failure logging confirmed committed in 8c29bef) — live snapshot; full history frozen in [history/status-archive.md](history/status-archive.md)._
+_Last updated: 2026-10-11 (smol deploy state corrected) — live snapshot; full history frozen in [history/status-archive.md](history/status-archive.md)._
 
 **Keep this file short (target: under 150 lines).** It answers "where are we and what is next" and nothing else.
 When a feature ships, change its row in the table below and, if the next step moved, the *Next* section.
@@ -17,7 +17,7 @@ Work the first unticked box there.
 
 | Area | State | Detail |
 |---|---|---|
-| Auth (JWT + bcrypt, guest entry, admin role, user management) | Built, verified; guest accounts (A67–A70) live on smol and in Android v0.3.11 (2026-10-11), review issues fixed in 6ded2eb, not yet deployed | archive; A13–A16, A41–A43, A67–A70 in QUESTIONS; [features/guest-accounts](features/guest-accounts/planning.md#open-issues-from-review-2026-10-11) |
+| Auth (JWT + bcrypt, guest entry, admin role, user management) | Built, verified; guest accounts (A67–A70) live on smol and in Android v0.3.11 (2026-10-11); review fixes (6ded2eb) on smol since the 97ba069 deploy | archive; A13–A16, A41–A43, A67–A70 in QUESTIONS; [features/guest-accounts](features/guest-accounts/planning.md#open-issues-from-review-2026-10-11) |
 | Library scanner, multi-root library, scheduled sync | Built, verified | [features/multi-root-library](features/multi-root-library/planning.md) |
 | Streaming (byte ranges, ETag caching, signed URLs) | Built, verified | archive |
 | Formats and transcoding (7 formats; `?quality=low` serves a cached converted copy) | Built, verified — roadmap box 24 | [features/formats-and-transcoding](features/formats-and-transcoding/planning.md) |
@@ -50,10 +50,11 @@ The list is [QUESTIONS.md](QUESTIONS.md) — check it before asking anything. Bl
 
 ## Next
 
-1. **Box 19 — offline downloads** (Android): the last v0.2 box. All five spec steps built 2026-10-11; left: deploy the backend (`playedAt`) to smol and run the phone checklist in [specs/offline-downloads.md](specs/offline-downloads.md).
+1. **Box 19 — offline downloads** (Android): the last v0.2 box. All five spec steps built 2026-10-11 and the backend (`playedAt`) is on smol; left: the phone checklist in [specs/offline-downloads.md](specs/offline-downloads.md).
 2. Cloudflare Access (A74): switch on once Q77 and Q78 are answered.
 3. v0.3 starts with the room-sync spec (box 21) — spec before code.
-4. The 2026-10-11 review findings are fixed (ca945ba, 6ded2eb, and F2/F5/G2 after; not yet on smol). Left: G3 (closed by
+4. Backend commits after 97ba069 (3724daa, 8fe408e, 920cd50) are not confirmed on smol yet.
+5. The 2026-10-11 review findings are fixed (ca945ba, 6ded2eb, and F2/F5/G2 after; on smol). Left: G3 (closed by
    Access, A74, once it is on), and the unconfirmed "plausible" items in
    [process/session-review-2026-10-11.md](process/session-review-2026-10-11.md), mostly crossfade edge cases.
 
