@@ -121,15 +121,15 @@ Results at review time:
       - OkHttp's limit of 5 per host applies, so a big playlist is slow to start rather than a flood.
 - [x] **C29. Android: `sendThenClear` timeout race** Fixed in 3ee0161. (`PendingPlays.kt:83`).
       - A `flush()`-started send can keep going through its snapshot after the clear. Narrow.
-- [ ] **C30. Android: `Cache` is injected eagerly into `DownloadRepository`** (`DownloadRepository.kt:59`, `:103`,
+- [x] **C30. Android: `Cache` is injected eagerly into `DownloadRepository`** (`DownloadRepository.kt:59`, `:103`, Fixed in 97ba069.
       `DownloadModule.kt:44-45`).
       - Its init reads `cacheSpace` on the main thread at cold start, which defeats the `dagger.Lazy` in
         `PlaybackController`. That risks an ANR with a large offline library.
-- [ ] **C31. Android: `PlaybackService.onCreate` stalls the main thread and leaks a thread** (`PlaybackService.kt:60`, `:80`).
+- [x] **C31. Android: `PlaybackService.onCreate` stalls the main thread and leaks a thread** (`PlaybackService.kt:60`, `:80`). Fixed in 97ba069.
       - It reads DataStore with `runBlocking`.
       - It leaks one executor thread per service recreation.
-- [ ] **C32. Android: the queue sheet can keep a stale list after a no-op drag** (`QueueSheet.kt:110-112`, `:240-244`).
-- [ ] **C33. Android: `deleteGroup` duplicates `dropUnlinked()`** (`DownloadDatabase.kt:150-166`).
+- [x] **C32. Android: the queue sheet can keep a stale list after a no-op drag** (`QueueSheet.kt:110-112`, `:240-244`). Fixed in 97ba069.
+- [x] **C33. Android: `deleteGroup` duplicates `dropUnlinked()`** (`DownloadDatabase.kt:150-166`). Fixed in 97ba069.
       - `removeFromGroup`'s Boolean result is unused (`:131`, caller `DownloadRepository.kt:179`).
 - [x] **C34. Web: the background media-token fetch is stored under whichever session exists when it returns** Fixed in bbb6de3.
       (`apiClient.ts:127-129`). Narrow.
