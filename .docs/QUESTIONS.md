@@ -61,6 +61,18 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A106 — The update sheet shows every release since yours *(was Q107)*
+**Answered:** 2026-10-11 · **A.** Notes for every release newer than the installed one, newest first. Lands in the
+in-app updater plan (`features/app-self-update/planning.md`, written once room sync is done).
+
+### A105 — "Skip this version" is in *(was Q106)*
+**Answered:** 2026-10-11 · **A.** The update sheet has "Install now", "Later" and "Skip this version". A skipped
+version stays quiet until a newer one is out; the settings button still offers it.
+
+### A104 — Check on launch once a day, plus a settings button *(was Q105)*
+**Answered:** 2026-10-11 · **A.** The app checks GitHub Releases on launch at most once a day, and there is a
+"Check for updates" row in settings. Release builds only.
+
 ### A103 — Room-sync design is the spec *(was Q4)*
 **Answered:** 2026-10-11. The owner started v0.3; data model, clock sync, drift (0.3 s, seek only), reconnect and
 the 30-second case are decided in [specs/room-sync.md](specs/room-sync.md), with A100–A102 for the owner's picks.
