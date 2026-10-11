@@ -10,22 +10,22 @@ Results at review time:
 
 ## Fix first: security, data, or broken sessions
 
-- [ ] **C1. The login rate limit can be reset at will.** Checked.
+- [x] **C1. The login rate limit can be reset at will.** Fixed in 52cda5d. Checked.
       - A correct login calls `clear(ip)`, which wipes that IP's failed tries (`backend/src/routes/auth.ts:307`, `:347`).
       - Anyone with their own account can guess a victim's passcode about 7 times, sign in as themselves, and repeat.
         A 4-digit passcode falls in hours.
       - The limit is per IP only, with no per-username cap. IPv6 addresses behind Cloudflare give an attacker many keys.
-- [ ] **C2. Hidden tracks leak to non-admins**, against A34 (`.docs/QUESTIONS.md:373`). Search checked; the rest is from the agent.
+- [x] **C2. Hidden tracks leak to non-admins** Fixed in 52cda5d., against A34 (`.docs/QUESTIONS.md:373`). Search checked; the rest is from the agent.
       - FTS search and LIKE search filter only `missing_since`, not `hidden` (`backend/src/db/browse.ts:438-447`, `:472-479`).
       - Also reported unfiltered: album detail (`browse.ts:298-303`), track detail (`routes/tracks.ts:239`),
         stream (`routes/tracks.ts:362`), top tracks (`db/plays.ts:167`).
       - Only `GET /tracks` clamps `hidden` for non-admins (`routes/tracks.ts:162`).
-- [ ] **C3. Any guest can start unlimited parallel ffmpeg waveform decodes.**
+- [x] **C3. Any guest can start unlimited parallel ffmpeg waveform decodes.** Fixed in 52cda5d.
       - `services/waveform.ts:92-118`, route `routes/tracks.ts:599`. There is no cap, unlike transcodes, and failed
         decodes aren't cached.
       - A parallel loop over `/tracks/{id}/waveform` runs smol out of CPU and RAM.
       - Cover thumbnails (`services/artwork.ts:79`) are also uncapped, but cached.
-- [ ] **C4. The playback-failure table grows without limit.**
+- [x] **C4. The playback-failure table grows without limit.** Fixed in 52cda5d.
       - Any guest can POST a `detail` of about 1 MB, with no length cap, rate limit or pruning
         (`routes/tracks.ts:538-581`, `db/playbackFailures.ts:211`).
       - That can fill the disk, and every daily backup (14 kept).
