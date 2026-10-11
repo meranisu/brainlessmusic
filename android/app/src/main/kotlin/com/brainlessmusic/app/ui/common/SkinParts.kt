@@ -1,6 +1,7 @@
 package com.brainlessmusic.app.ui.common
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
@@ -22,17 +23,22 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBarItemColors
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.SheetState
+import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.brainlessmusic.app.data.local.Skin
+import com.brainlessmusic.app.ui.theme.BrandFontFamily
 import com.brainlessmusic.app.ui.theme.LocalSkin
 
 // The small pieces every screen shares that change with the skin (A118). Standard draws exactly what it did before.
@@ -45,6 +51,34 @@ val markPlaying: Boolean
 @Composable
 fun PlayingMarker(modifier: Modifier = Modifier) {
     Box(modifier.size(16.dp).border(3.dp, MaterialTheme.colorScheme.primary, CircleShape))
+}
+
+/**
+ * A queue row's lead mark, [position] songs from the playing one. Hit circle numbers the run like osu!'s combo: the
+ * playing song is a filled circle, the next ones count 1, 2, 3, and played ones fade. Standard has none.
+ */
+@Composable
+fun QueueMarker(position: Int, modifier: Modifier = Modifier) {
+    if (LocalSkin.current != Skin.HIT_CIRCLE) return
+    val scheme = MaterialTheme.colorScheme
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .size(30.dp)
+            .alpha(if (position < 0) 0.4f else 1f)
+            .background(if (position == 0) scheme.primary else Color.Transparent, CircleShape)
+            .border(2.5.dp, if (position == 0) scheme.onSurface else scheme.primary, CircleShape),
+    ) {
+        if (position > 0) {
+            Text(
+                position.toString(),
+                fontFamily = BrandFontFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = if (position < 100) 13.sp else 10.sp,
+                color = scheme.onSurface,
+            )
+        }
+    }
 }
 
 /** The mini player's progress along its top edge: Material's thin line. Hit circle rings the cover instead ([MiniCover]). */

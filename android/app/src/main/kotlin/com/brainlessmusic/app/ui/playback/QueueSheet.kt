@@ -62,6 +62,9 @@ import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import com.brainlessmusic.app.ui.common.PlayingMarker
+import com.brainlessmusic.app.ui.common.QueueMarker
+import com.brainlessmusic.app.data.local.Skin
+import com.brainlessmusic.app.ui.theme.LocalSkin
 import com.brainlessmusic.app.ui.common.markPlaying
 import com.brainlessmusic.app.ui.theme.rowShape
 import com.brainlessmusic.app.ui.theme.AppIcons
@@ -126,6 +129,8 @@ fun QueueSheet(
 
     // Opens on what is playing, not at the top of a long queue.
     val currentPosition = rows.indexOfFirst { it.queueIndex == state.currentIndex }.coerceAtLeast(0)
+    // Each row's place in play order, counted from the playing song (Hit circle numbers them); search keeps the numbers.
+    val playPosition = rows.withIndex().associate { (i, row) -> row.key to i - currentPosition }
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = (currentPosition - 1).coerceAtLeast(0))
     val reorderState = rememberReorderableLazyListState(listState) { from, to ->
         rows = rows.toMutableList().apply { add(to.index, removeAt(from.index)) }
@@ -174,15 +179,17 @@ fun QueueSheet(
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.alignByBaseline(),
                     )
+                    // Hit circle counts the queue as osu!'s combo counter.
+                    val combo = LocalSkin.current == Skin.HIT_CIRCLE
                     Text(
-                        "${state.queue.size} track${if (state.queue.size == 1) "" else "s"}" + when (state.shuffleMode) {
+                        (if (combo) "${state.queue.size}x" else "${state.queue.size} track${if (state.queue.size == 1) "" else "s"}") + when (state.shuffleMode) {
                             ShuffleMode.OFF -> ""
                             ShuffleMode.SHUFFLE -> " · shuffled"
                             // A fixed queue (album, playlist, search) has no play history to go on, so it plays shuffled.
                             ShuffleMode.REDISCOVER -> if (state.fromLibrary) " · rediscover" else " · shuffled"
                             ShuffleMode.ALBUMS -> " · album shuffle"
                         },
-                        style = MaterialTheme.typography.bodySmall,
+                        style = if (combo) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.End,
                         maxLines = 1,
@@ -224,6 +231,7 @@ fun QueueSheet(
                             QueueRowItem(
                                 row = row,
                                 isCurrent = isCurrent,
+                                position = playPosition[row.key] ?: 0,
                                 canPlayLessOften = canPlayLessOften,
                                 elevation = elevation,
                                 onClick = { onSkipTo(row.queueIndex) },
@@ -264,6 +272,7 @@ fun QueueSheet(
 private fun QueueRowItem(
     row: QueueRow,
     isCurrent: Boolean,
+    position: Int,
     canPlayLessOften: Boolean,
     elevation: androidx.compose.ui.unit.Dp,
     onClick: () -> Unit,
@@ -303,7 +312,11 @@ private fun QueueRowItem(
                     .padding(start = RowInnerPadding, end = if (handle != null) 4.dp else RowInnerPadding)
                     .heightIn(min = 56.dp),
             ) {
-                if (isCurrent && markPlaying) PlayingMarker(Modifier.padding(end = 12.dp))
+                if (LocalSkin.current == Skin.HIT_CIRCLE) {
+                    QueueMarker(position, Modifier.padding(end = 12.dp))
+                } else if (isCurrent && markPlaying) {
+                    PlayingMarker(Modifier.padding(end = 12.dp))
+                }
                 Column(Modifier.weight(1f).padding(vertical = 8.dp)) {
                     Text(
                         row.item.title,

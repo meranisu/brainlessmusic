@@ -4,6 +4,15 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Hit circle, the queue numbered like a combo
+
+- Owner's request: the queue sheet (already floating since v0.3.38) gets Hit circle parts. Each row leads with a hit
+  circle numbered in play order from the playing song (next is 1, then 2, 3), as osu! numbers a combo; the playing
+  song is a filled accent circle and played songs fade (`QueueMarker` in `ui/common/SkinParts.kt`). The header's
+  count reads as a combo counter, "12x". Numbers follow the shuffled play order and stay put while searching.
+  Standard is unchanged.
+- Verified: `./gradlew :app:compileDebugKotlin` builds. **Not run:** on a phone.
+
 ## 2026-10-11: Hit circle, repeat one shows osu!'s reverse arrow
 
 - Owner's idea: with repeat one on, the Hit circle slider's end gets a reverse arrow, an end circle with an arrow

@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `QueueMarker()` (new): `android/.../ui/common/SkinParts.kt`; `QueueSheet()`, `QueueRowItem()` (changed): `android/.../ui/playback/QueueSheet.kt`
+**Date:** 2026-10-11
+**How added:** owner request
+**Purpose:** Hit circle's queue reads as an osu! combo: numbered circles in play order and an "Nx" count.
+**Side effects:** none.
+**Before:** Hit circle's queue marked only the playing song, with a small ring.
+**After:** every row has a circle (filled for the playing song, numbered ahead, faded behind); Standard unchanged.
+
 **Function:** `drawReverseArrow()` (new); `HitCircleDeck()` (changed): `android/.../ui/playback/skins/HitCircle.kt`
 **Date:** 2026-10-11
 **How added:** owner request

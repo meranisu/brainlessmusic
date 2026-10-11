@@ -254,7 +254,6 @@ private fun HitButton(
     }
 }
 
-/** Play as the big hit circle; while playing, its approach ring keeps closing in on it. */
 /** A slider's reverse arrow: an end circle of [radius] with an arrow pointing back along the track, scaled by [pop]. */
 private fun DrawScope.drawReverseArrow(center: Offset, radius: Float, pop: Float, fill: Color, ink: Color) {
     drawCircle(fill, radius = radius, center = center)
@@ -273,6 +272,7 @@ private fun DrawScope.drawReverseArrow(center: Offset, radius: Float, pop: Float
     drawPath(arrow, ink)
 }
 
+/** Play as the big hit circle; while playing, its approach ring keeps closing in on it. */
 @Composable
 private fun PlayCircle(state: PlaybackUiState, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme

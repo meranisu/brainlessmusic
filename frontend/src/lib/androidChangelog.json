@@ -1,5 +1,32 @@
 [
   {
+    "version": "0.3.39",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "hit circle queue: every song gets a numbered circle like an osu! combo. the next song is 1, then 2, 3 and so on, the playing one is filled in, and stuff you already played fades out. the count up top reads like a combo too, \"24x\"",
+              "works with shuffle, the numbers follow what's actually playing next"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.38",
     "date": "2026-10-11",
     "sections": [
