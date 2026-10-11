@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `loadGuest()`, `playPick()`, `guestPicks()`, `guestAlbumPicks()`, `GuestHome`, `AlbumPick` (all new) — `android/.../ui/profile/YouViewModel.kt`; `GuestHomeList`, `GuestCard`, `CoverRow` (new), `RecentRow` — `YouScreen.kt`
+**Date:** 2026-10-11
+**How added:** new feature (owner request)
+**Purpose:** guests get something on Home besides a note.
+**Side effects:** three guest-allowed requests when a guest opens Home or rerolls (`/browse/shuffled`, `/albums?limit=1`, `/artists?limit=1`).
+**Before:** guest Home was the greeting, Shuffle and one line of text; `GuestNote` removed.
+**After:** a card with the library's counts, then random songs and albums to try, rerolled by pull or New picks.
+
 **Function:** `tilesFor(filter, query, sort)`, `songsFor()` (new), `searchWords()` (new), `DownloadSort` (new), `playSong(shown, ...)` — `android/.../ui/downloads/DownloadsViewModel.kt`; `SearchRow` (new), `NoMatches` (new), `songRows(songs)` — `DownloadsScreen.kt`
 **Date:** 2026-10-11
 **How added:** new feature (owner request)

@@ -4,6 +4,18 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android: a fuller Home for guests
+
+- **Guest card** in the player card's place: "Guest", a line saying plays, likes and playlists are only kept for
+  accounts, then the library's song, album and artist counts. It replaces the single line of text guests had.
+- **Songs to try:** 12 random songs (`GET /browse/shuffled` with a fresh seed), as covers. Tap plays them from there;
+  long press opens the song menu, which already hides account-only rows. A New picks button rerolls.
+- **Albums to try:** up to 10 albums from the same random page, skipping the song picks' albums first. Tap opens it.
+- Pull to refresh rerolls; a failed reroll keeps the picks already up. Still no stats for guests (A98).
+- Recently played and the guest rows share one `CoverRow`.
+- Verified: `./gradlew :app:testDebugUnitTest` for `GuestPicksTest` (3/3, new), `YouStatsTest`, `DownloadSearchTest`.
+  **Not run:** not seen on a phone or emulator.
+
 ## 2026-10-11 — Android: search and sort on the Downloads tab
 
 - **A search field above the filter chips** finds albums and playlists by name or artist, and songs by title, artist

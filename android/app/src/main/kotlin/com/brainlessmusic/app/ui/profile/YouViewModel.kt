@@ -16,6 +16,7 @@ import com.brainlessmusic.app.playback.queueItem
 import com.brainlessmusic.app.ui.common.LoadState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -25,6 +26,42 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.random.Random
+
+/** What a guest's Home shows: the library's size, and some songs and albums picked at random to start from. */
+data class GuestHome(
+    val songs: Int,
+    val albums: Int,
+    val artists: Int,
+    val picks: List<TrackSummaryDto>,
+    val albumPicks: List<AlbumPick>,
+)
+
+/** An album to try, taken from a random song on it. */
+data class AlbumPick(val id: Int, val title: String, val artist: String?)
+
+/** Songs in a guest's "Songs to try" row. */
+internal const val GUEST_PICKS = 12
+
+/** Albums in a guest's "Albums to try" row. */
+internal const val GUEST_ALBUM_PICKS = 10
+
+/** The playable songs of a shuffled page, first [GUEST_PICKS] of them. */
+internal fun guestPicks(shuffled: List<TrackSummaryDto>): List<TrackSummaryDto> =
+    shuffled.filter { !it.missing && !it.hidden }.take(GUEST_PICKS)
+
+/**
+ * Albums from a shuffled page, in its order, once each. The songs already in "Songs to try" are skipped first, so the
+ * two rows don't open on the same records; when that leaves too few, they're used after all.
+ */
+internal fun guestAlbumPicks(shuffled: List<TrackSummaryDto>, picks: List<TrackSummaryDto>): List<AlbumPick> {
+    val inPicks = picks.mapNotNull { it.albumId }.toSet()
+    val (fresh, repeats) = shuffled.filter { it.albumId != null && !it.missing && !it.hidden }.partition { it.albumId !in inPicks }
+    return (fresh + repeats)
+        .distinctBy { it.albumId }
+        .take(GUEST_ALBUM_PICKS)
+        .map { AlbumPick(it.albumId!!, it.album ?: "Unknown album", it.artist) }
+}
 
 /** The Home tab (A97, was You, A61): something to play, then what you listen to over a range you pick. */
 @HiltViewModel
@@ -58,11 +95,53 @@ class YouViewModel @Inject constructor(
     private val _recent = MutableStateFlow<List<HistoryEntryDto>>(emptyList())
     val recent: StateFlow<List<HistoryEntryDto>> = _recent.asStateFlow()
 
+    // A guest's Home (A98): no stats, so the library and some random picks instead.
+    private val _guest = MutableStateFlow<LoadState<GuestHome>>(LoadState.Loading)
+    val guest: StateFlow<LoadState<GuestHome>> = _guest.asStateFlow()
+
     init {
-        if (!isGuest) {
+        if (isGuest) {
+            loadGuest()
+        } else {
             load()
             loadRecent()
         }
+    }
+
+    private var guestJob: Job? = null
+
+    /** A fresh random pick each time; [keepShown] leaves the old picks up, with the pull spinner, until it lands. */
+    fun loadGuest(keepShown: Boolean = false) {
+        guestJob?.cancel()
+        guestJob = viewModelScope.launch {
+            if (keepShown && _guest.value is LoadState.Content) _refreshing.value = true else _guest.value = LoadState.Loading
+            try {
+                val seed = Random.nextInt(0, Int.MAX_VALUE)
+                val now = System.currentTimeMillis() / 1000
+                val shuffled = async { libraryRepository.getShuffledPage(seed, "shuffle", now, 0, GUEST_PAGE) }
+                val albums = async { libraryRepository.getAlbumsPage(0, 1) }
+                val artists = async { libraryRepository.getArtistsPage(0, 1) }
+                val page = shuffled.await().getOrElse { return@launch fail(it, keepShown) }
+                val albumTotal = albums.await().getOrElse { return@launch fail(it, keepShown) }.total
+                val artistTotal = artists.await().getOrElse { return@launch fail(it, keepShown) }.total
+                val picks = guestPicks(page.tracks)
+                _guest.value = LoadState.Content(
+                    GuestHome(page.total, albumTotal, artistTotal, picks, guestAlbumPicks(page.tracks, picks)),
+                )
+            } finally {
+                if (guestJob === coroutineContext.job) _refreshing.value = false
+            }
+        }
+    }
+
+    /** A failed reroll keeps the picks already up; only a first load shows the error. */
+    private fun fail(error: Throwable, keepShown: Boolean) {
+        if (!keepShown || _guest.value !is LoadState.Content) _guest.value = LoadState.Error(error.loadMessage())
+    }
+
+    /** Plays "Songs to try" as the queue, from the one tapped. */
+    fun playPick(picks: List<TrackSummaryDto>, index: Int) {
+        if (index in picks.indices) playbackController.playQueue(picks.map { libraryRepository.queueItem(it) }, index)
     }
 
     private var recentJob: Job? = null
@@ -113,7 +192,7 @@ class YouViewModel @Inject constructor(
 
     /** Pull to refresh: what is shown stays up while it reloads. */
     fun refresh() {
-        if (isGuest) return
+        if (isGuest) return loadGuest(keepShown = true)
         reload(showSpinner = true)
         loadRecent()
     }
@@ -175,5 +254,8 @@ class YouViewModel @Inject constructor(
 
     private companion object {
         const val RECENT_COUNT = 12
+
+        // Enough songs that the album row still has ten different albums after skipping the song picks' own.
+        const val GUEST_PAGE = 60
     }
 }

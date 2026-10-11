@@ -28,7 +28,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -133,8 +135,8 @@ fun YouScreen(
         bottomBar = { AppBottomBar(navController) },
     ) { padding ->
         if (viewModel.isGuest) {
-            // Guests get something to play, and why the rest isn't here (A98).
-            Column(Modifier.padding(padding)) { GuestNote() }
+            // No stats for guests (A98), so the library and some random picks to start from.
+            GuestHomeList(viewModel, refreshing, onOpenAlbum, onMenu = { menuFor = it }, Modifier.padding(padding))
             return@Scaffold
         }
         Column(Modifier.padding(padding)) {
@@ -243,15 +245,119 @@ fun YouScreen(
     }
 }
 
+/** A guest's Home: what the library holds, then songs and albums picked at random. Pull or New picks rerolls them. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun GuestNote() {
-    Text(
-        "Guests can listen, but plays, likes and playlists are only kept for accounts, so your stats and library show " +
-            "here once you have one.",
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-    )
+private fun GuestHomeList(
+    viewModel: YouViewModel,
+    refreshing: Boolean,
+    onOpenAlbum: (Int) -> Unit,
+    onMenu: (QueueItem) -> Unit,
+    modifier: Modifier,
+) {
+    val state by viewModel.guest.collectAsStateWithLifecycle()
+    LoadStateContent(
+        state = state,
+        onRetry = { viewModel.loadGuest() },
+        modifier = modifier,
+        loadingLabel = "Loading the library",
+        skeleton = { SkeletonListRows(lead = SkeletonLead.COVER) },
+    ) { home: GuestHome ->
+        PullToRefreshBox(isRefreshing = refreshing, onRefresh = viewModel::refresh) {
+            LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 16.dp)) {
+                item { GuestCard(home) }
+                if (home.picks.isEmpty()) {
+                    item { EmptyLine("Nothing in the library yet. Songs show up here once the server has some.") }
+                } else {
+                    item {
+                        SectionTitle("Songs to try") {
+                            IconButton(onClick = viewModel::refresh) {
+                                Icon(Icons.Filled.Refresh, contentDescription = "New picks")
+                            }
+                        }
+                    }
+                    item {
+                        CoverRow(
+                            items = home.picks,
+                            key = { it.id },
+                            cover = { viewModel.trackCoverUrl(it.id) },
+                            title = { it.title },
+                            subtitle = { it.artist ?: "Unknown artist" },
+                            onClick = { index -> viewModel.playPick(home.picks, index) },
+                            onLongClick = { onMenu(viewModel.queueItem(it)) },
+                        )
+                    }
+                }
+                if (home.albumPicks.isNotEmpty()) {
+                    item { SectionTitle("Albums to try") }
+                    item {
+                        CoverRow(
+                            items = home.albumPicks,
+                            key = { it.id },
+                            cover = { viewModel.albumCoverUrl(it.id) },
+                            title = { it.title },
+                            subtitle = { it.artist ?: "Unknown artist" },
+                            onClick = { index -> onOpenAlbum(home.albumPicks[index].id) },
+                            onClickLabel = "Open album",
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The player card's guest version: no name or listening numbers to show, so the library's size instead, and why
+ * nothing of theirs is kept.
+ */
+@Composable
+private fun GuestCard(home: GuestHome) {
+    Surface(
+        shape = CardShape,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(56.dp).background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(14.dp)),
+                ) {
+                    Icon(
+                        Icons.Filled.Person,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(32.dp),
+                    )
+                }
+                Column(Modifier.padding(start = 14.dp)) {
+                    Text("Guest", style = MaterialTheme.typography.headlineSmall)
+                    Text(
+                        "Plays, likes and playlists are only kept for accounts.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(vertical = 14.dp))
+            Text(
+                "In this library",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            )
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+                BigStat("%,d".format(home.songs), if (home.songs == 1) "song" else "songs", Modifier.weight(1f))
+                VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.fillMaxHeight())
+                BigStat("%,d".format(home.albums), if (home.albums == 1) "album" else "albums", Modifier.weight(1f))
+                VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.fillMaxHeight())
+                BigStat("%,d".format(home.artists), if (home.artists == 1) "artist" else "artists", Modifier.weight(1f))
+            }
+        }
+    }
 }
 
 /** Home's play action, in the top bar: the whole library, shuffled on the server. */
@@ -361,7 +467,6 @@ private fun RangePicker(range: StatsRange, onPick: (StatsRange) -> Unit) {
 }
 
 /** The last songs played, as covers in a row. Not tied to the range: it is what you just heard. */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun RecentRow(
     recent: List<HistoryEntryDto>,
@@ -369,34 +474,61 @@ private fun RecentRow(
     onPlay: (Int) -> Unit,
     onMenu: (HistoryEntryDto) -> Unit,
 ) {
+    CoverRow(
+        items = recent,
+        key = { it.trackId },
+        cover = { coverUrl(it.trackId) },
+        title = { it.title },
+        subtitle = { it.artist ?: "Unknown artist" },
+        onClick = onPlay,
+        onLongClick = onMenu,
+    )
+}
+
+/** Covers in a row, each with a name and a line under it; long press, when given, opens the song menu. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun <T> CoverRow(
+    items: List<T>,
+    key: (T) -> Any,
+    cover: (T) -> String?,
+    title: (T) -> String,
+    subtitle: (T) -> String,
+    onClick: (Int) -> Unit,
+    onClickLabel: String? = null,
+    onLongClick: ((T) -> Unit)? = null,
+) {
     val haptics = LocalHapticFeedback.current
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        itemsIndexed(recent, key = { _, e -> e.trackId }) { index, entry ->
+        itemsIndexed(items, key = { _, item -> key(item) }) { index, item ->
             Column(
                 Modifier
                     .width(112.dp)
                     .combinedClickable(
-                        onClick = { onPlay(index) },
-                        onLongClickLabel = "Song options",
-                        onLongClick = {
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onMenu(entry)
+                        onClickLabel = onClickLabel,
+                        onClick = { onClick(index) },
+                        onLongClickLabel = if (onLongClick != null) "Song options" else null,
+                        onLongClick = onLongClick?.let {
+                            {
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                it(item)
+                            }
                         },
                     ),
             ) {
-                CoverImage(url = coverUrl(entry.trackId), contentDescription = null, modifier = Modifier.size(112.dp))
+                CoverImage(url = cover(item), contentDescription = null, modifier = Modifier.size(112.dp))
                 Text(
-                    entry.title,
+                    title(item),
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 6.dp),
                 )
                 Text(
-                    entry.artist ?: "Unknown artist",
+                    subtitle(item),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
