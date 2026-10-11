@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `PlaybackController.rebuildQueuedItems()` (new, from `applyDataSaver()`), `streamUrlFor()`, `skipToDownloaded()`, `scrobble()`, `reportListened()`; `DownloadRepository.isLoaded`, `readIndex()`, `queueOf()`; `PendingPlays` (`close()`, `sendThenClear()`, retry timer, `isRefusedForGood()` narrowed); `AuthRepository.logout()`, new `recheckWhenOnline()`; `NetworkMonitor` (validated networks only); `recordScrobble()` (dedupe) — `backend/src/db/plays.ts`; `SearchPage` placeholder
+**Date:** 2026-10-11
+**How added:** bug fix (review of the offline downloads work)
+**Purpose:** the 13 findings in the 2026-10-11 "Fixes from reviewing the offline downloads work" CHANGELOG entry.
+**Side effects:** logout clears `pending_play`; waiting plays retried every 5 minutes while online.
+**Before:** see that entry.
+**After:** see that entry.
+
 **Function:** `recordScrobble()` (new `playedAt` parameter) — `backend/src/db/plays.ts`; scrobble route and new `parsePlayedAt()` — `backend/src/routes/tracks.ts`
 **Date:** 2026-10-11
 **How added:** new feature (A87)

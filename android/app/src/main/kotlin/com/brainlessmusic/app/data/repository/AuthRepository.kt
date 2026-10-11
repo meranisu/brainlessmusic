@@ -14,6 +14,12 @@ import com.brainlessmusic.app.data.remote.dto.GuestRequestSecret
 import com.brainlessmusic.app.data.remote.dto.LoginRequest
 import com.brainlessmusic.app.data.remote.dto.MeResponse
 import com.brainlessmusic.app.data.remote.dto.ThemeRequest
+import com.brainlessmusic.app.data.remote.NetworkMonitor
+import com.brainlessmusic.app.playback.PendingPlays
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -37,7 +43,11 @@ class AuthRepository @Inject constructor(
     private val mediaUrlProvider: MediaUrlProvider,
     private val serverConfig: ServerConfig,
     private val appearance: AppearanceSettings,
+    private val pendingPlays: PendingPlays,
+    private val networkMonitor: NetworkMonitor,
 ) {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
 
     /** Theme saves go out one at a time, in the order picked, so the last tap is the one the profile keeps. */
     private val themeSaves = Mutex()
@@ -241,16 +251,46 @@ class AuthRepository @Inject constructor(
                         // Unknown (a session saved before this was kept) counts as guest: listen-only is the safe side.
                         tokenProvider.isGuest = sessionStore.readIsGuest() ?: true
                         val name = sessionStore.displayName.first() ?: sessionStore.username.first() ?: ""
+                        recheckWhenOnline(serverUrl, token)
                         SessionRestoreResult.Restored(name, offline = true)
                     }
                 },
             )
     }
 
+    /**
+     * After an offline start: once there is signal, asks `/auth/me` what the cold start couldn't. That fixes a guess
+     * about being a guest (a session saved before the flag was kept counts as one), and a 401 ends the session as a
+     * cold start would have. Anything else leaves it as it is; the next cold start asks again.
+     */
+    private fun recheckWhenOnline(serverUrl: String, token: String) {
+        scope.launch {
+            networkMonitor.online.first { it }
+            if (tokenProvider.current != token) return@launch
+            runCatching { apiServiceFactory.get(serverUrl).me() }.fold(
+                onSuccess = {
+                    tokenProvider.isGuest = it.isGuest
+                    sessionStore.saveIsGuest(it.isGuest)
+                    sessionStore.saveDisplayName(nameOf(it))
+                    pendingPlays.flush()
+                },
+                onFailure = {
+                    if (classifyError(it) == ConnectionError.Unauthorized && tokenProvider.current == token) {
+                        tokenProvider.current = null
+                        mediaUrlProvider.current = null
+                        sessionStore.clearCredentials()
+                    }
+                },
+            )
+        }
+    }
+
     /** True when the signed-in session is a guest's, whose identity lives only in this device's stored token. */
     val isGuest: Boolean get() = tokenProvider.isGuest
 
     suspend fun logout() {
+        // Before the token goes: offline plays are sent as this account, or forgotten, never left for the next one.
+        pendingPlays.sendThenClear()
         tokenProvider.current = null
         tokenProvider.isGuest = false
         mediaUrlProvider.current = null

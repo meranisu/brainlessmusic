@@ -638,7 +638,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
 
       // A play made offline and sent later says when it happened (A87).
       let playedAt: string | null = null;
-      if (request.body?.playedAt !== undefined) {
+      if (request.body?.playedAt !== undefined && request.body.playedAt !== null) {
         playedAt = parsePlayedAt(request.body.playedAt);
         if (!playedAt) {
           return reply.code(400).send({ error: 'playedAt must be an ISO time within the last 30 days' });

@@ -12,8 +12,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Whether the phone has a connection at all. It can't tell that the server is down, only that there's no signal,
- * which is what decides between streaming and the downloads.
+ * Whether the phone has a working connection. It can't tell that the server is down, only that there's no usable
+ * signal, which is what decides between streaming and the downloads.
  */
 @Singleton
 class NetworkMonitor @Inject constructor(@ApplicationContext context: Context) {
@@ -25,7 +25,7 @@ class NetworkMonitor @Inject constructor(@ApplicationContext context: Context) {
     init {
         connectivity.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
             override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
-                _online.value = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                _online.value = caps.usable()
             }
 
             override fun onLost(network: Network) {
@@ -34,6 +34,13 @@ class NetworkMonitor @Inject constructor(@ApplicationContext context: Context) {
         })
     }
 
-    private fun hasInternet(network: Network?): Boolean =
-        connectivity.getNetworkCapabilities(network)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+    private fun hasInternet(network: Network?): Boolean = connectivity.getNetworkCapabilities(network)?.usable() == true
+
+    /**
+     * Validated, not just connected: hotel Wi-Fi before its sign-in page, or a router with no uplink, claims internet
+     * but carries nothing, and should count as offline so the downloads take over.
+     */
+    private fun NetworkCapabilities.usable(): Boolean =
+        hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
 }

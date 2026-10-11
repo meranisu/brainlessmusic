@@ -192,6 +192,9 @@ interface PendingPlayDao {
 
     @Query("DELETE FROM pending_play WHERE id = :id")
     suspend fun delete(id: Long)
+
+    @Query("DELETE FROM pending_play")
+    suspend fun clear()
 }
 
 /** Downloads and, since version 2, plays waiting for signal: both are what the phone keeps for offline use. */

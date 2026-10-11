@@ -28,8 +28,6 @@ import com.brainlessmusic.app.data.local.PlaybackSettings
 import com.brainlessmusic.app.data.local.TransitionPrefs
 import com.brainlessmusic.app.data.local.isNextOnAlbum
 import com.brainlessmusic.app.data.remote.NetworkMonitor
-import com.brainlessmusic.app.data.repository.ConnectionError
-import com.brainlessmusic.app.data.repository.ConnectionException
 import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.downloads.DownloadRepository
 import com.brainlessmusic.app.downloads.TrackCacheKey
@@ -47,6 +45,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
@@ -195,6 +195,17 @@ class PlaybackController @Inject constructor(
         scope.launch { settings.transitions.collect { transitions = it } }
         scope.launch { settings.keepShuffle.collect { keepShuffle = it } }
         scope.launch { settings.dataSaver.collect(::applyDataSaver) }
+        // A song finishing its download, or the stored downloads loading at start, changes which copy a queued song
+        // should use and, offline, whether it can play at all.
+        scope.launch {
+            downloads.downloads
+                .map { all -> all.filterValues { it.isDone }.keys }
+                .distinctUntilChanged()
+                .collect {
+                    rebuildQueuedItems()
+                    skipToDownloaded(skipCurrent = false)
+                }
+        }
     }
 
     /**
@@ -204,10 +215,23 @@ class PlaybackController @Inject constructor(
     private fun applyDataSaver(enabled: Boolean) {
         if (enabled == dataSaver) return
         dataSaver = enabled
+        rebuildQueuedItems()
+    }
+
+    /**
+     * Points every queued song but the playing one at the copy it should use now: after data saver is switched, and
+     * when a song finishes downloading (it then plays its original from the phone, which the data-saver copy's cache
+     * key would never find). The playing one keeps its file, for the reason above.
+     */
+    private fun rebuildQueuedItems() {
         // Before touching the player: with nothing queued it may not be built yet, and this is no reason to build it.
         if (queue.isEmpty()) return
         val current = player.currentMediaItemIndex
-        if (current !in queue.indices) return
+        if (current !in queue.indices || player.mediaItemCount != queue.size) return
+        val stale = queue.indices.any { i ->
+            i != current && player.getMediaItemAt(i).localConfiguration?.uri?.toString() != streamUrlFor(queue[i])
+        }
+        if (!stale) return
         // A changed URI makes ExoPlayer add-and-remove rather than update, which reshuffles; put the order back after.
         val order = if (player.shuffleModeEnabled) shuffledSequence() else null
         val before = queue.subList(0, current).mapNotNull(::toMediaItem)
@@ -849,10 +873,6 @@ class PlaybackController @Inject constructor(
             .also { it.addListener(listener) }
 
     /**
-     * The crossfade's tail player is built the same way but takes no audio focus (it would take it from the main player)
-     * and isn't wired to the session or the listener: it only plays out the old song while it fades.
-     */
-    /**
      * A downloaded song is read from the phone, with or without signal; anything else comes from the server. Read-only:
      * streaming never writes into the download folder, which nothing ever evicts.
      */
@@ -865,6 +885,10 @@ class PlaybackController @Inject constructor(
             .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
     }
 
+    /**
+     * The crossfade's tail player is built the same way but takes no audio focus (it would take it from the main player)
+     * and isn't wired to the session or the listener: it only plays out the old song while it fades.
+     */
     private fun newExoPlayer(handleAudioFocus: Boolean): ExoPlayer =
         ExoPlayer.Builder(context)
             .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
@@ -965,16 +989,19 @@ class PlaybackController @Inject constructor(
      * whether it acted, so the caller leaves this song alone.
      */
     private fun skipToDownloaded(skipCurrent: Boolean): Boolean {
-        if (networkMonitor.online.value || queue.isEmpty()) return false
+        // Until the stored downloads are read, everything looks not downloaded; the collector above runs this again.
+        if (networkMonitor.online.value || queue.isEmpty() || !downloads.isLoaded) return false
         val from = player.currentMediaItemIndex
         val current = queue.getOrNull(from) ?: return false
         if (!skipCurrent && downloads.isDownloaded(current.trackId)) return false
         val timeline = player.currentTimeline
+        // Repeat-all wraps round to downloaded songs at the start; repeat-one walks the queue the same way.
+        val repeat = if (player.repeatMode == Player.REPEAT_MODE_OFF) Player.REPEAT_MODE_OFF else Player.REPEAT_MODE_ALL
         var index = from
         var skipped = 1
         while (true) {
-            index = timeline.getNextWindowIndex(index, Player.REPEAT_MODE_OFF, player.shuffleModeEnabled)
-            if (index == C.INDEX_UNSET) {
+            index = timeline.getNextWindowIndex(index, repeat, player.shuffleModeEnabled)
+            if (index == C.INDEX_UNSET || index == from) {
                 player.pause()
                 errorMessage = "You're offline, and no downloaded songs are left in the queue."
                 skipNotice = false
@@ -1026,14 +1053,15 @@ class PlaybackController @Inject constructor(
         playId = scope.async {
             if (!networkMonitor.online.value) return@async pendingPlays.add(item.trackId, listened)
             libraryRepository.scrobble(item.trackId, listened).fold(
-                onSuccess = { id -> id?.let { PlayRef.Server(it) } },
+                onSuccess = { id ->
+                    // The server is answering: anything that waited for it can go now.
+                    pendingPlays.flush()
+                    id?.let { PlayRef.Server(it) }
+                },
                 onFailure = {
-                    // Connected but the server can't be reached: same as no signal.
-                    if ((it as? ConnectionException)?.error == ConnectionError.Unreachable) {
-                        pendingPlays.add(item.trackId, listened)
-                    } else {
-                        null
-                    }
+                    // Unreachable, or answering with an error while smol is down (Cloudflare's 502/530): keep it for
+                    // later, unless the server refused this play for good.
+                    if (it.isRefusedForGood()) null else pendingPlays.add(item.trackId, listened)
                 },
             )
         }
@@ -1050,7 +1078,11 @@ class PlaybackController @Inject constructor(
         lastFinish = scope.launch {
             when (val ref = pending.await()) {
                 is PlayRef.Server -> libraryRepository.finishPlay(ref.playId, listened)
-                is PlayRef.Local -> pendingPlays.setMsPlayed(ref, listened)
+                is PlayRef.Local -> {
+                    pendingPlays.setMsPlayed(ref, listened)
+                    // Its length is final now, so it may be sent.
+                    if (final) pendingPlays.close(ref)
+                }
                 null -> Unit
             }
         }
@@ -1137,9 +1169,12 @@ class PlaybackController @Inject constructor(
         else -> mime.substringAfter('/').uppercase()
     }
 
+    /** A downloaded song plays its original from the phone: the smaller copy would only cost data. */
+    private fun streamUrlFor(item: QueueItem): String? =
+        libraryRepository.streamUrl(item.trackId, dataSaver && !downloads.isDownloaded(item.trackId))
+
     private fun toMediaItem(item: QueueItem): MediaItem? {
-        // A downloaded song plays its original from the phone: the smaller copy would only cost data.
-        val url = libraryRepository.streamUrl(item.trackId, dataSaver && !downloads.isDownloaded(item.trackId)) ?: return null
+        val url = streamUrlFor(item) ?: return null
         return MediaItem.Builder()
             .setMediaId(item.trackId.toString())
             .setUri(url)

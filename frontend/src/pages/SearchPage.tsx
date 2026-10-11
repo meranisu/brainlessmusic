@@ -38,8 +38,10 @@ export function SearchPage() {
     queryKey: ['search', query],
     queryFn: () => apiClient.get<SearchResults>(`/search?q=${encodeURIComponent(query)}`),
     enabled: query.length > 0,
-    // The last results stay up while a new search loads (A83); an empty one would only hide the skeleton.
-    placeholderData: (prev) => (prev && prev.artists.length + prev.albums.length + prev.tracks.length > 0 ? prev : undefined),
+    // The last results stay up while a new search loads (A83); an empty one would only hide the skeleton. Not once the
+    // box is cleared: the query is off then, and its placeholder would keep the old results under "Search".
+    placeholderData: (prev) =>
+      query && prev && prev.artists.length + prev.albums.length + prev.tracks.length > 0 ? prev : undefined,
   });
 
   const queue: QueueTrack[] = (data?.tracks ?? []).map((t) => ({

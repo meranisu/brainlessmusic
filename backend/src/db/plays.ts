@@ -39,10 +39,11 @@ let scrobbleTransaction:
   | ((userId: number, trackId: number, msPlayed: number | null, playedAt: string | null) => number)
   | null = null;
 
-/** Returns the new play's id, which the app uses to report the final listening time (A62). */
 /**
- * [playedAt] is when a play made offline happened (A87), in SQLite's `datetime('now')` shape; null means now. A late
- * play never moves the track's `last_played_at` back.
+ * Returns the new play's id, which the app uses to report the final listening time (A62). [playedAt] is when a play
+ * made offline happened (A87), in SQLite's `datetime('now')` shape; null means now. A late play never moves the track's
+ * `last_played_at` back. The same offline play sent twice (the phone resends one whose answer it never got) is counted
+ * once: the second send returns the first one's id.
  */
 export function recordScrobble(
   userId: number,
@@ -56,6 +57,13 @@ export function recordScrobble(
 
 function buildScrobbleTransaction() {
   return db.transaction((userId: number, trackId: number, msPlayed: number | null, playedAt: string | null): number => {
+    if (playedAt) {
+      const sent = db
+        .prepare('SELECT id FROM play_history WHERE user_id = ? AND track_id = ? AND played_at = ?')
+        .get(userId, trackId, playedAt) as { id: number } | undefined;
+      if (sent) return sent.id;
+    }
+
     const playId = Number(
       db
         .prepare(

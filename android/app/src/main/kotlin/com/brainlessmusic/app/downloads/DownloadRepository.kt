@@ -16,6 +16,7 @@ import com.brainlessmusic.app.data.remote.dto.PlaylistDetailDto
 import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.playback.QueueItem
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -75,6 +76,14 @@ class DownloadRepository @Inject constructor(
 
     private var progressPoll: Job? = null
 
+    private val loaded = CompletableDeferred<Unit>()
+
+    /**
+     * Whether the stored downloads have been read. Until then [isDownloaded] is false for everything, so offline
+     * decisions must wait for it rather than conclude nothing is on the phone.
+     */
+    val isLoaded: Boolean get() = loaded.isCompleted
+
     init {
         manager.addListener(object : DownloadManager.Listener {
             override fun onDownloadChanged(manager: DownloadManager, download: Download, finalException: Exception?) {
@@ -93,19 +102,12 @@ class DownloadRepository @Inject constructor(
             }
         })
         scope.launch {
-            val stored = withContext(Dispatchers.IO) {
-                buildMap {
-                    manager.downloadIndex.getDownloads().use { cursor ->
-                        while (cursor.moveToNext()) {
-                            val d = cursor.download
-                            trackIdOf(d.request.id)?.let { put(it, d.toTrackDownload()) }
-                        }
-                    }
-                }
-            }
+            // A broken index shows as nothing downloaded rather than taking the app down.
+            val stored = runCatching { withContext(Dispatchers.IO) { readIndex() } }.getOrDefault(emptyMap())
             // A listener update that landed first is newer than the index.
             _downloads.value = stored + _downloads.value
             _spaceUsed.value = cache.cacheSpace
+            loaded.complete(Unit)
             // Unfinished downloads left by a closed app carry on.
             if (stored.values.any { it.isActive }) {
                 runCatching { DownloadService.start(context, MusicDownloadService::class.java) }
@@ -231,6 +233,7 @@ class DownloadRepository @Inject constructor(
      * phone, for when there is no signal to stream them.
      */
     suspend fun queueOf(groupId: String, onlyDownloaded: Boolean): List<QueueItem> {
+        loaded.await()
         val cover = dao.group(groupId)?.coverPath?.let { File(it).toUri().toString() }
         return dao.tracksOf(groupId)
             .filter { !onlyDownloaded || isDownloaded(it.trackId) }
@@ -290,6 +293,15 @@ class DownloadRepository @Inject constructor(
                 }
                 _spaceUsed.value = cache.cacheSpace
                 delay(500)
+            }
+        }
+    }
+
+    private fun readIndex(): Map<Int, TrackDownload> = buildMap {
+        manager.downloadIndex.getDownloads().use { cursor ->
+            while (cursor.moveToNext()) {
+                val d = cursor.download
+                trackIdOf(d.request.id)?.let { put(it, d.toTrackDownload()) }
             }
         }
     }

@@ -4,6 +4,36 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Fixes from reviewing the offline downloads work (v0.3.19)
+
+From a review of `d40389c..20ebcea`/`98e085f`; every finding was checked against the code before fixing.
+
+- **Data saver no longer hides downloads.** A song queued as the data-saver copy kept that URL after it finished
+  downloading, and the copy's cache key never matched the downloaded original, so offline it failed and was skipped.
+  Queued songs (all but the playing one) are now re-pointed whenever the set of downloaded songs changes
+  (`rebuildQueuedItems()`, which data saver's switch now shares).
+- **Opening with no signal waits for the downloads list.** It loads in the background; until it had, every song looked
+  not downloaded, so Downloads could say "None of these songs are on the phone yet" and a resumed queue could pause.
+  `queueOf()` waits for it, offline skipping holds off until it is in, and a broken index reads as empty instead of
+  crashing.
+- **Offline plays aren't credited to the next account.** Logout now tries once more to send them, then clears them.
+- **Plays are kept when smol is down but the phone has signal.** Cloudflare's 502/530 used to drop them; now any
+  failure except a 400 or 404 keeps the play (a 403, 408 or 429 used to drop a waiting one for good). Waiting plays are
+  retried every 5 minutes while online and after any play the server accepts, not only when the network changes.
+- **The play still going on isn't sent early.** Sent mid-song, its later listening time had nowhere to go; it now waits
+  until the song ends.
+- **A resent offline play counts once.** The server returns the first play's id when the same user, track and
+  `playedAt` arrive again, instead of counting a second play. `playedAt: null` is accepted as now.
+- **An offline start checks the login once there's signal**: an account saved before the guest flag existed is no
+  longer treated as a guest for the rest of the run, and a 401 then ends the session.
+- **Captive-portal Wi-Fi counts as offline** (`NET_CAPABILITY_VALIDATED`), so the downloads take over.
+- **Repeat-all offline wraps round** to downloaded songs at the start instead of stopping at the end.
+- **Web search** no longer keeps the last results on screen after the box is cleared.
+- Stacked doc comments merged (`LibraryRepository.scrobble`, `recordScrobble`, the crossfade player's).
+- Verified: `cd backend && npm test`, 429 tests, 0 failures (2 new); `npx tsc --noEmit` clean; `cd frontend && npm run
+  build` clean, no lint findings on `SearchPage`; `./gradlew assembleDebug testDebugUnitTest lintDebug` succeeds: 62
+  tests, 0 failures, lint 0 errors, no new warnings. Not run on a phone.
+
 ## 2026-10-11 — Plays made offline are counted with the time they happened (A87; offline downloads, step 5)
 
 - **Backend:** `POST /tracks/:id/scrobble` takes an optional `playedAt` (ISO 8601). It must be within the last 30 days

@@ -15,6 +15,9 @@ class PendingPlaysTest {
         assertFalse(ConnectionException(ConnectionError.Unauthorized).isRefusedForGood())
         assertFalse(ConnectionException(ConnectionError.Unreachable).isRefusedForGood())
         assertFalse(ConnectionException(ConnectionError.Unknown("HTTP 503")).isRefusedForGood())
+        assertFalse(ConnectionException(ConnectionError.Unknown("HTTP 403")).isRefusedForGood())
+        assertFalse(ConnectionException(ConnectionError.Unknown("HTTP 429")).isRefusedForGood())
+        assertFalse(ConnectionException(ConnectionError.Unknown("HTTP 408")).isRefusedForGood())
         assertFalse(RuntimeException("boom").isRefusedForGood())
         assertFalse(null.isRefusedForGood())
     }

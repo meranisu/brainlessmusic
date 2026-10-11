@@ -79,6 +79,21 @@ describe('scrobble playedAt (offline plays, A87)', () => {
     assert.equal(count.play_count, 2);
   });
 
+  it('counts an offline play sent twice only once', async () => {
+    const at = hoursAgo(2);
+    const first = await scrobble({ msPlayed: 30_000, playedAt: at });
+    const again = await scrobble({ msPlayed: 30_000, playedAt: at });
+    assert.equal(again.statusCode, 201, again.body);
+    assert.equal(again.json().playId, first.json().playId);
+    assert.equal((db.prepare('SELECT COUNT(*) AS n FROM play_history').get() as { n: number }).n, 1);
+    const count = db.prepare('SELECT play_count FROM tracks WHERE id = ?').get(trackId) as { play_count: number };
+    assert.equal(count.play_count, 1);
+  });
+
+  it('treats playedAt: null as now', async () => {
+    assert.equal((await scrobble({ msPlayed: 30_000, playedAt: null })).statusCode, 201);
+  });
+
   it('refuses a time that is too old, in the future or not a time', async () => {
     for (const playedAt of [hoursAgo(31 * 24), hoursAgo(-1), 'yesterday', 12345]) {
       const res = await scrobble({ msPlayed: 30_000, playedAt });
