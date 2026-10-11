@@ -216,6 +216,12 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
             message,
           });
         }
+        // music-metadata reads a text file named `.mp3` or `.wav` without complaint, it just finds no audio. Filed, it
+        // would be a track that never plays. Scans stay lenient; this check is for uploads only.
+        if (!tags.duration || tags.duration <= 0) {
+          request.log.warn({ filename: data.filename }, 'Uploaded file has no playable audio');
+          return reply.code(400).send({ error: 'No playable audio found. The file may be corrupt or not audio.' });
+        }
 
         // Uploads go to the configured folder, never to a root added for scanning an existing drive.
         const defaultRoot = findLibraryRootByPath(config.libraryPath);

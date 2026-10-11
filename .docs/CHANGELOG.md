@@ -4,6 +4,24 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Upload refuses files with no audio; web page takes .wav and .aac
+
+- **Backend:** `POST /tracks/upload` now returns 400 "No playable audio found" when the tag reader finds no duration.
+  music-metadata parses a text file named `.mp3` or `.wav` without throwing, so before this it was filed into the
+  library as a track that could never play. Library scans are unchanged; the check is in the upload route only.
+- **Web upload page:** accepts `.wav` and `.aac`, which the server already took but the page filtered out. Files it
+  can't take are now listed ("Skipped 1 file that isn't audio: readme.txt") instead of vanishing. A 413 that isn't
+  JSON (a proxy's own page, such as Cloudflare's) reads "File is too large for the server to accept".
+- **Tests:** `upload.test.ts` gained a fake-audio refusal, a non-admin 403, and a real ffmpeg-made MP3 filed under
+  Artist/Album with staging left empty.
+- Verified: `cd backend && npm test` (456/456, none skipped); `cd frontend && npm run build` and `npm run lint` (no
+  warnings in UploadPage). Ran a separate backend on :3091 with scratch DB and library paths and used the page in
+  headless Chromium: real `.mp3` and `.wav` filed under `Scratch Artist/Scratch Album/`, the fake `.mp3` showed the new
+  error with Retry, `readme.txt` was listed as skipped, staging was empty afterwards. **Not run:** the non-JSON 413
+  path (needs Cloudflare in front); not tried on a phone.
+- Uploads over 100 MB through music.nobrainmusic.my: upload them over Tailscale instead (A99), documented in
+  `.docs/ops/cloudflare-tunnel-deployment.md`.
+
 ## 2026-10-11 — Android: a fuller Home for guests
 
 - **Guest card** in the player card's place: "Guest", a line saying plays, likes and playlists are only kept for

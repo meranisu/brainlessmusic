@@ -71,6 +71,12 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A99 — Big uploads go over Tailscale, not the public address *(was Q101)*
+**Answered:** 2026-10-11, picked option A. Cloudflare refuses request bodies over 100 MB, so files that big are
+uploaded from `http://100.110.131.71:3000/upload` (smol over Tailscale), which skips Cloudflare. No code change; the
+1 GB server limit stays. Checked the same day: `/api/health` and `/upload` answer 200 over Tailscale. How-to:
+[ops/cloudflare-tunnel-deployment.md](ops/cloudflare-tunnel-deployment.md) ("Uploads over 100 MB").
+
 ### A98 — Guests get a smaller Home *(was Q100)*
 **Answered:** 2026-10-11, picked option A. Guests see the greeting and Shuffle my library; the stats parts don't show.
 Plan: [features/home-tab/planning.md](features/home-tab/planning.md).

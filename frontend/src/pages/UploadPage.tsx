@@ -3,7 +3,8 @@ import { useRef, useState, type DragEvent } from 'react';
 import { API_BASE_URL, getToken } from '../lib/apiClient';
 import type { TrackSummary } from '../types/api';
 
-const AUDIO_EXTENSIONS = new Set(['.flac', '.opus', '.mp3', '.m4a', '.ogg']);
+// Must match AUDIO_EXTENSIONS in backend/src/services/trackTags.ts; a type missing here can't be picked at all.
+const AUDIO_EXTENSIONS = new Set(['.flac', '.opus', '.mp3', '.m4a', '.ogg', '.wav', '.aac']);
 
 type UploadStatus = 'queued' | 'uploading' | 'success' | 'error';
 
@@ -42,7 +43,8 @@ function uploadWithProgress(file: File, onProgress: (pct: number) => void): Prom
           reject(new Error(payload.error ?? `Upload failed (${xhr.status})`));
         }
       } catch {
-        reject(new Error(`Upload failed (${xhr.status})`));
+        // Not JSON: a proxy in front answered instead of the server. Cloudflare refuses bodies over 100 MB this way.
+        reject(new Error(xhr.status === 413 ? 'File is too large for the server to accept' : `Upload failed (${xhr.status})`));
       }
     };
     xhr.onerror = () => reject(new Error('Network error during upload'));
@@ -57,12 +59,15 @@ const MAX_CONCURRENT = 3;
 
 export function UploadPage() {
   const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [skipped, setSkipped] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const inFlight = useRef(0);
 
   function addFiles(files: FileList | File[]) {
-    const items: QueueItem[] = Array.from(files)
+    const all = Array.from(files);
+    setSkipped(all.filter((f) => !AUDIO_EXTENSIONS.has(extOf(f.name))).map((f) => f.name));
+    const items: QueueItem[] = all
       .filter((f) => AUDIO_EXTENSIONS.has(extOf(f.name)))
       .map((f) => ({ id: crypto.randomUUID(), file: f, status: 'queued', progress: 0 }));
     setQueue((prev) => [...prev, ...items]);
@@ -122,7 +127,7 @@ export function UploadPage() {
           ↑
         </span>
         <p className="text-sm font-medium text-blue-100">Drop audio files here, or click to browse</p>
-        <p className="mt-1 text-xs text-blue-400">.flac .opus .mp3 .m4a .ogg</p>
+        <p className="mt-1 text-xs text-blue-400">{[...AUDIO_EXTENSIONS].join(' ')}</p>
         <input
           ref={inputRef}
           type="file"
@@ -132,6 +137,13 @@ export function UploadPage() {
           onChange={(e) => e.target.files && addFiles(e.target.files)}
         />
       </div>
+
+      {skipped.length > 0 && (
+        <p role="status" className="mt-3 break-words text-sm text-red-300">
+          Skipped {skipped.length === 1 ? '1 file' : `${skipped.length} files`} that {skipped.length === 1 ? "isn't" : "aren't"} audio:{' '}
+          {skipped.join(', ')}
+        </p>
+      )}
 
       {queue.length > 0 && (
         <>

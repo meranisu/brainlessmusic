@@ -212,6 +212,19 @@ committed upstream.
 Tested 2026-10-10 against the local `brainless-app` only (deploy, rollback, deploy, local-edit guard); not yet
 run on smol.
 
+## Uploads over 100 MB
+
+Cloudflare refuses request bodies over 100 MB on the Free and Pro plans, so a big hi-res FLAC can't be uploaded
+through `https://music.nobrainmusic.my`. The page then says "File is too large for the server to accept". Upload
+those from smol's Tailscale address instead, which skips Cloudflare (A99):
+
+1. Make sure Tailscale is connected on the computer you upload from.
+2. Open `http://100.110.131.71:3000/upload`.
+3. Sign in again. It is a different address to the browser, so the session from the public site doesn't carry over.
+4. Drop the files in as usual. The server's own limit is `MAX_UPLOAD_SIZE_MB` (1024 by default).
+
+Checked 2026-10-11: `/api/health` and `/upload` answer 200 at that address.
+
 ## If something needs re-checking later
 
 - **Token compromised or rotating:** delete/recreate the tunnel in Zero

@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `POST /tracks/upload` handler: `backend/src/routes/tracks.ts`; `uploadWithProgress()`, `addFiles()`, `UploadPage`: `frontend/src/pages/UploadPage.tsx`
+**Date:** 2026-10-11
+**How added:** upload review follow-up (owner request)
+**Purpose:** keep files with no audio out of the library, and make the web page take every type the server takes.
+**Side effects:** an upload with no readable duration is refused with 400 and nothing is filed or left in staging.
+**Before:** a text file named `.mp3` or `.wav` was filed as a track; the page silently dropped `.wav`, `.aac` and non-audio files; a non-JSON 413 read "Upload failed (413)".
+**After:** such a file is refused; `.wav` and `.aac` upload from the page; skipped files are listed by name; a non-JSON 413 says the file is too large.
+
 **Function:** `loadGuest()`, `playPick()`, `guestPicks()`, `guestAlbumPicks()`, `GuestHome`, `AlbumPick` (all new) — `android/.../ui/profile/YouViewModel.kt`; `GuestHomeList`, `GuestCard`, `CoverRow` (new), `RecentRow` — `YouScreen.kt`
 **Date:** 2026-10-11
 **How added:** new feature (owner request)
