@@ -103,20 +103,20 @@ Results at review time:
 
 ## Lower priority
 
-- [ ] **C22. Migrations aren't atomic** (`backend/src/db/migrator.ts:35-36`).
+- [x] **C22. Migrations aren't atomic** (`backend/src/db/migrator.ts:35-36`). Fixed in cedd21d.
       - There's no transaction around exec plus record. A multi-statement migration that fails partway leaves the
         database stuck.
-- [ ] **C23. Concurrent uploads with the same name can overwrite each other** (`services/trackFiling.ts:164-174`).
+- [x] **C23. Concurrent uploads with the same name can overwrite each other** (`services/trackFiling.ts:164-174`). Fixed in cedd21d.
       - The check, then `rename`, is not atomic.
-- [ ] **C24. A hung ffmpeg holds a transcode slot forever** (`services/streaming.ts:232-250`).
+- [x] **C24. A hung ffmpeg holds a transcode slot forever** (`services/streaming.ts:232-250`). Fixed in cedd21d.
       - There is no timeout. With 2 slots, two hangs mean 503 for every low-quality stream.
-- [ ] **C25. Two first registrations can both become admin.**
+- [x] **C25. Two first registrations can both become admin.** Fixed in cedd21d.
       - `isBootstrap` is read before `await hashPassword` (`routes/auth.ts:268-272`).
       - The same gap turns a duplicate username into a 500 instead of a 409.
-- [ ] **C26. The stream-monitor listener map grows without bound.**
+- [x] **C26. The stream-monitor listener map grows without bound.** Fixed in cedd21d.
       - It's keyed by user id plus User-Agent and swept only when an admin opens the control center
         (`services/streamMonitor.ts:59`, `:70`).
-- [ ] **C27. Upload staging files leak on abort or on a filing error** (`routes/tracks.ts:193`, `:221-224`). Admin-only.
+- [x] **C27. Upload staging files leak on abort or on a filing error** (`routes/tracks.ts:193`, `:221-224`). Admin-only. Fixed in cedd21d.
 - [x] **C28. Android: `roomFor` fires one GET per missing song with no cap in the code** Fixed in 87f2978. (`DownloadRepository.kt:211-213`).
       - OkHttp's limit of 5 per host applies, so a big playlist is slow to start rather than a flood.
 - [x] **C29. Android: `sendThenClear` timeout race** Fixed in 3ee0161. (`PendingPlays.kt:83`).
@@ -133,7 +133,7 @@ Results at review time:
       - `removeFromGroup`'s Boolean result is unused (`:131`, caller `DownloadRepository.kt:179`).
 - [x] **C34. Web: the background media-token fetch is stored under whichever session exists when it returns** Fixed in bbb6de3.
       (`apiClient.ts:127-129`). Narrow.
-- [ ] **C35. Web: `revokeObjectURL` runs right after `a.click()`** (`guestCodeCard.ts:63-68`).
+- [x] **C35. Web: `revokeObjectURL` runs right after `a.click()`** (`guestCodeCard.ts:63-68`). Fixed in cedd21d.
       - Some older browsers then save nothing.
 
 ## Checked and found sound
