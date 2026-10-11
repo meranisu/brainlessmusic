@@ -95,6 +95,11 @@ import com.brainlessmusic.app.ui.navigation.Routes
 import com.brainlessmusic.app.ui.profile.SongMenuSheet
 import kotlinx.coroutines.launch
 import com.brainlessmusic.app.ui.theme.AppIcons
+import com.brainlessmusic.app.ui.theme.rowShape
+import com.brainlessmusic.app.ui.common.dockedHeader
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CutCornerShape
 
 // The floating header (tabs, or the search field) covers the top of the list, so every list starts this far down.
 private val TabBarClearance = 68.dp
@@ -151,12 +156,17 @@ fun LibraryScreen(
                 LibraryTab.GENRES -> GenresTab()
             }
             // A flat band in the page colour behind the header: rows end cleanly at its edge instead of showing beside the pills.
+            // Docked (Lane), it is the header's own strip, closed by an edge line.
             Box(
                 Modifier
                     .fillMaxWidth()
                     .height(TabBarClearance)
-                    .background(MaterialTheme.colorScheme.background),
-            )
+                    .background(if (dockedHeader) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.background),
+            ) {
+                if (dockedHeader) {
+                    Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outline))
+                }
+            }
             LibraryHeader(
                 tab = tab,
                 onSelectTab = viewModel::selectTab,
@@ -220,18 +230,18 @@ private fun LibraryHeader(
             SongFilterField(text = filter, onChange = onFilterChange, modifier = Modifier.weight(1f))
             HeaderButton(AppIcons.close, "Close search", onCloseSearch)
         } else {
-            LibraryTabBar(selected = tab, onSelect = onSelectTab)
+            LibraryTabBar(selected = tab, onSelect = onSelectTab, modifier = if (dockedHeader) Modifier.weight(1f) else Modifier)
             HeaderButton(AppIcons.search, "Search songs", onOpenSearch)
         }
     }
 }
 
-/** Round, in the pill's colours and border, so it reads as part of the same bar. */
+/** Round, in the pill's colours and border, so it reads as part of the same bar; a hexagon in Lane, as its buttons are. */
 @Composable
 private fun HeaderButton(icon: ImageVector, description: String, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
-        shape = CircleShape,
+        shape = if (dockedHeader) CutCornerShape(50) else CircleShape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
@@ -244,6 +254,10 @@ private fun HeaderButton(icon: ImageVector, description: String, onClick: () -> 
 /** A pill that floats over the list rather than sitting in the layout, so content scrolls under it. */
 @Composable
 private fun LibraryTabBar(selected: LibraryTab, onSelect: (LibraryTab) -> Unit, modifier: Modifier = Modifier) {
+    if (dockedHeader) {
+        SlantTabs(selected, onSelect, modifier)
+        return
+    }
     Surface(
         modifier = modifier.height(HeaderHeight),
         shape = CircleShape,
@@ -269,6 +283,42 @@ private fun LibraryTabBar(selected: LibraryTab, onSelect: (LibraryTab) -> Unit, 
                         Text(text = tab.label, style = MaterialTheme.typography.labelLarge)
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Lane's tabs: Arcaea's slanted segments side by side across the strip, the open one filled in the accent, the rest
+ * outlined, as its difficulty selector reads.
+ */
+@Composable
+private fun SlantTabs(selected: LibraryTab, onSelect: (LibraryTab) -> Unit, modifier: Modifier = Modifier) {
+    val scheme = MaterialTheme.colorScheme
+    val shape = MaterialTheme.rowShape
+    Row(
+        modifier = modifier.height(HeaderHeight),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        LibraryTab.entries.forEach { tab ->
+            val isSelected = tab == selected
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(38.dp)
+                    .clip(shape)
+                    .background(if (isSelected) scheme.primary else scheme.surfaceContainerHigh)
+                    .border(1.dp, if (isSelected) scheme.primary else scheme.outline, shape)
+                    .selectable(selected = isSelected, role = Role.Tab, onClick = { onSelect(tab) }),
+            ) {
+                Text(
+                    tab.label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (isSelected) scheme.onPrimary else scheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
             }
         }
     }
@@ -428,7 +478,7 @@ private fun SongFilterField(text: String, onChange: (String) -> Unit, modifier: 
     }
     Surface(
         modifier = modifier.height(HeaderHeight),
-        shape = CircleShape,
+        shape = if (dockedHeader) MaterialTheme.shapes.medium else CircleShape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     ) {

@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `segmentShape()`, `SkinDragHandle()`, `EdgeLine()`, `MiniPlayButton()`, `dockedHeader` (new): `android/.../ui/common/SkinParts.kt`; `SlantTabs()` (new), `LibraryTabBar()`, `HeaderButton()`, `SongFilterField()` (changed): `android/.../ui/library/LibraryScreen.kt`
+**Date:** 2026-10-11
+**How added:** owner request
+**Purpose:** Lane's tabs, bars, sheet handles and segmented pickers docked and drawn in Arcaea's shapes.
+**Side effects:** none. `MiniPlayer`, `AppBottomBar`, `QueueSheet`, `YouScreen` and `SettingsScreen` call them.
+**Before:** Lane drew Material's floating tab pill, round segment ends, Material's handle and play icon button.
+**After:** Lane docks and slants them; Standard and Hit circle draw what they did.
+
 **Function:** `ArcadeWelcome()`, `SkinMark()` (new): `android/.../ui/splash/ArcadeWelcome.kt`; `StartViewModel.welcome()`, `welcomed()` (new): `android/.../ui/splash/StartViewModel.kt`
 **Date:** 2026-10-11
 **How added:** owner request

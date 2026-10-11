@@ -52,6 +52,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.brainlessmusic.app.ui.common.SkinSheet
+import com.brainlessmusic.app.ui.common.SkinDragHandle
 import com.brainlessmusic.app.playback.PlaybackUiState
 import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.playback.RemovedEntry
@@ -164,7 +165,7 @@ fun QueueSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = {
-            Box(Modifier.padding(top = underStatusBar)) { BottomSheetDefaults.DragHandle() }
+            Box(Modifier.padding(top = underStatusBar)) { SkinDragHandle() }
         },
     ) {
         SheetStatusBarFollowsApp()

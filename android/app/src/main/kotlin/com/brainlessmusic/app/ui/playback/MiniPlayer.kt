@@ -13,10 +13,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -32,9 +28,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.brainlessmusic.app.ui.common.MiniCover
 import com.brainlessmusic.app.ui.common.floatingBars
+import com.brainlessmusic.app.ui.common.MiniPlayButton
 import com.brainlessmusic.app.ui.common.MiniProgress
 import kotlin.math.abs
-import com.brainlessmusic.app.ui.theme.AppIcons
 
 /**
  * Above the navigation bar, in its `surfaceContainer` color so the two read as one. Draws nothing with an empty queue.
@@ -117,16 +113,7 @@ fun MiniPlayer(
                         )
                     }
                 }
-                IconButton(onClick = viewModel::togglePlayPause) {
-                    if (state.isBuffering && !state.isPlaying) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                    } else {
-                        Icon(
-                            imageVector = if (state.isPlaying) AppIcons.pause else AppIcons.play,
-                            contentDescription = if (state.isPlaying) "Pause" else "Play",
-                        )
-                    }
-                }
+                MiniPlayButton(playing = state.isPlaying, buffering = state.isBuffering, onClick = viewModel::togglePlayPause)
             }
         }
     }

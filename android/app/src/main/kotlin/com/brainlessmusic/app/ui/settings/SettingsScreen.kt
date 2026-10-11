@@ -35,7 +35,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
+import com.brainlessmusic.app.ui.common.segmentShape
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -302,7 +302,7 @@ fun SettingsPageScreen(
                                     SegmentedButton(
                                         selected = mode == themeMode,
                                         onClick = { viewModel.setThemeMode(mode) },
-                                        shape = SegmentedButtonDefaults.itemShape(index, ThemeMode.entries.size),
+                                        shape = segmentShape(index, ThemeMode.entries.size),
                                     ) { Text(mode.label) }
                                 }
                             }
@@ -430,7 +430,7 @@ fun SettingsPageScreen(
                                         SegmentedButton(
                                             selected = seconds == transitions.fadeSeconds,
                                             onClick = { viewModel.setFadeSeconds(seconds) },
-                                            shape = SegmentedButtonDefaults.itemShape(index, FADE_LENGTHS.size),
+                                            shape = segmentShape(index, FADE_LENGTHS.size),
                                         ) { Text("$seconds s") }
                                     }
                                 }

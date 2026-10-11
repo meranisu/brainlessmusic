@@ -37,7 +37,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
+import com.brainlessmusic.app.ui.common.segmentShape
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -510,7 +510,7 @@ private fun RangePicker(range: StatsRange, onPick: (StatsRange) -> Unit) {
             SegmentedButton(
                 selected = r == range,
                 onClick = { onPick(r) },
-                shape = SegmentedButtonDefaults.itemShape(index, StatsRange.entries.size),
+                shape = segmentShape(index, StatsRange.entries.size),
             ) { Text(r.label, maxLines = 1) }
         }
     }

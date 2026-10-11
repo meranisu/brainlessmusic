@@ -1,5 +1,33 @@
 [
   {
+    "version": "0.3.43",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "lane, part two: nothing floats anymore. the library tabs (songs, albums, artists, genres) sit in a strip across the top as slanted arcaea tabs, the open one filled in",
+              "the mini player and bottom bar sit flat at the bottom with a thin edge line, and the mini play button is a little diamond",
+              "sheets got a lane handle too, and the week/month/year and light/dark pickers have cut corners now"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.42",
     "date": "2026-10-11",
     "sections": [

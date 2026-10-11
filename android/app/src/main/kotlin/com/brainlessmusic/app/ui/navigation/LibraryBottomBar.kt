@@ -14,6 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.brainlessmusic.app.ui.common.floatingBars
+import com.brainlessmusic.app.ui.common.EdgeLine
+import androidx.compose.foundation.layout.Column
 import com.brainlessmusic.app.ui.common.TabIcon
 import com.brainlessmusic.app.ui.common.tabColors
 import androidx.compose.material3.NavigationBar
@@ -81,7 +83,11 @@ fun LibraryBottomBar(navController: NavHostController, onReselect: () -> Unit = 
             NavigationBar(containerColor = Color.Transparent, tonalElevation = 0.dp, windowInsets = WindowInsets(0), content = items)
         }
     } else {
-        NavigationBar(content = items)
+        // Docked; Lane closes it with an edge line along the top.
+        Column {
+            EdgeLine()
+            NavigationBar(content = items)
+        }
     }
 }
 

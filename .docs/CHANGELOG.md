@@ -4,6 +4,17 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Lane, docked bars and tabs in its own style
+
+- Owner's request: in Lane, the Library's tabs (Songs, Albums, Artists, Genres) stop floating as a pill and dock as a
+  full-width strip under an edge line, each tab a slanted segment, the open one filled in the accent; the search button
+  is a hexagon and the filter field corner-cut (`SlantTabs`, `dockedHeader`). Segmented pickers (light/dark, fade
+  length, Week/Month/Year) cut their outer ends instead of rounding them (`segmentShape`).
+- Same for the mini player, the bottom bar and the sheets: all docked. The bottom bar gets an edge line along its top
+  (`EdgeLine`), the mini player's play becomes a small accent diamond (`MiniPlayButton`), and every sheet's handle is a
+  slanted bar between two diamonds (`SkinDragHandle`, also in the queue). Standard and Hit circle are unchanged.
+- Verified: `./gradlew :app:compileDebugKotlin` builds. **Not run:** on a phone.
+
 ## 2026-10-11: An arcade welcome on the way in
 
 - Owner's idea: entering the app plays a card-in, like signing in to an arcade machine. After a sign-in, or when the app

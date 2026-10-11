@@ -1,6 +1,19 @@
 package com.brainlessmusic.app.ui.common
 
 import androidx.compose.foundation.Canvas
+import com.brainlessmusic.app.ui.theme.SlantShape
+import com.brainlessmusic.app.ui.theme.AppIcons
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.draw.rotate
@@ -159,6 +172,82 @@ fun MiniCover(url: String?, progress: Float) {
     }
 }
 
+/**
+ * One button's shape in a segmented row (light/dark, Week/Month/Year). Lane cuts the outer ends on the diagonal, as
+ * its panels are cut; the others keep Material's pill ends.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun segmentShape(index: Int, count: Int): Shape = when {
+    LocalSkin.current != Skin.LANE -> SegmentedButtonDefaults.itemShape(index, count)
+    count == 1 -> CutCornerShape(topStart = 10.dp, bottomEnd = 10.dp)
+    index == 0 -> CutCornerShape(topStart = 10.dp)
+    index == count - 1 -> CutCornerShape(bottomEnd = 10.dp)
+    else -> RectangleShape
+}
+
+/** A sheet's handle: Material's bar, or in Lane a slanted bar between two diamonds. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SkinDragHandle() {
+    if (LocalSkin.current != Skin.LANE) {
+        BottomSheetDefaults.DragHandle()
+        return
+    }
+    val scheme = MaterialTheme.colorScheme
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.padding(vertical = 16.dp),
+    ) {
+        Diamond(5.dp, scheme.primary)
+        Box(Modifier.size(width = 36.dp, height = 4.dp).clip(SlantShape(3.dp)).background(scheme.onSurfaceVariant))
+        Diamond(5.dp, scheme.primary)
+    }
+}
+
+/** The line Lane closes a docked bar with, as Arcaea edges its panels; nothing in the other skins. */
+@Composable
+fun EdgeLine(modifier: Modifier = Modifier) {
+    if (LocalSkin.current != Skin.LANE) return
+    Box(modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outline))
+}
+
+/** The mini player's play button: an icon button, or in Lane a small accent diamond like its player's. */
+@Composable
+fun MiniPlayButton(playing: Boolean, buffering: Boolean, onClick: () -> Unit) {
+    val label = if (playing) "Pause" else "Play"
+    if (LocalSkin.current != Skin.LANE) {
+        IconButton(onClick = onClick) {
+            if (buffering && !playing) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+            } else {
+                Icon(if (playing) AppIcons.pause else AppIcons.play, contentDescription = label)
+            }
+        }
+        return
+    }
+    val scheme = MaterialTheme.colorScheme
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(48.dp)
+            .clickable(role = Role.Button, onClickLabel = null, onClick = onClick)
+            .semantics { contentDescription = label },
+    ) {
+        Box(Modifier.size(28.dp).rotate(45f).background(scheme.primary))
+        if (buffering && !playing) {
+            CircularProgressIndicator(modifier = Modifier.size(18.dp), color = scheme.onPrimary, strokeWidth = 2.dp)
+        } else {
+            Icon(if (playing) AppIcons.pause else AppIcons.play, contentDescription = null, tint = scheme.onPrimary, modifier = Modifier.size(18.dp))
+        }
+    }
+}
+
+/** Lane docks a screen's header (the Library's tabs) as a full-width strip; the others float it as a pill. */
+val dockedHeader: Boolean
+    @Composable get() = LocalSkin.current == Skin.LANE
+
 /** Hit circle floats the mini player and the tab bar as outlined pills off the edge; Standard docks them. */
 val floatingBars: Boolean
     @Composable get() = LocalSkin.current == Skin.HIT_CIRCLE
@@ -199,7 +288,7 @@ fun TabIcon(selected: Boolean, content: @Composable () -> Unit) {
 fun SkinSheet(
     onDismissRequest: () -> Unit,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-    dragHandle: @Composable (() -> Unit)? = { BottomSheetDefaults.DragHandle() },
+    dragHandle: @Composable (() -> Unit)? = { SkinDragHandle() },
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val lane = LocalSkin.current == Skin.LANE
