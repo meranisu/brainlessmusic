@@ -4,6 +4,19 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Review fix C9: a rescan keeps an admin's tag edit (migration 0025)
+
+- `PATCH /tracks/:id` edits title, artist, album and track number in the database only; write-back to files is still
+  open (Q5). The scan's `upsertTrack` wrote the file's tags back over the row, so the 12-hourly sync quietly undid
+  every edit.
+- Migration `0025_add_track_tags_edited_at.sql` adds `tracks.tags_edited_at`. `updateTrackFields` sets it whenever a
+  tag field changes; hide and not-recommended don't. On a rescan, `upsertTrack` keeps those four fields for an edited
+  track and still refreshes duration, format, size, bitrate, sample rate and root from the file.
+- There is no "revert to file tags" yet. An edited track stays as edited until someone edits it again.
+- Verified: `cd backend && npm test` 443/443 pass. New tests in `db/browse.test.ts`: an edited track keeps its tags
+  through a rescan while its file size refreshes; an unedited one follows its file; hiding doesn't freeze tags.
+  Backend `tsc --noEmit` is clean. Not deployed.
+
 ## 2026-10-11 — Review fix C8: a password change ends older sessions (migration 0024)
 
 - JWTs had no link to the user row past its id, so after an admin reset a compromised account's password, the

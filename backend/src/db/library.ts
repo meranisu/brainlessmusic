@@ -34,6 +34,8 @@ export interface TrackRow {
   last_stream_error: string | null;
   missing_since: string | null;
   root_id: number | null;
+  /** Set by an admin's tag edit; a scan then leaves title, artist, album and track number alone (C9). See `0025`. */
+  tags_edited_at: string | null;
 }
 
 export interface TrackInput {
@@ -98,7 +100,11 @@ export function findTracksByIds(ids: number[]): TrackRow[] {
   return db.prepare(`SELECT * FROM tracks WHERE id IN (${placeholders})`).all(...ids) as TrackRow[];
 }
 
-/** Inserts or updates a track by path, creating its artist and album as needed. */
+/**
+ * Inserts or updates a track by path, creating its artist and album as needed. A track an admin has edited
+ * (`tags_edited_at`) keeps its title, artist, album and track number: the edit isn't in the file, so the file's tags
+ * would undo it (C9). Everything read from the audio itself is still refreshed.
+ */
 export function upsertTrack(input: TrackInput): TrackRow {
   const artist = input.artistName ? findOrCreateArtist(input.artistName) : null;
   const album = input.albumTitle
@@ -109,10 +115,10 @@ export function upsertTrack(input: TrackInput): TrackRow {
     `INSERT INTO tracks (path, title, artist_id, album_id, track_number, duration, format, file_size, bitrate, sample_rate, root_id)
      VALUES (@path, @title, @artistId, @albumId, @trackNumber, @duration, @format, @fileSize, @bitrate, @sampleRate, @rootId)
      ON CONFLICT (path) DO UPDATE SET
-       title = excluded.title,
-       artist_id = excluded.artist_id,
-       album_id = excluded.album_id,
-       track_number = excluded.track_number,
+       title = CASE WHEN tracks.tags_edited_at IS NULL THEN excluded.title ELSE tracks.title END,
+       artist_id = CASE WHEN tracks.tags_edited_at IS NULL THEN excluded.artist_id ELSE tracks.artist_id END,
+       album_id = CASE WHEN tracks.tags_edited_at IS NULL THEN excluded.album_id ELSE tracks.album_id END,
+       track_number = CASE WHEN tracks.tags_edited_at IS NULL THEN excluded.track_number ELSE tracks.track_number END,
        duration = excluded.duration,
        format = excluded.format,
        file_size = excluded.file_size,
@@ -164,6 +170,10 @@ export function updateTrackFields(id: number, update: TrackFieldUpdate): TrackRo
   if (update.trackNumber !== undefined) {
     sets.push('track_number = @trackNumber');
     params.trackNumber = update.trackNumber;
+  }
+  if (sets.length > 0) {
+    // Only tag fields so far: visibility flags below aren't something a scan would undo.
+    sets.push("tags_edited_at = datetime('now')");
   }
   if (update.hidden !== undefined) {
     sets.push('hidden = @hidden');

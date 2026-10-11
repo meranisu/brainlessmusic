@@ -11,7 +11,7 @@ import {
   listTracks,
   searchLibrary,
 } from './browse.js';
-import { markTracksMissing, upsertTrack } from './library.js';
+import { findTrackById, markTracksMissing, updateTrackFields, upsertTrack } from './library.js';
 import { insertLibraryRoot } from './libraryRoots.js';
 import { countTopTracks, listTopTracks, recordScrobble } from './plays.js';
 import { addTrackToPlaylist, createPlaylist, getPlaylistDetail } from './playlists.js';
@@ -174,5 +174,48 @@ describe('what is deliberately NOT filtered', () => {
       detail.tracks.some((t) => t.id === missing),
       'a hand-curated playlist keeps what was put in it',
     );
+  });
+});
+
+describe('rescanning an edited track', () => {
+  function rescan(path: string, title: string, fileSize: number) {
+    return upsertTrack({
+      path,
+      title,
+      artistName: 'File Artist',
+      albumTitle: 'File Album',
+      albumYear: null,
+      trackNumber: 9,
+      duration: 100,
+      format: 'MP3',
+      fileSize,
+      rootId,
+    });
+  }
+
+  it("keeps an admin's tag edit, and still refreshes what comes from the audio", () => {
+    const track = rescan('/library/edited.mp3', 'File Title', 1000);
+    updateTrackFields(track.id, { title: 'Fixed Title', artistName: 'Fixed Artist', trackNumber: 2 });
+
+    rescan('/library/edited.mp3', 'File Title', 2000);
+
+    const after = findTrackById(track.id)!;
+    assert.equal(after.title, 'Fixed Title');
+    assert.equal(after.track_number, 2);
+    assert.notEqual(after.tags_edited_at, null);
+    assert.equal(after.file_size, 2000, 'the file itself is still re-read');
+  });
+
+  it('keeps an untouched track in step with its file', () => {
+    const track = rescan('/library/plain.mp3', 'Old Title', 1000);
+    rescan('/library/plain.mp3', 'New Title', 1000);
+    assert.equal(findTrackById(track.id)!.title, 'New Title');
+  });
+
+  it("doesn't freeze tags for a visibility change", () => {
+    const track = rescan('/library/hidden.mp3', 'Old Title', 1000);
+    updateTrackFields(track.id, { hidden: true });
+    rescan('/library/hidden.mp3', 'New Title', 1000);
+    assert.equal(findTrackById(track.id)!.title, 'New Title');
   });
 });

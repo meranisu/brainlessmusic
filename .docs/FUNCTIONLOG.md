@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `upsertTrack()`, `updateTrackFields()` — `backend/src/db/library.ts`
+**Date:** 2026-10-11
+**How added:** bug fix (review C9)
+**Purpose:** stop a library scan undoing an admin's tag edit.
+**Side effects:** `updateTrackFields` also writes `tags_edited_at`.
+**Before:** every rescan overwrote title, artist, album and track number from the file.
+**After:** a track with `tags_edited_at` set keeps those four; everything else still follows the file.
+
 **Function:** `signToken()`, `signMediaToken()`, `verifySessionToken()`, `verifyMediaToken()` (changed), `userFrom()` (new) — `backend/src/services/token.ts`
 **Date:** 2026-10-11
 **How added:** hardening (review C8)

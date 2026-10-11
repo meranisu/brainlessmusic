@@ -180,6 +180,7 @@ have no other way to be reclaimed. It runs only when `POST /auth/guest` hits
 | `last_stream_error` | TEXT | nullable | — | added in `0006`, written by the stream route on failure (missing file, transcode error) |
 | `waveform` | TEXT | nullable | — | added in `0009`. Base64 of one unsigned byte per bucket (128 buckets), each the peak amplitude of that slice of the track. Computed from the file on the first `GET /tracks/:id/waveform` and cached here. `NULL` means "not yet asked for", never "cannot be drawn" — failures are deliberately not recorded, because the usual cause is a file mid-copy or moved and both fix themselves. Base64 rather than a JSON array: ~9MB across 50k tracks against ~35MB |
 | `missing_since` | TEXT | nullable | — | added in `0010`. ISO timestamp of when the file at `path` was first observed absent by the reconciliation sweep; `NULL` means present. Set once and not re-stamped on later sweeps — it answers "since when", so re-stamping would make a months-old absence look like this morning's. Cleared (along with `last_stream_error`) the moment the file comes back, so a library on a mount that comes and goes heals itself. **A flag, never a deletion** — removing the row would take `favorites` and `playlist_tracks` entries with it, for a file that may still exist elsewhere |
+| `tags_edited_at` | TEXT | nullable | — | Added `0025`. When an admin last edited title, artist, album or track number (`updateTrackFields`). Non-NULL makes a rescan (`upsertTrack`'s `ON CONFLICT`) keep those four instead of the file's tags, since edits aren't written to the file (Q5, C9). Everything else from the file is still refreshed. Visibility flags don't set it |
 | `artwork_id` | TEXT | nullable | — | added in `0007`. Filename of the cached cover embedded in *this* file: `<sha256>.<jpg\|png\|webp\|gif>` under `ARTWORK_PATH`. Same backfill caveat as `bitrate` — existing rows stay `NULL` until re-scanned. `GET /tracks/:id/cover` falls back to `albums.artwork_id` when this is `NULL` |
 
 **FKs:** `artist_id → artists.id`, `album_id → albums.id` (both `NO ACTION` / `NO ACTION`).
@@ -479,6 +480,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | `0022_guest_accounts.sql` | `users.display_name`, `guest_code_requests` + `idx_guest_code_requests_status`, `guest_code_signins` + `idx_guest_code_signins_code` (A67-A70) |
 | `0023_guest_request_collected_at.sql` | `guest_code_requests.collected_at` — a lost collect can be repeated for 10 minutes (G1) |
 | `0024_add_user_session_version.sql` | `users.session_version` — a password change ends older sessions (C8) |
+| `0025_add_track_tags_edited_at.sql` | `tracks.tags_edited_at` — a rescan keeps an admin's tag edit (C9) |
 | `0021_add_play_history_ms_final.sql` | `play_history.ms_final`: marks plays whose `ms_played` is the real total (A62) |
 | `0020_add_user_theme.sql` | `users.theme` — the web theme follows the profile (A55) |
 
@@ -486,6 +488,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-10-11 | Migration `0025_add_track_tags_edited_at.sql` — `tracks.tags_edited_at`; column row and migration row. From the migration SQL and the test run | C9 (codebase review): the 12-hourly scan put the file's tags back over an admin's edit |
 | 2026-10-11 | Migration `0024_add_user_session_version.sql` — `users.session_version`; column row and migration row. From the migration SQL and the test run | C8 (codebase review): changing a password left every existing session working for up to 7 days |
 | 2026-10-11 | Migration `0023_guest_request_collected_at.sql` — `guest_code_requests.collected_at`. From the migration SQL and the test run | G1 (guest-accounts review): an approved request whose one answer never reached the device left a guest nobody could sign in as |
 | 2026-10-11 | Migration `0022_guest_accounts.sql` — `users.display_name`; new `guest_code_requests` and `guest_code_signins` sections; `guest_codes` notes and relationship rows updated. Written from the migration SQL and the test run, not introspected from the live DB | A67-A70: a guest code becomes a reusable key to one guest, with names, a request queue and a sign-in log |
