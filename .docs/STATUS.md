@@ -32,7 +32,7 @@ Work the first unticked box there.
 | Android Phase 2 — playback (Media3, queue, Now Playing, scrobble) | Done, owner-confirmed on the phone 2026-10-11 (box 17) | [features/android-phase-2-playback](features/android-phase-2-playback/planning.md) |
 | Android Phase 3 — background (MediaSession, foreground service, notification/lock-screen controls) | Done, owner-confirmed on the phone 2026-10-11 (box 18) | [features/android-phase-3-background](features/android-phase-3-background/planning.md) |
 | Reach it from outside (roadmap box 13) | Done, owner-confirmed 2026-10-11 (box 13); Cloudflare Access still off pending Q77/Q78 | [ops/cloudflare-tunnel-deployment.md](ops/cloudflare-tunnel-deployment.md) |
-| Room sync (v0.3) | Spec agreed (box 21, A100–A103); backend, web and Android built 2026-10-11 (`/together`, Listen together screen on Android); web checked in headless Chromium, Android socket client checked against a scratch server, not on a phone yet; not on smol, no Android release yet | [specs/room-sync.md](specs/room-sync.md) |
+| Room sync (v0.3) | Spec agreed (box 21, A100–A103); backend, web and Android built 2026-10-11 (`/together`, Listen together screen on Android); web checked in headless Chromium, Android socket client checked against a scratch server, not on a phone yet; smol answers the room routes and socket (checked 2026-10-11); Android v0.3.28 released with it | [specs/room-sync.md](specs/room-sync.md) |
 
 ## Resolved decisions (one line each; reasoning is in the linked doc)
 
@@ -52,7 +52,7 @@ The list is [QUESTIONS.md](QUESTIONS.md) — check it before asking anything. Bl
 
 1. v0.2 is done: box 19 (offline downloads) passed the phone checklist 2026-10-11.
 2. Cloudflare Access (A74): switch on once Q77 and Q78 are answered.
-3. v0.3: room-sync spec agreed ([specs/room-sync.md](specs/room-sync.md)); backend and web built (steps 1–2); the owner trying two tabs closes box 22, the Control Center monitor (step 3) and Android (step 4) are built too. Next: deploy the backend to smol, then an Android release, then the two-person walkthrough (step 5).
+3. v0.3: room-sync spec agreed ([specs/room-sync.md](specs/room-sync.md)); backend and web built (steps 1–2); the owner trying two tabs closes box 22, the Control Center monitor (step 3) and Android (step 4) are built too. Next: the owner tries a phone and a browser in one room, then the two-person walkthrough (step 5).
 4. Backend commits after 97ba069 (3724daa, 8fe408e, 920cd50) are not confirmed on smol yet.
 5. The 2026-10-11 review findings are fixed (ca945ba, 6ded2eb, and F2/F5/G2 after; on smol). Left: G3 (closed by
    Access, A74, once it is on), and the unconfirmed "plausible" items in
