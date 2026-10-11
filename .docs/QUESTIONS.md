@@ -71,6 +71,13 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A93 — Borderless Settings: brighter dark cards, a cursor flash on tap *(was Q95)*
+**Answered:** 2026-10-11, in chat: "lets fix". Both review findings fixed. **1.** In the dark, the sub-page card moves
+up to `surfaceContainerHighest` (card/ground now 1.24-1.67, was 1.07-1.43), and inside it tonal buttons, switch
+tracks, colour tiles and dividers take the ground colour so they don't vanish into the card. Light is unchanged: its
+card is already white. **2.** A tap on a main-page row holds the accent fill for 120 ms before the page opens.
+Landed in `SettingsScreen.kt` (`Card`, `PageRow`).
+
 ### A92 — Settings goes borderless: arcade menu on the main page, filled cards below *(was Q94)*
 **Answered:** 2026-10-11, in chat: "go with d, only the card outlines". The Settings main page is an arcade options
 menu: page names large in Barlow Condensed on the ground, the current value on the right in the accent, and the row

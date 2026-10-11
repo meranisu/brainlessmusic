@@ -57,6 +57,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -80,11 +81,14 @@ import com.brainlessmusic.app.ui.playback.SeekBar
 import com.brainlessmusic.app.ui.theme.accentInk
 import com.brainlessmusic.app.ui.theme.previewColorScheme
 import com.brainlessmusic.app.ui.theme.supportsMaterialYou
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 // Settings is the borderless exception to DESIGN.md's outlines (A92): flat fills, no stroke, no shadow.
 private val CardShape = RoundedCornerShape(20.dp)
 private val TileShape = RoundedCornerShape(14.dp)
 private val RowShape = RoundedCornerShape(12.dp)
+private const val CursorFlashMs = 120L
 
 /** The pages under Settings, each its own screen off the list. */
 enum class SettingsPage(val route: String, val title: String) {
@@ -228,7 +232,7 @@ fun SettingsPageScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
-            Card {
+            Card(darkTheme) {
                 when (page) {
                     SettingsPage.APPEARANCE -> {
                         Block(title = "Light or dark") {
@@ -434,6 +438,8 @@ fun SettingsPageScreen(
 /**
  * A row on the Settings list that opens a page, laid out like an arcade options screen: the page name large on the
  * left, what's set now on the right. Pressed or focused, the row fills with the accent, like the select screen's cursor.
+ * A quick tap in a scrolling column never shows as pressed (the press is delayed, then released at once), so a tap
+ * holds the fill for [CursorFlashMs] before the page opens (Q95).
  */
 @Composable
 private fun PageRow(title: String, value: String, onClick: () -> Unit) {
@@ -441,14 +447,23 @@ private fun PageRow(title: String, value: String, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val focused by interaction.collectIsFocusedAsState()
-    val lit = pressed || focused
+    var flashing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val lit = pressed || focused || flashing
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 64.dp)
             .background(if (lit) scheme.primary else Color.Transparent, RowShape)
-            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick)
+            .clickable(interactionSource = interaction, indication = null, role = Role.Button, enabled = !flashing) {
+                flashing = true
+                scope.launch {
+                    delay(CursorFlashMs)
+                    onClick()
+                    flashing = false
+                }
+            }
             .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
         Text(
@@ -473,15 +488,35 @@ private fun PageRow(title: String, value: String, onClick: () -> Unit) {
     }
 }
 
-/** Settings on one filled card. The fill alone sets it off from the ground; no outline (A92). */
+/**
+ * Settings on one filled card. The fill alone sets it off from the ground; no outline (A92).
+ *
+ * In the dark, `surfaceContainer` sits 1.07-1.43:1 off the ground, too faint without an outline (Q95), so the card
+ * takes the next step up. Everything inside that would share that fill (tonal buttons, switch tracks, colour tiles,
+ * dividers) is moved to the ground instead, reading as cut into the card. Light keeps `surfaceContainer`: it is
+ * already white, the brightest the palette has.
+ */
 @Composable
-private fun Card(content: @Composable ColumnScope.() -> Unit) {
+private fun Card(darkTheme: Boolean, content: @Composable ColumnScope.() -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    val fill = if (darkTheme) scheme.surfaceContainerHighest else scheme.surfaceContainer
+    val inside = if (darkTheme) {
+        scheme.copy(
+            surfaceContainerHighest = scheme.background,
+            secondaryContainer = scheme.background,
+            outlineVariant = scheme.background,
+        )
+    } else {
+        scheme
+    }
     Surface(
         shape = CardShape,
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        color = fill,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(content = content)
+        MaterialTheme(colorScheme = inside, typography = MaterialTheme.typography) {
+            Column(content = content)
+        }
     }
 }
 
