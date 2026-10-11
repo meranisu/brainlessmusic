@@ -388,21 +388,34 @@ private fun DownloadTile(row: DownloadRow, onOpen: () -> Unit) {
     }
 }
 
-/** One cover, or with four or more a 2×2 mosaic of the first four, so the Songs tile shows what's in it. */
+/**
+ * The Songs tile's picture: up to six covers, laid out by how many there are. Columns of stacked cells, left to right:
+ * one fills the tile, two sit side by side, three are one tall and two stacked, then 2+2, 2+3 and 3+3.
+ */
 @Composable
 internal fun CoverMosaic(covers: List<String?>, modifier: Modifier = Modifier) {
-    if (covers.size < 4) {
-        CoverImage(url = covers.firstOrNull(), contentDescription = null, modifier = modifier, cornerRadius = 14.dp)
+    val shown = covers.take(MOSAIC_MAX)
+    if (shown.size <= 1) {
+        CoverImage(url = shown.firstOrNull(), contentDescription = null, modifier = modifier, cornerRadius = 14.dp)
         return
     }
-    Column(modifier.clip(RoundedCornerShape(14.dp))) {
-        covers.take(4).chunked(2).forEach { pair ->
-            Row(Modifier.weight(1f)) {
-                pair.forEach { CoverImage(url = it, contentDescription = null, modifier = Modifier.weight(1f).fillMaxHeight(), cornerRadius = 0.dp) }
+    val perColumn = MosaicColumns[shown.size - 2]
+    var next = 0
+    Row(modifier.clip(RoundedCornerShape(14.dp))) {
+        perColumn.forEach { count ->
+            val column = shown.subList(next, next + count)
+            next += count
+            Column(Modifier.weight(1f).fillMaxHeight()) {
+                column.forEach {
+                    CoverImage(url = it, contentDescription = null, modifier = Modifier.weight(1f).fillMaxWidth(), cornerRadius = 0.dp)
+                }
             }
         }
     }
 }
+
+/** Cells per column for two to six covers. */
+private val MosaicColumns = listOf(listOf(1, 1), listOf(1, 2), listOf(2, 2), listOf(2, 3), listOf(3, 3))
 
 /** Done, downloading (a ring), failed, or partly on the phone, on a solid disc so it reads over any cover. */
 @Composable

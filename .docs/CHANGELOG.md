@@ -4,6 +4,15 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android: Songs tile mosaic of up to six covers
+
+- **The Songs tile and its page header combine up to six covers**, laid out by count: one fills the tile, two side by
+  side, three as one tall and two stacked, then 2+2, 2+3 and 3+3 columns. It was one cover, or a 2×2 at four or more.
+- One cover per album, newest first (`mosaicCovers`): songs off the same album share art, so repeats are skipped;
+  songs with no saved cover are skipped too.
+- Verified: `./gradlew compileDebugKotlin :app:testDebugUnitTest` for `MosaicCoversTest` (3/3, new) and
+  `DownloadRowTest`. **Not run:** no phone or emulator here, so the tile has not been seen.
+
 ## 2026-10-11 — Android: Downloads empty state, album on download song lists
 
 - **With nothing downloaded, the Downloads tab explains itself** instead of one line of text: a download icon, "Nothing

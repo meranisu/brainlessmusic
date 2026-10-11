@@ -84,10 +84,10 @@ data class GroupPage(
     /** The group's cover, or for "Songs" each song's own, by track id. */
     val songCovers: Map<Int, String?> = emptyMap(),
 ) {
-    /** The header's covers: the group's own, or the newest four songs' for "Songs". */
+    /** The header's covers: the group's own, or a mosaic of the newest songs' for "Songs". */
     val covers: List<String?>
         get() = if (group?.kind == KIND_SONGS) {
-            songs.asReversed().take(4).map { songCovers[it.first.trackId] }
+            mosaicCovers(songs.asReversed().map { it.first.albumId to songCovers[it.first.trackId] })
         } else {
             listOf(group?.coverPath?.let { File(it).toUri().toString() })
         }

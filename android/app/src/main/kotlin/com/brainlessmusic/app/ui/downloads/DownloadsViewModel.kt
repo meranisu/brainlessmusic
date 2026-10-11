@@ -74,8 +74,23 @@ private data class Stored(
     /** The saved cover of each song downloaded on its own, by track id. */
     val songCovers: Map<Int, String?>,
 ) {
-    /** The newest four of [ids]' own covers, for the Songs tile. */
-    fun songCovers(ids: List<Int>): List<String?> = ids.asReversed().take(4).map { songCovers[it] }
+    /** The Songs tile's mosaic from [ids]' own covers. */
+    fun songCovers(ids: List<Int>): List<String?> {
+        val albums = songs.associate { it.track.trackId to it.track.albumId }
+        return mosaicCovers(ids.asReversed().map { albums[it] to songCovers[it] })
+    }
+}
+
+/** The most covers a mosaic shows. */
+internal const val MOSAIC_MAX = 6
+
+/**
+ * Up to [MOSAIC_MAX] covers, newest first, from (album id, cover) pairs. One per album: two songs off the same album
+ * share a picture, so a second copy would waste a cell. Songs with no saved cover are skipped.
+ */
+internal fun mosaicCovers(newestFirst: List<Pair<Int?, String?>>): List<String> {
+    val seen = mutableSetOf<Int>()
+    return newestFirst.mapNotNull { (album, cover) -> cover?.takeIf { album == null || seen.add(album) } }.take(MOSAIC_MAX)
 }
 
 private data class Live(

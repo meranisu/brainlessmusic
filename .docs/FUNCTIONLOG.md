@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `mosaicCovers()` (new), `Stored.songCovers()`, `GroupPage.covers` — `android/.../ui/downloads/DownloadsViewModel.kt`, `DownloadGroupScreen.kt`; `CoverMosaic` — `DownloadsScreen.kt`
+**Date:** 2026-10-11
+**How added:** new feature (owner request)
+**Purpose:** the Songs tile shows up to six album covers instead of one or four.
+**Side effects:** none.
+**Before:** one cover, or a 2×2 of the newest four songs' covers (repeats included).
+**After:** 1 to 6 covers, one per album, newest first, in a layout chosen by count.
+
 **Function:** `NothingDownloaded` (new), `HowToRow` (new) — `android/.../ui/downloads/DownloadsScreen.kt`; `LoadStateContent(empty)` — `android/.../ui/common/LoadStateContent.kt`
 **Date:** 2026-10-11
 **How added:** new feature (owner request)
