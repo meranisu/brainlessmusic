@@ -4,6 +4,7 @@ import { RequireAdmin } from './auth/RequireAdmin';
 import { RequireAccount } from './auth/RequireAccount';
 import { RequireAuth } from './auth/RequireAuth';
 import { AppShell } from './components/AppShell';
+import { NowLoading } from './components/NowLoading';
 import { lazyPage } from './lib/lazyPage';
 
 // One chunk per route, so visitors download only the screens they reach (most never open the admin pages).
@@ -34,7 +35,7 @@ const AdminDashboard = lazyPage(() => import('./pages/AdminDashboard').then((m) 
 
 export function App() {
   return (
-    <Suspense fallback={<p className="p-4 text-sm text-blue-300">Loading…</p>}>
+    <Suspense fallback={<NowLoading />}>
       <Routes>
         {/* The way in: the title screen (at `/` while signed out, see RequireAuth), then account select (password,
             passcode or guest). No hidden admin door. */}

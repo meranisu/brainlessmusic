@@ -12,6 +12,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 **Before:** the app went straight from the splash or sign-in to Home.
 **After:** after a sign-in or a cold start on a saved session, about 2 s of welcome over Home.
 
+**Function:** `SkinSheet()` (changed): `android/.../ui/common/SkinParts.kt`
+**Date:** 2026-10-11
+**How added:** owner bug report
+**Purpose:** keep the sheets' outline on the card, and open Hit circle's in the middle of the screen (A124).
+**Side effects:** Hit circle ignores `sheetState` and `dragHandle`. Lane's handle is placed by `SkinSheet`, so it loses Material's collapse/dismiss accessibility actions; the scrim and Back still dismiss.
+**Before:** border and padding passed through `ModalBottomSheet`'s `modifier`, drawn apart from the moving card.
+**After:** Hit circle: a centred `Dialog` card. Lane: the panel drawn inside the content of a transparent sheet.
+
+**Function:** `NowLoading()` (new): `frontend/src/components/NowLoading.tsx`; `RequireAuth()`, `App()` (changed)
+**Date:** 2026-10-11
+**How added:** owner request
+**Purpose:** an arcade loading screen for the waits after a refresh.
+**Side effects:** none.
+**Before:** `RequireAuth` rendered nothing while the session was checked; the route fallback was a small "Loading…" line.
+**After:** both render `NowLoading`.
+
 **Function:** `LaneDeck()`, `ScoreStrip()`, `LaneTrack()`, `drawLane()`, `LaneButton()`, `PlayDiamond()`, `Pure`, `PureText()` (new): `android/.../ui/playback/skins/Lane.kt`
 **Date:** 2026-10-11
 **How added:** owner request (A121)

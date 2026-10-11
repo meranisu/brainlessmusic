@@ -15,6 +15,30 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 - Verified: `./gradlew :app:compileDebugKotlin` builds; `:app:testDebugUnitTest` 105 tests, 1 skipped, 0 failed.
   **Not run:** on a phone.
 
+## 2026-10-11: Android, Hit circle's sheets open as a centred card; sheet borders stay on the card
+
+- Owner's report: on the floating sheets the outline and the card were drawn apart. `ModalBottomSheet` applies its
+  `modifier` before it slides the sheet into place, so `.border()` and the float's padding stayed where the sheet was
+  laid out.
+- Owner's pick (A124): Hit circle's `SkinSheet` is now a `Dialog`, an outlined card centred on the screen (max 560 dp
+  wide, 85% of the height so the queue scrolls inside it), no drag handle. Lane's cut-corner panel stays docked but
+  draws its border inside the sheet's content on a transparent sheet, so it moves with the panel. Standard unchanged.
+- Verified: `./gradlew :app:compileDebugKotlin` builds. **Not run:** on a phone (no device attached), so neither sheet
+  has been seen.
+
+## 2026-10-11: Web, a "NOW LOADING" screen after a refresh
+
+- Owner's request: a refresh showed a blank page, then a small plain "Loading…" in the corner. Both waits (the session
+  check in `RequireAuth`, then the page's chunk in `App`'s `Suspense`) now show `NowLoading`: a full-screen IIDX-style
+  "NOW LOADING" plate in Barlow Condensed over a seven-key strip whose lit key walks across on `--beat` (150 BPM).
+- Flat and in the theme's tokens: the app's own ground (`.app-ground`), keys `blue-900`/`blue-700`, the lit key the
+  accent. Held back 250 ms from app start so a quick refresh shows only the ground; the two copies read their phase off
+  the page clock, so the hand-over doesn't restart the walk. Reduced motion: no walk, the middle key stays lit.
+- Verified: `npm run build` (type check) and `npm run lint` (no new warnings) pass. In headless Chromium against the dev
+  server, with `/api/auth/me` held open: the plate renders at 1280×800 and 360×740 with no horizontal overflow, the lit
+  key moves between frames, Crimson recolours it, reduced motion holds key 4, and the console has no errors. A fast
+  answer showed only the ground. **Not run:** on a real phone or against production.
+
 ## 2026-10-11: Lane skin (after Arcaea), Lavender colours, and a skin-change intro
 
 - Owner's pick (A121): Lane goes next, app-wide. Researched first from the Arcaea wiki's screenshots (play screen, song

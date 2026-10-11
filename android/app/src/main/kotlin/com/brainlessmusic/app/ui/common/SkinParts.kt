@@ -8,9 +8,16 @@ import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -184,8 +191,8 @@ fun TabIcon(selected: Boolean, content: @Composable () -> Unit) {
 }
 
 /**
- * A bottom sheet. Hit circle floats it off the screen's edges as an outlined card, like its mini player and tab bar;
- * Lane docks it with a cut corner; Standard docks it as Material's sheet.
+ * A bottom sheet. Hit circle shows it as an outlined card in the middle of the screen (Q123), like its floating mini
+ * player and tab bar; Lane docks it with a cut corner; Standard docks it as Material's sheet.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -195,34 +202,56 @@ fun SkinSheet(
     dragHandle: @Composable (() -> Unit)? = { BottomSheetDefaults.DragHandle() },
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    if (LocalSkin.current == Skin.LANE) {
-        // An Arcaea panel: the top-left corner cut away, an edge line along the top.
-        val shape = CutCornerShape(topStart = 28.dp)
-        ModalBottomSheet(
-            onDismissRequest = onDismissRequest,
-            sheetState = sheetState,
-            dragHandle = dragHandle,
-            shape = shape,
-            modifier = Modifier.border(1.dp, MaterialTheme.colorScheme.outline, shape),
-            content = content,
-        )
-        return
-    }
-    if (!floatingBars) {
+    val lane = LocalSkin.current == Skin.LANE
+    if (!lane && !floatingBars) {
         ModalBottomSheet(onDismissRequest = onDismissRequest, sheetState = sheetState, dragHandle = dragHandle, content = content)
         return
     }
-    val shape = RoundedCornerShape(28.dp)
+    if (!lane) {
+        // A dialog, not a sheet: nothing to drag, so no handle, and `sheetState` goes unused. Capped in height so a long
+        // list (the queue) scrolls inside the card rather than running off the screen.
+        val shape = RoundedCornerShape(28.dp)
+        val maxHeight = (LocalConfiguration.current.screenHeightDp * 0.85f).dp
+        Dialog(onDismissRequest = onDismissRequest, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            Column(
+                Modifier
+                    .padding(horizontal = 16.dp)
+                    .widthIn(max = 560.dp)
+                    .fillMaxWidth()
+                    .heightIn(max = maxHeight)
+                    .clip(shape)
+                    .background(BottomSheetDefaults.ContainerColor)
+                    .border(1.dp, MaterialTheme.colorScheme.outline, shape)
+                    .padding(vertical = 12.dp),
+                content = content,
+            )
+        }
+        return
+    }
+    // An Arcaea panel, the top-left corner cut away. Drawn inside the sheet's content, not through its `modifier`:
+    // Material applies that before it slides the sheet into place, so a border there stayed behind where the sheet was
+    // laid out while the panel itself moved up from the bottom. The insets go inside, so the panel runs under the
+    // navigation bar.
+    val shape = CutCornerShape(topStart = 28.dp)
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
-        dragHandle = dragHandle,
-        shape = shape,
-        // The insets go outside the card here, so the content's own navigation-bar padding comes out as nothing.
-        modifier = Modifier
-            .windowInsetsPadding(WindowInsets.navigationBars)
-            .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
-            .border(1.dp, MaterialTheme.colorScheme.outline, shape),
-        content = content,
-    )
+        dragHandle = null,
+        shape = RectangleShape,
+        containerColor = Color.Transparent,
+        tonalElevation = 0.dp,
+        contentWindowInsets = { WindowInsets(0) },
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(BottomSheetDefaults.ContainerColor)
+                .border(1.dp, MaterialTheme.colorScheme.outline, shape)
+                .windowInsetsPadding(BottomSheetDefaults.windowInsets),
+        ) {
+            if (dragHandle != null) Box(Modifier.align(Alignment.CenterHorizontally)) { dragHandle() }
+            content()
+        }
+    }
 }

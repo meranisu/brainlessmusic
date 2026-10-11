@@ -61,6 +61,10 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A124 — Hit circle's sheets open in the middle of the screen *(was Q123)*
+**Answered:** 2026-10-11, in chat: "Middle of the screen". Hit circle's floating sheets (song menu, add to playlist,
+update, queue) are an outlined card centred on the screen like a dialog, not a sheet from the bottom. Lane stays docked.
+
 ### A123 — Lane's icons are Lucide *(was Q122)*
 **Answered:** 2026-10-11, in chat: "q122: a". Thin-stroke Lucide icons (ISC licence), generated into the app like Hit
 circle's Font Awesome set, credited in Settings → Licenses.

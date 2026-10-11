@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { lazyPage } from '../lib/lazyPage';
+import { NowLoading } from '../components/NowLoading';
 
 // Its own chunk, as before it moved here from the route table; App's Suspense covers the load.
 const TitleScreenPage = lazyPage(() =>
@@ -12,7 +13,7 @@ export function RequireAuth() {
   const { user, isLoading } = useAuth();
   const { pathname } = useLocation();
 
-  if (isLoading) return null;
+  if (isLoading) return <NowLoading />;
   if (!user) return pathname === '/' ? <TitleScreenPage /> : <Navigate to="/" replace />;
 
   return <Outlet />;
