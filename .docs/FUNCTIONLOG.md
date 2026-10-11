@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `DownloadRepository` new `downloadPlaylist()`, `downloadSong()`, `removeSong()`, `deleteAll()`, `roomFor()`, `needsSignIn`, shared `downloadGroup()` (`downloadAlbum()` now takes `onRefused`); `DownloadDao` new `addToGroup()`, `removeFromGroup()`, `deleteAll()`, `saveGroup()` returns dropped songs; `PlaybackSettings.downloadLimitGb` / `setDownloadLimitGb()`
+**Date:** 2026-10-11
+**How added:** new feature (offline downloads, step 4)
+**Purpose:** playlist and single-song downloads, the storage limit (A88), and pausing on an expired session.
+**Side effects:** `GET /tracks/:id` per song not yet downloaded when a limit is set; DataStore key `download_limit_gb`; deletes files and `download-covers` on Delete all.
+**Before:** albums only, no limit, a 401 failed each song separately.
+**After:** as in the 2026-10-11 step 4 CHANGELOG entry.
+
+**Function:** new `PlaybackController.skipToDownloaded()` (called from `onMediaItemTransition()` and `onPlayerError()`); new `DownloadButton` — `android/.../ui/downloads/DownloadButton.kt`; new `DownloadSettings`, `DownloadSettingsViewModel`, `downloadSummary()` — `android/.../ui/downloads/DownloadSettings.kt`; `PlaylistDetailViewModel` (`download`, `download()`, `removeDownload()`); `SongActionsViewModel` (`downloadStates`, `download()`, `removeDownload()`); `SongMenuSheet`; `SettingsPage.DOWNLOADS`
+**Date:** 2026-10-11
+**How added:** new feature (offline downloads, step 4)
+**Purpose:** with no signal, play only what is on the phone; download buttons for playlists and songs; the Downloads settings page.
+**Side effects:** none beyond the repository's.
+**Before:** offline, each song not downloaded failed in turn; no playlist or song downloads; no download settings.
+**After:** as in the 2026-10-11 step 4 CHANGELOG entry.
+
 **Function:** new `DownloadDatabase`, `DownloadDao` (`saveGroup()`, `deleteGroup()`, `tracksOf()`, `groups()`, `groupTracks()`), `groupDownload()` — `android/.../downloads/`; `DownloadRepository` new `downloadAlbum()`, `removeGroup()`, `queueOf()`, `saveCover()`, `spaceUsed`; new `NetworkMonitor` — `android/.../data/remote/NetworkMonitor.kt`
 **Date:** 2026-10-11
 **How added:** new feature (offline downloads, step 3)

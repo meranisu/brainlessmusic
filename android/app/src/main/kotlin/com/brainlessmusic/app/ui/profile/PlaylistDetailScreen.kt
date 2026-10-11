@@ -1,5 +1,13 @@
 package com.brainlessmusic.app.ui.profile
 
+import androidx.media3.common.util.UnstableApi
+import com.brainlessmusic.app.downloads.DownloadRepository
+import com.brainlessmusic.app.downloads.GroupDownload
+import com.brainlessmusic.app.downloads.groupDownload
+import com.brainlessmusic.app.ui.downloads.DownloadButton
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -97,12 +105,14 @@ private val RemoveColor = Color(0xFFDC2626)
 /** A swiped-away song and the row it was on, for Undo. */
 data class RemovedPlaylistTrack(val track: PlaylistTrackDto, val index: Int)
 
+@androidx.annotation.OptIn(UnstableApi::class)
 @HiltViewModel
 class PlaylistDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val profile: ProfileRepository,
     private val libraryRepository: LibraryRepository,
     private val playbackController: PlaybackController,
+    private val downloadRepository: DownloadRepository,
 ) : ViewModel() {
 
     val playlistId: Int = checkNotNull(savedStateHandle[Routes.ARG_PLAYLIST_ID])
@@ -125,6 +135,21 @@ class PlaylistDetailViewModel @Inject constructor(
     }
 
     private fun current(): PlaylistDetailDto? = (_state.value as? LoadState.Content)?.data
+
+    /** Follows the playlist as it is now, so a song added since the download shows the button as not done. */
+    val download: StateFlow<GroupDownload> =
+        combine(state, downloadRepository.downloads) { s, downloads ->
+            if (s is LoadState.Content) groupDownload(s.data.tracks.map { it.id }, downloads) else GroupDownload.None
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GroupDownload.None)
+
+    /** Downloads it as it is now; doing it again after an edit fetches new songs and lets go of removed ones. */
+    fun download(onRefused: (String) -> Unit) {
+        current()?.let { downloadRepository.downloadPlaylist(it, onRefused) }
+    }
+
+    fun removeDownload() {
+        current()?.let { p -> downloadRepository.removeGroup("playlist:${p.id}", p.tracks.map { it.id }) }
+    }
 
     fun play(startIndex: Int, shuffle: Boolean = false) {
         val playlist = current() ?: return
@@ -231,6 +256,7 @@ fun PlaylistDetailScreen(
     }
     val playlist = (state as? LoadState.Content)?.data
     val context = LocalContext.current
+    val download by viewModel.download.collectAsStateWithLifecycle()
     val showFailure: (String) -> Unit = { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
 
     if (renaming && playlist != null) {
@@ -323,6 +349,12 @@ fun PlaylistDetailScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f),
                             maxLines = 1,
+                        )
+                        DownloadButton(
+                            state = download,
+                            what = "playlist",
+                            onDownload = { viewModel.download { Toast.makeText(context, it, Toast.LENGTH_LONG).show() } },
+                            onRemove = viewModel::removeDownload,
                         )
                     }
                 }

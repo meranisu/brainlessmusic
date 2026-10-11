@@ -1,5 +1,8 @@
 package com.brainlessmusic.app.ui.profile
 
+import androidx.media3.common.util.UnstableApi
+import com.brainlessmusic.app.downloads.DownloadRepository
+import com.brainlessmusic.app.downloads.TrackDownload
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
@@ -58,12 +61,22 @@ import javax.inject.Inject
  * Liking a song and adding it to a playlist, from anywhere a song is shown (A65); accounts only. Also the long-press
  * song menu's play next, play less often and details ([SongMenuSheet]).
  */
+@androidx.annotation.OptIn(UnstableApi::class)
 @HiltViewModel
 class SongActionsViewModel @Inject constructor(
     private val profile: ProfileRepository,
     private val library: LibraryRepository,
     private val playback: PlaybackController,
+    private val downloads: DownloadRepository,
 ) : ViewModel() {
+
+    /** Each song's download, for the menu's Download / Remove download row. Guests can download too. */
+    val downloadStates: StateFlow<Map<Int, TrackDownload>> = downloads.downloads
+
+    /** [onDone] gets the line to show, or why the storage limit refused it. */
+    fun download(item: QueueItem, onDone: (String) -> Unit) = downloads.downloadSong(item, onDone)
+
+    fun removeDownload(trackId: Int) = downloads.removeSong(trackId)
 
     val canEdit: Boolean = !profile.isGuest
     val likedIds: StateFlow<Set<Int>> = profile.likedIds

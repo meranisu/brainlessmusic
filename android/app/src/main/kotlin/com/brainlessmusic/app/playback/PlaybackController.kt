@@ -27,6 +27,7 @@ import com.brainlessmusic.app.data.local.BetweenSongs
 import com.brainlessmusic.app.data.local.PlaybackSettings
 import com.brainlessmusic.app.data.local.TransitionPrefs
 import com.brainlessmusic.app.data.local.isNextOnAlbum
+import com.brainlessmusic.app.data.remote.NetworkMonitor
 import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.downloads.DownloadRepository
 import com.brainlessmusic.app.downloads.TrackCacheKey
@@ -65,6 +66,7 @@ class PlaybackController @Inject constructor(
     private val libraryRepository: LibraryRepository,
     private val settings: PlaybackSettings,
     private val downloads: DownloadRepository,
+    private val networkMonitor: NetworkMonitor,
     // Lazy: opening the download folder is disk work, and waits until the player is first built.
     private val downloadCache: dagger.Lazy<Cache>,
 ) {
@@ -154,6 +156,9 @@ class PlaybackController @Inject constructor(
     private var lastFinish: Job? = null
     private var tickerJob: Job? = null
     private var errorMessage: String? = null
+
+    /** [errorMessage] is only the offline skip notice, which clears itself when the next song starts. */
+    private var skipNotice = false
 
     // The listener's shuffle/repeat choice, applied to the player whenever a queue is loaded.
     private var wantMode = ShuffleMode.OFF
@@ -904,6 +909,12 @@ class PlaybackController @Inject constructor(
         override fun onRepeatModeChanged(repeatMode: Int) = publish()
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            // The skip notice lasts until the next song starts on its own.
+            if (skipNotice && reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+                skipNotice = false
+                errorMessage = null
+            }
+            if (skipToDownloaded(skipCurrent = false)) return
             val ended = boundary
             boundary = null
             if (ended is Boundary.FadeOutIn) {
@@ -924,6 +935,8 @@ class PlaybackController @Inject constructor(
 
         override fun onPlayerError(error: PlaybackException) {
             Log.w(TAG, "Playback failed for track ${queue.getOrNull(player.currentMediaItemIndex)?.trackId}", error)
+            // The signal went mid-song: carry on with what's on the phone instead of trying each song in turn.
+            if (skipToDownloaded(skipCurrent = true)) return
             if (player.hasNextMediaItem()) {
                 // One bad file shouldn't end the whole listen.
                 resetFades()
@@ -941,6 +954,42 @@ class PlaybackController @Inject constructor(
             }
             publish()
         }
+    }
+
+    /**
+     * With no signal, moves from a song that isn't downloaded ([skipCurrent]: or one that just failed) to the next
+     * downloaded one in play order, with one line saying how many were passed over; pauses when none is left. Returns
+     * whether it acted, so the caller leaves this song alone.
+     */
+    private fun skipToDownloaded(skipCurrent: Boolean): Boolean {
+        if (networkMonitor.online.value || queue.isEmpty()) return false
+        val from = player.currentMediaItemIndex
+        val current = queue.getOrNull(from) ?: return false
+        if (!skipCurrent && downloads.isDownloaded(current.trackId)) return false
+        val timeline = player.currentTimeline
+        var index = from
+        var skipped = 1
+        while (true) {
+            index = timeline.getNextWindowIndex(index, Player.REPEAT_MODE_OFF, player.shuffleModeEnabled)
+            if (index == C.INDEX_UNSET) {
+                player.pause()
+                errorMessage = "You're offline, and no downloaded songs are left in the queue."
+                skipNotice = false
+                publish()
+                return true
+            }
+            if (downloads.isDownloaded(queue[index].trackId)) break
+            skipped++
+        }
+        resetFades()
+        player.seekTo(index, 0)
+        player.prepare()
+        if (!skipCurrent || skipped > 1) {
+            errorMessage = if (skipped == 1) "Skipped a song that isn't downloaded." else "Skipped $skipped songs that aren't downloaded."
+            skipNotice = true
+        }
+        publish()
+        return true
     }
 
     private fun beginTrack() {

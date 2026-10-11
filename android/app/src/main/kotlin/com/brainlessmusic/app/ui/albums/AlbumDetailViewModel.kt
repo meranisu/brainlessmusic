@@ -102,7 +102,7 @@ class AlbumDetailViewModel @Inject constructor(
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GroupDownload.None)
 
     /** Original quality, on any network (A85). Songs already on the phone are skipped; failed ones start over. */
-    fun download(album: AlbumDetailDto) = downloadRepository.downloadAlbum(album)
+    fun download(album: AlbumDetailDto, onRefused: (String) -> Unit) = downloadRepository.downloadAlbum(album, onRefused)
 
     /** Also cancels a download still running. Songs a downloaded playlist also holds stay on the phone. */
     fun removeDownload(album: AlbumDetailDto) =

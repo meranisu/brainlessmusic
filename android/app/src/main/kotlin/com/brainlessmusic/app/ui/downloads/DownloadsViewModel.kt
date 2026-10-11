@@ -64,6 +64,9 @@ class DownloadsViewModel @Inject constructor(
 
     val online: StateFlow<Boolean> = networkMonitor.online
 
+    /** A download got a 401: the queue waits for a sign-in. */
+    val needsSignIn: StateFlow<Boolean> = downloads.needsSignIn
+
     fun retryLoad() {
         reload.value++
     }

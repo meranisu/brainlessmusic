@@ -83,6 +83,13 @@ class PlaybackSettings @Inject constructor(
         dataStore.edit { it[DATA_SAVER_KEY] = enabled }
     }
 
+    /** The most downloads may take, in GB; 0 is no limit, the default (A88). */
+    val downloadLimitGb: Flow<Int> = dataStore.data.map { it[DOWNLOAD_LIMIT_GB_KEY] ?: 0 }
+
+    suspend fun setDownloadLimitGb(gb: Int) {
+        dataStore.edit { it[DOWNLOAD_LIMIT_GB_KEY] = gb }
+    }
+
     /** Gapless, crossfade or fade out then in, the pause fade and the album rule (A71, A72). */
     val transitions: Flow<TransitionPrefs> = dataStore.data.map { prefs ->
         val defaults = TransitionPrefs()
@@ -124,5 +131,6 @@ class PlaybackSettings @Inject constructor(
         val FADE_ON_PAUSE_KEY = booleanPreferencesKey("fade_on_pause")
         val KEEP_ALBUMS_GAPLESS_KEY = booleanPreferencesKey("keep_albums_gapless")
         val DATA_SAVER_KEY = booleanPreferencesKey("data_saver")
+        val DOWNLOAD_LIMIT_GB_KEY = intPreferencesKey("download_limit_gb")
     }
 }

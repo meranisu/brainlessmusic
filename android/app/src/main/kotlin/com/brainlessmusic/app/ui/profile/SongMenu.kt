@@ -15,6 +15,8 @@ import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.outlined.Info
@@ -70,6 +72,7 @@ fun SongMenuSheet(
 ) {
     val context = LocalContext.current
     val liked by viewModel.likedIds.collectAsStateWithLifecycle()
+    val downloadStates by viewModel.downloadStates.collectAsStateWithLifecycle()
     var step by remember { mutableStateOf(MenuStep.MENU) }
     val toast: (String) -> Unit = { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
 
@@ -122,6 +125,22 @@ fun SongMenuSheet(
                     onDismiss()
                 }
                 MenuRow(Icons.AutoMirrored.Filled.PlaylistAdd, "Add to playlist") { step = MenuStep.PLAYLIST }
+            }
+            val download = downloadStates[item.trackId]
+            when {
+                download?.isDone == true -> MenuRow(Icons.Filled.DownloadDone, "Remove download") {
+                    viewModel.removeDownload(item.trackId)
+                    toast("Removed from this phone.")
+                    onDismiss()
+                }
+                download?.isActive == true -> MenuRow(Icons.Filled.Download, "Stop download") {
+                    viewModel.removeDownload(item.trackId)
+                    onDismiss()
+                }
+                else -> MenuRow(Icons.Filled.Download, "Download") {
+                    viewModel.download(item, toast)
+                    onDismiss()
+                }
             }
             val albumId = item.albumId
             if (albumId != null && onOpenAlbum != null) {

@@ -49,6 +49,7 @@ import com.brainlessmusic.app.ui.navigation.AppBottomBar
 fun DownloadsScreen(navController: NavHostController, viewModel: DownloadsViewModel = hiltViewModel()) {
     val state by viewModel.rows.collectAsStateWithLifecycle()
     val spaceUsed by viewModel.spaceUsed.collectAsStateWithLifecycle()
+    val needsSignIn by viewModel.needsSignIn.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var confirmRemove by remember { mutableStateOf<DownloadRow?>(null) }
 
@@ -78,6 +79,17 @@ fun DownloadsScreen(navController: NavHostController, viewModel: DownloadsViewMo
             skeleton = { SkeletonListRows() },
         ) { rows ->
             LazyColumn(Modifier.fillMaxSize()) {
+                if (needsSignIn) {
+                    item {
+                        Text(
+                            "The server signed this phone out, so downloads are paused. Log out and back in from " +
+                                "Settings, Account, then retry from each album's menu. Songs already here still play.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
+                    }
+                }
                 item {
                     Text(
                         "${Formatter.formatShortFileSize(context, spaceUsed)} on this phone",

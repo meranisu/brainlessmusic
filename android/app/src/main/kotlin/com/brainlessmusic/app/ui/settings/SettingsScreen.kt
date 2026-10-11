@@ -1,5 +1,8 @@
 package com.brainlessmusic.app.ui.settings
 
+import androidx.compose.material.icons.filled.DownloadForOffline
+import com.brainlessmusic.app.ui.downloads.DownloadSettings
+import com.brainlessmusic.app.ui.downloads.downloadSummary
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -86,6 +89,7 @@ private val TileShape = RoundedCornerShape(14.dp)
 enum class SettingsPage(val route: String, val title: String) {
     APPEARANCE("appearance", "Appearance"),
     PLAYBACK("playback", "Playback"),
+    DOWNLOADS("downloads", "Downloads"),
     ACCOUNT("account", "Account"),
 }
 
@@ -125,6 +129,13 @@ fun SettingsScreen(
                     title = SettingsPage.PLAYBACK.title,
                     summary = "Resuming, swiping the app away",
                     onClick = { onOpenPage(SettingsPage.PLAYBACK) },
+                )
+                Divider()
+                PageRow(
+                    icon = Icons.Filled.DownloadForOffline,
+                    title = SettingsPage.DOWNLOADS.title,
+                    summary = downloadSummary(),
+                    onClick = { onOpenPage(SettingsPage.DOWNLOADS) },
                 )
                 Divider()
                 PageRow(
@@ -265,6 +276,10 @@ fun SettingsPageScreen(
                             }
                         }
                     }
+                    SettingsPage.DOWNLOADS -> DownloadSettings(
+                        block = { title, detail, content -> Block(title, detail, content) },
+                        divider = { Divider() },
+                    )
                     SettingsPage.PLAYBACK -> {
                         SwitchRow(
                             title = "Auto-play on resume",

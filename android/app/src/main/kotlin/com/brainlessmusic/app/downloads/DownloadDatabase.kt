@@ -89,13 +89,67 @@ abstract class DownloadDao {
     @Query("DELETE FROM downloaded_track WHERE trackId IN (:trackIds)")
     protected abstract suspend fun deleteTracks(trackIds: List<Int>)
 
-    /** Saves [group] with exactly [tracks], in order; downloading it again replaces its old song list. */
+    /**
+     * Saves [group] with exactly [tracks], in order; downloading it again replaces its old song list, as when a
+     * playlist changed. Returns songs that dropped out of every group: those files are no longer wanted.
+     */
     @Transaction
-    open suspend fun saveGroup(group: DownloadGroup, tracks: List<DownloadedTrack>) {
+    open suspend fun saveGroup(group: DownloadGroup, tracks: List<DownloadedTrack>): List<Int> {
         putGroup(group)
         putTracks(tracks)
         deleteLinks(group.id)
         putLinks(tracks.mapIndexed { i, t -> DownloadGroupTrack(group.id, t.trackId, i) })
+        return dropUnlinked()
+    }
+
+    @Query("SELECT COALESCE(MAX(position), -1) FROM download_group_track WHERE groupId = :groupId")
+    protected abstract suspend fun lastPosition(groupId: String): Int
+
+    @Query("DELETE FROM download_group_track WHERE groupId = :groupId AND trackId = :trackId")
+    protected abstract suspend fun deleteLink(groupId: String, trackId: Int)
+
+    @Query("SELECT COUNT(*) FROM download_group_track WHERE groupId = :groupId")
+    protected abstract suspend fun linkCount(groupId: String): Int
+
+    @Query("SELECT COUNT(*) FROM download_group_track WHERE trackId = :trackId")
+    abstract suspend fun groupsHolding(trackId: Int): Int
+
+    /** Adds one song to the end of [group], creating it the first time (the single-songs group). */
+    @Transaction
+    open suspend fun addToGroup(group: DownloadGroup, track: DownloadedTrack) {
+        if (group(group.id) == null) putGroup(group)
+        putTracks(listOf(track))
+        putLinks(listOf(DownloadGroupTrack(group.id, track.trackId, lastPosition(group.id) + 1)))
+    }
+
+    /** Takes one song out of [groupId], dropping the group once it is empty. Returns whether no group holds it now. */
+    @Transaction
+    open suspend fun removeFromGroup(groupId: String, trackId: Int): Boolean {
+        deleteLink(groupId, trackId)
+        if (linkCount(groupId) == 0) deleteGroupRow(groupId)
+        return dropUnlinked().contains(trackId) || groupsHolding(trackId) == 0
+    }
+
+    @Query("DELETE FROM download_group")
+    protected abstract suspend fun deleteAllGroups()
+
+    @Query("DELETE FROM download_group_track")
+    protected abstract suspend fun deleteAllLinks()
+
+    @Query("DELETE FROM downloaded_track")
+    protected abstract suspend fun deleteAllTracks()
+
+    @Transaction
+    open suspend fun deleteAll() {
+        deleteAllLinks()
+        deleteAllGroups()
+        deleteAllTracks()
+    }
+
+    private suspend fun dropUnlinked(): List<Int> {
+        val orphans = unlinkedTrackIds()
+        if (orphans.isNotEmpty()) deleteTracks(orphans)
+        return orphans
     }
 
     /**

@@ -4,6 +4,29 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android: playlist and single-song downloads, storage limit, offline skipping (offline downloads, step 4)
+
+- **Playlists download** from a button in the playlist header (accounts only, as playlists are). It is a snapshot:
+  songs added later show the button as not done, and downloading again fetches them and lets go of songs taken out
+  (`DownloadDao.saveGroup()` now returns songs no group holds any more). The cover is the first song's.
+- **Single songs**: Download / Stop download / Remove download in the song menu, for guests too. They gather in a
+  "Songs" group on the Downloads tab. Removing one there takes the file off the phone; an album or playlist that holds
+  it keeps it on its list as not downloaded, so its button offers it again.
+- **Storage limit (A88)**: Settings, Downloads offers No limit (the default), 2, 4, 8, 16 or 32 GB, shows the space
+  used, and has Delete all (asks first). Before queueing, the sizes of the songs not yet on the phone come from
+  `GET /tracks/:id`; a download that would go over doesn't start and says why. Nothing is deleted to make room. The
+  Settings list shows "X used" or "X used of N GB".
+- **No signal while playing**: the player moves past songs that aren't downloaded to the next one that is, in play
+  order (shuffle included), with one line in the mini player ("Skipped 3 songs that aren't downloaded."), cleared when
+  the next song starts on its own. If the signal drops mid-song, the error does the same instead of trying each
+  remaining song in turn. With nothing downloaded left it pauses and says so.
+- **A 401 on a download** (the session ran out) pauses the whole queue, and the Downloads tab says to log out and
+  back in; the next download or retry resumes it.
+- The album page's download button moved to `ui/downloads/DownloadButton.kt`, shared with playlists; its confirm
+  dialog moved inside it.
+- Verified: `./gradlew assembleDebug testDebugUnitTest lintDebug` succeeds: 61 tests, 0 failures; lint 0 errors and no
+  new warnings. No new unit tests: the new logic needs the player, Room or the network. Not run on a phone.
+
 ## 2026-10-11 — Android: Downloads screen, offline banner, and opening on downloads with no signal (offline downloads, step 3)
 
 - **What's downloaded is kept on the phone** in a Room database (`downloads.db`): each song's title, artist and album,
