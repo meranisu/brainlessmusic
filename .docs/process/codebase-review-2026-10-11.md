@@ -47,7 +47,7 @@ Results at review time:
       - Android, after process death: the restored back stack skips SPLASH, so screens load before the session is
         restored and everything 401s (`BrainlessNavGraph.kt:34-46`, `LibraryViewModel.kt:98-101`,
         `StartViewModel.kt:24-35`).
-- [ ] **C8. Changing a password doesn't end existing sessions.**
+- [x] **C8. Changing a password doesn't end existing sessions.** Fixed in bcdb7f9.
       - JWTs have no version or issued-at check (`routes/users.ts:245-250`, `services/token.ts:209`).
       - Existing sessions keep working for up to `JWT_EXPIRES_IN` (7 days).
 - [ ] **C9. A library scan undoes admin tag edits.**
