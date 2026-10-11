@@ -50,7 +50,7 @@ Results at review time:
 - [x] **C8. Changing a password doesn't end existing sessions.** Fixed in bcdb7f9.
       - JWTs have no version or issued-at check (`routes/users.ts:245-250`, `services/token.ts:209`).
       - Existing sessions keep working for up to `JWT_EXPIRES_IN` (7 days).
-- [ ] **C9. A library scan undoes admin tag edits.**
+- [x] **C9. A library scan undoes admin tag edits.** Fixed in efdc95a.
       - `PATCH /tracks/:id` edits the database only, and `upsertTrack`'s `ON CONFLICT(path) DO UPDATE` writes the file's
         tags back (`db/library.ts:108-121` vs `:139`).
       - The 12-hourly scan (`services/librarySync.ts:148`) quietly reverts the edit.
