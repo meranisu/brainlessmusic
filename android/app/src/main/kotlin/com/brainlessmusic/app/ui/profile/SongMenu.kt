@@ -107,8 +107,7 @@ fun SongMenuSheet(
 
             if (showPlayNext) {
                 MenuRow(Icons.AutoMirrored.Filled.PlaylistPlay, "Play next") {
-                    viewModel.playNext(item)
-                    toast("\"${item.title}\" plays next")
+                    toast(viewModel.playNext(item))
                     onDismiss()
                 }
             }

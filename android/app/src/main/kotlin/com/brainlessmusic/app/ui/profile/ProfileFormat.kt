@@ -1,6 +1,11 @@
 package com.brainlessmusic.app.ui.profile
 
 import com.brainlessmusic.app.data.repository.ConnectionException
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import com.brainlessmusic.app.data.repository.toMessage
 
 /** "3 h 20 min", "45 min", "under a minute": listening time at a glance, not to the second. */
@@ -29,13 +34,15 @@ fun formatMonthYear(sqlite: String): String {
     return "${names[month - 1]} ${parts[0]}"
 }
 
-/** `2026-09-03 10:12:44` (SQLite) to `3 Sep 2026`; anything unexpected is shown as it came. */
-fun formatDay(sqlite: String): String {
-    val parts = sqlite.take(10).split("-")
-    val month = parts.getOrNull(1)?.toIntOrNull()?.takeIf { it in 1..12 } ?: return sqlite
-    val day = parts.getOrNull(2)?.toIntOrNull() ?: return sqlite
-    val names = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-    return "$day ${names[month - 1]} ${parts[0]}"
-}
+/**
+ * `2026-09-03 10:12:44` (SQLite `datetime('now')`, so UTC) to `3 Sep 2026` on this phone's calendar: a play at 7 am in
+ * Malaysia is still 23:00 the day before in UTC. Anything unexpected is shown as it came.
+ */
+fun formatDay(sqlite: String): String = runCatching {
+    LocalDateTime.parse(sqlite.take(19).replace(' ', 'T'))
+        .atZone(ZoneOffset.UTC)
+        .withZoneSameInstant(ZoneId.systemDefault())
+        .format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH))
+}.getOrDefault(sqlite)
 
 fun Throwable.loadMessage(): String = (this as? ConnectionException)?.error?.toMessage() ?: "Something went wrong."

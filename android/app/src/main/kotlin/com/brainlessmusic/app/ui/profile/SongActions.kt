@@ -47,6 +47,7 @@ import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.ui.common.LoadState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -86,7 +87,12 @@ class SongActionsViewModel @Inject constructor(
         }
     }
 
-    fun playNext(item: QueueItem) = playback.playNext(item)
+    /** Returns the line to show: with nothing queued, the song starts now rather than next. */
+    fun playNext(item: QueueItem): String {
+        val wasEmpty = playback.state.value.queue.isEmpty()
+        playback.playNext(item)
+        return if (wasEmpty) "Playing \"${item.title}\"" else "\"${item.title}\" plays next"
+    }
 
     /** Fewer shuffle passes for this song from now on (A60), the same mark as a right swipe in the queue. */
     fun playLessOften(trackId: Int, title: String, onDone: (String) -> Unit) {
@@ -103,9 +109,13 @@ class SongActionsViewModel @Inject constructor(
     private val _detail = MutableStateFlow<LoadState<TrackDetailDto>>(LoadState.Loading)
     val detail: StateFlow<LoadState<TrackDetailDto>> = _detail.asStateFlow()
 
+    // The newest details request; a slower one for another song must not land over it.
+    private var detailJob: Job? = null
+
     fun loadDetail(trackId: Int) {
+        detailJob?.cancel()
         _detail.value = LoadState.Loading
-        viewModelScope.launch {
+        detailJob = viewModelScope.launch {
             _detail.value = library.getTrackDetail(trackId).fold(
                 onSuccess = { LoadState.Content(it) },
                 onFailure = { LoadState.Error(it.loadMessage()) },

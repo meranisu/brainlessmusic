@@ -189,6 +189,8 @@ class PlaybackController @Inject constructor(
     private fun applyDataSaver(enabled: Boolean) {
         if (enabled == dataSaver) return
         dataSaver = enabled
+        // Before touching the player: with nothing queued it may not be built yet, and this is no reason to build it.
+        if (queue.isEmpty()) return
         val current = player.currentMediaItemIndex
         if (current !in queue.indices) return
         // A changed URI makes ExoPlayer add-and-remove rather than update, which reshuffles; put the order back after.

@@ -4,6 +4,18 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android: fixes from reviewing the song menu / swipes / data saver change
+
+- Data saver no longer builds the player at launch when it is on and nothing is queued (`applyDataSaver` checks the
+  queue first).
+- The queue's drag handle now gets the 8 dp of extra touch room the entry below claimed: the padding was inside the
+  handle, not around it.
+- Song details can't show a previous song's answer: a new request cancels the one in flight.
+- "Play next" with nothing playing says "Playing ..." (it starts the song) instead of "plays next".
+- Details dates are converted from the server's UTC to the phone's time zone, so a play before 8 am in Malaysia no
+  longer shows as the day before.
+- Verified: `./gradlew compileDebugKotlin testDebugUnitTest` clean. Not run on a phone or emulator.
+
 ## 2026-10-11 — Android: shuffle review fixes (T1, T2, T3, T5)
 
 From `.docs/process/review-2026-10-12-shuffle-off-on-tap.md`.

@@ -235,7 +235,7 @@ fun QueueSheet(
                                             Icons.Filled.DragHandle,
                                             contentDescription = "Drag to move",
                                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.padding(8.dp).draggableHandle(
+                                            modifier = Modifier.draggableHandle(
                                                 onDragStarted = { dragFrom = rows.indexOfFirst { it.key == row.key } },
                                                 onDragStopped = {
                                                     val from = dragFrom
@@ -243,7 +243,7 @@ fun QueueSheet(
                                                     dragFrom = null
                                                     if (from != null && to >= 0 && from != to) onMove(from, to)
                                                 },
-                                            ),
+                                            ).padding(8.dp),
                                         )
                                     }
                                 },
