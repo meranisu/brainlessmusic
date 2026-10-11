@@ -4,6 +4,13 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Hit circle player, a hit burst on every tap
+
+- Owner's request, alongside the fill: tapping any circle in the Hit circle player (shuffle, previous, play, next,
+  repeat) plays osu!'s hit explosion, a ghost of the circle in the accent swelling to 1.5x and fading over 320 ms
+  (`Hit`, `HitBurst` in `skins/HitCircle.kt`). Skipped with animations off.
+- Verified: `./gradlew :app:compileDebugKotlin` builds. **Not run:** on a phone.
+
 ## 2026-10-11: Hit circle player, shuffle and repeat fill when on
 
 - Owner's request: an active shuffle or repeat circle is filled in the accent with the icon in `onPrimary`, like the

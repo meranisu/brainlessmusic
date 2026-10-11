@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `Hit`, `rememberHit()`, `HitBurst()` (new); `HitButton()`, `PlayCircle()` (changed): `android/.../ui/playback/skins/HitCircle.kt`
+**Date:** 2026-10-11
+**How added:** owner request
+**Purpose:** a tapped player circle bursts like a clicked circle in osu!.
+**Side effects:** none.
+**Before:** the circles only rippled.
+**After:** each tap swells a fading accent ghost of the circle.
+
 **Function:** `HitButton()` (changed): `android/.../ui/playback/skins/HitCircle.kt`
 **Date:** 2026-10-11
 **How added:** owner request

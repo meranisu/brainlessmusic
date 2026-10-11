@@ -52,6 +52,13 @@ import com.brainlessmusic.app.ui.playback.shuffleIcon
 import com.brainlessmusic.app.ui.playback.shuffleLabel
 import com.brainlessmusic.app.ui.theme.BrandFontFamily
 import com.brainlessmusic.app.ui.theme.AppIcons
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.foundation.background
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 /** osu!'s grade letters for a [Clear]: a long unbroken run earns the silver SS. */
 private fun grade(clear: Clear, plays: Int): String = when (clear) {
@@ -202,9 +209,14 @@ private fun HitButton(
     size: Dp = 46.dp,
 ) {
     val scheme = MaterialTheme.colorScheme
+    val hit = rememberHit()
     Box(Modifier.alpha(if (enabled) 1f else 0.38f)) {
+        HitBurst(hit, size, Modifier.align(Alignment.Center))
         Surface(
-            onClick = onClick,
+            onClick = {
+                hit.fire()
+                onClick()
+            },
             enabled = enabled,
             shape = CircleShape,
             // On (shuffle, repeat) fills the circle in the accent, like the play circle; off stays hollow-dark.
@@ -229,6 +241,7 @@ private fun HitButton(
 @Composable
 private fun PlayCircle(state: PlaybackUiState, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
+    val hit = rememberHit()
     val approach = if (state.isPlaying && rememberAnimationsOn()) {
         rememberInfiniteTransition(label = "approach").animateFloat(
             initialValue = 0f,
@@ -253,8 +266,12 @@ private fun PlayCircle(state: PlaybackUiState, onClick: () -> Unit) {
                     .border(3.dp, scheme.primary, CircleShape),
             )
         }
+        HitBurst(hit, 72.dp)
         Surface(
-            onClick = onClick,
+            onClick = {
+                hit.fire()
+                onClick()
+            },
             shape = CircleShape,
             color = scheme.primary,
             contentColor = scheme.onPrimary,
@@ -273,4 +290,44 @@ private fun PlayCircle(state: PlaybackUiState, onClick: () -> Unit) {
             }
         }
     }
+}
+
+/** A tap's hit: osu!'s explosion, where a clicked circle's ghost swells and fades. Still with animations off. */
+private class Hit(private val scope: CoroutineScope, private val animate: Boolean) {
+    val progress = Animatable(1f)
+
+    fun fire() {
+        if (!animate) return
+        scope.launch {
+            progress.snapTo(0f)
+            progress.animateTo(1f, tween(320, easing = FastOutSlowInEasing))
+        }
+    }
+}
+
+@Composable
+private fun rememberHit(): Hit {
+    val scope = rememberCoroutineScope()
+    val animate = rememberAnimationsOn()
+    return remember(scope, animate) { Hit(scope, animate) }
+}
+
+/** The swelling ghost behind a circle, drawn while [hit] runs: accent fill and rim, 1x to 1.5x, fading out. */
+@Composable
+private fun HitBurst(hit: Hit, size: Dp, modifier: Modifier = Modifier) {
+    val p = hit.progress.value
+    if (p >= 1f) return
+    val accent = MaterialTheme.colorScheme.primary
+    Box(
+        modifier
+            .size(size)
+            .graphicsLayer {
+                val s = 1f + 0.5f * p
+                scaleX = s
+                scaleY = s
+                alpha = 1f - p
+            }
+            .background(accent.copy(alpha = 0.45f), CircleShape)
+            .border(3.dp, accent, CircleShape),
+    )
 }

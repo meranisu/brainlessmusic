@@ -9,7 +9,8 @@
           {
             "type": "ul",
             "items": [
-              "hit circle player: when shuffle or repeat is on, its circle fills in with your accent colour like the play button, so you can tell at a glance"
+              "hit circle player: when shuffle or repeat is on, its circle fills in with your accent colour like the play button, so you can tell at a glance",
+              "and every circle in the hit circle player bursts when you tap it, like hitting a circle in osu!"
             ]
           }
         ]
