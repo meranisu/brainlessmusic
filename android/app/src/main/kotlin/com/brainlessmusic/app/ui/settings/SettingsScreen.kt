@@ -96,6 +96,7 @@ enum class SettingsPage(val route: String, val title: String) {
     PLAYBACK("playback", "Playback"),
     DOWNLOADS("downloads", "Downloads"),
     ACCOUNT("account", "Account"),
+    LICENSES("licenses", "Licenses"),
 }
 
 /** The Settings tab: one row per page, then the build. */
@@ -171,6 +172,15 @@ fun SettingsScreen(
                         onClick = updateViewModel::checkNow,
                     )
                 }
+            }
+
+            Card {
+                PageRow(
+                    icon = AppIcons.info,
+                    title = SettingsPage.LICENSES.title,
+                    summary = "The app's license, and the fonts, icons and libraries it uses",
+                    onClick = { onOpenPage(SettingsPage.LICENSES) },
+                )
             }
 
             AppSignature()
@@ -328,15 +338,6 @@ fun SettingsPageScreen(
                                     ChoiceOption(option.label, option.detail, selected = option == skin, onClick = { viewModel.setSkin(option) })
                                 }
                             }
-                            // Font Awesome Free's icons are CC BY 4.0, which asks for this credit where they are used.
-                            if (skin == Skin.HIT_CIRCLE) {
-                                Text(
-                                    "Hit circle's icons are Font Awesome Free by Fonticons, Inc., CC BY 4.0.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(top = 8.dp),
-                                )
-                            }
                         }
                         // A game skin brings its own player; these two only shape Standard's.
                         if (skin == Skin.STANDARD) {
@@ -470,6 +471,7 @@ fun SettingsPageScreen(
                             }
                         }
                     }
+                    SettingsPage.LICENSES -> LicensesContent()
                     SettingsPage.ACCOUNT -> {
                         Block(
                             title = displayName ?: username ?: if (viewModel.isGuest) "Guest" else "Logged in",

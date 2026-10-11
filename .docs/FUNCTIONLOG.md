@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `LicensesContent()`, `CreditRow()`, `LicenseText()` (new): `android/.../ui/settings/LicensesContent.kt`; `SettingsPage.LICENSES` (new), `SettingsScreen()`, `SettingsPageScreen()` (changed)
+**Date:** 2026-10-11
+**How added:** owner request
+**Purpose:** one place crediting the app's license and everything it ships, as the CC BY and OFL licenses ask.
+**Side effects:** reads two raw text resources when a license is opened.
+**Before:** the Font Awesome credit was a line under Settings → Appearance → Skin; nothing else was credited in the app.
+**After:** Settings → Licenses lists the app, fonts, icons and libraries with their licenses.
+
 **Function:** `AppIcons` (new, every icon by meaning), `OsuIcons` (new, Font Awesome vectors): `ui/theme/`; `MiniCover()`, `tabColors()`, `floatingBars` (new), `MiniProgress()` (changed): `ui/common/SkinParts.kt`; `MiniPlayer()`, `LibraryBottomBar()`, `SettingsScreen()` and 20 other screens' icon references (changed)
 **Date:** 2026-10-11
 **How added:** owner request

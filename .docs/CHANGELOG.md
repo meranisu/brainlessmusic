@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Android Settings → Licenses
+
+- Owner's request: credits on a page of their own rather than under Skin. Settings has a Licenses row (above the
+  wordmark) opening a page (`ui/settings/LicensesContent.kt`) with: brainlessmusic itself (Apache 2.0, full text);
+  Fredoka and Barlow Condensed (SIL OFL 1.1, full text, each font's copyright); Font Awesome Free 6.5.2 (CC BY 4.0,
+  link) and Material Icons (Apache 2.0); and every shipped library with its version and holder (Apache 2.0, full
+  text). Full texts are `res/raw/license_apache_2_0.txt` (the repo's `LICENSE`) and `license_ofl_1_1.txt` (Google
+  Fonts' OFL.txt). The one-line Font Awesome credit under Skin moved here.
+- Verified: `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest` pass. **Not run:** on a phone.
+
 ## 2026-10-11: Hit circle gets osu!'s icons, a ringed mini cover and floating bars
 
 Owner's requests, Android, all under Hit circle only (Standard is unchanged):
