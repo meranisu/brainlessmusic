@@ -134,8 +134,8 @@ The centerpiece. It lands here — not earlier — because syncing playback is o
 - [x] **20. User management UI** (web). — **done 2026-09-09**, pulled forward from v0.3 because gating registration removed the only non-CLI way to make an account; verified 20/20 in headless Chromium. Admins add users and reset passwords from the browser instead of SSH + a CLI script. Needed the moment a second person is involved.
   *Done when:* you onboard a friend without touching a terminal.
 
-- [ ] **21. Room sync spec** **[spec first]**. Data model, drift tolerance, clock sync, reconnect/rejoin, who may skip. Write it into `.docs/specs/` before any code — this is the one part of the project with no reference implementation to copy from.
-  *Done when:* the spec answers "what happens when someone's phone loses signal for 30 seconds" without hand-waving. — **drafted 2026-10-11:** [specs/room-sync.md](../specs/room-sync.md); open until Q102–Q104 are answered.
+- [x] **21. Room sync spec** **[spec first]**. Data model, drift tolerance, clock sync, reconnect/rejoin, who may skip. Write it into `.docs/specs/` before any code — this is the one part of the project with no reference implementation to copy from.
+  *Done when:* the spec answers "what happens when someone's phone loses signal for 30 seconds" without hand-waving. — **done 2026-10-11:** [specs/room-sync.md](../specs/room-sync.md) (A100–A103).
 
 - [ ] **22. Room sync backend.** WebSocket transport authed with the existing JWT, in-memory room registry, presence, playback broadcast, join-mid-session catch-up, shared queue mutations.
   *Done when:* two browser tabs stay in sync.

@@ -28,25 +28,9 @@ is never asked twice.
 
 | ID | Question | Asked | Blocking |
 |---|---|---|---|
-| [Q4](#q4--room-sync-design-details) | Room-sync design details | 2026-09-09 | No — answered by the draft spec, pending Q102–Q104 |
 | [Q5](#q5--tag-editing-scope) | Tag-editing scope | 2026-09-09 | No |
 | [Q77](#q77--how-does-the-android-app-get-past-cloudflare-access) | How does the Android app get past Cloudflare Access? | 2026-10-11 | Yes, before Access goes on |
 | [Q78](#q78--who-goes-on-the-access-email-list) | Who goes on the Access email list? | 2026-10-11 | Yes, before Access goes on |
-| [Q102](#q102--can-guests-join-a-room) | Can guests join a room? | 2026-10-11 | No (assumed yes) |
-| [Q103](#q103--who-can-do-what-in-a-room) | Who can do what in a room? | 2026-10-11 | No (assumed everyone, host ends) |
-| [Q104](#q104--what-is-it-called-in-the-app) | What is room sync called in the app? | 2026-10-11 | No (assumed "Listen together") |
-
-### Q4 — Room-sync design details
-**Asked:** 2026-09-09 · **Blocking:** not yet — v0.3 work
-
-Data model, drift tolerance, reconnect handling. Flagged as needing a dedicated
-brainstorming session rather than an inline answer — this is the project's
-centerpiece feature, so it deserves its own turn, not a paragraph here.
-
-**2026-10-11:** the owner said to wait. Not to be raised again until v0.3 work starts.
-
-**2026-10-11 (later):** v0.3 started at the owner's request. The design is drafted in
-[specs/room-sync.md](specs/room-sync.md); what's left for the owner is Q102–Q104. Close this when those are answered.
 
 ### Q5 — Tag-editing scope
 **Asked:** 2026-09-09 · **Blocking:** no
@@ -75,41 +59,23 @@ includes friends using a guest code on the web: without their email on the list 
 - **A. You and the friends who use the web (recommended).** Each friend's email goes on the list once.
 - **B. Only you.** Friends use the Android app only (with Q77's token), never the web.
 
-### Q102 — Can guests join a room?
-**Asked:** 2026-10-11 · **Blocking:** no · **Spec:** [room-sync.md](specs/room-sync.md)
-
-Guests are listen-only today: no playlists, favorites or play history (A37). A room is listening, so they fit, but
-they'd also be able to skip and edit the shared queue.
-
-- **A. Yes, with the same controls as everyone (recommended).** Their plays still aren't recorded.
-- **B. Yes, but listen-only.** They hear the room; the buttons are greyed out.
-- **C. No.** Rooms need an account.
-
-*Building on A.* Changing to B adds one permission check; C is a one-line refusal at `hello`.
-
-### Q103 — Who can do what in a room?
-**Asked:** 2026-10-11 · **Blocking:** no · **Spec:** [room-sync.md](specs/room-sync.md)
-
-The v0.3 done-when says either person can skip. The question is the rest of the buttons.
-
-- **A. Everyone can do everything; only the host ends the room or removes people (recommended).** Like a shared
-  remote. Two skips pressed at once still count as one.
-- **B. Anyone can play, pause and skip; only the host can remove or reorder songs.** Adding stays open to all.
-
-*Building on A.*
-
-### Q104 — What is it called in the app?
-**Asked:** 2026-10-11 · **Blocking:** no · **Spec:** [room-sync.md](specs/room-sync.md)
-
-The code says "room" either way. This is only the button and screen name.
-
-- **A. "Listen together" (recommended).** Says what it does; the code people type is the "room code".
-- **B. "Room".** Short, a bit vague on its own.
-- **C. "Jam".** Familiar, but it's Spotify's name for the same thing.
-
-*Building on A.*
-
 ## Answered
+
+### A103 — Room-sync design is the spec *(was Q4)*
+**Answered:** 2026-10-11. The owner started v0.3; data model, clock sync, drift (0.3 s, seek only), reconnect and
+the 30-second case are decided in [specs/room-sync.md](specs/room-sync.md), with A100–A102 for the owner's picks.
+
+### A102 — It's called "Listen together" *(was Q104)*
+**Answered:** 2026-10-11, picked option A. "Listen together" in the UI, "room code" for the code, "room" in code.
+Spec: [specs/room-sync.md](specs/room-sync.md).
+
+### A101 — Everyone can do everything in a room; the host ends it *(was Q103)*
+**Answered:** 2026-10-11, picked option A. Any member can play, pause, seek, skip and edit the queue; only the host
+ends the room or removes people. Spec: [specs/room-sync.md](specs/room-sync.md).
+
+### A100 — Guests can join rooms, with full controls *(was Q102)*
+**Answered:** 2026-10-11, "yes", read as option A (same controls as everyone; their plays still aren't recorded,
+A37). Spec: [specs/room-sync.md](specs/room-sync.md).
 
 ### A99 — Big uploads go over Tailscale, not the public address *(was Q101)*
 **Answered:** 2026-10-11, picked option A. Cloudflare refuses request bodies over 100 MB, so files that big are

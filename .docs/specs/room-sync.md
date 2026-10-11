@@ -1,6 +1,6 @@
 # Spec: Room sync
 
-**Status:** Draft (2026-10-11), waiting on Q102–Q104
+**Status:** Agreed (2026-10-11); next is build step 1
 **Layers:** 🔧 Backend / 🌐 Web / 📱 Android
 
 Roadmap boxes 21 (this spec), 22 (backend) and 23 (clients). *Done when (v0.3):* two people in different places hear
@@ -43,7 +43,7 @@ hearing the same moment of the same song, anyone able to pause or skip. No refer
 1. Make a room from the web or the phone; it starts from the creator's current queue and position.
 2. Others join by typing a short room code. One room per person at a time.
 3. One shared queue and one shared playback state. Anyone in the room can play, pause, seek, skip, go back, jump to a
-   song, and add, remove or reorder songs (Q103).
+   song, and add, remove or reorder songs (A101).
 4. Every member hears the same position within about 0.3 s (see [Drift](#drift)).
 5. Losing the connection doesn't stop the music; coming back puts you back in step.
 6. Presence: who's in the room and who has dropped out.
@@ -236,14 +236,11 @@ Both clients get a "room mode" in the player they already have, not a second pla
 | 4 | Android room mode | Phone and browser in sync; screen-off keeps the room |
 | 5 | Walkthrough | Two people, two places, one skips: the v0.3 done-when |
 
-## Open questions
+## Decisions
 
-- [Q102](../QUESTIONS.md#q102--can-guests-join-a-room): can guests join a room? *Assumed: yes, same controls, no
-  plays recorded.*
-- [Q103](../QUESTIONS.md#q103--who-can-do-what-in-a-room): who can do what in a room? *Assumed: everyone does
-  everything; the host only ends the room and removes people.*
-- [Q104](../QUESTIONS.md#q104--what-is-it-called-in-the-app): what is it called in the app? *Assumed: "Listen
-  together" in the UI, "room" in code.*
+A100 (guests join with full controls, no plays recorded), A101 (everyone does everything; host ends the room and
+removes people), A102 ("Listen together" in the UI), A103 (this spec replaces Q4), all in
+[QUESTIONS.md](../QUESTIONS.md#answered).
 
 ## Related
 
