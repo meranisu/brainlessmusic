@@ -54,7 +54,7 @@ Results at review time:
       - `PATCH /tracks/:id` edits the database only, and `upsertTrack`'s `ON CONFLICT(path) DO UPDATE` writes the file's
         tags back (`db/library.ts:108-121` vs `:139`).
       - The 12-hourly scan (`services/librarySync.ts:148`) quietly reverts the edit.
-- [ ] **C10. Offline plays can be counted twice.** Confirmed in a second pass.
+- [x] **C10. Offline plays can be counted twice.** Fixed in d966018. Confirmed in a second pass.
       - `parsePlayedAt` clamps a future `playedAt` to server now (`backend/src/routes/tracks.ts:693`). A phone clock
         that runs ahead gives each resend a different `played_at`, so the exact-match dedup misses (`db/plays.ts:62-64`).
       - A failed online scrobble is queued with the phone's `Instant.now()` (`PlaybackController.kt:1064`). The server
