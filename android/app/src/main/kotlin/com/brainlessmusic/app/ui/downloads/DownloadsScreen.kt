@@ -49,6 +49,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -56,9 +57,9 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -134,75 +135,78 @@ fun DownloadsScreen(navController: NavHostController, viewModel: DownloadsViewMo
                 )
             },
         ) { ui ->
-            LazyVerticalGrid(
-                // Three columns on a phone, more on a wide screen.
-                columns = GridCells.Adaptive(minSize = 100.dp),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                fullWidth("storage") {
-                    StoragePanel(
-                        ui = ui,
-                        onPlayAll = { viewModel.playAll(ui, shuffle = false, toast) },
-                        onShuffleAll = { viewModel.playAll(ui, shuffle = true, toast) },
-                    )
-                }
-                if (ui.needsSignIn) {
-                    fullWidth("sign-in") {
-                        Text(
-                            "The server signed this phone out, so downloads are paused. Log out and back in from " +
-                                "Settings, Account, then tap Resume. Songs already here still play.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    }
-                }
-                if (ui.active.isNotEmpty()) {
-                    fullWidth("in-progress") {
-                        InProgressPanel(ui, onPause = viewModel::pauseAll, onResume = viewModel::resumeAll)
-                    }
-                }
-                fullWidth("search") {
-                    SearchRow(query, onQuery = viewModel::setQuery, sort = sort, onSort = viewModel::setSort)
-                }
-                fullWidth("filters") { FilterRow(filter, onSelect = viewModel::setFilter) }
-
-                val searching = searchWords(query).isNotEmpty()
-                val tiles = ui.tilesFor(filter, query, sort)
-                // On All, a search also lists the songs it finds, so a song title turns something up.
-                val songs = if (filter == DownloadFilter.SONGS || (filter == DownloadFilter.ALL && searching)) {
-                    ui.songsFor(query, sort)
-                } else {
-                    emptyList()
-                }
-                if (tiles.isEmpty() && songs.isEmpty()) {
-                    fullWidth("none") {
-                        if (searching) {
-                            NoMatches(query, onClear = { viewModel.setQuery("") })
-                        } else {
+            Box(Modifier.fillMaxSize()) {
+                LazyVerticalGrid(
+                    // Three columns on a phone, more on a wide screen.
+                    columns = GridCells.Adaptive(minSize = 100.dp),
+                    // The bottom clears the play buttons, so the last row can scroll out from under them.
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 136.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    fullWidth("storage") { StoragePanel(ui) }
+                    if (ui.needsSignIn) {
+                        fullWidth("sign-in") {
                             Text(
-                                "No ${filter.label.lowercase()} downloaded.",
+                                "The server signed this phone out, so downloads are paused. Log out and back in from " +
+                                    "Settings, Account, then tap Resume. Songs already here still play.",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = MaterialTheme.colorScheme.error,
                             )
                         }
                     }
-                }
-                items(tiles, key = { it.group.id }) { row ->
-                    DownloadTile(row, onOpen = { navController.navigate(Routes.downloadGroup(row.group.id)) })
-                }
-                if (tiles.isNotEmpty() && songs.isNotEmpty()) {
-                    fullWidth("songs-title") {
-                        Text(
-                            if (songs.size == 1) "1 song" else "${songs.size} songs",
-                            style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.padding(top = 8.dp).semantics { heading() },
-                        )
+                    if (ui.active.isNotEmpty()) {
+                        fullWidth("in-progress") {
+                            InProgressPanel(ui, onPause = viewModel::pauseAll, onResume = viewModel::resumeAll)
+                        }
                     }
+                    fullWidth("search") {
+                        SearchRow(query, onQuery = viewModel::setQuery, sort = sort, onSort = viewModel::setSort)
+                    }
+                    fullWidth("filters") { FilterRow(filter, onSelect = viewModel::setFilter) }
+
+                    val searching = searchWords(query).isNotEmpty()
+                    val tiles = ui.tilesFor(filter, query, sort)
+                    // On All, a search also lists the songs it finds, so a song title turns something up.
+                    val songs = if (filter == DownloadFilter.SONGS || (filter == DownloadFilter.ALL && searching)) {
+                        ui.songsFor(query, sort)
+                    } else {
+                        emptyList()
+                    }
+                    if (tiles.isEmpty() && songs.isEmpty()) {
+                        fullWidth("none") {
+                            if (searching) {
+                                NoMatches(query, onClear = { viewModel.setQuery("") })
+                            } else {
+                                Text(
+                                    "No ${filter.label.lowercase()} downloaded.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                    items(tiles, key = { it.group.id }) { row ->
+                        DownloadTile(row, onOpen = { navController.navigate(Routes.downloadGroup(row.group.id)) })
+                    }
+                    if (tiles.isNotEmpty() && songs.isNotEmpty()) {
+                        fullWidth("songs-title") {
+                            Text(
+                                if (songs.size == 1) "1 song" else "${songs.size} songs",
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.padding(top = 8.dp).semantics { heading() },
+                            )
+                        }
+                    }
+                    songRows(songs, onPlay = { viewModel.playSong(songs, it, toast) }, onRemove = viewModel::removeSong)
                 }
-                songRows(songs, onPlay = { viewModel.playSong(songs, it, toast) }, onRemove = viewModel::removeSong)
+                // Like the library's Shuffle: in the corner, out of the panel. Both play every finished download.
+                PlayButtons(
+                    onPlayAll = { viewModel.playAll(ui, shuffle = false, toast) },
+                    onShuffleAll = { viewModel.playAll(ui, shuffle = true, toast) },
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 16.dp),
+                )
             }
         }
     }
@@ -294,7 +298,7 @@ private fun LazyGridScope.fullWidth(key: String, content: @Composable () -> Unit
 
 /** Space used (against the limit, when there is one), what is on the phone, and Play all / Shuffle all. */
 @Composable
-private fun StoragePanel(ui: DownloadsUi, onPlayAll: () -> Unit, onShuffleAll: () -> Unit) {
+private fun StoragePanel(ui: DownloadsUi) {
     val context = LocalContext.current
     val used = Formatter.formatShortFileSize(context, ui.spaceUsed)
     Surface(shape = PanelShape, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline), color = Color.Transparent) {
@@ -326,16 +330,19 @@ private fun StoragePanel(ui: DownloadsUi, onPlayAll: () -> Unit, onShuffleAll: (
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onPlayAll) {
-                    Icon(Icons.Filled.PlayArrow, contentDescription = null)
-                    Text("Play all", modifier = Modifier.padding(start = 6.dp))
-                }
-                OutlinedButton(onClick = onShuffleAll) {
-                    Icon(Icons.Filled.Shuffle, contentDescription = null)
-                    Text("Shuffle", modifier = Modifier.padding(start = 6.dp))
-                }
-            }
+        }
+    }
+}
+
+/** Shuffle as the main round button, as on the library, with a smaller Play all above it. */
+@Composable
+private fun PlayButtons(onPlayAll: () -> Unit, onShuffleAll: () -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SmallFloatingActionButton(onClick = onPlayAll, shape = CircleShape) {
+            Icon(Icons.Filled.PlayArrow, contentDescription = "Play all downloads")
+        }
+        FloatingActionButton(onClick = onShuffleAll, shape = CircleShape) {
+            Icon(Icons.Filled.Shuffle, contentDescription = "Shuffle all downloads")
         }
     }
 }

@@ -40,6 +40,14 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 - Uploads over 100 MB through music.nobrainmusic.my: upload them over Tailscale instead (A99), documented in
   `.docs/ops/cloudflare-tunnel-deployment.md`.
 
+## 2026-10-11 — Android: Downloads play buttons move to the corner
+
+- **Play all and Shuffle leave the storage panel** and float at the bottom right, like the library's Shuffle: Shuffle
+  as the round main button, a smaller Play all above it. The panel is now just space used, the limit bar and counts.
+- Both still play every finished download, whatever the search or filter shows. The grid's bottom padding grew to
+  136dp so the last row scrolls clear of the buttons.
+- Verified: `./gradlew :app:compileDebugKotlin`. **Not run:** not seen on a phone or emulator.
+
 ## 2026-10-11 — Android: a fuller Home for guests
 
 - **Guest card** in the player card's place: "Guest", a line saying plays, likes and playlists are only kept for
