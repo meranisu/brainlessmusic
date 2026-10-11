@@ -30,8 +30,6 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -65,6 +63,7 @@ import androidx.compose.ui.unit.sp
 import com.brainlessmusic.app.data.local.Skin
 import com.brainlessmusic.app.ui.theme.BrandFontFamily
 import com.brainlessmusic.app.ui.theme.LocalSkin
+import com.brainlessmusic.app.ui.theme.laneCut
 
 // The small pieces every screen shares that change with the skin (A118). Standard draws exactly what it did before.
 
@@ -286,8 +285,9 @@ fun TabIcon(selected: Boolean, content: @Composable () -> Unit) {
 }
 
 /**
- * A bottom sheet. Hit circle shows it as an outlined card in the middle of the screen (Q123), like its floating mini
- * player and tab bar; Lane docks it with a cut corner; Standard docks it as Material's sheet.
+ * A bottom sheet. Hit circle and Lane show it as an outlined card in the middle of the screen (Q123; Lane on the
+ * owner's word, 2026-10-11): Hit circle's rounded, Lane's an Arcaea panel with two corners cut. Standard docks it as
+ * Material's sheet.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -297,56 +297,27 @@ fun SkinSheet(
     dragHandle: @Composable (() -> Unit)? = { SkinDragHandle() },
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val lane = LocalSkin.current == Skin.LANE
-    if (!lane && !floatingBars) {
+    val skin = LocalSkin.current
+    if (skin == Skin.STANDARD) {
         ModalBottomSheet(onDismissRequest = onDismissRequest, sheetState = sheetState, dragHandle = dragHandle, content = content)
         return
     }
-    if (!lane) {
-        // A dialog, not a sheet: nothing to drag, so no handle, and `sheetState` goes unused. Capped in height so a long
-        // list (the queue) scrolls inside the card rather than running off the screen.
-        val shape = RoundedCornerShape(28.dp)
-        val maxHeight = (LocalConfiguration.current.screenHeightDp * 0.85f).dp
-        Dialog(onDismissRequest = onDismissRequest, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-            Column(
-                Modifier
-                    .padding(horizontal = 16.dp)
-                    .widthIn(max = 560.dp)
-                    .fillMaxWidth()
-                    .heightIn(max = maxHeight)
-                    .clip(shape)
-                    .background(BottomSheetDefaults.ContainerColor)
-                    .border(1.dp, MaterialTheme.colorScheme.outline, shape)
-                    .padding(vertical = 12.dp),
-                content = content,
-            )
-        }
-        return
-    }
-    // An Arcaea panel, the top-left corner cut away. Drawn inside the sheet's content, not through its `modifier`:
-    // Material applies that before it slides the sheet into place, so a border there stayed behind where the sheet was
-    // laid out while the panel itself moved up from the bottom. The insets go inside, so the panel runs under the
-    // navigation bar.
-    val shape = CutCornerShape(topStart = 28.dp)
-    ModalBottomSheet(
-        onDismissRequest = onDismissRequest,
-        sheetState = sheetState,
-        dragHandle = null,
-        shape = RectangleShape,
-        containerColor = Color.Transparent,
-        tonalElevation = 0.dp,
-        contentWindowInsets = { WindowInsets(0) },
-    ) {
+    // A dialog, not a sheet: nothing to drag, so no handle, and `sheetState` goes unused. Capped in height so a long
+    // list (the queue) scrolls inside the card rather than running off the screen.
+    val shape = if (skin == Skin.LANE) laneCut(28.dp) else RoundedCornerShape(28.dp)
+    val maxHeight = (LocalConfiguration.current.screenHeightDp * 0.85f).dp
+    Dialog(onDismissRequest = onDismissRequest, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
             Modifier
+                .padding(horizontal = 16.dp)
+                .widthIn(max = 560.dp)
                 .fillMaxWidth()
+                .heightIn(max = maxHeight)
                 .clip(shape)
                 .background(BottomSheetDefaults.ContainerColor)
                 .border(1.dp, MaterialTheme.colorScheme.outline, shape)
-                .windowInsetsPadding(BottomSheetDefaults.windowInsets),
-        ) {
-            if (dragHandle != null) Box(Modifier.align(Alignment.CenterHorizontally)) { dragHandle() }
-            content()
-        }
+                .padding(vertical = 12.dp),
+            content = content,
+        )
     }
 }

@@ -1,5 +1,31 @@
 [
   {
+    "version": "0.3.46",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "lane: sheets pop up in the middle of the screen now instead of sliding up from the bottom, with lane's cut corners. the queue scrolls inside it"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.45",
     "date": "2026-10-11",
     "sections": [

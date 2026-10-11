@@ -4,6 +4,13 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Lane's sheets open in the middle of the screen
+
+- Owner's request: in Lane every sheet (song actions, Add to playlist, queue, update) opens as a card in the middle of
+  the screen, as Hit circle's do, instead of docking at the bottom. The card is cut on two corners (`laneCut(28.dp)`)
+  and capped at 85% of the screen's height, so the queue scrolls inside it. `SkinSheet` now docks only in Standard.
+- Verified: `./gradlew :app:compileDebugKotlin` builds. **Not run:** on a phone.
+
 ## 2026-10-11: Hit circle's tab bar a shade apart too
 
 - Owner's request, after Lane's: Hit circle's floating tab bar takes `surfaceContainerHighest`, a shade up from the

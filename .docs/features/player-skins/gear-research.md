@@ -1,8 +1,24 @@
 # Gear skin research: SOUND VOLTEX
 
 Research for the Gear skin, the fourth in the mockup's order ([mockup.html](mockup.html), card 4). It covers SOUND
-VOLTEX's play screen, scoring, screens and look, with notes on what Gear can use. The current game is EXCEED GEAR
-(SDVX VI). Gathered 2026-10-11 from the sources at the bottom.
+VOLTEX's play screen, scoring, screens and look, with notes on what Gear can use. Most of it is from EXCEED GEAR (SDVX VI,
+2021-2025); the current arcade version is SOUND VOLTEX ∇ (from 2025-12-24), which adds finer sub-levels and a profile
+section. Gathered 2026-10-11 from the sources at the bottom.
+
+**Decided (A125-A128):** Orbitron for display/labels/numbers with Chakra Petch for body; Phosphor icons (Bold, Fill
+for play/pause/heart); colour theme "Voltage" from the mockup's swatch; a score and grade from plays and skips.
+
+## What the real screens show (official screenshots, 4Gamer, 2021)
+
+- **Play (portrait):** jacket centred at the top over the lane; score top left on a cyan bar, a pink bar top right;
+  black lane with thin white lane lines, a cyan edge left and magenta right, converging to the horizon; the chain
+  count in the middle of the lane in wide digits with dim leading zeros ("0011"); a hexagon badge at the right; the
+  critical line with a magenta hit burst; under it, **the console drawn on screen**: cyan knob left, magenta knob
+  right, four white BT keys, two orange FX keys. The mockup's control layout is exactly this.
+- **Result:** dark angular panels with chamfered corners and slanted bars in cyan and yellow; "COMPLETE" in wide,
+  heavy, squared letters; the score in big digits with smaller trailing digits; the grade badge ("AAA"); the level
+  ("09") bottom right in wide italic digits.
+- **Lettering:** wide, squared, heavy; A without a crossbar. Closest free match: Orbitron Bold/Black.
 
 Unverified items are marked **(unverified)**. They come from memory, or only from a clone's code, not from a
 written source.
@@ -332,30 +348,12 @@ not skin work. Park it with the radar.
 | Sheets | docked; the header is a skewed banner with a cyan edge; drag handle two knob rings joined by a line |
 | Library tabs | difficulty-coloured boxes (NOV, ADV, EXH, MXM colours) |
 | Queue | rows numbered as track numbers "TRACK 01", the current one marked with laser cursors |
-| Icons | open: see Q126 |
-| Theme | a new colour theme from the mockup's swatch, phone-only like Lavender (A116) |
+| Icons | Phosphor Bold, Fill for play, pause and heart (A126) |
+| Theme | "Voltage" (A127), the mockup's swatch, phone-only like Lavender (A116) |
 
-## Open questions
+## Questions
 
-These go in `.docs/QUESTIONS.md` before being asked:
-
-1. **Font (Q125):**
-   - a. Rajdhani, as in the mockup
-   - b. Chakra Petch (squarer, more "machine")
-   - c. Orbitron (sci-fi, wide)
-2. **Icons (Q126):**
-   - a. Tabler (MIT, square-ish stroke, fits the console)
-   - b. Phosphor Bold (MIT)
-   - c. reuse Lucide from Lane
-3. **Colour theme name (Q127):**
-   - a. "Voltage"
-   - b. "Neon"
-   - c. "Laser"
-
-   It uses the mockup's swatch either way.
-4. **Score from plays and skips, with grades S to D (Q128):**
-   - a. yes
-   - b. medal only, like the other skins
+Q125-Q128 were answered as A125-A128 (see the top of this file).
 
 ## Sources
 

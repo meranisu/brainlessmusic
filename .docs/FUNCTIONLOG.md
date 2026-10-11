@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `SkinSheet()` (changed): `android/.../ui/common/SkinParts.kt`
+**Date:** 2026-10-11
+**How added:** owner request
+**Purpose:** Lane's sheets open as a centred card, like Hit circle's.
+**Side effects:** none.
+**Before:** Lane docked a ModalBottomSheet with its top-left corner cut and a slanted drag handle.
+**After:** every game skin opens a Dialog card capped at 85% height (Lane's cut on two corners, Hit circle's rounded); Standard still docks.
+
 **Function:** `tabBarColor()` (changed): `android/.../ui/common/SkinParts.kt`; `AppBottomBar()` (changed): `android/.../ui/navigation/LibraryBottomBar.kt`
 **Date:** 2026-10-11
 **How added:** owner request

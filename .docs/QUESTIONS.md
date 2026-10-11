@@ -31,34 +31,6 @@ is never asked twice.
 | [Q5](#q5--tag-editing-scope) | Tag-editing scope | 2026-09-09 | No |
 | [Q77](#q77--how-does-the-android-app-get-past-cloudflare-access) | How does the Android app get past Cloudflare Access? | 2026-10-11 | Yes, before Access goes on |
 | [Q78](#q78--who-goes-on-the-access-email-list) | Who goes on the Access email list? | 2026-10-11 | Yes, before Access goes on |
-| [Q125](#q125--gears-font) | Gear's font | 2026-10-11 | Yes, for the Gear skin |
-| [Q126](#q126--gears-icons) | Gear's icons | 2026-10-11 | Yes, for the Gear skin |
-| [Q127](#q127--gears-colour-theme-name) | Gear's colour theme name | 2026-10-11 | No |
-| [Q128](#q128--gear-shows-a-score-and-grade-from-plays-and-skips) | Gear shows a score and grade from plays and skips? | 2026-10-11 | No |
-
-### Q125 — Gear's font
-**Asked:** 2026-10-11 · **Blocking:** yes, for the Gear skin. Research: [features/player-skins/gear-research.md](features/player-skins/gear-research.md)
-
-SOUND VOLTEX's own lettering isn't a font anyone can use. a) Rajdhani, as in the mockup (square, condensed);
-b) Chakra Petch (squarer, more machine); c) Orbitron (wide, sci-fi). All OFL. Assumed if unanswered: a.
-
-### Q126 — Gear's icons
-**Asked:** 2026-10-11 · **Blocking:** yes, for the Gear skin
-
-a) Tabler (MIT, squared stroke, fits a console); b) Phosphor Bold (MIT, heavier); c) reuse Lane's Lucide.
-Assumed if unanswered: a.
-
-### Q127 — Gear's colour theme name
-**Asked:** 2026-10-11 · **Blocking:** no
-
-The theme uses the mockup's swatch (navy, cyan, magenta, orange) and is phone-only like Lavender. Name: a) Voltage;
-b) Neon; c) Laser. Assumed: a.
-
-### Q128 — Gear shows a score and grade from plays and skips?
-**Asked:** 2026-10-11 · **Blocking:** no
-
-a) Yes: score = 10,000,000 × plays / (plays + skips), shown as eight digits with the game's grade (S to D) beside the
-medal; b) medal only, like the other skins. Assumed: a.
 
 ### Q5 — Tag-editing scope
 **Asked:** 2026-09-09 · **Blocking:** no
@@ -88,6 +60,24 @@ includes friends using a guest code on the web: without their email on the list 
 - **B. Only you.** Friends use the Android app only (with Q77's token), never the web.
 
 ## Answered
+
+### A128 — Gear shows a score and grade from plays and skips *(was Q128)*
+**Answered:** 2026-10-11, in chat: "a". Score = 10,000,000 × plays / (plays + skips), eight digits, with SOUND
+VOLTEX's grade (S to D, HEAVENLY HAVEN thresholds) beside the medal. Gear only; other skins keep the medal alone.
+
+### A127 — Gear's colour theme is "Voltage" *(was Q127)*
+**Answered:** 2026-10-11, in chat: "voltage". The mockup's swatch (navy, cyan, magenta, orange), phone-only like
+Lavender.
+
+### A126 — Gear's icons are Phosphor *(was Q126)*
+**Answered:** 2026-10-11, in chat: "tabler or phosphor", leaving the pick to Claude. Phosphor (MIT), Bold weight, Fill
+for play, pause and heart: Tabler's thin stroke reads too close to Lane's Lucide.
+
+### A125 — Gear's font is Orbitron, with Chakra Petch for body text *(was Q125)*
+**Answered:** 2026-10-11, in chat: "which looks similar", leaving it to the closest match. Rendered against the game's
+own "COMPLETE" lettering, Orbitron Bold/Black matched best (wide, squared, the bar-less A). Orbitron is too wide for
+long titles and body copy, so body and title styles use Chakra Petch; display, headline and labels use Orbitron. Both
+OFL. Research: [features/player-skins/gear-research.md](features/player-skins/gear-research.md).
 
 ### A124 — Hit circle's sheets open in the middle of the screen *(was Q123)*
 **Answered:** 2026-10-11, in chat: "Middle of the screen". Hit circle's floating sheets (song menu, add to playlist,
