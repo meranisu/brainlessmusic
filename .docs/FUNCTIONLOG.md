@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `lazyPage()` (new): `frontend/src/lib/lazyPage.ts`; lazy page constants in `App.tsx`, `auth/RequireAuth.tsx` (changed)
+**Date:** 2026-10-11
+**How added:** bug fix
+**Purpose:** a page chunk that fails to load (stale tab after a deploy) reloads the page once instead of blanking it.
+**Side effects:** one `window.location.reload()`; writes `brainlessmusic.chunkReloadAt` to `sessionStorage`.
+**Before:** a missing chunk unmounted the app to a blank page until a manual refresh.
+**After:** the page reloads itself onto the new build; a repeat failure within 10 s still throws.
+
 **Function:** `AppSignature()` (new): `android/.../ui/settings/SettingsScreen.kt`; `LibraryScreen()` top bar: `ui/library/LibraryScreen.kt`
 **Date:** 2026-10-11
 **How added:** owner request

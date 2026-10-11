@@ -1,35 +1,36 @@
-import { lazy, Suspense } from 'react';
+import { Suspense } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { RequireAdmin } from './auth/RequireAdmin';
 import { RequireAccount } from './auth/RequireAccount';
 import { RequireAuth } from './auth/RequireAuth';
 import { AppShell } from './components/AppShell';
+import { lazyPage } from './lib/lazyPage';
 
 // One chunk per route, so visitors download only the screens they reach (most never open the admin pages).
-const AccountSelectPage = lazy(() =>
+const AccountSelectPage = lazyPage(() =>
   import('./pages/AccountSelectPage').then((m) => ({ default: m.AccountSelectPage })),
 );
-const LibraryPage = lazy(() => import('./pages/LibraryPage').then((m) => ({ default: m.LibraryPage })));
-const AlbumsPage = lazy(() => import('./pages/AlbumsPage').then((m) => ({ default: m.AlbumsPage })));
-const AlbumDetailPage = lazy(() => import('./pages/AlbumDetailPage').then((m) => ({ default: m.AlbumDetailPage })));
-const ArtistsPage = lazy(() => import('./pages/ArtistsPage').then((m) => ({ default: m.ArtistsPage })));
-const ArtistDetailPage = lazy(() =>
+const LibraryPage = lazyPage(() => import('./pages/LibraryPage').then((m) => ({ default: m.LibraryPage })));
+const AlbumsPage = lazyPage(() => import('./pages/AlbumsPage').then((m) => ({ default: m.AlbumsPage })));
+const AlbumDetailPage = lazyPage(() => import('./pages/AlbumDetailPage').then((m) => ({ default: m.AlbumDetailPage })));
+const ArtistsPage = lazyPage(() => import('./pages/ArtistsPage').then((m) => ({ default: m.ArtistsPage })));
+const ArtistDetailPage = lazyPage(() =>
   import('./pages/ArtistDetailPage').then((m) => ({ default: m.ArtistDetailPage })),
 );
-const FavoritesPage = lazy(() => import('./pages/FavoritesPage').then((m) => ({ default: m.FavoritesPage })));
-const PlaylistsPage = lazy(() => import('./pages/PlaylistsPage').then((m) => ({ default: m.PlaylistsPage })));
-const PlaylistDetailPage = lazy(() =>
+const FavoritesPage = lazyPage(() => import('./pages/FavoritesPage').then((m) => ({ default: m.FavoritesPage })));
+const PlaylistsPage = lazyPage(() => import('./pages/PlaylistsPage').then((m) => ({ default: m.PlaylistsPage })));
+const PlaylistDetailPage = lazyPage(() =>
   import('./pages/PlaylistDetailPage').then((m) => ({ default: m.PlaylistDetailPage })),
 );
-const SearchPage = lazy(() => import('./pages/SearchPage').then((m) => ({ default: m.SearchPage })));
-const OptionsPage = lazy(() => import('./pages/OptionsPage').then((m) => ({ default: m.OptionsPage })));
-const TogetherPage = lazy(() => import('./pages/TogetherPage').then((m) => ({ default: m.TogetherPage })));
-const UploadPage = lazy(() => import('./pages/UploadPage').then((m) => ({ default: m.UploadPage })));
-const UsersPage = lazy(() => import('./pages/UsersPage').then((m) => ({ default: m.UsersPage })));
-const ControlCenterPage = lazy(() =>
+const SearchPage = lazyPage(() => import('./pages/SearchPage').then((m) => ({ default: m.SearchPage })));
+const OptionsPage = lazyPage(() => import('./pages/OptionsPage').then((m) => ({ default: m.OptionsPage })));
+const TogetherPage = lazyPage(() => import('./pages/TogetherPage').then((m) => ({ default: m.TogetherPage })));
+const UploadPage = lazyPage(() => import('./pages/UploadPage').then((m) => ({ default: m.UploadPage })));
+const UsersPage = lazyPage(() => import('./pages/UsersPage').then((m) => ({ default: m.UsersPage })));
+const ControlCenterPage = lazyPage(() =>
   import('./pages/ControlCenterPage').then((m) => ({ default: m.ControlCenterPage })),
 );
-const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
+const AdminDashboard = lazyPage(() => import('./pages/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
 
 export function App() {
   return (

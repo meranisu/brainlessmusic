@@ -4,6 +4,18 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Web, Enter on the title screen no longer goes blank after a deploy
+
+- Owner report: clicking Enter showed a blank page until a refresh. Cause: every page is its own lazily loaded chunk
+  with a hashed name. A tab opened before a deploy still asks for the old `AccountSelectPage-<hash>.js`, the server
+  answers 404, the dynamic import rejects, and with no error boundary React unmounts the whole app.
+- New `lazyPage()` (`frontend/src/lib/lazyPage.ts`) wraps `React.lazy`: on a failed load it reloads once, which fetches
+  the new `index.html` and chunk names at the same address. A second failure within 10 s throws as before, so a down
+  server cannot cause a reload loop. All 17 lazy pages in `App.tsx` and `RequireAuth.tsx` use it.
+- Verified: `npm run build` and `npm run lint` pass. Headless Chromium against a local static server: load `/` on one
+  build, swap in a newer build, click Enter. Old code: "Failed to fetch dynamically imported module", blank `/login`.
+  Fixed code: reloads and shows sign-in. **Not run:** on smol or a phone.
+
 ## 2026-10-11: Android logo moves from the Library title to the foot of Settings
 
 - Owner's request. The Library top bar is the word "Library" only. Settings ends with `AppSignature()`: the mark
