@@ -4,6 +4,18 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android: black system bars after opening the app from the media notification
+
+- Leaving the app and coming back by tapping the player in the notification shade or status bar turned the status
+  and navigation bars black, in light mode too. Removing a splash puts the theme's own bar colours back (black in dark,
+  dark grey in light). The 2026-10-10 fix re-applied edge-to-edge only from the splash's exit callback, and a launch from
+  the notification likely skips that callback. Not confirmed on a device.
+- `Theme.BrainlessMusic` (`values/` and `values-night/themes.xml`) now has transparent status and navigation bars, light
+  or dark bar icons to match, and no forced nav-bar contrast. Whatever restores the theme's colours, it gets transparent ones.
+- `MainActivity` also re-applies edge-to-edge each time the window regains focus (`focusGains`). That keeps the icon
+  colours on the app's own Light/Dark setting when it differs from the phone's.
+- Verified: `./gradlew assembleDebug lintDebug` passes. **Not run on a device.**
+
 ## 2026-10-11 — You tab upgrade: player card, recently played, rank changes (A91)
 
 - **Backend, `/me/stats`**: for week, month and year it now also returns `previousTotals` (the same sums over the

@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -51,8 +52,10 @@ class MainActivity : ComponentActivity() {
     // Activity-scoped, so the system splash and the nav graph's start screen wait on the same session check.
     private val startViewModel: StartViewModel by viewModels()
 
-    // Removing the splash re-applies the theme's own bar colours (black in dark), so edge-to-edge is set again after.
+    // Removing the splash re-applies the theme's own bar colours, so edge-to-edge is set again after. A launch from the
+    // media notification can do that without the exit callback, so regaining focus re-applies it as well.
     private var splashGone by mutableStateOf(false)
+    private var focusGains by mutableIntStateOf(0)
 
     // Without it Android 13+ hides the media notification, and with it the lock-screen controls.
     private val notificationPermission =
@@ -101,7 +104,7 @@ class MainActivity : ComponentActivity() {
                 ThemeMode.DARK -> true
             }
             // The system bars' icon colors have to follow the app's choice, not the phone's.
-            DisposableEffect(darkTheme, splashGone) {
+            DisposableEffect(darkTheme, splashGone, focusGains) {
                 enableEdgeToEdge(
                     statusBarStyle = SystemBarStyle.auto(
                         android.graphics.Color.TRANSPARENT,
@@ -120,6 +123,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) focusGains++
     }
 
     override fun onStop() {

@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `MainActivity.onWindowFocusChanged()` (new) — `android/app/src/main/kotlin/com/brainlessmusic/app/MainActivity.kt`
+**Date:** 2026-10-11
+**How added:** bug fix (black system bars after opening from the media notification)
+**Purpose:** count focus gains so the edge-to-edge effect runs again after the system restores the theme's bar colours.
+**Side effects:** re-runs `enableEdgeToEdge` on every focus gain (cheap).
+**Before:** edge-to-edge re-applied only on a light/dark change or the splash's exit callback.
+**After:** also re-applied whenever the window regains focus.
+
 **Function:** `getUserStats()` (changed), `previousRanks()`, `previousSinceFor()` (new) — `backend/src/db/listeningStats.ts`
 **Date:** 2026-10-11
 **How added:** new feature (A91)

@@ -1,8 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Covers only the window background before Compose's theme (ui/theme/Theme.kt) takes over. Dark: values-night. -->
+    <!-- Bars are transparent here too: the system re-applies the theme's bar colours when it removes a splash, and a
+         launch from the media notification does that without telling MainActivity, which left them black. -->
     <style name="Theme.BrainlessMusic" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
+        <item name="android:enforceNavigationBarContrast" tools:targetApi="29">false</item>
     </style>
 
     <!-- Cold start: the app icon on a solid ground until the session check is in (MainActivity), then the app theme. -->
