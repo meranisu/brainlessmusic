@@ -1,5 +1,53 @@
 [
   {
+    "version": "0.3.31",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "home got a tidy up"
+          },
+          {
+            "type": "ul",
+            "items": [
+              "shuffle library and listen together are now two proper buttons right under your player card, instead of tiny icons up top",
+              "your card at the top is smaller, so the good stuff shows up sooner",
+              "top songs and top artists sit in their own cards, with play and shuffle at the bottom of the top songs card"
+            ]
+          },
+          {
+            "type": "p",
+            "text": "new looks for the player, both in settings → appearance"
+          },
+          {
+            "type": "ul",
+            "items": [
+              "**player buttons → pills**: like, shuffle, repeat and add to playlist become a row of rounded buttons above the seek bar, and play turns into a hollow ring",
+              "**progress bar → waveform**: the seek bar draws the actual song as bars, filling in as it plays. tap or drag to jump. offline it shows a stand-in shape",
+              "mix them however you like. the old look is still the default"
+            ]
+          },
+          {
+            "type": "p",
+            "text": "also the logo moved from the library title to the bottom of settings, next to the app name"
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it. nothing to do on the server side"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.30",
     "date": "2026-10-11",
     "sections": [
