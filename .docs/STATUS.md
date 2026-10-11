@@ -52,7 +52,7 @@ The list is [QUESTIONS.md](QUESTIONS.md) — check it before asking anything. Bl
 
 1. v0.2 is done: box 19 (offline downloads) passed the phone checklist 2026-10-11.
 2. Cloudflare Access (A74): switch on once Q77 and Q78 are answered.
-3. v0.3: room-sync spec agreed ([specs/room-sync.md](specs/room-sync.md)); backend and web built (steps 1–2); the owner trying two tabs closes box 22, then the Control Center monitor (step 3) and Android (step 4).
+3. v0.3: room-sync spec agreed ([specs/room-sync.md](specs/room-sync.md)); backend and web built (steps 1–2); the owner trying two tabs closes box 22, the Control Center monitor (step 3) is built too; next is Android (step 4).
 4. Backend commits after 97ba069 (3724daa, 8fe408e, 920cd50) are not confirmed on smol yet.
 5. The 2026-10-11 review findings are fixed (ca945ba, 6ded2eb, and F2/F5/G2 after; on smol). Left: G3 (closed by
    Access, A74, once it is on), and the unconfirmed "plausible" items in

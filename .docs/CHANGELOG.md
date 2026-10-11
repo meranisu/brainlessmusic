@@ -4,6 +4,17 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Control Center shows "Listen together" rooms (room sync spec step 3)
+
+- **New section** after "Now playing": one card per room with its code, what's playing or paused, when it started,
+  and each person (Host and Guest marked) with their last reported drift in words: "In step (52 ms behind)", or the
+  distance in red at 300 ms or more, "Buffering", "Away" or "Waiting for a report". Polls `GET /admin/rooms` every
+  5 s, the rate players report at. Loading, error and empty states; the empty state links to Listen together.
+- Verified: `npm run build` clean, lint adds nothing. Against the scratch backend: the empty state with no rooms, a
+  two-person room showing its code and both people in step, no sideways scroll at 390 px, and the room gone after the
+  host ended it; no console errors. The first shot caught one person 689 ms behind in red right after a page load, back
+  in step (44 ms) a second later.
+
 ## 2026-10-11: "Listen together" on the web (room sync spec step 2)
 
 - **New page `/together`** (More menu, everyone including guests, A100): start a room from what's playing, or type a

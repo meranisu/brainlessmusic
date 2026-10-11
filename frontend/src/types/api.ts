@@ -161,6 +161,28 @@ export interface ControlCenterSnapshot {
   scanFailureCount: number;
 }
 
+/** `GET /admin/rooms`: live "Listen together" rooms with each member's last reported drift (`services/rooms.ts`). */
+export interface AdminRoomsResponse {
+  serverNow: number;
+  rooms: {
+    code: string;
+    createdAt: number;
+    hostUserId: number;
+    current: number;
+    queue: { entryId: number; title: string; artist: string | null }[];
+    playback: { playing: boolean };
+    members: {
+      userId: number;
+      name: string;
+      kind: 'account' | 'guest';
+      connected: boolean;
+      /** Positive is ahead of the room. Null until the first report, and while away. */
+      driftMs: number | null;
+      buffering: boolean;
+    }[];
+  }[];
+}
+
 /** `GET /library/stats` (A52). `hidden` and `missing` come only for an admin. */
 export interface LibraryStats {
   tracks: number;

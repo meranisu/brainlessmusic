@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `RoomCard`, `memberState()` (new), `ControlCenterPage` (rooms query and section): `frontend/src/pages/ControlCenterPage.tsx`; `AdminRoomsResponse` (new type): `frontend/src/types/api.ts`
+**Date:** 2026-10-11
+**How added:** new feature (room sync spec step 3)
+**Purpose:** the admin's view of live rooms and how far each listener is from the room.
+**Side effects:** polls `GET /admin/rooms` every 5 s while the page is open.
+**Before:** rooms were visible only through the API.
+**After:** the Control Center lists them with per-person drift.
+
 **Function:** `RoomClient` (new: `connect`, `send`, `status`, `leave`, `stop`, `serverNow`), `expectedPositionMs()`: `frontend/src/lib/roomClient.ts`; `RoomProvider`, `useRoom()` (new): `frontend/src/components/RoomProvider.tsx`; `TogetherPage` (new): `frontend/src/pages/TogetherPage.tsx`
 **Date:** 2026-10-11
 **How added:** new feature (room sync spec step 2)

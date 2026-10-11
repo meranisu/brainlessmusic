@@ -1,6 +1,6 @@
 # Spec: Room sync
 
-**Status:** Agreed (2026-10-11); steps 1 (backend) and 2 (web) built 2026-10-11, steps 3–5 not started
+**Status:** Agreed (2026-10-11); steps 1–3 (backend, web, monitor) built 2026-10-11, steps 4–5 not started
 **Layers:** 🔧 Backend / 🌐 Web / 📱 Android
 
 Roadmap boxes 21 (this spec), 22 (backend) and 23 (clients). *Done when (v0.3):* two people in different places hear
@@ -243,7 +243,7 @@ Both clients get a "room mode" in the player they already have, not a second pla
 |---|---|---|
 | 1 | Backend: room registry, REST, WebSocket, clock pings, server-side song timer, tests with two fake clients and a fake clock | `npm test` covers join, double-skip, reconnect, host handover, room expiry. **Built 2026-10-11:** `services/rooms.ts`, `routes/rooms.ts` |
 | 2 | Web room mode + room view | Two browser tabs stay in sync (roadmap box 22's done-when), drift readout under 300 ms. **Built 2026-10-11:** `lib/roomClient.ts`, `RoomProvider`, `TogetherPage` (`/together`), room mode in `PlayerBar`; two headless Chromium sessions measured within ±0.25 s |
-| 3 | Control Center room monitor | Shows rooms, members, drift |
+| 3 | Control Center room monitor | Shows rooms, members, drift. **Built 2026-10-11:** "Listen together" section in `ControlCenterPage`, polling `GET /admin/rooms` every 5 s |
 | 4 | Android room mode | Phone and browser in sync; screen-off keeps the room |
 | 5 | Walkthrough | Two people, two places, one skips: the v0.3 done-when |
 

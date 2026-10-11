@@ -6,6 +6,7 @@ import { UploadQueueList } from '../components/UploadQueueList';
 import { apiClient } from '../lib/apiClient';
 import { formatBytes } from '../lib/format';
 import type {
+  AdminRoomsResponse,
   ControlCenterSnapshot,
   DiskUsage,
   HealthSnapshot,
@@ -15,6 +16,10 @@ import type {
 } from '../types/api';
 
 const POLL_INTERVAL_MS = 10_000;
+/** Players report their drift every 5 s, so polling slower would show stale numbers. */
+const ROOMS_POLL_INTERVAL_MS = 5_000;
+/** Where a room member counts as out of step (spec: `.docs/specs/room-sync.md`, "Drift"). */
+const ROOM_DRIFT_LIMIT_MS = 300;
 /** A scan moves fast enough that a 10s poll makes the bar jump instead of crawl. */
 const SCANNING_POLL_INTERVAL_MS = 2_000;
 
@@ -135,6 +140,52 @@ function RootScan({ root }: { root: LibraryRoot }) {
   );
 }
 
+type AdminRoom = AdminRoomsResponse['rooms'][number];
+
+/** What one member's last report says, in words: drift is the number that answers "are we in sync". */
+function memberState(m: AdminRoom['members'][number]): { text: string; outOfStep: boolean } {
+  if (!m.connected) return { text: 'Away', outOfStep: false };
+  if (m.buffering) return { text: 'Buffering', outOfStep: false };
+  if (m.driftMs === null) return { text: 'Waiting for a report', outOfStep: false };
+  const ms = Math.abs(m.driftMs);
+  const side = m.driftMs > 0 ? 'ahead' : 'behind';
+  return ms < ROOM_DRIFT_LIMIT_MS
+    ? { text: `In step (${ms} ms ${side})`, outOfStep: false }
+    : { text: `${ms} ms ${side}`, outOfStep: true };
+}
+
+function RoomCard({ room }: { room: AdminRoom }) {
+  const playing = room.queue[room.current];
+  return (
+    <div className="card overflow-hidden">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-blue-800 px-4 py-3">
+        <span className="font-display text-xl font-extrabold tracking-[0.15em] text-white">{room.code}</span>
+        <span className="min-w-0 flex-1 truncate text-sm text-blue-200">
+          {playing
+            ? `${room.playback.playing ? 'Playing' : 'Paused on'} "${playing.title}"${playing.artist ? ` by ${playing.artist}` : ''}`
+            : 'Nothing queued'}
+        </span>
+        <span className="text-xs text-blue-300">since {new Date(room.createdAt).toLocaleTimeString()}</span>
+      </div>
+      <ul className="divide-y divide-blue-800/60">
+        {room.members.map((m) => {
+          const state = memberState(m);
+          return (
+            <li key={m.userId} className="flex flex-wrap items-center gap-x-2 gap-y-1 px-4 py-2 text-sm">
+              <span className="min-w-0 flex-1 truncate text-blue-100">{m.name}</span>
+              {m.userId === room.hostUserId && <span className="badge-admin">Host</span>}
+              {m.kind === 'guest' && <span className="badge-neutral">Guest</span>}
+              <span className={`whitespace-nowrap font-mono text-xs ${state.outOfStep ? 'text-red-300' : 'text-blue-200'}`}>
+                {state.text}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 export function ControlCenterPage() {
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['health'],
@@ -146,6 +197,16 @@ export function ControlCenterPage() {
     queryKey: ['control-center'],
     queryFn: () => apiClient.get<ControlCenterSnapshot>('/admin/control-center'),
     refetchInterval: POLL_INTERVAL_MS,
+  });
+
+  const {
+    data: rooms,
+    isLoading: isLoadingRooms,
+    isError: isRoomsError,
+  } = useQuery({
+    queryKey: ['admin-rooms'],
+    queryFn: () => apiClient.get<AdminRoomsResponse>('/admin/rooms'),
+    refetchInterval: ROOMS_POLL_INTERVAL_MS,
   });
 
   const { data: failures, isLoading: isLoadingFailures } = useQuery({
@@ -281,6 +342,33 @@ export function ControlCenterPage() {
                 </tbody>
               </table>
             </div>
+          </Section>
+
+          <Section
+            title={`Listen together (${rooms?.rooms.length ?? 0} ${rooms?.rooms.length === 1 ? 'room' : 'rooms'})`}
+            description={`Each person's distance from the room, from their last report (every 5 s). Under ${ROOM_DRIFT_LIMIT_MS} ms is in step; more is shown in red until their player corrects it.`}
+          >
+            {isLoadingRooms ? (
+              <p className="card px-4 py-6 text-center text-sm text-blue-300">Loading rooms…</p>
+            ) : isRoomsError ? (
+              <p className="card px-4 py-6 text-center text-sm text-red-300">
+                Couldn't load the rooms. This retries every 5 seconds.
+              </p>
+            ) : rooms && rooms.rooms.length > 0 ? (
+              <div className="grid gap-3 lg:grid-cols-2">
+                {rooms.rooms.map((room) => (
+                  <RoomCard key={room.code} room={room} />
+                ))}
+              </div>
+            ) : (
+              <p className="card px-4 py-6 text-center text-sm text-blue-300">
+                No rooms right now. Anyone can start one from{' '}
+                <Link to="/together" className="text-accent-ink underline underline-offset-2">
+                  Listen together
+                </Link>
+                .
+              </p>
+            )}
           </Section>
 
           <Section title="Library">
