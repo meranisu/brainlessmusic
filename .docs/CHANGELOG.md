@@ -4,6 +4,26 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Upload list scrolls in its own box, failed uploads get their own box, back-to-top button
+
+- **Control Center uploads scroll inside a box** (about six rows, 20rem), so a big batch no longer pushes every other
+  section down the page. The box can be focused with Tab and scrolled with the arrow keys. The Upload page keeps the
+  full-length list (`UploadQueueList scrollable`, owner request).
+- **Failed uploads have their own box** under the progress list (both pages), with a red border and "Failed (n)":
+  for each file the server's message, a plain hint when the cause is known (no response: retry; 413: over Cloudflare's
+  100 MB, use Tailscale per A99; 401: sign in again; 5xx: check the log), and the size, type, HTTP status and time.
+  Retry per file and "Retry all". The progress list now shows only waiting, uploading and finished files.
+  `UploadItem` keeps `httpStatus` and `failedAt` for this.
+- **Back to top:** a round button bottom right on every page once it has scrolled 600 px, above the player bar when
+  one is showing; a jump with no smooth scroll under reduced motion (owner request).
+- Verified: `npm run build` clean, lint adds nothing. Against the scratch backend in headless Chromium: 12 uploads made
+  the Control Center box 318 px tall with 539 px inside, End scrolled it, the next section stayed on screen and all 12
+  finished there. Three text files named `.mp3` plus two real ones: a separate Failed (3) box with "No playable audio
+  found", "server answered 400", size and type; the good files only in the progress list; Retry all and Retry re-ran
+  them; Clear finished removed the box; desktop and 390 px. Back to top: hidden at the top, shown after scrolling,
+  click and Enter both reach the top, and it sits above the player bar (704 vs 730 px desktop, 764 vs 784 px phone).
+  No sideways scroll and no console errors.
+
 ## 2026-10-11: Control Center shows "Listen together" rooms (room sync spec step 3)
 
 - **New section** after "Now playing": one card per room with its code, what's playing or paused, when it started,

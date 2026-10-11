@@ -17,6 +17,19 @@ export interface UploadItem {
   progress: number;
   result?: TrackSummary;
   error?: string;
+  /** The HTTP status of a failed upload; undefined when no response came back at all (network). */
+  httpStatus?: number;
+  /** When it failed, epoch ms. */
+  failedAt?: number;
+}
+
+/** Keeps the HTTP status with the message, for the failed-uploads details. */
+class UploadError extends Error {
+  readonly status: number | undefined;
+  constructor(message: string, status?: number) {
+    super(message);
+    this.status = status;
+  }
 }
 
 interface UploadContextValue {
@@ -53,14 +66,19 @@ function uploadWithProgress(file: File, onProgress: (pct: number) => void): Prom
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve(payload.track as TrackSummary);
         } else {
-          reject(new Error(payload.error ?? `Upload failed (${xhr.status})`));
+          reject(new UploadError(payload.error ?? `Upload failed (${xhr.status})`, xhr.status));
         }
       } catch {
         // Not JSON: a proxy in front answered instead of the server. Cloudflare refuses bodies over 100 MB this way.
-        reject(new Error(xhr.status === 413 ? 'File is too large for the server to accept' : `Upload failed (${xhr.status})`));
+        reject(
+          new UploadError(
+            xhr.status === 413 ? 'File is too large for the server to accept' : `Upload failed (${xhr.status})`,
+            xhr.status,
+          ),
+        );
       }
     };
-    xhr.onerror = () => reject(new Error('Network error during upload'));
+    xhr.onerror = () => reject(new UploadError('Network error during upload'));
 
     const formData = new FormData();
     formData.append('file', file);
@@ -94,7 +112,12 @@ export function UploadProvider({ children }: { children: ReactNode }) {
         updateItem(item.id, { status: 'success', progress: 100, result });
         queryClient.invalidateQueries({ queryKey: ['tracks'] });
       } catch (err) {
-        updateItem(item.id, { status: 'error', error: err instanceof Error ? err.message : 'Upload failed' });
+        updateItem(item.id, {
+          status: 'error',
+          error: err instanceof Error ? err.message : 'Upload failed',
+          httpStatus: err instanceof UploadError ? err.status : undefined,
+          failedAt: Date.now(),
+        });
       } finally {
         inFlight.current--;
       }
@@ -117,7 +140,7 @@ export function UploadProvider({ children }: { children: ReactNode }) {
 
   const retry = useCallback(
     (item: UploadItem) => {
-      updateItem(item.id, { status: 'queued', progress: 0, error: undefined });
+      updateItem(item.id, { status: 'queued', progress: 0, error: undefined, httpStatus: undefined, failedAt: undefined });
       runUpload(item);
     },
     [runUpload, updateItem],

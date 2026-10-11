@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `UploadQueueList` (`scrollable` prop, failed box), `hintFor()`, `extensionOf()` (new): `frontend/src/components/UploadQueueList.tsx`; `UploadError` (new), `uploadWithProgress()`, `runUpload`, `retry`: `frontend/src/components/UploadProvider.tsx`; `ScrollTopButton` (new): `frontend/src/components/ScrollTopButton.tsx`, rendered by `AppShell`
+**Date:** 2026-10-11
+**How added:** owner request
+**Purpose:** a long upload batch stays in a scrolling box on the Control Center; failures are listed apart with details and a hint; any long page has a way back to the top.
+**Side effects:** a passive window scroll listener (one rAF per scroll burst).
+**Before:** the upload list grew the page; failures sat inline among other rows with only the message; no back-to-top.
+**After:** capped scrolling box in the Control Center, a Failed (n) box with status, size, type, time, hint and Retry all, and a Back to top button.
+
 **Function:** `RoomCard`, `memberState()` (new), `ControlCenterPage` (rooms query and section): `frontend/src/pages/ControlCenterPage.tsx`; `AdminRoomsResponse` (new type): `frontend/src/types/api.ts`
 **Date:** 2026-10-11
 **How added:** new feature (room sync spec step 3)

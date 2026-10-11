@@ -12,6 +12,7 @@ import { ArcadeInterstitial, ArrivalVeil } from './ArcadeInterstitial';
 import { ShellBackdrop } from './BackdropDepth';
 import { CloseIcon, ExitIcon, GearIcon, SearchIcon } from './icons';
 import { NavOverflow, type NavItem } from './NavOverflow';
+import { ScrollTopButton } from './ScrollTopButton';
 
 /** Must match `.options-panel.is-closing` in `index.css`; the search panel reuses the More menu's chrome. */
 const SEARCH_CLOSE_MS = 160;
@@ -342,6 +343,8 @@ export function AppShell() {
       >
         <Outlet />
       </main>
+
+      <ScrollTopButton />
 
       {isBooting && <BootFrame />}
 

@@ -251,7 +251,8 @@ export function ControlCenterPage() {
           description="Started in this tab. They keep going on other pages; closing or reloading the tab stops them."
         >
           {uploads.length > 0 ? (
-            <UploadQueueList />
+            // Scrolls inside its box: a big batch would otherwise push every other section off the screen.
+            <UploadQueueList scrollable />
           ) : (
             <div className="card px-4 py-6 text-center text-sm text-blue-300">
               No uploads in this tab.{' '}
