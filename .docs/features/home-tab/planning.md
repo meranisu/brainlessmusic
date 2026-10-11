@@ -51,3 +51,4 @@ listening stats (A97); guests get a smaller Home (A98).
 |---|---|---|---|---|
 | 2026-10-11 | Interior | The greeting is the top bar title, not a header under it | A "Home" title with a greeting right below says the same thing twice | Yes |
 | 2026-10-11 | Interior | Order is now Shuffle, card, library tiles, range picker, Recently played, Top songs, Top artists | Owner asked after using it on the phone | Yes, Shuffle still leads |
+| 2026-10-11 | Interior | Shuffle becomes a small top bar button | Owner: the full-width button took too much room | Yes, still one tap from Home |

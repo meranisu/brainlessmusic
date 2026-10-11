@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `HomeScreen` layout, `ShuffleLibraryButton` — `android/.../ui/profile/YouScreen.kt`
+**Date:** 2026-10-11
+**How added:** owner request
+**Purpose:** card and library tiles first on Home; Shuffle as a small top bar button.
+**Side effects:** none.
+**Before:** full-width Shuffle, Recently played, tiles, range picker, card, top lists.
+**After:** Shuffle in the top bar; card, tiles, range picker, Recently played, top lists.
+
 **Function:** `mosaicCovers()` (new), `Stored.songCovers()`, `GroupPage.covers` — `android/.../ui/downloads/DownloadsViewModel.kt`, `DownloadGroupScreen.kt`; `CoverMosaic` — `DownloadsScreen.kt`
 **Date:** 2026-10-11
 **How added:** new feature (owner request)

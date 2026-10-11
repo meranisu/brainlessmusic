@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -31,8 +30,8 @@ import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -81,7 +80,6 @@ import com.brainlessmusic.app.data.remote.dto.UserStatsDto
 import com.brainlessmusic.app.data.repository.StatsRange
 import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.ui.common.CoverImage
-import com.brainlessmusic.app.ui.common.LoadState
 import com.brainlessmusic.app.ui.common.LoadStateContent
 import com.brainlessmusic.app.ui.common.SkeletonLead
 import com.brainlessmusic.app.ui.common.SkeletonListRows
@@ -125,20 +123,21 @@ fun YouScreen(
     val title = greeting(Calendar.getInstance().get(Calendar.HOUR_OF_DAY), if (viewModel.isGuest) null else username)
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) }) },
+        topBar = {
+            TopAppBar(
+                title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                // Small and always in reach, so it doesn't push the page down or scroll away.
+                actions = { ShuffleLibraryButton(shuffle) },
+            )
+        },
         bottomBar = { AppBottomBar(navController) },
     ) { padding ->
         if (viewModel.isGuest) {
             // Guests get something to play, and why the rest isn't here (A98).
-            Column(Modifier.padding(padding)) {
-                ShuffleLibraryButton(shuffle)
-                GuestNote()
-            }
+            Column(Modifier.padding(padding)) { GuestNote() }
             return@Scaffold
         }
         Column(Modifier.padding(padding)) {
-            // Shuffle doesn't wait for the stats; once they land it scrolls with them, in the same place.
-            if (state !is LoadState.Content) ShuffleLibraryButton(shuffle)
             LoadStateContent(
                 state = state,
                 onRetry = viewModel::load,
@@ -155,9 +154,7 @@ fun YouScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = 16.dp),
                     ) {
-                        // Something to play first, then who you are and your library, then what you've played
-                        // (owner's order, 2026-10-11).
-                        item { ShuffleLibraryButton(shuffle) }
+                        // Who you are and your library, then what you've played (owner's order, 2026-10-11).
                         item { Box(ofRange) { PlayerCard(username, stats, range) } }
                         item { LibraryTiles(stats.counts, onOpenLiked, onOpenPlaylists, onOpenLessOften) }
                         item { RangePicker(range, viewModel::setRange) }
@@ -257,15 +254,16 @@ private fun GuestNote() {
     )
 }
 
-/** Home's first action (A97): the whole library, shuffled on the server. */
+/** Home's play action, in the top bar: the whole library, shuffled on the server. */
 @Composable
 private fun ShuffleLibraryButton(onClick: () -> Unit) {
-    Button(
+    FilledTonalButton(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).heightIn(min = 48.dp),
+        contentPadding = PaddingValues(start = 12.dp, end = 16.dp),
+        modifier = Modifier.padding(end = 8.dp),
     ) {
-        Icon(Icons.Filled.Shuffle, contentDescription = null)
-        Text("Shuffle my library", modifier = Modifier.padding(start = 8.dp))
+        Icon(Icons.Filled.Shuffle, contentDescription = null, modifier = Modifier.size(18.dp))
+        Text("Shuffle", modifier = Modifier.padding(start = 6.dp))
     }
 }
 
