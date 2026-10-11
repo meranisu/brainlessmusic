@@ -65,5 +65,6 @@ export async function downloadGuestCodeCard(code: string, expiresLabel: string):
   a.href = url;
   a.download = `guest-code-${code}.png`;
   a.click();
-  URL.revokeObjectURL(url);
+  // Some browsers start the download after `click()` returns; revoking at once can leave them nothing to save (C35).
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }

@@ -4,6 +4,33 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Review fixes C22-C27, C35: migrations, uploads, ffmpeg timeout, bootstrap admin, listener map
+
+From `.docs/process/codebase-review-2026-10-11.md`, the lower-priority items.
+
+- **C22** (`db/migrator.ts`): each migration and its `schema_migrations` row now run in one transaction. A
+  multi-statement migration that failed halfway used to leave its first half applied and unrecorded, and the next run
+  then failed for good on "duplicate column". A file with its own top-level `BEGIN;` (0017) still runs as before.
+  `runMigrations` takes a test-only `dir`.
+- **C23** (`services/trackFiling.ts`): uploads are filed with a hard link that fails if the name exists (or an
+  exclusive copy where hard links don't work), then the staged file is removed. The old check-then-`rename` let two
+  uploads of the same name pick the same free name, and `rename` silently replaced the first.
+- **C24** (`services/streaming.ts`, `encodeToFile`): ffmpeg is killed after 15 minutes. A hung encode used to hold one
+  of the 2 transcode slots until a restart.
+- **C25** (`routes/auth.ts`, register): the "first account becomes admin" check, the duplicate-name check and the
+  insert now run in one synchronous transaction after the password hash. Two racing first sign-ups can no longer both
+  become admin; the loser gets a 401, and a name taken meanwhile is a 409 instead of a 500.
+- **C26** (`services/streamMonitor.ts`): a check-in under a new key now sweeps stale players, and the map is capped at 200.
+  The User-Agent part of the key is cut to 200 characters.
+- **C27** (`routes/tracks.ts`, upload): the staging file is removed in a `finally`. An aborted upload, or a filing or
+  database error, used to leave it behind.
+- **C35** (`lib/guestCodeCard.ts`): the card's object URL is revoked after a minute instead of straight after
+  `click()`, which left some browsers nothing to save.
+- Verified: `cd backend && npm test` 451/451 pass. New tests: a half-failing migration rolls back and applies once fixed;
+  a self-transacting migration still runs; three same-name uploads filed at once all survive; two racing first sign-ups
+  give one admin; the listener map stays bounded. Backend `tsc --noEmit` is clean; `cd frontend && npm run build` passes.
+  **Not tested:** the ffmpeg timeout, which needs a hanging ffmpeg.
+
 ## 2026-10-11 — Android review fixes C17-C21, C28: offline plays, downloads after sign-in, storage limit, search flicker
 
 From `.docs/process/codebase-review-2026-10-11.md`.

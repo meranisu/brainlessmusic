@@ -446,6 +446,24 @@ describe('registration is admin-only', () => {
     assert.equal(findUserByUsername('second'), undefined);
   });
 
+  it('makes only one of two racing first sign-ups an admin, and refuses the other (C25)', async () => {
+    resetDatabase();
+    const register = (username: string) =>
+      app.inject({
+        method: 'POST',
+        url: '/api/auth/register',
+        payload: { username, password: 'a long enough password' },
+      });
+
+    // Both pass the "server is empty" door before either is inserted: hashing is the await between.
+    const [a, b] = await Promise.all([register('first'), register('rival')]);
+    const codes = [a.statusCode, b.statusCode].sort();
+    assert.deepEqual(codes, [201, 401]);
+    const admins = db.prepare('SELECT COUNT(*) AS n FROM users WHERE is_admin = 1').get() as { n: number };
+    assert.equal(admins.n, 1);
+    assert.equal((db.prepare('SELECT COUNT(*) AS n FROM users').get() as { n: number }).n, 1);
+  });
+
   it('rejects a duplicate username', async () => {
     const res = await app.inject({
       method: 'POST',

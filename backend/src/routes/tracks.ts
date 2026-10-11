@@ -198,40 +198,43 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
       await mkdir(config.uploadStagingPath, { recursive: true });
       const stagingPath = join(config.uploadStagingPath, `${randomUUID()}${ext}`);
 
-      await pipeline(data.file, createWriteStream(stagingPath));
-
-      if (data.file.truncated) {
-        await unlink(stagingPath).catch(() => {});
-        return reply.code(413).send({ error: 'File exceeds maximum upload size' });
-      }
-
-      let tags;
       try {
-        tags = await extractTrackTags(stagingPath, data.filename);
-      } catch (err) {
+        await pipeline(data.file, createWriteStream(stagingPath));
+
+        if (data.file.truncated) {
+          return reply.code(413).send({ error: 'File exceeds maximum upload size' });
+        }
+
+        let tags;
+        try {
+          tags = await extractTrackTags(stagingPath, data.filename);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          request.log.warn({ err, filename: data.filename }, 'Uploaded file failed tag extraction');
+          return reply.code(400).send({
+            error: 'Could not read audio tags. The file may be corrupt or unsupported.',
+            message,
+          });
+        }
+
+        // Uploads go to the configured folder, never to a root added for scanning an existing drive.
+        const defaultRoot = findLibraryRootByPath(config.libraryPath);
+        if (!defaultRoot) {
+          return reply.code(500).send({ error: 'Default library root is not set up yet' });
+        }
+
+        const stats = await stat(stagingPath);
+        const destPath = await fileIntoLibrary(config.libraryPath, stagingPath, data.filename, tags);
+
+        const track = upsertTrack({ path: destPath, fileSize: stats.size, rootId: defaultRoot.id, ...tags });
+        await persistArtwork(track.id, track.album_id, tags.picture);
+
+        return reply.code(201).send({ track: getTrackSummaryById(track.id) });
+      } finally {
+        // Nothing stays in staging, whatever happened: an aborted upload, a filing or database error (C27). After a
+        // successful filing the file has already moved and this finds nothing.
         await unlink(stagingPath).catch(() => {});
-        const message = err instanceof Error ? err.message : String(err);
-        request.log.warn({ err, filename: data.filename }, 'Uploaded file failed tag extraction');
-        return reply.code(400).send({
-          error: 'Could not read audio tags. The file may be corrupt or unsupported.',
-          message,
-        });
       }
-
-      // Uploads go to the configured folder, never to a root added for scanning an existing drive.
-      const defaultRoot = findLibraryRootByPath(config.libraryPath);
-      if (!defaultRoot) {
-        await unlink(stagingPath).catch(() => {});
-        return reply.code(500).send({ error: 'Default library root is not set up yet' });
-      }
-
-      const stats = await stat(stagingPath);
-      const destPath = await fileIntoLibrary(config.libraryPath, stagingPath, data.filename, tags);
-
-      const track = upsertTrack({ path: destPath, fileSize: stats.size, rootId: defaultRoot.id, ...tags });
-      await persistArtwork(track.id, track.album_id, tags.picture);
-
-      return reply.code(201).send({ track: getTrackSummaryById(track.id) });
     },
   );
 

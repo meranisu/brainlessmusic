@@ -1,4 +1,5 @@
-import { access, copyFile, mkdir, rename, unlink } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { copyFile, link, mkdir, unlink } from 'node:fs/promises';
 import { basename, extname, join } from 'node:path';
 import type { TrackTags } from './trackTags.js';
 
@@ -15,33 +16,37 @@ export function sanitizePathSegment(name: string, fallback: string): string {
   return cleaned.length > 0 ? cleaned : fallback;
 }
 
-async function pathExists(path: string): Promise<boolean> {
-  try {
-    await access(path);
-    return true;
-  } catch {
-    return false;
-  }
-}
+const errorCode = (err: unknown) => (err as NodeJS.ErrnoException).code;
 
-async function uniqueDestination(dir: string, baseName: string, ext: string): Promise<string> {
-  let candidate = join(dir, `${baseName}${ext}`);
-  for (let n = 2; await pathExists(candidate); n++) {
-    candidate = join(dir, `${baseName} (${n})${ext}`);
-  }
-  return candidate;
-}
+/** Filesystems a hard link can't cross or doesn't exist on; an exclusive copy does the same job there. */
+const NO_HARD_LINK = new Set(['EXDEV', 'EPERM', 'ENOTSUP', 'ENOSYS']);
 
-async function moveFile(src: string, dest: string): Promise<void> {
+/**
+ * Puts [src] at [dest] only if nothing is there yet, then removes [src]. Claiming the name and filling it are one step,
+ * so it fails with EEXIST rather than replacing a file (`rename` replaces silently).
+ */
+async function moveIfFree(src: string, dest: string): Promise<void> {
   try {
-    await rename(src, dest);
+    await link(src, dest);
   } catch (err) {
-    // Staging and library dirs may live on different filesystems/mounts.
-    if ((err as NodeJS.ErrnoException).code === 'EXDEV') {
-      await copyFile(src, dest);
-      await unlink(src);
-    } else {
-      throw err;
+    if (!NO_HARD_LINK.has(errorCode(err) ?? '')) throw err;
+    await copyFile(src, dest, constants.COPYFILE_EXCL);
+  }
+  await unlink(src);
+}
+
+/**
+ * Moves [src] to `<base><ext>` in [dir], or the first free `<base> (n)<ext>`. Checking for a free name and then
+ * moving let two uploads of the same name at once pick the same one, and the second replaced the first (C23).
+ */
+async function moveToFreeName(src: string, dir: string, baseName: string, ext: string): Promise<string> {
+  for (let n = 1; ; n++) {
+    const dest = join(dir, n === 1 ? `${baseName}${ext}` : `${baseName} (${n})${ext}`);
+    try {
+      await moveIfFree(src, dest);
+      return dest;
+    } catch (err) {
+      if (errorCode(err) !== 'EEXIST') throw err;
     }
   }
 }
@@ -65,7 +70,5 @@ export async function fileIntoLibrary(
   const baseName = originalBase || sanitizePathSegment(tags.title, 'Untitled');
 
   await mkdir(destDir, { recursive: true });
-  const destPath = await uniqueDestination(destDir, baseName, ext);
-  await moveFile(stagedPath, destPath);
-  return destPath;
+  return moveToFreeName(stagedPath, destDir, baseName, ext);
 }

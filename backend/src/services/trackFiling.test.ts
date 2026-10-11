@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readdir, rm, writeFile } from 'node:fs/promises';
+import { readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { makeTempDir } from '../testing/harness.js';
@@ -124,6 +124,17 @@ describe('fileIntoLibrary', () => {
 
     const files = (await readdir(join(library, 'An Artist', 'An Album'))).sort();
     assert.deepEqual(files, ['same (2).mp3', 'same (3).mp3', 'same.mp3']);
+  });
+
+  it('never overwrites when uploads of the same name are filed at the same time (C23)', async () => {
+    // Staged under different names, as the upload route does, but uploaded as the same one.
+    const staged = await Promise.all(['a', 'b', 'c'].map((n) => stage(`${n}.mp3`, `bytes ${n}`)));
+    const dests = await Promise.all(staged.map((src) => fileIntoLibrary(library, src, '01.mp3', tags())));
+
+    assert.equal(new Set(dests).size, 3, 'each upload got its own file');
+    const contents = (await Promise.all(dests.map((d) => readFile(d, 'utf8')))).sort();
+    assert.deepEqual(contents, ['bytes a', 'bytes b', 'bytes c'], 'none was replaced by another');
+    assert.deepEqual(await readdir(staging), []);
   });
 
   it('falls back to the tagged title when the original name has no usable base', async () => {

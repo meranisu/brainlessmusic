@@ -58,6 +58,38 @@ export const LISTENER_TTL_MS = 30 * 1000;
 // Keyed by user and User-Agent, so one account on a phone and a browser shows twice.
 const listeners = new Map<string, Listener & { lastSeenAt: number }>();
 
+/**
+ * Far more players than this household will ever have at once. Any signed-in user, a guest included, can check in
+ * with a new User-Agent each time, so without a cap the map grew until an admin happened to open the control centre
+ * (C26).
+ */
+const MAX_LISTENERS = 200;
+/** Enough of a User-Agent to tell devices apart, so the key's size isn't the caller's choice. */
+const USER_AGENT_KEY_LENGTH = 200;
+
+function listenerKey(userId: number, userAgent: string | undefined): string {
+  return `${userId}\n${(userAgent ?? '').slice(0, USER_AGENT_KEY_LENGTH)}`;
+}
+
+/** Drops players past the TTL, then the longest-silent ones while over the cap. */
+function sweepListeners(now: number): void {
+  for (const [key, { lastSeenAt }] of listeners) {
+    if (now - lastSeenAt >= LISTENER_TTL_MS) listeners.delete(key);
+  }
+  while (listeners.size > MAX_LISTENERS) {
+    let oldestKey: string | undefined;
+    let oldestAt = Infinity;
+    for (const [key, { lastSeenAt }] of listeners) {
+      if (lastSeenAt < oldestAt) {
+        oldestAt = lastSeenAt;
+        oldestKey = key;
+      }
+    }
+    if (oldestKey === undefined) break;
+    listeners.delete(oldestKey);
+  }
+}
+
 export function clientLabel(userAgent: string | undefined): string {
   return userAgent && /okhttp/i.test(userAgent) ? 'Android app' : 'Web';
 }
@@ -67,7 +99,7 @@ export function playerCheckedIn(
   info: Omit<Listener, 'client' | 'since'> & { userAgent: string | undefined; playing: boolean },
   now: number = Date.now(),
 ): void {
-  const key = `${info.userId}\n${info.userAgent ?? ''}`;
+  const key = listenerKey(info.userId, info.userAgent);
   if (!info.playing) {
     listeners.delete(key);
     return;
@@ -77,6 +109,7 @@ export function playerCheckedIn(
     previous && previous.trackId === info.trackId && now - previous.lastSeenAt < LISTENER_TTL_MS
       ? previous.since
       : new Date(now).toISOString();
+  const isNew = !listeners.has(key);
   listeners.set(key, {
     userId: info.userId,
     username: info.username,
@@ -87,11 +120,13 @@ export function playerCheckedIn(
     since,
     lastSeenAt: now,
   });
+  // Only a new key can grow the map, so only then is it worth a sweep.
+  if (isNew) sweepListeners(now);
 }
 
 /** Closing the player on any device drops that device. */
 export function playerClosed(userId: number, userAgent: string | undefined): void {
-  listeners.delete(`${userId}\n${userAgent ?? ''}`);
+  listeners.delete(listenerKey(userId, userAgent));
 }
 
 /** Players heard from within the TTL, oldest listen first. */

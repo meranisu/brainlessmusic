@@ -4,6 +4,54 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `runMigrations()` — `backend/src/db/migrator.ts`
+**Date:** 2026-10-11
+**How added:** hardening (review C22)
+**Purpose:** apply each migration all or nothing.
+**Side effects:** schema changes, `schema_migrations` row, in one transaction.
+**Before:** exec then record, with no transaction around them.
+**After:** wrapped in `db.transaction`, unless the file opens its own; new `dir` option for tests.
+
+**Function:** `moveToFreeName()`, `moveIfFree()` (replace `uniqueDestination()`, `moveFile()`, `pathExists()`) — `backend/src/services/trackFiling.ts`
+**Date:** 2026-10-11
+**How added:** bug fix (review C23)
+**Purpose:** file an upload under the first free name without ever replacing a file.
+**Side effects:** hard link (or exclusive copy) into the library, then unlinks the staged file.
+**Before:** check for a free name, then `rename`, racing with a concurrent upload.
+**After:** claiming the name fails with EEXIST if taken, and the next name is tried.
+
+**Function:** `encodeToFile()` — `backend/src/services/streaming.ts`
+**Date:** 2026-10-11
+**How added:** hardening (review C24)
+**Purpose:** stop a hung encode holding a transcode slot.
+**Side effects:** kills ffmpeg with SIGKILL after 15 minutes.
+**Before:** no timeout.
+**After:** the encode fails and the slot is released.
+
+**Function:** `/auth/register` handler — `backend/src/routes/auth.ts`
+**Date:** 2026-10-11
+**How added:** bug fix (review C25)
+**Purpose:** make exactly one first account the admin.
+**Side effects:** INSERT into `users`, `setAdmin`.
+**Before:** bootstrap status read before the hash's await; two racers both became admin.
+**After:** decided in one transaction after the await; the loser gets 401.
+
+**Function:** `playerCheckedIn()`, `playerClosed()` (changed), `listenerKey()`, `sweepListeners()` (new) — `backend/src/services/streamMonitor.ts`
+**Date:** 2026-10-11
+**How added:** hardening (review C26)
+**Purpose:** keep the live-listener map bounded.
+**Side effects:** evicts stale or oldest entries.
+**Before:** swept only when an admin listed listeners.
+**After:** swept on each new key, capped at 200, keys cut to 200 User-Agent characters.
+
+**Function:** `/tracks/upload` handler — `backend/src/routes/tracks.ts`; `downloadGuestCodeCard` — `frontend/src/lib/guestCodeCard.ts`
+**Date:** 2026-10-11
+**How added:** bug fix (review C27, C35)
+**Purpose:** never leave a staging file behind; give the browser time to save the guest card.
+**Side effects:** unlinks the staging path in `finally`; a delayed `revokeObjectURL`.
+**Before:** some error paths left staging files; the object URL was revoked at once.
+**After:** staging is always cleaned; the URL is revoked after a minute.
+
 **Function:** `PendingPlays.scheduleRetry()` — `android/app/src/main/kotlin/com/brainlessmusic/app/playback/PendingPlays.kt`
 **Date:** 2026-10-11
 **How added:** bug fix (review C17)

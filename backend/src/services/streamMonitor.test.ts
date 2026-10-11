@@ -102,6 +102,12 @@ describe('listListeners', () => {
       now,
     );
 
+  it('stays bounded when one account checks in with a new User-Agent every time (C26)', () => {
+    for (let i = 0; i < 500; i += 1) checkIn(`agent ${i}`, 1, 1000 + i);
+    const live = listListeners(1500);
+    assert.ok(live.length <= 200, `${live.length} listeners kept`);
+  });
+
   it('lists one account on a phone and a browser as two listeners', () => {
     checkIn(PHONE, 1, 1000);
     checkIn(BROWSER, 2, 2000);

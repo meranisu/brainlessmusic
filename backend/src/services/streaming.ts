@@ -220,6 +220,9 @@ export const WEBKIT_COMPAT_VARIANT: Variant = {
       .format('mp4'),
 };
 
+/** Far longer than any real encode takes (a 6-hour file at 64k is minutes); past it, ffmpeg is assumed stuck. */
+const ENCODE_TIMEOUT_MS = 15 * 60 * 1000;
+
 /** Thrown when every transcode slot is busy, so callers can answer 503 rather than 500. */
 export class NoTranscodeSlotError extends Error {
   constructor() {
@@ -236,15 +239,20 @@ export async function encodeToFile(
 ): Promise<void> {
   if (!acquireTranscodeSlot()) throw new NoTranscodeSlotError();
 
+  let timer: NodeJS.Timeout | undefined;
   try {
     await new Promise<void>((resolve, reject) => {
-      variant
+      const command = variant
         .configure(ffmpeg(sourcePath))
         .on('error', (err: Error) => reject(err))
         .on('end', () => resolve())
         .save(destPath);
+      // A stalled mount or a file ffmpeg chokes on would otherwise hold this slot until a restart, and with two slots,
+      // two hangs turn every data-saver stream into a 503 (C24). Killing it fails the encode like any other error.
+      timer = setTimeout(() => command.kill('SIGKILL'), ENCODE_TIMEOUT_MS);
     });
   } finally {
+    clearTimeout(timer);
     releaseTranscodeSlot();
   }
 }

@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { config } from '../config.js';
+import { db } from '../db/connection.js';
 import {
   cancelGuestCodeRequest,
   collectGuestCodeRequest,
@@ -295,13 +296,24 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(409).send({ error: 'username already taken' });
       }
 
-      // Measured right before the insert, since it decides whether the new account is admin.
-      const isBootstrap = countAccounts() === 0;
-
       const passwordHash = await hashPassword(password);
-      const user = insertUser(username, passwordHash);
-      if (isBootstrap) setAdmin(user.username, true);
 
+      // Decided after the only await, in one synchronous transaction: two sign-ups racing on an empty server used to both
+      // count zero accounts before hashing and both become admin (C25), and a name taken meanwhile hit the UNIQUE
+      // constraint as a 500.
+      const outcome = db.transaction(() => {
+        if (findUserByUsername(username)) return 'taken' as const;
+        const isBootstrap = countAccounts() === 0;
+        // Let through only because the server was empty, and someone else has claimed it since.
+        if (!isBootstrap && !request.user && !config.allowOpenRegistration) return 'closed' as const;
+        const user = insertUser(username, passwordHash);
+        if (isBootstrap) setAdmin(user.username, true);
+        return { user, isBootstrap };
+      })();
+
+      if (outcome === 'taken') return reply.code(409).send({ error: 'username already taken' });
+      if (outcome === 'closed') return reply.code(401).send({ error: 'Registration is closed' });
+      const { user, isBootstrap } = outcome;
       return reply.code(201).send({ id: user.id, username: user.username, isAdmin: isBootstrap });
     },
   );
