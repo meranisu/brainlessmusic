@@ -45,6 +45,15 @@ function parse(markdown) {
   return sections;
 }
 
+/**
+ * Today as git's `--date=short` writes it: the local calendar date, not UTC. Otherwise a note generated before it is
+ * committed carries the UTC date and the committed one the local date, and CI's "JSON is committed" check fails.
+ */
+function today() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 /** When the note was first committed, as the release date; today for one not committed yet. */
 function dateOf(file) {
   try {
@@ -52,9 +61,9 @@ function dateOf(file) {
       cwd: notesDir,
       encoding: 'utf8',
     }).trim();
-    return out.split('\n').pop() || new Date().toISOString().slice(0, 10);
+    return out.split('\n').pop() || today();
   } catch {
-    return new Date().toISOString().slice(0, 10);
+    return today();
   }
 }
 

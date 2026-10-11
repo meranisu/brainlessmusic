@@ -41,6 +41,8 @@ Ten findings from a review of the room sync and updater work (2026-10-11), all f
   checks one state per kick.
 - **Updater:** an offline launch no longer counts as the day's check; a cancelled download stops writing progress.
 - `pendingOps` on web and Android keep only the newest 50 (accepted commands get no reply).
+- **CI fix:** `scripts/android-notes.mjs` dated a not-yet-committed note with the UTC date, but git dates it locally
+  once committed (UTC+8 here), so the "JSON is committed" CI check failed on `e6490fa`. Both now use the local date.
 - Verified: backend `npm test` 501/501; `npm run build` clean, lint adds nothing; Android unit suite 114 tests,
   1 skipped, 0 failures; `RoomSocketLiveTest` passes against a scratch server. Not run on a phone.
 
