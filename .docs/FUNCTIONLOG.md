@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `ProfileRepository.callApi()` (changed): `android/.../data/repository/ProfileRepository.kt`
+**Date:** 2026-10-11
+**How added:** bug fix (owner report)
+**Purpose:** a stats request cancelled by a newer range tap stays a cancellation, not an error.
+**Side effects:** every ProfileRepository call now rethrows `CancellationException`; other failures are unchanged.
+**Before:** `runCatching` turned cancellation into a `ConnectionException`, so Home flashed an error on quick range taps.
+**After:** cancellation is rethrown, matching `LibraryRepository.callApi()`.
+
 **Function:** `Hit`, `rememberHit()`, `HitBurst()` (new); `HitButton()`, `PlayCircle()` (changed): `android/.../ui/playback/skins/HitCircle.kt`
 **Date:** 2026-10-11
 **How added:** owner request

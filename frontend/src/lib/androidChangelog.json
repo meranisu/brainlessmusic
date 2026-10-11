@@ -1,5 +1,31 @@
 [
   {
+    "version": "0.3.37",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "home: flicking between week, month and year quickly doesn't trip over itself anymore. it used to flash an error and sometimes reload the whole page, now the old numbers just fade until the new ones land"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.36",
     "date": "2026-10-11",
     "sections": [

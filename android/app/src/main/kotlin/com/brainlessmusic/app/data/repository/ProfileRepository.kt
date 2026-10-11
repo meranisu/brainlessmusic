@@ -24,6 +24,7 @@ import kotlinx.coroutines.sync.withLock
 import retrofit2.HttpException
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.cancellation.CancellationException
 
 enum class StatsRange(val query: String, val label: String) {
     WEEK("week", "Week"),
@@ -139,10 +140,18 @@ class ProfileRepository @Inject constructor(
 
     private fun api(): ApiService = apiServiceFactory.get(serverConfig.url)
 
-    private suspend fun <T> callApi(block: suspend (ApiService) -> T): Result<T> {
-        return runCatching { block(api()) }
-            .recoverCatching { throw ConnectionException(classifyError(it)) }
-    }
+    /**
+     * A failed call as a [ConnectionException]. Cancellation is rethrown instead: a Week tap superseded by a Month tap
+     * was otherwise reported as an error, and Home flashed its error and then its skeleton (as C21 in LibraryRepository).
+     */
+    private suspend fun <T> callApi(block: suspend (ApiService) -> T): Result<T> =
+        try {
+            Result.success(block(api()))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(ConnectionException(classifyError(e)))
+        }
 
     private companion object {
         const val TOP_LIMIT = 10

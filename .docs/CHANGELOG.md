@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Home's Week/Month/Year no longer glitches on quick taps
+
+- Owner's report: tapping between the range buttons quickly made Home stutter. `ProfileRepository.callApi` wrapped
+  calls in `runCatching`, which also caught the coroutine's cancellation, so a stats request superseded by the next
+  tap reported a connection error. Home flashed the error, and a tap during it dropped the page to the skeleton for
+  a full reload. Cancellation is now rethrown, as `LibraryRepository.callApi` already did (C21).
+- Verified: `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest` pass. **Not run:** on a phone.
+
 ## 2026-10-11: Hit circle player, a hit burst on every tap
 
 - Owner's request, alongside the fill: tapping any circle in the Hit circle player (shuffle, previous, play, next,
