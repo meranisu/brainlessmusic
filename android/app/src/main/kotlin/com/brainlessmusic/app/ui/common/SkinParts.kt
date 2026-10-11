@@ -1,6 +1,10 @@
 package com.brainlessmusic.app.ui.common
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.draw.rotate
+import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -47,10 +51,25 @@ import com.brainlessmusic.app.ui.theme.LocalSkin
 val markPlaying: Boolean
     @Composable get() = LocalSkin.current != Skin.STANDARD
 
-/** Hit circle's mark for the playing song in a list: a small hit circle. */
+/** The mark for the playing song in a list: a small hit circle in Hit circle, a filled diamond in Lane. */
 @Composable
 fun PlayingMarker(modifier: Modifier = Modifier) {
+    if (LocalSkin.current == Skin.LANE) {
+        Box(modifier.size(16.dp), contentAlignment = Alignment.Center) { Diamond(11.dp, MaterialTheme.colorScheme.primary) }
+        return
+    }
     Box(modifier.size(16.dp).border(3.dp, MaterialTheme.colorScheme.primary, CircleShape))
+}
+
+/** Arcaea's badge shape: a square turned 45 degrees, [side] along each edge, filled or (with [stroke]) outlined. */
+@Composable
+fun Diamond(side: Dp, color: Color, modifier: Modifier = Modifier, stroke: Dp? = null) {
+    Box(
+        modifier
+            .size(side)
+            .rotate(45f)
+            .then(if (stroke == null) Modifier.background(color) else Modifier.border(stroke, color)),
+    )
 }
 
 /**
@@ -81,11 +100,29 @@ fun QueueMarker(position: Int, modifier: Modifier = Modifier) {
     }
 }
 
-/** The mini player's progress along its top edge: Material's thin line. Hit circle rings the cover instead ([MiniCover]). */
+/**
+ * The mini player's progress along its top edge: Material's thin line, or in Lane a judgement line with a diamond at
+ * its head. Hit circle rings the cover instead ([MiniCover]).
+ */
 @Composable
 fun MiniProgress(progress: Float, modifier: Modifier = Modifier) {
-    if (LocalSkin.current == Skin.STANDARD) {
-        LinearProgressIndicator(progress = { progress }, modifier = modifier.fillMaxWidth().height(2.dp))
+    when (LocalSkin.current) {
+        Skin.STANDARD -> LinearProgressIndicator(progress = { progress }, modifier = modifier.fillMaxWidth().height(2.dp))
+        Skin.HIT_CIRCLE -> Unit
+        Skin.LANE -> {
+            val scheme = MaterialTheme.colorScheme
+            Canvas(modifier.fillMaxWidth().height(6.dp)) {
+                val y = size.height / 2
+                val x = size.width * progress.coerceIn(0f, 1f)
+                drawLine(scheme.outlineVariant, Offset(0f, y), Offset(size.width, y), 1.dp.toPx())
+                drawLine(scheme.primary, Offset(0f, y), Offset(x, y), 2.dp.toPx())
+                val r = 3.dp.toPx()
+                drawPath(
+                    Path().apply { moveTo(x, y - r); lineTo(x + r, y); lineTo(x, y + r); lineTo(x - r, y); close() },
+                    scheme.primary,
+                )
+            }
+        }
     }
 }
 
@@ -95,7 +132,7 @@ fun MiniProgress(progress: Float, modifier: Modifier = Modifier) {
  */
 @Composable
 fun MiniCover(url: String?, progress: Float) {
-    if (LocalSkin.current == Skin.STANDARD) {
+    if (LocalSkin.current != Skin.HIT_CIRCLE) {
         CoverImage(url = url, contentDescription = null, modifier = Modifier.size(44.dp))
         return
     }
@@ -119,33 +156,36 @@ fun MiniCover(url: String?, progress: Float) {
 val floatingBars: Boolean
     @Composable get() = LocalSkin.current == Skin.HIT_CIRCLE
 
-/** Bottom-bar colours: Hit circle drops Material's pill behind the selected tab; its ring ([TabIcon]) is the mark. */
+/** Bottom-bar colours: the game skins drop Material's pill behind the selected tab; [TabIcon] draws their mark. */
 @Composable
 fun tabColors(): NavigationBarItemColors = when (LocalSkin.current) {
     Skin.STANDARD -> NavigationBarItemDefaults.colors()
-    Skin.HIT_CIRCLE -> NavigationBarItemDefaults.colors(
+    Skin.HIT_CIRCLE, Skin.LANE -> NavigationBarItemDefaults.colors(
         indicatorColor = Color.Transparent,
         selectedIconColor = MaterialTheme.colorScheme.primary,
         selectedTextColor = MaterialTheme.colorScheme.primary,
     )
 }
 
-/** A bottom-bar icon: Hit circle rings the selected tab's, like a circle waiting to be hit. */
+/** A bottom-bar icon: Hit circle rings the selected tab's, like a circle waiting to be hit; Lane sets it in a diamond. */
 @Composable
 fun TabIcon(selected: Boolean, content: @Composable () -> Unit) {
-    if (selected && LocalSkin.current == Skin.HIT_CIRCLE) {
-        Box(
+    when {
+        selected && LocalSkin.current == Skin.HIT_CIRCLE -> Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier.size(34.dp).border(2.5.dp, MaterialTheme.colorScheme.primary, CircleShape),
         ) { content() }
-    } else {
-        content()
+        selected && LocalSkin.current == Skin.LANE -> Box(contentAlignment = Alignment.Center, modifier = Modifier.size(36.dp)) {
+            Diamond(25.dp, MaterialTheme.colorScheme.primary, stroke = 1.5.dp)
+            content()
+        }
+        else -> content()
     }
 }
 
 /**
  * A bottom sheet. Hit circle floats it off the screen's edges as an outlined card, like its mini player and tab bar;
- * Standard docks it as Material's sheet.
+ * Lane docks it with a cut corner; Standard docks it as Material's sheet.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -155,6 +195,19 @@ fun SkinSheet(
     dragHandle: @Composable (() -> Unit)? = { BottomSheetDefaults.DragHandle() },
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    if (LocalSkin.current == Skin.LANE) {
+        // An Arcaea panel: the top-left corner cut away, an edge line along the top.
+        val shape = CutCornerShape(topStart = 28.dp)
+        ModalBottomSheet(
+            onDismissRequest = onDismissRequest,
+            sheetState = sheetState,
+            dragHandle = dragHandle,
+            shape = shape,
+            modifier = Modifier.border(1.dp, MaterialTheme.colorScheme.outline, shape),
+            content = content,
+        )
+        return
+    }
     if (!floatingBars) {
         ModalBottomSheet(onDismissRequest = onDismissRequest, sheetState = sheetState, dragHandle = dragHandle, content = content)
         return

@@ -4,6 +4,23 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Lane skin (after Arcaea), Lavender colours, and a skin-change intro
+
+- Owner's pick (A121): Lane goes next, app-wide. Researched first from the Arcaea wiki's screenshots (play screen, song
+  select, clear titles): slanted panels with cut corners, diamond badges, one thin geometric face, lavender and plum.
+- Type is Exo 2 (A122, `res/font/exo2.ttf`, OFL); icons are Lucide 0.460.0 (A123, `LaneIcons.kt`, generated from the
+  SVGs, ISC); both credited in Settings → Licenses. `AppIcons.pick` takes a third set.
+- `Skin.LANE`: typography, cut-corner `Shapes`, `SlantShape` rows, `laneCut` covers and `LaneHitIndication` (dashed ring)
+  in `ui/theme/Skin.kt`; diamonds, mini progress, tab mark and a cut-corner docked sheet in `ui/common/SkinParts.kt`.
+- Player `LaneDeck` (`ui/playback/skins/Lane.kt`): pane, score banner (Track lost / complete, Full recall, Pure memory
+  at 10+ unbroken plays; grades D, AA, EX, EX+), a perspective lane seeking by vertical drag or tap with notes falling
+  while playing, hexagon buttons and a diamond play, a "PURE" pop per tap. Accessible as a progress bar.
+- `ColorTheme.LAVENDER` (phone-only, no web id, A116), contrast checked (accent 7.5:1 dark, 5.7:1 light). Theme sync now
+  keeps any phone-only theme over the profile's, not just Material You (`AuthRepository.syncTheme`).
+- Owner's idea: `SkinTransition` plays a short intro when the skin changes (fade, approach ring and burst, shutter).
+- Verified: `./gradlew :app:compileDebugKotlin` builds; `:app:testDebugUnitTest` 105 tests, 1 skipped, 0 failed.
+  **Not run:** on a phone, so no screen of Lane or the intro has been seen yet.
+
 ## 2026-10-11: Hit circle, the queue numbered like a combo
 
 - Owner's request: the queue sheet (already floating since v0.3.38) gets Hit circle parts. Each row leads with a hit

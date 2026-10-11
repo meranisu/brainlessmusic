@@ -76,6 +76,7 @@ import com.brainlessmusic.app.data.local.Skin
 import com.brainlessmusic.app.data.local.SeekStyle
 import com.brainlessmusic.app.data.remote.dto.TrackStatDto
 import com.brainlessmusic.app.ui.playback.skins.HitCircleDeck
+import com.brainlessmusic.app.ui.playback.skins.LaneDeck
 import com.brainlessmusic.app.ui.theme.AppIcons
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -249,6 +250,22 @@ fun NowPlayingScreen(
         ) {
             when (skin) {
                 Skin.HIT_CIRCLE -> HitCircleDeck(
+                    state = state,
+                    item = current,
+                    fraction = fraction,
+                    shownMs = shownMs,
+                    record = record,
+                    coverGestures = coverGestures,
+                    coverLayer = coverLayer,
+                    onFraction = { dragFraction = it },
+                    onFinished = seekTo,
+                    onShuffle = viewModel::cycleShuffle,
+                    onPrevious = viewModel::previous,
+                    onPlayPause = viewModel::togglePlayPause,
+                    onNext = viewModel::next,
+                    onRepeat = viewModel::cycleRepeat,
+                )
+                Skin.LANE -> LaneDeck(
                     state = state,
                     item = current,
                     fraction = fraction,

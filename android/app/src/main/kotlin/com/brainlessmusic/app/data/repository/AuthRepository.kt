@@ -227,12 +227,12 @@ class AuthRepository @Inject constructor(
     }
 
     /**
-     * Makes the phone follow the profile's theme (A78), run on every way in. Material You on the phone wins, since the
-     * profile can't hold it. A profile with no theme yet takes the phone's pick, so a choice made before A78 isn't lost.
+     * Makes the phone follow the profile's theme (A78), run on every way in. A phone-only theme (Material You, Lavender)
+     * wins, since the profile can't hold it. A profile with no theme yet takes the phone's pick, so a choice made before A78 isn't lost.
      */
     private suspend fun syncTheme(me: MeResponse) {
         val local = appearance.storedColorTheme()
-        if (local == ColorTheme.MATERIAL_YOU) return
+        if (local != null && local.webId == null) return
         if (me.theme == null) {
             val webId = local?.webId ?: return
             themeSaves.withLock { apiServiceFactory.get(serverConfig.url).setTheme(ThemeRequest(webId)) }

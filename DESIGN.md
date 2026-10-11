@@ -92,3 +92,14 @@ never its artwork, and stay flat: rings and borders, no glow.
   pill rows; a tapped row or tile gets an approach ring closing on the finger; the mini player and tab bar float as
   outlined pills and bottom sheets float as outlined cards (`SkinSheet`), the queue numbers its rows like a combo (`QueueMarker`, "12x" count), the mini cover is ringed by progress; the selected tab is ringed (no pill); icons are Font Awesome
   Free, as osu!lazer uses (`AppIcons`, CC BY 4.0, credited in Settings → Licenses); the player is `HitCircleDeck`, whose slider shows osu!'s reverse arrow at its end on repeat one. Magenta is its matching colour theme.
+- **Lane** (after Arcaea, A121-A123): Exo 2 throughout, light at display sizes; panels with two opposite corners cut on
+  the diagonal (`laneCut`), parallelogram rows (`SlantShape`), corner-cut covers; a tap flings a dashed ring from the
+  finger; diamonds mark the playing song, the selected tab and the mini progress head; sheets dock with the top-left
+  corner cut. Icons are Lucide line icons at a 1.5 stroke (ISC, credited in Settings → Licenses). The player is
+  `LaneDeck`: an information pane, a slanted score banner in Arcaea's words (Track lost/complete, Full recall, Pure
+  memory; grades D to EX+), and the song as a four-lane track in perspective that fills to a judgement line and seeks
+  by vertical drag, notes falling toward it while playing; buttons are hexagons, play a diamond, and a tap pops "PURE".
+  Lavender (phone-only) is its matching colour theme.
+
+Changing skin plays a short intro over the app (`SkinTransition`): Standard fades its name, Hit circle lands an
+approach ring and bursts, Lane closes and opens Arcaea's shutter. About 1.4 s; a tap skips it; off with animations off.

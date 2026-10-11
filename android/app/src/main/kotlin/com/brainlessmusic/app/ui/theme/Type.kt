@@ -18,6 +18,14 @@ val BrandFontFamily = FontFamily(
     },
 )
 
+/** Lane's one face (A122): Exo 2, thin and wide like Arcaea's interface. One variable file, weights on the axis. */
+@OptIn(ExperimentalTextApi::class)
+val LaneFontFamily = FontFamily(
+    listOf(FontWeight.Light, FontWeight.Normal, FontWeight.Medium, FontWeight.SemiBold).map { weight ->
+        Font(R.font.exo2, weight, variationSettings = FontVariation.Settings(FontVariation.weight(weight.weight)))
+    },
+)
+
 /** Track titles at display size (`.font-display`). Weight carries the title; never uppercase it, mixed-script titles break. */
 val DisplayFontFamily = FontFamily(Font(R.font.barlow_condensed_extrabold, FontWeight.ExtraBold))
 

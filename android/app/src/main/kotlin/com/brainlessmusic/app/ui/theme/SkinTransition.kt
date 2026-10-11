@@ -1,0 +1,175 @@
+package com.brainlessmusic.app.ui.theme
+
+import android.provider.Settings
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.brainlessmusic.app.data.local.Skin
+import kotlinx.coroutines.launch
+
+/** Part of [p] that falls between [from] and [to], as 0 to 1. */
+private fun span(p: Float, from: Float, to: Float) = ((p - from) / (to - from)).coerceIn(0f, 1f)
+
+/**
+ * Plays when the skin changes (owner, 2026-10-11): its name with a moment from its game, over the app as it
+ * restyles beneath. Standard fades its name in and out, Hit circle closes an approach ring on a circle that bursts,
+ * Lane slams Arcaea's shutter and opens it. About 1.4 s; a tap skips it; with animations off it never shows.
+ */
+@Composable
+fun SkinTransition(skin: Skin) {
+    val context = LocalContext.current
+    val animate = remember {
+        Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
+    }
+    var shown by remember { mutableStateOf(skin) }
+    val progress = remember { Animatable(1f) }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(skin) {
+        if (skin == shown) return@LaunchedEffect
+        shown = skin
+        if (!animate) return@LaunchedEffect
+        progress.snapTo(0f)
+        progress.animateTo(1f, tween(1400, easing = LinearEasing))
+    }
+
+    val p = progress.value
+    if (p >= 1f) return
+
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .fillMaxSize()
+            // Takes every touch while it plays; a tap ends it.
+            .pointerInput(Unit) { detectTapGestures { scope.launch { progress.snapTo(1f) } } },
+    ) {
+        when (skin) {
+            Skin.STANDARD -> StandardIntro(p)
+            Skin.HIT_CIRCLE -> HitCircleIntro(p)
+            Skin.LANE -> LaneIntro(p)
+        }
+    }
+}
+
+/** In and out over the app: up in the first tenth, down over the last quarter. */
+private fun veil(p: Float) = span(p, 0f, 0.1f) * (1f - span(p, 0.75f, 1f))
+
+@Composable
+private fun StandardIntro(p: Float) {
+    val scheme = MaterialTheme.colorScheme
+    val v = veil(p)
+    Canvas(Modifier.fillMaxSize()) { drawRect(scheme.background, alpha = v) }
+    Text(
+        "Standard",
+        style = MaterialTheme.typography.displaySmall,
+        color = scheme.onBackground,
+        modifier = Modifier.graphicsLayer {
+            alpha = v
+            val s = 0.94f + 0.06f * span(p, 0f, 0.4f)
+            scaleX = s
+            scaleY = s
+        },
+    )
+}
+
+@Composable
+private fun HitCircleIntro(p: Float) {
+    val scheme = MaterialTheme.colorScheme
+    val v = veil(p)
+    val approach = span(p, 0.05f, 0.5f)
+    val burst = span(p, 0.5f, 0.75f)
+    Canvas(Modifier.fillMaxSize()) {
+        drawRect(scheme.background, alpha = v)
+        val c = Offset(size.width / 2, size.height / 2 - 52.dp.toPx())
+        val r = 56.dp.toPx()
+        if (approach < 1f) {
+            drawCircle(scheme.primary, radius = r * (3f - 2f * approach), center = c, alpha = v * (0.3f + 0.7f * approach), style = Stroke(4.dp.toPx()))
+        }
+        // The circle holds until the ring lands, then swells and fades as a hit.
+        val s = 1f + 0.5f * burst
+        val a = v * (1f - burst)
+        drawCircle(scheme.primary, radius = r * s, center = c, alpha = a)
+        drawCircle(scheme.onBackground, radius = r * s, center = c, alpha = a, style = Stroke(6.dp.toPx()))
+    }
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.graphicsLayer { alpha = v }) {
+        Text(
+            "1",
+            fontFamily = BrandFontFamily,
+            fontWeight = FontWeight.Bold,
+            fontSize = 44.sp,
+            color = scheme.onPrimary,
+            modifier = Modifier.padding(bottom = 64.dp).graphicsLayer { alpha = 1f - burst },
+        )
+        Text("Hit circle", fontFamily = BrandFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 34.sp, color = scheme.onBackground)
+    }
+}
+
+@Composable
+private fun LaneIntro(p: Float) {
+    val scheme = MaterialTheme.colorScheme
+    // The shutter closes fast, holds, and opens: Arcaea's song-start screen.
+    val shut = span(p, 0f, 0.22f) * (1f - span(p, 0.72f, 1f))
+    val eased = 1f - (1f - shut) * (1f - shut)
+    Canvas(Modifier.fillMaxSize()) {
+        val w = size.width
+        val h = size.height
+        val slant = 40.dp.toPx()
+        val travel = w / 2 + slant
+        val leftX = -travel * (1f - eased)
+        val rightX = travel * (1f - eased)
+        val left = Path().apply {
+            moveTo(leftX, 0f); lineTo(leftX + w / 2 + slant, 0f); lineTo(leftX + w / 2 - slant, h); lineTo(leftX, h); close()
+        }
+        val right = Path().apply {
+            moveTo(rightX + w / 2 + slant, 0f); lineTo(rightX + w, 0f); lineTo(rightX + w, h); lineTo(rightX + w / 2 - slant, h); close()
+        }
+        drawPath(left, scheme.surfaceContainerHigh)
+        drawPath(right, scheme.surfaceContainerHighest)
+        // The seam: the accent edge on each panel, meeting in the middle.
+        drawLine(scheme.primary, Offset(leftX + w / 2 + slant, 0f), Offset(leftX + w / 2 - slant, h), 3.dp.toPx())
+        drawLine(scheme.primary, Offset(rightX + w / 2 + slant, 0f), Offset(rightX + w / 2 - slant, h), 3.dp.toPx())
+        // The lock: a diamond on the seam once it closes.
+        val d = 70.dp.toPx() * span(p, 0.18f, 0.3f)
+        if (d > 0f && shut > 0.98f) {
+            val c = Offset(w / 2, h / 2)
+            val lock = Path().apply { moveTo(c.x, c.y - d); lineTo(c.x + d, c.y); lineTo(c.x, c.y + d); lineTo(c.x - d, c.y); close() }
+            drawPath(lock, scheme.background)
+            drawPath(lock, scheme.primary, style = Stroke(2.dp.toPx()))
+        }
+    }
+    Text(
+        "LANE",
+        fontFamily = LaneFontFamily,
+        fontWeight = FontWeight.Light,
+        fontSize = 26.sp,
+        letterSpacing = 4.sp,
+        color = scheme.onBackground,
+        modifier = Modifier.graphicsLayer { alpha = if (shut > 0.98f) span(p, 0.25f, 0.35f) else 0f },
+    )
+}

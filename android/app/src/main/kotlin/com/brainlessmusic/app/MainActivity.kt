@@ -37,6 +37,7 @@ import com.brainlessmusic.app.rooms.RoomSession
 import com.brainlessmusic.app.ui.navigation.BrainlessNavGraph
 import com.brainlessmusic.app.ui.splash.StartViewModel
 import com.brainlessmusic.app.ui.theme.BrainlessMusicTheme
+import com.brainlessmusic.app.ui.theme.SkinTransition
 import com.brainlessmusic.app.ui.theme.isDark
 import com.brainlessmusic.app.ui.update.UpdateSheetHost
 import com.brainlessmusic.app.update.UpdateRepository
@@ -139,6 +140,7 @@ class MainActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     BrainlessNavGraph(startViewModel = startViewModel)
                     UpdateSheetHost()
+                    SkinTransition(skin)
                 }
             }
         }

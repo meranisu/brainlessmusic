@@ -29,6 +29,9 @@ enum class ColorTheme(val label: String, val detail: String, val webId: String?)
     MAGENTA("Magenta", "After osu!", "pink"),
     PASTEL("Pastel", "Material, soft and round", "pastel"),
 
+    /** After Arcaea, Lane's match (A116): phone-only until the web has it, so no web id. */
+    LAVENDER("Lavender", "After Arcaea", null),
+
     /** Android 12+ only; older phones fall back to Deep blue and do not offer it. Kept on the phone, not the profile (A78). */
     MATERIAL_YOU("Material You", "From your wallpaper", null),
     ;
@@ -58,6 +61,7 @@ enum class SeekStyle(val label: String) {
 enum class Skin(val label: String, val detail: String) {
     STANDARD("Standard", "The original look"),
     HIT_CIRCLE("Hit circle", "After osu!: round covers and buttons, a ring on every tap, a slider player. Pairs with Magenta"),
+    LANE("Lane", "After Arcaea: slanted panels, thin type, a lane you seek along. Pairs with Lavender"),
     ;
 
     /** Game skins show your record for the song in the player (A115). */

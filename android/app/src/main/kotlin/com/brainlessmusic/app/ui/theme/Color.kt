@@ -76,6 +76,15 @@ val PastelPalette = Palette(
     accentOnLight = Color(0xFFAE4F38), accentOnBand = Color(0xFFCE6C54),
 )
 
+// Phone-only (A116), so not converted from the web: Arcaea's lavender on plum, checked to the same contrast rules.
+val LavenderPalette = Palette(
+    ground = Color(0xFF120C1C), blue950 = Color(0xFF1B1229), blue900 = Color(0xFF2A1E3F), blue800 = Color(0xFF3B2C56),
+    blue700 = Color(0xFF564375), blue400 = Color(0xFFA18CD1), blue300 = Color(0xFFC5B6EC), blue100 = Color(0xFFEEE9F7),
+    white = Color(0xFFFBF9FF), accent = Color(0xFFB794FF), dangerDark = Color(0xFFFFA2B8), dangerLight = Color(0xFFB0103A),
+    accentOnLight = Color(0xFF6A3FC0), // 5.7:1 on blue100
+    accentOnBand = Color(0xFF8A63E0), // 3.6:1
+)
+
 fun ColorTheme.palette(): Palette = when (this) {
     ColorTheme.DEEP_BLUE -> DeepBluePalette
     ColorTheme.CRIMSON -> CrimsonPalette
@@ -83,6 +92,7 @@ fun ColorTheme.palette(): Palette = when (this) {
     ColorTheme.NORD -> NordPalette
     ColorTheme.MAGENTA -> MagentaPalette
     ColorTheme.PASTEL -> PastelPalette
+    ColorTheme.LAVENDER -> LavenderPalette
     // Its real colours come from the wallpaper (`BrainlessMusicTheme`); this is the fallback below Android 12.
     ColorTheme.MATERIAL_YOU -> DeepBluePalette
 }

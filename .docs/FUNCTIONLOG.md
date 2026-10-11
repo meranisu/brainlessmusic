@@ -4,6 +4,54 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `LaneDeck()`, `ScoreStrip()`, `LaneTrack()`, `drawLane()`, `LaneButton()`, `PlayDiamond()`, `Pure`, `PureText()` (new): `android/.../ui/playback/skins/Lane.kt`
+**Date:** 2026-10-11
+**How added:** owner request (A121)
+**Purpose:** the Lane skin's Now Playing, after Arcaea.
+**Side effects:** seeks through the same `onFraction`/`onFinished` as the other players.
+**Before:** nothing, new.
+**After:** Lane's player as described in DESIGN.md "Skins".
+
+**Function:** `LaneTypography`, `LaneShapes`, `laneCut()`, `SlantShape`, `LaneHitIndication` (new); `typography()`, `shapes()`, `cardShape`, `tileShape()`, `rowShape`, `coverShape()` (changed): `android/.../ui/theme/Skin.kt`
+**Date:** 2026-10-11
+**How added:** owner request (A121, A122)
+**Purpose:** Lane's design tokens and tap feedback.
+**Side effects:** none.
+**Before:** two skins.
+**After:** a third, Lane; Standard and Hit circle unchanged.
+
+**Function:** `Diamond()`, `SkinSheet()`, `MiniProgress()`, `MiniCover()`, `PlayingMarker()`, `tabColors()`, `TabIcon()` (changed or new): `android/.../ui/common/SkinParts.kt`
+**Date:** 2026-10-11
+**How added:** owner request (A121)
+**Purpose:** Lane's shared parts.
+**Side effects:** none.
+**Before:** Standard and Hit circle only.
+**After:** Lane branches; Standard and Hit circle unchanged.
+
+**Function:** `LaneIcons`, `lucide()` (new, generated): `android/.../ui/theme/LaneIcons.kt`; `pick()` (changed): `AppIcons.kt`
+**Date:** 2026-10-11
+**How added:** owner request (A123)
+**Purpose:** Lucide line icons for Lane.
+**Side effects:** none.
+**Before:** `pick` chose between Material and Font Awesome.
+**After:** a third set under Lane.
+
+**Function:** `SkinTransition()` (new): `android/.../ui/theme/SkinTransition.kt`
+**Date:** 2026-10-11
+**How added:** owner request
+**Purpose:** a short intro naming the new skin when it changes.
+**Side effects:** takes touches while it plays; a tap ends it.
+**Before:** a skin change restyled the app instantly.
+**After:** about 1.4 s of intro over the restyled app; none with animations off or at launch.
+
+**Function:** `AuthRepository.syncTheme()` (changed): `android/.../data/repository/AuthRepository.kt`
+**Date:** 2026-10-11
+**How added:** hardening (new phone-only theme)
+**Purpose:** a phone-only colour theme survives sign-in.
+**Side effects:** none new.
+**Before:** only Material You was kept over the profile's theme; Lavender would have been overwritten at every sign-in.
+**After:** any theme without a web id is kept.
+
 **Function:** `QueueMarker()` (new): `android/.../ui/common/SkinParts.kt`; `QueueSheet()`, `QueueRowItem()` (changed): `android/.../ui/playback/QueueSheet.kt`
 **Date:** 2026-10-11
 **How added:** owner request

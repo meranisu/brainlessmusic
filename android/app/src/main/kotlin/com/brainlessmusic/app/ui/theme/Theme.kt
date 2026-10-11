@@ -181,6 +181,10 @@ fun BrainlessMusicTheme(
                     LocalIndication provides ApproachRingIndication(colorScheme.primary, animationsOn),
                     content = content,
                 )
+                Skin.LANE -> CompositionLocalProvider(
+                    LocalIndication provides LaneHitIndication(colorScheme.primary, animationsOn),
+                    content = content,
+                )
             }
         }
     }
