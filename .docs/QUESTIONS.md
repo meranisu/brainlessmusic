@@ -33,6 +33,7 @@ is never asked twice.
 | [Q78](#q78--who-goes-on-the-access-email-list) | Who goes on the Access email list? | 2026-10-11 | Yes, before Access goes on |
 | [Q114](#q114--which-arcade-player-skins-come-first) | Which arcade player skins come first? | 2026-10-11 | Yes, for player skins |
 | [Q115](#q115--what-makes-the-player-personal) | What makes the player "personal"? | 2026-10-11 | Yes, for player skins |
+| [Q116](#q116--how-far-do-a-skins-colours-reach) | How far do a skin's colours reach? | 2026-10-11 | Yes, for player skins |
 
 ### Q5 — Tag-editing scope
 **Asked:** 2026-09-09 · **Blocking:** no
@@ -99,6 +100,19 @@ Recommended: Hit circle, Deck and Ring first (the most distinct from each other)
 - **B. Your name on the cabinet.** A player-card strip with your name and avatar, like an e-amusement card.
 - **C. Both.**
 - **D. Just the skins**, nothing personal beyond choosing one.
+
+### Q116 — How far do a skin's colours reach?
+**Asked:** 2026-10-11 · **Blocking:** yes, for player skins
+
+Owner: "add colors too to match them". Each skin gets a palette after its game (osu! pink on dark plum, IIDX red and
+amber LEDs on black, Taiko red and blue on cream, Project DIVA teal, Arcaea light and dark lavender, and so on), flat,
+no glow. A48 says a theme changes colour only and applies app-wide; this question is where a skin's colours apply.
+
+- **A. The player only, with a switch (recommended).** The Now Playing screen takes the skin's colours, like walking up
+  to that cabinet; the rest of the app keeps your colour theme. A "Use the skin's colours" switch, on by default,
+  lets you keep your theme on the player too.
+- **B. The whole app.** Picking a skin also recolours every screen, so a skin becomes a theme plus a layout.
+- **C. Separate.** The skins' palettes are added to the Colours list as new themes, picked on their own.
 
 ## Answered
 
