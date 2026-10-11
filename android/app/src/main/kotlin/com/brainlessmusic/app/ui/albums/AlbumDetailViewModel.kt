@@ -76,6 +76,16 @@ class AlbumDetailViewModel @Inject constructor(
         playbackController.playQueue(album.tracks.map { libraryRepository.queueItem(album, it) }, index)
     }
 
+    /** The Shuffle button: turns shuffle on in the last mode, starting from a random song. */
+    fun shuffle(album: AlbumDetailDto) {
+        if (album.tracks.isEmpty()) return
+        playbackController.playQueue(
+            album.tracks.map { libraryRepository.queueItem(album, it) },
+            album.tracks.indices.random(),
+            shuffle = true,
+        )
+    }
+
     /** For the song menu. */
     fun queueItem(album: AlbumDetailDto, track: AlbumTrackDto): QueueItem = libraryRepository.queueItem(album, track)
 }

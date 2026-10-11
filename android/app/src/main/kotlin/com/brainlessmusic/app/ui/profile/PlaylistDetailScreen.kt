@@ -129,7 +129,9 @@ class PlaylistDetailViewModel @Inject constructor(
     fun play(startIndex: Int, shuffle: Boolean = false) {
         val playlist = current() ?: return
         if (playlist.tracks.isEmpty()) return
-        playbackController.playQueue(playlist.tracks.map(::queueItem), startIndex, shuffle = if (shuffle) true else null)
+        // Shuffle starts from a random song; a start of 0 would always open on the first one.
+        val start = if (shuffle) playlist.tracks.indices.random() else startIndex
+        playbackController.playQueue(playlist.tracks.map(::queueItem), start, shuffle = if (shuffle) true else null)
     }
 
     /** Also for the song menu. */

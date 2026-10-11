@@ -2,6 +2,7 @@ package com.brainlessmusic.app.ui.albums
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,11 +15,15 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -104,6 +109,9 @@ fun AlbumDetailScreen(
             ) {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     item { AlbumHeader(album, coverUrl = viewModel.coverUrl()) }
+                    item {
+                        PlayShuffleRow(onPlay = { viewModel.playFrom(album, 0) }, onShuffle = { viewModel.shuffle(album) })
+                    }
                     itemsIndexed(album.tracks, key = { _, track -> track.id }) { index, track ->
                         TrackRow(
                             track = track,
@@ -145,6 +153,24 @@ private fun AlbumHeader(album: AlbumDetailDto, coverUrl: String?) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+    }
+}
+
+/** Same buttons as a playlist's: a tapped song turns shuffle off, so this is how to shuffle the album. */
+@Composable
+internal fun PlayShuffleRow(onPlay: () -> Unit, onShuffle: () -> Unit) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+    ) {
+        Button(onClick = onPlay) {
+            Icon(Icons.Filled.PlayArrow, contentDescription = null)
+            Text("Play", modifier = Modifier.padding(start = 6.dp))
+        }
+        OutlinedButton(onClick = onShuffle) {
+            Icon(Icons.Filled.Shuffle, contentDescription = null)
+            Text("Shuffle", modifier = Modifier.padding(start = 6.dp))
         }
     }
 }

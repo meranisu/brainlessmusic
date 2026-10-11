@@ -4,6 +4,27 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android: shuffle review fixes (T1, T2, T3, T5)
+
+From `.docs/process/review-2026-10-12-shuffle-off-on-tap.md`.
+
+- **T1. Album and artist pages get Play and Shuffle buttons**, the same pair a playlist has, under the album header and
+  above the artist's album grid. A tapped song turns shuffle off, so these are now the way to shuffle an album or an
+  artist. The artist buttons fetch every album's tracks (`GET /albums/:id` per album, in parallel) and play them in
+  album order; a toast says so when none could be fetched.
+- **Shuffle starts from a random song** on the new buttons and on a playlist's Shuffle. The queue opens on the start
+  index (`applyShuffleOrder(first = index)`), and the playlist passed 0, so it always began with its first song.
+- **T2. Upgrading users keep Rediscover or Albums.** `last_shuffle_mode` did not exist before v0.3.15, so the first tap
+  wrote `shuffle_mode = OFF` and the old mode was gone. `setShuffleMode` now copies the old `shuffle_mode` into
+  `last_shuffle_mode` when that is missing, and `lastShuffleMode` reads `shuffle_mode` until it is written.
+- **T3.** `android/release-notes/v0.3.15.md` no longer says the Now Playing button comes back to the last mode (it still
+  goes off to Shuffle, T4).
+- **T5.** The play-mode rule in `playQueue` moved to `shuffleModeForPlay()` so it can be tested. New
+  `ShuffleModeForPlayTest` (tap turns shuffle off, Keep shuffle, shuffle buttons use the last mode) and
+  `ShuffleSettingsTest` (last mode, upgrade paths, old on/off key, against an in-memory DataStore).
+- Verified: `./gradlew compileDebugKotlin testDebugUnitTest` clean, 54 tests (11 new), 0 failures. Not run on a phone
+  or emulator: the new buttons and the artist fetch are untested by hand.
+
 ## 2026-10-11 — Android: song menu on long press, swipe gestures, tighter queue sheet, data saver
 
 - **Song menu.** A long press on a song in Library → Songs, an album, a playlist or search results, or on the cover in

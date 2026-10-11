@@ -49,14 +49,20 @@ class PlaybackSettings @Inject constructor(
 
     suspend fun setShuffleMode(mode: ShuffleMode) {
         dataStore.edit {
+            // Installs from before v0.3.15 never wrote the last mode: keep the one being turned off, or it is lost.
+            if (it[LAST_SHUFFLE_MODE_KEY] == null) it[SHUFFLE_MODE_KEY]?.let { old -> it[LAST_SHUFFLE_MODE_KEY] = old }
             it[SHUFFLE_MODE_KEY] = mode.name
             if (mode != ShuffleMode.OFF) it[LAST_SHUFFLE_MODE_KEY] = mode.name
         }
     }
 
-    /** The last mode shuffle was on in, kept while it is off, so the shuffle buttons come back to it (Q86). */
+    /**
+     * The last mode shuffle was on in, kept while it is off, so the shuffle buttons come back to it (Q86). Installs from
+     * before v0.3.15 never wrote it, so the current mode stands in until [setShuffleMode] does.
+     */
     val lastShuffleMode: Flow<ShuffleMode> = dataStore.data.map { prefs ->
-        prefs[LAST_SHUFFLE_MODE_KEY]?.let { name -> ShuffleMode.entries.firstOrNull { it.name == name } }
+        val saved = prefs[LAST_SHUFFLE_MODE_KEY] ?: prefs[SHUFFLE_MODE_KEY]
+        saved?.let { name -> ShuffleMode.entries.firstOrNull { it.name == name } }
             ?.takeIf { it != ShuffleMode.OFF } ?: ShuffleMode.SHUFFLE
     }
 

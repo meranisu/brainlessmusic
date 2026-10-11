@@ -4,6 +4,30 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** new `PlayShuffleRow` — `android/.../ui/albums/AlbumDetailScreen.kt`; new `AlbumDetailViewModel.shuffle()`; new `ArtistDetailViewModel.playAll()` (now injects `PlaybackController`); `ArtistDetailScreen`; `PlaylistDetailViewModel.play()`
+**Date:** 2026-10-11
+**How added:** bug fix
+**Purpose:** Play and Shuffle buttons on album and artist pages (review T1); shuffle buttons start from a random song.
+**Side effects:** the artist buttons call `GET /albums/:id` once per album.
+**Before:** albums and artists had no shuffle entry; a playlist's Shuffle always opened on its first song.
+**After:** both pages have the playlist's two buttons; Shuffle turns shuffle on in the last mode from a random song.
+
+**Function:** `PlaybackSettings.setShuffleMode()`, `PlaybackSettings.lastShuffleMode` — `android/.../data/local/PlaybackSettings.kt`
+**Date:** 2026-10-11
+**How added:** bug fix
+**Purpose:** keep the mode an install from before v0.3.15 was in when the first tap turns shuffle off (review T2).
+**Side effects:** writes `last_shuffle_mode` from `shuffle_mode` once, when it is missing.
+**Before:** a missing `last_shuffle_mode` read as Shuffle, so Rediscover or Albums was lost on the first tap.
+**After:** the old `shuffle_mode` stands in and is saved before it is overwritten.
+
+**Function:** new `shuffleModeForPlay()` — `android/.../playback/PlaybackController.kt`
+**Date:** 2026-10-11
+**How added:** refactor
+**Purpose:** the mode a new queue plays in, pulled out of `playQueue` so the rules are unit tested (review T5).
+**Side effects:** none.
+**Before:** inline `when` in `playQueue`, using `libraryShuffleMode()`.
+**After:** same rules, as a pure function.
+
 **Function:** new `SongMenuSheet`, `SongDetailsDialog` — `android/.../ui/profile/SongMenu.kt`; `SongActionsViewModel` gains `playNext()`, `playLessOften()`, `detail` / `loadDetail()`; new `ApiService.trackDetail()`, `LibraryRepository.getTrackDetail()`, `TrackDetailDto`; `LibraryScreen` `SongRow` / `SongsTab`; `LibraryViewModel.queueItem()`; `NowPlayingScreen` (new `onOpenAlbum`); `AlbumDetailScreen` `TrackRow` and new `AlbumDetailViewModel.queueItem()` (its `playNext()` removed); `PlaylistDetailScreen` (new `onOpenAlbum`), `PlaylistRow`, `PlaylistDetailViewModel.queueItem()` now public; `SearchScreen` `TrackResultRow`, new `SearchViewModel.queueItem()`
 **Date:** 2026-10-11
 **How added:** new feature

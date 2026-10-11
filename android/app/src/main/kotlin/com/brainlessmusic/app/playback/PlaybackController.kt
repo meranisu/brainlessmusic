@@ -206,11 +206,7 @@ class PlaybackController @Inject constructor(
      * `null` is a tapped song, which turns it off unless "Keep shuffle" is on.
      */
     fun playQueue(items: List<QueueItem>, startIndex: Int, source: QueueSource? = null, shuffle: Boolean? = null) {
-        val mode = when (shuffle) {
-            null -> if (keepShuffle) wantMode else ShuffleMode.OFF
-            true -> libraryShuffleMode()
-            false -> ShuffleMode.OFF
-        }
+        val mode = shuffleModeForPlay(shuffle, keepShuffle, wantMode, lastOnMode)
         if (mode != wantMode) {
             wantMode = mode
             if (mode != ShuffleMode.OFF) lastOnMode = mode
@@ -1100,3 +1096,14 @@ class PlaybackController @Inject constructor(
         const val REFILL_CHUNK = 200
     }
 }
+
+/**
+ * The mode a new queue plays in. A tapped song (`shuffle` null) turns shuffle off unless "Keep shuffle" is on; a shuffle
+ * button (`true`) keeps the mode that is on, or comes back to the last one when shuffle is off.
+ */
+internal fun shuffleModeForPlay(shuffle: Boolean?, keepShuffle: Boolean, current: ShuffleMode, lastOn: ShuffleMode) =
+    when (shuffle) {
+        null -> if (keepShuffle) current else ShuffleMode.OFF
+        true -> if (current == ShuffleMode.OFF) lastOn else current
+        false -> ShuffleMode.OFF
+    }

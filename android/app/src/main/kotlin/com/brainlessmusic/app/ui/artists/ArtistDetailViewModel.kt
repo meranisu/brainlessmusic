@@ -7,9 +7,13 @@ import com.brainlessmusic.app.data.remote.dto.ArtistDetailDto
 import com.brainlessmusic.app.data.repository.ConnectionException
 import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.data.repository.toMessage
+import com.brainlessmusic.app.playback.PlaybackController
+import com.brainlessmusic.app.playback.queueItem
 import com.brainlessmusic.app.ui.common.LoadState
 import com.brainlessmusic.app.ui.navigation.Routes
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,6 +24,7 @@ import javax.inject.Inject
 class ArtistDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val libraryRepository: LibraryRepository,
+    private val playbackController: PlaybackController,
 ) : ViewModel() {
 
     private val artistId: Int = checkNotNull(savedStateHandle[Routes.ARG_ARTIST_ID])
@@ -62,4 +67,28 @@ class ArtistDetailViewModel @Inject constructor(
     }
 
     fun albumCoverUrl(albumId: Int): String? = libraryRepository.albumCoverUrl(albumId)
+
+    /**
+     * The Play and Shuffle buttons: every song on the artist's albums, in album order. Shuffle turns shuffle on in the
+     * last mode and starts from a random song. [onFailed] gets a short line when no album could be fetched.
+     */
+    fun playAll(shuffle: Boolean, onFailed: (String) -> Unit) {
+        val detail = (_state.value as? LoadState.Content)?.data ?: return
+        viewModelScope.launch {
+            val albums = detail.albums
+                .map { async { libraryRepository.getAlbumDetail(it.id).getOrNull() } }
+                .awaitAll()
+                .filterNotNull()
+            val items = albums.flatMap { album -> album.tracks.map { libraryRepository.queueItem(album, it) } }
+            if (items.isEmpty()) {
+                onFailed("Couldn't load this artist's songs. Check your connection.")
+                return@launch
+            }
+            playbackController.playQueue(
+                items,
+                if (shuffle) items.indices.random() else 0,
+                shuffle = if (shuffle) true else null,
+            )
+        }
+    }
 }

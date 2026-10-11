@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
@@ -35,6 +36,7 @@ import com.brainlessmusic.app.data.remote.dto.ArtistDetailDto
 import com.brainlessmusic.app.ui.common.CoverImage
 import com.brainlessmusic.app.ui.common.LoadState
 import com.brainlessmusic.app.ui.common.LoadStateContent
+import com.brainlessmusic.app.ui.albums.PlayShuffleRow
 import com.brainlessmusic.app.ui.common.SkeletonAlbumGrid
 import com.brainlessmusic.app.ui.playback.MiniPlayer
 
@@ -87,6 +89,13 @@ fun ArtistDetailScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        val onFailed: (String) -> Unit = { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
+                        PlayShuffleRow(
+                            onPlay = { viewModel.playAll(shuffle = false, onFailed) },
+                            onShuffle = { viewModel.playAll(shuffle = true, onFailed) },
+                        )
+                    }
                     items(detail.albums, key = { it.id }) { album ->
                         AlbumCard(
                             album = album,
