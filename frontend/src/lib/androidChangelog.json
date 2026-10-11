@@ -1,5 +1,32 @@
 [
   {
+    "version": "0.3.42",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "hit circle: menus like the song menu, add to playlist and the queue now pop up as a card in the middle of the screen instead of sliding up from the bottom. tap outside or press back to close",
+              "the outline on those cards was drawn in the wrong spot, away from the card. fixed, same for lane's sheets"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.41",
     "date": "2026-10-11",
     "sections": [
