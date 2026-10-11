@@ -61,7 +61,8 @@ class SearchViewModel @Inject constructor(
     }
 
     private suspend fun runSearch(query: String) {
-        _state.value = LoadState.Loading
+        // Previous results stay up until the new ones land (A83); the skeleton is only for a first search.
+        if (!hasResults(_state.value)) _state.value = LoadState.Loading
         libraryRepository.search(query).fold(
             onSuccess = { _state.value = LoadState.Content(it) },
             onFailure = {
@@ -71,6 +72,10 @@ class SearchViewModel @Inject constructor(
             },
         )
     }
+
+    private fun hasResults(state: LoadState<SearchResultsDto>): Boolean =
+        state is LoadState.Content &&
+            (state.data.artists.isNotEmpty() || state.data.albums.isNotEmpty() || state.data.tracks.isNotEmpty())
 
     fun albumCoverUrl(albumId: Int): String? = libraryRepository.albumCoverUrl(albumId)
 

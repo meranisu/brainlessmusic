@@ -23,7 +23,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 sealed interface SessionRestoreResult {
-    data class Restored(val username: String) : SessionRestoreResult
+    /** [offline]: the server couldn't be reached, so the stored session is kept unchecked rather than thrown away. */
+    data class Restored(val username: String, val offline: Boolean = false) : SessionRestoreResult
     data object NoStoredSession : SessionRestoreResult
     data object StoredSessionInvalid : SessionRestoreResult
 }
@@ -61,7 +62,7 @@ class AuthRepository @Inject constructor(
             tokenProvider.current = response.token
             tokenProvider.isGuest = false
             mediaUrlProvider.current = ApiServiceFactory.normalize(validated)
-            sessionStore.saveSession(validated, username, response.token)
+            sessionStore.saveSession(validated, username, response.token, isGuest = false)
             // Only for Settings' name and the theme; a failure here doesn't undo the login.
             runCatching {
                 val me = apiServiceFactory.get(validated).me()
@@ -105,7 +106,7 @@ class AuthRepository @Inject constructor(
         val me = apiServiceFactory.get(serverUrl).me()
         tokenProvider.isGuest = me.isGuest
         mediaUrlProvider.current = ApiServiceFactory.normalize(serverUrl)
-        sessionStore.saveSession(serverUrl, me.username, token)
+        sessionStore.saveSession(serverUrl, me.username, token, me.isGuest)
         sessionStore.saveDisplayName(nameOf(me))
         runCatching { syncTheme(me) }
         return nameOf(me)
@@ -223,15 +224,25 @@ class AuthRepository @Inject constructor(
             .fold(
                 onSuccess = {
                     tokenProvider.isGuest = it.isGuest
+                    sessionStore.saveIsGuest(it.isGuest)
                     sessionStore.saveDisplayName(nameOf(it))
                     runCatching { syncTheme(it) }
                     SessionRestoreResult.Restored(nameOf(it))
                 },
                 onFailure = {
-                    tokenProvider.current = null
-                    mediaUrlProvider.current = null
-                    sessionStore.clearCredentials()
-                    SessionRestoreResult.StoredSessionInvalid
+                    // Only the server saying no ends the session. No signal, or smol being down, used to log the
+                    // phone out, which loses a guest's identity for good and locks out downloaded music.
+                    if (classifyError(it) == ConnectionError.Unauthorized) {
+                        tokenProvider.current = null
+                        mediaUrlProvider.current = null
+                        sessionStore.clearCredentials()
+                        SessionRestoreResult.StoredSessionInvalid
+                    } else {
+                        // Unknown (a session saved before this was kept) counts as guest: listen-only is the safe side.
+                        tokenProvider.isGuest = sessionStore.readIsGuest() ?: true
+                        val name = sessionStore.displayName.first() ?: sessionStore.username.first() ?: ""
+                        SessionRestoreResult.Restored(name, offline = true)
+                    }
                 },
             )
     }

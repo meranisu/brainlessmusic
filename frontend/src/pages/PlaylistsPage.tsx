@@ -32,7 +32,7 @@ export function PlaylistsPage() {
       <div>
         <h1 className="text-xl font-semibold text-white">Playlists</h1>
         <p className="text-sm text-blue-300">
-          {data ? `${data.playlists.length} playlist${data.playlists.length === 1 ? '' : 's'}` : 'Loading…'}
+          {data ? `${data.playlists.length} playlist${data.playlists.length === 1 ? '' : 's'}` : '\u00a0'}
         </p>
       </div>
 

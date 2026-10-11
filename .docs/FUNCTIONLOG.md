@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `AuthRepository.restoreSession()`, `AuthRepository.login()`, `AuthRepository.adopt()`; `SessionStore.saveSession()` (new `isGuest` parameter), new `SessionStore.readIsGuest()`, `saveIsGuest()` — `android/.../data/`
+**Date:** 2026-10-11
+**How added:** bug fix (offline downloads spec, step 1)
+**Purpose:** a cold start with no network keeps the stored session instead of signing out.
+**Side effects:** DataStore key `is_guest` written on every sign-in and online restore; removed by `clearCredentials()`.
+**Before:** any `/auth/me` failure cleared the credentials and sent the phone to login.
+**After:** only a 401 does; otherwise `Restored(name, offline = true)` with the guest flag read from storage (unknown counts as guest).
+
+**Function:** `SearchViewModel.runSearch()`, new `hasResults()` — `android/.../ui/search/SearchViewModel.kt`; `SearchPage` — `frontend/src/pages/SearchPage.tsx`; subtitles in `AlbumsPage`, `ArtistsPage`, `PlaylistsPage`, `FavoritesPage`
+**Date:** 2026-10-11
+**How added:** bug fix (A83, A84)
+**Purpose:** keep the last search results up while a new search loads; stop screen readers hearing "Loading" twice.
+**Side effects:** none.
+**Before:** each new search blanked the results and showed the skeleton; the web lists said "Loading…" beside the skeleton's own label.
+**After:** old results stay until new ones land (skeleton only when there were none); the subtitle is blank while loading.
+
 **Function:** `PlaybackController.applyDataSaver()`; `SongActionsViewModel.playNext()` (now returns the line to show), `loadDetail()`; `formatDay()` — `android/.../ui/profile/ProfileFormat.kt`; the queue drag handle in `QueueSheet`
 **Date:** 2026-10-11
 **How added:** bug fix (review of the song menu / swipes / data saver change)

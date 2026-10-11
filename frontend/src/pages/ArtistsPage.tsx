@@ -25,7 +25,7 @@ export function ArtistsPage() {
       <div>
         <h1 className="text-xl font-semibold text-white">Artists</h1>
         <p className="text-sm text-blue-300">
-          {data ? `${data.total} artist${data.total === 1 ? '' : 's'}` : 'Loading…'}
+          {data ? `${data.total} artist${data.total === 1 ? '' : 's'}` : '\u00a0'}
         </p>
       </div>
 

@@ -1,6 +1,7 @@
 package com.brainlessmusic.app.data.local
 
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -59,11 +60,19 @@ class SessionStore @Inject constructor(
         return runCatching { cryptoManager.decrypt(EncryptedPayload(cipherText, iv)) }.getOrNull()
     }
 
-    suspend fun saveSession(serverUrl: String, username: String, token: String) {
+    /** Whether the stored session is a guest's, as `/auth/me` last said; null for a session saved before it was kept. */
+    suspend fun readIsGuest(): Boolean? = dataStore.data.first()[IS_GUEST_KEY]
+
+    suspend fun saveIsGuest(isGuest: Boolean) {
+        dataStore.edit { it[IS_GUEST_KEY] = isGuest }
+    }
+
+    suspend fun saveSession(serverUrl: String, username: String, token: String, isGuest: Boolean) {
         val encrypted = cryptoManager.encrypt(token)
         dataStore.edit { prefs ->
             prefs[SERVER_URL_KEY] = serverUrl
             prefs[USERNAME_KEY] = username
+            prefs[IS_GUEST_KEY] = isGuest
             prefs[TOKEN_CIPHER_KEY] = encrypted.cipherText
             prefs[TOKEN_IV_KEY] = encrypted.iv
         }
@@ -74,6 +83,7 @@ class SessionStore @Inject constructor(
         dataStore.edit { prefs ->
             prefs.remove(USERNAME_KEY)
             prefs.remove(DISPLAY_NAME_KEY)
+            prefs.remove(IS_GUEST_KEY)
             prefs.remove(TOKEN_CIPHER_KEY)
             prefs.remove(TOKEN_IV_KEY)
         }
@@ -83,6 +93,7 @@ class SessionStore @Inject constructor(
         val SERVER_URL_KEY = stringPreferencesKey("server_url")
         val USERNAME_KEY = stringPreferencesKey("username")
         val DISPLAY_NAME_KEY = stringPreferencesKey("display_name")
+        val IS_GUEST_KEY = booleanPreferencesKey("is_guest")
         val PENDING_REQUEST_ID_KEY = stringPreferencesKey("pending_guest_request_id")
         val PENDING_REQUEST_SECRET_KEY = stringPreferencesKey("pending_guest_request_secret")
         val TOKEN_CIPHER_KEY = stringPreferencesKey("token_cipher")

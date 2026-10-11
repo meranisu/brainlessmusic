@@ -28,10 +28,10 @@ Work the first unticked box there.
 | Web frontend (arcade title screen, music select, themes, transitions, `/manage`) | Feature-complete for planned scope | [features/](features/) |
 | Docker image | Built, verified — box 12 | [ops/docker-local-build.md](ops/docker-local-build.md) |
 | Android Phase 0 — connect + auth | Confirmed on a real device 2026-09-18 | [features/android-phase-0-connect](features/android-phase-0-connect/planning.md) |
-| Android Phase 1 — browse | Built; first on-device look 2026-09-28 led to padding/search fixes and Material You (dynamic color) | [features/android-phase-1-browse](features/android-phase-1-browse/planning.md) |
-| Android Phase 2 — playback (Media3, queue, Now Playing, scrobble) | Built; **playback confirmed on a phone over Wi-Fi and mobile data (2026-09-28)**; seek, Opus, play-count-on-web, Play next and error paths not yet reported — checklist in the plan | [features/android-phase-2-playback](features/android-phase-2-playback/planning.md) |
-| Android Phase 3 — background (MediaSession, foreground service, notification/lock-screen controls) | Built; **screen-off playback and the notification confirmed on a phone (2026-09-28)**; lock-screen buttons, artwork, headset pause not yet reported | [features/android-phase-3-background](features/android-phase-3-background/planning.md) |
-| Reach it from outside (roadmap box 13) | **Not done — the critical path for v0.2** | [ops/cloudflare-tunnel-deployment.md](ops/cloudflare-tunnel-deployment.md) |
+| Android Phase 1 — browse | Done, owner-confirmed on the phone 2026-10-11 (box 16) | [features/android-phase-1-browse](features/android-phase-1-browse/planning.md) |
+| Android Phase 2 — playback (Media3, queue, Now Playing, scrobble) | Done, owner-confirmed on the phone 2026-10-11 (box 17) | [features/android-phase-2-playback](features/android-phase-2-playback/planning.md) |
+| Android Phase 3 — background (MediaSession, foreground service, notification/lock-screen controls) | Done, owner-confirmed on the phone 2026-10-11 (box 18) | [features/android-phase-3-background](features/android-phase-3-background/planning.md) |
+| Reach it from outside (roadmap box 13) | Done, owner-confirmed 2026-10-11 (box 13); Cloudflare Access still off pending Q77/Q78 | [ops/cloudflare-tunnel-deployment.md](ops/cloudflare-tunnel-deployment.md) |
 | Room sync (v0.3) | Not started; spec first (box 21) | Q4 |
 
 ## In the working tree, not yet committed (as of 2026-09-28)
@@ -58,8 +58,8 @@ The list is [QUESTIONS.md](QUESTIONS.md) — check it before asking anything. Bl
 
 ## Next
 
-1. **Box 13 — reach it from outside** (ops): the tunnel + Access gate; nothing else in v0.2 gets music onto a phone away from home.
-2. **Android Phase 2 — on-device check** (box 17): run the checklist on the POCO F5. Phase 3 (box 18) is built too and needs the same phone check; Home + playlists come next (A22).
+1. **Box 19 — offline downloads** (Android): the last v0.2 box. Spec first; data-saver (`?quality=low`) already shipped in fa403a9.
+2. Cloudflare Access (A74): switch on once Q77 and Q78 are answered.
 3. Commit or finish the failure-logging work above.
 4. v0.3 starts with the room-sync spec (box 21) — spec before code.
 5. The 2026-10-11 review findings are fixed (ca945ba, 6ded2eb, and F2/F5/G2 after; not yet on smol). Left: G3 (closed by

@@ -32,8 +32,6 @@ is never asked twice.
 | [Q5](#q5--tag-editing-scope) | Tag-editing scope | 2026-09-09 | No |
 | [Q77](#q77--how-does-the-android-app-get-past-cloudflare-access) | How does the Android app get past Cloudflare Access? | 2026-10-11 | Yes, before Access goes on |
 | [Q78](#q78--who-goes-on-the-access-email-list) | Who goes on the Access email list? | 2026-10-11 | Yes, before Access goes on |
-| [Q80](#q80--keep-old-search-results-on-screen-while-a-new-search-loads) | Keep old search results on screen while a new search loads? | 2026-10-11 | No — owner reviews next session |
-| [Q81](#q81--drop-the-duplicate-loading-subtitle-on-the-web-lists) | Drop the duplicate "Loading…" subtitle on the web lists? | 2026-10-11 | No — owner reviews next session |
 
 ### Q4 — Room-sync design details
 **Asked:** 2026-09-09 · **Blocking:** not yet — v0.3 work
@@ -71,29 +69,32 @@ includes friends using a guest code on the web: without their email on the list 
 - **A. You and the friends who use the web (recommended).** Each friend's email goes on the list once.
 - **B. Only you.** Friends use the Android app only (with Q77's token), never the web.
 
-### Q80 — Keep old search results on screen while a new search loads?
-**Asked:** 2026-10-11 · **Blocking:** no · from the review of the skeleton work (A59)
-
-On Android, a new search sets `LoadState.Loading` (`SearchViewModel.kt:63`), so the old results vanish, the screen is
-blank for the skeleton's 300 ms hold, then the skeleton shows. Before A59 a spinner showed at once, so there was no
-blank gap. The web search page does the same on each new search, but it only searches on Enter. Proposed fix, both
-apps: keep the previous results visible until the new ones arrive.
-
-**Also open from the same review (not questions, just unchecked):**
-- Screen readers may not read the skeleton's loading label: it is present when the skeleton appears, and many only
-  announce a live region when its text changes (web `role="status"`, Android `liveRegion`). Not tried with TalkBack
-  or a desktop reader.
-- v0.3.8 shipped with the skeletons built by CI but never seen on a phone, and neither app's skeletons were watched
-  against the real backend.
-
-### Q81 — Drop the duplicate "Loading…" subtitle on the web lists?
-**Asked:** 2026-10-11 · **Blocking:** no
-
-Albums, Artists, Playlists and Favorites still say "Loading…" under the heading (e.g. `AlbumsPage.tsx:28`) while
-the skeleton's screen-reader label says "Loading albums…", so a screen reader hears both. Proposed fix: show the
-subtitle only once the count is known.
-
 ## Answered
+
+### A88 — Downloads: show space used, plus an optional limit *(was Q90)*
+**Answered:** 2026-10-11, in chat: "show space used, and allow for limits". Settings show the space downloads use,
+and you can set a limit (off by default). New downloads stop at the limit and say so; nothing already downloaded is
+deleted to make room. Spec: `.docs/specs/offline-downloads.md`.
+
+### A87 — Offline plays are counted, with the real play time *(was Q89)*
+**Answered:** 2026-10-11, in chat: "a". Plays made with no network are queued on the phone and sent when it's back
+online; `POST /tracks/:id/scrobble` takes an optional `playedAt`. Spec: `.docs/specs/offline-downloads.md`.
+
+### A86 — Albums, playlists and single songs can be downloaded *(was Q88)*
+**Answered:** 2026-10-11, in chat: "a". Guests get albums and songs only (A37). Spec: `.docs/specs/offline-downloads.md`.
+
+### A85 — Downloads run on any network *(was Q87)*
+**Answered:** 2026-10-11, in chat: "any network". No Wi-Fi-only rule and no setting for it. Spec:
+`.docs/specs/offline-downloads.md`.
+
+### A84 — The web lists drop the duplicate "Loading…" subtitle *(was Q81)*
+**Answered:** 2026-10-11, in chat: "yes". Albums, Artists, Playlists and Favorites show the subtitle only once the
+count is known, so a screen reader hears the skeleton's label once.
+
+### A83 — Old search results stay on screen while a new search loads *(was Q80)*
+**Answered:** 2026-10-11, in chat: "yes". Both apps keep the previous results until the new ones arrive; the skeleton
+shows only for a first search. Still unchecked from the same review: whether screen readers announce the skeleton's
+loading label (web `role="status"`, Android `liveRegion`), and seeing the skeletons on a phone against the real backend.
 
 ### A82 — The shuffle buttons come back to the last mode *(was Q86)*
 **Answered:** 2026-10-12, in chat: "pick a". After a tapped song turns shuffle off, shuffle all and a playlist's Shuffle

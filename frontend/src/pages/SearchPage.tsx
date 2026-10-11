@@ -34,10 +34,12 @@ export function SearchPage() {
   const { playQueue } = usePlayer();
   const favoriteIds = useFavoriteIds();
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, isPlaceholderData } = useQuery({
     queryKey: ['search', query],
     queryFn: () => apiClient.get<SearchResults>(`/search?q=${encodeURIComponent(query)}`),
     enabled: query.length > 0,
+    // The last results stay up while a new search loads (A83); an empty one would only hide the skeleton.
+    placeholderData: (prev) => (prev && prev.artists.length + prev.albums.length + prev.tracks.length > 0 ? prev : undefined),
   });
 
   const queue: QueueTrack[] = (data?.tracks ?? []).map((t) => ({
@@ -60,8 +62,10 @@ export function SearchPage() {
           {!query
             ? 'Type in the box above, or press / from anywhere.'
             : isLoading
-              ? 'Searching…'
-              : `${total} result${total === 1 ? '' : 's'} across artists, albums and tracks`}
+              ? '\u00a0' // the skeleton already says "Searching for …" (A84)
+              : isPlaceholderData
+                ? 'Searching…'
+                : `${total} result${total === 1 ? '' : 's'} across artists, albums and tracks`}
         </p>
       </div>
 
@@ -73,7 +77,7 @@ export function SearchPage() {
       )}
       {isError && <p className="text-sm text-red-300">Search failed.</p>}
 
-      {data && total === 0 && (
+      {data && !isPlaceholderData && total === 0 && (
         <p className="text-sm text-blue-300">
           Nothing matched “{query}”. Search looks inside titles, so partial words are fine.
         </p>

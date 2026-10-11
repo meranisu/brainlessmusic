@@ -4,6 +4,24 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android: opening the app with no signal keeps you signed in; search keeps old results (A83, A84)
+
+- **Offline start (offline downloads spec, step 1).** `restoreSession()` cleared the stored session on any `/auth/me`
+  failure, so opening the app with no signal, or while smol was down, signed you out. For a guest that lost the
+  identity for good. Now only a 401 clears it; anything else keeps the token and opens the app as before. Whether
+  the session is a guest's is now saved with it (`is_guest`), so an offline start still hides what guests can't use.
+  A session saved before this counts as a guest until the next online start.
+- Not done yet from step 1: quietly re-checking `/auth/me` once the signal comes back. Until then a revoked token
+  started offline is only noticed at the next cold start with signal.
+- **Search keeps the previous results on screen** while a new search loads, on Android and the web (A83). The skeleton
+  shows only for a first search, or after a search that found nothing. The web subtitle says "Searching…" meanwhile,
+  and "Nothing matched" waits for the real answer.
+- **Web lists drop the "Loading…" subtitle** on Albums, Artists, Playlists, Favorites and Search while the skeleton
+  shows (A84). A non-breaking space keeps the line's height, so the heading doesn't jump when the count arrives.
+- Verified: `npm run build` (frontend type check and build) and `npm run lint` (no new warnings);
+  `./gradlew compileDebugKotlin testDebugUnitTest`, 54 tests, 0 failures. Not run on a phone or in a browser:
+  airplane-mode start, a 401 start, and both search changes are untried.
+
 ## 2026-10-11 — Android: fixes from reviewing the song menu / swipes / data saver change
 
 - Data saver no longer builds the player at launch when it is on and nothing is queued (`applyDataSaver` checks the
