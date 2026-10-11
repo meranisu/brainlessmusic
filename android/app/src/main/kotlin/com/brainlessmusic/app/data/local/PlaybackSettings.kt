@@ -31,6 +31,16 @@ class PlaybackSettings @Inject constructor(
         dataStore.edit { it[KEEP_PLAYING_WHEN_SWIPED_KEY] = enabled }
     }
 
+    /**
+     * Whether tapping a song keeps the shuffle that was on. Off by default, like YouTube Music: a tapped song plays its
+     * list in order, and only the shuffle buttons turn shuffle on.
+     */
+    val keepShuffle: Flow<Boolean> = dataStore.data.map { it[KEEP_SHUFFLE_KEY] ?: false }
+
+    suspend fun setKeepShuffle(enabled: Boolean) {
+        dataStore.edit { it[KEEP_SHUFFLE_KEY] = enabled }
+    }
+
     /** Remembered across launches so the next queue starts the way the last one was left. Before A77 it was on/off. */
     val shuffleMode: Flow<ShuffleMode> = dataStore.data.map { prefs ->
         prefs[SHUFFLE_MODE_KEY]?.let { name -> ShuffleMode.entries.firstOrNull { it.name == name } }
@@ -79,6 +89,7 @@ class PlaybackSettings @Inject constructor(
     private companion object {
         val SHUFFLE_KEY = booleanPreferencesKey("shuffle")
         val SHUFFLE_MODE_KEY = stringPreferencesKey("shuffle_mode")
+        val KEEP_SHUFFLE_KEY = booleanPreferencesKey("keep_shuffle")
         val REPEAT_KEY = intPreferencesKey("repeat_mode")
         val AUTO_PLAY_ON_RESUME_KEY = booleanPreferencesKey("auto_play_on_resume")
         val KEEP_PLAYING_WHEN_SWIPED_KEY = booleanPreferencesKey("keep_playing_when_swiped_away")

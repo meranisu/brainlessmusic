@@ -92,6 +92,13 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { appearance.setThemeMode(mode) }
     }
 
+    val keepShuffle: StateFlow<Boolean> = settings.keepShuffle
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setKeepShuffle(enabled: Boolean) {
+        viewModelScope.launch { settings.setKeepShuffle(enabled) }
+    }
+
     fun setAutoPlayOnResume(enabled: Boolean) {
         viewModelScope.launch { settings.setAutoPlayOnResume(enabled) }
     }

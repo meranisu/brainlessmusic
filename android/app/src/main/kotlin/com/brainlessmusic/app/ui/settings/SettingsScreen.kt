@@ -159,6 +159,7 @@ fun SettingsPageScreen(
 ) {
     val autoPlay by viewModel.autoPlayOnResume.collectAsStateWithLifecycle()
     val keepPlaying by viewModel.keepPlayingWhenSwipedAway.collectAsStateWithLifecycle()
+    val keepShuffle by viewModel.keepShuffle.collectAsStateWithLifecycle()
     val transitions by viewModel.transitions.collectAsStateWithLifecycle()
     val lessOftenReset by viewModel.lessOftenReset.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
@@ -284,6 +285,17 @@ fun SettingsPageScreen(
                             },
                             checked = keepPlaying,
                             onCheckedChange = viewModel::setKeepPlayingWhenSwipedAway,
+                        )
+                        Divider()
+                        SwitchRow(
+                            title = "Keep shuffle",
+                            detail = if (keepShuffle) {
+                                "Tapping a song keeps shuffle on if it was on."
+                            } else {
+                                "Tapping a song plays in order. The shuffle buttons still turn shuffle on."
+                            },
+                            checked = keepShuffle,
+                            onCheckedChange = viewModel::setKeepShuffle,
                         )
                         Divider()
                         // One choice of three, so they rule each other out (A71).

@@ -132,9 +132,9 @@ class LibraryViewModel @Inject constructor(
      */
     fun playSongsFrom(index: Int, row: SongListRow) {
         val filter = row.filter
-        // With shuffle on, the unfiltered list plays the tapped song and then the library shuffled (see `loadQueue`), so
-        // the rest of a title-order batch would only be thrown away.
-        val count = if (filter == null && playbackController.state.value.shuffle) 1 else QUEUE_FROM_TAP
+        // Shuffled, the unfiltered list plays the tapped song and then the library shuffled (see `loadQueue`), so the
+        // rest of a title-order batch would only be thrown away.
+        val count = if (filter == null && playbackController.shufflesOnTap()) 1 else QUEUE_FROM_TAP
         viewModelScope.launch {
             libraryRepository.getTracksPage(index, count, filter).onSuccess { page ->
                 if (page.tracks.isEmpty()) return@onSuccess

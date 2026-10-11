@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `PlaybackController.playQueue()`, new `shufflesOnTap()`, `playNext()`, `restore()` — `android/.../playback/PlaybackController.kt`; new `PlaybackSettings.keepShuffle` / `setKeepShuffle()`; `SettingsViewModel.keepShuffle` / `setKeepShuffle()`; the "Keep shuffle" row in `SettingsScreen`; `LibraryViewModel.playSongsFrom()`
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** a tapped song turns shuffle off unless "Keep shuffle" is on (YouTube Music behaviour).
+**Side effects:** DataStore key `keep_shuffle`; a tap with the setting off saves shuffle mode OFF.
+**Before:** a tapped song kept whatever shuffle was on.
+**After:** as described in the 2026-10-11 "tapping a song turns shuffle off" CHANGELOG entry.
+
 **Function:** new `AuthRepository.setColorTheme()`, `syncTheme()`; `login()`, `adopt()`, `restoreSession()` — `android/.../data/repository/AuthRepository.kt`; `ColorTheme.webId`, new `ColorTheme.fromWebId()`, `AppearanceSettings.storedColorTheme()` — `data/local/AppearanceSettings.kt`; `ApiService.setTheme()`, `MeResponse.theme`, new `ThemeRequest`; `SettingsViewModel.setColorTheme()`; `GuestCodesPanel` used list
 **Date:** 2026-10-11
 **How added:** new feature

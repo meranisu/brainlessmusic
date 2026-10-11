@@ -151,6 +151,8 @@ class PlaybackController @Inject constructor(
     // The listener's shuffle/repeat choice, applied to the player whenever a queue is loaded.
     private var wantMode = ShuffleMode.OFF
     private val wantShuffle get() = wantMode != ShuffleMode.OFF
+    // Off: a tapped song turns shuffle off (see `playQueue`).
+    private var keepShuffle = false
     private var wantRepeat = Player.REPEAT_MODE_OFF
 
     // Where the queue is topped up from as it runs low (see QueueSource). `generation` changes whenever the queue is
@@ -171,12 +173,16 @@ class PlaybackController @Inject constructor(
             wantRepeat = settings.repeatMode.first()
         }
         scope.launch { settings.transitions.collect { transitions = it } }
+        scope.launch { settings.keepShuffle.collect { keepShuffle = it } }
     }
 
-    /** Replaces the queue and starts playing [startIndex]. [shuffle] true turns shuffle on (keeping its mode), false off. */
+    /**
+     * Replaces the queue and starts playing [startIndex]. [shuffle] true turns shuffle on (keeping its mode), false off;
+     * `null` is a tapped song, which turns it off unless "Keep shuffle" is on.
+     */
     fun playQueue(items: List<QueueItem>, startIndex: Int, source: QueueSource? = null, shuffle: Boolean? = null) {
         val mode = when (shuffle) {
-            null -> wantMode
+            null -> if (keepShuffle) wantMode else ShuffleMode.OFF
             true -> libraryShuffleMode()
             false -> ShuffleMode.OFF
         }
@@ -229,7 +235,7 @@ class PlaybackController @Inject constructor(
     /** Inserts right after the current track; starts playing if nothing is queued. */
     fun playNext(item: QueueItem) {
         if (queue.isEmpty()) {
-            playQueue(listOf(item), 0)
+            playQueue(listOf(item), 0, shuffle = wantShuffle)
             return
         }
         val mediaItem = toMediaItem(item) ?: return
@@ -377,6 +383,9 @@ class PlaybackController @Inject constructor(
 
     private fun artistKey(item: QueueItem): String? = item.artist?.trim()?.lowercase()?.takeIf(String::isNotEmpty)
 
+    /** Whether a song tapped now plays shuffled: only with "Keep shuffle" on and shuffle already on. */
+    fun shufflesOnTap(): Boolean = keepShuffle && wantShuffle
+
     /** The mode a library-wide shuffle plays in: the one picked on the button, or plain shuffle when it is off. */
     fun libraryShuffleMode(): ShuffleMode = if (wantMode == ShuffleMode.OFF) ShuffleMode.SHUFFLE else wantMode
 
@@ -461,7 +470,7 @@ class PlaybackController @Inject constructor(
     fun restore(entry: RemovedEntry) {
         val mediaItem = toMediaItem(entry.item) ?: return
         if (queue.isEmpty()) {
-            playQueue(listOf(entry.item), 0)
+            playQueue(listOf(entry.item), 0, shuffle = wantShuffle)
             return
         }
         if (player.shuffleModeEnabled) {

@@ -4,6 +4,19 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android: tapping a song turns shuffle off; "Keep shuffle" setting
+
+- Like YouTube Music: tapping a song anywhere (Songs, an album, a playlist, search, top tracks) now plays that list in
+  order and turns shuffle off. The shuffle buttons (shuffle all, a playlist's Shuffle, the Now Playing button) still
+  turn it on.
+- Settings → Playback → "Keep shuffle" (off by default) brings back the old behaviour: a tapped song keeps shuffle on if
+  it was on, with the library shuffle from a tapped song in Songs.
+- "Play next" and Undo into an empty queue keep the shuffle as it was; they are not a new pick.
+- Turning shuffle off this way forgets the mode, so shuffle all afterwards plays plain Shuffle until Rediscover or
+  Albums is picked again on the button.
+- Verified: `./gradlew compileDebugKotlin testDebugUnitTest` clean, 43/43 (no test covers this path). Not run on a
+  phone or emulator.
+
 ## 2026-10-11 — Android colours follow the profile; APK names through a public setting
 
 From the 2026-10-11 reviews: F2 (A78, was Q79), F5, G2.
