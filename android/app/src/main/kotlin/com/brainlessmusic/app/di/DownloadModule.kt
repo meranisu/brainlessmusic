@@ -12,6 +12,9 @@ import androidx.media3.exoplayer.offline.DefaultDownloadIndex
 import androidx.media3.exoplayer.offline.DefaultDownloaderFactory
 import androidx.media3.exoplayer.offline.DownloadManager
 import androidx.media3.exoplayer.scheduler.Requirements
+import androidx.room.Room
+import com.brainlessmusic.app.downloads.DownloadDao
+import com.brainlessmusic.app.downloads.DownloadDatabase
 import com.brainlessmusic.app.downloads.TrackCacheKey
 import dagger.Module
 import dagger.Provides
@@ -41,6 +44,14 @@ object DownloadModule {
     @Singleton
     fun provideDownloadCache(@ApplicationContext context: Context, databaseProvider: StandaloneDatabaseProvider): Cache =
         SimpleCache(File(context.filesDir, "downloads"), NoOpCacheEvictor(), databaseProvider)
+
+    @Provides
+    @Singleton
+    fun provideDownloadDatabase(@ApplicationContext context: Context): DownloadDatabase =
+        Room.databaseBuilder(context, DownloadDatabase::class.java, "downloads.db").build()
+
+    @Provides
+    fun provideDownloadDao(db: DownloadDatabase): DownloadDao = db.dao()
 
     @Provides
     @Singleton

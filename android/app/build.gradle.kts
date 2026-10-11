@@ -141,5 +141,10 @@ dependencies {
 
     implementation(libs.androidx.paging.compose)
 
+    // What is downloaded, for the Downloads screen with no signal; the files themselves are Media3's.
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    kapt(libs.androidx.room.compiler)
+
     testImplementation(libs.junit)
 }

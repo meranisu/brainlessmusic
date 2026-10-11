@@ -1,0 +1,39 @@
+package com.brainlessmusic.app.data.remote
+
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * Whether the phone has a connection at all. It can't tell that the server is down, only that there's no signal,
+ * which is what decides between streaming and the downloads.
+ */
+@Singleton
+class NetworkMonitor @Inject constructor(@ApplicationContext context: Context) {
+    private val connectivity = context.getSystemService(ConnectivityManager::class.java)
+
+    private val _online = MutableStateFlow(hasInternet(connectivity.activeNetwork))
+    val online: StateFlow<Boolean> = _online.asStateFlow()
+
+    init {
+        connectivity.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
+            override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
+                _online.value = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            }
+
+            override fun onLost(network: Network) {
+                _online.value = false
+            }
+        })
+    }
+
+    private fun hasInternet(network: Network?): Boolean =
+        connectivity.getNetworkCapabilities(network)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+}

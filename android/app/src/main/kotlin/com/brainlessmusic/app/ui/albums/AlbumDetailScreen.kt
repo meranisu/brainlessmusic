@@ -57,6 +57,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.brainlessmusic.app.data.remote.dto.AlbumDetailDto
 import com.brainlessmusic.app.data.remote.dto.AlbumTrackDto
+import com.brainlessmusic.app.downloads.GroupDownload
 import com.brainlessmusic.app.ui.common.CoverImage
 import com.brainlessmusic.app.ui.common.LoadState
 import com.brainlessmusic.app.ui.common.LoadStateContent
@@ -87,7 +88,7 @@ fun AlbumDetailScreen(
     var confirmRemove by remember { mutableStateOf<AlbumDetailDto?>(null) }
     confirmRemove?.let { album ->
         RemoveDownloadDialog(
-            running = download is AlbumDownload.Running,
+            running = download is GroupDownload.Running,
             onConfirm = { viewModel.removeDownload(album); confirmRemove = null },
             onDismiss = { confirmRemove = null },
         )
@@ -205,12 +206,12 @@ internal fun PlayShuffleRow(onPlay: () -> Unit, onShuffle: () -> Unit, trailing:
 
 /** Download, a progress ring while it runs (tap to cancel), a tick when every song is on the phone, or retry. */
 @Composable
-private fun DownloadButton(state: AlbumDownload, onDownload: () -> Unit, onRemove: () -> Unit) {
+private fun DownloadButton(state: GroupDownload, onDownload: () -> Unit, onRemove: () -> Unit) {
     when (state) {
-        AlbumDownload.None -> IconButton(onClick = onDownload) {
+        GroupDownload.None -> IconButton(onClick = onDownload) {
             Icon(Icons.Filled.Download, contentDescription = "Download album")
         }
-        is AlbumDownload.Running -> IconButton(onClick = onRemove) {
+        is GroupDownload.Running -> IconButton(onClick = onRemove) {
             CircularProgressIndicator(
                 progress = { state.percent / 100f },
                 modifier = Modifier
@@ -219,14 +220,14 @@ private fun DownloadButton(state: AlbumDownload, onDownload: () -> Unit, onRemov
                 strokeWidth = 3.dp,
             )
         }
-        AlbumDownload.Done -> IconButton(onClick = onRemove) {
+        GroupDownload.Done -> IconButton(onClick = onRemove) {
             Icon(
                 Icons.Filled.DownloadDone,
                 contentDescription = "Downloaded. Remove download",
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
-        AlbumDownload.Failed -> IconButton(onClick = onDownload) {
+        GroupDownload.Failed -> IconButton(onClick = onDownload) {
             Icon(
                 Icons.Filled.ErrorOutline,
                 contentDescription = "Download failed. Retry",

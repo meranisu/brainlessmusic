@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** new `DownloadDatabase`, `DownloadDao` (`saveGroup()`, `deleteGroup()`, `tracksOf()`, `groups()`, `groupTracks()`), `groupDownload()` — `android/.../downloads/`; `DownloadRepository` new `downloadAlbum()`, `removeGroup()`, `queueOf()`, `saveCover()`, `spaceUsed`; new `NetworkMonitor` — `android/.../data/remote/NetworkMonitor.kt`
+**Date:** 2026-10-11
+**How added:** new feature (offline downloads, step 3)
+**Purpose:** remember what is downloaded so it can be listed and played with no signal; keep shared songs when a group is removed.
+**Side effects:** writes `downloads.db` and cover files under `filesDir/download-covers`; fetches the album cover once per download.
+**Before:** step 2 kept only Media3's per-song state; removing an album removed all its songs.
+**After:** albums are groups with saved names and covers; removal deletes only songs no other group holds.
+
+**Function:** new `DownloadsScreen`, `DownloadsViewModel` — `android/.../ui/downloads/`; `AppBottomBar` (offline banner, new `ConnectivityViewModel`); `LibraryBottomBar` (Downloads tab); `StartViewModel`; splash routing in `BrainlessNavGraph`; `PlaybackService` bitmap loader
+**Date:** 2026-10-11
+**How added:** new feature (offline downloads, step 3)
+**Purpose:** a Downloads tab that works with no signal, an offline banner, and an offline start that opens on downloads.
+**Side effects:** none.
+**Before:** no way to see downloads; an offline start opened Library, which could only show an error.
+**After:** as in the 2026-10-11 step 3 CHANGELOG entry.
+
 **Function:** new `DownloadModule` (`provideDownloadCache()`, `provideDownloadManager()`) — `android/.../di/DownloadModule.kt`; new `MusicDownloadService`, `DownloadRepository` (`download()`, `remove()`, `isDownloaded()`), `TrackCacheKey` / `trackCacheKey()`, `downloadId()`, `trackIdOf()` — `android/.../downloads/`
 **Date:** 2026-10-11
 **How added:** new feature (offline downloads, step 2)

@@ -4,6 +4,29 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android: Downloads screen, offline banner, and opening on downloads with no signal (offline downloads, step 3)
+
+- **What's downloaded is kept on the phone** in a Room database (`downloads.db`): each song's title, artist and album,
+  each downloaded album as a group with its songs in order, and the album cover saved as a file next to the downloads
+  (Coil's cache can be cleared). The files themselves stay Media3's.
+- **Removing an album keeps songs another group still holds.** `DownloadDao.deleteGroup()` returns only the songs no
+  other group has. This matters once playlists can be downloaded (step 4).
+- **Downloads tab** between Search and You: each downloaded album with its cover, artist and song count, or its
+  progress, or "Some songs failed. Retry from the menu." Tap plays from the top, the shuffle icon shuffles, the menu has
+  Retry download and Remove download (asks first). The top line says how much space downloads use. Empty, loading and
+  error states use the shared `LoadStateContent`.
+- **With no signal**, playing from Downloads queues only the songs on the phone, and says so if there are none.
+- **Offline banner** above the mini player on every tab: "You're offline." with a Downloads button, or "You're offline.
+  Downloads still play." on the Downloads tab. Driven by a new `NetworkMonitor` (the phone's connection, not the
+  server's).
+- **Opening the app with no signal** goes to Downloads when anything is downloaded, otherwise Library as before.
+- The media notification can now show a downloaded cover: its bitmap loader reads `file://` too.
+- Not in this step: playlist and single-song downloads, the storage limit, a settings page, and skipping songs that
+  aren't downloaded in a queue started elsewhere (step 4).
+- Verified: `./gradlew assembleDebug testDebugUnitTest lintDebug` succeeds: 61 tests (3 new in `DownloadRowTest`),
+  0 failures; lint 0 errors, and the new warnings are only Room being one version behind and kapt over KSP (as Hilt
+  already is). Not run on a phone: the tab, banner, offline start and removal are untried.
+
 ## 2026-10-11 — Android: download an album and play it without signal (offline downloads, step 2)
 
 - **Download engine.** Media3's `DownloadManager` with a never-evicting `SimpleCache` in app-private storage

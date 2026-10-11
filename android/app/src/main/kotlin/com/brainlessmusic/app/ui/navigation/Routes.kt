@@ -9,6 +9,7 @@ object Routes {
     const val SEARCH = "search"
     const val SETTINGS = "settings"
     const val YOU = "you"
+    const val DOWNLOADS = "downloads"
 
     // Detail screens: no bottom nav, a back arrow instead.
     const val ARTIST_DETAIL = "artist/{artistId}"

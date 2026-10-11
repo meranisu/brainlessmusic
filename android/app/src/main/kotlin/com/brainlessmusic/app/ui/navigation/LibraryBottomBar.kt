@@ -1,6 +1,7 @@
 package com.brainlessmusic.app.ui.navigation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DownloadForOffline
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
@@ -14,7 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 
-/** The three top-level tabs. Detail screens push on top with a back arrow instead. Tapping the current tab calls [onReselect]. */
+/** The top-level tabs. Detail screens push on top with a back arrow instead. Tapping the current tab calls [onReselect]. */
 @Composable
 fun LibraryBottomBar(navController: NavHostController, onReselect: () -> Unit = {}) {
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -32,6 +33,12 @@ fun LibraryBottomBar(navController: NavHostController, onReselect: () -> Unit = 
             onClick = { if (currentRoute == Routes.SEARCH) onReselect() else navController.navigateToTab(Routes.SEARCH) },
             icon = { Icon(Icons.Filled.Search, contentDescription = null) },
             label = { Text("Search") },
+        )
+        NavigationBarItem(
+            selected = currentRoute == Routes.DOWNLOADS,
+            onClick = { if (currentRoute == Routes.DOWNLOADS) onReselect() else navController.navigateToTab(Routes.DOWNLOADS) },
+            icon = { Icon(Icons.Filled.DownloadForOffline, contentDescription = null) },
+            label = { Text("Downloads") },
         )
         NavigationBarItem(
             selected = currentRoute == Routes.YOU,

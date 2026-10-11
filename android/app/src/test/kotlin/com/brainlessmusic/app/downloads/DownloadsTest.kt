@@ -1,8 +1,6 @@
 package com.brainlessmusic.app.downloads
 
 import androidx.media3.exoplayer.offline.Download
-import com.brainlessmusic.app.ui.albums.AlbumDownload
-import com.brainlessmusic.app.ui.albums.albumDownload
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -33,20 +31,20 @@ class DownloadsTest {
     @Test
     fun `album button sums its songs`() {
         val ids = listOf(1, 2)
-        assertEquals(AlbumDownload.None, albumDownload(ids, emptyMap()))
-        assertEquals(AlbumDownload.None, albumDownload(emptyList(), emptyMap()))
-        assertEquals(AlbumDownload.Done, albumDownload(ids, mapOf(1 to d(Download.STATE_COMPLETED, 100f), 2 to d(Download.STATE_COMPLETED, 100f))))
+        assertEquals(GroupDownload.None, groupDownload(ids, emptyMap()))
+        assertEquals(GroupDownload.None, groupDownload(emptyList(), emptyMap()))
+        assertEquals(GroupDownload.Done, groupDownload(ids, mapOf(1 to d(Download.STATE_COMPLETED, 100f), 2 to d(Download.STATE_COMPLETED, 100f))))
         assertEquals(
-            AlbumDownload.Running(75),
-            albumDownload(ids, mapOf(1 to d(Download.STATE_COMPLETED, 100f), 2 to d(Download.STATE_DOWNLOADING, 50f))),
+            GroupDownload.Running(75),
+            groupDownload(ids, mapOf(1 to d(Download.STATE_COMPLETED, 100f), 2 to d(Download.STATE_DOWNLOADING, 50f))),
         )
         // A song still running wins over one that failed; the failure shows once the rest finish.
         assertEquals(
-            AlbumDownload.Running(25),
-            albumDownload(ids, mapOf(1 to d(Download.STATE_FAILED), 2 to d(Download.STATE_DOWNLOADING, 50f))),
+            GroupDownload.Running(25),
+            groupDownload(ids, mapOf(1 to d(Download.STATE_FAILED), 2 to d(Download.STATE_DOWNLOADING, 50f))),
         )
-        assertEquals(AlbumDownload.Failed, albumDownload(ids, mapOf(1 to d(Download.STATE_COMPLETED, 100f), 2 to d(Download.STATE_FAILED))))
+        assertEquals(GroupDownload.Failed, groupDownload(ids, mapOf(1 to d(Download.STATE_COMPLETED, 100f), 2 to d(Download.STATE_FAILED))))
         // Half on the phone, half never asked for: offer the rest.
-        assertEquals(AlbumDownload.None, albumDownload(ids, mapOf(1 to d(Download.STATE_COMPLETED, 100f))))
+        assertEquals(GroupDownload.None, groupDownload(ids, mapOf(1 to d(Download.STATE_COMPLETED, 100f))))
     }
 }

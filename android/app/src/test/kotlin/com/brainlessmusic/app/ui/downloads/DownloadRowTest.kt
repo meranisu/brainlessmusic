@@ -1,0 +1,41 @@
+package com.brainlessmusic.app.ui.downloads
+
+import com.brainlessmusic.app.downloads.DownloadGroup
+import com.brainlessmusic.app.downloads.GroupDownload
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class DownloadRowTest {
+
+    private fun row(done: Int, total: Int, state: GroupDownload, subtitle: String? = "Artist") = DownloadRow(
+        DownloadGroup("album:1", "album", "Album", subtitle, null, 0),
+        List(total) { it },
+        done,
+        state,
+    )
+
+    @Test
+    fun `song count says how many are on the phone`() {
+        assertEquals("1 song", songCount(1, 1))
+        assertEquals("12 songs", songCount(12, 12))
+        assertEquals("8 of 12 songs", songCount(8, 12))
+    }
+
+    @Test
+    fun `status follows the download`() {
+        assertEquals("Artist · 3 songs", row(3, 3, GroupDownload.Done).status())
+        assertEquals("3 songs", row(3, 3, GroupDownload.Done, subtitle = null).status())
+        assertEquals("Downloading, 40%", row(1, 3, GroupDownload.Running(40)).status())
+        assertEquals("Some songs failed. Retry from the menu.", row(2, 3, GroupDownload.Failed).status())
+    }
+
+    @Test
+    fun `retry is offered only when something is missing and nothing runs`() {
+        assertTrue(row(2, 3, GroupDownload.Failed).canRetry)
+        assertTrue(row(2, 3, GroupDownload.None).canRetry)
+        assertFalse(row(3, 3, GroupDownload.Done).canRetry)
+        assertFalse(row(1, 3, GroupDownload.Running(40)).canRetry)
+    }
+}

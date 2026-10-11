@@ -10,7 +10,8 @@ import com.brainlessmusic.app.data.repository.ConnectionException
 import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.data.repository.toMessage
 import com.brainlessmusic.app.downloads.DownloadRepository
-import com.brainlessmusic.app.downloads.TrackDownload
+import com.brainlessmusic.app.downloads.GroupDownload
+import com.brainlessmusic.app.downloads.groupDownload
 import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.PlaybackUiState
 import com.brainlessmusic.app.playback.QueueItem
@@ -27,27 +28,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
-/** The album's download button, summed over its songs. */
-sealed interface AlbumDownload {
-    data object None : AlbumDownload
-    data class Running(val percent: Int) : AlbumDownload
-    data object Done : AlbumDownload
-    data object Failed : AlbumDownload
-}
-
-internal fun albumDownload(trackIds: List<Int>, downloads: Map<Int, TrackDownload>): AlbumDownload {
-    if (trackIds.isEmpty()) return AlbumDownload.None
-    val each = trackIds.map { downloads[it] }
-    return when {
-        each.all { it?.isDone == true } -> AlbumDownload.Done
-        each.any { it?.isActive == true } ->
-            AlbumDownload.Running((each.sumOf { (it?.percent ?: 0f).toDouble() } / each.size).toInt())
-        each.any { it?.isFailed == true } -> AlbumDownload.Failed
-        // Some songs on the phone and the rest never asked for: the button offers the rest.
-        else -> AlbumDownload.None
-    }
-}
 
 @OptIn(UnstableApi::class)
 @HiltViewModel
@@ -116,16 +96,17 @@ class AlbumDetailViewModel @Inject constructor(
         )
     }
 
-    val download: StateFlow<AlbumDownload> =
+    val download: StateFlow<GroupDownload> =
         combine(state, downloadRepository.downloads) { s, downloads ->
-            if (s is LoadState.Content) albumDownload(s.data.tracks.map { it.id }, downloads) else AlbumDownload.None
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AlbumDownload.None)
+            if (s is LoadState.Content) groupDownload(s.data.tracks.map { it.id }, downloads) else GroupDownload.None
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GroupDownload.None)
 
     /** Original quality, on any network (A85). Songs already on the phone are skipped; failed ones start over. */
-    fun download(album: AlbumDetailDto) = downloadRepository.download(album.tracks.map { it.id })
+    fun download(album: AlbumDetailDto) = downloadRepository.downloadAlbum(album)
 
-    /** Also cancels a download still running. */
-    fun removeDownload(album: AlbumDetailDto) = downloadRepository.remove(album.tracks.map { it.id })
+    /** Also cancels a download still running. Songs a downloaded playlist also holds stay on the phone. */
+    fun removeDownload(album: AlbumDetailDto) =
+        downloadRepository.removeGroup("album:${album.id}", album.tracks.map { it.id })
 
     /** For the song menu. */
     fun queueItem(album: AlbumDetailDto, track: AlbumTrackDto): QueueItem = libraryRepository.queueItem(album, track)

@@ -6,6 +6,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSourceBitmapLoader
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -56,7 +57,8 @@ class PlaybackService : MediaSessionService() {
             .setBitmapLoader(
                 DataSourceBitmapLoader(
                     MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor()),
-                    OkHttpDataSource.Factory(okHttpClient),
+                    // DefaultDataSource adds file:// for downloaded covers; http still goes through the shared client.
+                    DefaultDataSource.Factory(this, OkHttpDataSource.Factory(okHttpClient)),
                 ),
             )
             .setCallback(object : MediaSession.Callback {

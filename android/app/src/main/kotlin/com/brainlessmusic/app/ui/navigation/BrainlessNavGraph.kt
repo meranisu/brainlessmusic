@@ -10,6 +10,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.brainlessmusic.app.ui.albums.AlbumDetailScreen
 import com.brainlessmusic.app.ui.artists.ArtistDetailScreen
+import com.brainlessmusic.app.ui.downloads.DownloadsScreen
 import com.brainlessmusic.app.ui.library.LibraryScreen
 import com.brainlessmusic.app.ui.login.LoginScreen
 import com.brainlessmusic.app.ui.playback.NowPlayingScreen
@@ -35,9 +36,12 @@ fun BrainlessNavGraph(
             SplashScreen(
                 viewModel = startViewModel,
                 onResolved = { route ->
-                    navController.navigate(route) {
+                    // Downloads is a tab, and tabs sit on the Library anchor, so an offline start opens both.
+                    val first = if (route == Routes.DOWNLOADS) Routes.ARTISTS else route
+                    navController.navigate(first) {
                         popUpTo(Routes.SPLASH) { inclusive = true }
                     }
+                    if (route == Routes.DOWNLOADS) navController.navigate(Routes.DOWNLOADS) { launchSingleTop = true }
                 },
             )
         }
@@ -55,6 +59,9 @@ fun BrainlessNavGraph(
         }
         composable(Routes.SEARCH) {
             SearchScreen(navController = navController)
+        }
+        composable(Routes.DOWNLOADS) {
+            DownloadsScreen(navController = navController)
         }
         composable(
             Routes.ARTIST_DETAIL,
