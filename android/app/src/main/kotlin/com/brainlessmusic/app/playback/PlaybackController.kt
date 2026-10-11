@@ -151,6 +151,8 @@ class PlaybackController @Inject constructor(
     // The listener's shuffle/repeat choice, applied to the player whenever a queue is loaded.
     private var wantMode = ShuffleMode.OFF
     private val wantShuffle get() = wantMode != ShuffleMode.OFF
+    // The last mode shuffle was on in, kept while it is off: the shuffle buttons turn it back on in this one (Q86).
+    private var lastOnMode = ShuffleMode.SHUFFLE
     // Off: a tapped song turns shuffle off (see `playQueue`).
     private var keepShuffle = false
     private var wantRepeat = Player.REPEAT_MODE_OFF
@@ -170,6 +172,7 @@ class PlaybackController @Inject constructor(
     init {
         scope.launch {
             wantMode = settings.shuffleMode.first()
+            lastOnMode = settings.lastShuffleMode.first()
             wantRepeat = settings.repeatMode.first()
         }
         scope.launch { settings.transitions.collect { transitions = it } }
@@ -188,6 +191,7 @@ class PlaybackController @Inject constructor(
         }
         if (mode != wantMode) {
             wantMode = mode
+            if (mode != ShuffleMode.OFF) lastOnMode = mode
             scope.launch { settings.setShuffleMode(mode) }
         }
         loadQueue(items, startIndex, 0L, play = true, source)
@@ -386,8 +390,8 @@ class PlaybackController @Inject constructor(
     /** Whether a song tapped now plays shuffled: only with "Keep shuffle" on and shuffle already on. */
     fun shufflesOnTap(): Boolean = keepShuffle && wantShuffle
 
-    /** The mode a library-wide shuffle plays in: the one picked on the button, or plain shuffle when it is off. */
-    fun libraryShuffleMode(): ShuffleMode = if (wantMode == ShuffleMode.OFF) ShuffleMode.SHUFFLE else wantMode
+    /** The mode the shuffle buttons turn on: the one picked now, or while shuffle is off, the last one it was on in. */
+    fun libraryShuffleMode(): ShuffleMode = if (wantMode == ShuffleMode.OFF) lastOnMode else wantMode
 
     fun togglePlayPause() {
         if (queue.isEmpty()) return
@@ -523,6 +527,7 @@ class PlaybackController @Inject constructor(
 
     private fun setShuffleMode(mode: ShuffleMode) {
         wantMode = mode
+        if (mode != ShuffleMode.OFF) lastOnMode = mode
         player.shuffleModeEnabled = wantShuffle
         resourceJob?.cancel()
         if (needsLibraryResource()) {

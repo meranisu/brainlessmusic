@@ -95,6 +95,11 @@ subtitle only once the count is known.
 
 ## Answered
 
+### A82 — The shuffle buttons come back to the last mode *(was Q86)*
+**Answered:** 2026-10-12, in chat: "pick a". After a tapped song turns shuffle off, shuffle all and a playlist's Shuffle
+turn it back on in the last mode it was on in (Shuffle, Rediscover or Albums), saved across launches. The Now Playing
+button still cycles from off to Shuffle. Built in the 2026-10-12 "shuffle buttons remember the last mode" CHANGELOG entry.
+
 ### A78 — Android colours follow the profile, Material You stays on the phone *(was Q79)*
 **Answered:** 2026-10-11, in chat: "f2: yes", taken as the recommended option A. The app reads the profile's theme
 (`theme` on `/auth/me`) on login, guest entry and cold start, and saves picks with `PUT /me/theme`. Material You is

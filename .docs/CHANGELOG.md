@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12 — Android: the shuffle buttons remember the last mode (A82)
+
+- After a tapped song turns shuffle off, shuffle all and a playlist's Shuffle turn it back on in the last mode it was on
+  in (Shuffle, Rediscover or Albums) instead of plain Shuffle. Saved across launches (DataStore `last_shuffle_mode`).
+  The Now Playing button still cycles from off to Shuffle. Replaces the "forgets the mode" note in the entry below.
+- Verified: `./gradlew compileDebugKotlin testDebugUnitTest` clean, 43/43 (no test covers this path). Not run on a
+  phone or emulator.
+
 ## 2026-10-11 — Android: tapping a song turns shuffle off; "Keep shuffle" setting
 
 - Like YouTube Music: tapping a song anywhere (Songs, an album, a playlist, search, top tracks) now plays that list in

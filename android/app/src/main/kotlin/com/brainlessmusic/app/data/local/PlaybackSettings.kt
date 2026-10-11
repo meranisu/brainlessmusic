@@ -48,7 +48,16 @@ class PlaybackSettings @Inject constructor(
     }
 
     suspend fun setShuffleMode(mode: ShuffleMode) {
-        dataStore.edit { it[SHUFFLE_MODE_KEY] = mode.name }
+        dataStore.edit {
+            it[SHUFFLE_MODE_KEY] = mode.name
+            if (mode != ShuffleMode.OFF) it[LAST_SHUFFLE_MODE_KEY] = mode.name
+        }
+    }
+
+    /** The last mode shuffle was on in, kept while it is off, so the shuffle buttons come back to it (Q86). */
+    val lastShuffleMode: Flow<ShuffleMode> = dataStore.data.map { prefs ->
+        prefs[LAST_SHUFFLE_MODE_KEY]?.let { name -> ShuffleMode.entries.firstOrNull { it.name == name } }
+            ?.takeIf { it != ShuffleMode.OFF } ?: ShuffleMode.SHUFFLE
     }
 
     /** A `Player.REPEAT_MODE_*` value. */
@@ -90,6 +99,7 @@ class PlaybackSettings @Inject constructor(
         val SHUFFLE_KEY = booleanPreferencesKey("shuffle")
         val SHUFFLE_MODE_KEY = stringPreferencesKey("shuffle_mode")
         val KEEP_SHUFFLE_KEY = booleanPreferencesKey("keep_shuffle")
+        val LAST_SHUFFLE_MODE_KEY = stringPreferencesKey("last_shuffle_mode")
         val REPEAT_KEY = intPreferencesKey("repeat_mode")
         val AUTO_PLAY_ON_RESUME_KEY = booleanPreferencesKey("auto_play_on_resume")
         val KEEP_PLAYING_WHEN_SWIPED_KEY = booleanPreferencesKey("keep_playing_when_swiped_away")

@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `PlaybackController.libraryShuffleMode()`, `playQueue()`, `setShuffleMode()` — `android/.../playback/PlaybackController.kt`; new `PlaybackSettings.lastShuffleMode`, `setShuffleMode()`
+**Date:** 2026-10-12
+**How added:** new feature
+**Purpose:** the shuffle buttons turn shuffle back on in the last mode it was on in (A82).
+**Side effects:** DataStore key `last_shuffle_mode`, written with every non-off mode.
+**Before:** with shuffle off, the shuffle buttons always used plain Shuffle.
+**After:** they use the last mode shuffle was on in.
+
 **Function:** `PlaybackController.playQueue()`, new `shufflesOnTap()`, `playNext()`, `restore()` — `android/.../playback/PlaybackController.kt`; new `PlaybackSettings.keepShuffle` / `setKeepShuffle()`; `SettingsViewModel.keepShuffle` / `setKeepShuffle()`; the "Keep shuffle" row in `SettingsScreen`; `LibraryViewModel.playSongsFrom()`
 **Date:** 2026-10-11
 **How added:** new feature

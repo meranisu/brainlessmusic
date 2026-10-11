@@ -150,7 +150,7 @@ class LibraryViewModel @Inject constructor(
 
     /**
      * Plays the library in a seeded server shuffle (each song once per pass), in the mode picked on the shuffle button
-     * (plain shuffle when it is off), with player shuffle on.
+     * (while it is off, the last mode it was on in), with player shuffle on.
      */
     fun shuffleAll(onNothing: (String) -> Unit) {
         val pass = QueueSource.Shuffled.fresh(playbackController.libraryShuffleMode())
