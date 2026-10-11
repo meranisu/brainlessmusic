@@ -32,7 +32,7 @@ Work the first unticked box there.
 | Android Phase 2 — playback (Media3, queue, Now Playing, scrobble) | Done, owner-confirmed on the phone 2026-10-11 (box 17) | [features/android-phase-2-playback](features/android-phase-2-playback/planning.md) |
 | Android Phase 3 — background (MediaSession, foreground service, notification/lock-screen controls) | Done, owner-confirmed on the phone 2026-10-11 (box 18) | [features/android-phase-3-background](features/android-phase-3-background/planning.md) |
 | Reach it from outside (roadmap box 13) | Done, owner-confirmed 2026-10-11 (box 13); Cloudflare Access still off pending Q77/Q78 | [ops/cloudflare-tunnel-deployment.md](ops/cloudflare-tunnel-deployment.md) |
-| Room sync (v0.3) | Not started; spec first (box 21) | Q4 |
+| Room sync (v0.3) | Spec drafted 2026-10-11 (box 21), waiting on Q102–Q104; no code yet | [specs/room-sync.md](specs/room-sync.md) |
 
 ## Resolved decisions (one line each; reasoning is in the linked doc)
 
@@ -52,7 +52,7 @@ The list is [QUESTIONS.md](QUESTIONS.md) — check it before asking anything. Bl
 
 1. **Box 19 — offline downloads** (Android): the last v0.2 box. All five spec steps built 2026-10-11 and the backend (`playedAt`) is on smol; left: the phone checklist in [specs/offline-downloads.md](specs/offline-downloads.md).
 2. Cloudflare Access (A74): switch on once Q77 and Q78 are answered.
-3. v0.3 starts with the room-sync spec (box 21) — spec before code.
+3. v0.3: room-sync spec drafted ([specs/room-sync.md](specs/room-sync.md)); answer Q102–Q104, then build step 1 (backend, box 22).
 4. Backend commits after 97ba069 (3724daa, 8fe408e, 920cd50) are not confirmed on smol yet.
 5. The 2026-10-11 review findings are fixed (ca945ba, 6ded2eb, and F2/F5/G2 after; on smol). Left: G3 (closed by
    Access, A74, once it is on), and the unconfirmed "plausible" items in

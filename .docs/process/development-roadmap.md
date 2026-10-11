@@ -135,7 +135,7 @@ The centerpiece. It lands here — not earlier — because syncing playback is o
   *Done when:* you onboard a friend without touching a terminal.
 
 - [ ] **21. Room sync spec** **[spec first]**. Data model, drift tolerance, clock sync, reconnect/rejoin, who may skip. Write it into `.docs/specs/` before any code — this is the one part of the project with no reference implementation to copy from.
-  *Done when:* the spec answers "what happens when someone's phone loses signal for 30 seconds" without hand-waving.
+  *Done when:* the spec answers "what happens when someone's phone loses signal for 30 seconds" without hand-waving. — **drafted 2026-10-11:** [specs/room-sync.md](../specs/room-sync.md); open until Q102–Q104 are answered.
 
 - [ ] **22. Room sync backend.** WebSocket transport authed with the existing JWT, in-memory room registry, presence, playback broadcast, join-mid-session catch-up, shared queue mutations.
   *Done when:* two browser tabs stay in sync.
