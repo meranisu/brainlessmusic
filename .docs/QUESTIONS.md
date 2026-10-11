@@ -31,6 +31,8 @@ is never asked twice.
 | [Q5](#q5--tag-editing-scope) | Tag-editing scope | 2026-09-09 | No |
 | [Q77](#q77--how-does-the-android-app-get-past-cloudflare-access) | How does the Android app get past Cloudflare Access? | 2026-10-11 | Yes, before Access goes on |
 | [Q78](#q78--who-goes-on-the-access-email-list) | Who goes on the Access email list? | 2026-10-11 | Yes, before Access goes on |
+| [Q121](#q121--lane-skin-typeface) | Lane skin typeface | 2026-10-11 | Yes, for Lane |
+| [Q122](#q122--lane-skin-icons) | Lane skin icons | 2026-10-11 | Yes, for Lane |
 
 ### Q5 — Tag-editing scope
 **Asked:** 2026-09-09 · **Blocking:** no
@@ -59,7 +61,30 @@ includes friends using a guest code on the web: without their email on the list 
 - **A. You and the friends who use the web (recommended).** Each friend's email goes on the list once.
 - **B. Only you.** Friends use the Android app only (with Q77's token), never the web.
 
+### Q121 — Lane skin typeface
+**Asked:** 2026-10-11 · **Blocking:** yes, for the Lane skin
+
+Arcaea's UI type is thin, wide and geometric (title, score and buttons all in one light face). The app bundles only
+Fredoka (Hit circle's) and Barlow Condensed ExtraBold, neither close.
+
+- **A. Exo 2 (recommended).** Free (SIL OFL), the nearest open match to Arcaea's look; adds one font file (~250 KB)
+  and a Licenses entry.
+- **B. No new font.** Lane uses the system font in a light weight. Smaller, but reads as plain Android.
+
+### Q122 — Lane skin icons
+**Asked:** 2026-10-11 · **Blocking:** yes, for the Lane skin
+
+Arcaea's icons are sparse thin-line glyphs (chevrons, a globe, sliders), not osu!'s solid shapes.
+
+- **A. Lucide (recommended).** Free (ISC licence), thin-stroke line icons, generated into the app the same way as Hit
+  circle's Font Awesome set; adds a Licenses entry.
+- **B. Material outlined.** Already in the app, no new set, but closer to Standard than to Arcaea.
+
 ## Answered
+
+### A121 — Lane goes next, ahead of the sequence *(updates A114)*
+**Answered:** 2026-10-11, in chat: "lets focus onto lane skin then". Lane (after Arcaea) is built next, app-wide,
+instead of Deck. The rest keep A114's order. Its typeface and icons wait on Q121 and Q122.
 
 ### A120 — Production deploys itself once CI passes *(updates A47)*
 **Answered:** 2026-10-11, in chat ("how about cd then?", then "yes sure"). smol's `brainless-auto-deploy.timer` runs
