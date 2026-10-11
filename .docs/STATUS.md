@@ -1,6 +1,6 @@
 # Project Status
 
-_Last updated: 2026-09-28 (Android Phase 2 built) — live snapshot; full history frozen in [history/status-archive.md](history/status-archive.md)._
+_Last updated: 2026-10-11 (failure logging confirmed committed in 8c29bef) — live snapshot; full history frozen in [history/status-archive.md](history/status-archive.md)._
 
 **Keep this file short (target: under 150 lines).** It answers "where are we and what is next" and nothing else.
 When a feature ships, change its row in the table below and, if the next step moved, the *Next* section.
@@ -34,14 +34,6 @@ Work the first unticked box there.
 | Reach it from outside (roadmap box 13) | Done, owner-confirmed 2026-10-11 (box 13); Cloudflare Access still off pending Q77/Q78 | [ops/cloudflare-tunnel-deployment.md](ops/cloudflare-tunnel-deployment.md) |
 | Room sync (v0.3) | Not started; spec first (box 21) | Q4 |
 
-## In the working tree, not yet committed (as of 2026-09-28)
-
-Playback-failure and scan-failure logging: migrations `0015_create_playback_failures.sql` and
-`0016_create_scan_failures.sql`, `db/playbackFailures.ts`, and edits to `routes/health.ts`, `routes/tracks.ts`,
-`services/streamMonitor.ts`, `services/librarySync.ts` and the web health page (`HealthPage` → `ControlCenterPage` rename in progress). Run `git status` for the current list —
-this section is a hint, not the source of truth. When these land, update the schema doc
-([reference/database-schema.md](reference/database-schema.md)) and add CHANGELOG/FUNCTIONLOG entries in the same change.
-
 ## Resolved decisions (one line each; reasoning is in the linked doc)
 
 - **Backend:** custom Node.js/TypeScript (Fastify), not Navidrome — [history/backend-decision-history.md](history/backend-decision-history.md).
@@ -60,9 +52,8 @@ The list is [QUESTIONS.md](QUESTIONS.md) — check it before asking anything. Bl
 
 1. **Box 19 — offline downloads** (Android): the last v0.2 box. All five spec steps built 2026-10-11; left: deploy the backend (`playedAt`) to smol and run the phone checklist in [specs/offline-downloads.md](specs/offline-downloads.md).
 2. Cloudflare Access (A74): switch on once Q77 and Q78 are answered.
-3. Commit or finish the failure-logging work above.
-4. v0.3 starts with the room-sync spec (box 21) — spec before code.
-5. The 2026-10-11 review findings are fixed (ca945ba, 6ded2eb, and F2/F5/G2 after; not yet on smol). Left: G3 (closed by
+3. v0.3 starts with the room-sync spec (box 21) — spec before code.
+4. The 2026-10-11 review findings are fixed (ca945ba, 6ded2eb, and F2/F5/G2 after; not yet on smol). Left: G3 (closed by
    Access, A74, once it is on), and the unconfirmed "plausible" items in
    [process/session-review-2026-10-11.md](process/session-review-2026-10-11.md), mostly crossfade edge cases.
 
