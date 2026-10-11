@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `PlaybackController.applyDataSaver()`; `SongActionsViewModel.playNext()` (now returns the line to show), `loadDetail()`; `formatDay()` — `android/.../ui/profile/ProfileFormat.kt`; the queue drag handle in `QueueSheet`
+**Date:** 2026-10-11
+**How added:** bug fix (review of the song menu / swipes / data saver change)
+**Purpose:** don't build the player at launch for data saver with nothing queued; say "Playing" when Play next starts an empty queue; drop a stale details answer; show details dates in the phone's time zone; give the drag handle its touch area.
+**Side effects:** none.
+**Before:** the player could be built at launch; "plays next" for a song that started at once; a slow details answer could replace a newer one; UTC dates; padding inside the handle.
+**After:** as in the 2026-10-11 "fixes from reviewing" CHANGELOG entry.
+
 **Function:** new `PlayShuffleRow` — `android/.../ui/albums/AlbumDetailScreen.kt`; new `AlbumDetailViewModel.shuffle()`; new `ArtistDetailViewModel.playAll()` (now injects `PlaybackController`); `ArtistDetailScreen`; `PlaylistDetailViewModel.play()`
 **Date:** 2026-10-11
 **How added:** bug fix
