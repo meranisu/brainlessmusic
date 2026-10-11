@@ -183,7 +183,7 @@ export function getUserStats(userId: number, range: StatsRange, limit: number): 
       .get(window) as StatsTotals;
     const trackRanks = previousRanks('ph.track_id', TRACK_ORDER, 'AND t.missing_since IS NULL', window, topTracks.map((x) => x.track.id));
     for (const x of topTracks) x.previousRank = trackRanks.get(x.track.id) ?? null;
-    const artistRanks = previousRanks('t.artist_id', ARTIST_ORDER, '', window, topArtists.map((x) => x.id));
+    const artistRanks = previousRanks('t.artist_id', ARTIST_ORDER, 'AND a.id IS NOT NULL', window, topArtists.map((x) => x.id));
     for (const x of topArtists) x.previousRank = artistRanks.get(x.id) ?? null;
   }
 

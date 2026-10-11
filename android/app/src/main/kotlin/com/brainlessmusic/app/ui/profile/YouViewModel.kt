@@ -128,25 +128,15 @@ class YouViewModel @Inject constructor(
         )
     }
 
-    /** Plays the recently played row as the queue, from the one tapped. */
-    fun playRecent(index: Int) {
-        val items = _recent.value.map(::queueItem)
-        if (index in items.indices) playbackController.playQueue(items, index)
+    /** Plays the recently played row as the queue, from the one tapped. Takes the list on screen: a reload may have replaced [recent]. */
+    fun playRecent(recent: List<HistoryEntryDto>, index: Int) {
+        if (index in recent.indices) playbackController.playQueue(recent.map { libraryRepository.queueItem(it) }, index)
     }
 
     /** For the song menu. */
     fun queueItem(track: TrackSummaryDto): QueueItem = libraryRepository.queueItem(track)
 
-    fun queueItem(entry: HistoryEntryDto) = QueueItem(
-        trackId = entry.trackId,
-        title = entry.title,
-        artist = entry.artist,
-        album = entry.album,
-        durationSec = entry.duration,
-        coverUrl = libraryRepository.trackCoverUrl(entry.trackId),
-        format = entry.format,
-        albumId = entry.albumId,
-    )
+    fun queueItem(entry: HistoryEntryDto): QueueItem = libraryRepository.queueItem(entry)
 
     fun trackCoverUrl(trackId: Int): String? = libraryRepository.trackCoverUrl(trackId)
 

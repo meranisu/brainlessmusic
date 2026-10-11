@@ -52,7 +52,6 @@ import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.ui.common.LoadState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -136,12 +135,11 @@ class SongActionsViewModel @Inject constructor(
         _detail.value = LoadState.Loading
         _myStat.value = null
         detailJob = viewModelScope.launch {
-            val mine = if (canEdit) async { profile.trackStat(trackId).getOrNull() } else null
+            if (canEdit) launch { _myStat.value = profile.trackStat(trackId).getOrNull() }
             _detail.value = library.getTrackDetail(trackId).fold(
                 onSuccess = { LoadState.Content(it) },
                 onFailure = { LoadState.Error(it.loadMessage()) },
             )
-            _myStat.value = mine?.await()
         }
     }
 

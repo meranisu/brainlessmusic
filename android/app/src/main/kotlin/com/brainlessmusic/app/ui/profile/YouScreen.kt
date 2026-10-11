@@ -123,8 +123,9 @@ fun YouScreen(
             loadingLabel = "Loading your profile",
             skeleton = { SkeletonListRows(lead = SkeletonLead.COVER, trailing = true) },
         ) { stats: UserStatsDto ->
-            // Rank changes only mean something when the server compared with the window before (A91).
-            val compared = stats.previousTotals != null
+            // Rank changes only mean something when the server compared with a window before that had plays (A91);
+            // with nothing played then, every song would read NEW.
+            val compared = (stats.previousTotals?.plays ?: 0) > 0
             PullToRefreshBox(isRefreshing = refreshing, onRefresh = viewModel::refresh) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -139,7 +140,7 @@ fun YouScreen(
                             RecentRow(
                                 recent = recent,
                                 coverUrl = viewModel::trackCoverUrl,
-                                onPlay = viewModel::playRecent,
+                                onPlay = { index -> viewModel.playRecent(recent, index) },
                                 onMenu = { menuFor = viewModel.queueItem(it) },
                             )
                         }
@@ -481,12 +482,15 @@ fun movement(rank: Int, previousRank: Int?, compared: Boolean): Movement? = when
     else -> null
 }
 
+/** Fits the rank column: a song that was 150th last month shows "▲99+", and the spoken label keeps the real number. */
+fun shortPlaces(places: Int): String = if (places > 99) "99+" else places.toString()
+
 /** Up and new in the accent, as the news; down stays quiet. */
 @Composable
 private fun MovementTag(movement: Movement, modifier: Modifier = Modifier) {
     val (text, spoken) = when (movement) {
-        is Movement.Up -> "▲${movement.places}" to "Up ${movement.places}"
-        is Movement.Down -> "▼${movement.places}" to "Down ${movement.places}"
+        is Movement.Up -> "▲${shortPlaces(movement.places)}" to "Up ${movement.places}"
+        is Movement.Down -> "▼${shortPlaces(movement.places)}" to "Down ${movement.places}"
         Movement.New -> "NEW" to "New this time"
     }
     Text(

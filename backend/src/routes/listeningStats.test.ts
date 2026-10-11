@@ -193,7 +193,7 @@ describe('listening stats', () => {
     assert.deepEqual(list.tracks.map((t) => t.title), ['A']);
   });
 
-  it('history rows carry the album and whether the file is gone (A91)', async () => {
+  it('history rows carry the album, track number and whether the file is gone (A91)', async () => {
     const a = addTrack('A', 'X', 'Album One');
     const b = addTrack('B', 'X', 'Album One');
     await play(a);
@@ -202,10 +202,11 @@ describe('listening stats', () => {
     const albumId = (db.prepare('SELECT album_id AS id FROM tracks WHERE id = ?').get(a) as { id: number }).id;
 
     const res = await call('GET', '/me/history?limit=10');
-    const rows = (res.json() as { history: { trackId: number; albumId: number; missing: boolean }[] }).history;
+    const rows = (res.json() as { history: { trackId: number; albumId: number; trackNumber: number; missing: boolean }[] })
+      .history;
     assert.deepEqual(
-      rows.sort((x, y) => x.trackId - y.trackId).map((r) => [r.trackId, r.albumId, r.missing]),
-      [[a, albumId, false], [b, albumId, true]],
+      rows.sort((x, y) => x.trackId - y.trackId).map((r) => [r.trackId, r.albumId, r.trackNumber, r.missing]),
+      [[a, albumId, 1, false], [b, albumId, 1, true]],
     );
   });
 

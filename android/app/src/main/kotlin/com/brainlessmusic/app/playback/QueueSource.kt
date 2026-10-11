@@ -2,6 +2,7 @@ package com.brainlessmusic.app.playback
 
 import com.brainlessmusic.app.data.remote.dto.AlbumDetailDto
 import com.brainlessmusic.app.data.remote.dto.AlbumTrackDto
+import com.brainlessmusic.app.data.remote.dto.HistoryEntryDto
 import com.brainlessmusic.app.data.remote.dto.TrackSummaryDto
 import com.brainlessmusic.app.data.repository.LibraryRepository
 
@@ -48,6 +49,19 @@ fun LibraryRepository.queueItem(track: TrackSummaryDto) = QueueItem(
     format = track.format,
     albumId = track.albumId,
     trackNumber = track.trackNumber,
+)
+
+/** A play from `/me/history` (You tab, Recently played). */
+fun LibraryRepository.queueItem(entry: HistoryEntryDto) = QueueItem(
+    trackId = entry.trackId,
+    title = entry.title,
+    artist = entry.artist,
+    album = entry.album,
+    durationSec = entry.duration,
+    coverUrl = trackCoverUrl(entry.trackId),
+    format = entry.format,
+    albumId = entry.albumId,
+    trackNumber = entry.trackNumber,
 )
 
 /** An album's tracks carry no artist/album/cover of their own; the album supplies them. */

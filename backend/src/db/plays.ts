@@ -7,6 +7,7 @@ export interface PlayHistoryEntry {
   artist: string | null;
   album: string | null;
   albumId: number | null;
+  trackNumber: number | null;
   duration: number | null;
   format: string | null;
   playedAt: string;
@@ -129,6 +130,7 @@ export function listHistoryForUser(
          a.name as artist,
          al.title as album,
          t.album_id as albumId,
+         t.track_number as trackNumber,
          t.duration as duration,
          t.format as format,
          ph.played_at as playedAt,

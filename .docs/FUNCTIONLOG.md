@@ -4,6 +4,23 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `Card`, `PageRow` — `android/.../ui/settings/SettingsScreen.kt`
+**Date:** 2026-10-11
+**How added:** bug fix (A93)
+**Purpose:** keep borderless Settings cards visible in dark themes, and show the accent cursor on a tap.
+**Side effects:** none.
+**Before:** `Card` filled with `surfaceContainer` only; `PageRow` lit only while pressed, which a quick tap never showed.
+**After:** `Card(darkTheme)` fills with `surfaceContainerHighest` in the dark and remaps the inner scheme to the ground;
+`PageRow` holds the fill for `CursorFlashMs` before calling `onClick`.
+
+**Function:** `LibraryRepository.queueItem(HistoryEntryDto)` (new) — `android/.../playback/QueueSource.kt`; `YouViewModel.playRecent()`, `shortPlaces()`, `SongActionsViewModel.loadDetail()` (changed)
+**Date:** 2026-10-11
+**How added:** bug fix (review of 500ce06)
+**Purpose:** fixes from the You tab review: a stable recent-play tap, one history queue builder, short rank jumps, independent stats in Details.
+**Side effects:** none.
+**Before:** as built in 500ce06.
+**After:** as in the 2026-10-11 "You tab upgrade: review fixes" CHANGELOG entry.
+
 **Function:** `DownloadRepository.loaded` (now a `StateFlow`), `queueOf()` removed; `PlaybackController` downloads collector; `NetworkMonitor.usable()`; `AuthRepository.recheckWhenOnline()`; new `DownloadedTrack.toQueueItem()` — `android/.../downloads/DownloadDatabase.kt`; `DownloadsViewModel.retry()` / `remove()` removed
 **Date:** 2026-10-11
 **How added:** bug fix (offline downloads review round 2, D3, D5–D8)

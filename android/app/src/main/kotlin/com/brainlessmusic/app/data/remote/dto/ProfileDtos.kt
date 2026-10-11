@@ -41,6 +41,7 @@ data class HistoryEntryDto(
     val album: String?,
     // Nullable: servers before 2026-10-11 don't send them.
     val albumId: Int? = null,
+    val trackNumber: Int? = null,
     val duration: Double?,
     val format: String?,
     val playedAt: String,

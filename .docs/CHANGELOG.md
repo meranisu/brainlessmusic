@@ -4,6 +4,36 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android: Settings review fixes, brighter dark cards and a tap flash (A93)
+
+- **Cards stand out again in the dark.** Without outlines, the sub-page card (`surfaceContainer`) sat 1.07-1.43:1
+  off the ground, 1.07 in Magenta. In dark themes `Card` now fills with `surfaceContainerHighest` (1.24-1.67:1) and
+  remaps the scheme inside it, so tonal buttons, switch tracks, colour tiles and dividers use the ground colour
+  instead of disappearing into the card. Light themes are unchanged: the card is already white.
+- **Taps show the cursor.** `PageRow` has no ripple, and in a scrolling column a quick tap's press never showed. A tap
+  now holds the accent fill for 120 ms (`CursorFlashMs`), then opens the page; the row can't be tapped twice meanwhile.
+- Verified: `./gradlew compileDebugKotlin` succeeds. Contrast figures computed from the palette tokens in `Color.kt`.
+  **Not run:** no phone or emulator here, so neither change has been seen.
+
+## 2026-10-11 — You tab upgrade: review fixes (A91)
+
+- **NEW on every song**: with nothing played in the window before, every song and artist read NEW. Rank changes now show
+  only when that window had plays (`YouScreen.kt`, `compared`).
+- **Wrong song from Recently played**: a tap played by index into a list a reload may have replaced. It now plays from
+  the list on screen (`YouViewModel.playRecent(recent, index)`).
+- **Artist ranks**: the previous window counted artist ids with no artists row, which the top list leaves out. Both
+  now skip them (`listeningStats.ts`, `AND a.id IS NOT NULL`).
+- **Big jumps**: "▲145" didn't fit the 32 dp rank column; it now reads "▲99+", and TalkBack still says the real number
+  (`shortPlaces`).
+- **One history-to-queue builder**: `LibraryRepository.queueItem(HistoryEntryDto)` next to the others, now with the
+  track number (`/me/history` sends `trackNumber`), so recent album runs can go gapless (A72).
+- **Your numbers in Details** arrive on their own request, and still show when the file details fail.
+- Left as they are: reloading recent plays on resume (one small request), the extra date statement in
+  `previousSinceFor`, and the "dropped summary" finding (the top-songs query already joins `tracks`, so no row drops).
+- Verified: `cd backend && npm test` 451/451 pass; backend `tsc --noEmit` clean; `./gradlew :app:compileDebugKotlin
+  :app:testDebugUnitTest` succeeds (`YouStatsTest` 4/4, new `shortPlaces` test). **Not run:** no phone or emulator, so
+  the fixes have not been seen in the app.
+
 ## 2026-10-11 — Android: offline downloads review, round 2 (D3, D5–D8)
 
 From `.docs/process/review-2026-10-11-offline-downloads-round2.md`. D1, D2 and D4 were already fixed by the

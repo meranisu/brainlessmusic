@@ -50,4 +50,10 @@ class YouStatsTest {
         assertNull(listenedDelta(stats(3_600_000, null), StatsRange.WEEK))
         assertNull(listenedDelta(stats(3_600_000, 0, previousPlays = 0), StatsRange.WEEK))
     }
+
+    @Test
+    fun `a big jump is shortened to fit the rank column`() {
+        assertEquals("99", shortPlaces(99))
+        assertEquals("99+", shortPlaces(145))
+    }
 }

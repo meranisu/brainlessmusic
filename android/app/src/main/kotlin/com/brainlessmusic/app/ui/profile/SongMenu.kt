@@ -198,7 +198,11 @@ private fun SongDetailsDialog(trackId: Int, onDismiss: () -> Unit, viewModel: So
                 LoadState.Loading -> Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(modifier = Modifier.size(32.dp))
                 }
-                is LoadState.Error -> Text(state.message, color = MaterialTheme.colorScheme.error)
+                is LoadState.Error -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(state.message, color = MaterialTheme.colorScheme.error)
+                    // Your numbers come from their own request, so they can still show when the file details fail.
+                    mine?.let { stat -> myRows(stat).forEach { (label, value) -> DetailRow(label, value) } }
+                }
                 is LoadState.Content -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     detailRows(state.data).forEach { (label, value) -> DetailRow(label, value) }
                     mine?.let { stat ->
