@@ -55,6 +55,7 @@ import com.brainlessmusic.app.downloads.DownloadGroup
 import com.brainlessmusic.app.downloads.DownloadRepository
 import com.brainlessmusic.app.downloads.DownloadedTrack
 import com.brainlessmusic.app.downloads.GroupDownload
+import com.brainlessmusic.app.downloads.KIND_ALBUM
 import com.brainlessmusic.app.downloads.KIND_SONGS
 import com.brainlessmusic.app.downloads.TrackDownload
 import com.brainlessmusic.app.downloads.groupDownload
@@ -223,19 +224,24 @@ fun DownloadGroupScreen(
                             download?.isFailed == true -> "Download failed"
                             download?.isActive == true -> "Downloading, ${download.percent.toInt()}%"
                             download?.isDone != true -> "Not on the phone"
-                            else -> track.artist ?: "Unknown artist"
+                            // An album page's header already names the album.
+                            p.group?.kind == KIND_ALBUM -> track.artist ?: "Unknown artist"
+                            else -> listOfNotNull(track.artist ?: "Unknown artist", track.album).joinToString(" · ")
                         },
-                        coverUri = null,
+                        coverUri = p.songCovers[track.trackId],
                         download = download,
                         onClick = { viewModel.play(p, index, shuffle = false, toast) },
-                        leading = {
-                            Text(
-                                "${index + 1}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.End,
-                                modifier = Modifier.width(24.dp),
-                            )
+                        // "Songs" has no order of its own, so each row shows its cover; the rest are numbered.
+                        leading = if (p.group?.kind == KIND_SONGS) null else {
+                            {
+                                Text(
+                                    "${index + 1}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.End,
+                                    modifier = Modifier.width(24.dp),
+                                )
+                            }
                         },
                         menu = { close ->
                             when {

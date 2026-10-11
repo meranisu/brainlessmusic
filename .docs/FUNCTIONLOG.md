@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `NothingDownloaded` (new), `HowToRow` (new) — `android/.../ui/downloads/DownloadsScreen.kt`; `LoadStateContent(empty)` — `android/.../ui/common/LoadStateContent.kt`
+**Date:** 2026-10-11
+**How added:** new feature (owner request)
+**Purpose:** a real empty state for the Downloads tab.
+**Side effects:** none.
+**Before:** an empty Downloads tab showed one centred line of text.
+**After:** an icon, title, why, how-to panel, Browse your library (hidden offline) and Download settings.
+
+**Function:** `DownloadGroupScreen` song rows — `android/.../ui/downloads/DownloadGroupScreen.kt`
+**Date:** 2026-10-11
+**How added:** bug fix (owner report)
+**Purpose:** show the album on the Songs and playlist download pages.
+**Side effects:** none; covers come from files already on the phone.
+**Before:** artist only, numbered rows everywhere.
+**After:** "Artist · Album" except on album pages; the Songs page leads each row with its cover.
+
 **Function:** `LibraryShuffle.start()` (new) — `android/.../playback/LibraryShuffle.kt`; `LibraryViewModel.shuffleAll()`, `YouViewModel.shuffleLibrary()` (new), `greeting()`, `ShuffleLibraryButton` (new), `LibraryBottomBar.navigateToTab()`, `StartViewModel` start route
 **Date:** 2026-10-11
 **How added:** new feature (A97, A98)

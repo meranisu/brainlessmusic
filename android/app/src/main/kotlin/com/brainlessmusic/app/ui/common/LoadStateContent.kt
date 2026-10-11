@@ -16,7 +16,8 @@ import androidx.compose.ui.unit.dp
 
 /**
  * The loading/error/empty boilerplate every browsing screen needs, once. With a [skeleton], loading shows that shape
- * of the screen (read out as [loadingLabel]); without one, a spinner.
+ * of the screen (read out as [loadingLabel]); without one, a spinner. [empty] replaces the one-line [emptyMessage] when a
+ * screen has more to say, and gets the Scaffold padding as its modifier.
  */
 @Composable
 fun <T> LoadStateContent(
@@ -27,6 +28,7 @@ fun <T> LoadStateContent(
     emptyMessage: String = "Nothing here yet.",
     loadingLabel: String = "Loading",
     skeleton: (@Composable () -> Unit)? = null,
+    empty: (@Composable (Modifier) -> Unit)? = null,
     content: @Composable (T) -> Unit,
 ) {
     when (state) {
@@ -51,7 +53,9 @@ fun <T> LoadStateContent(
             }
         }
 
-        is LoadState.Content -> if (isEmpty(state.data)) {
+        is LoadState.Content -> if (isEmpty(state.data) && empty != null) {
+            empty(modifier)
+        } else if (isEmpty(state.data)) {
             Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(emptyMessage, style = MaterialTheme.typography.bodyMedium)
             }

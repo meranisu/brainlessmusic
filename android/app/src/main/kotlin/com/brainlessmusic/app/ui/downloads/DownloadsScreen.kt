@@ -24,14 +24,18 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.DownloadDone
+import androidx.compose.material.icons.filled.DownloadForOffline
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -60,9 +64,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -89,6 +96,7 @@ private val PanelShape = RoundedCornerShape(20.dp)
 fun DownloadsScreen(navController: NavHostController, viewModel: DownloadsViewModel = hiltViewModel()) {
     val state by viewModel.ui.collectAsStateWithLifecycle()
     val filter by viewModel.filter.collectAsStateWithLifecycle()
+    val online by viewModel.online.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val toast: (String) -> Unit = { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
 
@@ -101,10 +109,18 @@ fun DownloadsScreen(navController: NavHostController, viewModel: DownloadsViewMo
             onRetry = viewModel::retryLoad,
             modifier = Modifier.padding(padding),
             isEmpty = { it.isEmpty },
-            emptyMessage = "Nothing downloaded yet. Open an album or playlist and tap the download icon to keep it " +
-                "on your phone.",
             loadingLabel = "Loading downloads",
             skeleton = { SkeletonListRows() },
+            empty = { modifier ->
+                NothingDownloaded(
+                    online = online,
+                    onBrowse = {
+                        navController.navigate(Routes.ARTISTS) { popUpTo(Routes.HOME); launchSingleTop = true }
+                    },
+                    onSettings = { navController.navigate(Routes.settingsPage("downloads")) },
+                    modifier = modifier,
+                )
+            },
         ) { ui ->
             LazyVerticalGrid(
                 // Three columns on a phone, more on a wide screen.
@@ -157,6 +173,86 @@ fun DownloadsScreen(navController: NavHostController, viewModel: DownloadsViewMo
                 }
             }
         }
+    }
+}
+
+/**
+ * The tab with nothing on the phone yet: what downloads are for, the two ways to get one, and a way to the library.
+ * Offline there is nothing to browse, so the button gives way to a line saying so.
+ */
+@Composable
+private fun NothingDownloaded(
+    online: Boolean,
+    onBrowse: () -> Unit,
+    onSettings: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp, vertical = 32.dp),
+    ) {
+        Surface(
+            shape = CircleShape,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            color = Color.Transparent,
+            contentColor = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(88.dp),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(Icons.Filled.DownloadForOffline, contentDescription = null, modifier = Modifier.size(44.dp))
+            }
+        }
+        Text(
+            "Nothing downloaded yet",
+            style = MaterialTheme.typography.titleLarge,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 20.dp).semantics { heading() },
+        )
+        Text(
+            "Songs you download play with no signal and don't use your data.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        Surface(
+            shape = PanelShape,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            color = Color.Transparent,
+            modifier = Modifier.padding(top = 24.dp).fillMaxWidth(),
+        ) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                HowToRow(Icons.Filled.Download, "On an album or playlist, tap the download icon.")
+                HowToRow(Icons.Filled.TouchApp, "Or press and hold any song, then tap Download.")
+            }
+        }
+        if (online) {
+            Button(onClick = onBrowse, modifier = Modifier.padding(top = 24.dp)) {
+                Icon(Icons.Filled.LibraryMusic, contentDescription = null, modifier = Modifier.size(18.dp))
+                Text("Browse your library", modifier = Modifier.padding(start = 8.dp))
+            }
+        } else {
+            Text(
+                "Connect to the internet to download something.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 24.dp),
+            )
+        }
+        TextButton(onClick = onSettings, modifier = Modifier.padding(top = 4.dp)) { Text("Download settings") }
+    }
+}
+
+@Composable
+private fun HowToRow(icon: ImageVector, text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 12.dp))
     }
 }
 

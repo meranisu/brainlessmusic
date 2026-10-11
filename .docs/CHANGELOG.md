@@ -4,6 +4,18 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android: Downloads empty state, album on download song lists
+
+- **With nothing downloaded, the Downloads tab explains itself** instead of one line of text: a download icon, "Nothing
+  downloaded yet", why it's worth it (plays with no signal, no data), the two ways to download (the download icon on
+  an album or playlist, or press and hold a song), a Browse your library button and a Download settings link. Offline,
+  the button gives way to "Connect to the internet to download something."
+- `LoadStateContent` takes an optional `empty` slot for screens that need more than the one-line message.
+- **Album on a download's song list:** the Songs tile and playlist pages showed only the artist; they now read
+  "Artist · Album" (album pages keep the artist alone, the header names the album). The Songs page shows each song's
+  cover where the others show track numbers.
+- Verified: `./gradlew compileDebugKotlin`. **Not run:** no phone or emulator here, so neither screen has been seen.
+
 ## 2026-10-11 — Android: the You tab becomes Home (A97, A98)
 
 - **Home is the first tab and where the app opens.** Tabs: Home, Library, Search, Downloads, Settings. Home replaces
