@@ -11,6 +11,7 @@ import androidx.media3.exoplayer.offline.DownloadManager
 import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
 import com.brainlessmusic.app.data.local.PlaybackSettings
+import com.brainlessmusic.app.data.remote.TokenProvider
 import com.brainlessmusic.app.data.remote.dto.AlbumDetailDto
 import com.brainlessmusic.app.data.remote.dto.PlaylistDetailDto
 import com.brainlessmusic.app.data.repository.LibraryRepository
@@ -31,6 +32,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -58,6 +63,7 @@ class DownloadRepository @Inject constructor(
     private val cache: Cache,
     private val okHttpClient: OkHttpClient,
     private val settings: PlaybackSettings,
+    private val tokenProvider: TokenProvider,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -81,6 +87,15 @@ class DownloadRepository @Inject constructor(
 
     private var progressPoll: Job? = null
 
+    /** One storage check at a time, so two downloads started together can't both count the same free room. */
+    private val roomCheck = Mutex()
+
+    /**
+     * Sizes of songs let past the storage limit that aren't finished yet. `cacheSpace` only counts bytes already written,
+     * so without these, downloads still in the queue were invisible to the next check (C20). Main thread only.
+     */
+    private val reserved = mutableMapOf<Int, Long>()
+
     private val loaded = CompletableDeferred<Unit>()
 
     /**
@@ -93,6 +108,9 @@ class DownloadRepository @Inject constructor(
         manager.addListener(object : DownloadManager.Listener {
             override fun onDownloadChanged(manager: DownloadManager, download: Download, finalException: Exception?) {
                 put(download)
+                if (download.state == Download.STATE_COMPLETED || download.state == Download.STATE_FAILED) {
+                    trackIdOf(download.request.id)?.let { reserved -= it }
+                }
                 if (finalException.isUnauthorized() || finalException?.cause.isUnauthorized()) {
                     // Every other song would fail the same way; wait for a sign-in instead.
                     _needsSignIn.value = true
@@ -105,7 +123,10 @@ class DownloadRepository @Inject constructor(
             }
 
             override fun onDownloadRemoved(manager: DownloadManager, download: Download) {
-                trackIdOf(download.request.id)?.let { _downloads.value -= it }
+                trackIdOf(download.request.id)?.let {
+                    _downloads.value -= it
+                    reserved -= it
+                }
                 _spaceUsed.value = cache.cacheSpace
                 pollWhileActive()
             }
@@ -122,6 +143,13 @@ class DownloadRepository @Inject constructor(
                 runCatching { DownloadService.start(context, MusicDownloadService::class.java) }
             }
             pollWhileActive()
+        }
+        scope.launch {
+            // Paused by a 401 (see [needsSignIn]): the next sign-in picks the queue up again, rather than it waiting for
+            // someone to tap Download.
+            tokenProvider.token.collect { token ->
+                if (token != null && _needsSignIn.value) resumeAll()
+            }
         }
     }
 
@@ -212,17 +240,26 @@ class DownloadRepository @Inject constructor(
      * `null` when the storage limit leaves room for the songs in [trackIds] not yet on the phone, otherwise why not.
      * Sizes come from `GET /tracks/:id`; one that can't be fetched counts as nothing rather than blocking the download.
      */
-    private suspend fun roomFor(trackIds: List<Int>): String? {
+    private suspend fun roomFor(trackIds: List<Int>): String? = roomCheck.withLock {
         val limitGb = settings.downloadLimitGb.first()
-        if (limitGb <= 0) return null
+        if (limitGb <= 0) return@withLock null
         val limit = limitGb * BYTES_PER_GB
-        val missing = trackIds.filterNot(::isDownloaded)
-        val needed = coroutineScope {
-            missing.map { id -> async { libraryRepository.getTrackDetail(id).getOrNull()?.fileSize ?: 0L } }.awaitAll().sum()
+        val missing = trackIds.distinct().filterNot { isDownloaded(it) || it in reserved }
+        // A few at a time: a 400-song playlist mustn't put 400 requests on the server at once (C28).
+        val lookups = Semaphore(SIZE_LOOKUPS_AT_ONCE)
+        val sizes = coroutineScope {
+            missing.map { id ->
+                async { lookups.withPermit { libraryRepository.getTrackDetail(id).getOrNull()?.fileSize ?: 0L } }
+            }.awaitAll()
         }
-        val used = cache.cacheSpace
-        if (used + needed <= limit) return null
-        return "Not enough room under your $limitGb GB download limit. Change it in Settings, Downloads."
+        // What the queue still has to write: its reserved sizes, less what the cache already holds of them.
+        val written = manager.currentDownloads.associate { trackIdOf(it.request.id) to it.bytesDownloaded }
+        val stillToCome = reserved.entries.sumOf { (id, size) -> (size - (written[id] ?: 0L)).coerceAtLeast(0L) }
+        if (cache.cacheSpace + stillToCome + sizes.sum() > limit) {
+            return@withLock "Not enough room under your $limitGb GB download limit. Change it in Settings, Downloads."
+        }
+        missing.zip(sizes).forEach { (id, size) -> reserved[id] = size }
+        null
     }
 
     /**
@@ -346,3 +383,6 @@ const val KIND_SONGS = "songs"
 const val SONGS_GROUP = "songs"
 private const val COVERS_DIR = "download-covers"
 private const val BYTES_PER_GB = 1_000_000_000L
+
+/** Size lookups in flight at once for the storage check. */
+private const val SIZE_LOOKUPS_AT_ONCE = 4

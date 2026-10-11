@@ -10,6 +10,7 @@ import com.brainlessmusic.app.downloads.PendingPlayDao
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -123,9 +124,14 @@ class PendingPlays @Inject constructor(
         }
     }
 
-    /** Staying on the same Wi-Fi while smol restarts changes nothing the network monitor sees, so retry on a timer. */
-    private fun scheduleRetry() {
-        if (retry?.isActive == true || !networkMonitor.online.value) return
+    /**
+     * Staying on the same Wi-Fi while smol restarts changes nothing the network monitor sees, so retry on a timer. Called
+     * from inside the retry's own send too: that job is still active then, and must not count as one already waiting,
+     * or the timer would stop after one try (C17).
+     */
+    private suspend fun scheduleRetry() {
+        val self = currentCoroutineContext()[Job]
+        if ((retry?.isActive == true && retry !== self) || !networkMonitor.online.value) return
         retry = scope.launch {
             delay(RETRY_MS)
             send()

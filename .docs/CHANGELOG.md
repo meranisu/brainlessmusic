@@ -4,6 +4,25 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android review fixes C17-C21, C28: offline plays, downloads after sign-in, storage limit, search flicker
+
+From `.docs/process/codebase-review-2026-10-11.md`.
+
+- **C17** (`PendingPlays.scheduleRetry`): the 5-minute retry saw its own coroutine as "a retry already scheduled" and
+  stopped after one try. It now ignores itself (`currentCoroutineContext()[Job]`).
+- **C18** (`AuthRepository.restoreSession`): the flush at start-up ran before the token was set, and an online restore
+  never flushed again. A successful restore now calls `pendingPlays.flush()`.
+- **C19** (`DownloadRepository`): after a 401 paused the queue, only tapping Download resumed it. It now resumes on the
+  next sign-in (`TokenProvider.token`, newly exposed as a flow), which also clears the sign-in notice.
+- **C20, C28** (`DownloadRepository.roomFor`): the storage check counted only bytes already written, so downloads still
+  queued were invisible and two big groups started together both passed. Accepted songs' sizes are now reserved until
+  each finishes, fails or is removed. Bytes already written for them are subtracted. Checks run one at a time
+  (`Mutex`), and size lookups are capped at 4 in flight.
+- **C21** (`LibraryRepository.callApi`): `runCatching` turned a coroutine's cancellation into a
+  `ConnectionException`, so a search superseded by the next keystroke showed an error and the results flickered
+  (A83). Cancellation is now rethrown.
+- Verified: `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest` passes. **Not run on a device**, and no new tests.
+
 ## 2026-10-11 — Review fixes C11-C14, C16: web player async races, tag form wiped on refetch
 
 From `.docs/process/codebase-review-2026-10-11.md`. Each was an `await` finishing after something newer had taken

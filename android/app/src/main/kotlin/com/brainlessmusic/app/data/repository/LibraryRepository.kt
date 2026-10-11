@@ -21,6 +21,7 @@ import com.brainlessmusic.app.data.remote.dto.TrackDetailDto
 import com.brainlessmusic.app.data.remote.dto.TracksPageDto
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.cancellation.CancellationException
 
 @Singleton
 class LibraryRepository @Inject constructor(
@@ -103,8 +104,16 @@ class LibraryRepository @Inject constructor(
     /** Falls back server-side to the album's cover when the track has none of its own (see backend/src/routes/tracks.ts). */
     fun trackCoverUrl(trackId: Int): String? = mediaUrlProvider.current?.let { "${it}tracks/$trackId/cover" }
 
-    private suspend fun <T> callApi(block: suspend (ApiService) -> T): Result<T> {
-        return runCatching { block(apiServiceFactory.get(serverConfig.url)) }
-            .recoverCatching { throw ConnectionException(classifyError(it)) }
-    }
+    /**
+     * A failed call as a [ConnectionException]. Cancellation is rethrown instead: a search superseded by the next
+     * keystroke was otherwise reported as an error, and the results flickered (C21, against A83).
+     */
+    private suspend fun <T> callApi(block: suspend (ApiService) -> T): Result<T> =
+        try {
+            Result.success(block(apiServiceFactory.get(serverConfig.url)))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(ConnectionException(classifyError(e)))
+        }
 }

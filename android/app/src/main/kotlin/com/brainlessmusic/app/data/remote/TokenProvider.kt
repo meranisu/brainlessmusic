@@ -3,6 +3,8 @@ package com.brainlessmusic.app.data.remote
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -11,6 +13,9 @@ import javax.inject.Singleton
 @Singleton
 class TokenProvider @Inject constructor() {
     private val _token = MutableStateFlow<String?>(null)
+
+    /** The token as it changes, for what must react to a sign-in. */
+    val token: StateFlow<String?> = _token.asStateFlow()
 
     var current: String?
         get() = _token.value

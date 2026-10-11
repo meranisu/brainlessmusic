@@ -4,6 +4,30 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `PendingPlays.scheduleRetry()` — `android/app/src/main/kotlin/com/brainlessmusic/app/playback/PendingPlays.kt`
+**Date:** 2026-10-11
+**How added:** bug fix (review C17)
+**Purpose:** keep retrying unsent plays every 5 minutes while online.
+**Side effects:** launches the retry job.
+**Before:** called from the retry's own send, it saw itself as active and stopped the chain.
+**After:** ignores its own job; now `suspend`.
+
+**Function:** `DownloadRepository.roomFor()` (changed), token collector in `init` (new) — `android/app/src/main/kotlin/com/brainlessmusic/app/downloads/DownloadRepository.kt`; `TokenProvider.token` (new) — `.../data/remote/TokenProvider.kt`
+**Date:** 2026-10-11
+**How added:** bug fix (review C19, C20, C28)
+**Purpose:** a storage check that counts the queue; resume a 401-paused queue on sign-in.
+**Side effects:** keeps `reserved` sizes in memory; resumes the download service.
+**Before:** queued bytes were ignored, lookups unbounded, and a 401 pause waited for a tap on Download.
+**After:** sizes reserved until done, one check at a time, 4 lookups at once; a sign-in resumes the queue.
+
+**Function:** `LibraryRepository.callApi()` — `android/app/src/main/kotlin/com/brainlessmusic/app/data/repository/LibraryRepository.kt`; `AuthRepository.restoreSession()` — `.../data/repository/AuthRepository.kt`
+**Date:** 2026-10-11
+**How added:** bug fix (review C21, C18)
+**Purpose:** let cancellation through; send queued plays after an online restore.
+**Side effects:** `restoreSession` starts a pending-play send.
+**Before:** cancellation became a `ConnectionException`; an online restore left queued plays waiting.
+**After:** cancellation propagates; a successful restore flushes.
+
 **Function:** `load()`, `reconnect()`, `setDataSaver()`, `toggleShuffle()` — `frontend/src/components/PlayerBar.tsx`
 **Date:** 2026-10-11
 **How added:** bug fix (review C11-C14)

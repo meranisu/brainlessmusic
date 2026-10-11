@@ -258,6 +258,8 @@ class AuthRepository @Inject constructor(
                     sessionStore.saveIsGuest(it.isGuest)
                     sessionStore.saveDisplayName(nameOf(it))
                     runCatching { syncTheme(it) }
+                    // The flush at start-up ran before the token was set and sent nothing (C18).
+                    pendingPlays.flush()
                     SessionRestoreResult.Restored(nameOf(it))
                 },
                 onFailure = {
