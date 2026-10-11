@@ -85,6 +85,12 @@ fills with the accent when pressed. Sub-pages keep one card each, filled with no
 tiles drop their border (picked = accent fill plus check); outlined buttons become tonal. Landed in
 `SettingsScreen.kt`, `DownloadSettings.kt` and DESIGN.md (Android).
 
+### A91 — The You tab upgrade: the recommended picks *(was Q93)*
+**Answered:** 2026-10-11, in chat: "i will follow you pick". From the You tab idea list: recently played (`GET /me/history`),
+a per-song stats sheet (`GET /me/stats/tracks/:id`), Play all / Shuffle on Top songs, the song menu on top songs, a
+player-card header, the #1 song large, and leaderboard rank numbers. Then rank changes against the previous period
+(backend). [plan](features/you-tab-upgrade/planning.md).
+
 ### A90 — The Downloads tab gets all four additions *(was Q92)*
 **Answered:** 2026-10-11, in the question picker: a storage header (space against the limit, counts) with Play all /
 Shuffle all downloads; filter chips (All, Albums, Playlists, Songs); a page per album or playlist with each song's
