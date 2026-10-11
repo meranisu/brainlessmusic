@@ -29,11 +29,11 @@ Results at review time:
       - Any guest can POST a `detail` of about 1 MB, with no length cap, rate limit or pruning
         (`routes/tracks.ts:538-581`, `db/playbackFailures.ts:211`).
       - That can fill the disk, and every daily backup (14 kept).
-- [ ] **C5. Android: queued offline plays go to the wrong account after a 401.** Confirmed in a second pass.
+- [x] **C5. Android: queued offline plays go to the wrong account after a 401.** Fixed in 3ee0161. Confirmed in a second pass.
       - Both 401 paths clear credentials but not `PendingPlays` (`AuthRepository.kt:245-249`, `:278-282`). Only
         `logout()` does (`:293`).
       - The next account to sign in sends the old account's plays as its own.
-- [ ] **C6. Android: an endless error-skip loop with repeat-all.** Checked.
+- [x] **C6. Android: an endless error-skip loop with repeat-all.** Fixed in 3ee0161. Checked.
       - `onPlayerError` skips whenever `hasNextMediaItem()` is true, which repeat-all makes always true
         (`PlaybackController.kt:963-973`).
       - With signal but smol down (502/530) or a revoked token, it loops seek, prepare, fail with no end. That drains
@@ -119,7 +119,7 @@ Results at review time:
 - [ ] **C27. Upload staging files leak on abort or on a filing error** (`routes/tracks.ts:193`, `:221-224`). Admin-only.
 - [ ] **C28. Android: `roomFor` fires one GET per missing song with no cap in the code** (`DownloadRepository.kt:211-213`).
       - OkHttp's limit of 5 per host applies, so a big playlist is slow to start rather than a flood.
-- [ ] **C29. Android: `sendThenClear` timeout race** (`PendingPlays.kt:83`).
+- [x] **C29. Android: `sendThenClear` timeout race** Fixed in 3ee0161. (`PendingPlays.kt:83`).
       - A `flush()`-started send can keep going through its snapshot after the clear. Narrow.
 - [ ] **C30. Android: `Cache` is injected eagerly into `DownloadRepository`** (`DownloadRepository.kt:59`, `:103`,
       `DownloadModule.kt:44-45`).
