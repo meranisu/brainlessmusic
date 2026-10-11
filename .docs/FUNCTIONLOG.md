@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `tabBarColor()` (changed): `android/.../ui/common/SkinParts.kt`; `AppBottomBar()` (changed): `android/.../ui/navigation/LibraryBottomBar.kt`
+**Date:** 2026-10-11
+**How added:** owner request
+**Purpose:** Hit circle's floating tab bar reads apart from its mini player.
+**Side effects:** none.
+**Before:** the shade-up fill was Lane only; Hit circle's pill was `surfaceContainer`, like its mini player.
+**After:** every game skin's tab bar is `surfaceContainerHighest`; Standard unchanged.
+
 **Function:** `LaneIcons` (regenerated): `android/.../ui/theme/LaneIcons.kt`; `tabBarColor()` (new): `android/.../ui/common/SkinParts.kt`
 **Date:** 2026-10-11
 **How added:** bug fix (owner report); owner request

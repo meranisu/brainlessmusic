@@ -90,7 +90,7 @@ never its artwork, and stay flat: rings and borders, no glow.
 
 - **Hit circle** (after osu!): Fredoka for headings, titles and labels; round covers and avatars; larger corner radii and
   pill rows; a tapped row or tile gets an approach ring closing on the finger; the mini player and tab bar float as
-  outlined pills and sheets open as an outlined card in the middle of the screen (`SkinSheet`, A124), the queue numbers its rows like a combo (`QueueMarker`, "12x" count), the mini cover is ringed by progress; the selected tab is ringed (no pill); icons are Font Awesome
+  outlined pills (the tab bar a shade up, `tabBarColor`) and sheets open as an outlined card in the middle of the screen (`SkinSheet`, A124), the queue numbers its rows like a combo (`QueueMarker`, "12x" count), the mini cover is ringed by progress; the selected tab is ringed (no pill); icons are Font Awesome
   Free, as osu!lazer uses (`AppIcons`, CC BY 4.0, credited in Settings → Licenses); the player is `HitCircleDeck`, whose slider shows osu!'s reverse arrow at its end on repeat one. Magenta is its matching colour theme.
 - **Lane** (after Arcaea, A121-A123): Exo 2 throughout, light at display sizes; panels with two opposite corners cut on
   the diagonal (`laneCut`), parallelogram rows (`SlantShape`), corner-cut covers; a tap flings a dashed ring from the

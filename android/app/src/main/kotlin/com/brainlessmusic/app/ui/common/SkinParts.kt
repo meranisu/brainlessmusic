@@ -207,10 +207,10 @@ fun SkinDragHandle() {
     }
 }
 
-/** The tab bar's fill: Material's, or in Lane a shade up, so it reads apart from the mini player docked above it. */
+/** The tab bar's fill: Material's, or in the game skins a shade up, so it reads apart from the mini player above it. */
 @Composable
 fun tabBarColor(): Color =
-    if (LocalSkin.current == Skin.LANE) MaterialTheme.colorScheme.surfaceContainerHighest else NavigationBarDefaults.containerColor
+    if (LocalSkin.current != Skin.STANDARD) MaterialTheme.colorScheme.surfaceContainerHighest else NavigationBarDefaults.containerColor
 
 /** The line Lane closes a docked bar with, as Arcaea edges its panels; nothing in the other skins. */
 @Composable

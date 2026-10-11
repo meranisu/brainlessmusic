@@ -75,7 +75,7 @@ fun LibraryBottomBar(navController: NavHostController, onReselect: () -> Unit = 
         // Hit circle: an outlined pill clear of the edges, above the system bar rather than under it.
         Surface(
             shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surfaceContainer,
+            color = tabBarColor(),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
             modifier = Modifier
                 .windowInsetsPadding(WindowInsets.navigationBars)

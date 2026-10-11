@@ -4,6 +4,12 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11: Hit circle's tab bar a shade apart too
+
+- Owner's request, after Lane's: Hit circle's floating tab bar takes `surfaceContainerHighest`, a shade up from the
+  floating mini player above it (`tabBarColor` now covers every game skin). Standard keeps Material's.
+- Verified: `./gradlew :app:compileDebugKotlin` builds. **Not run:** on a phone.
+
 ## 2026-10-11: Lane, the missing icons back; the tab bar a shade apart
 
 - Owner's report: icons missing in Lane, the play/pause button among them. The Lucide generator read `<polygon>` and

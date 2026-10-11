@@ -1,5 +1,31 @@
 [
   {
+    "version": "0.3.45",
+    "date": "2026-10-11",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "hit circle: the floating bottom bar is a shade lighter too, so it stands apart from the mini player above it"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.44",
     "date": "2026-10-11",
     "sections": [
