@@ -4,6 +4,30 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `endRefusedSession()` (new) — `android/app/src/main/kotlin/com/brainlessmusic/app/data/repository/AuthRepository.kt`
+**Date:** 2026-10-11
+**How added:** bug fix (review C5)
+**Purpose:** sign out locally after a 401, and drop the refused account's queued plays.
+**Side effects:** clears the token, media URL, pending plays table and stored credentials.
+**Before:** the two 401 paths cleared credentials but kept the queued plays.
+**After:** both paths call it.
+
+**Function:** `PendingPlays.forget()` (new), `PendingPlays.send()` (changed) — `android/app/src/main/kotlin/com/brainlessmusic/app/playback/PendingPlays.kt`
+**Date:** 2026-10-11
+**How added:** bug fix (review C5, C29)
+**Purpose:** forget queued plays without trying to send them; stop a send when the session changes under it.
+**Side effects:** deletes all pending play rows, cancels the retry.
+**Before:** only `sendThenClear()` cleared rows, and a send in progress kept going after the token changed.
+**After:** `sendThenClear()` ends with `forget()`; `send()` re-checks the token before each row.
+
+**Function:** `PlaybackController` listener `onPlayerError()` (changed) — `android/app/src/main/kotlin/com/brainlessmusic/app/playback/PlaybackController.kt`
+**Date:** 2026-10-11
+**How added:** bug fix (review C6)
+**Purpose:** skip a bad song, but stop after a run of failures.
+**Side effects:** seeks the player or sets the error message.
+**Before:** skipped whenever a next song existed, forever with repeat-all.
+**After:** gives up after `MAX_FAILED_IN_A_ROW` (5) failures in a row, or the queue length if shorter; `failedInARow` resets on play or a new queue.
+
 **Function:** `loginLimitFor()`, `countLoginFailure()`, `tooManyTries()` (new); `/auth/login`, `/auth/passcode-login` handlers (changed) — `backend/src/routes/auth.ts`
 **Date:** 2026-10-11
 **How added:** hardening (review C1)

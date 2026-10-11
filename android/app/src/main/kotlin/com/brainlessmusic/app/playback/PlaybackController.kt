@@ -163,6 +163,12 @@ class PlaybackController @Inject constructor(
     /** [errorMessage] is only the offline skip notice, which clears itself when the next song starts. */
     private var skipNotice = false
 
+    /**
+     * Songs that failed one after another since something last played. With repeat-all there is always a next song,
+     * so without a stop a down server or a revoked session would skip round the queue forever.
+     */
+    private var failedInARow = 0
+
     // The listener's shuffle/repeat choice, applied to the player whenever a queue is loaded.
     private var wantMode = ShuffleMode.OFF
     private val wantShuffle get() = wantMode != ShuffleMode.OFF
@@ -281,6 +287,7 @@ class PlaybackController @Inject constructor(
         this.source = source
         generation++
         errorMessage = null
+        failedInARow = 0
         connectSession()
         player.shuffleModeEnabled = wantShuffle
         player.repeatMode = wantRepeat
@@ -905,6 +912,7 @@ class PlaybackController @Inject constructor(
     private val listener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             if (isPlaying) {
+                failedInARow = 0
                 lastTickAt = SystemClock.elapsedRealtime()
                 startTicker()
             } else {
@@ -964,8 +972,9 @@ class PlaybackController @Inject constructor(
             Log.w(TAG, "Playback failed for track ${queue.getOrNull(player.currentMediaItemIndex)?.trackId}", error)
             // The signal went mid-song: carry on with what's on the phone instead of trying each song in turn.
             if (skipToDownloaded(skipCurrent = true)) return
-            if (player.hasNextMediaItem()) {
-                // One bad file shouldn't end the whole listen.
+            failedInARow++
+            // One bad file shouldn't end the whole listen, but a run of them means the server, not the files.
+            if (player.hasNextMediaItem() && failedInARow < minOf(queue.size, MAX_FAILED_IN_A_ROW)) {
                 resetFades()
                 player.seekToNextMediaItem()
                 player.prepare()
@@ -978,7 +987,7 @@ class PlaybackController @Inject constructor(
                 -> "Network problem. Check your connection."
                 PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS -> "The server refused this track."
                 else -> "Couldn't play this track."
-            }
+            }.let { if (failedInARow > 1) "Stopped after $failedInARow songs in a row failed. $it" else it }
             publish()
         }
     }
@@ -1197,6 +1206,9 @@ class PlaybackController @Inject constructor(
 
     private companion object {
         const val RESTART_THRESHOLD_MS = 3_000L
+
+        /** Failures in a row before skipping gives up (fewer if the queue is shorter). */
+        const val MAX_FAILED_IN_A_ROW = 5
 
         /** The longest logout waits for the last listening-time report. */
         const val FLUSH_TIMEOUT_MS = 3_000L

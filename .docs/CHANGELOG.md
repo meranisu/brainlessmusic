@@ -4,6 +4,23 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android review fixes C5, C6, C29: queued plays on a refused session, endless error skipping
+
+From `.docs/process/codebase-review-2026-10-11.md`.
+
+- **C5** (`AuthRepository.kt`, `PendingPlays.kt`): when the server refuses the stored session (401, at cold start or in
+  the recheck after an offline start), the app signed out but kept the queued offline plays. The next account to sign in
+  then sent them as its own. Both paths now go through `endRefusedSession()`, which also calls the new
+  `PendingPlays.forget()`. Those plays are lost: they can't be sent as an account the server no longer accepts.
+- **C29** (`PendingPlays.send`): a send already in progress now stops when the session token changes mid-loop, so
+  a sign-out and a new sign-in can't send the rest of the old account's rows.
+- **C6** (`PlaybackController.kt`): with repeat-all on there is always a next song, so when every stream failed
+  (smol down, a revoked session) the player skipped round the queue forever, draining battery and data and never
+  showing an error. It now stops after 5 failures in a row (fewer for a shorter queue) and says
+  "Stopped after N songs in a row failed." with the reason. The count resets when something plays or a new queue loads.
+- Verified: `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest` passes. **Not run on a device**, and there are
+  no new tests: `PendingPlays` and the player have no test harness.
+
 ## 2026-10-11 — Review fixes C1-C4: login limit, hidden tracks, waveform decodes, failure reports
 
 From the whole-codebase review (`.docs/process/codebase-review-2026-10-11.md`). All four could be triggered on the live

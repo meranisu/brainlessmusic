@@ -243,9 +243,7 @@ class AuthRepository @Inject constructor(
                     // Only the server saying no ends the session. No signal, or smol being down, used to log the
                     // phone out, which loses a guest's identity for good and locks out downloaded music.
                     if (classifyError(it) == ConnectionError.Unauthorized) {
-                        tokenProvider.current = null
-                        mediaUrlProvider.current = null
-                        sessionStore.clearCredentials()
+                        endRefusedSession()
                         SessionRestoreResult.StoredSessionInvalid
                     } else {
                         // Unknown (a session saved before this was kept) counts as guest: listen-only is the safe side.
@@ -276,13 +274,19 @@ class AuthRepository @Inject constructor(
                 },
                 onFailure = {
                     if (classifyError(it) == ConnectionError.Unauthorized && tokenProvider.current == token) {
-                        tokenProvider.current = null
-                        mediaUrlProvider.current = null
-                        sessionStore.clearCredentials()
+                        endRefusedSession()
                     }
                 },
             )
         }
+    }
+
+    /** The server said no to this session (401): sign out locally, and drop its queued plays with it. */
+    private suspend fun endRefusedSession() {
+        tokenProvider.current = null
+        mediaUrlProvider.current = null
+        pendingPlays.forget()
+        sessionStore.clearCredentials()
     }
 
     /** True when the signed-in session is a guest's, whose identity lives only in this device's stored token. */

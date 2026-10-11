@@ -79,6 +79,15 @@ class PendingPlays @Inject constructor(
     suspend fun sendThenClear() {
         openRow = null
         withTimeoutOrNull(SEND_BEFORE_LOGOUT_MS) { send() }
+        forget()
+    }
+
+    /**
+     * For a session the server has refused (401): nothing can be sent as that account any more, and the next person to
+     * sign in on this phone mustn't be credited with its plays.
+     */
+    suspend fun forget() {
+        openRow = null
         retry?.cancel()
         dao.clear()
     }
@@ -90,9 +99,12 @@ class PendingPlays @Inject constructor(
      */
     private suspend fun send() = sending.withLock {
         // A guest's session would answer "sent" without sending (LibraryRepository.scrobble), losing the rows.
-        if (tokenProvider.isGuest || tokenProvider.current == null) return@withLock
+        val token = tokenProvider.current
+        if (tokenProvider.isGuest || token == null) return@withLock
         for (play in dao.all()) {
             if (play.id == openRow) break
+            // Signed out, or signed in as someone else, mid-loop: the rest of this snapshot isn't theirs to send.
+            if (tokenProvider.current != token) return@withLock
             val result = libraryRepository.scrobble(play.trackId, play.msPlayed, play.playedAt)
             if (result.isSuccess || result.exceptionOrNull().isRefusedForGood()) {
                 dao.delete(play.id)
