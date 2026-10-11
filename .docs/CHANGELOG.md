@@ -4,6 +4,19 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android colours follow the profile; APK names through a public setting
+
+From the 2026-10-11 reviews: F2 (A78, was Q79), F5, G2.
+- Android: the colour theme now belongs to the profile, like the web (A55). Login, guest entry and cold start read
+  `theme` from `/auth/me` and apply it; a pick in Settings is saved on the phone and sent with `PUT /me/theme`, one save
+  at a time in tap order. Material You stays on the phone: picking it leaves the profile alone, and while it is on the
+  profile's theme is not applied. A profile with no theme yet takes the phone's earlier pick. An unknown theme id from a
+  newer web is ignored.
+- Android build: APKs are named with `base.archivesName = "brainlessmusic"` instead of a rename through AGP's internal
+  `BaseVariantOutputImpl`. The debug APK keeps its name; the release APK is now `brainlessmusic-release.apk`, and the
+  release workflow reads that path.
+- Web: the "Guests with a code" list says a used code keeps signing in until revoked, including printed cards (G2).
+
 ## 2026-10-11 — Review fixes, second pass: player overlaps, playlists and favorites, Android queue and profile
 
 From the 2026-10-11 reviews: R3, R4, R6-R21, P4-P16, S3-S6, F1, F3, F4, G4, and several "plausible" items.

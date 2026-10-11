@@ -83,8 +83,9 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { appearance.setSeekStyle(style) }
     }
 
+    /** Saved to the profile too, except Material You (A78). */
     fun setColorTheme(theme: ColorTheme) {
-        viewModelScope.launch { appearance.setColorTheme(theme) }
+        viewModelScope.launch { authRepository.setColorTheme(theme) }
     }
 
     fun setThemeMode(mode: ThemeMode) {

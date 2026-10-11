@@ -5,6 +5,12 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
+// APKs are named brainlessmusic-debug.apk and brainlessmusic-release.apk, not app-*. A public Gradle setting, so it
+// survives AGP upgrades; the old per-variant rename went through an internal AGP class.
+base {
+    archivesName.set("brainlessmusic")
+}
+
 android {
     namespace = "com.brainlessmusic.app"
     compileSdk = 34
@@ -62,15 +68,6 @@ android {
             isShrinkResources = true
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-        }
-    }
-
-    // brainlessmusic-debug.apk instead of app-debug.apk. The release APK keeps its name; the release workflow reads it.
-    applicationVariants.all {
-        if (buildType.name == "debug") {
-            outputs.all {
-                (this as com.android.build.gradle.internal.api.BaseVariantOutputImpl).outputFileName = "brainlessmusic-debug.apk"
-            }
         }
     }
 

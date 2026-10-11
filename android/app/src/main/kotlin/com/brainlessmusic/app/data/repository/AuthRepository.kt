@@ -1,5 +1,7 @@
 package com.brainlessmusic.app.data.repository
 
+import com.brainlessmusic.app.data.local.AppearanceSettings
+import com.brainlessmusic.app.data.local.ColorTheme
 import com.brainlessmusic.app.data.local.SessionStore
 import com.brainlessmusic.app.data.remote.ApiServiceFactory
 import com.brainlessmusic.app.data.remote.MediaUrlProvider
@@ -11,9 +13,12 @@ import com.brainlessmusic.app.data.remote.dto.GuestRequest
 import com.brainlessmusic.app.data.remote.dto.GuestRequestSecret
 import com.brainlessmusic.app.data.remote.dto.LoginRequest
 import com.brainlessmusic.app.data.remote.dto.MeResponse
+import com.brainlessmusic.app.data.remote.dto.ThemeRequest
 import retrofit2.HttpException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -30,7 +35,11 @@ class AuthRepository @Inject constructor(
     private val tokenProvider: TokenProvider,
     private val mediaUrlProvider: MediaUrlProvider,
     private val serverConfig: ServerConfig,
+    private val appearance: AppearanceSettings,
 ) {
+
+    /** Theme saves go out one at a time, in the order picked, so the last tap is the one the profile keeps. */
+    private val themeSaves = Mutex()
 
     /** Prefill for the login screen. */
     suspend fun savedUsername(): String? = sessionStore.username.first()
@@ -53,8 +62,12 @@ class AuthRepository @Inject constructor(
             tokenProvider.isGuest = false
             mediaUrlProvider.current = ApiServiceFactory.normalize(validated)
             sessionStore.saveSession(validated, username, response.token)
-            // Only for Settings' name; a failure here doesn't undo the login.
-            runCatching { sessionStore.saveDisplayName(nameOf(apiServiceFactory.get(validated).me())) }
+            // Only for Settings' name and the theme; a failure here doesn't undo the login.
+            runCatching {
+                val me = apiServiceFactory.get(validated).me()
+                sessionStore.saveDisplayName(nameOf(me))
+                syncTheme(me)
+            }
             Unit
         }.recoverCatching {
             tokenProvider.current = null
@@ -94,6 +107,7 @@ class AuthRepository @Inject constructor(
         mediaUrlProvider.current = ApiServiceFactory.normalize(serverUrl)
         sessionStore.saveSession(serverUrl, me.username, token)
         sessionStore.saveDisplayName(nameOf(me))
+        runCatching { syncTheme(me) }
         return nameOf(me)
     }
 
@@ -168,6 +182,34 @@ class AuthRepository @Inject constructor(
             throw ConnectionException(classifyError(it))
         }
 
+    /**
+     * Saves a colour pick on the phone, and on the profile when the web has the same theme (A78). Material You stays on
+     * the phone. A failed save keeps the phone's pick; the profile catches up on the next pick.
+     */
+    suspend fun setColorTheme(theme: ColorTheme) {
+        appearance.setColorTheme(theme)
+        val webId = theme.webId ?: return
+        themeSaves.withLock {
+            runCatching { apiServiceFactory.get(serverConfig.url).setTheme(ThemeRequest(webId)) }
+        }
+    }
+
+    /**
+     * Makes the phone follow the profile's theme (A78), run on every way in. Material You on the phone wins, since the
+     * profile can't hold it. A profile with no theme yet takes the phone's pick, so a choice made before A78 isn't lost.
+     */
+    private suspend fun syncTheme(me: MeResponse) {
+        val local = appearance.storedColorTheme()
+        if (local == ColorTheme.MATERIAL_YOU) return
+        if (me.theme == null) {
+            val webId = local?.webId ?: return
+            themeSaves.withLock { apiServiceFactory.get(serverConfig.url).setTheme(ThemeRequest(webId)) }
+            return
+        }
+        val profile = ColorTheme.fromWebId(me.theme) ?: return
+        if (profile != local) appearance.setColorTheme(profile)
+    }
+
     /** Cold start: checks a stored token against `/auth/me`, since it may be revoked or signed with a rotated secret. */
     suspend fun restoreSession(): SessionRestoreResult {
         // Always the bound server: a session saved by a build pointing elsewhere (an old
@@ -182,6 +224,7 @@ class AuthRepository @Inject constructor(
                 onSuccess = {
                     tokenProvider.isGuest = it.isGuest
                     sessionStore.saveDisplayName(nameOf(it))
+                    runCatching { syncTheme(it) }
                     SessionRestoreResult.Restored(nameOf(it))
                 },
                 onFailure = {

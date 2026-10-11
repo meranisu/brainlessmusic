@@ -81,7 +81,7 @@ jobs:
 
       - name: Check the signature is the release key
         run: |
-          apk=app/build/outputs/apk/release/app-release.apk
+          apk=app/build/outputs/apk/release/brainlessmusic-release.apk
           "$ANDROID_HOME"/build-tools/$(ls "$ANDROID_HOME"/build-tools | sort -V | tail -1)/apksigner verify --print-certs "$apk" \
             | tee /dev/stderr | grep -q "CN=brainlessmusic"
           cp "$apk" "$RUNNER_TEMP/brainlessmusic-${{ steps.version.outputs.tag }}.apk"

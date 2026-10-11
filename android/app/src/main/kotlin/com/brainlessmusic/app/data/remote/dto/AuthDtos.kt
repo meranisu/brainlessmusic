@@ -50,6 +50,10 @@ data class DisplayNameRequest(
     val name: String,
 )
 
+data class ThemeRequest(
+    val theme: String,
+)
+
 data class DisplayNameResponse(
     val displayName: String,
 )
@@ -67,4 +71,6 @@ data class MeResponse(
     val isAdmin: Boolean,
     val isGuest: Boolean,
     val hasPasscode: Boolean,
+    /** The profile's colour theme (A55), a web id like "blue". Null until one is picked, or from an older server. */
+    val theme: String? = null,
 )

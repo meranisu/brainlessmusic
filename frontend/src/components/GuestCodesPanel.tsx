@@ -232,6 +232,9 @@ export function GuestCodesPanel() {
           {inUse.length > 0 && (
             <div>
               <h3 className="text-sm font-semibold text-white">Guests with a code ({inUse.length})</h3>
+              <p className="mt-0.5 text-xs text-blue-300">
+                A used code keeps signing in as its guest until you revoke it, including codes printed on cards.
+              </p>
               <ul className="mt-1 divide-y divide-blue-800/60">
                 {inUse.map((c) => (
                   <li key={c.id} className="py-2.5">

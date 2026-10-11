@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** new `AuthRepository.setColorTheme()`, `syncTheme()`; `login()`, `adopt()`, `restoreSession()` — `android/.../data/repository/AuthRepository.kt`; `ColorTheme.webId`, new `ColorTheme.fromWebId()`, `AppearanceSettings.storedColorTheme()` — `data/local/AppearanceSettings.kt`; `ApiService.setTheme()`, `MeResponse.theme`, new `ThemeRequest`; `SettingsViewModel.setColorTheme()`; `GuestCodesPanel` used list
+**Date:** 2026-10-11
+**How added:** new feature
+**Purpose:** Android colour theme follows the profile (A78); G2 note on used codes.
+**Side effects:** every way in may write the phone's theme setting; a profile with no theme gets one `PUT /me/theme` from the phone; release APK file name changes to `brainlessmusic-release.apk`.
+**Before:** the Android colour was per phone only.
+**After:** the six web themes sync both ways through the profile; Material You stays on the phone.
+
 **Function:** `listFavoritesForUser()` — `backend/src/db/favorites.ts`; `getPlaylistDetail()` — `db/playlists.ts`; new `deleteTrackRowsOfRoot()`, `deleteTrackRow()` — `db/library.ts`; `deleteLibraryRoot()` — `db/libraryRoots.ts`; `deleteTrackAndFile()` — `routes/tracks.ts`; `PATCH /me/history/:id` — `routes/history.ts`; new `isInside()` — `utils/paths.ts`; `jumpTo()`, `resumePlayback()`, `pausePlayback()`, `stop()`, `load()`, `startNext()`, `checkBoundary()`, `handleEnded()`, the preload effect and mount cleanup — `frontend/src/components/PlayerBar.tsx`; `isNextOnAlbum()` — `frontend/src/lib/transitions.ts` and `android/.../data/local/TransitionPrefs.kt`; `formatBytes()`, `formatTotalLength()` — `frontend/src/lib/format.ts`; bulk mutations — `LibraryFull.tsx`; `chooseTheme()`, `invalidate()` — `OptionsPage.tsx`; `LibraryStatsLine`; the scan-end effect in `LibraryPage.tsx`; `GuestCodesPanel` used list; Android `PlaybackController` (`sessionPlayer` overrides, `playWithFade()`, `pauseWithFade()`, `skipWithFade()`, new `runPendingJump()`, `setShuffleMode()`, `setShuffleFromSession()`, `needsLibraryResource()`, `maybeRefill()`, `nextChunk(current)`, new `stopAndFlush()`, listener `onPlayWhenReadyChanged`/`onPlaybackSuppressionReasonChanged`); `PlaybackService.onCreate()`; `ProfileRepository.setLiked()`, `loadLikedIds()`; `SongActionsViewModel.toggleLike()`; `PlaylistDetailViewModel` edits; `PlaylistsViewModel.create()`; `YouViewModel.load()`, `refresh()`, new `onResume()`; `SettingsViewModel.logout()`; `LibraryViewModel.shuffleAll()`, `playSongsFrom()`; `AlbumDetailViewModel.refresh()`, `ArtistDetailViewModel.refresh()`; `PagedContent`; `SplashScreen`; `QueueSheet` subtitle; `PlaybackUiState.fromLibrary`
 **Date:** 2026-10-11
 **How added:** bug fix

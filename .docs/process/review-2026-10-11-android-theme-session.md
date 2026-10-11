@@ -23,7 +23,7 @@ Results at review time:
 
 ## Needs an owner answer
 
-- [ ] **F2. Android colours don't follow the profile ([Q79](../QUESTIONS.md#q79--should-android-colours-follow-the-profile-too)).**
+- [x] **F2. Android colours don't follow the profile ([Q79](../QUESTIONS.md#q79--should-android-colours-follow-the-profile-too)).** Fixed as [A78](../QUESTIONS.md#a78--android-colours-follow-the-profile-material-you-stays-on-the-phone-was-q79), option A.
       The Colours setting was built per phone on Q20's assumption. A55 (built 2026-10-11, `fe0608f`) moved the theme
       to the server (`users.theme`, `/auth/me`, `PUT /me/theme`), and only the web syncs it. Android has a seventh
       choice, Material You, that the web lacks.
@@ -40,7 +40,7 @@ Results at review time:
       which follows the phone's setting, not `ThemeMode`. It shows only when the session check outlasts the 1.2 s system
       splash. With the app forced to Dark and the phone on Light, that start is a light splash and then a dark app.
       The system splash can't know the app's setting, so the in-app one is the only part that can be fixed.
-- [ ] **F5. The debug APK name uses an internal AGP API.** `android/app/build.gradle.kts` renames the debug output
+- [x] **F5. The debug APK name uses an internal AGP API.** Fixed without waiting for an AGP upgrade: `base.archivesName = "brainlessmusic"` names both APKs, and the release one is now `brainlessmusic-release.apk` (workflow updated). `android/app/build.gradle.kts` renames the debug output
       through `applicationVariants.all` and `BaseVariantOutputImpl`. It works on AGP 8.5.2, but is likely to break on
       AGP 9. Revisit when AGP is upgraded.
 

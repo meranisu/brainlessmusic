@@ -32,7 +32,6 @@ is never asked twice.
 | [Q5](#q5--tag-editing-scope) | Tag-editing scope | 2026-09-09 | No |
 | [Q77](#q77--how-does-the-android-app-get-past-cloudflare-access) | How does the Android app get past Cloudflare Access? | 2026-10-11 | Yes, before Access goes on |
 | [Q78](#q78--who-goes-on-the-access-email-list) | Who goes on the Access email list? | 2026-10-11 | Yes, before Access goes on |
-| [Q79](#q79--should-android-colours-follow-the-profile-too) | Should Android colours follow the profile too? | 2026-10-11 | No |
 | [Q80](#q80--keep-old-search-results-on-screen-while-a-new-search-loads) | Keep old search results on screen while a new search loads? | 2026-10-11 | No — owner reviews next session |
 | [Q81](#q81--drop-the-duplicate-loading-subtitle-on-the-web-lists) | Drop the duplicate "Loading…" subtitle on the web lists? | 2026-10-11 | No — owner reviews next session |
 
@@ -72,20 +71,6 @@ includes friends using a guest code on the web: without their email on the list 
 - **A. You and the friends who use the web (recommended).** Each friend's email goes on the list once.
 - **B. Only you.** Friends use the Android app only (with Q77's token), never the web.
 
-### Q79 — Should Android colours follow the profile too?
-**Asked:** 2026-10-11 · **Blocking:** no
-
-[A55](#a55--the-theme-follows-the-profile-was-q20) made the theme a per-user setting on the server, and the web now
-syncs it. The Android Colours setting (built 2026-10-10, before A55) is still saved on the phone only
-(`AppearanceSettings.colorTheme`), so picking Crimson on the web leaves the phone on Deep blue, and the other way round.
-Android also has a seventh choice the web doesn't: Material You (wallpaper colours).
-
-- **A. Sync the six, keep Material You on the phone (recommended).** The app reads the profile's theme at login and
-  saves picks with `PUT /me/theme`. Picking Material You is stored only on the phone and leaves the profile alone, so
-  the web keeps its last real theme.
-- **B. Sync everything.** Same, but Material You is saved to the profile too, and the web shows Deep blue for it.
-- **C. Leave it per phone.** A phone is a different screen; record that A55 covers the web only.
-
 ### Q80 — Keep old search results on screen while a new search loads?
 **Asked:** 2026-10-11 · **Blocking:** no · from the review of the skeleton work (A59)
 
@@ -109,6 +94,13 @@ the skeleton's screen-reader label says "Loading albums…", so a screen reader 
 subtitle only once the count is known.
 
 ## Answered
+
+### A78 — Android colours follow the profile, Material You stays on the phone *(was Q79)*
+**Answered:** 2026-10-11, in chat: "f2: yes", taken as the recommended option A. The app reads the profile's theme
+(`theme` on `/auth/me`) on login, guest entry and cold start, and saves picks with `PUT /me/theme`. Material You is
+stored only on the phone and leaves the profile alone; while the phone is on it, the profile's theme is not applied.
+A profile with no theme yet takes the phone's pick. Built in the 2026-10-11 "Android colours follow the profile"
+CHANGELOG entry.
 
 ### A77 — Both new shuffle modes: Rediscover and Albums *(was Q82)*
 **Answered:** 2026-10-11, in chat: "yes both, so the button shuffle has four types now". Read as: the Now Playing

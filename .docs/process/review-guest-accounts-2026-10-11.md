@@ -34,7 +34,7 @@ Results at review time:
 
 ## Smaller
 
-- [ ] **G2. Codes used under the old one-use rule are now permanent keys.** Low. Since A69 a used code signs anyone
+- [x] **G2. Codes used under the old one-use rule are now permanent keys.** Owner revokes the old cards (2026-10-11); the "Guests with a code" list now says a used code works until revoked. Low. Since A69 a used code signs anyone
       holding it in as its guest, on any device, until revoked (`backend/src/db/guestCodes.ts:82`). That is the
       decision, but QR cards printed when codes were one-use (v0.2.0 era) now work for whoever finds them. Not a code
       change: revoke codes on cards that are lying around, or mention it in the Guest access card's help text.

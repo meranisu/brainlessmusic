@@ -8,6 +8,7 @@ import com.brainlessmusic.app.data.remote.dto.ArtistsPageDto
 import com.brainlessmusic.app.data.remote.dto.FavoriteIdsDto
 import com.brainlessmusic.app.data.remote.dto.FavoritesPageDto
 import com.brainlessmusic.app.data.remote.dto.DisplayNameRequest
+import com.brainlessmusic.app.data.remote.dto.ThemeRequest
 import com.brainlessmusic.app.data.remote.dto.DisplayNameResponse
 import com.brainlessmusic.app.data.remote.dto.FinishPlayRequest
 import com.brainlessmusic.app.data.remote.dto.GuestCodeRequestBody
@@ -67,6 +68,10 @@ interface ApiService {
     // Answers 204 with no body.
     @POST("auth/guest/requests/{id}/cancel")
     suspend fun cancelGuestCodeRequest(@Path("id") id: Int, @Body body: GuestRequestSecret)
+
+    // Answers 204 with no body.
+    @PUT("me/theme")
+    suspend fun setTheme(@Body body: ThemeRequest)
 
     @PUT("me/name")
     suspend fun setDisplayName(@Body body: DisplayNameRequest): DisplayNameResponse

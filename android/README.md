@@ -66,7 +66,7 @@ Cloudflare regardless.
 
 ## Small APK for the phones
 
-`./gradlew :app:assembleRelease` → `app/build/outputs/apk/release/app-release.apk`, **about 2 MB** (the debug
+`./gradlew :app:assembleRelease` → `app/build/outputs/apk/release/brainlessmusic-release.apk`, **about 2 MB** (the debug
 APK is about 20 MB and stays that way, since debug is unshrunk on purpose). What makes the difference:
 
 - **R8 + resource shrinking** in release. Most of the size was `material-icons-extended`, which R8 cuts to the few

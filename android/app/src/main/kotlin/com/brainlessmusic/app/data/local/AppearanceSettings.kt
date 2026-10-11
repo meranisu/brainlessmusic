@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -18,18 +19,24 @@ enum class ThemeMode(val label: String) {
 
 /**
  * The web's six colour themes (`frontend/src/lib/theme.ts`), plus Android's wallpaper colours. Colour only: layout and
- * type stay the same (Q19).
+ * type stay the same (Q19). [webId] is the profile's id for it (A55, `users.theme`).
  */
-enum class ColorTheme(val label: String, val detail: String) {
-    DEEP_BLUE("Deep blue", "The original"),
-    CRIMSON("Crimson", "After IIDX RED"),
-    VOID("Void", "Near-black, accent only"),
-    NORD("Nord", "Flat, after the palette"),
-    MAGENTA("Magenta", "After osu!"),
-    PASTEL("Pastel", "Material, soft and round"),
+enum class ColorTheme(val label: String, val detail: String, val webId: String?) {
+    DEEP_BLUE("Deep blue", "The original", "blue"),
+    CRIMSON("Crimson", "After IIDX RED", "red"),
+    VOID("Void", "Near-black, accent only", "void"),
+    NORD("Nord", "Flat, after the palette", "nord"),
+    MAGENTA("Magenta", "After osu!", "pink"),
+    PASTEL("Pastel", "Material, soft and round", "pastel"),
 
-    /** Android 12+ only; older phones fall back to Deep blue and do not offer it. */
-    MATERIAL_YOU("Material You", "From your wallpaper"),
+    /** Android 12+ only; older phones fall back to Deep blue and do not offer it. Kept on the phone, not the profile (A78). */
+    MATERIAL_YOU("Material You", "From your wallpaper", null),
+    ;
+
+    companion object {
+        /** Null for an id this build doesn't know, such as a theme added to the web later. */
+        fun fromWebId(id: String?): ColorTheme? = entries.firstOrNull { it.webId != null && it.webId == id }
+    }
 }
 
 /** How the Now Playing progress bar is drawn. */
@@ -51,7 +58,10 @@ class AppearanceSettings @Inject constructor(
         ThemeMode.entries.firstOrNull { it.name == prefs[THEME_MODE_KEY] } ?: ThemeMode.SYSTEM
     }
 
-    /** Per phone, not per account, like the web's `localStorage` choice (Q20). */
+    /**
+     * The phone's copy of the profile's theme (A78): it paints the first frame before `/auth/me` answers. Material You
+     * lives only here.
+     */
     val colorTheme: Flow<ColorTheme> = dataStore.data.map { prefs ->
         ColorTheme.entries.firstOrNull { it.name == prefs[COLOR_THEME_KEY] } ?: ColorTheme.DEEP_BLUE
     }
@@ -63,6 +73,10 @@ class AppearanceSettings @Inject constructor(
     suspend fun setSeekStyle(style: SeekStyle) {
         dataStore.edit { it[SEEK_STYLE_KEY] = style.name }
     }
+
+    /** What was picked on this phone, or null if nothing ever was (the profile then gets nothing from it). */
+    suspend fun storedColorTheme(): ColorTheme? =
+        dataStore.data.first()[COLOR_THEME_KEY]?.let { name -> ColorTheme.entries.firstOrNull { it.name == name } }
 
     suspend fun setColorTheme(theme: ColorTheme) {
         dataStore.edit { it[COLOR_THEME_KEY] = theme.name }
