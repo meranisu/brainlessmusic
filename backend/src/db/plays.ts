@@ -170,7 +170,7 @@ export function listTopTracks(limit: number, offset: number): TopTrack[] {
        FROM tracks t
        LEFT JOIN artists a ON a.id = t.artist_id
        LEFT JOIN albums al ON al.id = t.album_id
-       WHERE t.play_count > 0 AND t.missing_since IS NULL
+       WHERE t.play_count > 0 AND t.missing_since IS NULL AND t.hidden = 0
        ORDER BY t.play_count DESC, t.last_played_at DESC
        LIMIT ? OFFSET ?`,
     )
@@ -180,7 +180,7 @@ export function listTopTracks(limit: number, offset: number): TopTrack[] {
 export function countTopTracks(): number {
   return (
     db
-      .prepare('SELECT COUNT(*) as count FROM tracks WHERE play_count > 0 AND missing_since IS NULL')
+      .prepare('SELECT COUNT(*) as count FROM tracks WHERE play_count > 0 AND missing_since IS NULL AND hidden = 0')
       .get() as {
       count: number;
     }

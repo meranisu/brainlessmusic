@@ -4,6 +4,31 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Review fixes C1-C4: login limit, hidden tracks, waveform decodes, failure reports
+
+From the whole-codebase review (`.docs/process/codebase-review-2026-10-11.md`). All four could be triggered on the live
+server by any signed-in user, a guest included.
+
+- **C1, login limit** (`routes/auth.ts`, `services/rateLimit.ts`, `config.ts`): a correct sign-in used to clear its
+  IP's failed tries, so anyone with an account could reset the window by signing in as themselves and keep guessing
+  someone else's passcode. Both sign-in routes now count failures only: a success neither spends the budget nor clears
+  it. Added a per-username cap on failures from all addresses together, `ACCOUNT_LOGIN_FAILURES_PER_HOUR` (default 20),
+  so rotating addresses buys nothing. `RateLimiter.clear` is replaced by `peek`, which checks without counting.
+  Trade-off: someone who knows a username can block that account's sign-in for up to an hour with 20 wrong tries.
+- **C2, hidden tracks** (A34): search (FTS and LIKE paths), album pages, `GET /tracks/:id` and `/tracks/:id/stream` now
+  leave hidden tracks out for non-admins (404 on detail and stream). Top tracks leave them out for everyone. New
+  `utils/isAdmin.ts` (`isAdminRequest`), also used by `GET /tracks`.
+- **C3, waveform decodes** (`services/waveform.ts`): at most 2 decodes run at once and 16 may wait; past that the route
+  answers 503 with `Retry-After`. A failed decode is remembered for 10 minutes instead of being retried on every request.
+- **C4, failure reports** (`db/playbackFailures.ts`, `routes/tracks.ts`): the message is clipped to 500 characters and
+  the content type and user agent to 200, and the table keeps only the newest 1000 rows.
+  `POST /tracks/:id/playback-failure` is limited to 30 per user per minute.
+- Verified: `cd backend && npm test` 437/437 pass. New tests cover failure-only counting, a sign-in to your own account
+  not resetting the window, and the per-username cap across addresses (`guestAuth.test.ts`); hidden tracks in both
+  search paths, album pages, detail and stream (`api.test.ts`); and pruning and clipping (`failureLogs.test.ts`).
+  Backend `tsc --noEmit` is clean. **Not tested:** the waveform decode cap (C3) has no test, since it needs a faked
+  ffmpeg. Not deployed to smol.
+
 ## 2026-10-11 — Android: black system bars after opening the app from the media notification
 
 - Leaving the app and coming back by tapping the player in the notification shade or status bar turned the status

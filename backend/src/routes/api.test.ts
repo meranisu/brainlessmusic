@@ -268,7 +268,7 @@ describe('hidden tracks', () => {
         path: `/library/${title}.mp3`,
         title,
         artistName: 'Nobody',
-        albumTitle: null,
+        albumTitle: 'Shared Album',
         albumYear: null,
         trackNumber: null,
         duration: 1,
@@ -279,6 +279,15 @@ describe('hidden tracks', () => {
     }
     const hidden = (db.prepare('SELECT id FROM tracks WHERE title = ?').get('Hidden Song') as { id: number }).id;
     updateTrackFields(hidden, { hidden: true });
+  }
+
+  function idOf(title: string): number {
+    return (db.prepare('SELECT id FROM tracks WHERE title = ?').get(title) as { id: number }).id;
+  }
+
+  async function getJson(token: string, url: string) {
+    const res = await app.inject({ method: 'GET', url, headers: { authorization: `Bearer ${token}` } });
+    return { statusCode: res.statusCode, body: res.json() as Record<string, unknown> };
   }
 
   async function titles(token: string, query: string): Promise<string[]> {
@@ -302,6 +311,41 @@ describe('hidden tracks', () => {
     assert.deepEqual(await titles(listenerToken, ''), ['Visible Song']);
     assert.deepEqual(await titles(listenerToken, 'hidden=all'), ['Visible Song']);
     assert.deepEqual(await titles(listenerToken, 'hidden=only'), ['Visible Song']);
+  });
+
+  it('leaves hidden tracks out of search for a non-admin, on both search paths', async () => {
+    seedTracks();
+    // 'Song' takes the FTS path; 'So' is under a trigram and takes the LIKE path.
+    for (const q of ['Song', 'So']) {
+      const asListener = await getJson(listenerToken, `/api/search?q=${q}`);
+      const asAdmin = await getJson(adminToken, `/api/search?q=${q}`);
+      const names = (body: Record<string, unknown>) =>
+        (body.tracks as Array<{ title: string }>).map((t) => t.title).sort();
+      assert.deepEqual(names(asListener.body), ['Visible Song'], `q=${q}`);
+      assert.deepEqual(names(asAdmin.body), ['Hidden Song', 'Visible Song'], `q=${q}`);
+    }
+  });
+
+  it('leaves hidden tracks out of an album page for a non-admin', async () => {
+    seedTracks();
+    const albumId = (db.prepare('SELECT id FROM albums WHERE title = ?').get('Shared Album') as { id: number }).id;
+    const names = async (token: string) =>
+      ((await getJson(token, `/api/albums/${albumId}`)).body.tracks as Array<{ title: string }>)
+        .map((t) => t.title)
+        .sort();
+    assert.deepEqual(await names(listenerToken), ['Visible Song']);
+    assert.deepEqual(await names(adminToken), ['Hidden Song', 'Visible Song']);
+  });
+
+  it('answers a hidden track\'s detail and stream with 404 for a non-admin', async () => {
+    seedTracks();
+    const id = idOf('Hidden Song');
+    assert.equal((await getJson(listenerToken, `/api/tracks/${id}`)).statusCode, 404);
+    assert.equal((await getJson(adminToken, `/api/tracks/${id}`)).statusCode, 200);
+
+    const mediaToken = signMediaToken({ id: findUserByUsername(listener)!.id, username: listener });
+    const stream = await app.inject({ method: 'GET', url: `/api/tracks/${id}/stream?token=${mediaToken}` });
+    assert.equal(stream.statusCode, 404);
   });
 });
 

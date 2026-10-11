@@ -17,6 +17,34 @@ const MAX_DURATION_SECONDS = 6 * 60 * 60;
 /** Peaks in flight by track, so a reload during the first request doesn't decode twice. */
 const inFlight = new Map<number, Promise<number[] | null>>();
 
+/** Decodes running at once. Each is a whole-file ffmpeg decode, and any guest can ask, so a loop over ids must queue. */
+const MAX_ACTIVE_DECODES = 2;
+/** Requests that may wait for a slot. Past this the caller is told the server is busy. */
+const MAX_WAITING_DECODES = 16;
+/** How long a failed decode is remembered, so asking again doesn't decode the same bad file again. */
+const FAILURE_TTL_MS = 10 * 60 * 1000;
+
+let activeDecodes = 0;
+const waitingForSlot: Array<() => void> = [];
+const failedAt = new Map<number, number>();
+
+async function withDecodeSlot<T>(work: () => Promise<T>): Promise<T> {
+  if (activeDecodes < MAX_ACTIVE_DECODES) {
+    activeDecodes += 1;
+  } else {
+    // A released slot is handed straight to the next waiter, so `activeDecodes` stays put.
+    await new Promise<void>((resolve) => waitingForSlot.push(resolve));
+  }
+
+  try {
+    return await work();
+  } finally {
+    const next = waitingForSlot.shift();
+    if (next) next();
+    else activeDecodes -= 1;
+  }
+}
+
 function encodePeaks(peaks: number[]): string {
   return Buffer.from(Uint8Array.from(peaks)).toString('base64');
 }
@@ -88,26 +116,37 @@ export function computePeaks(path: string, durationSeconds: number): Promise<num
   });
 }
 
-/** Peaks from the cache or the file; null when none can be drawn. Failures aren't cached (usually a moving file). */
-export async function peaksForTrack(trackId: number): Promise<number[] | null> {
+/**
+ * Peaks from the cache or the file; null when none can be drawn, 'busy' when too many decodes are already queued.
+ * A failure is remembered for `FAILURE_TTL_MS`, not stored (usually a moving file).
+ */
+export async function peaksForTrack(trackId: number): Promise<number[] | null | 'busy'> {
   const cached = findTrackWaveform(trackId);
   if (cached) return decodePeaks(cached);
 
   const pending = inFlight.get(trackId);
   if (pending) return pending;
 
+  const failed = failedAt.get(trackId);
+  if (failed !== undefined && Date.now() - failed < FAILURE_TTL_MS) return null;
+
+  if (activeDecodes >= MAX_ACTIVE_DECODES && waitingForSlot.length >= MAX_WAITING_DECODES) return 'busy';
+
   const work = (async () => {
     const track = findTrackById(trackId);
     if (!track) return null;
-    if (!track.duration || track.duration <= 0 || track.duration > MAX_DURATION_SECONDS) return null;
+    const duration = track.duration;
+    if (!duration || duration <= 0 || duration > MAX_DURATION_SECONDS) return null;
 
     try {
-      const peaks = await computePeaks(track.path, track.duration);
+      const peaks = await withDecodeSlot(() => computePeaks(track.path, duration));
       setTrackWaveform(trackId, encodePeaks(peaks));
+      failedAt.delete(trackId);
       return peaks;
     } catch {
       // Decoding is a nicety. A track that won't analyse still plays, and the
       // client falls back to a placeholder shape.
+      failedAt.set(trackId, Date.now());
       return null;
     }
   })().finally(() => {

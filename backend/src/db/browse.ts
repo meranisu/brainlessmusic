@@ -279,7 +279,8 @@ export function listAlbums(limit: number, offset: number): AlbumSummary[] {
     .all(limit, offset) as AlbumSummary[];
 }
 
-export function getAlbumDetail(id: number): AlbumDetail | undefined {
+/** `includeHidden` is for admins only; everyone else never sees a hidden track (A34). */
+export function getAlbumDetail(id: number, includeHidden = false): AlbumDetail | undefined {
   const album = db
     .prepare(
       `SELECT
@@ -299,7 +300,7 @@ export function getAlbumDetail(id: number): AlbumDetail | undefined {
     .prepare(
       `SELECT id, title, track_number as trackNumber, duration, format
        FROM tracks
-       WHERE album_id = ? AND missing_since IS NULL
+       WHERE album_id = ? AND missing_since IS NULL ${includeHidden ? '' : 'AND hidden = 0'}
        ORDER BY track_number IS NULL, track_number ASC`,
     )
     .all(id) as AlbumTrack[];
@@ -410,12 +411,17 @@ const TRACK_BM25_WEIGHTS = '10.0, 5.0, 3.0';
  * FTS5 trigram search (migration 0008). A term under three characters falls back to LIKE, which a two-character
  * CJK query needs.
  */
-export function searchLibrary(query: string): SearchResults {
+export function searchLibrary(query: string, includeHidden = false): SearchResults {
   const match = buildMatchQuery(query);
-  return match === null ? searchWithLike(query) : searchWithFts(match);
+  return match === null ? searchWithLike(query, includeHidden) : searchWithFts(match, includeHidden);
 }
 
-function searchWithFts(match: string): SearchResults {
+/** Track results leave out hidden tracks unless an admin asked (A34). */
+function hiddenTrackClause(includeHidden: boolean): string {
+  return includeHidden ? '' : 'AND t.hidden = 0';
+}
+
+function searchWithFts(match: string, includeHidden: boolean): SearchResults {
   const artists = db
     .prepare(
       `${ARTIST_SUMMARY_SELECT}
@@ -439,7 +445,7 @@ function searchWithFts(match: string): SearchResults {
       .prepare(
         `${TRACK_SUMMARY_SELECT}
          JOIN tracks_fts ON tracks_fts.rowid = t.id
-         WHERE tracks_fts MATCH ? AND t.missing_since IS NULL
+         WHERE tracks_fts MATCH ? AND t.missing_since IS NULL ${hiddenTrackClause(includeHidden)}
          ORDER BY bm25(tracks_fts, ${TRACK_BM25_WEIGHTS})
          LIMIT ?`,
       )
@@ -450,7 +456,7 @@ function searchWithFts(match: string): SearchResults {
 }
 
 /** The pre-FTS path, still reached by queries shorter than a trigram. */
-function searchWithLike(query: string): SearchResults {
+function searchWithLike(query: string, includeHidden: boolean): SearchResults {
   const pattern = `%${query.trim()}%`;
 
   const artists = db
@@ -473,7 +479,7 @@ function searchWithLike(query: string): SearchResults {
       .prepare(
         `${TRACK_SUMMARY_SELECT}
          WHERE (t.title LIKE ? OR a.name LIKE ? OR al.title LIKE ?)
-           AND t.missing_since IS NULL
+           AND t.missing_since IS NULL ${hiddenTrackClause(includeHidden)}
          ORDER BY t.title COLLATE NOCASE LIMIT ?`,
       )
       .all(pattern, pattern, pattern, SEARCH_RESULT_LIMIT) as RawTrackSummary[]

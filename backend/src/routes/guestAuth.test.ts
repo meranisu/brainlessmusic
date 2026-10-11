@@ -45,6 +45,7 @@ beforeEach(async () => {
     guestMintsPerHour: config.guestMintsPerHour,
     passcodeAttemptsPerMinute: config.passcodeAttemptsPerMinute,
     loginAttemptsPerMinute: config.loginAttemptsPerMinute,
+    accountLoginFailuresPerHour: config.accountLoginFailuresPerHour,
     clientIpHeader: config.clientIpHeader,
     allowOpenRegistration: config.allowOpenRegistration,
   };
@@ -403,7 +404,7 @@ describe('passcode sign-in', () => {
     assert.equal((await loginWithPasscode(admin.username, '4269')).statusCode, 401);
   });
 
-  it('rate-limits attempts per address, and a correct one clears the window', async () => {
+  it('rate-limits failed attempts per address', async () => {
     config.passcodeAttemptsPerMinute = 3;
     const admin = await createAdmin();
     const login = await app.inject({
@@ -441,17 +442,46 @@ describe('password sign-in: limits', () => {
     assert.ok(Number(locked.headers['retry-after']) > 0, 'must say when to come back');
   });
 
-  it('a correct password clears the window', async () => {
+  it('a correct password neither spends nor clears the budget', async () => {
     config.loginAttemptsPerMinute = 3;
     const admin = await createAdmin();
+
+    for (let i = 0; i < 5; i += 1) {
+      assert.equal((await loginWithPassword(admin.username, PASSWORD)).statusCode, 200, `sign-in ${i + 1} is free`);
+    }
 
     await loginWithPassword(admin.username, 'wrong');
     await loginWithPassword(admin.username, 'wrong');
     assert.equal((await loginWithPassword(admin.username, PASSWORD)).statusCode, 200);
+    assert.equal((await loginWithPassword(admin.username, 'wrong')).statusCode, 401, 'the third failure still counts');
+    assert.equal((await loginWithPassword(admin.username, PASSWORD)).statusCode, 429, 'the success did not reset it');
+  });
+
+  it('signing in to your own account buys no more guesses at someone else\'s', async () => {
+    config.loginAttemptsPerMinute = 3;
+    const victim = await createAdmin('victim');
+    const attacker = await createAdmin('attacker');
+
+    for (let i = 0; i < 3; i += 1) await loginWithPassword(victim.username, 'wrong');
+    await loginWithPassword(attacker.username, PASSWORD);
+
+    assert.equal((await loginWithPassword(victim.username, 'wrong')).statusCode, 429);
+  });
+
+  it('caps failures per username across addresses', async () => {
+    config.clientIpHeader = 'cf-connecting-ip';
+    config.accountLoginFailuresPerHour = 3;
+    const admin = await createAdmin();
+    const other = await createAdmin('other');
 
     for (let i = 0; i < 3; i += 1) {
-      assert.equal((await loginWithPassword(admin.username, 'wrong')).statusCode, 401, `attempt ${i + 1} starts fresh`);
+      const res = await loginWithPassword(admin.username, 'wrong', { 'cf-connecting-ip': `203.0.113.${i + 1}` });
+      assert.equal(res.statusCode, 401, `address ${i + 1} is merely wrong`);
     }
+
+    const fresh = { 'cf-connecting-ip': '203.0.113.99' };
+    assert.equal((await loginWithPassword(admin.username, PASSWORD, fresh)).statusCode, 429, 'a new address waits too');
+    assert.equal((await loginWithPassword(other.username, PASSWORD, fresh)).statusCode, 200, 'other accounts are untouched');
   });
 });
 

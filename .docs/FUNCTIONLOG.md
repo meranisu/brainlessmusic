@@ -4,6 +4,54 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `loginLimitFor()`, `countLoginFailure()`, `tooManyTries()` (new); `/auth/login`, `/auth/passcode-login` handlers (changed) — `backend/src/routes/auth.ts`
+**Date:** 2026-10-11
+**How added:** hardening (review C1)
+**Purpose:** sign-in rate limits that count failures only, per IP and per username across all IPs.
+**Side effects:** in-memory limiter windows.
+**Before:** every attempt counted per IP, and a correct sign-in cleared that IP's window.
+**After:** successes are free and never clear anything; failures also count toward `accountLoginFailuresPerHour` for the username.
+
+**Function:** `RateLimiter.peek()` (new, replaces `clear()`) — `backend/src/services/rateLimit.ts`
+**Date:** 2026-10-11
+**How added:** hardening (review C1)
+**Purpose:** say whether a key is over its limit without counting a hit.
+**Side effects:** none.
+**Before:** `clear(key)` forgot a key's window.
+**After:** no way to clear a window; `peek` checks it.
+
+**Function:** `isAdminRequest()` — `backend/src/utils/isAdmin.ts`
+**Date:** 2026-10-11
+**How added:** hardening (review C2)
+**Purpose:** re-read the caller's admin flag, for open routes that show admins more.
+**Side effects:** one user lookup.
+**Before:** nothing — new function (inline in `GET /tracks`).
+**After:** used by `GET /tracks`, `/tracks/:id`, `/tracks/:id/stream`, `/albums/:id`, `/search`.
+
+**Function:** `searchLibrary()`, `getAlbumDetail()` (changed), `hiddenTrackClause()` (new) — `backend/src/db/browse.ts`; `listTopTracks()`, `countTopTracks()` — `backend/src/db/plays.ts`
+**Date:** 2026-10-11
+**How added:** hardening (review C2, A34)
+**Purpose:** leave hidden tracks out of search and album pages unless the caller is an admin; out of top tracks always.
+**Side effects:** none.
+**Before:** hidden tracks appeared to everyone.
+**After:** `includeHidden` (default false) controls them.
+
+**Function:** `peaksForTrack()` (changed), `withDecodeSlot()` (new) — `backend/src/services/waveform.ts`
+**Date:** 2026-10-11
+**How added:** hardening (review C3)
+**Purpose:** bound concurrent ffmpeg waveform decodes.
+**Side effects:** spawns ffmpeg (at most 2 at once).
+**Before:** one decode per distinct track id, unbounded; failures retried every request.
+**After:** 2 active, 16 waiting, otherwise `'busy'` (503); failures remembered 10 minutes.
+
+**Function:** `recordPlaybackFailure()` (changed) — `backend/src/db/playbackFailures.ts`
+**Date:** 2026-10-11
+**How added:** hardening (review C4)
+**Purpose:** store a playback failure without letting the table grow without bound.
+**Side effects:** INSERT, then DELETE of rows past the newest 1000.
+**Before:** stored any length, kept forever.
+**After:** text clipped (500 / 200 chars), 1000 rows kept; the route also limits 30 reports per user per minute.
+
 **Function:** `MainActivity.onWindowFocusChanged()` (new) — `android/app/src/main/kotlin/com/brainlessmusic/app/MainActivity.kt`
 **Date:** 2026-10-11
 **How added:** bug fix (black system bars after opening from the media notification)

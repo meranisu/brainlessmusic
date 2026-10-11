@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { searchLibrary } from '../db/browse.js';
+import { isAdminRequest } from '../utils/isAdmin.js';
 
 const searchRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Querystring: { q?: string } }>(
@@ -11,7 +12,7 @@ const searchRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(400).send({ error: 'q query parameter is required' });
       }
 
-      return reply.send(searchLibrary(q));
+      return reply.send(searchLibrary(q, isAdminRequest(request)));
     },
   );
 };

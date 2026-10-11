@@ -22,9 +22,10 @@ export interface RateLimitResult {
 }
 
 export interface RateLimiter {
+  /** Counts one hit against `key`, and says whether it was within the limit. */
   check(key: string, options: RateLimitOptions): RateLimitResult;
-  /** Forgets one key's window, so a success clears earlier failures. */
-  clear(key: string): void;
+  /** Says whether `key` is already over the limit, without counting a hit. For limits that count only failures. */
+  peek(key: string, options: RateLimitOptions): RateLimitResult;
   /** Forget everything. For tests; never called by the server. */
   reset(): void;
 }
@@ -56,8 +57,13 @@ export function createRateLimiter(): RateLimiter {
       return { allowed: existing.count <= limit, retryAfterSeconds };
     },
 
-    clear(key) {
-      windows.delete(key);
+    peek(key, { limit }) {
+      const now = Date.now();
+      const existing = windows.get(key);
+      if (!existing || existing.resetsAt <= now) return { allowed: true, retryAfterSeconds: 0 };
+
+      const retryAfterSeconds = Math.max(1, Math.ceil((existing.resetsAt - now) / 1000));
+      return { allowed: existing.count < limit, retryAfterSeconds };
     },
 
     reset() {

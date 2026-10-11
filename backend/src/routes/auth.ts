@@ -27,7 +27,7 @@ import {
   touchLastSeen,
 } from '../db/users.js';
 import { hashPasscode, hashPassword, verifyPasscode, verifyPassword } from '../services/password.js';
-import { createRateLimiter } from '../services/rateLimit.js';
+import { createRateLimiter, type RateLimiter, type RateLimitResult } from '../services/rateLimit.js';
 import { signMediaToken, signToken, tokenExpiresAt } from '../services/token.js';
 import { clientIp } from '../utils/clientIp.js';
 
@@ -64,6 +64,31 @@ function signinDetails(request: FastifyRequest, platform: string | null) {
 }
 const passcodeLoginLimiter = createRateLimiter();
 const passwordLoginLimiter = createRateLimiter();
+/** Failed sign-ins per username, from every address together, so rotating addresses buys no extra guesses. */
+const accountLoginLimiter = createRateLimiter();
+
+/*
+ * Sign-in limits count failures only. A success neither spends the budget (a household signing in one after another
+ * is never refused) nor clears it: clearing let anyone with an account reset their address's window by signing in to
+ * their own, and keep guessing someone else's passcode.
+ */
+function loginLimitFor(byIp: RateLimiter, ip: string, perMinute: number, username: string): RateLimitResult {
+  const ipRate = byIp.peek(ip, { limit: perMinute, windowMs: MINUTE_MS });
+  if (!ipRate.allowed) return ipRate;
+  return accountLoginLimiter.peek(username, { limit: config.accountLoginFailuresPerHour, windowMs: HOUR_MS });
+}
+
+function countLoginFailure(byIp: RateLimiter, ip: string, perMinute: number, username: string): void {
+  byIp.check(ip, { limit: perMinute, windowMs: MINUTE_MS });
+  accountLoginLimiter.check(username, { limit: config.accountLoginFailuresPerHour, windowMs: HOUR_MS });
+}
+
+function tooManyTries(reply: FastifyReply, rate: RateLimitResult) {
+  return reply
+    .code(429)
+    .header('retry-after', String(rate.retryAfterSeconds))
+    .send({ error: 'Too many tries. Wait a moment.' });
+}
 
 /** Constant-time compare. Unequal lengths short-circuit, leaking only the code's length. */
 function secretMatches(provided: unknown, expected: string): boolean {
@@ -276,59 +301,41 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
   );
 
   fastify.post<{ Body: Credentials }>('/auth/login', async (request, reply) => {
-    const ip = clientIp(request);
-    const rate = passwordLoginLimiter.check(ip, {
-      limit: config.loginAttemptsPerMinute,
-      windowMs: MINUTE_MS,
-    });
-
-    if (!rate.allowed) {
-      return reply
-        .code(429)
-        .header('retry-after', String(rate.retryAfterSeconds))
-        .send({ error: 'Too many tries. Wait a moment.' });
-    }
-
     const { username, password } = request.body ?? ({} as Credentials);
 
     if (!username || !password) {
       return reply.code(400).send({ error: 'username and password are required' });
     }
 
+    const ip = clientIp(request);
+    const limit = config.loginAttemptsPerMinute;
+    const rate = loginLimitFor(passwordLoginLimiter, ip, limit, String(username));
+    if (!rate.allowed) return tooManyTries(reply, rate);
+
     const user = findUserByUsername(username);
 
     // Guests are refused before bcrypt, as a stated rule rather than a lost comparison.
     if (!user || user.kind === 'guest' || !(await verifyPassword(password, user.password_hash))) {
+      countLoginFailure(passwordLoginLimiter, ip, limit, String(username));
       return reply.code(401).send({ error: 'invalid username or password' });
     }
-
-    // Same as the passcode path: a correct password clears this IP's window,
-    // so a household signing in one after another never trips it.
-    passwordLoginLimiter.clear(ip);
 
     const token = signToken({ id: user.id, username: user.username });
     return reply.send({ token });
   });
 
-  /** Username plus a short numeric passcode. Rate-limited per IP (default 8/minute), since the code's keyspace is small. */
+  /** Username plus a short numeric passcode. Rate-limited (default 8 failures/minute per IP), since the keyspace is small. */
   fastify.post<{ Body: PasscodeLogin }>('/auth/passcode-login', async (request, reply) => {
-    const rate = passcodeLoginLimiter.check(clientIp(request), {
-      limit: config.passcodeAttemptsPerMinute,
-      windowMs: MINUTE_MS,
-    });
-
-    if (!rate.allowed) {
-      return reply
-        .code(429)
-        .header('retry-after', String(rate.retryAfterSeconds))
-        .send({ error: 'Too many tries. Wait a moment.' });
-    }
-
     const { username, passcode } = request.body ?? ({} as PasscodeLogin);
 
     if (!username || !passcode) {
       return reply.code(400).send({ error: 'username and passcode are required' });
     }
+
+    const ip = clientIp(request);
+    const limit = config.passcodeAttemptsPerMinute;
+    const rate = loginLimitFor(passcodeLoginLimiter, ip, limit, String(username));
+    if (!rate.allowed) return tooManyTries(reply, rate);
 
     const user = findUserByUsername(username);
 
@@ -340,11 +347,9 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       !user.passcode_hash ||
       !(await verifyPasscode(passcode, user.passcode_hash))
     ) {
+      countLoginFailure(passcodeLoginLimiter, ip, limit, String(username));
       return reply.code(401).send({ error: 'invalid username or passcode' });
     }
-
-    // A correct passcode clears this IP's window, as a correct password does.
-    passcodeLoginLimiter.clear(clientIp(request));
 
     const token = signToken({ id: user.id, username: user.username });
     return reply.send({ token });

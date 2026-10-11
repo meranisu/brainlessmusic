@@ -26,6 +26,18 @@ export interface PlaybackFailureEntry {
   createdAt: string;
 }
 
+/** Rows kept. Any signed-in user can report a failure, so the table must not grow with them (C4). */
+export const PLAYBACK_FAILURES_KEPT = 1000;
+
+/** Longest stored text per field. A real decode error is a sentence; anything longer is cut, not refused. */
+const MAX_MESSAGE_LENGTH = 500;
+const MAX_SHORT_FIELD_LENGTH = 200;
+
+function clip(value: string | undefined, max: number): string | null {
+  return value === undefined ? null : value.slice(0, max);
+}
+
+/** Records one failure and drops the oldest rows past `PLAYBACK_FAILURES_KEPT`. */
 export function recordPlaybackFailure(input: PlaybackFailureInput): void {
   db.prepare(
     `INSERT INTO playback_failures
@@ -35,11 +47,16 @@ export function recordPlaybackFailure(input: PlaybackFailureInput): void {
     input.userId,
     input.trackId,
     input.source,
-    input.message,
+    clip(input.message, MAX_MESSAGE_LENGTH),
     input.mediaErrorCode ?? null,
-    input.contentType ?? null,
-    input.userAgent ?? null,
+    clip(input.contentType, MAX_SHORT_FIELD_LENGTH),
+    clip(input.userAgent, MAX_SHORT_FIELD_LENGTH),
   );
+
+  db.prepare(
+    `DELETE FROM playback_failures
+     WHERE id NOT IN (SELECT id FROM playback_failures ORDER BY id DESC LIMIT ?)`,
+  ).run(PLAYBACK_FAILURES_KEPT);
 }
 
 const DEFAULT_LIMIT = 100;

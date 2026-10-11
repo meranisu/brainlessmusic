@@ -24,6 +24,9 @@ export const config = {
   passcodeAttemptsPerMinute: Number(process.env.PASSCODE_ATTEMPTS_PER_MINUTE ?? 8),
   // Looser than the passcode's; it stops unlimited scripted guesses.
   loginAttemptsPerMinute: Number(process.env.LOGIN_ATTEMPTS_PER_MINUTE ?? 10),
+  // Failed sign-ins (password and passcode together) per username per hour, from all addresses: the per-IP limits
+  // alone can be dodged by rotating addresses. At 20/hour a 4-digit passcode takes about 10 days on average, not hours.
+  accountLoginFailuresPerHour: Number(process.env.ACCOUNT_LOGIN_FAILURES_PER_HOUR ?? 20),
   // Header with the visitor's real IP behind a proxy; unset uses the socket address (right on a LAN). Production
   // sets `cf-connecting-ip`, which Cloudflare overwrites; a direct client on :3000 can still forge it.
   clientIpHeader: (process.env.CLIENT_IP_HEADER ?? '').trim().toLowerCase(),

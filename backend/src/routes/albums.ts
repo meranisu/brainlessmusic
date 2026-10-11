@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { findAlbumArtworkId } from '../db/artwork.js';
 import { countAlbums, getAlbumDetail, listAlbums } from '../db/browse.js';
 import { sendCover } from '../services/artwork.js';
+import { isAdminRequest } from '../utils/isAdmin.js';
 import { parsePagination } from '../utils/pagination.js';
 
 const albumsRoute: FastifyPluginAsync = async (fastify) => {
@@ -24,7 +25,7 @@ const albumsRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(404).send({ error: 'Album not found' });
       }
 
-      const album = getAlbumDetail(id);
+      const album = getAlbumDetail(id, isAdminRequest(request));
       if (!album) {
         return reply.code(404).send({ error: 'Album not found' });
       }

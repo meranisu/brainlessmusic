@@ -26,7 +26,6 @@ import {
 } from '../db/library.js';
 import { recordPlaybackFailure } from '../db/playbackFailures.js';
 import { findLibraryRootByPath, listLibraryRoots } from '../db/libraryRoots.js';
-import { findUserById } from '../db/users.js';
 import { countHistoryForTrack, listHistoryForTrack, recordScrobble } from '../db/plays.js';
 import {
   buildETag,
@@ -50,6 +49,8 @@ import { persistArtwork } from '../services/artworkIngest.js';
 import { fileIntoLibrary } from '../services/trackFiling.js';
 import { AUDIO_EXTENSIONS, extractTrackTags } from '../services/trackTags.js';
 import { parsePagination } from '../utils/pagination.js';
+import { createRateLimiter } from '../services/rateLimit.js';
+import { isAdminRequest } from '../utils/isAdmin.js';
 import { isInside } from '../utils/paths.js';
 
 /** A day, then revalidate: covers an evening of seeks, and a replaced file stops serving within a day. */
@@ -147,6 +148,10 @@ async function deleteTrackAndFile(track: TrackRow): Promise<NodeJS.ErrnoExceptio
   return null;
 }
 
+/** Failure reports one user may send per minute. */
+const PLAYBACK_FAILURES_PER_MINUTE = 30;
+const playbackFailureLimiter = createRateLimiter();
+
 const tracksRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Querystring: TracksQuery }>(
     '/tracks',
@@ -154,7 +159,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       const { limit, offset } = parsePagination(request.query);
       // Re-read like `requireAdmin`. The Full view is open to all, so the server must enforce what non-admins see.
-      const isAdmin = Boolean(findUserById(request.user!.id)?.is_admin);
+      const isAdmin = isAdminRequest(request);
       const options = {
         search: request.query.search,
         sort: parseSort(request.query.sort),
@@ -237,7 +242,8 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       const track = getTrackDetailById(id);
-      if (!track) {
+      // A hidden track doesn't exist for a non-admin (A34), so it answers like a missing one.
+      if (!track || (track.hidden && !isAdminRequest(request))) {
         return reply.code(404).send({ error: 'Track not found' });
       }
 
@@ -360,7 +366,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       const track = findTrackById(id);
-      if (!track) {
+      if (!track || (track.hidden === 1 && !isAdminRequest(request))) {
         return reply.code(404).send({ error: 'Track not found' });
       }
 
@@ -551,6 +557,15 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(404).send({ error: 'Track not found' });
       }
 
+      // A real client reports a handful at most; a loop gets refused instead of written.
+      const rate = playbackFailureLimiter.check(String(request.user!.id), {
+        limit: PLAYBACK_FAILURES_PER_MINUTE,
+        windowMs: 60 * 1000,
+      });
+      if (!rate.allowed) {
+        return reply.code(429).header('retry-after', String(rate.retryAfterSeconds)).send({ error: 'Too many reports' });
+      }
+
       const { mediaErrorCode, detail, contentType } = request.body ?? {};
       const normalized = {
         mediaErrorCode: typeof mediaErrorCode === 'number' ? mediaErrorCode : undefined,
@@ -606,6 +621,9 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       const peaks = await peaksForTrack(id);
+      if (peaks === 'busy') {
+        return reply.code(503).header('retry-after', '5').send({ error: 'Busy drawing other waveforms. Try again shortly.' });
+      }
       if (!peaks) {
         return reply.code(404).send({ error: 'No waveform available for this track' });
       }
