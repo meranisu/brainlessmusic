@@ -63,24 +63,24 @@ Results at review time:
 
 ## Web player state
 
-- [ ] **C11. The skip after a failed load uses the old queue.**
+- [x] **C11. The skip after a failed load uses the old queue.** Fixed in 60f687f.
       - The auto-skip calls the closure `goTo`, which still sees the queue from before (`PlayerBar.tsx:665-676`,
         `goTo` at `:824-828`).
       - When a new album's first track fails, a song from the previous queue plays, or playback stops silently.
       - A failed track during session restore (`:1091`) fails silently, and `repeat` at `:666` is stale the same way.
-- [ ] **C12. `reconnect` ignores `loadTokenRef`** (`PlayerBar.tsx:548-585`).
+- [x] **C12. `reconnect` ignores `loadTokenRef`** Fixed in 60f687f. (`PlayerBar.tsx:548-585`).
       - Pressing Next during the reconnect's 15 s wait seeks the new song to the old song's position.
       - `swappingRef` stays true, which pauses position updates and play counting.
-- [ ] **C13. A data-saver swap overwrites a skip** (`PlayerBar.tsx:698-742`).
+- [x] **C13. A data-saver swap overwrites a skip** Fixed in 60f687f. (`PlayerBar.tsx:698-742`).
       - A skip during the ~6 s probe leaves the old song's low-quality URL playing under the new song's title.
       - After a gapless or crossfade boundary, it rewrites the spare element instead.
-- [ ] **C14. A shuffle response overwrites a newer queue** (`PlayerBar.tsx:956-984`).
+- [x] **C14. A shuffle response overwrites a newer queue** Fixed in 60f687f. (`PlayerBar.tsx:956-984`).
       - If another album starts before `POST /shuffle` returns, the queue is replaced with the old one, shuffled.
 - [x] **C15. The React Query cache is never cleared on logout or login** Fixed in bbb6de3. (`main.tsx:11`, `AuthContext.tsx:125-129`).
       - The next user briefly sees the last user's data.
       - `['favorites','ids']` has no user in its key (`FavoriteButton.tsx:11-16`), so the last user's favorites show
         for up to 30 s.
-- [ ] **C16. Unsaved tag edits are wiped on refetch.**
+- [x] **C16. Unsaved tag edits are wiped on refetch.** Fixed in 60f687f.
       - The effect resets every form field when `data` changes (`TrackDetailDrawer.tsx:46-54`).
       - Counting a play invalidates `['track', id]` (`PlayerBar.tsx:522`), which triggers it.
 
