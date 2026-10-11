@@ -24,8 +24,13 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.DownloadForOffline
@@ -34,6 +39,7 @@ import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material3.AlertDialog
@@ -48,8 +54,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -66,9 +74,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -97,6 +107,8 @@ fun DownloadsScreen(navController: NavHostController, viewModel: DownloadsViewMo
     val state by viewModel.ui.collectAsStateWithLifecycle()
     val filter by viewModel.filter.collectAsStateWithLifecycle()
     val online by viewModel.online.collectAsStateWithLifecycle()
+    val query by viewModel.query.collectAsStateWithLifecycle()
+    val sort by viewModel.sort.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val toast: (String) -> Unit = { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
 
@@ -152,14 +164,24 @@ fun DownloadsScreen(navController: NavHostController, viewModel: DownloadsViewMo
                         InProgressPanel(ui, onPause = viewModel::pauseAll, onResume = viewModel::resumeAll)
                     }
                 }
+                fullWidth("search") {
+                    SearchRow(query, onQuery = viewModel::setQuery, sort = sort, onSort = viewModel::setSort)
+                }
                 fullWidth("filters") { FilterRow(filter, onSelect = viewModel::setFilter) }
 
-                if (filter == DownloadFilter.SONGS) {
-                    songRows(ui, onPlay = { viewModel.playSong(ui, it, toast) }, onRemove = viewModel::removeSong)
+                val searching = searchWords(query).isNotEmpty()
+                val tiles = ui.tilesFor(filter, query, sort)
+                // On All, a search also lists the songs it finds, so a song title turns something up.
+                val songs = if (filter == DownloadFilter.SONGS || (filter == DownloadFilter.ALL && searching)) {
+                    ui.songsFor(query, sort)
                 } else {
-                    val tiles = ui.tilesFor(filter)
-                    if (tiles.isEmpty()) {
-                        fullWidth("none") {
+                    emptyList()
+                }
+                if (tiles.isEmpty() && songs.isEmpty()) {
+                    fullWidth("none") {
+                        if (searching) {
+                            NoMatches(query, onClear = { viewModel.setQuery("") })
+                        } else {
                             Text(
                                 "No ${filter.label.lowercase()} downloaded.",
                                 style = MaterialTheme.typography.bodyMedium,
@@ -167,10 +189,20 @@ fun DownloadsScreen(navController: NavHostController, viewModel: DownloadsViewMo
                             )
                         }
                     }
-                    items(tiles, key = { it.group.id }) { row ->
-                        DownloadTile(row, onOpen = { navController.navigate(Routes.downloadGroup(row.group.id)) })
+                }
+                items(tiles, key = { it.group.id }) { row ->
+                    DownloadTile(row, onOpen = { navController.navigate(Routes.downloadGroup(row.group.id)) })
+                }
+                if (tiles.isNotEmpty() && songs.isNotEmpty()) {
+                    fullWidth("songs-title") {
+                        Text(
+                            if (songs.size == 1) "1 song" else "${songs.size} songs",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(top = 8.dp).semantics { heading() },
+                        )
                     }
                 }
+                songRows(songs, onPlay = { viewModel.playSong(songs, it, toast) }, onRemove = viewModel::removeSong)
             }
         }
     }
@@ -355,6 +387,66 @@ private fun InProgressPanel(ui: DownloadsUi, onPause: () -> Unit, onResume: () -
     }
 }
 
+/** Search over names, artists and albums, with the sort order beside it. */
+@Composable
+private fun SearchRow(query: String, onQuery: (String) -> Unit, sort: DownloadSort, onSort: (DownloadSort) -> Unit) {
+    val focus = LocalFocusManager.current
+    var sortOpen by remember { mutableStateOf(false) }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        OutlinedTextField(
+            value = query,
+            onValueChange = onQuery,
+            placeholder = { Text("Search downloads") },
+            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+            trailingIcon = {
+                if (query.isNotEmpty()) {
+                    IconButton(onClick = { onQuery("") }) { Icon(Icons.Filled.Close, contentDescription = "Clear search") }
+                }
+            },
+            singleLine = true,
+            shape = PanelShape,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { focus.clearFocus() }),
+            modifier = Modifier.weight(1f),
+        )
+        Box {
+            IconButton(onClick = { sortOpen = true }, modifier = Modifier.padding(start = 4.dp)) {
+                Icon(
+                    Icons.AutoMirrored.Filled.Sort,
+                    contentDescription = "Sort, ${sort.label}",
+                    // Tinted while the order isn't the usual one, so a changed sort doesn't go unnoticed.
+                    tint = if (sort == DownloadSort.RECENT) LocalContentColor.current else MaterialTheme.colorScheme.primary,
+                )
+            }
+            DropdownMenu(expanded = sortOpen, onDismissRequest = { sortOpen = false }) {
+                DownloadSort.entries.forEach {
+                    DropdownMenuItem(
+                        text = { Text(it.label) },
+                        trailingIcon = { if (it == sort) Icon(Icons.Filled.Check, contentDescription = "Selected") },
+                        onClick = {
+                            sortOpen = false
+                            onSort(it)
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** A search that found nothing, with a way back to everything. */
+@Composable
+private fun NoMatches(query: String, onClear: () -> Unit) {
+    Column(horizontalAlignment = Alignment.Start) {
+        Text(
+            "Nothing downloaded matches \"${query.trim()}\".",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        TextButton(onClick = onClear, contentPadding = PaddingValues(horizontal = 0.dp)) { Text("Clear search") }
+    }
+}
+
 @Composable
 private fun FilterRow(selected: DownloadFilter, onSelect: (DownloadFilter) -> Unit) {
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -441,12 +533,9 @@ internal fun StateBadge(state: GroupDownload, modifier: Modifier = Modifier) {
     }
 }
 
-/** The Songs filter: every downloaded song once. Tap plays from it; the menu takes it off the phone. */
-private fun LazyGridScope.songRows(ui: DownloadsUi, onPlay: (DownloadSongRow) -> Unit, onRemove: (DownloadSongRow) -> Unit) {
-    if (ui.songs.isEmpty()) {
-        fullWidth("no-songs") { Text("No songs downloaded.", style = MaterialTheme.typography.bodyMedium) }
-    }
-    items(ui.songs, key = { "song-${it.song.track.trackId}" }, span = { GridItemSpan(maxLineSpan) }) { row ->
+/** Downloaded songs, one per row. Tap plays from it; the menu takes it off the phone. */
+private fun LazyGridScope.songRows(songs: List<DownloadSongRow>, onPlay: (DownloadSongRow) -> Unit, onRemove: (DownloadSongRow) -> Unit) {
+    items(songs, key = { "song-${it.song.track.trackId}" }, span = { GridItemSpan(maxLineSpan) }) { row ->
         SongRow(
             title = row.song.track.title,
             supporting = listOfNotNull(row.song.track.artist ?: "Unknown artist", row.song.track.album).joinToString(" · "),

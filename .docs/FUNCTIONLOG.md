@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `tilesFor(filter, query, sort)`, `songsFor()` (new), `searchWords()` (new), `DownloadSort` (new), `playSong(shown, ...)` — `android/.../ui/downloads/DownloadsViewModel.kt`; `SearchRow` (new), `NoMatches` (new), `songRows(songs)` — `DownloadsScreen.kt`
+**Date:** 2026-10-11
+**How added:** new feature (owner request)
+**Purpose:** search and sort what's downloaded.
+**Side effects:** none; search and sort live in the view model and reset when the screen is left for good.
+**Before:** filter chips only, newest first; tapping a song queued every downloaded song.
+**After:** search by name, artist or album, sort by recent, name or artist; tapping a song queues the songs shown.
+
 **Function:** `HomeScreen` layout, `ShuffleLibraryButton` — `android/.../ui/profile/YouScreen.kt`
 **Date:** 2026-10-11
 **How added:** owner request

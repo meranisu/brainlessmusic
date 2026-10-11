@@ -4,6 +4,20 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-11 — Android: search and sort on the Downloads tab
+
+- **A search field above the filter chips** finds albums and playlists by name or artist, and songs by title, artist
+  or album. Case and accents don't matter ("beyonce" finds "Beyoncé"), and every word typed has to match. The chips
+  still apply while searching.
+- **On All, a search lists matching songs too**, under the matching tiles with a "N songs" heading, so a song title
+  turns something up. The Songs tile drops out of search results, since its songs are listed one by one.
+- **Sort menu** beside the field: Recently added (as before), Name, Artist. The icon turns accent-coloured while the
+  order isn't Recently added. The Songs tile stays first under Name and Artist.
+- No match shows "Nothing downloaded matches ..." with a Clear search button. Tapping a song plays the list on
+  screen, so a search result plays just the results.
+- Verified: `./gradlew :app:testDebugUnitTest` for `DownloadSearchTest` (8/8, new) and `MosaicCoversTest` (3/3).
+  **Not run:** no phone or emulator here, so the search field has not been seen or typed into.
+
 ## 2026-10-11 — Android: Home order changed, Shuffle in the top bar
 
 - **Home now runs:** your card (name, hours, plays, songs), the Liked / Playlists / Hear less tiles, the range picker,

@@ -33,6 +33,8 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import java.io.File
+import java.text.Normalizer
+import java.util.Locale
 import javax.inject.Inject
 
 /** One tile: a downloaded album or playlist (or the single-songs group) and how much of it is on the phone. */
@@ -49,6 +51,8 @@ data class DownloadRow(
 data class DownloadSongRow(val song: DownloadedTrackWithCover, val download: TrackDownload?, val coverUri: String?)
 
 enum class DownloadFilter(val label: String) { ALL("All"), ALBUMS("Albums"), PLAYLISTS("Playlists"), SONGS("Songs") }
+
+enum class DownloadSort(val label: String) { RECENT("Recently added"), NAME("Name"), ARTIST("Artist") }
 
 /** Everything the tab shows; only real counts from the phone's own records. */
 data class DownloadsUi(
@@ -116,6 +120,12 @@ class DownloadsViewModel @Inject constructor(
     private val _filter = MutableStateFlow(DownloadFilter.ALL)
     val filter: StateFlow<DownloadFilter> = _filter
 
+    private val _query = MutableStateFlow("")
+    val query: StateFlow<String> = _query
+
+    private val _sort = MutableStateFlow(DownloadSort.RECENT)
+    val sort: StateFlow<DownloadSort> = _sort
+
     val online: StateFlow<Boolean> = networkMonitor.online
 
     private val stored = combine(dao.groups(), dao.groupTracks(), dao.allTracks()) { groups, links, songs ->
@@ -165,6 +175,14 @@ class DownloadsViewModel @Inject constructor(
         _filter.value = filter
     }
 
+    fun setQuery(query: String) {
+        _query.value = query
+    }
+
+    fun setSort(sort: DownloadSort) {
+        _sort.value = sort
+    }
+
     fun retryLoad() {
         reload.value++
     }
@@ -179,9 +197,9 @@ class DownloadsViewModel @Inject constructor(
         playbackController.playQueue(items, if (shuffle) items.indices.random() else 0, shuffle = shuffle)
     }
 
-    /** A song from the Songs filter: plays the downloaded songs from that one on. */
-    fun playSong(ui: DownloadsUi, row: DownloadSongRow, onNothingToPlay: (String) -> Unit) {
-        val ready = ui.songs.filter { it.download?.isDone == true || (online.value && it == row) }
+    /** A song from a list on screen: plays that list's downloaded songs from that one on. */
+    fun playSong(shown: List<DownloadSongRow>, row: DownloadSongRow, onNothingToPlay: (String) -> Unit) {
+        val ready = shown.filter { it.download?.isDone == true || (online.value && it == row) }
         val index = ready.indexOf(row)
         if (index < 0) {
             onNothingToPlay("This song isn't on the phone yet.")
@@ -215,10 +233,73 @@ internal fun DownloadRow.status(): String = when (state) {
 internal val DownloadRow.canRetry: Boolean
     get() = state == GroupDownload.Failed || (state == GroupDownload.None && doneCount < trackIds.size)
 
-/** The filter's tiles; Songs shows songs instead, so it has none. */
-internal fun DownloadsUi.tilesFor(filter: DownloadFilter): List<DownloadRow> = when (filter) {
-    DownloadFilter.ALL -> groups
-    DownloadFilter.ALBUMS -> groups.filter { it.group.kind == KIND_ALBUM }
-    DownloadFilter.PLAYLISTS -> groups.filter { it.group.kind == KIND_PLAYLIST }
-    DownloadFilter.SONGS -> emptyList()
+/**
+ * The filter's tiles that match [query], in [sort] order; Songs shows songs instead, so it has none. While searching,
+ * the Songs tile drops out: its songs are listed one by one below the tiles.
+ */
+internal fun DownloadsUi.tilesFor(
+    filter: DownloadFilter,
+    query: String = "",
+    sort: DownloadSort = DownloadSort.RECENT,
+): List<DownloadRow> {
+    val kind = when (filter) {
+        DownloadFilter.ALL -> null
+        DownloadFilter.ALBUMS -> KIND_ALBUM
+        DownloadFilter.PLAYLISTS -> KIND_PLAYLIST
+        DownloadFilter.SONGS -> return emptyList()
+    }
+    val words = searchWords(query)
+    val shown = groups.filter { row ->
+        (kind == null || row.group.kind == kind) &&
+            (words.isEmpty() || (row.group.kind != KIND_SONGS && matches(words, row.group.name, row.group.subtitle)))
+    }
+    // The groups come newest first. The Songs tile has no name or artist to sort by, so it stays at the front.
+    val byName = compareBy<DownloadRow>({ it.group.kind != KIND_SONGS }, { it.group.name.lowercase() })
+    return when (sort) {
+        DownloadSort.RECENT -> shown
+        DownloadSort.NAME -> shown.sortedWith(byName)
+        DownloadSort.ARTIST -> shown.sortedWith(
+            compareBy<DownloadRow>({ it.group.kind != KIND_SONGS }, { it.artistKey == null }, { it.artistKey })
+                .thenComparing(byName),
+        )
+    }
 }
+
+/** An album's artist, for sorting; playlists and the Songs tile have none. */
+private val DownloadRow.artistKey: String? get() = group.subtitle?.takeIf { group.kind == KIND_ALBUM }?.lowercase()
+
+/** The songs that match [query] by title, artist or album, in [sort] order. */
+internal fun DownloadsUi.songsFor(query: String = "", sort: DownloadSort = DownloadSort.RECENT): List<DownloadSongRow> {
+    val words = searchWords(query)
+    val shown = if (words.isEmpty()) songs else songs.filter {
+        matches(words, it.song.track.title, it.song.track.artist, it.song.track.album)
+    }
+    return when (sort) {
+        DownloadSort.RECENT -> shown
+        DownloadSort.NAME -> shown.sortedBy { it.song.track.title.lowercase() }
+        DownloadSort.ARTIST -> shown.sortedWith(
+            compareBy<DownloadSongRow>(
+                { it.song.track.artist == null },
+                { it.song.track.artist?.lowercase() },
+                { it.song.track.album?.lowercase() },
+                { it.song.track.trackNumber ?: Int.MAX_VALUE },
+                { it.song.track.title.lowercase() },
+            ),
+        )
+    }
+}
+
+/** [query] split into words, folded so "beyonce" finds "Beyoncé" and case doesn't matter. */
+internal fun searchWords(query: String): List<String> = fold(query).split(' ').filter { it.isNotEmpty() }
+
+/** Every word appears somewhere in [fields]. */
+private fun matches(words: List<String>, vararg fields: String?): Boolean {
+    val text = fold(fields.filterNotNull().joinToString(" "))
+    return words.all { it in text }
+}
+
+private val MARKS = Regex("\\p{Mn}+")
+private val SPACES = Regex("\\s+")
+
+private fun fold(text: String): String =
+    MARKS.replace(Normalizer.normalize(text, Normalizer.Form.NFD), "").lowercase(Locale.ROOT).replace(SPACES, " ")
