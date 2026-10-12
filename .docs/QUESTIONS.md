@@ -31,6 +31,9 @@ is never asked twice.
 | [Q5](#q5--tag-editing-scope) | Tag-editing scope | 2026-09-09 | No |
 | [Q77](#q77--how-does-the-android-app-get-past-cloudflare-access) | How does the Android app get past Cloudflare Access? | 2026-10-11 | Yes, before Access goes on |
 | [Q78](#q78--who-goes-on-the-access-email-list) | Who goes on the Access email list? | 2026-10-11 | Yes, before Access goes on |
+| [Q148](#q148--untagged-mixed-artist-albums) | Untagged mixed-artist albums | 2026-10-12 | No |
+| [Q149](#q149--appears-on-on-artist-pages) | "Appears on" on artist pages | 2026-10-12 | No |
+| [Q150](#q150--which-library-to-measure) | Which library to measure | 2026-10-12 | Yes, for the tag measurement |
 
 ### Q5 — Tag-editing scope
 **Asked:** 2026-09-09 · **Blocking:** no
@@ -58,6 +61,35 @@ includes friends using a guest code on the web: without their email on the list 
 
 - **A. You and the friends who use the web (recommended).** Each friend's email goes on the list once.
 - **B. Only you.** Friends use the Android app only (with Q77's token), never the web.
+
+### Q148 — Untagged mixed-artist albums
+**Asked:** 2026-10-12 · **Blocking:** no ([metadata plan](features/metadata-model/planning.md), rule 3)
+
+Some albums have no album artist tag and different track artists ("A", "A feat. B"). Album artist alone can't join them.
+
+- **A. Join them when they share a title and a folder (recommended).** The album artist is the artist on most of
+  the tracks if one artist has more than half; otherwise Various Artists.
+- **B. Leave them split.** Fixing it means adding the album artist tag to the files.
+
+**Assumption until answered:** A, built only if the measurement shows such albums exist.
+
+### Q149 — "Appears on" on artist pages
+**Asked:** 2026-10-12 · **Blocking:** no ([metadata plan](features/metadata-model/planning.md), Phase 2)
+
+Once albums go by album artist, a featured artist's song on someone else's album stops showing on that artist's page.
+
+- **A. Add an "Appears on" section under their own albums (recommended).**
+- **B. No.** Their songs are still found by search.
+
+**Assumption until answered:** A.
+
+### Q150 — Which library to measure
+**Asked:** 2026-10-12 · **Blocking:** yes, for the tag measurement ([metadata plan](features/metadata-model/planning.md), Phase 1)
+
+Before anything ships, a read-only script counts how many albums the new rules would change.
+
+- **A. The library on this machine, if it is the same music as smol's (recommended).** Nothing on smol is touched.
+- **B. smol's library, read-only.** Needs your OK to run a script there.
 
 ## Answered
 

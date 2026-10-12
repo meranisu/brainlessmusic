@@ -155,7 +155,7 @@ alone, so two discs' track 1s sit together.
 - [ ] **24. Metadata plan** **[plan first]**. How albums are keyed (album artist, falling back to track artist), what
   counts as a compilation, how multi-value genre tags split, and how the existing library on smol is re-read without
   losing play counts, favorites, playlists or downloads that point at album and track ids. Write it into
-  `.docs/features/metadata-model/planning.md`.
+  `.docs/features/metadata-model/planning.md`. — **plan written 2026-10-12**; waits on the tag measurement and Q148–Q150.
   *Done when:* the plan says what happens to an album id that splits or merges on the rescan.
 
 - [ ] **25. Album artist and compilations** (backend). Read `albumartist` and the compilation flag at scan time,
