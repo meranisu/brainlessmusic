@@ -1,5 +1,32 @@
 [
   {
+    "version": "0.3.63",
+    "date": "2026-10-12",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "the login screen is an arcade title screen now. tap to start, then log in. each skin has its own: osu!'s beating circle in hit circle, arcaea's turning diamond in lane, a sound voltex lane in gear, maimai's buttons lighting up in ring. standard keeps the tile mosaic. it calms down once the form is up",
+              "the first-time setup now shows for each new account on a phone, not just once per phone. if your account already did it, you won't see it again"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.62",
     "date": "2026-10-12",
     "sections": [
