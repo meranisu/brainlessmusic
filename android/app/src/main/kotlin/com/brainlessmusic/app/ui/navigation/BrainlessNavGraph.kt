@@ -1,6 +1,12 @@
 package com.brainlessmusic.app.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.NavGraphBuilder
+import androidx.navigation.NavBackStackEntry
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -56,8 +62,15 @@ fun BrainlessNavGraph(
         }
     }
 
+    // Every screen goes through this, so only the one on top takes touches (see `OnTopOnly`).
+    fun NavGraphBuilder.screen(
+        route: String,
+        arguments: List<NamedNavArgument> = emptyList(),
+        content: @Composable (NavBackStackEntry) -> Unit,
+    ) = composable(route, arguments) { entry -> OnTopOnly(navController, entry) { content(entry) } }
+
     NavHost(navController = navController, startDestination = Routes.SPLASH) {
-        composable(Routes.SPLASH) {
+        screen(Routes.SPLASH) {
             SplashScreen(
                 viewModel = startViewModel,
                 onResolved = { route ->
@@ -70,7 +83,7 @@ fun BrainlessNavGraph(
                 },
             )
         }
-        composable(Routes.LOGIN) {
+        screen(Routes.LOGIN) {
             LoginScreen(
                 onLoggedIn = {
                     startViewModel.welcome()
@@ -80,22 +93,22 @@ fun BrainlessNavGraph(
                 },
             )
         }
-        composable(Routes.ARTISTS) {
+        screen(Routes.ARTISTS) {
             LibraryScreen(navController = navController)
         }
-        composable(Routes.SEARCH) {
+        screen(Routes.SEARCH) {
             SearchScreen(navController = navController)
         }
-        composable(Routes.DOWNLOADS) {
+        screen(Routes.DOWNLOADS) {
             DownloadsScreen(navController = navController)
         }
-        composable(
+        screen(
             Routes.DOWNLOAD_GROUP,
             arguments = listOf(navArgument(Routes.ARG_DOWNLOAD_GROUP) { type = NavType.StringType }),
         ) { entry ->
             DownloadGroupScreen(onBack = { navController.popFrom(entry) }, onOpenNowPlaying = { navController.openNowPlaying() })
         }
-        composable(
+        screen(
             Routes.ARTIST_DETAIL,
             arguments = listOf(intArg(Routes.ARG_ARTIST_ID)),
         ) { entry ->
@@ -105,7 +118,7 @@ fun BrainlessNavGraph(
                 onOpenNowPlaying = { navController.openNowPlaying() },
             )
         }
-        composable(
+        screen(
             Routes.ALBUM_DETAIL,
             arguments = listOf(intArg(Routes.ARG_ALBUM_ID)),
         ) { entry ->
@@ -115,7 +128,7 @@ fun BrainlessNavGraph(
                 onOpenArtist = { navController.navigate(Routes.artistDetail(it)) },
             )
         }
-        composable(Routes.NOW_PLAYING) { entry ->
+        screen(Routes.NOW_PLAYING) { entry ->
             NowPlayingScreen(
                 onBack = { navController.popFrom(entry) },
                 // The album opens in the player's place, so back from it goes to where the player was opened.
@@ -132,26 +145,26 @@ fun BrainlessNavGraph(
                 onOpenTogether = { navController.navigate(Routes.TOGETHER) { launchSingleTop = true } },
             )
         }
-        composable(Routes.TOGETHER) { entry ->
+        screen(Routes.TOGETHER) { entry ->
             TogetherScreen(
                 onBack = { navController.popFrom(entry) },
                 onOpenNowPlaying = { navController.openNowPlaying() },
             )
         }
-        composable(Routes.HOME) {
+        screen(Routes.HOME) {
             YouScreen(
                 navController = navController,
                 onOpenArtist = { id -> navController.navigate(Routes.artistDetail(id)) },
                 onOpenAlbum = { navController.navigate(Routes.albumDetail(it)) },
             )
         }
-        composable(
+        screen(
             Routes.SONG_LIST,
             arguments = listOf(navArgument(Routes.ARG_SONG_LIST) { type = NavType.StringType }),
         ) { entry ->
             SongListScreen(onBack = { navController.popFrom(entry) }, onOpenNowPlaying = { navController.openNowPlaying() })
         }
-        composable(
+        screen(
             Routes.PLAYLIST_DETAIL,
             arguments = listOf(intArg(Routes.ARG_PLAYLIST_ID)),
         ) { entry ->
@@ -162,13 +175,13 @@ fun BrainlessNavGraph(
                 onOpenArtist = { navController.navigate(Routes.artistDetail(it)) },
             )
         }
-        composable(Routes.SETTINGS) {
+        screen(Routes.SETTINGS) {
             SettingsScreen(
                 navController = navController,
                 onOpenPage = { page -> navController.navigate(Routes.settingsPage(page.route)) { launchSingleTop = true } },
             )
         }
-        composable(
+        screen(
             Routes.SETTINGS_PAGE,
             arguments = listOf(navArgument(Routes.ARG_SETTINGS_PAGE) { type = NavType.StringType }),
         ) { entry ->
@@ -191,3 +204,27 @@ fun BrainlessNavGraph(
 }
 
 private fun intArg(name: String): NamedNavArgument = navArgument(name) { type = NavType.IntType }
+
+/**
+ * Lets only the screen on top of the back stack take touches. Going back, NavHost draws the screen being left above
+ * the one returning while it fades out, and it still took taps: a tap on the bottom bar just after leaving Appearance
+ * landed on its last row and picked Ring (owner, 2026-10-12). A tap in that moment is now swallowed instead.
+ */
+@Composable
+private fun OnTopOnly(navController: NavHostController, entry: NavBackStackEntry, content: @Composable () -> Unit) {
+    val top by navController.currentBackStackEntryAsState()
+    Box {
+        content()
+        if (top?.id != entry.id) {
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) awaitPointerEvent().changes.forEach { it.consume() }
+                        }
+                    },
+            )
+        }
+    }
+}

@@ -4,6 +4,17 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: A tap just after going back no longer lands on the page you left (Android)
+
+- Owner: after changing skin and leaving Settings, a tap on the bottom bar switched to Ring. Going back, NavHost
+  (navigation 2.7.7) draws the page being left above the returning one while it fades out, and that page still took
+  taps; Appearance's last row, Ring, sits where the Settings bottom bar is. A skin change redraws the whole app, which
+  likely stretched the fade.
+- Every destination now goes through `screen()` / `OnTopOnly` in `BrainlessNavGraph.kt`: only the back stack's top
+  entry takes touches; a tap on a leaving page is swallowed.
+- Compiled (`compileDebugKotlin`). Not reproduced or checked on a phone: no device or emulator here, so the cause is
+  reasoned from NavHost's z-ordering, not observed.
+
 ## 2026-10-12: Ring's Library search button is back (Android)
 
 - Owner found no search button in the Library under Ring. Ring's genre chips stretch to fill, and the header gave them
