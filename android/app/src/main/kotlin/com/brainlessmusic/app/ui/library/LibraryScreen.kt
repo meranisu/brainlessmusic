@@ -1,5 +1,7 @@
 package com.brainlessmusic.app.ui.library
 
+import com.brainlessmusic.app.ui.profile.SongListKind
+import com.brainlessmusic.app.ui.profile.PlaylistsTab
 import com.brainlessmusic.app.data.local.Skin
 import com.brainlessmusic.app.ui.theme.LocalSkin
 import com.brainlessmusic.app.ui.common.GearDifficultyColors
@@ -151,7 +153,7 @@ fun LibraryScreen(
                         LibraryTab.SONGS -> songsState.scrollToTop()
                         LibraryTab.ALBUMS -> albumsState.scrollToTop()
                         LibraryTab.ARTISTS -> artistsState.scrollToTop()
-                        LibraryTab.GENRES -> Unit
+                        LibraryTab.PLAYLISTS -> Unit
                     }
                 }
             })
@@ -162,7 +164,11 @@ fun LibraryScreen(
                 LibraryTab.SONGS -> SongsTab(viewModel, navController, songsState)
                 LibraryTab.ALBUMS -> AlbumsTab(viewModel, navController, albumsState)
                 LibraryTab.ARTISTS -> ArtistsTab(viewModel, navController, artistsState)
-                LibraryTab.GENRES -> GenresTab()
+                LibraryTab.PLAYLISTS -> PlaylistsTab(
+                    topInset = TabBarClearance,
+                    onOpenLiked = { navController.navigate(Routes.songList(SongListKind.LIKED.route)) { launchSingleTop = true } },
+                    onOpenPlaylist = { id -> navController.navigate(Routes.playlistDetail(id)) { launchSingleTop = true } },
+                )
             }
             // A flat band in the page colour behind the header: rows end cleanly at its edge instead of showing beside the pills.
             // Docked (Lane), it is the header's own strip, closed by an edge line.
@@ -760,15 +766,3 @@ private fun ArtistRow(artist: ArtistSummaryDto, onClick: () -> Unit) {
     )
 }
 
-/** The server doesn't read genre tags yet (A22). */
-@Composable
-private fun GenresTab() {
-    Box(modifier = Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-        Text(
-            "Genres aren't available yet.\nThe server doesn't read genre tags from your files so far.",
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}

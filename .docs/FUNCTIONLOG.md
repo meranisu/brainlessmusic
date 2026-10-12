@@ -12,6 +12,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 **Before:** no way to tell which songs levelling had reached.
 **After:** Control Center → Levelling.
 
+**Function:** `ListeningTotals()`, `StandardListening()` (new), `HitCircleListening()`, `LaneListening()`, `RingListening()`: `android/.../ui/profile/ListeningCards.kt`; `ListeningRadar()`: `ListeningRadar.kt`; `YouScreen()`, `BigStat()` (now internal): `YouScreen.kt`; `PlaylistsTab()` (new, replaces `PlaylistsScreen()`): `PlaylistsScreen.kt`; `LibraryTab.PLAYLISTS` (replaces `GENRES`): `ui/library/LibraryViewModel.kt`; `SettingsPageScreen()`: `ui/settings/SettingsScreen.kt`
+**Date:** 2026-10-12
+**How added:** owner request (A134-A137)
+**Purpose:** Home leads with the range and the skin's listening card, which now carries the range's totals; liked songs and playlists move to a Library tab, Hear less to Settings.
+**Side effects:** `Routes.PLAYLISTS` and the Playlists page are removed; `YouScreen` loses `onOpenLiked`, `onOpenLessOften` and `onOpenPlaylists`; `SettingsPageScreen` gains `onOpenLessOften`.
+**Before:** a player card, two start buttons and three tiles above the range picker; Standard showed no listening card.
+**After:** range picker, listening card with totals (Standard's plain), lists; Listen together in the top bar.
+
+**Function:** `ArcadeWelcome()`, `CardReaderWelcome()`, `HitCircleWelcome()`, `LaneWelcome()`, `GearWelcome()`, `RingWelcome()` (new): `android/.../ui/splash/ArcadeWelcome.kt`; `drawShutter()` (new), `LaneIntro()`: `ui/theme/SkinTransition.kt`
+**Date:** 2026-10-12
+**How added:** owner request
+**Purpose:** play the sign-in welcome in the skin's game's own manner, not as one shared card-reader animation.
+**Side effects:** none; an overlay that takes touches only while it plays, as before.
+**Before:** every skin dropped a card into a reader, with only the label and the card's mark changing by skin.
+**After:** Standard keeps the reader; Hit circle, Lane, Gear and Ring each have their own sequence. `drawShutter()` is shared with the skin-change intro.
+
 **Function:** `parseEbur128Summary()`, `measureLoudness()`, `requestLoudnessBackfill()`, `prioritizeLoudness()`, `startLoudnessBackfill()` (new): `backend/src/services/loudness.ts`; `trackGainSql()`, `findUnmeasuredTrackIds()`, `setTrackLoudness()` (new): `backend/src/db/loudness.ts`; `upsertTrack()`: `backend/src/db/library.ts`
 **Date:** 2026-10-12
 **How added:** new feature (owner request)

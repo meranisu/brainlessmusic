@@ -1,20 +1,25 @@
 package com.brainlessmusic.app.ui.profile
 
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,7 +39,6 @@ import com.brainlessmusic.app.data.repository.ProfileRepository
 import com.brainlessmusic.app.ui.common.LoadState
 import com.brainlessmusic.app.ui.common.LoadStateContent
 import com.brainlessmusic.app.ui.common.SkeletonListRows
-import com.brainlessmusic.app.ui.playback.MiniPlayer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -47,6 +51,8 @@ import com.brainlessmusic.app.ui.theme.AppIcons
 class PlaylistsViewModel @Inject constructor(
     private val profile: ProfileRepository,
 ) : ViewModel() {
+
+    val isGuest: Boolean get() = profile.isGuest
 
     private val _state = MutableStateFlow<LoadState<List<PlaylistSummaryDto>>>(LoadState.Loading)
     val state: StateFlow<LoadState<List<PlaylistSummaryDto>>> = _state.asStateFlow()
@@ -72,14 +78,29 @@ class PlaylistsViewModel @Inject constructor(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * The Library's Playlists tab (A134, A137; it was a page off Home): Liked songs pinned first, then a row to make a
+ * playlist, then yours. Reloaded each time it shows, so a playlist renamed or emptied on its page is current here.
+ * Guests keep neither likes nor playlists (A37), so they get a line saying so.
+ */
 @Composable
-fun PlaylistsScreen(
-    onBack: () -> Unit,
+fun PlaylistsTab(
+    topInset: Dp,
+    onOpenLiked: () -> Unit,
     onOpenPlaylist: (Int) -> Unit,
-    onOpenNowPlaying: () -> Unit,
     viewModel: PlaylistsViewModel = hiltViewModel(),
 ) {
+    if (viewModel.isGuest) {
+        Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+            Text(
+                "Guests can't keep liked songs or playlists.",
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        return
+    }
     val state by viewModel.state.collectAsStateWithLifecycle()
     var naming by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -104,38 +125,39 @@ fun PlaylistsScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Playlists") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(AppIcons.back, contentDescription = "Back") }
-                },
-                actions = {
-                    IconButton(onClick = { naming = true }) { Icon(AppIcons.add, contentDescription = "New playlist") }
-                },
-            )
-        },
-        bottomBar = { MiniPlayer(onClick = onOpenNowPlaying) },
-    ) { padding ->
-        LoadStateContent(
-            state = state,
-            onRetry = viewModel::load,
-            modifier = Modifier.padding(padding),
-            isEmpty = { it.isEmpty() },
-            emptyMessage = "No playlists yet. Tap + to make one.",
-            loadingLabel = "Loading playlists",
-            skeleton = { SkeletonListRows() },
-        ) { playlists ->
-            LazyColumn(Modifier.fillMaxSize()) {
-                items(playlists, key = { it.id }) { playlist ->
-                    ListItem(
-                        leadingContent = { Icon(AppIcons.queue, contentDescription = null) },
-                        headlineContent = { Text(playlist.name) },
-                        supportingContent = { Text(if (playlist.trackCount == 1) "1 song" else "${playlist.trackCount} songs") },
-                        modifier = Modifier.clickable { onOpenPlaylist(playlist.id) },
-                    )
-                }
+    LoadStateContent(
+        state = state,
+        onRetry = viewModel::load,
+        loadingLabel = "Loading playlists",
+        // The list scrolls under the Library's floating header, so the inset is padding inside it, not around it.
+        skeleton = { SkeletonListRows(contentPadding = PaddingValues(top = topInset)) },
+    ) { playlists ->
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = topInset)) {
+            item(key = "liked") {
+                ListItem(
+                    leadingContent = { Icon(AppIcons.favorite, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                    headlineContent = { Text("Liked songs") },
+                    supportingContent = { Text("Every song you've liked") },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    modifier = Modifier.clickable(onClick = onOpenLiked),
+                )
+            }
+            item(key = "new") {
+                ListItem(
+                    leadingContent = { Icon(AppIcons.add, contentDescription = null) },
+                    headlineContent = { Text("New playlist") },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    modifier = Modifier.clickable { naming = true },
+                )
+            }
+            items(playlists, key = { it.id }) { playlist ->
+                ListItem(
+                    leadingContent = { Icon(AppIcons.queue, contentDescription = null) },
+                    headlineContent = { Text(playlist.name) },
+                    supportingContent = { Text(if (playlist.trackCount == 1) "1 song" else "${playlist.trackCount} songs") },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    modifier = Modifier.clickable { onOpenPlaylist(playlist.id) },
+                )
             }
         }
     }

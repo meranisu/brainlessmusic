@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -75,6 +77,55 @@ private fun percent(v: Float) = "${(v * 100).toInt()}%"
 
 private fun described(values: List<Float>) = Axes.indices.joinToString { "${Axes[it].name.lowercase()} ${percent(values[it])}" }
 
+/** The range's hours, plays and songs, as a screen reader hears them; the cards' own descriptions start with it. */
+private fun totalsSpoken(stats: UserStatsDto): String {
+    val (value, label) = listenedHeadline(stats.totals.msListened)
+    return "$value $label, ${plays(stats.totals.plays)}, ${stats.totals.tracks} songs"
+}
+
+/**
+ * The range's raw numbers inside the listening card (owner, 2026-10-12): hours, plays and songs side by side, and how
+ * the time compares with the window before. They were the player card's, which Home no longer has.
+ */
+@Composable
+internal fun ListeningTotals(stats: UserStatsDto, range: StatsRange, modifier: Modifier = Modifier) {
+    val (listenedValue, listenedLabel) = listenedHeadline(stats.totals.msListened)
+    Column(modifier) {
+        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+            BigStat(listenedValue, listenedLabel, Modifier.weight(1f))
+            VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.fillMaxHeight())
+            BigStat("%,d".format(stats.totals.plays), if (stats.totals.plays == 1) "play" else "plays", Modifier.weight(1f))
+            VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.fillMaxHeight())
+            BigStat("%,d".format(stats.totals.tracks), if (stats.totals.tracks == 1) "song" else "songs", Modifier.weight(1f))
+        }
+        listenedDelta(stats, range)?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            )
+        }
+    }
+}
+
+/** Standard's listening on Home (A135): no game reading, just the range's numbers under a plain heading. */
+@Composable
+fun StandardListening(stats: UserStatsDto, range: StatsRange) {
+    ListeningSurface {
+        Column(Modifier.padding(16.dp)) {
+            Text("Listening", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Since ${formatMonthYear(stats.memberSince)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            ListeningTotals(stats, range, Modifier.padding(top = 12.dp))
+        }
+    }
+}
+
 @Composable
 private fun ListeningSurface(content: @Composable () -> Unit) {
     Surface(
@@ -100,7 +151,7 @@ fun HitCircleListening(stats: UserStatsDto, range: StatsRange) {
         Column(
             Modifier
                 .padding(16.dp)
-                .clearAndSetSemantics { contentDescription = "Listening, ${percent(overall)} overall: ${described(values)}" },
+                .clearAndSetSemantics { contentDescription = "${totalsSpoken(stats)}. ${percent(overall)} overall: ${described(values)}" },
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 HitCircle(size = 76.dp, value = overall, grow = grow, ringWidth = 5.dp, approach = true) {
@@ -121,6 +172,7 @@ fun HitCircleListening(stats: UserStatsDto, range: StatsRange) {
                     )
                 }
             }
+            ListeningTotals(stats, range, Modifier.padding(top = 16.dp))
             for (row in 0..1) {
                 Row(Modifier.fillMaxWidth().padding(top = 16.dp)) {
                     for (col in 0..2) {
@@ -203,7 +255,7 @@ fun LaneListening(stats: UserStatsDto, range: StatsRange) {
         Column(
             Modifier
                 .padding(16.dp)
-                .clearAndSetSemantics { contentDescription = "Potential $pttText: ${described(values)}" },
+                .clearAndSetSemantics { contentDescription = "${totalsSpoken(stats)}. Potential $pttText: ${described(values)}" },
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.size(80.dp)) {
@@ -220,6 +272,7 @@ fun LaneListening(stats: UserStatsDto, range: StatsRange) {
                     )
                 }
             }
+            ListeningTotals(stats, range, Modifier.padding(top = 12.dp))
             Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Axes.forEachIndexed { i, axis ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -300,7 +353,7 @@ fun RingListening(stats: UserStatsDto, range: StatsRange) {
         Column(
             Modifier
                 .padding(16.dp)
-                .clearAndSetSemantics { contentDescription = "Listening rating $rating, ${tier.name}: ${described(values)}" },
+                .clearAndSetSemantics { contentDescription = "${totalsSpoken(stats)}. Listening rating $rating, ${tier.name}: ${described(values)}" },
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -340,6 +393,7 @@ fun RingListening(stats: UserStatsDto, range: StatsRange) {
                     Text("${next.name} at ${next.from}", style = MaterialTheme.typography.labelMedium, color = scheme.onSurfaceVariant)
                 }
             }
+            ListeningTotals(stats, range, Modifier.padding(top = 12.dp))
             Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Axes.forEachIndexed { i, axis ->
                     Row(verticalAlignment = Alignment.CenterVertically) {

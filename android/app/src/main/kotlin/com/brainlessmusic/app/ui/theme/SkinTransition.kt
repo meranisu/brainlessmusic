@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -152,21 +153,7 @@ private fun LaneIntro(p: Float) {
     Canvas(Modifier.fillMaxSize()) {
         val w = size.width
         val h = size.height
-        val slant = 40.dp.toPx()
-        val travel = w / 2 + slant
-        val leftX = -travel * (1f - eased)
-        val rightX = travel * (1f - eased)
-        val left = Path().apply {
-            moveTo(leftX, 0f); lineTo(leftX + w / 2 + slant, 0f); lineTo(leftX + w / 2 - slant, h); lineTo(leftX, h); close()
-        }
-        val right = Path().apply {
-            moveTo(rightX + w / 2 + slant, 0f); lineTo(rightX + w, 0f); lineTo(rightX + w, h); lineTo(rightX + w / 2 - slant, h); close()
-        }
-        drawPath(left, scheme.surfaceContainerHigh)
-        drawPath(right, scheme.surfaceContainerHighest)
-        // The seam: the accent edge on each panel, meeting in the middle.
-        drawLine(scheme.primary, Offset(leftX + w / 2 + slant, 0f), Offset(leftX + w / 2 - slant, h), 3.dp.toPx())
-        drawLine(scheme.primary, Offset(rightX + w / 2 + slant, 0f), Offset(rightX + w / 2 - slant, h), 3.dp.toPx())
+        drawShutter(eased, scheme.surfaceContainerHigh, scheme.surfaceContainerHighest, scheme.primary)
         // The lock: a diamond on the seam once it closes.
         val d = 70.dp.toPx() * span(p, 0.18f, 0.3f)
         if (d > 0f && shut > 0.98f) {
@@ -185,6 +172,34 @@ private fun LaneIntro(p: Float) {
         color = scheme.onBackground,
         modifier = Modifier.graphicsLayer { alpha = if (shut > 0.98f) span(p, 0.25f, 0.35f) else 0f },
     )
+}
+
+/**
+ * Arcaea's shutter: two slanted panels meeting in the middle, [closed] 0 (off screen) to 1 (shut). Shared with the
+ * Lane welcome, which opens the app from behind it.
+ */
+internal fun DrawScope.drawShutter(closed: Float, left: Color, right: Color, edge: Color) {
+    val w = size.width
+    val h = size.height
+    val slant = 40.dp.toPx()
+    val travel = w / 2 + slant
+    val leftX = -travel * (1f - closed)
+    val rightX = travel * (1f - closed)
+    drawPath(
+        Path().apply {
+            moveTo(leftX, 0f); lineTo(leftX + w / 2 + slant, 0f); lineTo(leftX + w / 2 - slant, h); lineTo(leftX, h); close()
+        },
+        left,
+    )
+    drawPath(
+        Path().apply {
+            moveTo(rightX + w / 2 + slant, 0f); lineTo(rightX + w, 0f); lineTo(rightX + w, h); lineTo(rightX + w / 2 - slant, h); close()
+        },
+        right,
+    )
+    // The seam: the accent edge on each panel, meeting in the middle.
+    drawLine(edge, Offset(leftX + w / 2 + slant, 0f), Offset(leftX + w / 2 - slant, h), 3.dp.toPx())
+    drawLine(edge, Offset(rightX + w / 2 + slant, 0f), Offset(rightX + w / 2 - slant, h), 3.dp.toPx())
 }
 
 @Composable

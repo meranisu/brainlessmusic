@@ -103,9 +103,6 @@ fun YouScreen(
     navController: NavHostController,
     onOpenArtist: (Int) -> Unit,
     onOpenAlbum: (Int) -> Unit,
-    onOpenLiked: () -> Unit,
-    onOpenLessOften: () -> Unit,
-    onOpenPlaylists: () -> Unit,
     viewModel: YouViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -129,7 +126,15 @@ fun YouScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) })
+            TopAppBar(
+                title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                // Guests have it as a button on their Home; with nothing playing, the player (its other door) can't open (A136).
+                actions = {
+                    if (!viewModel.isGuest) {
+                        IconButton(onClick = together) { Icon(AppIcons.groups, contentDescription = "Listen together") }
+                    }
+                },
+            )
         },
         bottomBar = { AppBottomBar(navController) },
     ) { padding ->
@@ -156,20 +161,22 @@ fun YouScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = 16.dp),
                     ) {
-                        // Who you are, the two ways to start, your library, then what you've played (owner's order,
-                        // 2026-10-11; Shuffle and Listen together moved here from the top bar the same day).
-                        item { Box(ofRange) { PlayerCard(username, stats, range) } }
-                        item { StartRow(onShuffle = shuffle, onTogether = together) }
-                        item { LibraryTiles(stats.counts, onOpenLiked, onOpenPlaylists, onOpenLessOften) }
+                        // The range first, then the skin's reading of it, which holds the range's hours, plays and songs
+                        // (owner, 2026-10-12). Shuffle is in the Library, Listen together in the top bar and the player,
+                        // liked songs and playlists in the Library's Playlists tab, Hear less in Settings (A134-A137).
                         item { RangePicker(range, viewModel::setRange) }
                         // The game skins read the range in their game's manner: Gear as SOUND VOLTEX's EFFECT RADAR,
                         // Hit circle as numbered hit circles, Lane as Arcaea's potential, Ring as maimai's rating plate.
-                        when (skin) {
-                            Skin.GEAR -> item { Box(ofRange) { ListeningRadar(stats, range) } }
-                            Skin.HIT_CIRCLE -> item { Box(ofRange) { HitCircleListening(stats, range) } }
-                            Skin.LANE -> item { Box(ofRange) { LaneListening(stats, range) } }
-                            Skin.RING -> item { Box(ofRange) { RingListening(stats, range) } }
-                            Skin.STANDARD -> Unit
+                        item {
+                            Box(ofRange) {
+                                when (skin) {
+                                    Skin.GEAR -> ListeningRadar(stats, range)
+                                    Skin.HIT_CIRCLE -> HitCircleListening(stats, range)
+                                    Skin.LANE -> LaneListening(stats, range)
+                                    Skin.RING -> RingListening(stats, range)
+                                    Skin.STANDARD -> StandardListening(stats, range)
+                                }
+                            }
                         }
 
                         if (recent.isNotEmpty()) {
@@ -448,61 +455,9 @@ internal fun greeting(hour: Int, name: String?): String {
     return if (name.isNullOrBlank()) part else "$part, $name"
 }
 
-/**
- * The rhythm-game player card (A91): who you are on top, then the range's three numbers large in the display face, and
- * how the listening time compares with the window before.
- */
+/** A number with its label under it, as the listening cards and a guest's library card set out their figures. */
 @Composable
-private fun PlayerCard(username: String?, stats: UserStatsDto, range: StatsRange) {
-    val name = username ?: "You"
-    Surface(
-        shape = MaterialTheme.cardShape,
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-    ) {
-        // Compact (owner, 2026-10-11): a small avatar beside the name, the numbers straight under it.
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Avatar {
-                    Text(
-                        name.take(1).uppercase(),
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                }
-                Column(Modifier.padding(start = 12.dp)) {
-                    Text(name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(
-                        "Listening since ${formatMonthYear(stats.memberSince)}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            val (listenedValue, listenedLabel) = listenedHeadline(stats.totals.msListened)
-            Row(Modifier.fillMaxWidth().padding(top = 12.dp).height(IntrinsicSize.Min)) {
-                BigStat(listenedValue, listenedLabel, Modifier.weight(1f))
-                VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.fillMaxHeight())
-                BigStat(stats.totals.plays.toString(), if (stats.totals.plays == 1) "play" else "plays", Modifier.weight(1f))
-                VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.fillMaxHeight())
-                BigStat(stats.totals.tracks.toString(), if (stats.totals.tracks == 1) "song" else "songs", Modifier.weight(1f))
-            }
-            listenedDelta(stats, range)?.let {
-                Text(
-                    it,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun BigStat(value: String, label: String, modifier: Modifier) {
+internal fun BigStat(value: String, label: String, modifier: Modifier) {
     Column(modifier.padding(horizontal = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(
@@ -787,40 +742,3 @@ private fun RankedRow(
     )
 }
 
-/** Liked, Playlists and Hear less as three tiles: icon and count, then the name (A96). */
-@Composable
-private fun LibraryTiles(counts: ProfileCountsDto, onOpenLiked: () -> Unit, onOpenPlaylists: () -> Unit, onOpenLessOften: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).height(IntrinsicSize.Min),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        LibraryTile(AppIcons.favorite, counts.liked, "Liked", "Liked songs", onOpenLiked, Modifier.weight(1f))
-        LibraryTile(AppIcons.queue, counts.playlists, "Playlists", "Playlists", onOpenPlaylists, Modifier.weight(1f))
-        LibraryTile(AppIcons.lessOften, counts.lessOften, "Hear less", "Songs you hear less", onOpenLessOften, Modifier.weight(1f))
-    }
-}
-
-@Composable
-private fun LibraryTile(icon: ImageVector, count: Int, label: String, spoken: String, onClick: () -> Unit, modifier: Modifier) {
-    Surface(
-        onClick = onClick,
-        shape = tileShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        modifier = modifier.fillMaxHeight(),
-    ) {
-        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp).clearAndSetSemantics { contentDescription = "$spoken, $count" }) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                Text(count.toString(), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 8.dp))
-            }
-            Text(
-                label,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-}

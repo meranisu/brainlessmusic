@@ -61,6 +61,24 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A137 — Playlists takes Genres' place in the Library *(was Q137)*
+**Answered:** 2026-10-12, picked option A. Library tabs: Songs, Albums, Artists, Playlists. Genres, a placeholder,
+comes back when the server reads genre tags.
+
+### A136 — Listen together gets an icon in Home's top bar *(was Q136)*
+**Answered:** 2026-10-12, picked option A. With Shuffle and Listen together off Home, the player only opens while a
+song is loaded, so a small Listen together icon sits in Home's top bar; it is also still in the player.
+
+### A135 — Standard's Home opens with a plain stats card *(was Q135)*
+**Answered:** 2026-10-12, picked option A. Standard has no radar, so where the game skins put theirs it shows hours,
+plays and songs with the change against the last period. The game skins carry those three numbers in their own cards.
+
+### A134 — Liked and playlists go to a Library tab, Hear less to Settings *(was Q134)*
+**Answered:** 2026-10-12, picked option A. The Library gets a Playlists tab, Liked songs pinned first as a playlist
+that can't be deleted, then the user's playlists. Hear less moves to Settings → Playback. Home loses the three
+tiles, the Shuffle and Listen together buttons, and the player card; the range picker and the skin's listening card
+lead it (owner, 2026-10-12).
+
 ### A133 — smol's library is checked through a guest login *(was Q133)*
 **Answered:** 2026-10-12, in chat: "use guest login". Also confirmed: the -18 LUFS target and levelling on by default
 stay. Done the same day with an owner-given guest code (guest "loudness check" now exists on smol): 30 random tracks

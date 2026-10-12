@@ -19,7 +19,6 @@ import com.brainlessmusic.app.ui.library.LibraryScreen
 import com.brainlessmusic.app.ui.login.LoginScreen
 import com.brainlessmusic.app.ui.playback.NowPlayingScreen
 import com.brainlessmusic.app.ui.profile.PlaylistDetailScreen
-import com.brainlessmusic.app.ui.profile.PlaylistsScreen
 import com.brainlessmusic.app.ui.profile.SongListKind
 import com.brainlessmusic.app.ui.profile.SongListScreen
 import com.brainlessmusic.app.ui.profile.YouScreen
@@ -144,9 +143,6 @@ fun BrainlessNavGraph(
                 navController = navController,
                 onOpenArtist = { id -> navController.navigate(Routes.artistDetail(id)) },
                 onOpenAlbum = { navController.navigate(Routes.albumDetail(it)) },
-                onOpenLiked = { navController.navigate(Routes.songList(SongListKind.LIKED.route)) { launchSingleTop = true } },
-                onOpenLessOften = { navController.navigate(Routes.songList(SongListKind.LESS_OFTEN.route)) { launchSingleTop = true } },
-                onOpenPlaylists = { navController.navigate(Routes.PLAYLISTS) { launchSingleTop = true } },
             )
         }
         composable(
@@ -154,13 +150,6 @@ fun BrainlessNavGraph(
             arguments = listOf(navArgument(Routes.ARG_SONG_LIST) { type = NavType.StringType }),
         ) { entry ->
             SongListScreen(onBack = { navController.popFrom(entry) }, onOpenNowPlaying = { navController.openNowPlaying() })
-        }
-        composable(Routes.PLAYLISTS) { entry ->
-            PlaylistsScreen(
-                onBack = { navController.popFrom(entry) },
-                onOpenPlaylist = { id -> navController.navigate(Routes.playlistDetail(id)) { launchSingleTop = true } },
-                onOpenNowPlaying = { navController.openNowPlaying() },
-            )
         }
         composable(
             Routes.PLAYLIST_DETAIL,
@@ -189,6 +178,7 @@ fun BrainlessNavGraph(
                 page = page,
                 onBack = { navController.popFrom(entry) },
                 onOpenNowPlaying = { navController.openNowPlaying() },
+                onOpenLessOften = { navController.navigate(Routes.songList(SongListKind.LESS_OFTEN.route)) { launchSingleTop = true } },
                 // The pages sit on the Home anchor too, so popping that clears every tab.
                 onLoggedOut = {
                     navController.navigate(Routes.LOGIN) {

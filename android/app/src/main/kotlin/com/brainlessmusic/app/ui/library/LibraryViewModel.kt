@@ -40,7 +40,8 @@ enum class LibraryTab(val label: String, val letterScope: String?) {
     SONGS("Songs", "tracks"),
     ALBUMS("Albums", "albums"),
     ARTISTS("Artists", "artists"),
-    GENRES("Genres", null),
+    // Genres was here as a placeholder until the server reads genre tags (A137).
+    PLAYLISTS("Playlists", null),
 }
 
 // Well under the server's hard cap of 200 rows per request (backend/src/utils/pagination.ts).

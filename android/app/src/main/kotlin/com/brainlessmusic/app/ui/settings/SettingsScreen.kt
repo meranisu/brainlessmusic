@@ -31,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -231,6 +232,7 @@ fun SettingsPageScreen(
     page: SettingsPage,
     onBack: () -> Unit,
     onOpenNowPlaying: () -> Unit,
+    onOpenLessOften: () -> Unit,
     onLoggedOut: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -470,11 +472,18 @@ fun SettingsPageScreen(
                                     null -> "Swipe a song right in the queue to hear it less. This puts them all back to normal."
                                 },
                             ) {
-                                OutlinedButton(
-                                    onClick = viewModel::resetLessOften,
-                                    enabled = lessOftenReset != true,
-                                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                                ) { Text("Reset") }
+                                // The list lives here since Home dropped its tile (A134).
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    FilledTonalButton(
+                                        onClick = onOpenLessOften,
+                                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                                    ) { Text("See songs") }
+                                    OutlinedButton(
+                                        onClick = viewModel::resetLessOften,
+                                        enabled = lessOftenReset != true,
+                                        modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                                    ) { Text("Reset") }
+                                }
                             }
                         }
                     }

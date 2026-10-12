@@ -20,6 +20,33 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
   now" showed a live song mid-run, no horizontal overflow, no console errors. Not clicked: Previous / Next, since the
   dev library has 19 songs (fewer than a page).
 
+## 2026-10-12: Home leads with your listening; Playlists move to the Library (Android)
+
+- Owner's rework (A134-A137). Home is now the range picker, then the skin's listening card, then Recently played and
+  the top lists. The player card, the Shuffle library and Listen together buttons, and the Liked / Playlists / Hear
+  less tiles are gone.
+- Hours, plays and songs, with the change against the window before, now sit inside each skin's listening card
+  (`ListeningTotals`): Gear's radar, Hit circle's circles, Lane's potential, Ring's rating plate. Standard, which has
+  no game reading, gets a plain card with just those (`StandardListening`). Screen readers hear the totals first.
+- Listen together is an icon in Home's top bar for signed-in users, since the player only opens while a song is
+  loaded. A guest's Home is unchanged.
+- The Library's Genres placeholder tab is replaced by Playlists: Liked songs first, a New playlist row, then your
+  playlists. Guests get a line saying they can't keep either. The separate Playlists page and its route are gone.
+- Settings → Playback → Songs you hear less gains a "See songs" button beside Reset.
+
+## 2026-10-12: The sign-in welcome plays in each skin's game (Android)
+
+- Owner asked for the app's opening welcome to follow the skin. `ArcadeWelcome` now plays one per skin, each after
+  its game's own greeting. Standard keeps the card reader. Hit circle follows osu!lazer's "Welcome" intro: the word
+  unfolds from a thin line in a disc ringed by visualiser bars, then the disc beats twice and the name shows. In Lane
+  the app opens from behind Arcaea's shutter: a diamond lock, a slanted plate where "SYNCHRONIZING" turns to
+  "WELCOME BACK" over the name, then the shutter parts. Gear runs SOUND VOLTEX's entry: the lasers, an ENTRY stamp
+  with a jolt, the appeal card sliding in, and the critical line with GAME START. In Ring, maimai's round screen pops
+  open, the slide star runs the ring, "Welcome!" bounces in, and the name plate drops in. Still about 2.1 s, a tap
+  skips it, and nothing plays with animations off.
+- The shutter drawing moved to `drawShutter()` in `SkinTransition.kt`, so the skin-change intro and the welcome share it.
+- Compiled (`compileDebugKotlin`); not run on a phone, as no device was connected.
+
 ## 2026-10-12: Volume levelling (backend, web, Android)
 
 - Owner noticed the volume jumping between songs. The server now measures every track's loudness with ffmpeg's

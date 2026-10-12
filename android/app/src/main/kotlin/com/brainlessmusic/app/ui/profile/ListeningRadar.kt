@@ -122,6 +122,7 @@ fun ListeningRadar(stats: UserStatsDto, range: StatsRange, modifier: Modifier = 
                 style = MaterialTheme.typography.bodySmall,
                 color = scheme.onSurfaceVariant,
             )
+            ListeningTotals(stats, range, Modifier.padding(top = 12.dp))
             Canvas(
                 Modifier
                     .fillMaxWidth()

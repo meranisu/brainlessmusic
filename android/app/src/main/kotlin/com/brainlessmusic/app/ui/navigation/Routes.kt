@@ -18,7 +18,6 @@ object Routes {
 
     const val NOW_PLAYING = "now_playing"
     const val SETTINGS_PAGE = "settings/{page}"
-    const val PLAYLISTS = "playlists"
     const val PLAYLIST_DETAIL = "playlist/{playlistId}"
     const val SONG_LIST = "you/{list}"
     const val TOGETHER = "together"

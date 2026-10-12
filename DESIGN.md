@@ -149,10 +149,18 @@ never its artwork, and stay flat: rings and borders, no glow.
   six readings' overall on maimai's 0 to 16,750 scale in five digit boxes, the plate in its tier's colour (rainbow as
   flat bands).
 
+Home (owner, 2026-10-12; A134-A137) opens with the range picker, then the skin's listening card, which carries the
+range's hours, plays and songs and the change against the window before (`ListeningTotals`); Standard's card has only
+those (`StandardListening`). Then Recently played and the top lists. Listen together is an icon in its top bar; liked
+songs and playlists are the Library's Playlists tab; Hear less is in Settings → Playback.
+
 Changing skin plays a short intro over the app (`SkinTransition`): Standard fades its name, Hit circle lands an
 approach ring and bursts, Lane closes and opens Arcaea's shutter, Gear runs the lane in and slams the critical line
 across with a jolt, Ring lights its eight buttons clockwise as the slide star runs the ring. About 1.4 s; a tap skips it; off with animations off.
 
-Signing in plays an arcade card-in (`ArcadeWelcome`): after a sign-in, or when the app opens on a saved session, a player
-card drops into a reader, the reader's light sweeps it ("CARD READ", "PLAYER READY", "SYNCHRONIZING" or "ENTRY" by skin), then
-"Welcome back" and the name. Skin type, shapes and colours; the card carries the skin's mark. About 2 s; a tap skips it.
+Signing in plays a welcome (`ArcadeWelcome`) after a sign-in, or when the app opens on a saved session, in the skin's
+game's manner. Standard drops a player card into a reader, the reader's light sweeps it ("CARD READ"), then "Welcome back"
+and the name. Hit circle follows osu!lazer's "Welcome" intro: the word unfolds in a disc ringed by visualiser bars, the disc
+beats twice and the name shows. Lane opens the app from behind Arcaea's shutter, with a lock diamond and a slanted name plate.
+Gear runs SOUND VOLTEX's entry: the lasers, ENTRY, the appeal card, then the critical line and GAME START. Ring pops maimai's
+round screen open, "Welcome!" bounces in, and the name plate drops in. About 2 s; a tap skips it.
