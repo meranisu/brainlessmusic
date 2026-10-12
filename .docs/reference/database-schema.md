@@ -52,6 +52,10 @@ erDiagram
         INTEGER artist_id FK
         INTEGER year
         TEXT created_at
+        TEXT artwork_id
+        TEXT folder
+        INTEGER artist_from_tracks
+        INTEGER merged_into_id FK
     }
     tracks {
         INTEGER id PK
@@ -142,23 +146,29 @@ have no other way to be reclaimed. It runs only when `POST /auth/guest` hits
 
 **FKs:** none (root entity).
 **Indexes:** unique index on `name` (auto).
-**Referenced by:** `albums.artist_id`, `tracks.artist_id`.
+**Referenced by:** `albums.artist_id` (the album artist since `0030`), `tracks.artist_id` (the track artist).
 **Row count (2026-09-03):** 4 — checked for case-variant duplicates (e.g. "Sting" vs "STING"), none currently exist.
 
 ### `albums`
 
+Rebuilt by `0030` (v0.4 metadata model): same ids, new key. See [features/metadata-model/planning.md](../features/metadata-model/planning.md).
+
 | Column | Type | Null? | Default | Notes |
 |---|---|---|---|---|
-| `id` | INTEGER | — | — | **PK**, autoincrement |
-| `title` | TEXT | NOT NULL | — | part of composite unique constraint below |
-| `artist_id` | INTEGER | nullable | — | **FK → `artists.id`**, `ON DELETE NO ACTION` |
+| `id` | INTEGER | — | — | **PK**, autoincrement. Kept across the `0030` rebuild |
+| `title` | TEXT | NOT NULL | — | |
+| `artist_id` | INTEGER | nullable | — | **FK → `artists.id`**. **The album artist since `0030`** (the track artist before): the albumartist tag, Various Artists for a compilation, or worked out from the tracks when `artist_from_tracks = 1` |
 | `year` | INTEGER | nullable | — | |
 | `created_at` | TEXT | NOT NULL | `datetime('now')` | |
-| `artwork_id` | TEXT | nullable | — | filename of the cached cover: `<sha256>.<jpg\|png\|webp\|gif>` under `ARTWORK_PATH`. First cover found among the album's tracks wins; never overwritten once set, so a re-scan can't make it flip |
+| `artwork_id` | TEXT | nullable | — | filename of the cached cover: `<sha256>.<jpg\|png\|webp\|gif>` under `ARTWORK_PATH`. First cover found among the album's tracks wins; never overwritten once set. An album merged into another passes it on if the other has none (`settleAlbums`) |
+| `folder` | TEXT | nullable | — | Added `0030`. The tracks' folder, or its parent for a disc folder (`CD1`, `Disc 2`; `albumFolder()` in `db/library.ts`). **NULL on rows from before `0030`**: the first scan after it adopts such a row for one of its own tracks, or empties it |
+| `artist_from_tracks` | INTEGER | NOT NULL | `0` | Added `0030`, boolean-as-int. 1 = no file named an album artist; `settleAlbums()` sets `artist_id` to the artist on more than half the tracks, else Various Artists (A148) |
+| `merged_into_id` | INTEGER | nullable | — | Added `0030`. **FK → `albums.id`**. Set when a scan emptied this album: the album most of its tracks moved to, one hop (chains are collapsed). `GET /albums/:id` and `/albums/:id/cover` follow it (`resolveAlbumId()`). Cleared if the album gets tracks again |
 
-**FKs:** `artist_id → artists.id` (`NO ACTION` / `NO ACTION`).
-**Indexes:** `idx_albums_artist_id` on `artist_id`; unique composite index on `(title, artist_id)` (auto, from the `UNIQUE(title, artist_id)` constraint) — same title under different artists (or `NULL` artist) is allowed, exact duplicate not.
-**Referenced by:** `tracks.album_id`.
+**FKs:** `artist_id → artists.id`, `merged_into_id → albums.id` (`NO ACTION` / `NO ACTION`).
+**Indexes:** `idx_albums_artist_id`; unique partial `idx_albums_key` on `(title, folder, artist_id) WHERE folder IS NOT NULL AND artist_from_tracks = 0`; unique partial `idx_albums_key_from_tracks` on `(title, folder) WHERE folder IS NOT NULL AND artist_from_tracks = 1`. The old `UNIQUE(title, artist_id)` from `0002` is gone; rows from before `0030` (folder NULL) have no uniqueness rule, and nothing creates new ones.
+**Referenced by:** `tracks.album_id`, `albums.merged_into_id`.
+**Emptied rows stay.** Nothing deletes an album; lists and counts skip albums without a playable track, so a redirect row is invisible except through its id.
 
 ### `tracks`
 
@@ -514,11 +524,13 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | `0029_account_invites.sql` | `account_invites` + `idx_account_invites_guest`; unique `idx_users_username_nocase` — invite links and case-insensitive names (A107-A112) |
 | `0021_add_play_history_ms_final.sql` | `play_history.ms_final`: marks plays whose `ms_played` is the real total (A62) |
 | `0020_add_user_theme.sql` | `users.theme` — the web theme follows the profile (A55) |
+| `0030_album_artist_and_folder.sql` | Rebuilds `albums` with ids kept: `folder`, `artist_from_tracks`, `merged_into_id`; `UNIQUE(title, artist_id)` replaced by `idx_albums_key` and `idx_albums_key_from_tracks`; `albums_fts` triggers recreated (v0.4, A148) |
 
 ## Change log
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-10-12 | Migration `0030_album_artist_and_folder.sql` — `albums` section rewritten (album artist meaning, `folder`, `artist_from_tracks`, `merged_into_id`, new unique indexes), `artists` referenced-by note, migration row. From the migration SQL, a dry run on a copy of the dev database (ids, FTS and `foreign_key_check` all clean) and the test run | v0.4: albums grouped by track artist split compilations and "feat." albums; smol had 14,123 albums for 32,409 tracks |
 | 2026-10-12 | Migration `0029_account_invites.sql` — `account_invites` table section, `users.username` now case-insensitive, Discrepancy 3 note, migration row. From the migration SQL and the test run | Friends kept asking to sign up; invites let them pick their own name and password (A107-A112) |
 | 2026-10-12 | Migration `0028_add_track_loudness.sql` — `tracks.loudness_lufs`, `loudness_peak`; column rows, ER diagram and migration row. From the migration SQL and the test run | Volume levelling: the owner heard songs at uneven loudness |
 | 2026-10-11 | Migration `0027_add_play_history_skipped.sql` — `play_history.skipped`; column row, ER diagram and migration row. From the migration SQL and the test run | A113: an account that skips a lot showed 0 plays and 0 minutes after 30 minutes of listening |

@@ -1,10 +1,12 @@
 import { readdir, stat } from 'node:fs/promises';
 import { extname, join, sep } from 'node:path';
 import {
+  albumIdsByTrack,
   clearTracksMissing,
   findTrackByPath,
   listTrackPaths,
   markTracksMissing,
+  settleAlbums,
   upsertTrack,
 } from '../db/library.js';
 import { persistArtwork } from './artworkIngest.js';
@@ -100,6 +102,7 @@ export async function scanLibrary(
   const start = Date.now();
 
   const { files, unreadableDirs } = await findAudioFiles(libraryRoot);
+  const albumsBefore = albumIdsByTrack(rootId);
 
   let filesAdded = 0;
   let filesUpdated = 0;
@@ -122,6 +125,11 @@ export async function scanLibrary(
       }
       onProgress?.(++processed, files.length);
     });
+  }
+
+  const settled = settleAlbums(albumsBefore);
+  if (settled.artistsSet > 0 || settled.merged > 0) {
+    console.log(`Albums settled: ${settled.artistsSet} artist(s) worked out from tracks, ${settled.merged} merged`);
   }
 
   return {

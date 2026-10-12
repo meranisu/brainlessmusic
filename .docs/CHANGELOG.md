@@ -4,6 +4,34 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Albums grouped by album artist, compilations, redirects for old album ids (v0.4 box 25, A148, A149)
+
+- Albums were keyed by (title, track artist), so a compilation or an album with "feat." tracks split into one album
+  per artist: smol had 14,123 albums for 32,409 tracks. Now an album is keyed by title, album artist and album folder
+  ([features/metadata-model/planning.md](features/metadata-model/planning.md), rules 1-3, 1b, 7).
+- Album artist: the albumartist tag; Various Artists when the compilation flag is set; with no tag, the artist on more
+  than half the album's tracks, else Various Artists (A148), worked out after each scan by `settleAlbums`.
+- Album folder: the file's folder, or the one above for a disc folder (`CD1`, `Disc 2`), so two unrelated
+  "Original Soundtrack" albums under Various Artists stay apart and a two-disc album stays one.
+- Migration `0030` rebuilds `albums` (the old `UNIQUE(title, artist_id)` can't be dropped in place) with every id kept,
+  adding `folder`, `artist_from_tracks` and `merged_into_id`, and recreates the `albums_fts` triggers. Dry-run on a copy
+  of the dev database: same rows, `foreign_key_check` empty, search and the tracks_fts album name still update.
+- Old album ids keep working: the first scan adopts a pre-0030 row for one of its own tracks where it can, and an album
+  a scan empties records where its tracks went. `GET /albums/:id` and `/albums/:id/cover` follow that and add
+  `mergedFrom`, so old links and Android download groups (`album:<id>`) land on the merged album.
+- Album detail tracks now carry `artistId` and `artistName` (a compilation's tracks differ from the album's artist).
+  Artist detail adds `appearsOn` (A149). Artist lists include album-only artists such as Various Artists, and
+  `albumCount` counts only albums with a playable track, so emptied rows don't inflate it.
+- Admin-edited tracks (`tags_edited_at`) stay where the admin put them; an edited album goes by the edited track artist.
+- Nothing keyed by track moves: favorites, playlists, history, less-often and Android downloaded songs are untouched.
+- Verified: `npm test` 536 pass, 8 new in `services/albumGrouping.test.ts` (disc folders, compilation, albumartist
+  grouping, A148 majority and Various Artists, same title in two folders vs. CD1/CD2, a second scan changes nothing,
+  a pre-0030 library: three fragments become one album on an adopted old id, every old id resolves to it, favorites
+  and playlist order untouched, the guest is under "Appears on" with no album of their own; an edited track stays).
+  `tsc --noEmit` clean. Not tested over HTTP: the `mergedFrom` answer of `GET /albums/:id` (`resolveAlbumId` is).
+  Old clients: Android parses with Gson, which ignores the new fields. Not deployed; smol's first scan after deploy
+  regroups the library (plan, Phase 4).
+
 ## 2026-10-12: Account invites, and turning a guest into an account (A107-A112)
 
 - Friends kept asking to sign up, and open registration stays off (A76). Now the admin makes a one-use invite link on

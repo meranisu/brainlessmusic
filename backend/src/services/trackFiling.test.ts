@@ -10,6 +10,8 @@ function tags(overrides: Partial<TrackTags> = {}): TrackTags {
   return {
     title: 'A Song',
     artistName: 'An Artist',
+    albumArtistName: null,
+    compilation: false,
     albumTitle: 'An Album',
     albumYear: null,
     trackNumber: null,

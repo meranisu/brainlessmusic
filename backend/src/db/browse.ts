@@ -10,7 +10,10 @@ export interface ArtistSummary {
 }
 
 export interface ArtistDetail extends ArtistSummary {
+  /** Albums they are the album artist of. */
   albums: AlbumSummary[];
+  /** Other artists' albums with a track of theirs on it (A149). */
+  appearsOn: AlbumSummary[];
 }
 
 export interface AlbumSummary {
@@ -25,6 +28,9 @@ export interface AlbumSummary {
 export interface AlbumTrack {
   id: number;
   title: string;
+  /** The track's own artist, which on a compilation differs from the album's. */
+  artistId: number | null;
+  artistName: string | null;
   trackNumber: number | null;
   duration: number | null;
   gainDb: number | null;
@@ -33,6 +39,8 @@ export interface AlbumTrack {
 
 export interface AlbumDetail {
   id: number;
+  /** Set when the album asked for was emptied by a rescan: its id, answered with the album its tracks moved to. */
+  mergedFrom?: number;
   title: string;
   artistId: number | null;
   artistName: string | null;
@@ -94,16 +102,26 @@ export interface SearchResults {
   tracks: TrackSummary[];
 }
 
+/** Albums count only with a playable track: since 0030, albums a scan emptied stay behind as redirects. */
 const ARTIST_SUMMARY_SELECT = `
   SELECT
     a.id as id,
     a.name as name,
-    COUNT(DISTINCT t.id) as trackCount,
-    COUNT(DISTINCT al.id) as albumCount
+    (SELECT COUNT(*) FROM tracks t WHERE t.artist_id = a.id AND t.missing_since IS NULL) as trackCount,
+    (SELECT COUNT(*) FROM albums al WHERE al.artist_id = a.id
+       AND EXISTS (SELECT 1 FROM tracks t WHERE t.album_id = al.id AND t.missing_since IS NULL)) as albumCount
   FROM artists a
-  LEFT JOIN tracks t ON t.artist_id = a.id AND t.missing_since IS NULL
-  LEFT JOIN albums al ON al.artist_id = a.id
 `;
+
+/**
+ * An artist is listed with a playable track of their own, or as the album artist of a playable album: Various
+ * Artists and labels have no tracks of their own (0030).
+ */
+const ARTIST_HAS_MUSIC = `(
+  EXISTS (SELECT 1 FROM tracks t WHERE t.artist_id = a.id AND t.missing_since IS NULL)
+  OR EXISTS (SELECT 1 FROM albums al JOIN tracks t ON t.album_id = al.id
+             WHERE al.artist_id = a.id AND t.missing_since IS NULL)
+)`;
 
 const ALBUM_SUMMARY_SELECT = `
   SELECT
@@ -232,10 +250,7 @@ const HAS_PLAYABLE_TRACKS = 'HAVING COUNT(DISTINCT t.id) > 0';
 export function countArtists(): number {
   return (
     db
-      .prepare(
-        `SELECT COUNT(*) as count FROM artists a
-         WHERE EXISTS (SELECT 1 FROM tracks t WHERE t.artist_id = a.id AND t.missing_since IS NULL)`,
-      )
+      .prepare(`SELECT COUNT(*) as count FROM artists a WHERE ${ARTIST_HAS_MUSIC}`)
       .get() as { count: number }
   ).count;
 }
@@ -243,7 +258,7 @@ export function countArtists(): number {
 export function listArtists(limit: number, offset: number): ArtistSummary[] {
   return db
     .prepare(
-      `${ARTIST_SUMMARY_SELECT} GROUP BY a.id ${HAS_PLAYABLE_TRACKS}
+      `${ARTIST_SUMMARY_SELECT} WHERE ${ARTIST_HAS_MUSIC}
        ORDER BY a.name COLLATE NOCASE LIMIT ? OFFSET ?`,
     )
     .all(limit, offset) as ArtistSummary[];
@@ -251,7 +266,7 @@ export function listArtists(limit: number, offset: number): ArtistSummary[] {
 
 export function getArtistDetail(id: number): ArtistDetail | undefined {
   const artist = db
-    .prepare(`${ARTIST_SUMMARY_SELECT} WHERE a.id = ? GROUP BY a.id`)
+    .prepare(`${ARTIST_SUMMARY_SELECT} WHERE a.id = ?`)
     .get(id) as ArtistSummary | undefined;
   if (!artist) return undefined;
 
@@ -262,7 +277,18 @@ export function getArtistDetail(id: number): ArtistDetail | undefined {
     )
     .all(id) as AlbumSummary[];
 
-  return { ...artist, albums };
+  const appearsOn = db
+    .prepare(
+      `${ALBUM_SUMMARY_SELECT}
+       WHERE al.artist_id IS NOT ? AND EXISTS (
+         SELECT 1 FROM tracks own WHERE own.album_id = al.id AND own.artist_id = ? AND own.missing_since IS NULL
+       )
+       GROUP BY al.id ${HAS_PLAYABLE_TRACKS}
+       ORDER BY al.title COLLATE NOCASE`,
+    )
+    .all(id, id) as AlbumSummary[];
+
+  return { ...artist, albums, appearsOn };
 }
 
 export function countAlbums(): number {
@@ -285,6 +311,21 @@ export function listAlbums(limit: number, offset: number): AlbumSummary[] {
     .all(limit, offset) as AlbumSummary[];
 }
 
+/** Hops followed at most; `settleAlbums` collapses chains to one, so more means a cycle. */
+const MAX_REDIRECT_HOPS = 20;
+
+/** Where an album id leads: itself, or the album a rescan moved its tracks to (rule 7, 0030). */
+export function resolveAlbumId(id: number): number {
+  const next = db.prepare('SELECT merged_into_id as mergedInto FROM albums WHERE id = ?');
+  let current = id;
+  for (let hop = 0; hop < MAX_REDIRECT_HOPS; hop++) {
+    const row = next.get(current) as { mergedInto: number | null } | undefined;
+    if (!row || row.mergedInto === null) return current;
+    current = row.mergedInto;
+  }
+  return id;
+}
+
 /** `includeHidden` is for admins only; everyone else never sees a hidden track (A34). */
 export function getAlbumDetail(id: number, includeHidden = false): AlbumDetail | undefined {
   const album = db
@@ -304,10 +345,13 @@ export function getAlbumDetail(id: number, includeHidden = false): AlbumDetail |
 
   const tracks = db
     .prepare(
-      `SELECT id, title, track_number as trackNumber, duration, ${trackGainSql('tracks')} as gainDb, format
+      `SELECT tracks.id as id, tracks.title as title, tracks.artist_id as artistId, ar.name as artistName,
+         tracks.track_number as trackNumber, tracks.duration as duration, ${trackGainSql('tracks')} as gainDb,
+         tracks.format as format
        FROM tracks
-       WHERE album_id = ? AND missing_since IS NULL ${includeHidden ? '' : 'AND hidden = 0'}
-       ORDER BY track_number IS NULL, track_number ASC`,
+       LEFT JOIN artists ar ON ar.id = tracks.artist_id
+       WHERE tracks.album_id = ? AND tracks.missing_since IS NULL ${includeHidden ? '' : 'AND tracks.hidden = 0'}
+       ORDER BY tracks.track_number IS NULL, tracks.track_number ASC`,
     )
     .all(id) as AlbumTrack[];
 
@@ -433,8 +477,8 @@ function searchWithFts(match: string, includeHidden: boolean): SearchResults {
   const artists = db
     .prepare(
       `${ARTIST_SUMMARY_SELECT}
-       WHERE a.id IN (SELECT rowid FROM artists_fts WHERE artists_fts MATCH ?)
-       GROUP BY a.id ${HAS_PLAYABLE_TRACKS} ORDER BY a.name COLLATE NOCASE LIMIT ?`,
+       WHERE a.id IN (SELECT rowid FROM artists_fts WHERE artists_fts MATCH ?) AND ${ARTIST_HAS_MUSIC}
+       ORDER BY a.name COLLATE NOCASE LIMIT ?`,
     )
     .all(match, SEARCH_RESULT_LIMIT) as ArtistSummary[];
 
@@ -469,7 +513,7 @@ function searchWithLike(query: string, includeHidden: boolean): SearchResults {
 
   const artists = db
     .prepare(
-      `${ARTIST_SUMMARY_SELECT} WHERE a.name LIKE ? GROUP BY a.id ${HAS_PLAYABLE_TRACKS}
+      `${ARTIST_SUMMARY_SELECT} WHERE a.name LIKE ? AND ${ARTIST_HAS_MUSIC}
        ORDER BY a.name COLLATE NOCASE LIMIT ?`,
     )
     .all(pattern, SEARCH_RESULT_LIMIT) as ArtistSummary[];

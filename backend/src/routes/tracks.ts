@@ -21,6 +21,7 @@ import {
   findTrackById,
   setLastStreamError,
   setTrackFlags,
+  settleAlbums,
   updateTrackFields,
   upsertTrack,
   type TrackRow,
@@ -234,6 +235,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
         const destPath = await fileIntoLibrary(config.libraryPath, stagingPath, data.filename, tags);
 
         const track = upsertTrack({ path: destPath, fileSize: stats.size, rootId: defaultRoot.id, ...tags });
+        if (track.album_id !== null) settleAlbums(new Map(), [track.album_id]);
         await persistArtwork(track.id, track.album_id, tags.picture);
         requestLoudnessBackfill();
 

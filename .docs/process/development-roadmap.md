@@ -160,7 +160,7 @@ alone, so two discs' track 1s sit together.
 
 - [ ] **25. Album artist and compilations** (backend). Read `albumartist` and the compilation flag at scan time,
   regroup albums, migrate the existing library.
-  *Done when:* a compilation in the real library is one album under Various Artists, and nothing that pointed at its old albums is lost.
+  *Done when:* a compilation in the real library is one album under Various Artists, and nothing that pointed at its old albums is lost. — **built 2026-10-12** (migration `0030`, `settleAlbums`, redirects; 8 new tests). Open until it runs on smol.
 
 - [ ] **26. Disc numbers** (backend). Store the disc number, sort album tracks by disc then track.
   *Done when:* a two-disc album plays disc 1 straight through, then disc 2.

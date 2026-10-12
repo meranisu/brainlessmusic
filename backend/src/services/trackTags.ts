@@ -11,6 +11,10 @@ export const AUDIO_EXTENSIONS = new Set(['.flac', '.opus', '.mp3', '.m4a', '.ogg
 export interface TrackTags {
   title: string;
   artistName: string;
+  /** The albumartist tag; null when the file has none, and the album's artist is then worked out from its tracks. */
+  albumArtistName: string | null;
+  /** The compilation flag (TCMP / cpil / COMPILATION). Files the album under Various Artists. */
+  compilation: boolean;
   albumTitle: string | null;
   albumYear: number | null;
   trackNumber: number | null;
@@ -41,6 +45,8 @@ export async function extractTrackTags(
   return {
     title,
     artistName,
+    albumArtistName: common.albumartist?.trim() || null,
+    compilation: common.compilation === true,
     albumTitle,
     albumYear: common.year ?? null,
     trackNumber: common.track?.no ?? null,

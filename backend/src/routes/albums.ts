@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { findAlbumArtworkId } from '../db/artwork.js';
-import { countAlbums, getAlbumDetail, listAlbums } from '../db/browse.js';
+import { countAlbums, getAlbumDetail, listAlbums, resolveAlbumId } from '../db/browse.js';
 import { sendCover } from '../services/artwork.js';
 import { isAdminRequest } from '../utils/isAdmin.js';
 import { parsePagination } from '../utils/pagination.js';
@@ -25,12 +25,14 @@ const albumsRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(404).send({ error: 'Album not found' });
       }
 
-      const album = getAlbumDetail(id, isAdminRequest(request));
+      // An album a rescan emptied answers with the one its tracks moved to, so old links and downloads still land.
+      const target = resolveAlbumId(id);
+      const album = getAlbumDetail(target, isAdminRequest(request));
       if (!album) {
         return reply.code(404).send({ error: 'Album not found' });
       }
 
-      return reply.send(album);
+      return reply.send(target === id ? album : { ...album, mergedFrom: id });
     },
   );
 
@@ -44,7 +46,7 @@ const albumsRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(404).send({ error: 'Album not found' });
       }
 
-      return sendCover(request, reply, findAlbumArtworkId(id), request.query.size);
+      return sendCover(request, reply, findAlbumArtworkId(resolveAlbumId(id)), request.query.size);
     },
   );
 };

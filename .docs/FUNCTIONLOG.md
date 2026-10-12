@@ -4,6 +4,38 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `findOrCreateAlbum()` (changed), `albumFolder()`, `albumArtistId()` (new), `VARIOUS_ARTISTS`: `backend/src/db/library.ts`
+**Date:** 2026-10-12
+**How added:** new feature (v0.4, A148)
+**Purpose:** key albums by (title, folder, album artist); a null album artist keys the row as `artist_from_tracks`. Adopts the track's pre-0030 album row instead of inserting, when that row has no folder, the same title and no admin-edited track.
+**Side effects:** inserts or updates `albums`; may insert the Various Artists artist.
+**Before:** found or made an album by (title, track artist).
+**After:** compilations and "feat." albums are one album; a folder separates same-titled albums.
+
+**Function:** `settleAlbums()`, `albumIdsByTrack()`, `mergeInto()` (new): `backend/src/db/library.ts`
+**Date:** 2026-10-12
+**How added:** new feature (v0.4, A148, rule 7)
+**Purpose:** after a scan, upload or album edit: set the artist of untagged albums from their tracks (majority, else Various Artists), join them into a tagged twin if one exists, point every emptied album at where most of its tracks went, pass on its cover, clear redirects on albums that have tracks again, and collapse chains to one hop.
+**Side effects:** one transaction updating `albums.artist_id`, `albums.merged_into_id`, `albums.artwork_id` and possibly `tracks.album_id`.
+**Before:** nothing — new functions.
+**After:** called at the end of `scanLibrary`, after an upload in `POST /tracks/upload`, and from `updateTrackFields` when the album changes.
+
+**Function:** `upsertTrack()`, `updateTrackFields()`: `backend/src/db/library.ts`; `extractTrackTags()`: `backend/src/services/trackTags.ts`
+**Date:** 2026-10-12
+**How added:** new feature (v0.4)
+**Purpose:** tags now include `albumArtistName` and `compilation`; upsert keys the album on them and the folder, and skips creating artist/album rows for an admin-edited track.
+**Side effects:** as `findOrCreateAlbum`.
+**Before:** albumartist was only a fallback for an empty artist tag.
+**After:** albumartist decides the album.
+
+**Function:** `resolveAlbumId()` (new), `getAlbumDetail()`, `getArtistDetail()`, `listArtists()`, `countArtists()`, search artist queries: `backend/src/db/browse.ts`; `GET /albums/:id`, `GET /albums/:id/cover`: `backend/src/routes/albums.ts`
+**Date:** 2026-10-12
+**How added:** new feature (v0.4, A149, rule 7)
+**Purpose:** follow an emptied album's redirect; per-track artists on album detail; "Appears on" on artist detail; artist counts from subqueries so only playable albums count and album-only artists are listed.
+**Side effects:** none (reads).
+**Before:** artist `albumCount` counted every album row joined by artist; artists with no tracks of their own were never listed.
+**After:** Various Artists and labels appear as artists; old album ids answer with the merged album plus `mergedFrom`.
+
 **Function:** `createInvite()`, `listInvites()`, `revokeInvite()`, `peekInvite()`, `acceptInvite()` (new): `backend/src/db/invites.ts`
 **Date:** 2026-10-12
 **How added:** new feature (A107-A112)
