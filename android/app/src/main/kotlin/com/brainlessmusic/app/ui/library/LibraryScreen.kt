@@ -67,6 +67,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.flow.filter
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -102,7 +104,8 @@ import com.brainlessmusic.app.ui.common.Skeleton
 import com.brainlessmusic.app.ui.common.SkeletonAlbumGrid
 import com.brainlessmusic.app.ui.common.SkeletonListRows
 import com.brainlessmusic.app.ui.common.formatDuration
-import com.brainlessmusic.app.ui.navigation.AppBottomBar
+import com.brainlessmusic.app.ui.navigation.TabBarSpace
+import com.brainlessmusic.app.ui.navigation.TabReselect
 import com.brainlessmusic.app.ui.navigation.Routes
 import com.brainlessmusic.app.ui.profile.SongMenuSheet
 import kotlinx.coroutines.launch
@@ -139,6 +142,19 @@ fun LibraryScreen(
     val albumsState = rememberLazyGridState()
     val artistsState = rememberLazyListState()
 
+    // Library tapped again: the open tab goes back to its top.
+    val currentTab by rememberUpdatedState(tab)
+    LaunchedEffect(Unit) {
+        TabReselect.events.filter { it == Routes.ARTISTS }.collect {
+            when (currentTab) {
+                LibraryTab.SONGS -> songsState.scrollToTop()
+                LibraryTab.ALBUMS -> albumsState.scrollToTop()
+                LibraryTab.ARTISTS -> artistsState.scrollToTop()
+                LibraryTab.PLAYLISTS -> Unit
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -146,19 +162,7 @@ fun LibraryScreen(
                 title = { Text("Library") },
             )
         },
-        // Library tapped again: the open tab goes back to its top.
-        bottomBar = {
-            AppBottomBar(navController, onReselect = {
-                scope.launch {
-                    when (tab) {
-                        LibraryTab.SONGS -> songsState.scrollToTop()
-                        LibraryTab.ALBUMS -> albumsState.scrollToTop()
-                        LibraryTab.ARTISTS -> artistsState.scrollToTop()
-                        LibraryTab.PLAYLISTS -> Unit
-                    }
-                }
-            })
-        },
+        bottomBar = { TabBarSpace() },
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             when (tab) {

@@ -41,7 +41,7 @@ import com.brainlessmusic.app.ui.common.CoverImage
 import com.brainlessmusic.app.ui.common.LoadStateContent
 import com.brainlessmusic.app.ui.common.SkeletonListRows
 import com.brainlessmusic.app.ui.common.formatDuration
-import com.brainlessmusic.app.ui.navigation.AppBottomBar
+import com.brainlessmusic.app.ui.navigation.TabBarSpace
 import com.brainlessmusic.app.ui.navigation.Routes
 import com.brainlessmusic.app.ui.profile.SongMenuSheet
 import com.brainlessmusic.app.ui.theme.AppIcons
@@ -66,7 +66,7 @@ fun SearchScreen(
 
     // No TopAppBar: a text field in its title slot comes out cramped and unstyled.
     Scaffold(
-        bottomBar = { AppBottomBar(navController) },
+        bottomBar = { TabBarSpace() },
     ) { padding ->
         Column(
             modifier = Modifier

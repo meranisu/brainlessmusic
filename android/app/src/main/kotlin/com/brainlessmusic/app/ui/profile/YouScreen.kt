@@ -83,7 +83,7 @@ import com.brainlessmusic.app.ui.common.CoverImage
 import com.brainlessmusic.app.ui.common.LoadStateContent
 import com.brainlessmusic.app.ui.common.SkeletonLead
 import com.brainlessmusic.app.ui.common.SkeletonListRows
-import com.brainlessmusic.app.ui.navigation.AppBottomBar
+import com.brainlessmusic.app.ui.navigation.TabBarSpace
 import com.brainlessmusic.app.ui.navigation.Routes
 import com.brainlessmusic.app.ui.theme.DisplayFontFamily
 import com.brainlessmusic.app.ui.theme.cardShape
@@ -136,7 +136,7 @@ fun YouScreen(
                 },
             )
         },
-        bottomBar = { AppBottomBar(navController) },
+        bottomBar = { TabBarSpace() },
     ) { padding ->
         if (viewModel.isGuest) {
             // No stats for guests (A98), so the library and some random picks to start from.

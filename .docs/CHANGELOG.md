@@ -4,6 +4,15 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: One bottom bar for every tab, so it stays still on a switch (Android)
+
+- Owner: the bar "refreshing" on every tab switch was jarring. Each tab screen drew its own bar in its `Scaffold`, so
+  the bar faded, scaled or slid with the page. Now `SharedTabBar` (the mini player, the offline line and the tabs) is
+  drawn once over the NavHost and shows on the five tabs only, fading out when a detail page, Now Playing or sign-in
+  opens. The tab screens keep a `TabBarSpace` of its measured height in their bottom slot, so their content and the
+  Library button sit where they did. Library's tap-again-to-top now listens on `TabReselect`.
+- Built (`assembleDebug`); not watched on a phone.
+
 ## 2026-10-12: Sign-in is an arcade title screen, per skin, with TAP TO START (Android)
 
 - Owner request (A143, A144). The sign-in screen opens on the title alone, the band with the wordmark over the skin's

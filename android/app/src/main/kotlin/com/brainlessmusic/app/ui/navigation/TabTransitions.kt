@@ -51,8 +51,8 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.tabEnter(skin: Skin): Ente
 }
 
 /**
- * How the screen leaves on a tab switch: quickly, so the two never sit half-faded over each other for long. Every
- * motion here is small, since each tab draws its own bottom bar and the bar moves with its screen.
+ * How the screen leaves on a tab switch: quickly, so the two never sit half-faded over each other for long. The
+ * bottom bar is shared and stays still over both (`SharedTabBar`).
  */
 fun AnimatedContentTransitionScope<NavBackStackEntry>.tabExit(skin: Skin): ExitTransition {
     val step = tabStep() ?: return DefaultExit

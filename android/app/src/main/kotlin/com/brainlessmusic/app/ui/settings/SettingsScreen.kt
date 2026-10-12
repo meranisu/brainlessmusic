@@ -69,7 +69,7 @@ import com.brainlessmusic.app.data.local.SeekStyle
 import com.brainlessmusic.app.data.local.ThemeMode
 import com.brainlessmusic.app.ui.downloads.DownloadSettings
 import com.brainlessmusic.app.ui.downloads.downloadSummary
-import com.brainlessmusic.app.ui.navigation.AppBottomBar
+import com.brainlessmusic.app.ui.navigation.TabBarSpace
 import com.brainlessmusic.app.ui.playback.MiniPlayer
 import com.brainlessmusic.app.ui.playback.SeekBar
 import com.brainlessmusic.app.ui.theme.isDark
@@ -117,7 +117,7 @@ fun SettingsScreen(
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Settings") }) },
-        bottomBar = { AppBottomBar(navController) },
+        bottomBar = { TabBarSpace() },
     ) { padding ->
         Column(
             modifier = Modifier

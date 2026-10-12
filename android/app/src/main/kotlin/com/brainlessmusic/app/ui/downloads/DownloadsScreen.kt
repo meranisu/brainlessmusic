@@ -77,7 +77,7 @@ import com.brainlessmusic.app.downloads.TrackDownload
 import com.brainlessmusic.app.ui.common.CoverImage
 import com.brainlessmusic.app.ui.common.LoadStateContent
 import com.brainlessmusic.app.ui.common.SkeletonListRows
-import com.brainlessmusic.app.ui.navigation.AppBottomBar
+import com.brainlessmusic.app.ui.navigation.TabBarSpace
 import com.brainlessmusic.app.ui.navigation.Routes
 import com.brainlessmusic.app.ui.theme.coverShape
 import com.brainlessmusic.app.ui.theme.cardShape
@@ -103,7 +103,7 @@ fun DownloadsScreen(navController: NavHostController, viewModel: DownloadsViewMo
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Downloads") }) },
-        bottomBar = { AppBottomBar(navController) },
+        bottomBar = { TabBarSpace() },
     ) { padding ->
         LoadStateContent(
             state = state,

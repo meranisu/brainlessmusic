@@ -1,6 +1,12 @@
 package com.brainlessmusic.app.ui.navigation
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -11,6 +17,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
+import kotlinx.coroutines.flow.MutableSharedFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -29,6 +40,40 @@ import com.brainlessmusic.app.ui.theme.AppIcons
 @HiltViewModel
 class ConnectivityViewModel @Inject constructor(networkMonitor: NetworkMonitor) : ViewModel() {
     val online: StateFlow<Boolean> = networkMonitor.online
+}
+
+/** The bottom bar's routes. Only these show the shared bar. */
+val TabRoutes = setOf(Routes.HOME, Routes.ARTISTS, Routes.SEARCH, Routes.DOWNLOADS, Routes.SETTINGS)
+
+/** The shared bar's height, so a tab screen can keep its content clear of it with [TabBarSpace]. */
+val LocalTabBarHeight = compositionLocalOf { 0.dp }
+
+/** A tab tapped again while open, by route: the screen that cares (Library scrolls to the top) listens here. */
+object TabReselect {
+    val events = MutableSharedFlow<String>(extraBufferCapacity = 1)
+}
+
+/** A tab screen's bottom bar slot: empty space the size of the shared bar drawn over it. */
+@Composable
+fun TabBarSpace() = Spacer(Modifier.height(LocalTabBarHeight.current))
+
+/**
+ * One bar for every tab, drawn over the NavHost rather than inside each tab (owner, 2026-10-12: each tab drew its own,
+ * so the bar faded and slid with the page on every switch). It stays put while only the page changes, and fades away
+ * when a page without it opens. [onHeight] reports its height for [LocalTabBarHeight].
+ */
+@Composable
+fun SharedTabBar(navController: NavHostController, onHeight: (Dp) -> Unit, modifier: Modifier = Modifier) {
+    val route = navController.currentBackStackEntryAsState().value?.destination?.route
+    val density = LocalDensity.current
+    AnimatedVisibility(
+        visible = route in TabRoutes,
+        enter = fadeIn(tween(200)),
+        exit = fadeOut(tween(150)),
+        modifier = modifier.onSizeChanged { with(density) { onHeight(it.height.toDp()) } },
+    ) {
+        AppBottomBar(navController, onReselect = { route?.let { TabReselect.events.tryEmit(it) } })
+    }
 }
 
 /**

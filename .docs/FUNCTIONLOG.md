@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `SharedTabBar()`, `TabBarSpace()`, `TabReselect`, `LocalTabBarHeight`, `TabRoutes` (new): `android/.../ui/navigation/AppBottomBar.kt`; `BrainlessNavGraph()`: `ui/navigation/BrainlessNavGraph.kt`; the five tab screens' `bottomBar`
+**Date:** 2026-10-12
+**How added:** owner request
+**Purpose:** one bottom bar over the NavHost for the tabs, so a tab switch changes the page only.
+**Side effects:** none.
+**Before:** each tab screen drew `AppBottomBar` itself, so it moved with the page's transition.
+**After:** the tab screens leave a space; the shared bar stays still and fades out off the tabs.
+
 **Function:** `TitleBackdrop()`, `rememberClock()`, `osuMenu()`, `arcaeaTitle()`, `voltexAttract()`, `maimaiAttract()` (new): `android/.../ui/login/TitleBackdrops.kt`; `LoginScreen()`, `TapToStart()` (new): `ui/login/LoginScreen.kt`
 **Date:** 2026-10-12
 **How added:** owner request (A143, A144)
