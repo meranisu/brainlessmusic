@@ -1,5 +1,31 @@
 [
   {
+    "version": "0.3.61",
+    "date": "2026-10-12",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "switching tabs now looks the same every time. before, going to home faded differently from the other tabs. each skin gets its own quick switch: standard fades, hit circle pops in, lane slides, gear slams in, ring bounces"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.60",
     "date": "2026-10-12",
     "sections": [
