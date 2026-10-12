@@ -703,7 +703,7 @@ private fun RowScope.PlayKey(state: PlaybackUiState, onClick: () -> Unit) {
     }
 }
 
-/** An orange FX key, wide and short, under the BT keys. The like key holds to dislike, its heart animated (A148). */
+/** An orange FX key, wide and short, under the BT keys. The like key holds to dislike, its heart animated (A153). */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun RowScope.FxKey(

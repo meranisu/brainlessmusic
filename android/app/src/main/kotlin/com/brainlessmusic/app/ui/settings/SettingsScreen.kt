@@ -474,7 +474,7 @@ fun SettingsPageScreen(
                                     null -> "Shuffle picks a disliked song about one pass in four. Reset undislikes them all."
                                 },
                             ) {
-                                // The list is also in the Library's Playlists tab (A148).
+                                // The list is also in the Library's Playlists tab (A153).
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     FilledTonalButton(
                                         onClick = onOpenLessOften,

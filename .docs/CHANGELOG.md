@@ -79,14 +79,14 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ## 2026-10-12: A fuller Playlists tab; Hear less is Dislike, on the heart (backend + Android)
 
-- Owner (A147): the Library's Playlists tab was three plain rows. Now Liked songs leads as a card (the latest covers as
+- Owner (A152): the Library's Playlists tab was three plain rows. Now Liked songs leads as a card (the latest covers as
   a mosaic, the count, Play and Shuffle) under a label in the skin's game: COLLECTION (Hit circle), PACK (Lane),
   FAVORITE (Gear's orange folder tab), MY LIST (Ring); none for Standard. Disliked songs sits under it as a slim row.
   Playlists are a two-column grid of cover mosaics, New playlist the first tile, with a hint when there are none.
   Guests get a card saying likes and playlists are for accounts.
 - Backend: `GET /playlists` adds `coverAlbumIds` to each playlist, up to four different albums in playlist order
   (`listPlaylistsForUser`). Additive; older apps ignore it. New test in `db/favorites.test.ts`.
-- Owner (A148): "Hear less" / "Play less often" is now Dislike in the app (song menu, queue swipe, Settings →
+- Owner (A153): "Hear less" / "Play less often" is now Dislike in the app (song menu, queue swipe, Settings →
   Playback, the list's title). Same behaviour: shuffle picks the song about one pass in four. A song is liked or
   disliked, never both: liking a disliked song undislikes it and the other way round (`ProfileRepository.setDisliked`,
   `dislikedIds`, loaded from `GET /me/less-often/ids`). Every like button (the top-bar heart, Standard's pills, Gear's

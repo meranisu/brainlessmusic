@@ -33,7 +33,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.cos
 import kotlin.math.sin
 
-/** How you feel about a song (A148): liked or disliked, never both. */
+/** How you feel about a song (A153): liked or disliked, never both. */
 enum class Feeling { NONE, LIKED, DISLIKED }
 
 fun feelingOf(trackId: Int, liked: Set<Int>, disliked: Set<Int>): Feeling = when (trackId) {
@@ -50,7 +50,7 @@ fun Feeling.tapLabel(): String = when (this) {
 }
 
 /**
- * The like heart, every skin's (A148). Liking pops it and sends a burst out in the skin's shape: a ring (Standard,
+ * The like heart, every skin's (A153). Liking pops it and sends a burst out in the skin's shape: a ring (Standard,
  * with sparks), osu!'s double hit ring (Hit circle), a diamond (Lane), a chamfered key frame (Gear), maimai's two
  * coloured rings (Ring). Disliking cracks it down the middle and the halves tip apart; clearing either sets it back.
  * Nothing moves on first show or with animations off.

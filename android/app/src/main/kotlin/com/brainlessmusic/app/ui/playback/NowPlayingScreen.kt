@@ -622,7 +622,7 @@ private fun RowScope.Pill(
     lit: Boolean,
     onClick: () -> Unit,
     enabled: Boolean = true,
-    // The like pill (A148): hold to dislike, and the animated heart in place of the icon.
+    // The like pill (A153): hold to dislike, and the animated heart in place of the icon.
     onLongClick: (() -> Unit)? = null,
     heart: Feeling? = null,
 ) {

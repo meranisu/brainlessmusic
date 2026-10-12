@@ -61,13 +61,15 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
-### A148 — Tap likes, hold dislikes *(was Q148)*
+### A153 — Tap likes, hold dislikes *(was Q148)*
+**Renumbered:** was A148 until 2026-10-12, when it turned out a second A148 (untagged albums) had been logged first; commit `bd5efce` and older docs commits still say A148.
 **Answered:** 2026-10-12, picked option A. "Hear less" is renamed Dislike everywhere (owner, same day; behaviour
 unchanged, shuffle picks it about one pass in four). The like button: tap toggles like; hold dislikes and shows a
 broken heart; tap clears it. Liking a disliked song undoes the dislike, and the other way round. Disliked songs sit in
 the Library's Playlists tab under Liked songs, and stay in Settings → Playback.
 
-### A147 — A fuller Playlists tab *(was Q147)*
+### A152 — A fuller Playlists tab *(was Q147)*
+**Renumbered:** was A147 until 2026-10-12, when it turned out a second A147 (v0.4 theme) had been logged first; commit `bd5efce` and older docs commits still say A147.
 **Answered:** 2026-10-12, picked option A. Liked songs as a hero card in the skin's dress (mosaic, count, Play,
 Shuffle); playlists as a two-column grid of cover mosaics with New playlist as the first tile; a hint when there are
 none; a styled guest card. The server's playlist list adds each playlist's first four song ids for the covers.

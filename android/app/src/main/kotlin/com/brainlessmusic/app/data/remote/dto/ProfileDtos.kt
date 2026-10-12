@@ -70,7 +70,7 @@ data class PlaylistSummaryDto(
     val name: String,
     val trackCount: Int,
     val createdAt: String,
-    // Up to four albums for the cover mosaic (A147). Null from an older server; Gson leaves a missing field null.
+    // Up to four albums for the cover mosaic (A152). Null from an older server; Gson leaves a missing field null.
     val coverAlbumIds: List<Int>? = null,
 )
 

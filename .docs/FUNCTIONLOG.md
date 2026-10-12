@@ -86,7 +86,7 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 **Function:** `listPlaylistsForUser()` (`coverAlbumIds`): `backend/src/db/playlists.ts`; `PlaylistsTab()`, `PlaylistsViewModel` (`PlaylistsHome`, `playLiked()`), `LikedCard()`, `SkinLabel()`, `DislikedRow()`, `NewPlaylistTile()`, `PlaylistTile()`, `GuestPlaylists()` (new or rewritten): `android/.../ui/profile/PlaylistsScreen.kt`
 **Date:** 2026-10-12
-**How added:** owner request (A147)
+**How added:** owner request (A152)
 **Purpose:** a Playlists tab with covers, a Liked lead card in the skin's dress, and Disliked songs.
 **Side effects:** one more query per playlist on `GET /playlists`.
 **Before:** Liked, New playlist and each playlist as plain icon rows; no covers from the server.
@@ -94,7 +94,7 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 **Function:** `FeelingHeart()`, `Feeling`, `feelingOf()` (new): `android/.../ui/profile/FeelingHeart.kt`; `ProfileRepository.setDisliked()`, `loadDislikedIds()`, `clearDisliked()`, `dislikedIds` (new), `setLiked()` (undislikes); `SongActionsViewModel.toggleDislike()`, `setLiked()` (new), `toggleLike()`; `LikeButton()`, `Pill()`, `FxKey()`, `RimButton()` (hold to dislike); `LibraryRepository.setLessOften()`, `clearLessOften()` (removed)
 **Date:** 2026-10-12
-**How added:** owner request (A148)
+**How added:** owner request (A153)
 **Purpose:** Hear less renamed Dislike and put on the heart, liked or disliked never both, animated per skin.
 **Side effects:** an extra `DELETE /tracks/:id/favorite` or `/less-often` when switching between like and dislike.
 **Before:** like only on the heart; "play less often" from the menu and the queue swipe, kept apart from likes.

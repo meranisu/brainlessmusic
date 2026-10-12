@@ -458,7 +458,7 @@ private fun RimButton(
     enabled: Boolean,
     rim: Color,
     onClick: () -> Unit,
-    // The like button (A148): hold to dislike, and the animated heart in place of the icon.
+    // The like button (A153): hold to dislike, and the animated heart in place of the icon.
     onLongClick: (() -> Unit)? = null,
     heart: Feeling? = null,
 ) {

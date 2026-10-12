@@ -110,7 +110,7 @@ class SongActionsViewModel @Inject constructor(
         }
     }
 
-    /** A tap on the heart (A148): a disliked song goes back to neither; otherwise like flips. */
+    /** A tap on the heart (A153): a disliked song goes back to neither; otherwise like flips. */
     fun toggleLike(trackId: Int) {
         if (trackId in dislikedIds.value) {
             viewModelScope.launch { profile.setDisliked(trackId, false) }
@@ -135,7 +135,7 @@ class SongActionsViewModel @Inject constructor(
     }
 
     /**
-     * Holding the heart, or the menu's Dislike (A148): dislikes the song, or takes the dislike back. Shuffle picks a
+     * Holding the heart, or the menu's Dislike (A153): dislikes the song, or takes the dislike back. Shuffle picks a
      * disliked song about one pass in four (A60), the same mark as a right swipe in the queue. [onDone] gets a line
      * only when it failed, since the heart shows the change.
      */
@@ -223,7 +223,7 @@ fun LikeButton(trackId: Int, modifier: Modifier = Modifier, viewModel: SongActio
     val disliked by viewModel.dislikedIds.collectAsStateWithLifecycle()
     val feeling = feelingOf(trackId, liked, disliked)
     val haptics = LocalHapticFeedback.current
-    // Tap likes, hold dislikes (A148); an IconButton has no long press, so the same 48 dp target by hand.
+    // Tap likes, hold dislikes (A153); an IconButton has no long press, so the same 48 dp target by hand.
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier

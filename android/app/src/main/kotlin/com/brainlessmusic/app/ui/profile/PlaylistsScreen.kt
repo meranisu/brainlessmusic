@@ -173,8 +173,8 @@ class PlaylistsViewModel @Inject constructor(
 }
 
 /**
- * The Library's Playlists tab (A134, A137, A147): Liked songs as a card in the skin's dress, with Play and Shuffle;
- * Disliked songs under it (A148); then your playlists as a grid of cover mosaics, New playlist first. Reloaded each
+ * The Library's Playlists tab (A134, A137, A152): Liked songs as a card in the skin's dress, with Play and Shuffle;
+ * Disliked songs under it (A153); then your playlists as a grid of cover mosaics, New playlist first. Reloaded each
  * time it shows. Guests keep neither likes nor playlists (A37), so they get a card saying so.
  */
 @Composable
@@ -350,7 +350,7 @@ private fun SkinLabel(skin: Skin) {
 
 private data class LabelStyle(val text: String, val shape: androidx.compose.ui.graphics.Shape, val background: Color, val ink: Color)
 
-/** Disliked songs (A148): a slimmer row under Liked, the cracked heart for its picture. */
+/** Disliked songs (A153): a slimmer row under Liked, the cracked heart for its picture. */
 @Composable
 private fun DislikedRow(disliked: ListSummary, onOpen: () -> Unit) {
     Surface(

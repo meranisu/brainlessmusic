@@ -39,7 +39,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.brainlessmusic.app.ui.theme.AppIcons
 
-/** The two song lists: what you liked, and what you disliked (A60, A148). */
+/** The two song lists: what you liked, and what you disliked (A60, A153). */
 enum class SongListKind(val route: String, val title: String, val empty: String) {
     LIKED("liked", "Liked songs", "No liked songs yet. Tap the heart on Now Playing to like one."),
     LESS_OFTEN("less-often", "Disliked songs", "Nothing disliked. Hold the heart in the player, or swipe a song right in the queue."),

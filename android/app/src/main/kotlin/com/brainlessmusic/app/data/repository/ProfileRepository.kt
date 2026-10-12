@@ -60,7 +60,7 @@ class ProfileRepository @Inject constructor(
     // Taps the server hasn't answered yet. A liked set that loads meanwhile keeps them on top, rather than undoing them.
     private val pendingLikes = HashMap<Int, Boolean>()
 
-    // Disliked ("less often" on the server, A60; renamed Dislike, A148): one set too, so every heart shows it.
+    // Disliked ("less often" on the server, A60; renamed Dislike, A153): one set too, so every heart shows it.
     private val _dislikedIds = MutableStateFlow<Set<Int>>(emptySet())
     val dislikedIds: StateFlow<Set<Int>> = _dislikedIds.asStateFlow()
     private var dislikedLoaded = false
@@ -104,7 +104,7 @@ class ProfileRepository @Inject constructor(
      */
     suspend fun setLiked(trackId: Int, liked: Boolean): Result<Unit> {
         if (isGuest) return Result.success(Unit)
-        // Liked or disliked, never both (A148).
+        // Liked or disliked, never both (A153).
         if (liked && trackId in _dislikedIds.value) setDisliked(trackId, false)
         pendingLikes[trackId] = liked
         _likedIds.update { if (liked) it + trackId else it - trackId }
@@ -122,7 +122,7 @@ class ProfileRepository @Inject constructor(
     suspend fun lessOftenPage(offset: Int, limit: Int): Result<LessOftenPageDto> = callApi { it.lessOften(limit, offset) }
 
     /**
-     * Dislikes a song or takes it back (A148): shuffle picks a disliked song about one pass in four (A60). Shown at
+     * Dislikes a song or takes it back (A153): shuffle picks a disliked song about one pass in four (A60). Shown at
      * once; reloaded if the server says no. Disliking a liked song unlikes it.
      */
     suspend fun setDisliked(trackId: Int, disliked: Boolean): Result<Unit> {
