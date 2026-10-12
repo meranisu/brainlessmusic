@@ -1,5 +1,36 @@
 [
   {
+    "version": "0.3.57",
+    "date": "2026-10-12",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "opening the app now greets you in your skin's style. hit circle does osu!'s welcome, lane opens from behind arcaea's shutter, gear runs the sound voltex entry screen, ring drops in a maimai name plate. standard keeps the card reader. tap to skip",
+              "home is shorter. it starts with the week / month / year picker, then your listening card, then recently played and your top lists",
+              "hours, plays and songs now live inside your skin's listening card instead of a separate card. standard gets a plain card with just those numbers",
+              "the shuffle library and listen together buttons are gone from home. shuffle is in the library, and listen together is the people icon at the top of home (still in the player too)",
+              "liked songs and your playlists moved to a new playlists tab in the library, where genres used to be. genres never worked anyway",
+              "songs you hear less moved to settings → playback, with a see songs button next to reset"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.56",
     "date": "2026-10-12",
     "sections": [
