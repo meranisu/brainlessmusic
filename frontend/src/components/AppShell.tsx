@@ -43,6 +43,8 @@ function navItemsFor(isGuest: boolean): { primary: NavItem[]; overflow: NavItem[
     overflow: [
       // Everyone, guests included (A100). Behind More: a sixth tab doesn't fit the bar (see above).
       { to: '/together', label: 'Listen together', detail: 'Same song, same moment' },
+      // Behind More with Listen together: the bar is full (v0.4 box 28).
+      { to: '/genres', label: 'Genres', detail: 'Albums by genre tag' },
     ],
   };
 }

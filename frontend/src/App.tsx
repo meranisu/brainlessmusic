@@ -16,6 +16,10 @@ const LibraryPage = lazyPage(() => import('./pages/LibraryPage').then((m) => ({ 
 const AlbumsPage = lazyPage(() => import('./pages/AlbumsPage').then((m) => ({ default: m.AlbumsPage })));
 const AlbumDetailPage = lazyPage(() => import('./pages/AlbumDetailPage').then((m) => ({ default: m.AlbumDetailPage })));
 const ArtistsPage = lazyPage(() => import('./pages/ArtistsPage').then((m) => ({ default: m.ArtistsPage })));
+const GenresPage = lazyPage(() => import('./pages/GenresPage').then((m) => ({ default: m.GenresPage })));
+const GenreDetailPage = lazyPage(() =>
+  import('./pages/GenreDetailPage').then((m) => ({ default: m.GenreDetailPage })),
+);
 const ArtistDetailPage = lazyPage(() =>
   import('./pages/ArtistDetailPage').then((m) => ({ default: m.ArtistDetailPage })),
 );
@@ -55,6 +59,8 @@ export function App() {
             <Route path="/albums/:id" element={<AlbumDetailPage />} />
             <Route path="/artists" element={<ArtistsPage />} />
             <Route path="/artists/:id" element={<ArtistDetailPage />} />
+            <Route path="/genres" element={<GenresPage />} />
+            <Route path="/genres/:id" element={<GenreDetailPage />} />
             <Route element={<RequireAccount />}>
               <Route path="/favorites" element={<FavoritesPage />} />
               <Route path="/playlists" element={<PlaylistsPage />} />

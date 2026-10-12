@@ -271,14 +271,21 @@ export interface AlbumSummary {
 }
 
 export interface ArtistDetail extends ArtistSummary {
+  /** Albums they are the album artist of. */
   albums: AlbumSummary[];
+  /** Other artists' albums with a song of theirs (A149). Absent from a server before v0.4. */
+  appearsOn?: AlbumSummary[];
 }
 
-/** Album track rows omit the artist, which is the album's. */
+/** The artist fields are the song's own, which on a compilation differ from the album's (v0.4). */
 export interface AlbumTrack {
   id: number;
   title: string;
+  artistId?: number | null;
+  artistName?: string | null;
   trackNumber: number | null;
+  /** Null when untagged, played as disc 1. */
+  discNumber?: number | null;
   duration: number | null;
   gainDb: number | null;
   format: string | null;
@@ -286,11 +293,28 @@ export interface AlbumTrack {
 
 export interface AlbumDetail {
   id: number;
+  /** The id asked for, when a rescan merged that album into this one. */
+  mergedFrom?: number;
   title: string;
   artistId: number | null;
   artistName: string | null;
   year: number | null;
   tracks: AlbumTrack[];
+}
+
+export interface GenreSummary {
+  id: number;
+  name: string;
+  trackCount: number;
+  albumCount: number;
+}
+
+export interface GenreListResponse {
+  genres: GenreSummary[];
+}
+
+export interface GenreDetail extends GenreSummary {
+  albums: AlbumSummary[];
 }
 
 export interface ArtistListResponse {

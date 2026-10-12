@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { formatDuration } from '../lib/format';
-import { Link, useParams } from 'react-router-dom';
+import { Fragment, useEffect } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { CoverArt } from '../components/CoverArt';
 import { FavoriteButton, useFavoriteIds } from '../components/FavoriteButton';
 import { usePlayer, type QueueTrack } from '../components/PlayerBar';
@@ -14,6 +15,7 @@ export function AlbumDetailPage() {
   const albumId = Number(id);
   const { playQueue } = usePlayer();
   const favoriteIds = useFavoriteIds();
+  const navigate = useNavigate();
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['album', albumId],
@@ -21,12 +23,17 @@ export function AlbumDetailPage() {
     enabled: Number.isInteger(albumId),
   });
 
-  // Album tracks carry no artist; the player takes the album's.
+  // An old link to an album a rescan merged into this one: show the album's own address from now on.
+  useEffect(() => {
+    if (data?.mergedFrom !== undefined && data.id !== albumId) navigate(`/albums/${data.id}`, { replace: true });
+  }, [data, albumId, navigate]);
+
+  // Each song's own artist; a server before v0.4 sends none, so the album's.
   const queue: QueueTrack[] =
     data?.tracks.map((t) => ({
       id: t.id,
       title: t.title,
-      artist: data.artistName,
+      artist: t.artistName ?? data.artistName,
       duration: t.duration,
       gainDb: t.gainDb,
       format: t.format,
@@ -44,6 +51,10 @@ export function AlbumDetailPage() {
     );
   }
   if (isError || !data) return <p className="text-sm text-red-300">Could not load that album.</p>;
+
+  // Disc headers only when the album really spans discs; untagged songs count as disc 1.
+  const discOf = (t: (typeof data.tracks)[number]) => t.discNumber ?? 1;
+  const multiDisc = new Set(data.tracks.map(discOf)).size > 1;
 
   return (
     <div className="flex flex-col gap-6">
@@ -94,8 +105,19 @@ export function AlbumDetailPage() {
           </thead>
           <tbody className="divide-y divide-blue-800/60">
             {data.tracks.map((track, i) => (
+              <Fragment key={track.id}>
+              {multiDisc && (i === 0 || discOf(data.tracks[i - 1]) !== discOf(track)) && (
+                <tr>
+                  <th
+                    colSpan={5}
+                    scope="rowgroup"
+                    className="bg-blue-900/50 py-2 pl-4 text-left font-mono text-xs uppercase tracking-wider text-blue-400"
+                  >
+                    Disc {discOf(track)}
+                  </th>
+                </tr>
+              )}
               <tr
-                key={track.id}
                 onClick={() => playQueue(queue, i)}
                 className="group cursor-pointer transition-colors hover:bg-blue-800/40"
               >
@@ -103,7 +125,21 @@ export function AlbumDetailPage() {
                   <span className="group-hover:hidden">{track.trackNumber ?? i + 1}</span>
                   <PlayIcon className="hidden h-3 w-3 text-orange-500 group-hover:inline" />
                 </td>
-                <td className="py-2.5 pr-3 font-medium text-white">{track.title}</td>
+                <td className="py-2.5 pr-3">
+                  <div className="font-medium text-white">{track.title}</div>
+                  {/* Only when it isn't the album's artist: a compilation or a "feat." song. */}
+                  {track.artistName && track.artistName !== data.artistName && (
+                    <div className="text-xs text-blue-300" onClick={(e) => e.stopPropagation()}>
+                      {track.artistId ? (
+                        <Link to={`/artists/${track.artistId}`} className="hover:text-orange-400">
+                          {track.artistName}
+                        </Link>
+                      ) : (
+                        track.artistName
+                      )}
+                    </div>
+                  )}
+                </td>
                 <td className="py-2.5 pr-4 text-right tabular-nums text-blue-200">
                   {formatDuration(track.duration)}
                 </td>
@@ -112,6 +148,7 @@ export function AlbumDetailPage() {
                   <FavoriteButton trackId={track.id} isFavorited={favoriteIds.has(track.id)} />
                 </td>
               </tr>
+              </Fragment>
             ))}
           </tbody>
         </table>

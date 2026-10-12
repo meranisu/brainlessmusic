@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `GenresPage`, `GenreDetailPage` (new): `frontend/src/pages/`; `AlbumDetailPage`, `ArtistDetailPage`, `AlbumsPage`: `frontend/src/pages/`; nav items in `frontend/src/components/AppShell.tsx`
+**Date:** 2026-10-12
+**How added:** new feature (v0.4 box 28)
+**Purpose:** show the v0.4 data: per-song artists and disc headers on albums, Appears on for artists, a genre list and genre pages.
+**Side effects:** none beyond reads; the album page replaces the URL when answered with `mergedFrom`.
+**Before:** album pages showed only the album's artist and one flat list; no way to browse by genre.
+**After:** as above.
+
 **Function:** `joinStrays()` (new), `settleAlbums()`: `backend/src/db/library.ts`
 **Date:** 2026-10-12
 **How added:** new feature (A154)

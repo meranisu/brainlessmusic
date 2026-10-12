@@ -4,6 +4,21 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Web shows album artists, disc headers, Appears on and Genres (v0.4 box 28, web)
+
+- Album page: each song's own artist under its title when it isn't the album's (compilations, "feat." songs), linked to
+  the artist; "Disc 1", "Disc 2" header rows when an album spans discs; the player queue takes each song's artist. An
+  old album link that the server answers with `mergedFrom` moves to the album's own address.
+- Artist page: an "Appears on" section with other artists' albums carrying their songs (A149); the album count is left
+  out when it is zero, since a featured-only artist's albums are all under Appears on.
+- Genres: `/genres` lists every genre biggest first with a filter box, `/genres/:id` shows its albums. Reached from
+  More (the bar is full) and a "By genre" button on Albums.
+- Older servers: the new fields are optional in `types/api.ts`, so the pages still work without them.
+- Verified: `npm run build` (tsc + vite) clean, lint shows nothing in the touched files. Ran against a scratch backend
+  from this source (port 3101, throwaway database and a 9-file generated library: a compilation, a two-disc album in
+  CD1/CD2, a "feat." album) in headless Chromium at 1280 and 390 px: all seven pages load with no page errors or
+  sideways scroll; screenshots checked for the per-song artists, disc headers, Appears on and the genre filter.
+
 ## 2026-10-12: Stray songs join the big album (A154)
 
 - After the v0.4 regroup on smol, 392 albums still showed twice: same title and album artist, files in two folders.

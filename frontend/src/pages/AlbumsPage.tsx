@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { AlbumGrid } from '../components/AlbumGrid';
 import { LibraryEmptyState } from '../components/LibraryEmptyState';
 import { apiClient } from '../lib/apiClient';
@@ -22,11 +23,16 @@ export function AlbumsPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-xl font-semibold text-white">Albums</h1>
-        <p className="text-sm text-blue-300">
-          {data ? `${data.total} album${data.total === 1 ? '' : 's'}` : '\u00a0'}
-        </p>
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-white">Albums</h1>
+          <p className="text-sm text-blue-300">
+            {data ? `${data.total} album${data.total === 1 ? '' : 's'}` : '\u00a0'}
+          </p>
+        </div>
+        <Link to="/genres" className="btn-secondary btn-sm">
+          By genre
+        </Link>
       </div>
 
       {isLoading && (
