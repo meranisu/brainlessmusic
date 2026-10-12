@@ -1,5 +1,31 @@
 [
   {
+    "version": "0.3.60",
+    "date": "2026-10-12",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "logging out now plays a goodbye in your skin's style, the welcome in reverse. the card leaves the reader in standard, \"see you next time\" in hit circle, the shutter closes in lane, \"thank you for playing\" in gear, \"see you next play!\" in ring. tap to skip"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.59",
     "date": "2026-10-12",
     "sections": [
