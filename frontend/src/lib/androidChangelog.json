@@ -1,5 +1,31 @@
 [
   {
+    "version": "0.3.65",
+    "date": "2026-10-12",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "the first-time setup has a new step for permissions. you can turn on notifications (for the player controls on the lock screen and download progress) and let the app install its own updates, right there. storage doesn't need anything, downloads live inside the app, so it just shows how much space you've got left"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.64",
     "date": "2026-10-12",
     "sections": [
