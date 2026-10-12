@@ -4,7 +4,10 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavBackStackEntry
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.LaunchedEffect
@@ -205,26 +208,26 @@ fun BrainlessNavGraph(
 
 private fun intArg(name: String): NamedNavArgument = navArgument(name) { type = NavType.IntType }
 
+/** How far a screen that isn't on top is moved, for touch only: well past any screen's edge. */
+private const val OFF_TOUCH_PX = 1_000_000
+
 /**
- * Lets only the screen on top of the back stack take touches. Going back, NavHost draws the screen being left above
- * the one returning while it fades out, and it still took taps: a tap on the bottom bar just after leaving Appearance
- * landed on its last row and picked Ring (owner, 2026-10-12). A tap in that moment is now swallowed instead.
+ * Lets only the screen on top of the back stack take touches. After a skin change, the Appearance page could stay
+ * composed under (or over) Settings once left, and taps on Settings' empty spots landed on its skin rows, picking a
+ * skin by where you tapped (owner, 2026-10-12). Any other screen is laid out far off, where no finger reaches, and
+ * drawn back where it was, so a fade still looks the same and the screen keeps its state; it just can't be touched.
  */
 @Composable
 private fun OnTopOnly(navController: NavHostController, entry: NavBackStackEntry, content: @Composable () -> Unit) {
     val top by navController.currentBackStackEntryAsState()
-    Box {
-        content()
-        if (top?.id != entry.id) {
-            Box(
-                Modifier
-                    .matchParentSize()
-                    .pointerInput(Unit) {
-                        awaitPointerEventScope {
-                            while (true) awaitPointerEvent().changes.forEach { it.consume() }
-                        }
-                    },
-            )
-        }
+    val onTop = top?.id == entry.id
+    Box(
+        if (onTop) {
+            Modifier
+        } else {
+            Modifier.drawWithContent { translate(top = -OFF_TOUCH_PX.toFloat()) { this@drawWithContent.drawContent() } }
+        },
+    ) {
+        Box(if (onTop) Modifier else Modifier.offset { IntOffset(0, OFF_TOUCH_PX) }) { content() }
     }
 }

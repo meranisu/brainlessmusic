@@ -7,10 +7,10 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 **Function:** `screen()`, `OnTopOnly()` (new): `android/.../ui/navigation/BrainlessNavGraph.kt`
 **Date:** 2026-10-12
 **How added:** bug fix
-**Purpose:** only the top screen takes touches, so a tap during a back fade can't hit the page being left.
-**Side effects:** a tap during a screen-change fade (about 0.7 s) is swallowed.
-**Before:** the leaving page, drawn on top while fading, took taps (picked Ring from Appearance's last row).
-**After:** every destination is wrapped; non-top entries get a touch-eating overlay.
+**Purpose:** only the top screen takes touches, so a page left behind can't catch taps.
+**Side effects:** none visible; a non-top screen is laid out off screen and drawn in place.
+**Before:** a page left behind (Appearance after a skin change) took taps that fell through Settings, picking skins.
+**After:** every destination is wrapped; only the top entry can be touched.
 
 **Function:** `LibraryHeader()`: `android/.../ui/library/LibraryScreen.kt`
 **Date:** 2026-10-12

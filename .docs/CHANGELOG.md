@@ -4,16 +4,17 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
-## 2026-10-12: A tap just after going back no longer lands on the page you left (Android)
+## 2026-10-12: Settings no longer picks a skin when you tap an empty spot (Android)
 
-- Owner: after changing skin and leaving Settings, a tap on the bottom bar switched to Ring. Going back, NavHost
-  (navigation 2.7.7) draws the page being left above the returning one while it fades out, and that page still took
-  taps; Appearance's last row, Ring, sits where the Settings bottom bar is. A skin change redraws the whole app, which
-  likely stretched the fade.
-- Every destination now goes through `screen()` / `OnTopOnly` in `BrainlessNavGraph.kt`: only the back stack's top
-  entry takes touches; a tap on a leaving page is swallowed.
-- Compiled (`compileDebugKotlin`). Not reproduced or checked on a phone: no device or emulator here, so the cause is
-  reasoned from NavHost's z-ordering, not observed.
+- Owner: after changing skin and leaving Appearance, tapping an empty spot on Settings changed the skin, a different
+  skin by where the tap was (the bottom bar gave Ring, the space under the logo Lane). The Appearance page stayed
+  composed under Settings after it was left, and taps that Settings didn't use fell through to its skin rows. Why it
+  stays after a skin change is not found yet; NavHost (navigation 2.7.7) also draws a page being left above the
+  returning one while it fades.
+- Every destination now goes through `screen()` / `OnTopOnly` in `BrainlessNavGraph.kt`: a screen that isn't the back
+  stack's top is laid out far off screen, where no tap reaches, and drawn back in place, so fades look the same and
+  its state is kept.
+- Compiled (`compileDebugKotlin`). Not reproduced or checked on a phone: no device or emulator here.
 
 ## 2026-10-12: Ring's Library search button is back (Android)
 
