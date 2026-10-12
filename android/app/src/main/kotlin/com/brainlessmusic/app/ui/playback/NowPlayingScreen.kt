@@ -89,7 +89,7 @@ import com.brainlessmusic.app.data.local.SeekStyle
 import com.brainlessmusic.app.data.remote.dto.TrackStatDto
 import com.brainlessmusic.app.ui.playback.skins.HitCircleDeck
 import com.brainlessmusic.app.ui.playback.skins.LaneDeck
-import com.brainlessmusic.app.ui.playback.skins.laneEdge
+import com.brainlessmusic.app.ui.theme.raisedEdge
 import com.brainlessmusic.app.ui.theme.LocalDarkTheme
 import com.brainlessmusic.app.ui.playback.skins.GearDeck
 import com.brainlessmusic.app.ui.playback.skins.RingDeck
@@ -696,7 +696,7 @@ private fun UpNextCard(next: QueueItem?, remaining: Int, onClick: () -> Unit, mo
     Surface(
         shape = tileShape(16.dp),
         color = if (lane) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(1.dp, if (lane) laneEdge() else MaterialTheme.colorScheme.outlineVariant),
+        border = BorderStroke(1.dp, if (lane) raisedEdge() else MaterialTheme.colorScheme.outlineVariant),
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClickLabel = "Open queue", onClick = onClick),
@@ -771,7 +771,7 @@ private fun StreamReadout(stream: StreamInfo?, modifier: Modifier = Modifier) {
     Surface(
         shape = tileShape(12.dp),
         color = if (lane) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surfaceContainerHigh,
-        border = if (lane) BorderStroke(1.dp, laneEdge()) else null,
+        border = if (lane) BorderStroke(1.dp, raisedEdge()) else null,
         modifier = modifier,
     ) {
         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {

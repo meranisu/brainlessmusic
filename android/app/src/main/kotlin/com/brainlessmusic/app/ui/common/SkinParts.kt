@@ -283,19 +283,21 @@ fun MiniProgress(progress: Float, modifier: Modifier = Modifier) {
 }
 
 /**
- * The mini player's cover. Lane frames it as the player does. In Hit circle it is round with the song's progress running clockwise around it from the
+ * The mini player's cover. Lane and Gear frame it in the accent. In Hit circle it is round with the song's progress running clockwise around it from the
  * top, like a hit circle's approach.
  */
 @Composable
 fun MiniCover(url: String?, progress: Float) {
-    if (LocalSkin.current == Skin.LANE) {
-        // The player's info-pane frame, scaled down: an accent outline cut on the diagonal.
+    if (LocalSkin.current == Skin.LANE || LocalSkin.current == Skin.GEAR) {
+        // The player's info-pane frame, scaled down: an accent outline, cut on the diagonal (Lane) or at every
+        // corner (Gear).
+        val lane = LocalSkin.current == Skin.LANE
         Box(
             Modifier
                 .size(48.dp)
-                .border(1.5.dp, MaterialTheme.colorScheme.primary, laneCut(7.dp))
+                .border(1.5.dp, MaterialTheme.colorScheme.primary, if (lane) laneCut(7.dp) else CutCornerShape(7.dp))
                 .padding(3.dp)
-                .clip(laneCut(5.dp)),
+                .clip(if (lane) laneCut(5.dp) else CutCornerShape(5.dp)),
         ) {
             CoverImage(url = url, contentDescription = null, cornerRadius = 0.dp, modifier = Modifier.fillMaxSize())
         }

@@ -4,6 +4,17 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Android: Gear's mini player is the song's gauge
+
+- Owner request: in Gear the mini player itself shows the song's progress, like a health bar. The panel fills left to
+  right in segments of the accent, brighter toward the bottom, with a solid head (`drawGauge`), after SOUND VOLTEX's
+  effect gauge; the thin top progress line is gone in Gear.
+- Like Lane's, it floats as a panel (every corner cut, `CutCornerShape(10.dp)`), one shade up in the dark, with the
+  cover in an accent chamfered frame and a white title.
+- Lane's and Gear's panels keep a 12 dp gap above the tab bar (6 dp before), owner request.
+- `laneEdge()` moved to the theme as `raisedEdge()`, shared by both skins.
+- Verified: `assembleDebug`; installed on the phone; gauge seen filling in Gear dark, the wider gap owner-checked.
+
 ## 2026-10-12: Android: the gesture bar's strip takes the app's colour
 
 - Owner report: in light mode the strip behind the gesture handle was whiter than the tab bar and the page. It was

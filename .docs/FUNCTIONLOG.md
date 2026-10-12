@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `drawGauge()` (new), `MiniPlayer()`: `android/.../ui/playback/MiniPlayer.kt`; `MiniCover()` (Gear branch): `android/.../ui/common/SkinParts.kt`; `raisedEdge()` (moved from `laneEdge()` in `skins/Lane.kt`): `android/.../ui/theme/Skin.kt`
+**Date:** 2026-10-12
+**How added:** redesign (owner request)
+**Purpose:** make Gear's mini player a progress gauge in a floating panel; share the raised-panel edge colour.
+**Side effects:** Gear's mini player drops `MiniProgress`; Lane and Gear panels sit 12 dp above the tab bar.
+**Before:** a flat band with a thin top progress line; `laneEdge()` private to Lane.
+**After:** a chamfered panel whose background fills as the song plays; `raisedEdge()` in the theme.
+
 **Function:** `MainActivity.onCreate()` (edge-to-edge effect): `android/.../MainActivity.kt`
 **Date:** 2026-10-12
 **How added:** bug fix (owner report)

@@ -490,3 +490,13 @@ private class RingButtonNode(
         drawCircle(rim.copy(alpha = 0.9f * fade), radius = r, center = c, style = Stroke(3.dp.toPx()))
     }
 }
+
+/**
+ * The outline for a panel a shade up from the page (`surfaceContainerHighest`). In the dark, `outline` sits one step
+ * above that shade and all but vanishes, so the edge takes the muted text colour at half strength.
+ */
+@Composable
+fun raisedEdge(): Color {
+    val scheme = MaterialTheme.colorScheme
+    return if (LocalDarkTheme.current) scheme.onSurfaceVariant.copy(alpha = 0.5f) else scheme.outline
+}
