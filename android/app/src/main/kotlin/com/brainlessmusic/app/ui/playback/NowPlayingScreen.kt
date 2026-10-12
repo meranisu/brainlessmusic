@@ -84,10 +84,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.brainlessmusic.app.data.local.PlayerButtons
 import com.brainlessmusic.app.data.local.Skin
+import com.brainlessmusic.app.ui.theme.LocalSkin
 import com.brainlessmusic.app.data.local.SeekStyle
 import com.brainlessmusic.app.data.remote.dto.TrackStatDto
 import com.brainlessmusic.app.ui.playback.skins.HitCircleDeck
 import com.brainlessmusic.app.ui.playback.skins.LaneDeck
+import com.brainlessmusic.app.ui.playback.skins.laneEdge
+import com.brainlessmusic.app.ui.theme.LocalDarkTheme
 import com.brainlessmusic.app.ui.playback.skins.GearDeck
 import com.brainlessmusic.app.ui.playback.skins.RingDeck
 import com.brainlessmusic.app.ui.theme.AppIcons
@@ -688,10 +691,12 @@ private fun remainingInQueue(state: PlaybackUiState): Int {
 /** What plays next, in play order (shuffled when shuffle is on), and how many follow. Tapping opens the queue. */
 @Composable
 private fun UpNextCard(next: QueueItem?, remaining: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    // Lane sets it on its controls panel, which is the card's own shade, so it steps up one with a brighter edge.
+    val lane = LocalSkin.current == Skin.LANE && LocalDarkTheme.current
     Surface(
         shape = tileShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        color = if (lane) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, if (lane) laneEdge() else MaterialTheme.colorScheme.outlineVariant),
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClickLabel = "Open queue", onClick = onClick),
@@ -761,9 +766,12 @@ private fun StreamReadout(stream: StreamInfo?, modifier: Modifier = Modifier) {
     val onPhone = stream?.onPhone == true
     if (format == null && network == null && !onPhone) return
 
+    // Lane's controls panel is this card's shade too, so it steps up like the Up next card.
+    val lane = LocalSkin.current == Skin.LANE && LocalDarkTheme.current
     Surface(
         shape = tileShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = if (lane) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surfaceContainerHigh,
+        border = if (lane) BorderStroke(1.dp, laneEdge()) else null,
         modifier = modifier,
     ) {
         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {

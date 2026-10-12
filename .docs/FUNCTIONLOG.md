@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `laneEdge()` (new): `android/.../ui/playback/skins/Lane.kt`; `UpNextCard()`, `StreamReadout()`: `android/.../ui/playback/NowPlayingScreen.kt`
+**Date:** 2026-10-12
+**How added:** bug fix (owner report)
+**Purpose:** make the format readout and Up next card visible against Lane's controls panel in the dark.
+**Side effects:** none outside Lane's dark theme.
+**Before:** both cards the panel's own `blue900`; the readout had no border.
+**After:** one shade lighter with a brighter 1 dp edge.
+
 **Function:** `loadReleaseHistory()`, `notesForHistory()` (new): `android/.../update/ReleaseHistory.kt`; `WhatsNewContent()` (new): `android/.../ui/settings/WhatsNewContent.kt`; `AppSignature()`, `SettingsPage.WHATS_NEW`: `android/.../ui/settings/SettingsScreen.kt`; `copyReleaseNotes` task: `android/app/build.gradle.kts`
 **Date:** 2026-10-12
 **How added:** new feature (owner request, A155)

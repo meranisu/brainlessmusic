@@ -204,6 +204,16 @@ fun ColumnScope.LaneDeck(
     }
 }
 
+/**
+ * The outline for a panel a shade up from the page. In the dark, `outline` sits one step above that shade and all
+ * but vanishes, so the edge takes the muted text colour at half strength.
+ */
+@Composable
+internal fun laneEdge(): Color {
+    val scheme = MaterialTheme.colorScheme
+    return if (LocalDarkTheme.current) scheme.onSurfaceVariant.copy(alpha = 0.5f) else scheme.outline
+}
+
 /** Your grade, clear title and numbers on a slanted band, as Arcaea's result banner. */
 @Composable
 private fun ScoreStrip(record: TrackStatDto) {

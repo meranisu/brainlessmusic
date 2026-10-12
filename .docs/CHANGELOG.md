@@ -4,6 +4,18 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Android Lane player: the format readout and Up next card stand off their panel
+
+- Owner report from a screenshot: in Lane's dark theme the format readout ("FLAC · 44.1 kHz · stereo", buffering)
+  had no visible edge and the Up next card was barely a shade off. Both sat on Lane's controls panel, which is
+  `surfaceContainer`, the same `blue900` as the cards (`surfaceContainer` and `surfaceContainerHigh` are equal in the
+  dark scheme).
+- On Lane in the dark, both now take `surfaceContainerHighest` and a 1 dp edge from `laneEdge()` (the muted text
+  colour at half strength, since `outline` is one step above that fill and vanishes). Other skins and the light theme
+  are unchanged.
+- Verified: `assembleDebug`; installed the debug build on the phone and checked the player (card ~44 vs panel ~26
+  brightness, was 31 vs 27).
+
 ## 2026-10-12: Android: Settings → What's new lists every release's notes
 
 - Owner request (A155): users can read the changelog from Settings. A "What's new" row (in the card with Check for
