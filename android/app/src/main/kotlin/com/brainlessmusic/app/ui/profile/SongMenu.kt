@@ -1,6 +1,6 @@
 package com.brainlessmusic.app.ui.profile
 
-import android.widget.Toast
+import com.brainlessmusic.app.ui.common.Notices
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -67,7 +67,7 @@ fun SongMenuSheet(
     val liked by viewModel.likedIds.collectAsStateWithLifecycle()
     val downloadStates by viewModel.downloadStates.collectAsStateWithLifecycle()
     var step by remember { mutableStateOf(MenuStep.MENU) }
-    val toast: (String) -> Unit = { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
+    val toast: (String) -> Unit = { Notices.show(it) }
 
     when (step) {
         MenuStep.PLAYLIST -> {

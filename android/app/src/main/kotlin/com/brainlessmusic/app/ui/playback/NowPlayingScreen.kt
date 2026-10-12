@@ -1,6 +1,6 @@
 package com.brainlessmusic.app.ui.playback
 
-import android.widget.Toast
+import com.brainlessmusic.app.ui.common.Notices
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -158,11 +158,7 @@ fun NowPlayingScreen(
                     if (state.queueStreams) IconButton(
                         onClick = {
                             viewModel.setDataSaver(!dataSaver)
-                            Toast.makeText(
-                                context,
-                                if (dataSaver) "Data saver off. Next songs stream as the originals." else "Data saver on. Next songs stream smaller.",
-                                Toast.LENGTH_SHORT,
-                            ).show()
+                            Notices.show(if (dataSaver) "Data saver off. Next songs stream as the originals." else "Data saver on. Next songs stream smaller.")
                         },
                         colors = IconButtonDefaults.iconButtonColors(
                             contentColor = if (dataSaver) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,

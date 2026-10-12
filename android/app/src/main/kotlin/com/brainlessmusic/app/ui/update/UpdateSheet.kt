@@ -1,7 +1,7 @@
 package com.brainlessmusic.app.ui.update
 
+import com.brainlessmusic.app.ui.common.Notices
 import android.content.ActivityNotFoundException
-import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -136,7 +136,7 @@ private fun UpdateSheetContent(offer: UpdateOffer, state: UpdateState, viewModel
                     try {
                         context.startActivity(viewModel.installIntent(state.file))
                     } catch (e: ActivityNotFoundException) {
-                        Toast.makeText(context, "This phone has no installer to open the update with.", Toast.LENGTH_LONG).show()
+                        Notices.show("This phone has no installer to open the update with.", long = true)
                     }
                 }) { Text("Install") }
                 is UpdateState.Downloading -> Button(onClick = {}, enabled = false) { Text("Install now") }

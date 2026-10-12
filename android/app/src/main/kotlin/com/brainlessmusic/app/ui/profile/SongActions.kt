@@ -1,10 +1,10 @@
 package com.brainlessmusic.app.ui.profile
 
+import com.brainlessmusic.app.ui.common.Notices
 import androidx.media3.common.util.UnstableApi
 import com.brainlessmusic.app.ui.common.SkinSheet
 import com.brainlessmusic.app.downloads.DownloadRepository
 import com.brainlessmusic.app.downloads.TrackDownload
-import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -215,7 +215,7 @@ fun AddToPlaylistSheet(
     LaunchedEffect(Unit) { viewModel.loadPlaylists() }
 
     val done: (String) -> Unit = { message ->
-        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        Notices.show(message)
         onDismiss()
     }
 

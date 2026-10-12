@@ -154,6 +154,9 @@ range's hours, plays and songs and the change against the window before (`Listen
 those (`StandardListening`). Then Recently played and the top lists. Listen together is an icon in its top bar; liked
 songs and playlists are the Library's Playlists tab; Hear less is in Settings → Playback.
 
+Floating buttons (`SkinFab`) and short messages (`Notices`) take the skin's form too: a hit circle, a diamond,
+console keys, a lit cabinet button; messages as the skin's panel. Standard keeps Material's button and the system toast.
+
 Changing skin plays a short intro over the app (`SkinTransition`): Standard fades its name, Hit circle lands an
 approach ring and bursts, Lane closes and opens Arcaea's shutter, Gear runs the lane in and slams the critical line
 across with a jolt, Ring lights its eight buttons clockwise as the slide star runs the ring. About 1.4 s; a tap skips it; off with animations off.

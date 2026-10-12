@@ -1,5 +1,6 @@
 package com.brainlessmusic.app.ui.profile
 
+import com.brainlessmusic.app.ui.common.Notices
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
@@ -27,7 +28,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
-import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
@@ -118,7 +118,7 @@ fun PlaylistsTab(
                     // Answered after the request: open it only if this screen is still the one showing, or the new
                     // playlist would be pushed on top of wherever the user went meanwhile.
                     onCreated = { id -> if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) onOpenPlaylist(id) },
-                    onFailed = { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() },
+                    onFailed = { Notices.show(it) },
                 )
             },
             onDismiss = { naming = false },

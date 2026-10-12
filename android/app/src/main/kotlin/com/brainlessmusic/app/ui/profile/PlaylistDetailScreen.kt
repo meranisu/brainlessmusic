@@ -1,5 +1,6 @@
 package com.brainlessmusic.app.ui.profile
 
+import com.brainlessmusic.app.ui.common.Notices
 import androidx.media3.common.util.UnstableApi
 import com.brainlessmusic.app.downloads.DownloadRepository
 import com.brainlessmusic.app.downloads.GroupDownload
@@ -61,7 +62,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -253,7 +253,7 @@ fun PlaylistDetailScreen(
     val playlist = (state as? LoadState.Content)?.data
     val context = LocalContext.current
     val download by viewModel.download.collectAsStateWithLifecycle()
-    val showFailure: (String) -> Unit = { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
+    val showFailure: (String) -> Unit = { Notices.show(it) }
 
     if (renaming && playlist != null) {
         PlaylistNameDialog("Rename playlist", "Rename", playlist.name, { name -> viewModel.rename(name, showFailure) }) {
@@ -349,7 +349,7 @@ fun PlaylistDetailScreen(
                         DownloadButton(
                             state = download,
                             what = "playlist",
-                            onDownload = { viewModel.download { Toast.makeText(context, it, Toast.LENGTH_LONG).show() } },
+                            onDownload = { viewModel.download { Notices.show(it, long = true) } },
                             onRemove = viewModel::removeDownload,
                         )
                     }

@@ -4,6 +4,18 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Floating buttons and messages wear the skin (Android)
+
+- Owner: the floating shuffle button and the toast messages didn't match the skins.
+- `SkinFab` replaces the Material floating buttons (Library's Shuffle all, Downloads' Play all and Shuffle all): Hit
+  circle's accent circle ringed in the ink, Lane's accent diamond, Gear's console keys (an orange FX key, a white BT
+  key for the smaller Play all), Ring's lit cabinet button with a pale rim. Flat, no shadow. Standard keeps the
+  Material button.
+- `Notices` / `NoticeHost` replace all 17 `Toast` calls: one message at a time near the bottom, over the bars, as Hit
+  circle's outlined pill, Lane's cut panel, Gear's chamfered plate, or Ring's navy plate with the sky rim; read out
+  as a polite live region. Standard still shows the system toast, so it looks as before.
+- Compiled (`compileDebugKotlin`).
+
 ## 2026-10-12: Settings no longer picks a skin when you tap an empty spot (Android)
 
 - Owner: after changing skin and leaving Appearance, tapping an empty spot on Settings changed the skin, a different

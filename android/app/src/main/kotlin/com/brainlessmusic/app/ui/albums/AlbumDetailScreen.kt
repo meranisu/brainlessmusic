@@ -1,5 +1,6 @@
 package com.brainlessmusic.app.ui.albums
 
+import com.brainlessmusic.app.ui.common.Notices
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -31,7 +32,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -108,7 +108,7 @@ fun AlbumDetailScreen(
         ) { album: AlbumDetailDto ->
             PullToRefreshBox(
                 isRefreshing = refreshing,
-                onRefresh = { viewModel.refresh { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() } },
+                onRefresh = { viewModel.refresh { Notices.show(it) } },
             ) {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     item { AlbumHeader(album, coverUrl = viewModel.coverUrl()) }
@@ -118,7 +118,7 @@ fun AlbumDetailScreen(
                             DownloadButton(
                                 state = download,
                                 what = "album",
-                                onDownload = { viewModel.download(album) { Toast.makeText(context, it, Toast.LENGTH_LONG).show() } },
+                                onDownload = { viewModel.download(album) { Notices.show(it, long = true) } },
                                 onRemove = { viewModel.removeDownload(album) },
                             )
                         }

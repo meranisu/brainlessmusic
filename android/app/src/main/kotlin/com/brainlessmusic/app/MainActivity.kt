@@ -1,5 +1,7 @@
 package com.brainlessmusic.app
 
+import com.brainlessmusic.app.ui.common.NoticeHost
+import com.brainlessmusic.app.ui.common.Notices
 import android.Manifest
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
@@ -10,7 +12,6 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -111,7 +112,7 @@ class MainActivity : ComponentActivity() {
         updates.checkOnLaunch()
         // Room notices (it ended, you were removed, a song couldn't be added) from whichever screen is open.
         lifecycleScope.launch {
-            roomSession.messages.collect { Toast.makeText(this@MainActivity, it, Toast.LENGTH_LONG).show() }
+            roomSession.messages.collect { Notices.show(it, long = true) }
         }
         // Read once, synchronously (two tiny preferences): otherwise every cold start would paint one frame in the
         // default colours before the saved choice arrived.
@@ -141,6 +142,7 @@ class MainActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     BrainlessNavGraph(startViewModel = startViewModel)
                     UpdateSheetHost()
+                    NoticeHost()
                     ArcadeWelcome(startViewModel)
                     SkinTransition(skin)
                 }

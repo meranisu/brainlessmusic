@@ -1,5 +1,7 @@
 package com.brainlessmusic.app.ui.library
 
+import com.brainlessmusic.app.ui.common.Notices
+import com.brainlessmusic.app.ui.common.SkinFab
 import com.brainlessmusic.app.ui.profile.SongListKind
 import com.brainlessmusic.app.ui.profile.PlaylistsTab
 import com.brainlessmusic.app.data.local.Skin
@@ -11,7 +13,6 @@ import com.brainlessmusic.app.ui.common.RingInk
 import com.brainlessmusic.app.ui.common.RingSky
 import com.brainlessmusic.app.ui.common.RingYellow
 import androidx.compose.ui.graphics.Color
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -468,7 +469,7 @@ private fun <T : Any> PagedContent(
             LaunchedEffect(reloading) {
                 if (reloading) return@LaunchedEffect
                 // The old rows stay up on a failed refresh, so without this it looks like it worked.
-                if (pulled && refresh is LoadState.Error) Toast.makeText(context, "Couldn't refresh. Check your connection.", Toast.LENGTH_SHORT).show()
+                if (pulled && refresh is LoadState.Error) Notices.show("Couldn't refresh. Check your connection.")
                 pulled = false
             }
             val pullState = rememberPullToRefreshState()
@@ -549,13 +550,12 @@ private fun SongsTab(viewModel: LibraryViewModel, navController: NavHostControll
                 topInset = TabBarClearance,
             )
             // Plays everything, not just what is on screen: the server shuffles the whole library.
-            FloatingActionButton(
-                onClick = { viewModel.shuffleAll { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() } },
-                shape = CircleShape,
+            SkinFab(
+                icon = AppIcons.shuffle,
+                description = "Shuffle all",
+                onClick = { viewModel.shuffleAll { Notices.show(it) } },
                 modifier = Modifier.align(Alignment.BottomEnd).padding(end = ListEndPadding + 8.dp, bottom = 16.dp),
-            ) {
-                Icon(AppIcons.shuffle, contentDescription = "Shuffle all")
-            }
+            )
         }
     }
 }

@@ -1,8 +1,8 @@
 package com.brainlessmusic.app.ui.profile
 
+import com.brainlessmusic.app.ui.common.Notices
 import com.brainlessmusic.app.data.local.Skin
 import com.brainlessmusic.app.ui.theme.LocalSkin
-import android.widget.Toast
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -119,7 +119,7 @@ fun YouScreen(
     menuFor?.let { item -> SongMenuSheet(item = item, onDismiss = { menuFor = null }, onOpenAlbum = onOpenAlbum, onOpenArtist = onOpenArtist) }
 
     val context = LocalContext.current
-    val shuffle = { viewModel.shuffleLibrary { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() } }
+    val shuffle = { viewModel.shuffleLibrary { Notices.show(it) } }
     val together = { navController.navigate(Routes.TOGETHER) { launchSingleTop = true } }
 
     val title = greeting(Calendar.getInstance().get(Calendar.HOUR_OF_DAY), if (viewModel.isGuest) null else username)

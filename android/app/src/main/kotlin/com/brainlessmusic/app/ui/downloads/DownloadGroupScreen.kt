@@ -1,6 +1,6 @@
 package com.brainlessmusic.app.ui.downloads
 
-import android.widget.Toast
+import com.brainlessmusic.app.ui.common.Notices
 import androidx.annotation.OptIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -148,7 +148,7 @@ fun DownloadGroupScreen(
 ) {
     val state by viewModel.page.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val toast: (String) -> Unit = { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
+    val toast: (String) -> Unit = { Notices.show(it) }
     var confirmRemove by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
     val page = (state as? LoadState.Content)?.data

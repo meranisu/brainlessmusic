@@ -1,5 +1,6 @@
 package com.brainlessmusic.app.ui.artists
 
+import com.brainlessmusic.app.ui.common.Notices
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,7 +23,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -79,7 +79,7 @@ fun ArtistDetailScreen(
         ) { detail: ArtistDetailDto ->
             PullToRefreshBox(
                 isRefreshing = refreshing,
-                onRefresh = { viewModel.refresh { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() } },
+                onRefresh = { viewModel.refresh { Notices.show(it) } },
             ) {
                 LazyVerticalGrid(
                     modifier = Modifier.fillMaxSize(),
@@ -89,7 +89,7 @@ fun ArtistDetailScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
-                        val onFailed: (String) -> Unit = { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
+                        val onFailed: (String) -> Unit = { Notices.show(it) }
                         PlayShuffleRow(
                             onPlay = { viewModel.playAll(shuffle = false, onFailed) },
                             onShuffle = { viewModel.playAll(shuffle = true, onFailed) },

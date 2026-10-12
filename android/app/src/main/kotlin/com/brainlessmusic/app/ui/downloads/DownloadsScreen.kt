@@ -1,7 +1,8 @@
 package com.brainlessmusic.app.ui.downloads
 
+import com.brainlessmusic.app.ui.common.Notices
+import com.brainlessmusic.app.ui.common.SkinFab
 import android.text.format.Formatter
-import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -98,7 +99,7 @@ fun DownloadsScreen(navController: NavHostController, viewModel: DownloadsViewMo
     val query by viewModel.query.collectAsStateWithLifecycle()
     val sort by viewModel.sort.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val toast: (String) -> Unit = { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
+    val toast: (String) -> Unit = { Notices.show(it) }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Downloads") }) },
@@ -325,12 +326,8 @@ private fun StoragePanel(ui: DownloadsUi) {
 @Composable
 private fun PlayButtons(onPlayAll: () -> Unit, onShuffleAll: () -> Unit, modifier: Modifier = Modifier) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SmallFloatingActionButton(onClick = onPlayAll, shape = CircleShape) {
-            Icon(AppIcons.play, contentDescription = "Play all downloads")
-        }
-        FloatingActionButton(onClick = onShuffleAll, shape = CircleShape) {
-            Icon(AppIcons.shuffle, contentDescription = "Shuffle all downloads")
-        }
+        SkinFab(AppIcons.play, "Play all downloads", onPlayAll, small = true)
+        SkinFab(AppIcons.shuffle, "Shuffle all downloads", onShuffleAll)
     }
 }
 

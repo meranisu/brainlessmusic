@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `SkinFab()` (new): `android/.../ui/common/SkinFab.kt`; `Notices`, `NoticeHost()`, `NoticePanel()` (new): `ui/common/Notices.kt`
+**Date:** 2026-10-12
+**How added:** owner request
+**Purpose:** floating buttons and short messages in the skin's look.
+**Side effects:** `NoticeHost` shows a system toast under Standard; otherwise draws an overlay that never takes touches.
+**Before:** Material circle buttons and system toasts in every skin.
+**After:** each skin draws its own; every `Toast.makeText` call now goes through `Notices.show`.
+
 **Function:** `screen()`, `OnTopOnly()` (new): `android/.../ui/navigation/BrainlessNavGraph.kt`
 **Date:** 2026-10-12
 **How added:** bug fix
