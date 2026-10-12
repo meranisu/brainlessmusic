@@ -137,11 +137,11 @@ The centerpiece. It lands here — not earlier — because syncing playback is o
 - [x] **21. Room sync spec** **[spec first]**. Data model, drift tolerance, clock sync, reconnect/rejoin, who may skip. Write it into `.docs/specs/` before any code — this is the one part of the project with no reference implementation to copy from.
   *Done when:* the spec answers "what happens when someone's phone loses signal for 30 seconds" without hand-waving. — **done 2026-10-11:** [specs/room-sync.md](../specs/room-sync.md) (A100–A103).
 
-- [ ] **22. Room sync backend.** WebSocket transport authed with the existing JWT, in-memory room registry, presence, playback broadcast, join-mid-session catch-up, shared queue mutations.
-  *Done when:* two browser tabs stay in sync. — **server and web built 2026-10-11** (`services/rooms.ts`, `routes/rooms.ts`, `/together` page, room mode in the player). Two headless Chromium sessions stayed within ±0.25 s, skip, pause and a forced 15 s drop all worked. Open until the owner tries two tabs on the real app.
+- [x] **22. Room sync backend.** WebSocket transport authed with the existing JWT, in-memory room registry, presence, playback broadcast, join-mid-session catch-up, shared queue mutations.
+  *Done when:* two browser tabs stay in sync. — **server and web built 2026-10-11** (`services/rooms.ts`, `routes/rooms.ts`, `/together` page, room mode in the player). Two headless Chromium sessions stayed within ±0.25 s, skip, pause and a forced 15 s drop all worked. Open until the owner tries two tabs on the real app. — **done 2026-10-12:** owner confirmed Listen together works on the real app, playback stays in sync.
 
-- [ ] **23. Room sync clients.** Web room view + monitor, then the Android client side.
-  *Done when:* the v0.3 done-when above is true. — **web, monitor and Android built 2026-10-11** (Android: room mode in the player, Listen together screen, lock-screen buttons send room commands). Needs the backend on smol and an Android release before the two-person walkthrough.
+- [x] **23. Room sync clients.** Web room view + monitor, then the Android client side.
+  *Done when:* the v0.3 done-when above is true. — **web, monitor and Android built 2026-10-11** (Android: room mode in the player, Listen together screen, lock-screen buttons send room commands). Needs the backend on smol and an Android release before the two-person walkthrough. — **done 2026-10-12:** owner confirmed Listen together works, synced playback and everything else. v0.3 is done.
 
 ---
 
