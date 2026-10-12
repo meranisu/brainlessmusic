@@ -31,6 +31,8 @@ is never asked twice.
 | [Q5](#q5--tag-editing-scope) | Tag-editing scope | 2026-09-09 | No |
 | [Q77](#q77--how-does-the-android-app-get-past-cloudflare-access) | How does the Android app get past Cloudflare Access? | 2026-10-11 | Yes, before Access goes on |
 | [Q78](#q78--who-goes-on-the-access-email-list) | Who goes on the Access email list? | 2026-10-11 | Yes, before Access goes on |
+| [Q145](#q145--player-open-and-close-per-skin) | Player open and close, per skin | 2026-10-12 | Yes, the player animation |
+| [Q146](#q146--does-standard-get-the-fix-too) | Does Standard get the fix too? | 2026-10-12 | Yes, the player animation |
 
 ### Q5 — Tag-editing scope
 **Asked:** 2026-09-09 · **Blocking:** no
@@ -58,6 +60,30 @@ includes friends using a guest code on the web: without their email on the list 
 
 - **A. You and the friends who use the web (recommended).** Each friend's email goes on the list once.
 - **B. Only you.** Friends use the Android app only (with Q77's token), never the web.
+
+### Q145 — Player open and close, per skin
+**Asked:** 2026-10-12 · **Blocking:** yes, the player animation
+
+Now: tapping the mini player crossfades into the player over 0.7 s; the arrow crossfades out; a swipe down drags the
+player, then it stops where the finger let go and fades from there. In every skin the swipe would carry on off the
+bottom at the finger's speed instead. Per skin:
+
+- Hit circle: the player zooms in from the mini player like osu! starting a map; closing shrinks it away and fades.
+- Lane: Arcaea's song-start shutter, the two halves close and part on the player; closing does it in reverse.
+- Gear: SOUND VOLTEX's hard slam up with a slanted leading edge, fast; closing drops it as fast.
+- Ring: maimai's circle, the player opens as a circle growing from the mini player's cover; closing shrinks it back.
+
+- **A. Build as proposed (recommended).**
+- **B. Adjust one or more skins** (say which).
+
+### Q146 — Does Standard get the fix too?
+**Asked:** 2026-10-12 · **Blocking:** yes, the player animation
+
+Skins usually leave Standard untouched, but the half-baked part (crossfade, the swipe stopping then fading) is in
+Standard too.
+
+- **A. Yes, a plain sheet (recommended).** It slides up from the bottom and back down, like most music apps.
+- **B. No, leave Standard as it is.**
 
 ## Answered
 
