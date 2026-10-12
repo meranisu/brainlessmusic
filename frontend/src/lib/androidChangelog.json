@@ -1,5 +1,31 @@
 [
   {
+    "version": "0.3.67",
+    "date": "2026-10-12",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "guest home finally got the new look too. no more old guest card and the shuffle / listen together buttons, just the library numbers up top like everyone else. listen together is the icon in the top corner, shuffle is in the library"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.3.66",
     "date": "2026-10-12",
     "sections": [
