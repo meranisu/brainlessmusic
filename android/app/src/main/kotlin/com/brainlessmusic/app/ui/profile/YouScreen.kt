@@ -1,12 +1,10 @@
 package com.brainlessmusic.app.ui.profile
 
-import com.brainlessmusic.app.ui.common.Notices
 import com.brainlessmusic.app.data.local.Skin
 import com.brainlessmusic.app.ui.theme.LocalSkin
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -27,7 +25,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
@@ -36,7 +33,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import com.brainlessmusic.app.ui.common.segmentShape
@@ -87,7 +83,6 @@ import com.brainlessmusic.app.ui.navigation.TabBarSpace
 import com.brainlessmusic.app.ui.navigation.Routes
 import com.brainlessmusic.app.ui.theme.DisplayFontFamily
 import com.brainlessmusic.app.ui.theme.cardShape
-import com.brainlessmusic.app.ui.theme.coverShape
 import java.util.Calendar
 import com.brainlessmusic.app.ui.theme.tileShape
 import com.brainlessmusic.app.ui.theme.AppIcons
@@ -119,7 +114,6 @@ fun YouScreen(
     menuFor?.let { item -> SongMenuSheet(item = item, onDismiss = { menuFor = null }, onOpenAlbum = onOpenAlbum, onOpenArtist = onOpenArtist) }
 
     val context = LocalContext.current
-    val shuffle = { viewModel.shuffleLibrary { Notices.show(it) } }
     val together = { navController.navigate(Routes.TOGETHER) { launchSingleTop = true } }
 
     val title = greeting(Calendar.getInstance().get(Calendar.HOUR_OF_DAY), if (viewModel.isGuest) null else username)
@@ -128,11 +122,9 @@ fun YouScreen(
         topBar = {
             TopAppBar(
                 title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                // Guests have it as a button on their Home; with nothing playing, the player (its other door) can't open (A136).
+                // With nothing playing, the player (its other door) can't open, so it sits here for everyone (A136).
                 actions = {
-                    if (!viewModel.isGuest) {
-                        IconButton(onClick = together) { Icon(AppIcons.groups, contentDescription = "Listen together") }
-                    }
+                    IconButton(onClick = together) { Icon(AppIcons.groups, contentDescription = "Listen together") }
                 },
             )
         },
@@ -140,7 +132,7 @@ fun YouScreen(
     ) { padding ->
         if (viewModel.isGuest) {
             // No stats for guests (A98), so the library and some random picks to start from.
-            GuestHomeList(viewModel, refreshing, onOpenAlbum, onMenu = { menuFor = it }, shuffle, together, Modifier.padding(padding))
+            GuestHomeList(viewModel, refreshing, onOpenAlbum, onMenu = { menuFor = it }, Modifier.padding(padding))
             return@Scaffold
         }
         Column(Modifier.padding(padding)) {
@@ -270,8 +262,6 @@ private fun GuestHomeList(
     refreshing: Boolean,
     onOpenAlbum: (Int) -> Unit,
     onMenu: (QueueItem) -> Unit,
-    onShuffle: () -> Unit,
-    onTogether: () -> Unit,
     modifier: Modifier,
 ) {
     val state by viewModel.guest.collectAsStateWithLifecycle()
@@ -285,7 +275,6 @@ private fun GuestHomeList(
         PullToRefreshBox(isRefreshing = refreshing, onRefresh = viewModel::refresh) {
             LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 16.dp)) {
                 item { GuestCard(home) }
-                item { StartRow(onShuffle = onShuffle, onTogether = onTogether) }
                 if (home.picks.isEmpty()) {
                     item { EmptyLine("Nothing in the library yet. Songs show up here once the server has some.") }
                 } else {
@@ -328,8 +317,8 @@ private fun GuestHomeList(
 }
 
 /**
- * The player card's guest version: no name or listening numbers to show, so the library's size instead, and why
- * nothing of theirs is kept.
+ * A guest's card where an account's listening card goes (no stats for guests, A98): the library's size, and why
+ * nothing of theirs is kept. No player card, as for accounts (A134).
  */
 @Composable
 private fun GuestCard(home: GuestHome) {
@@ -340,30 +329,12 @@ private fun GuestCard(home: GuestHome) {
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Avatar {
-                    Icon(
-                        AppIcons.person,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.size(24.dp),
-                    )
-                }
-                Column(Modifier.padding(start = 12.dp)) {
-                    Text("Guest", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "Plays, likes and playlists are only kept for accounts.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
             Text(
                 "In this library",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
             )
             Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
                 BigStat("%,d".format(home.songs), if (home.songs == 1) "song" else "songs", Modifier.weight(1f))
@@ -372,39 +343,15 @@ private fun GuestCard(home: GuestHome) {
                 VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.fillMaxHeight())
                 BigStat("%,d".format(home.artists), if (home.artists == 1) "artist" else "artists", Modifier.weight(1f))
             }
+            Text(
+                "You're a guest: plays, likes and playlists are only kept for accounts.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            )
         }
     }
-}
-
-/**
- * Home's two ways to start, side by side under the player card (owner, 2026-10-11): the whole library shuffled on the
- * server, in the accent as the page's main action, and Listen together. Both were small icons in the top bar before.
- */
-@Composable
-private fun StartRow(onShuffle: () -> Unit, onTogether: () -> Unit) {
-    val padding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Button(onClick = onShuffle, contentPadding = padding, modifier = Modifier.weight(1f)) {
-            Icon(AppIcons.shuffle, contentDescription = null, modifier = Modifier.size(18.dp))
-            Text("Shuffle library", maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 8.dp))
-        }
-        OutlinedButton(onClick = onTogether, contentPadding = padding, modifier = Modifier.weight(1f)) {
-            Icon(AppIcons.groups, contentDescription = null, modifier = Modifier.size(18.dp))
-            Text("Listen together", maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 8.dp))
-        }
-    }
-}
-
-/** The player card's initial or icon, in a small rounded square. */
-@Composable
-private fun Avatar(content: @Composable () -> Unit) {
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.primaryContainer, coverShape(10.dp)),
-    ) { content() }
 }
 
 /** A bordered card holding a ranked list, like the player card, so a list reads as one block (owner, 2026-10-11). */

@@ -36,6 +36,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 **Before:** nothing — new UI. Guest rows showed Make admin / Set password.
 **After:** guests show Make an account instead.
 
+**Function:** `GuestCard()`, `GuestHomeList()`, `YouScreen()` top bar: `android/.../ui/profile/YouScreen.kt`; `StartRow()`, `Avatar()`, `YouViewModel.shuffleLibrary()` (removed)
+**Date:** 2026-10-12
+**How added:** owner report (guest Home still looked old)
+**Purpose:** a guest's Home laid out like an account's after A134.
+**Side effects:** none.
+**Before:** player card with "Guest", then Shuffle library and Listen together buttons.
+**After:** a library-size card with the guest note; Listen together in the top bar; no buttons.
+
 **Function:** `playerPresence()`, `Modifier.playerEntrance()`, `PlayerAnchor` (new): `android/.../ui/playback/PlayerEntrance.kt`; `toPlayer()`, `fromPlayer()`, `UnderPlayer` (new): `ui/navigation/TabTransitions.kt`; `NowPlayingScreen()` (`presence`, swipe), `MiniPlayer()`, `BrainlessNavGraph()`
 **Date:** 2026-10-12
 **How added:** owner request (A145, A146)

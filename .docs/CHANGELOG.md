@@ -31,6 +31,15 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 - smol's check for names differing only by case (planning doc, Phase 1) came back `[]` on 2026-10-12, so `0029` is
   safe there.
 
+## 2026-10-12: A guest's Home follows the reworked Home too (Android)
+
+- Owner: a guest's Home still had the old player card ("Guest" with an icon) and the Shuffle library / Listen together
+  buttons, which A134 took off Home; v0.3.57 only reworked the signed-in path. Now the card where an account's
+  listening card goes shows the library's size with the guest note under it, Listen together is the top-bar icon for
+  guests as well (A136), and shuffling is the Library's button. `StartRow`, `Avatar` and `YouViewModel.shuffleLibrary`
+  are gone with it.
+- Compiled (`compileDebugKotlin`); not run on a phone.
+
 ## 2026-10-12: The player opens and closes in the skin's game style (Android)
 
 - Owner (A145, A146): opening and closing the player was half-baked, a 0.7 s crossfade both ways, and a swipe down

@@ -9,7 +9,6 @@ import com.brainlessmusic.app.data.repository.AuthRepository
 import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.data.repository.ProfileRepository
 import com.brainlessmusic.app.data.repository.StatsRange
-import com.brainlessmusic.app.playback.LibraryShuffle
 import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.playback.queueItem
@@ -69,7 +68,6 @@ class YouViewModel @Inject constructor(
     private val profile: ProfileRepository,
     private val libraryRepository: LibraryRepository,
     private val playbackController: PlaybackController,
-    private val libraryShuffle: LibraryShuffle,
     authRepository: AuthRepository,
 ) : ViewModel() {
 
@@ -215,11 +213,6 @@ class YouViewModel @Inject constructor(
                 _refreshing.value = false
             }
         }
-    }
-
-    /** Home's Shuffle my library (A97); [onMessage] gets the line to show when nothing started. */
-    fun shuffleLibrary(onMessage: (String) -> Unit) {
-        viewModelScope.launch { libraryShuffle.start()?.let(onMessage) }
     }
 
     /** Plays your top songs as the queue, from the one tapped. */
