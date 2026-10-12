@@ -37,6 +37,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -88,6 +92,7 @@ fun NowPlayingScreen(
     onOpenAlbum: (Int) -> Unit,
     onOpenArtist: (Int) -> Unit,
     onOpenTogether: () -> Unit,
+    presence: () -> Float = { 1f },
     viewModel: PlaybackViewModel = hiltViewModel(),
     songActions: SongActionsViewModel = hiltViewModel(),
 ) {
@@ -107,21 +112,28 @@ fun NowPlayingScreen(
     val dismiss = remember { Animatable(0f) }
     val skip = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
+    // Let go past the line: the player carries on off the bottom instead of the skin's close (A145).
+    var swiped by remember { mutableStateOf(false) }
+    val screenHeight = with(LocalDensity.current) { LocalConfiguration.current.screenHeightDp.dp.toPx() }
 
     Scaffold(
         modifier = Modifier
+            .playerEntrance(skin, presence, swiped = { swiped })
             .graphicsLayer { translationY = dismiss.value }
             .verticalSwipe(
                 down = true,
                 distance = 96.dp,
                 offset = dismiss,
                 onSwipe = {
-                    onBack()
-                    // Back is ignored mid-transition; if the screen is still here, it comes back down rather than stick.
+                    swiped = true
                     scope.launch {
-                        delay(600)
+                        dismiss.animateTo(screenHeight, tween(220, easing = LinearOutSlowInEasing))
+                        // Back is ignored mid-transition; if the screen is still here, it comes back rather than stay gone.
+                        delay(700)
+                        swiped = false
                         dismiss.animateTo(0f)
                     }
+                    onBack()
                 },
             ),
         topBar = {

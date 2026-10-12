@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `playerPresence()`, `Modifier.playerEntrance()`, `PlayerAnchor` (new): `android/.../ui/playback/PlayerEntrance.kt`; `toPlayer()`, `fromPlayer()`, `UnderPlayer` (new): `ui/navigation/TabTransitions.kt`; `NowPlayingScreen()` (`presence`, swipe), `MiniPlayer()`, `BrainlessNavGraph()`
+**Date:** 2026-10-12
+**How added:** owner request (A145, A146)
+**Purpose:** the player opens and closes in the skin's game style; a swipe down flies it off the bottom.
+**Side effects:** none.
+**Before:** a 0.7 s crossfade in and out; a swiped player stopped and faded.
+**After:** sheet, zoom, shutter, slam or circle per skin; the screen under it holds still.
+
 **Function:** `PermissionsStep()`, `PermissionRow()` (new): `android/.../ui/setup/SetupScreen.kt`
 **Date:** 2026-10-12
 **How added:** owner request

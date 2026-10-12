@@ -156,6 +156,12 @@ songs and playlists are the Library's Playlists tab; Hear less is in Settings â†
 
 Switching tabs (`TabTransitions.kt`) is short and alike in both directions: Standard fades through, Hit circle pops
 in, Lane slides along, Gear slams in, Ring bounces in. Opening a page keeps the plain crossfade.
+The bar under the tabs is one shared bar (`SharedTabBar`), so it stays still while the page changes.
+
+The player opens from the mini player and closes in the skin's game (`PlayerEntrance.kt`, A145, A146): Standard a plain
+sheet up and down; Hit circle zooms out of the mini player's cover like osu! starting a map; Lane Arcaea's song-start
+shutter; Gear SOUND VOLTEX's fast slam, a slanted lit edge leading; Ring a maimai circle growing from the cover. A swipe
+down carries on off the bottom at the finger's pace instead.
 
 Floating buttons (`SkinFab`) and short messages (`Notices`) take the skin's form too: a hit circle, a diamond,
 console keys, a lit cabinet button; messages as the skin's panel. Standard keeps Material's button and the system toast.
@@ -176,7 +182,8 @@ the web's beat mosaic; Hit circle osu!'s menu; Lane Arcaea's title; Gear SOUND V
 chase), TAP TO START, then the form over a calmer loop.
 
 An account's first sign-in on a phone goes through a short setup (`SetupScreen`, A139): what the app is, the look (the app
-restyles as you pick), three playback switches, done; then the welcome plays in the chosen skin.
+restyles as you pick), three playback switches, what it can use (notifications, the update install switch;
+storage needs nothing), done; then the welcome plays in the chosen skin.
 
 Signing out plays the welcome in reverse (`ArcadeGoodbye`, A138): Standard's card leaves the reader ("See you"), Hit
 circle's disc says "see you next time" and folds away, Lane's shutter closes and opens on sign-in, Gear's card slides

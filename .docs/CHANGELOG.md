@@ -4,6 +4,19 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: The player opens and closes in the skin's game style (Android)
+
+- Owner (A145, A146): opening and closing the player was half-baked, a 0.7 s crossfade both ways, and a swipe down
+  stopped where the finger let go and faded from there. Now `PlayerEntrance` draws the player arriving and leaving,
+  driven by the NavHost's own transition (`playerPresence`), while the screen under it holds still (`UnderPlayer`) and
+  comes back at once when it closes. Standard: a plain sheet up from the bottom and back down. Hit circle: zooms out of
+  the mini player's cover and fades in (osu! starting a map). Lane: Arcaea's song-start shutter, closing over the old
+  screen and parting on the player. Gear: a fast slam up with a slanted leading edge lit in the accent. Ring: a circle
+  growing from the cover, rim lit, springing a little past round. Closing reverses each.
+- A swipe past the line now carries the player off the bottom (`swiped`), and the skin's close is skipped.
+- The mini player reports its cover's place (`PlayerAnchor`) for Hit circle and Ring.
+- Compiled (`compileDebugKotlin`); not watched on a phone.
+
 ## 2026-10-12: The first-run setup asks for notifications, and explains storage (Android)
 
 - Owner request. A new step before "All set", "What it can use": Notifications (player controls in the shade and on

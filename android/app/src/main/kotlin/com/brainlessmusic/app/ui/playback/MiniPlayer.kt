@@ -21,6 +21,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -92,7 +95,10 @@ fun MiniPlayer(
                             alpha = 1f - (abs(swipe.value) / size.width.coerceAtLeast(1f)).coerceIn(0f, 0.6f)
                         },
                 ) {
-                    MiniCover(current.coverUrl, progress)
+                    // Where the player opens from in Hit circle and Ring.
+                    Box(Modifier.onGloballyPositioned { PlayerAnchor.cover = it.boundsInRoot().center }) {
+                        MiniCover(current.coverUrl, progress)
+                    }
                     Column(
                         modifier = Modifier
                             .weight(1f)

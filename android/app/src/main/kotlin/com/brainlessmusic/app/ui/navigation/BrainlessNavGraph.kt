@@ -1,6 +1,10 @@
 package com.brainlessmusic.app.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.animation.AnimatedContentScope
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import com.brainlessmusic.app.ui.playback.playerPresence
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavBackStackEntry
@@ -78,7 +82,7 @@ fun BrainlessNavGraph(
     fun NavGraphBuilder.screen(
         route: String,
         arguments: List<NamedNavArgument> = emptyList(),
-        content: @Composable (NavBackStackEntry) -> Unit,
+        content: @Composable AnimatedContentScope.(NavBackStackEntry) -> Unit,
     ) = composable(route, arguments) { entry -> OnTopOnly(navController, entry) { content(entry) } }
 
     val skin = LocalSkin.current
@@ -90,10 +94,11 @@ fun BrainlessNavGraph(
                 navController = navController,
                 startDestination = Routes.SPLASH,
                 // Going to Home pops and every other tab pushes, so one transition for both directions keeps switches alike.
-                enterTransition = { tabEnter(skin) },
-                exitTransition = { tabExit(skin) },
-                popEnterTransition = { tabEnter(skin) },
-                popExitTransition = { tabExit(skin) },
+                // The player draws its own way in and out over the screen under it, which stays put (A145).
+                enterTransition = { if (toPlayer()) EnterTransition.None else tabEnter(skin) },
+                exitTransition = { if (toPlayer()) UnderPlayer else tabExit(skin) },
+                popEnterTransition = { if (fromPlayer()) EnterTransition.None else tabEnter(skin) },
+                popExitTransition = { if (fromPlayer()) ExitTransition.None else tabExit(skin) },
             ) {
                 screen(Routes.SPLASH) {
                     SplashScreen(
@@ -166,7 +171,10 @@ fun BrainlessNavGraph(
                     )
                 }
                 screen(Routes.NOW_PLAYING) { entry ->
+                    // Opens and closes in the skin's manner, drawn by the player itself (A145, A146).
+                    val presence by transition.playerPresence(skin)
                     NowPlayingScreen(
+                        presence = { presence },
                         onBack = { navController.popFrom(entry) },
                         // The album opens in the player's place, so back from it goes to where the player was opened.
                         onOpenAlbum = { albumId ->

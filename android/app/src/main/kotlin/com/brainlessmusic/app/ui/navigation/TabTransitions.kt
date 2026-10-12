@@ -16,6 +16,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.navigation.NavBackStackEntry
 import com.brainlessmusic.app.data.local.Skin
+import com.brainlessmusic.app.ui.playback.PLAYER_ENTRANCE_HOLD_MS
 
 /** The bottom bar's tabs, left to right, so a switch knows which way it goes. */
 private val Tabs = listOf(Routes.HOME, Routes.ARTISTS, Routes.SEARCH, Routes.DOWNLOADS, Routes.SETTINGS)
@@ -65,3 +66,12 @@ fun AnimatedContentTransitionScope<NavBackStackEntry>.tabExit(skin: Skin): ExitT
         Skin.RING -> fadeOut(tween(140)) + scaleOut(tween(140), targetScale = 0.97f)
     }
 }
+
+/** Opening the player. */
+fun AnimatedContentTransitionScope<NavBackStackEntry>.toPlayer() = targetState.destination.route == Routes.NOW_PLAYING
+
+/** Leaving the player. */
+fun AnimatedContentTransitionScope<NavBackStackEntry>.fromPlayer() = initialState.destination.route == Routes.NOW_PLAYING
+
+/** The screen under the player as it opens: held as it is until the player covers it, then gone. */
+val UnderPlayer: ExitTransition = fadeOut(tween(durationMillis = 1, delayMillis = PLAYER_ENTRANCE_HOLD_MS))
