@@ -87,14 +87,19 @@ class PlaybackService : MediaSessionService() {
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = session
 
-    /** Swiping the app away stops the service unless music is actually playing and the user chose to keep it (A58). */
+    /**
+     * Swiping the app away stops the music and the service unless music is actually playing and the user chose to keep
+     * it (A58). A stop, not a pause: the player outlives the service in [PlaybackController], so a pause left the
+     * notification up with the track ready to go, unlike YouTube Music and Spotify. The saved resume point stays.
+     */
     override fun onTaskRemoved(rootIntent: Intent?) {
         val player = controller.sessionPlayer
         // Only in the service's first moments is the setting not loaded yet; then it's worth the short wait.
         val keepPlaying = keepPlayingWhenSwipedAway ?: runBlocking { settings.keepPlayingWhenSwipedAway.first() }
         Log.i(TAG, "Task removed; keep playing = $keepPlaying, playWhenReady = ${player.playWhenReady}")
         if (!keepPlaying || !player.playWhenReady || player.mediaItemCount == 0) {
-            pauseAllPlayersAndStopSelf()
+            controller.stop(countAsSkip = false)
+            stopSelf()
         }
     }
 

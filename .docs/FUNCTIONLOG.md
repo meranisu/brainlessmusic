@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `PlaybackController.stop()` (new `countAsSkip` parameter), `PlaybackService.onTaskRemoved()`, `MainActivity.onDestroy()`: `android/.../playback/`, `android/.../MainActivity.kt`
+**Date:** 2026-10-12
+**How added:** bug fix (owner report)
+**Purpose:** swiping the app away fully stops the music instead of pausing it.
+**Side effects:** clears the player's queue and its notification; sends the play's final listening time; no skip recorded.
+**Before:** a swipe-away paused, leaving the track and notification up.
+**After:** a swipe-away stops and empties the player; the server's saved resume point is untouched.
+
 **Function:** `GenresPage`, `GenreDetailPage` (new): `frontend/src/pages/`; `AlbumDetailPage`, `ArtistDetailPage`, `AlbumsPage`: `frontend/src/pages/`; nav items in `frontend/src/components/AppShell.tsx`
 **Date:** 2026-10-12
 **How added:** new feature (v0.4 box 28)

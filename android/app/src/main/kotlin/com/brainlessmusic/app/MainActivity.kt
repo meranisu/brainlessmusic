@@ -172,7 +172,7 @@ class MainActivity : ComponentActivity() {
         val closed = isFinishing && !isChangingConfigurations && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
         if (closed) {
             Log.i(TAG, "Task closed; keep playing when swiped away = $keepPlayingWhenSwipedAway")
-            if (keepPlayingWhenSwipedAway == false) playbackController.sessionPlayer.pause()
+            if (keepPlayingWhenSwipedAway == false) playbackController.stop(countAsSkip = false)
         }
         super.onDestroy()
     }

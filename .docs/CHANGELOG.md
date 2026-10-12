@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Android swipe-away stops the music instead of pausing it (A58)
+
+- Swiping the app away from recents (with "Keep playing when swiped away" off, or with the music paused) now stops
+  playback and empties the player, so the notification goes away like YouTube Music and Spotify. Before, both
+  `PlaybackService.onTaskRemoved` and the `MainActivity.onDestroy` backstop only paused: the player lives in
+  `PlaybackController`, not the service, so the paused track and its notification stayed.
+- The saved resume point is kept (`PlaybackResume` never saves an empty queue), so the next launch restores it.
+- The swipe doesn't count as a skip: `PlaybackController.stop(countAsSkip = false)`. Logout still counts one.
+- Verified: `:app:compileDebugKotlin` clean. Not run on a phone or emulator.
+
 ## 2026-10-12: Android shows album artists, disc headers, Appears on and Genres (v0.4 box 28, Android)
 
 - Album screen: each song's own artist under its title when it isn't the album's; "Disc 1", "Disc 2" headers when an

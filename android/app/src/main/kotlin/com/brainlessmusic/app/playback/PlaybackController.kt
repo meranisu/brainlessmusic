@@ -756,8 +756,11 @@ class PlaybackController @Inject constructor(
         publish()
     }
 
-    /** Ends playback and empties the queue, so a logout doesn't leave the last account's music playing. */
-    fun stop() {
+    /**
+     * Ends playback and empties the queue, so a logout doesn't leave the last account's music playing. Closing the app
+     * (A58) passes [countAsSkip] false: that cuts the song short without the listener skipping it.
+     */
+    fun stop(countAsSkip: Boolean = true) {
         if (queue.isEmpty()) return
         fadeAction++
         pendingJump = null
@@ -770,7 +773,7 @@ class PlaybackController @Inject constructor(
         source = null
         generation++
         playNextPending = 0
-        recordSkip()
+        if (countAsSkip) recordSkip()
         reportListened(final = true)
         tracker = null
         trackerItem = null
