@@ -4,6 +4,20 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Sign-in is an arcade title screen, per skin, with TAP TO START (Android)
+
+- Owner request (A143, A144). The sign-in screen opens on the title alone, the band with the wordmark over the skin's
+  attract backdrop, and a blinking TAP TO START; a tap (anywhere) brings up the two ways in, and back from them
+  returns to the title. `TitleBackdrop`: Standard keeps the web's beat mosaic; Hit circle osu!'s menu (triangles
+  drifting up, the logo circle beating at 128 BPM in its visualiser); Lane Arcaea's title (slanted rays, a slow-turning
+  outlined diamond, light motes falling); Gear SOUND VOLTEX's attract (the lane in perspective with chips coming down,
+  the lasers swaying, the critical line); Ring maimai's attract (the eight buttons lighting in a chase, the slide
+  star orbiting). Once the form is up it runs at about a third of the speed under a heavier veil; with animations off
+  it holds still.
+- The skin and colours are the phone's and survive a sign-out, so the title screen after signing out is in the skin
+  last worn; a fresh install shows Standard.
+- Compiled (`compileDebugKotlin`); not watched on a phone.
+
 ## 2026-10-12: The first-run setup is per account (Android)
 
 - Owner (A142): a second account signing in on a phone should get the setup too. `AppearanceSettings` now keeps the

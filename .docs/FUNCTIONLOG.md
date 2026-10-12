@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `TitleBackdrop()`, `rememberClock()`, `osuMenu()`, `arcaeaTitle()`, `voltexAttract()`, `maimaiAttract()` (new): `android/.../ui/login/TitleBackdrops.kt`; `LoginScreen()`, `TapToStart()` (new): `ui/login/LoginScreen.kt`
+**Date:** 2026-10-12
+**How added:** owner request (A143, A144)
+**Purpose:** the sign-in screen as an arcade title screen in the skin's game, gated by TAP TO START.
+**Side effects:** none; a frame-clock loop while the screen shows (none with animations off).
+**Before:** the web title screen's beat mosaic in every skin, the form shown at once.
+**After:** the skin's attract backdrop; title and TAP TO START first, the form after a tap, the backdrop calmer under it.
+
 **Function:** `AppearanceSettings.isSetUp()`, `markSetUp()` (new; replace `setupDone` / `setSetupDone()`): `data/local/AppearanceSettings.kt`; `StartViewModel.signedIn()`, `setupFinished()`, init: `ui/splash/StartViewModel.kt`
 **Date:** 2026-10-12
 **How added:** owner request (A142)

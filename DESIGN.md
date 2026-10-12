@@ -171,6 +171,10 @@ beats twice and the name shows. Lane opens the app from behind Arcaea's shutter,
 Gear runs SOUND VOLTEX's entry: the lasers, ENTRY, the appeal card, then the critical line and GAME START. Ring pops maimai's
 round screen open, "Welcome!" bounces in, and the name plate drops in. About 2 s; a tap skips it.
 
+The sign-in screen is an arcade title screen (A143, A144): the skin's attract loop behind the wordmark band (Standard:
+the web's beat mosaic; Hit circle osu!'s menu; Lane Arcaea's title; Gear SOUND VOLTEX's lane; Ring maimai's button
+chase), TAP TO START, then the form over a calmer loop.
+
 An account's first sign-in on a phone goes through a short setup (`SetupScreen`, A139): what the app is, the look (the app
 restyles as you pick), three playback switches, done; then the welcome plays in the chosen skin.
 

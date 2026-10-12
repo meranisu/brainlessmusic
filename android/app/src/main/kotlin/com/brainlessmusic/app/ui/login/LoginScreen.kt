@@ -1,5 +1,16 @@
 package com.brainlessmusic.app.ui.login
 
+import android.provider.Settings
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -70,7 +81,10 @@ import com.brainlessmusic.app.ui.common.BrandMark
 import com.brainlessmusic.app.ui.theme.BrandFontFamily
 import com.brainlessmusic.app.ui.theme.AppIcons
 
-/** The web title screen in Material colors: beat mosaic, a solid band with the wordmark, and true corner readouts. */
+/**
+ * The arcade title screen (A143, A144): the skin's attract backdrop (Standard: the web's beat mosaic), a band with the
+ * wordmark and true corner readouts, TAP TO START; a tap brings up the two ways in.
+ */
 @Composable
 fun LoginScreen(
     onLoggedIn: (username: String) -> Unit,
@@ -86,9 +100,20 @@ fun LoginScreen(
     BackHandler(enabled = state.mode != EntryMode.CHOOSE || state.handedCode != null) {
         if (state.handedCode != null) viewModel.continueWithHandedCode(onLoggedIn) else viewModel.backToChoice()
     }
+    // The title screen first, as an arcade's attract mode, and the form after a tap (A144). Back from the two
+    // buttons returns to it.
+    var started by rememberSaveable { mutableStateOf(false) }
+    BackHandler(enabled = started && state.mode == EntryMode.CHOOSE && state.handedCode == null) { started = false }
 
-    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        BeatMosaic()
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .then(
+                if (started) Modifier else Modifier.clickable(onClickLabel = "Start", role = Role.Button) { started = true },
+            ),
+    ) {
+        TitleBackdrop(calm = started)
 
         Column(
             modifier = Modifier
@@ -115,6 +140,9 @@ fun LoginScreen(
 
                     Spacer(Modifier.height(20.dp))
 
+                    if (!started) TapToStart()
+
+                    AnimatedVisibility(visible = started, enter = fadeIn() + slideInVertically { it / 6 }) {
                     Surface(
                         shape = RoundedCornerShape(28.dp),
                         color = MaterialTheme.colorScheme.surfaceContainer,
@@ -177,6 +205,7 @@ fun LoginScreen(
                                 }
                             }
                         }
+                    }
                     }
                 }
             }
@@ -492,6 +521,34 @@ private fun TitleBand() {
             )
         }
     }
+}
+
+/** The attract screen's prompt, blinking as an arcade's does (held lit with animations off). */
+@Composable
+private fun TapToStart() {
+    val context = LocalContext.current
+    val animationsOn = remember {
+        Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
+    }
+    val blink = if (animationsOn) {
+        rememberInfiniteTransition(label = "tapToStart").animateFloat(
+            initialValue = 1f,
+            targetValue = 0.25f,
+            animationSpec = infiniteRepeatable(tween(700, easing = LinearEasing), RepeatMode.Reverse),
+            label = "tapToStartAlpha",
+        ).value
+    } else {
+        1f
+    }
+    Text(
+        "TAP TO START",
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.SemiBold,
+        letterSpacing = 4.sp,
+        color = MaterialTheme.colorScheme.onBackground,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp).graphicsLayer { alpha = blink },
+    )
 }
 
 /** Top corners of the web's HUD: the version on the left, whether the server answered on the right. */
