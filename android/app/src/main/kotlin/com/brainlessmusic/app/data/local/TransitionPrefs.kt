@@ -18,6 +18,8 @@ data class TransitionPrefs(
     val fadeOnPause: Boolean = true,
     /** No fade between back-to-back tracks of one album, so live albums and mixes stay seamless (A72). */
     val keepAlbumsGapless: Boolean = true,
+    /** Every song at about the same loudness, from the server's measurement (A3). Not a transition, but per phone too. */
+    val levelVolume: Boolean = true,
 )
 
 /**

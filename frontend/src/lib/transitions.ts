@@ -17,6 +17,8 @@ export interface TransitionPrefs {
   fadeOnPause: boolean;
   /** No fade between back-to-back tracks of one album, so live albums and mixes stay seamless. */
   keepAlbumsGapless: boolean;
+  /** Plays every song at about the same loudness, from the server's measurement (A3). Not a transition, but per device too. */
+  levelVolume: boolean;
 }
 
 export const DEFAULT_TRANSITIONS: TransitionPrefs = {
@@ -24,6 +26,7 @@ export const DEFAULT_TRANSITIONS: TransitionPrefs = {
   fadeSeconds: 6,
   fadeOnPause: true,
   keepAlbumsGapless: true,
+  levelVolume: true,
 };
 
 const STORAGE_KEY = 'brainlessmusic.transitions';
@@ -43,6 +46,7 @@ export function loadTransitionPrefs(): TransitionPrefs {
       fadeOnPause: typeof parsed.fadeOnPause === 'boolean' ? parsed.fadeOnPause : DEFAULT_TRANSITIONS.fadeOnPause,
       keepAlbumsGapless:
         typeof parsed.keepAlbumsGapless === 'boolean' ? parsed.keepAlbumsGapless : DEFAULT_TRANSITIONS.keepAlbumsGapless,
+      levelVolume: typeof parsed.levelVolume === 'boolean' ? parsed.levelVolume : DEFAULT_TRANSITIONS.levelVolume,
     };
   } catch {
     // Blocked or corrupt storage: the defaults are a working player.

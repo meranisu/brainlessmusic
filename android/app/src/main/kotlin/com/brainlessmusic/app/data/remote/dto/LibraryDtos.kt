@@ -39,6 +39,8 @@ data class AlbumTrackDto(
     val trackNumber: Int?,
     val duration: Double?,
     val format: String?,
+    // Null until the server has measured the song, and from servers before levelling.
+    val gainDb: Double? = null,
 )
 
 /** `GET /tracks/:id`: the file's tags and what the server knows about it. [bitrate] is in bits per second. */
@@ -87,6 +89,8 @@ data class TrackSummaryDto(
     val hasStreamError: Boolean,
     val playCount: Int,
     val dateAdded: String,
+    // Null until the server has measured the song, and from servers before levelling.
+    val gainDb: Double? = null,
 )
 
 data class SearchResultsDto(

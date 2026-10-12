@@ -29,6 +29,8 @@ data class DownloadedTrack(
     val trackNumber: Int?,
     val durationSec: Double?,
     val format: String?,
+    /** Levelling gain as it was when downloaded, so an offline song is levelled too. Null before version 5. */
+    val gainDb: Double? = null,
 )
 
 /** The song as a queue entry; [coverUrl] is its group's saved cover, or its own art when there's signal. */
@@ -42,6 +44,7 @@ fun DownloadedTrack.toQueueItem(coverUrl: String?) = QueueItem(
     format = format,
     albumId = albumId,
     trackNumber = trackNumber,
+    gainDb = gainDb,
 )
 
 /** An album or playlist someone tapped download on. [id] is `album:<id>` or `playlist:<id>`. */
@@ -246,7 +249,7 @@ interface PendingPlayDao {
 /** Downloads and, since version 2, plays waiting for signal: both are what the phone keeps for offline use. */
 @Database(
     entities = [DownloadedTrack::class, DownloadGroup::class, DownloadGroupTrack::class, PendingPlay::class],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 abstract class DownloadDatabase : RoomDatabase() {
@@ -273,6 +276,12 @@ abstract class DownloadDatabase : RoomDatabase() {
         val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `pending_play` ADD COLUMN `skipped` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `downloaded_track` ADD COLUMN `gainDb` REAL")
             }
         }
     }

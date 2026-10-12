@@ -181,7 +181,7 @@ class DownloadRepository @Inject constructor(
         DownloadGroup("album:${album.id}", KIND_ALBUM, album.title, album.artistName, null, System.currentTimeMillis()),
         libraryRepository.albumCoverUrl(album.id),
         album.tracks.map {
-            DownloadedTrack(it.id, it.title, album.artistName, album.title, album.id, it.trackNumber, it.duration, it.format)
+            DownloadedTrack(it.id, it.title, album.artistName, album.title, album.id, it.trackNumber, it.duration, it.format, it.gainDb)
         },
         onRefused,
     )
@@ -193,7 +193,7 @@ class DownloadRepository @Inject constructor(
     fun downloadPlaylist(playlist: PlaylistDetailDto, onRefused: (String) -> Unit) = downloadGroup(
         DownloadGroup("playlist:${playlist.id}", KIND_PLAYLIST, playlist.name, null, null, System.currentTimeMillis()),
         playlist.tracks.firstOrNull()?.let { libraryRepository.trackCoverUrl(it.id) },
-        playlist.tracks.map { DownloadedTrack(it.id, it.title, it.artist, it.album, it.albumId, it.trackNumber, it.duration, it.format) },
+        playlist.tracks.map { DownloadedTrack(it.id, it.title, it.artist, it.album, it.albumId, it.trackNumber, it.duration, it.format, it.gainDb) },
         onRefused,
     )
 
@@ -205,7 +205,10 @@ class DownloadRepository @Inject constructor(
             saveCover(songCoverKey(item.trackId), libraryRepository.trackCoverUrl(item.trackId))
             dao.addToGroup(
                 DownloadGroup(SONGS_GROUP, KIND_SONGS, "Songs", "Downloaded one at a time", null, System.currentTimeMillis()),
-                DownloadedTrack(item.trackId, item.title, item.artist, item.album, item.albumId, item.trackNumber, item.durationSec, item.format),
+                DownloadedTrack(
+                    item.trackId, item.title, item.artist, item.album, item.albumId, item.trackNumber, item.durationSec,
+                    item.format, item.gainDb,
+                ),
             )
             download(listOf(item.trackId))
             onDone("Downloading \"${item.title}\".")

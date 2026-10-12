@@ -61,6 +61,13 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A133 — smol's library is checked through a guest login *(was Q133)*
+**Answered:** 2026-10-12, in chat: "use guest login". Also confirmed: the -18 LUFS target and levelling on by default
+stay. Done the same day with an owner-given guest code (guest "loudness check" now exists on smol): 30 random tracks
+of 32,405, measured here from their streams. -17.4 to -4.5 LUFS, median -8.8; 25 of 30 peak over 0 dBTP. At -18
+every one is lowered, -0.6 to -13.5 dB, so smol plays about 9 dB quieter overall with levelling on. ffmpeg averaged
+4.0 s a track here, so the first full pass on smol is roughly a day and a half.
+
 ### A132 — Ring's score is an achievement percentage *(was Q132)*
 **Answered:** 2026-10-12, in chat: "recommend". Achievement = 100% × plays / (plays + skips), plus 1% only for a full
 combo, four decimals (0.0000% to 101.0000%), with maimai's rank (D to SSS+, thresholds in

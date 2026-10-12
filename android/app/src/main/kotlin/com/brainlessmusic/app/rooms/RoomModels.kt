@@ -12,6 +12,8 @@ data class RoomEntry(
     val albumId: Int?,
     val durationMs: Long,
     val addedBy: Int,
+    /** Null until measured, and from servers before levelling. */
+    val gainDb: Double? = null,
 )
 
 data class RoomMember(

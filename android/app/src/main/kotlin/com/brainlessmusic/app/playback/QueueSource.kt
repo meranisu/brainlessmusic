@@ -49,6 +49,7 @@ fun LibraryRepository.queueItem(track: TrackSummaryDto) = QueueItem(
     format = track.format,
     albumId = track.albumId,
     trackNumber = track.trackNumber,
+    gainDb = track.gainDb,
 )
 
 /** A play from `/me/history` (You tab, Recently played). */
@@ -62,6 +63,7 @@ fun LibraryRepository.queueItem(entry: HistoryEntryDto) = QueueItem(
     format = entry.format,
     albumId = entry.albumId,
     trackNumber = entry.trackNumber,
+    gainDb = entry.gainDb,
 )
 
 /** An album's tracks carry no artist/album/cover of their own; the album supplies them. */
@@ -75,4 +77,5 @@ fun LibraryRepository.queueItem(album: AlbumDetailDto, track: AlbumTrackDto) = Q
     format = track.format,
     albumId = album.id,
     trackNumber = track.trackNumber,
+    gainDb = track.gainDb,
 )

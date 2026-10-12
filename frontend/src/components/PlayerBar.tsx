@@ -47,11 +47,12 @@ import {
 import { NowPlaying } from './NowPlaying';
 import { useRoom } from './RoomProvider';
 import { expectedPositionMs, type RoomState } from '../lib/roomClient';
+import { applyLevel, levelFactor, resumeLevelling } from '../lib/levelling';
 import type { PlaybackState, TrackSummary } from '../types/api';
 import { useToast } from './ToastProvider';
 
 export type QueueTrack = Pick<TrackSummary, 'id' | 'title' | 'artist' | 'duration'> &
-  Partial<Pick<TrackSummary, 'format' | 'albumId' | 'trackNumber'>>;
+  Partial<Pick<TrackSummary, 'format' | 'albumId' | 'trackNumber' | 'gainDb'>>;
 
 export type RepeatMode = 'off' | 'all' | 'one';
 
@@ -300,6 +301,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const transitionRef = useRef<{ kind: BetweenSongs; fadeSeconds: number; timer?: number } | null>(null);
   // Each element's fade (0 to 1). Its volume is the user's volume times this, so a fade never touches the slider.
   const fadeGainRef = useRef(new Map<HTMLAudioElement, number>());
+  // Each element's levelling gain in dB (A3), set with the song it loads; elements trade places, so it goes with them.
+  const levelRef = useRef(new Map<HTMLAudioElement, number | null | undefined>());
   const rampsRef = useRef(new Map<HTMLAudioElement, { timer: number; done: () => void }>());
   const volumeRef = useRef(volume);
   const transitionsRef = useRef(transitions);
@@ -469,6 +472,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     const first = new Audio();
     const second = new Audio();
+    // An element routed through Web Audio for a boost is silent while the context is suspended.
+    first.addEventListener('play', resumeLevelling);
+    second.addEventListener('play', resumeLevelling);
     audioRef.current = first;
     spareRef.current = second;
     const unbindFirst = bind(first);
@@ -490,10 +496,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** The element's volume is the user's volume times its fade. */
+  /** The element's volume is the user's volume times its fade, times its song's levelling when that is on. */
   function setFadeGain(audio: HTMLAudioElement, gain: number) {
     fadeGainRef.current.set(audio, gain);
-    audio.volume = Math.min(Math.max(volumeRef.current * gain, 0), 1);
+    const level = canFade && transitionsRef.current.levelVolume ? levelFactor(levelRef.current.get(audio)) : 1;
+    applyLevel(audio, volumeRef.current * gain * level);
   }
 
   function fadeGain(audio: HTMLAudioElement): number {
@@ -544,6 +551,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       spare.removeAttribute('src');
       spare.load(); // drops the in-flight range request
     }
+    levelRef.current.delete(spare);
     setFadeGain(spare, 1);
     preloadRef.current = null;
   }
@@ -655,6 +663,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     retireSpare();
     const fadeIn = autoplay && canFade && transitionsRef.current.fadeOnPause;
     cancelRamp(audio);
+    levelRef.current.set(audio, track.gainDb);
     setFadeGain(audio, fadeIn ? 0 : 1);
 
     setIsLoading(true);
@@ -861,6 +870,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   function setTransitions(prefs: TransitionPrefs) {
     setTransitionsState(prefs);
     saveTransitionPrefs(prefs);
+    // Levelling switched on or off applies to the song already playing, not just the next one.
+    transitionsRef.current = prefs;
+    for (const audio of [audioRef.current, spareRef.current]) {
+      if (audio) setFadeGain(audio, fadeGain(audio));
+    }
     // A boundary already timed for the old setting would run the wrong way; the next `timeupdate` re-plans it.
     if (transitionRef.current && transitionRef.current.kind !== 'fadeOutIn') clearTransition();
   }
@@ -1266,6 +1280,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const url = await buildStreamUrl(track.id, quality);
     if (spare !== spareRef.current || !spare.paused) return;
     cancelRamp(spare);
+    levelRef.current.set(spare, track.gainDb);
     setFadeGain(spare, 1);
     spare.src = url;
     spare.load();
@@ -1436,6 +1451,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       artist: e.artist,
       duration: e.durationMs / 1000,
       albumId: e.albumId,
+      gainDb: e.gainDb,
     }));
   }
 

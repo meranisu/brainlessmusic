@@ -99,6 +99,7 @@ class PlaybackSettings @Inject constructor(
             fadeSeconds = prefs[FADE_SECONDS_KEY]?.takeIf { it in FADE_LENGTHS } ?: defaults.fadeSeconds,
             fadeOnPause = prefs[FADE_ON_PAUSE_KEY] ?: defaults.fadeOnPause,
             keepAlbumsGapless = prefs[KEEP_ALBUMS_GAPLESS_KEY] ?: defaults.keepAlbumsGapless,
+            levelVolume = prefs[LEVEL_VOLUME_KEY] ?: defaults.levelVolume,
         )
     }
 
@@ -118,6 +119,10 @@ class PlaybackSettings @Inject constructor(
         dataStore.edit { it[KEEP_ALBUMS_GAPLESS_KEY] = enabled }
     }
 
+    suspend fun setLevelVolume(enabled: Boolean) {
+        dataStore.edit { it[LEVEL_VOLUME_KEY] = enabled }
+    }
+
     private companion object {
         val SHUFFLE_KEY = booleanPreferencesKey("shuffle")
         val SHUFFLE_MODE_KEY = stringPreferencesKey("shuffle_mode")
@@ -130,6 +135,7 @@ class PlaybackSettings @Inject constructor(
         val FADE_SECONDS_KEY = intPreferencesKey("fade_seconds")
         val FADE_ON_PAUSE_KEY = booleanPreferencesKey("fade_on_pause")
         val KEEP_ALBUMS_GAPLESS_KEY = booleanPreferencesKey("keep_albums_gapless")
+        val LEVEL_VOLUME_KEY = booleanPreferencesKey("level_volume")
         val DATA_SAVER_KEY = booleanPreferencesKey("data_saver")
         val DOWNLOAD_LIMIT_GB_KEY = intPreferencesKey("download_limit_gb")
     }

@@ -452,6 +452,13 @@ fun SettingsPageScreen(
                             checked = transitions.fadeOnPause,
                             onCheckedChange = viewModel::setFadeOnPause,
                         )
+                        Divider()
+                        SwitchRow(
+                            title = "Volume levelling",
+                            detail = "Every song plays at about the same loudness.",
+                            checked = transitions.levelVolume,
+                            onCheckedChange = viewModel::setLevelVolume,
+                        )
                         // Guests can't mark songs, so there is nothing to reset.
                         if (!viewModel.isGuest) {
                             Divider()

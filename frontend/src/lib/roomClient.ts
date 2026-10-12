@@ -12,6 +12,7 @@ export interface RoomEntry {
   artist: string | null;
   albumId: number | null;
   durationMs: number;
+  gainDb: number | null;
   addedBy: number;
 }
 

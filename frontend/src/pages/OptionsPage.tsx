@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { usePlayer } from '../components/PlayerBar';
-import { DataSaverIcon } from '../components/icons';
+import { DataSaverIcon, VolumeIcon } from '../components/icons';
 import { useRef, useState, type FormEvent } from 'react';
 import { HandoffDialog } from '../components/HandoffDialog';
 import { LibraryBrowseDialog } from '../components/LibraryBrowseDialog';
@@ -425,6 +425,18 @@ export function OptionsPage() {
           checked={dataSaver}
           onChange={() => void setDataSaver(!dataSaver)}
         />
+        {/* Hidden where the browser ignores volume (iPhone, iPad), like the fades below. */}
+        {canFade && (
+          <div className="mt-2">
+            <ToggleRow
+              label="Volume levelling"
+              detail="Every song plays at about the same loudness"
+              icon={<VolumeIcon className="h-5 w-5" />}
+              checked={transitions.levelVolume}
+              onChange={() => setTransitions({ ...transitions, levelVolume: !transitions.levelVolume })}
+            />
+          </div>
+        )}
         <TransitionSettings prefs={transitions} onChange={setTransitions} canFade={canFade} />
       </section>
 

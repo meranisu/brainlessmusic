@@ -79,6 +79,10 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settings.setKeepAlbumsGapless(enabled) }
     }
 
+    fun setLevelVolume(enabled: Boolean) {
+        viewModelScope.launch { settings.setLevelVolume(enabled) }
+    }
+
     val themeMode: StateFlow<ThemeMode> = appearance.themeMode
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ThemeMode.SYSTEM)
 

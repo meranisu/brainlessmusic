@@ -49,6 +49,7 @@ export function SearchPage() {
     title: t.title,
     artist: t.artist,
     duration: t.duration,
+    gainDb: t.gainDb,
     format: t.format,
   }));
 

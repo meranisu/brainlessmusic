@@ -15,6 +15,7 @@ import {
 } from '../db/browse.js';
 import { findTrackArtworkId } from '../db/artwork.js';
 import { peaksForTrack } from '../services/waveform.js';
+import { prioritizeLoudness, requestLoudnessBackfill } from '../services/loudness.js';
 import {
   deleteTrackRow,
   findTrackById,
@@ -234,6 +235,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
 
         const track = upsertTrack({ path: destPath, fileSize: stats.size, rootId: defaultRoot.id, ...tags });
         await persistArtwork(track.id, track.album_id, tags.picture);
+        requestLoudnessBackfill();
 
         return reply.code(201).send({ track: getTrackSummaryById(track.id) });
       } finally {
@@ -381,6 +383,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
       if (!track || (track.hidden === 1 && !isAdminRequest(request))) {
         return reply.code(404).send({ error: 'Track not found' });
       }
+      prioritizeLoudness(id, track.loudness_lufs !== null);
 
       // Who, on what client, for every failure this handler sees. Client-side decode failures arrive via
       // `/tracks/:id/playback-failure`.

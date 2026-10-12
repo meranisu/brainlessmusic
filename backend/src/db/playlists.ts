@@ -1,4 +1,5 @@
 import { db } from './connection.js';
+import { trackGainSql } from './loudness.js';
 
 export interface PlaylistRow {
   id: number;
@@ -23,6 +24,7 @@ export interface PlaylistTrack {
   albumId: number | null;
   trackNumber: number | null;
   duration: number | null;
+  gainDb: number | null;
   format: string | null;
   position: number;
 }
@@ -70,6 +72,7 @@ export function getPlaylistDetail(id: number): PlaylistDetail | undefined {
          t.album_id as albumId,
          t.track_number as trackNumber,
          t.duration as duration,
+         ${trackGainSql()} as gainDb,
          t.format as format,
          pt.position as position
        FROM playlist_tracks pt

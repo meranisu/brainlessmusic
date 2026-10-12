@@ -4,6 +4,30 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `parseEbur128Summary()`, `measureLoudness()`, `requestLoudnessBackfill()`, `prioritizeLoudness()`, `startLoudnessBackfill()` (new): `backend/src/services/loudness.ts`; `trackGainSql()`, `findUnmeasuredTrackIds()`, `setTrackLoudness()` (new): `backend/src/db/loudness.ts`; `upsertTrack()`: `backend/src/db/library.ts`
+**Date:** 2026-10-12
+**How added:** new feature (owner request)
+**Purpose:** measure each track's loudness and ship a levelling gain with every track (A3: the client applies it).
+**Side effects:** spawns ffmpeg (one at a time, reniced) from the server process only; writes `tracks.loudness_lufs` / `loudness_peak`. A rescan with a new file size clears them.
+**Before:** nothing; songs played at their mastered loudness.
+**After:** every track payload has `gainDb` (null until measured).
+
+**Function:** `levelFactor()`, `applyLevel()`, `resumeLevelling()` (new): `frontend/src/lib/levelling.ts`; `setFadeGain()`, `load()`, `preloadSpare()`, `retireSpare()`, `setTransitions()`: `frontend/src/components/PlayerBar.tsx`
+**Date:** 2026-10-12
+**How added:** new feature
+**Purpose:** apply `gainDb` on the web, behind the "Volume levelling" switch (`TransitionPrefs.levelVolume`).
+**Side effects:** routes an audio element through Web Audio the first time a song needs a boost; it stays routed.
+**Before:** element volume was user volume × fade.
+**After:** user volume × fade × level, boosted past 1 through a `GainNode`.
+
+**Function:** `VolumeRamps.fade()`, `setLevel()`, `forget()` (new), `set()`, `rampTo()`: `android/.../playback/VolumeRamps.kt`; `LoudnessBoost` (new): `LoudnessBoost.kt`; `levelPlayer()` (new), `startCrossfade()`, `cancelCrossfade()`, `onMediaItemTransition()`: `PlaybackController.kt`; `MIGRATION_4_5`: `downloads/DownloadDatabase.kt`
+**Date:** 2026-10-12
+**How added:** new feature
+**Purpose:** apply `gainDb` on Android, behind Settings → "Volume levelling".
+**Side effects:** a `LoudnessEnhancer` per player that needs a boost; Room DB version 5 (`downloaded_track.gainDb`).
+**Before:** `Player.volume` was the fade alone.
+**After:** volume = fade × levelling cut; boosts through the enhancer; downloads keep their gain for offline play.
+
 **Function:** `RingDeck`, `achievement()`, `achievementText()`, `ringRank()`, `ringDifficulty()` (new): `android/.../ui/playback/skins/Ring.kt`; `RingListening`, `listeningRating()` (new): `android/.../ui/profile/ListeningCards.kt`; `RingButtonIndication` (new): `android/.../ui/theme/Skin.kt`; `RingIcons` (new): `RingIcons.kt`; `starPath()`, `RingMiniButton` (new), `PlayingMarker`, `MiniProgress`, `TabIcon`, `TabLabel`, `MiniPlayButton`, `EdgeLine`: `android/.../ui/common/SkinParts.kt`; `GenreChips` (new): `android/.../ui/library/LibraryScreen.kt`; `RingIntro` (new): `SkinTransition.kt`
 **Date:** 2026-10-12
 **How added:** new feature

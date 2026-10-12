@@ -37,6 +37,7 @@ export function FavoritesPage() {
       title: t.title,
       artist: t.artist,
       duration: t.duration,
+      gainDb: t.gainDb,
       format: t.format,
       albumId: t.albumId,
       trackNumber: t.trackNumber,

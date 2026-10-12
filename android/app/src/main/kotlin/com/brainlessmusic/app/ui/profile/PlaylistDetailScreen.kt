@@ -164,6 +164,7 @@ class PlaylistDetailViewModel @Inject constructor(
         format = track.format,
         albumId = track.albumId,
         trackNumber = track.trackNumber,
+        gainDb = track.gainDb,
     )
 
     // This playlist's saves, one at a time and in order. A remove, an Undo and a drag otherwise race on the server:

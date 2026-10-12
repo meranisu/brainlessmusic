@@ -1,4 +1,5 @@
 import { db } from './connection.js';
+import { trackGainSql } from './loudness.js';
 import type { TrackSummary } from './browse.js';
 
 /** The most tracks a saved queue may hold. */
@@ -117,6 +118,7 @@ function fetchPlayable(ids: number[]): Map<number, TrackSummary> {
          t.album_id as albumId,
          t.track_number as trackNumber,
          t.duration as duration,
+         ${trackGainSql()} as gainDb,
          t.format as format,
          t.hidden as hidden,
          t.not_recommended as notRecommended,

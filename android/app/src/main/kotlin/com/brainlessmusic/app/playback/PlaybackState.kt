@@ -13,6 +13,8 @@ data class QueueItem(
     /** With [trackNumber], tells "the next track of this album" apart (A72, gapless albums). */
     val albumId: Int? = null,
     val trackNumber: Int? = null,
+    /** dB that levels this song's loudness (A3); null until the server has measured it, or from an older server. */
+    val gainDb: Double? = null,
 )
 
 enum class Repeat { OFF, ALL, ONE }

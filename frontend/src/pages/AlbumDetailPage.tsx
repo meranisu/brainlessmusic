@@ -28,6 +28,7 @@ export function AlbumDetailPage() {
       title: t.title,
       artist: data.artistName,
       duration: t.duration,
+      gainDb: t.gainDb,
       format: t.format,
       // Lets the player keep joins inside the album gapless (A72).
       albumId: data.id,

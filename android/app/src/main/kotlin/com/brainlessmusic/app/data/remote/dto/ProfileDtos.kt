@@ -48,6 +48,8 @@ data class HistoryEntryDto(
     val format: String?,
     val playedAt: String,
     val missing: Boolean = false,
+    // Null until the server has measured the song, and from servers before levelling.
+    val gainDb: Double? = null,
     /** Cut short before the threshold (A113). Servers before 2026-10-11 don't send it. */
     val skipped: Boolean = false,
 )
@@ -78,6 +80,7 @@ data class PlaylistTrackDto(
     // Null from a server older than these fields.
     val albumId: Int? = null,
     val trackNumber: Int? = null,
+    val gainDb: Double? = null,
 )
 
 data class PlaylistDetailDto(val id: Int, val name: String, val createdAt: String, val tracks: List<PlaylistTrackDto>)

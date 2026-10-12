@@ -21,6 +21,8 @@ export interface TrackSummary {
   albumId: number | null;
   trackNumber: number | null;
   duration: number | null;
+  /** dB that levels this track's loudness; null until the server has measured it. */
+  gainDb: number | null;
   format: string | null;
   hidden: boolean;
   notRecommended: boolean;
@@ -278,6 +280,7 @@ export interface AlbumTrack {
   title: string;
   trackNumber: number | null;
   duration: number | null;
+  gainDb: number | null;
   format: string | null;
 }
 
@@ -330,6 +333,7 @@ export interface PlaylistTrack {
   albumId: number | null;
   trackNumber: number | null;
   duration: number | null;
+  gainDb: number | null;
   format: string | null;
   position: number;
 }

@@ -45,7 +45,7 @@ function fakeClock() {
 function lookupTracks(ids: number[]): Map<number, RoomTrack> {
   const found = new Map<number, RoomTrack>();
   for (const id of ids) {
-    if (id < 10) found.set(id, { trackId: id, title: `T${id}`, artist: 'A', albumId: null, durationMs: 100_000 });
+    if (id < 10) found.set(id, { trackId: id, title: `T${id}`, artist: 'A', albumId: null, durationMs: 100_000, gainDb: null });
   }
   return found;
 }

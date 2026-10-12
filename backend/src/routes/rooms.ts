@@ -37,6 +37,7 @@ export const rooms = createRoomRegistry({
         artist: t.artist,
         albumId: t.albumId,
         durationMs: Math.round(t.duration * 1000),
+        gainDb: t.gainDb,
       });
     }
     return playable;

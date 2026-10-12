@@ -1,4 +1,5 @@
 import { db } from './connection.js';
+import { trackGainSql } from './loudness.js';
 
 export interface PlayHistoryEntry {
   id: number;
@@ -9,6 +10,7 @@ export interface PlayHistoryEntry {
   albumId: number | null;
   trackNumber: number | null;
   duration: number | null;
+  gainDb: number | null;
   format: string | null;
   playedAt: string;
   msPlayed: number | null;
@@ -32,6 +34,7 @@ export interface TopTrack {
   artist: string | null;
   album: string | null;
   duration: number | null;
+  gainDb: number | null;
   format: string | null;
   playCount: number;
   lastPlayedAt: string | null;
@@ -140,6 +143,7 @@ export function listHistoryForUser(
          t.album_id as albumId,
          t.track_number as trackNumber,
          t.duration as duration,
+         ${trackGainSql()} as gainDb,
          t.format as format,
          ph.played_at as playedAt,
          ph.ms_played as msPlayed,
@@ -197,6 +201,7 @@ export function listTopTracks(limit: number, offset: number): TopTrack[] {
          a.name as artist,
          al.title as album,
          t.duration as duration,
+         ${trackGainSql()} as gainDb,
          t.format as format,
          t.play_count as playCount,
          t.last_played_at as lastPlayedAt

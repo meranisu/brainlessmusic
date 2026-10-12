@@ -1,4 +1,5 @@
 import { db } from './connection.js';
+import { trackGainSql } from './loudness.js';
 import { buildMatchQuery } from '../utils/ftsQuery.js';
 
 export interface ArtistSummary {
@@ -26,6 +27,7 @@ export interface AlbumTrack {
   title: string;
   trackNumber: number | null;
   duration: number | null;
+  gainDb: number | null;
   format: string | null;
 }
 
@@ -47,6 +49,7 @@ export interface TrackSummary {
   albumId: number | null;
   trackNumber: number | null;
   duration: number | null;
+  gainDb: number | null;
   format: string | null;
   hidden: boolean;
   notRecommended: boolean;
@@ -124,6 +127,7 @@ const TRACK_SUMMARY_SELECT = `
     t.album_id as albumId,
     t.track_number as trackNumber,
     t.duration as duration,
+    ${trackGainSql()} as gainDb,
     t.format as format,
     t.hidden as hidden,
     t.not_recommended as notRecommended,
@@ -300,7 +304,7 @@ export function getAlbumDetail(id: number, includeHidden = false): AlbumDetail |
 
   const tracks = db
     .prepare(
-      `SELECT id, title, track_number as trackNumber, duration, format
+      `SELECT id, title, track_number as trackNumber, duration, ${trackGainSql('tracks')} as gainDb, format
        FROM tracks
        WHERE album_id = ? AND missing_since IS NULL ${includeHidden ? '' : 'AND hidden = 0'}
        ORDER BY track_number IS NULL, track_number ASC`,
@@ -374,6 +378,7 @@ export function getTrackDetailById(id: number): TrackDetail | undefined {
          t.album_id as albumId,
          t.artist_id as artistId,
          t.duration as duration,
+         ${trackGainSql()} as gainDb,
          t.format as format,
          t.hidden as hidden,
          t.not_recommended as notRecommended,

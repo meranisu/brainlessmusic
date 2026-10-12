@@ -3,6 +3,7 @@ import { config } from '../config.js';
 import { ensureDefaultLibraryRoot, listLibraryRoots, recordLibraryRootScan } from '../db/libraryRoots.js';
 import { replaceScanFailures } from '../db/scanFailures.js';
 import { reconcileMissingTracks, scanLibrary, type ReconcileSummary, type ScanSummary } from './scanner.js';
+import { requestLoudnessBackfill } from './loudness.js';
 
 /**
  * Keeps database and disk in agreement. Reconciliation (one stat per track) runs at boot and before each scan; the
@@ -66,6 +67,7 @@ export async function syncLibrary(
       abortRatio: config.libraryMissingAbortRatio,
     });
     recordLibraryRootScan(rootId, reconcile.aborted ?? null);
+    if (scan) requestLoudnessBackfill();
     return { scan, reconcile };
   } finally {
     running.delete(rootId);

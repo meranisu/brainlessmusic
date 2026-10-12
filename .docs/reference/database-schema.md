@@ -72,6 +72,8 @@ erDiagram
         INTEGER sample_rate
         TEXT last_stream_error
         TEXT waveform
+        REAL loudness_lufs
+        REAL loudness_peak
     }
     playlists {
         INTEGER id PK
@@ -182,6 +184,8 @@ have no other way to be reclaimed. It runs only when `POST /auth/guest` hits
 | `waveform` | TEXT | nullable | — | added in `0009`. Base64 of one unsigned byte per bucket (128 buckets), each the peak amplitude of that slice of the track. Computed from the file on the first `GET /tracks/:id/waveform` and cached here. `NULL` means "not yet asked for", never "cannot be drawn" — failures are deliberately not recorded, because the usual cause is a file mid-copy or moved and both fix themselves. Base64 rather than a JSON array: ~9MB across 50k tracks against ~35MB |
 | `missing_since` | TEXT | nullable | — | added in `0010`. ISO timestamp of when the file at `path` was first observed absent by the reconciliation sweep; `NULL` means present. Set once and not re-stamped on later sweeps — it answers "since when", so re-stamping would make a months-old absence look like this morning's. Cleared (along with `last_stream_error`) the moment the file comes back, so a library on a mount that comes and goes heals itself. **A flag, never a deletion** — removing the row would take `favorites` and `playlist_tracks` entries with it, for a file that may still exist elsewhere |
 | `tags_edited_at` | TEXT | nullable | — | Added `0025`. When an admin last edited title, artist, album or track number (`updateTrackFields`). Non-NULL makes a rescan (`upsertTrack`'s `ON CONFLICT`) keep those four instead of the file's tags, since edits aren't written to the file (Q5, C9). Everything else from the file is still refreshed. Visibility flags don't set it |
+| `loudness_lufs` | REAL | nullable | — | Added `0028`. Integrated loudness (EBU R128), measured by `services/loudness.ts` with ffmpeg `ebur128` in the background. `NULL` = not measured yet. `upsertTrack` clears it when a rescan sees a different `file_size`. Feeds `trackGainSql()` → `gainDb` on every track payload (A3) |
+| `loudness_peak` | REAL | nullable | — | Added `0028`. True peak in dBTP; caps a boost at -1 dBTP. `NULL` with a measured `loudness_lufs` is a silent file (no gain sent) |
 | `artwork_id` | TEXT | nullable | — | added in `0007`. Filename of the cached cover embedded in *this* file: `<sha256>.<jpg\|png\|webp\|gif>` under `ARTWORK_PATH`. Same backfill caveat as `bitrate` — existing rows stay `NULL` until re-scanned. `GET /tracks/:id/cover` falls back to `albums.artwork_id` when this is `NULL` |
 
 **FKs:** `artist_id → artists.id`, `album_id → albums.id` (both `NO ACTION` / `NO ACTION`).
@@ -485,6 +489,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | `0024_add_user_session_version.sql` | `users.session_version` — a password change ends older sessions (C8) |
 | `0025_add_track_tags_edited_at.sql` | `tracks.tags_edited_at` — a rescan keeps an admin's tag edit (C9) |
 | `0027_add_play_history_skipped.sql` | `play_history.skipped` — songs cut short before the threshold are recorded as skips (A113) |
+| `0028_add_track_loudness.sql` | `tracks.loudness_lufs`, `tracks.loudness_peak` — volume levelling (A3) |
 | `0026_add_play_history_client_play_id.sql` | `play_history.client_play_id` + unique partial `idx_play_history_client_play_id` — a resent play is counted once (C10) |
 | `0021_add_play_history_ms_final.sql` | `play_history.ms_final`: marks plays whose `ms_played` is the real total (A62) |
 | `0020_add_user_theme.sql` | `users.theme` — the web theme follows the profile (A55) |
@@ -493,6 +498,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-10-12 | Migration `0028_add_track_loudness.sql` — `tracks.loudness_lufs`, `loudness_peak`; column rows, ER diagram and migration row. From the migration SQL and the test run | Volume levelling: the owner heard songs at uneven loudness |
 | 2026-10-11 | Migration `0027_add_play_history_skipped.sql` — `play_history.skipped`; column row, ER diagram and migration row. From the migration SQL and the test run | A113: an account that skips a lot showed 0 plays and 0 minutes after 30 minutes of listening |
 | 2026-10-11 | Migration `0026_add_play_history_client_play_id.sql` — `play_history.client_play_id` and its partial unique index; column row and migration row. From the migration SQL and the test run | C10 (codebase review): a play resent after a lost answer, or with a skewed phone clock, was counted twice |
 | 2026-10-11 | Migration `0025_add_track_tags_edited_at.sql` — `tracks.tags_edited_at`; column row and migration row. From the migration SQL and the test run | C9 (codebase review): the 12-hourly scan put the file's tags back over an admin's edit |

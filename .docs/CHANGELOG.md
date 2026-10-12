@@ -4,6 +4,39 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Volume levelling (backend, web, Android)
+
+- Owner noticed the volume jumping between songs. The server now measures every track's loudness with ffmpeg's
+  `ebur128` filter (integrated LUFS and true peak), in the background, one ffmpeg at a time at `nice 10`: at boot,
+  after each scan, after an upload. Migration `0028` adds `tracks.loudness_lufs` / `loudness_peak`; a rescan that
+  sees a different file size clears them so the file is measured again. Recently played tracks are measured
+  first, and a streamed unmeasured track jumps the line (`prioritizeLoudness`, at most 100 waiting), so it is levelled
+  from its next play; the play that asked stays unlevelled, as its client already holds a null gain. A progress line
+  every 500 tracks. File tags are ignored: this library's
+  R128/ReplayGain tags disagree with a measurement (`R128_TRACK_GAIN=-15`, i.e. -0.06 dB, on a -23 LUFS track).
+- Every track payload (browse, search, album, playlist, favorites, history, top, resume, room queue) carries
+  `gainDb`: aim at -18 LUFS (ReplayGain 2.0), never raising the true peak past -1 dBTP, never more than +12 dB;
+  null until measured, and clients play null at unity. Computed in SQL from the stored measurement
+  (`trackGainSql`), so the target can change without measuring again.
+- Applied client-side, per A3. Web: the element volume carries the cut; an element is routed through a Web Audio
+  `GainNode` only the first time a song needs raising past full. Android: `VolumeRamps` now keeps each player's
+  fade and level apart (volume = fade × level), and a boost goes through a `LoudnessEnhancer` on the player's
+  audio session; the crossfade tail keeps the outgoing song's level. Downloads keep the gain (Room v5) so offline
+  songs are levelled.
+- A "Volume levelling" switch, on by default, per device: web Options → Playback (hidden on iPhone/iPad, which
+  ignore volume), Android Settings under the fades.
+- Measured the local library (19 Opus tracks): -20.5 to -26.4 LUFS, so every one is raised, +2.5 to +8.4 dB, several
+  held back by their peaks. Measuring takes 1.4-8.6 s a track here. smol's library (A133: 30 random tracks of
+  32,405, streamed through a guest session and measured here) is the opposite: -17.4 to -4.5 LUFS, median -8.8,
+  25 of 30 peaking over 0 dBTP, so every one is lowered (-0.6 to -13.5 dB) and smol plays ~9 dB quieter with
+  levelling on. At ~4 s a track the first pass there is roughly a day and a half, hence recent-first and play-first.
+- Verified: backend `npm test` 511/511 (new `loudness.test.ts`: summary parsing incl. frame lines and `-inf`, the
+  gain caps, rescan invalidation, the unmeasured list, a real ffmpeg measurement 12 dB apart, recent-first order); `tsc` clean; dev
+  backend on :3001 against the dev DB measured all 19 tracks and logged "Loudness: measured 19 tracks."; frontend
+  `npm run build`-level type check (`tsc -b`) and `npm run lint` (no new warnings); Android `compileDebugKotlin`
+  and `testDebugUnitTest` pass. Not run: the web player in a browser and the app on a phone, so the actual
+  loudness change hasn't been heard yet.
+
 ## 2026-10-12: Ring, the maimai skin, and the Candy colour theme (Android)
 
 - The fifth skin, after research (`.docs/features/player-skins/ring-research.md`: official site screens, open-source

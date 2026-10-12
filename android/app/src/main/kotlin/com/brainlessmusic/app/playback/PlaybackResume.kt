@@ -84,5 +84,6 @@ class PlaybackResume @Inject constructor(
         format = track.format,
         albumId = track.albumId,
         trackNumber = track.trackNumber,
+        gainDb = track.gainDb,
     )
 }

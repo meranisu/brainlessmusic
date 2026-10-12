@@ -36,6 +36,10 @@ export interface TrackRow {
   root_id: number | null;
   /** Set by an admin's tag edit; a scan then leaves title, artist, album and track number alone (C9). See `0025`. */
   tags_edited_at: string | null;
+  /** Integrated loudness in LUFS, measured in the background; null until then. See `0028`. */
+  loudness_lufs: number | null;
+  /** True peak in dBTP; null until measured, or for a silent file. */
+  loudness_peak: number | null;
 }
 
 export interface TrackInput {
@@ -122,6 +126,9 @@ export function upsertTrack(input: TrackInput): TrackRow {
        duration = excluded.duration,
        format = excluded.format,
        file_size = excluded.file_size,
+       -- A different file at the same path is measured again; same size is taken as the same audio.
+       loudness_lufs = CASE WHEN tracks.file_size = excluded.file_size THEN tracks.loudness_lufs ELSE NULL END,
+       loudness_peak = CASE WHEN tracks.file_size = excluded.file_size THEN tracks.loudness_peak ELSE NULL END,
        bitrate = excluded.bitrate,
        sample_rate = excluded.sample_rate,
        root_id = excluded.root_id`,

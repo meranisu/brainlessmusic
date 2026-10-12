@@ -57,6 +57,7 @@ import okhttp3.OkHttpClient
 import java.time.Instant
 import java.util.UUID
 import kotlin.math.abs
+import kotlin.math.pow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -82,7 +83,8 @@ class PlaybackController @Inject constructor(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
-    private val player: ExoPlayer by lazy { buildPlayer() }
+    private val playerLazy = lazy { buildPlayer() }
+    private val player: ExoPlayer by playerLazy
 
     /**
      * Owned here and lent to [PlaybackService], so the service being killed never loses the queue. The notification,
@@ -152,6 +154,7 @@ class PlaybackController @Inject constructor(
     // Fades (A71, A72). `transitions` mirrors the setting; `boundary` is the song end already being handled, so the
     // ticker starts it once; `tail` is the second player that carries the old song through a crossfade.
     private val ramps = VolumeRamps(CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate))
+    private val boost = LoudnessBoost()
     private var transitions = TransitionPrefs()
     private var boundary: Boundary? = null
     private var tail: ExoPlayer? = null
@@ -246,7 +249,13 @@ class PlaybackController @Inject constructor(
             lastOnMode = settings.lastShuffleMode.first()
             wantRepeat = settings.repeatMode.first()
         }
-        scope.launch { settings.transitions.collect { transitions = it } }
+        scope.launch {
+            settings.transitions.collect {
+                transitions = it
+                // Levelling switched on or off applies to the song playing now. Not worth building the player for.
+                if (playerLazy.isInitialized()) levelPlayer(player, queue.getOrNull(player.currentMediaItemIndex))
+            }
+        }
         scope.launch { settings.keepShuffle.collect { keepShuffle = it } }
         scope.launch { settings.dataSaver.collect(::applyDataSaver) }
         // A song finishing its download, or the stored downloads loading at start, changes which copy a queued song
@@ -845,11 +854,22 @@ class PlaybackController @Inject constructor(
         if (keepVolume) ramps.cancel(player) else ramps.set(player, 1f)
     }
 
+    /**
+     * Levels [p] to [item]'s loudness (A3): a cut through the volume, a boost through [LoudnessBoost]. Unity with the
+     * setting off, and for a song the server hasn't measured yet.
+     */
+    private fun levelPlayer(p: ExoPlayer, item: QueueItem?) {
+        val gainDb = item?.gainDb?.takeIf { transitions.levelVolume } ?: 0.0
+        ramps.setLevel(p, 10.0.pow(minOf(gainDb, 0.0) / 20).toFloat())
+        boost.set(p, gainDb)
+    }
+
     private fun cancelCrossfade() {
         crossfadeJob?.cancel()
         crossfadeJob = null
         tail?.let {
-            ramps.cancel(it)
+            ramps.forget(it)
+            boost.release(it)
             it.release()
         }
         tail = null
@@ -915,7 +935,8 @@ class PlaybackController @Inject constructor(
         cancelCrossfade()
         val t = newExoPlayer(handleAudioFocus = false)
         tail = t
-        t.volume = player.volume
+        levelPlayer(t, queue.getOrNull(outgoingIndex))
+        ramps.set(t, ramps.fade(player))
         t.setMediaItem(item, handOffAtMs + TAIL_START_LEAD_MS)
         t.prepare()
         crossfadeJob = scope.launch {
@@ -1018,6 +1039,7 @@ class PlaybackController @Inject constructor(
         override fun onRepeatModeChanged(repeatMode: Int) = publish()
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            levelPlayer(player, queue.getOrNull(player.currentMediaItemIndex))
             // The skip notice lasts until the next song starts on its own.
             if (skipNotice && reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
                 skipNotice = false
@@ -1438,6 +1460,7 @@ class PlaybackController @Inject constructor(
         durationSec = entry.durationMs / 1000.0,
         coverUrl = libraryRepository.trackCoverUrl(entry.trackId),
         albumId = entry.albumId,
+        gainDb = entry.gainDb,
     )
 
     /**

@@ -27,6 +27,8 @@ export interface RoomTrack {
   artist: string | null;
   albumId: number | null;
   durationMs: number;
+  /** Levelling gain in dB for each listener's own player; null until measured. */
+  gainDb: number | null;
 }
 
 export interface QueueEntry extends RoomTrack {

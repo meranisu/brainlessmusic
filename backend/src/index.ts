@@ -2,6 +2,7 @@ import { buildApp } from './app.js';
 import { config } from './config.js';
 import { startBackupSchedule } from './services/backup.js';
 import { startLibrarySyncSchedule } from './services/librarySync.js';
+import { startLoudnessBackfill } from './services/loudness.js';
 import { formatSecretProblem, inspectJwtSecret } from './utils/secretPolicy.js';
 
 // Checked at server boot, not in config.ts, so `npm run migrate` and the CLI scripts (which never sign) still run.
@@ -55,5 +56,11 @@ app.listen({ port: config.port, host: '0.0.0.0' }, (err, address) => {
     info: (msg) => app.log.info(msg),
     warn: (msg) => app.log.warn(msg),
     error: (msg) => app.log.error(msg),
+  });
+
+  // Measures tracks scanned before levelling existed, then whatever each sync adds. One ffmpeg at a time, reniced.
+  startLoudnessBackfill({
+    info: (msg) => app.log.info(msg),
+    warn: (msg) => app.log.warn(msg),
   });
 });
