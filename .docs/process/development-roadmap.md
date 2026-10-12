@@ -170,7 +170,7 @@ alone, so two discs' track 1s sit together.
 
 - [ ] **28. Show it in the clients** (web, then Android). Album artist on album pages, disc headers on multi-disc
   albums, a Genres browse view.
-  *Done when:* the v0.4 done-when above is true. — **built 2026-10-12:** web (`dd814cc`, checked in headless Chromium against a scratch server) and Android (compiles, unit tests pass, released as v0.4.0 2026-10-12, not tried on a phone yet). Web goes live with the next push of `main`. Open until the owner tries it on the web and the phone.
+  *Done when:* the v0.4 done-when above is true. — **built 2026-10-12:** web (`dd814cc`, checked in headless Chromium against a scratch server) and Android (compiles, unit tests pass, released as v0.4.0 2026-10-12, not tried on a phone yet). Phone: owner-confirmed 2026-10-12. Web goes live with the next push of `main`; open until the owner tries it there.
 
 ---
 
