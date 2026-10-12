@@ -1,5 +1,34 @@
 [
   {
+    "version": "0.4.7",
+    "date": "2026-10-12",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "in the lane skin, the mini player is its own panel now, floating above the tabs, with the cover framed like in the full player and a brighter title",
+              "in the gear skin, the mini player fills up like a health bar as the song plays",
+              "on lane's player, the format line (flac, kHz and so on) and the up next card don't blend into the background anymore",
+              "the strip behind the gesture bar at the bottom of the screen matches the app now instead of being a whiter stripe, mostly noticeable in light mode"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.4.6",
     "date": "2026-10-12",
     "sections": [
