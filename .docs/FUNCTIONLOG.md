@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `SongListScreen()`, `LikedHeader()`, `DislikedHeader()`, `SongListRow()`, `likedGroups()`, `sizeLine()`, `newestLine()` (new or rewritten); `SongListViewModel.play()` (shuffle), `playingId`, `coverUrl()`, `headerCovers()`, `clearAll()` (new): `android/.../ui/profile/SongListScreen.kt`; `TrackSummaryDto.favoritedAt` (new); `SkinLabel()` (now internal)
+**Date:** 2026-10-12
+**How added:** owner request
+**Purpose:** Liked and Disliked songs as proper pages: header card, covers, hearts, grouping.
+**Side effects:** none (Undislike all calls `DELETE /me/less-often`, as Settings' Reset).
+**Before:** a plain list with an Undo button on disliked songs.
+**After:** header card with play/shuffle or undislike all; cover rows with the animated heart.
+
 **Function:** `startLibrarySyncSchedule()` (changed), `isScanDue()` (new), `syncLibrary()`: `backend/src/services/librarySync.ts`; `recordLibraryRootFullScan()` (new): `backend/src/db/libraryRoots.ts`
 **Date:** 2026-10-12
 **How added:** bug fix

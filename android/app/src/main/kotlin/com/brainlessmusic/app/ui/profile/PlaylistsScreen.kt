@@ -323,9 +323,9 @@ private fun LikedCard(liked: ListSummary, onOpen: () -> Unit, onPlay: () -> Unit
     }
 }
 
-/** The small label over the Liked card, in the skin's game; nothing for Standard. */
+/** The small label over Liked songs (its card here, its page's header), in the skin's game; nothing for Standard. */
 @Composable
-private fun SkinLabel(skin: Skin) {
+internal fun SkinLabel(skin: Skin) {
     val scheme = MaterialTheme.colorScheme
     val (text, shape, background, ink) = when (skin) {
         Skin.STANDARD -> return

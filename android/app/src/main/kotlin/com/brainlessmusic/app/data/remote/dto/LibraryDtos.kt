@@ -91,6 +91,8 @@ data class TrackSummaryDto(
     val dateAdded: String,
     // Null until the server has measured the song, and from servers before levelling.
     val gainDb: Double? = null,
+    // Only on liked songs (`GET /me/favorites`): when it was liked, in the server's UTC "YYYY-MM-DD HH:MM:SS".
+    val favoritedAt: String? = null,
 )
 
 data class SearchResultsDto(

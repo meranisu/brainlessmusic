@@ -4,6 +4,19 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Liked and Disliked songs get a proper page (Android)
+
+- Owner: the two song lists were bare (title, artist, an Undo button). Now each opens on a header card. Liked: the
+  latest covers as a mosaic, the skin's label (as on the Playlists card), the count and total length, when you last
+  liked something, Play and Shuffle. Disliked: the cracked heart, the count, what a dislike does, and Undislike all
+  (with a confirm; the same as Settings' Reset).
+- Rows show the cover, title, artist and album, length, and the player's heart (tap, hold), so a song can be liked,
+  disliked or cleared from either list; disliked rows are dimmed. The playing song is marked as in album lists. A long
+  press opens the song menu.
+- Liked songs are grouped This week / This month / Earlier from `favoritedAt`, which `GET /me/favorites` already sends
+  (now read into `TrackSummaryDto`); no headings when there is only one group or no dates.
+- Compiled (`compileDebugKotlin`); not run on a phone.
+
 ## 2026-10-12: Scheduled scans survive restarts
 
 - The full library scan ran on a 12-hour `setInterval` started at boot. Auto-deploy (A120) restarts the app on every
