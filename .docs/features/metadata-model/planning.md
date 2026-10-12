@@ -26,8 +26,9 @@ genre, without losing anything that points at the existing library. Roadmap boxe
   artists ("A feat. B", compilations) becomes one album per artist.
 - **Track order:** album tracks sort by `track_number` alone (`backend/src/db/browse.ts:310`, and `TRACK_ORDER` at
   `browse.ts:171`), so two discs' track 1s sit together.
-- **Every scan re-reads every file** (`scanFile()`, `backend/src/services/scanner.ts:62`), at boot and every 12 h. A new
-  grouping rule therefore takes effect on the next scan by itself. No separate "regroup" job is needed.
+- **Every scan re-reads every file** (`scanFile()`, `backend/src/services/scanner.ts:62`), every 12 h from boot or when
+  an admin presses scan. Boot itself only reconciles (`services/librarySync.ts:147`); corrected 2026-10-12, this said
+  "at boot". A new grouping rule takes effect on the next scan by itself. No separate "regroup" job is needed.
 - **Admin tag edits win over the file:** a track with `tags_edited_at` set keeps its artist and album on rescan
   (`library.ts:123-124`, Q5/C9).
 - **Album track list has no per-track artist** (`getAlbumDetail()`, `browse.ts:305-311`). Fine today, because every
@@ -140,7 +141,10 @@ Box 25 landed as `0030_album_artist_and_folder.sql` (albums only); disc numbers 
   `/data/backups/pre-v0.4/pre-v0.4-2026-10-12T07-45-04.db` (69 MB, `integrity_check` ok). Baseline: 32,405 tracks,
   14,123 albums (all with tracks), 6,682 artists, 8 favorites, 3 playlist entries, 299 plays, 0 less-often, 0 edited
   tracks, 29 migrations. `deploy.sh` takes its own pre-deploy copy as well.
-- [ ] After the deploy's scan: album count before and after, favorites/playlist/history row counts unchanged.
+- [x] Deployed 2026-10-12 ~15:50 with `bd5efce` (pushed by the other agent along with box 25's `deb4211`). `0030` applied;
+  app healthy. Checked read-only right after: 14,123 albums, all still pre-0030 (no scan yet), 8 favorites, 3 playlist
+  entries, 301 plays (299 at the backup, people listening).
+- [ ] After the first scan (12 h after boot, or an admin's scan): album count before and after, favorites/playlist/history row counts unchanged.
 - [ ] Owner checks: a compilation is one album under Various Artists, a two-disc album plays in disc order, Genres
   browse works, on web and phone; an album downloaded before the update still opens.
 - [ ] CHANGELOG, FUNCTIONLOG, STATUS, roadmap boxes ticked.
