@@ -4,6 +4,20 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Stray songs join the big album (A154)
+
+- After the v0.4 regroup on smol, 392 albums still showed twice: same title and album artist, files in two folders.
+  338 were a stray song or two filed elsewhere (`/library/Blacky/AD_PIANO III/05. Brionac.opus` next to the full
+  `/library/AD：PIANO III/`). Owner picked A154: `settleAlbums` now moves an album of 1 or 2 songs into the largest
+  album with the same title and album artist, when that one is larger, and points the stray's row at it.
+- Not joined: Various Artists albums (unrelated same-titled compilations), albums holding an admin-edited song, and
+  equal-sized albums, so two full copies of one album don't list every song twice.
+- Runs on full scans only; a stray from an upload joins at the next scan. Each scan files the stray back under its
+  folder first and joins it again, so the result is the same every time.
+- Verified: `npm test` 545 pass, 1 new in `services/albumGrouping.test.ts` (a 1-song folder joins the 3-song album and its
+  row redirects there; two 3-song copies stay apart; a Various Artists single stays apart; a rescan lands the same).
+  `tsc --noEmit` clean. Not deployed yet.
+
 ## 2026-10-12: Liked and Disliked songs get a proper page (Android)
 
 - Owner: the two song lists were bare (title, artist, an Undo button). Now each opens on a header card. Liked: the

@@ -334,4 +334,33 @@ describe('album grouping (v0.4, 0030)', async () => {
     await scanLibrary(library, rootId);
     assert.equal(byName().get('Trance')!.trackCount, 2, 'O1 came back, nothing doubled');
   });
+
+  it('joins a stray song filed in another folder into the big album (A154)', { skip: !ffmpegAvailable }, async () => {
+    const tags = { artist: 'Pianist', album: 'Keys', album_artist: 'Pianist' };
+    for (const n of ['1', '2', '3']) await makeAudio(join(library, 'Keys', `${n}.mp3`), { ...tags, title: `K${n}` });
+    await makeAudio(join(library, 'Pianist', 'Keys', '5.mp3'), { ...tags, title: 'K5' });
+    // Two full copies stay apart; so do Various Artists albums, however small.
+    for (const n of ['1', '2', '3']) {
+      await makeAudio(join(library, 'Copy A', `${n}.mp3`), { ...tags, album: 'Twice', title: `A${n}` });
+      await makeAudio(join(library, 'Copy B', `${n}.mp3`), { ...tags, album: 'Twice', title: `B${n}` });
+    }
+    const va = { artist: 'Someone', album: 'OST', album_artist: 'Various Artists' };
+    for (const n of ['1', '2', '3']) await makeAudio(join(library, 'Game', `${n}.mp3`), { ...va, title: `G${n}` });
+    await makeAudio(join(library, 'Other Game', '1.mp3'), { ...va, title: 'O1' });
+
+    await scanLibrary(library, rootId);
+    const placed = placement();
+
+    assert.equal(placed.get('K5')!.albumId, placed.get('K1')!.albumId, 'the stray joined');
+    assert.notEqual(placed.get('A1')!.albumId, placed.get('B1')!.albumId, 'full copies stay apart');
+    assert.notEqual(placed.get('O1')!.albumId, placed.get('G1')!.albumId, 'Various Artists stays per folder');
+
+    // The stray's own album row leads to the big one, and a rescan lands in the same place.
+    const strayRow = db
+      .prepare("SELECT id FROM albums WHERE folder LIKE '%/Pianist/Keys'")
+      .get() as { id: number };
+    assert.equal(resolveAlbumId(strayRow.id), placed.get('K1')!.albumId);
+    await scanLibrary(library, rootId);
+    assert.deepEqual(placement(), placed);
+  });
 });

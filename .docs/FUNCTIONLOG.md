@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `joinStrays()` (new), `settleAlbums()`: `backend/src/db/library.ts`
+**Date:** 2026-10-12
+**How added:** new feature (A154)
+**Purpose:** move an album of up to 2 songs into the larger album with the same title and album artist in another folder; not for Various Artists or albums with admin-edited songs.
+**Side effects:** updates `tracks.album_id` and the stray's `albums.merged_into_id` (and its cover onto the target if that has none).
+**Before:** a song filed in a second folder made its own album.
+**After:** it shows inside the main album; the stray's old id redirects there.
+
 **Function:** `SongListScreen()`, `LikedHeader()`, `DislikedHeader()`, `SongListRow()`, `likedGroups()`, `sizeLine()`, `newestLine()` (new or rewritten); `SongListViewModel.play()` (shuffle), `playingId`, `coverUrl()`, `headerCovers()`, `clearAll()` (new): `android/.../ui/profile/SongListScreen.kt`; `TrackSummaryDto.favoritedAt` (new); `SkinLabel()` (now internal)
 **Date:** 2026-10-12
 **How added:** owner request

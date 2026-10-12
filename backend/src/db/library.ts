@@ -354,6 +354,10 @@ export function settleAlbums(before: Map<number, number>, onlyAlbumIds?: number[
       }
     }
 
+    // Rule 1c (A154): a stray song or two filed in another folder joins the larger album of the same title and album
+    // artist. Full passes only (a scan); an upload's stray joins at the next one.
+    if (!onlyAlbumIds) merged += joinStrays();
+
     if (before.size > 0) {
       const now = new Map(
         (db.prepare('SELECT id, album_id FROM tracks').all() as { id: number; album_id: number | null }[]).map(
@@ -369,8 +373,10 @@ export function settleAlbums(before: Map<number, number>, onlyAlbumIds?: number[
         movedTo.set(oldAlbum, targets);
       }
       const isEmpty = db.prepare('SELECT NOT EXISTS (SELECT 1 FROM tracks WHERE album_id = ?) as empty');
+      // Joined strays already point where their songs went.
+      const alreadyMerged = db.prepare('SELECT 1 FROM albums WHERE id = ? AND merged_into_id IS NOT NULL');
       for (const [oldAlbum, targets] of movedTo) {
-        if (!(isEmpty.get(oldAlbum) as { empty: number }).empty) continue;
+        if (!(isEmpty.get(oldAlbum) as { empty: number }).empty || alreadyMerged.get(oldAlbum)) continue;
         const [target] = [...targets.entries()].sort((a, b) => b[1] - a[1])[0];
         mergeInto(oldAlbum, target);
         merged++;
@@ -395,6 +401,42 @@ export function settleAlbums(before: Map<number, number>, onlyAlbumIds?: number[
 
     return { artistsSet, merged };
   })();
+}
+
+/** Largest album a stray may join; above this an album is its own copy, not a stray (A154). */
+const MAX_STRAY_TRACKS = 2;
+
+/**
+ * Moves each album of up to `MAX_STRAY_TRACKS` songs into the largest other album with the same title and album
+ * artist, when that one is larger. Not for Various Artists (unrelated same-titled compilations) or an album holding an
+ * admin-edited track. Returns how many albums were joined.
+ */
+function joinStrays(): number {
+  const strays = db
+    .prepare(
+      `WITH sizes AS (SELECT album_id AS id, COUNT(*) AS n FROM tracks WHERE album_id IS NOT NULL GROUP BY album_id)
+       SELECT al.id, al.title, al.artist_id AS artistId, sizes.n
+       FROM albums al JOIN sizes ON sizes.id = al.id
+       JOIN artists ar ON ar.id = al.artist_id
+       WHERE sizes.n <= ? AND ar.name <> ?
+         AND NOT EXISTS (SELECT 1 FROM tracks t WHERE t.album_id = al.id AND t.tags_edited_at IS NOT NULL)`,
+    )
+    .all(MAX_STRAY_TRACKS, VARIOUS_ARTISTS) as { id: number; title: string; artistId: number; n: number }[];
+
+  const largest = db.prepare(
+    `SELECT al.id, (SELECT COUNT(*) FROM tracks t WHERE t.album_id = al.id) AS n
+     FROM albums al WHERE al.title = ? AND al.artist_id = ? AND al.id <> ?
+     ORDER BY n DESC, al.id LIMIT 1`,
+  );
+  let joined = 0;
+  for (const stray of strays) {
+    const target = largest.get(stray.title, stray.artistId, stray.id) as { id: number; n: number } | undefined;
+    if (!target || target.n <= stray.n) continue;
+    db.prepare('UPDATE tracks SET album_id = ? WHERE album_id = ?').run(target.id, stray.id);
+    mergeInto(stray.id, target.id);
+    joined++;
+  }
+  return joined;
 }
 
 function mergeInto(albumId: number, targetId: number): void {
