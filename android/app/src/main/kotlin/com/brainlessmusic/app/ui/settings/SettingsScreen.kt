@@ -624,7 +624,7 @@ private fun Divider() {
  * and what it's after. Picked shows a thicker accent border and a check, so it isn't told by colour alone.
  */
 @Composable
-private fun ColorThemeTile(
+internal fun ColorThemeTile(
     theme: ColorTheme,
     darkTheme: Boolean,
     selected: Boolean,

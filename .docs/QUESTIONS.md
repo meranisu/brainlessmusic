@@ -61,6 +61,18 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A141 — Phones already signed in skip the setup *(was Q141)*
+**Answered:** 2026-10-12, picked option A. Opening on a saved session marks the setup done, so only fresh installs,
+reinstalls and resets see it.
+
+### A140 — Guests get the same setup *(was Q140)*
+**Answered:** 2026-10-12, picked option A.
+
+### A139 — The setup: what this is, the look, three playback switches *(was Q139)*
+**Answered:** 2026-10-12, picked option A. Steps: what this is; light or dark, skin, colour; volume levelling,
+auto-play on resume, data saver; done, then the welcome in the chosen skin. Each step can be skipped; all of it stays
+in Settings.
+
 ### A138 — A goodbye on sign-out, each skin's welcome in reverse *(was Q138)*
 **Answered:** 2026-10-12, picked option A. About 1.6 s, tap skips, off with animations off, login under it as it
 ends; guests after the confirm. Standard: card out, "See you". Hit circle: "see you next time" folds away in the

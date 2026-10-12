@@ -3,6 +3,7 @@ package com.brainlessmusic.app.data.local
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -138,7 +139,18 @@ class AppearanceSettings @Inject constructor(
         dataStore.edit { it[THEME_MODE_KEY] = mode.name }
     }
 
+    /**
+     * Whether this phone has been through the first-run setup (A139). Kept with the other phone settings, so a
+     * reinstall or clearing the app's data brings the setup back.
+     */
+    val setupDone: Flow<Boolean> = dataStore.data.map { it[SETUP_DONE_KEY] ?: false }
+
+    suspend fun setSetupDone() {
+        dataStore.edit { it[SETUP_DONE_KEY] = true }
+    }
+
     private companion object {
+        val SETUP_DONE_KEY = booleanPreferencesKey("setup_done")
         val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         val SEEK_STYLE_KEY = stringPreferencesKey("seek_style")
         val CONTROLS_STYLE_KEY = stringPreferencesKey("controls_style")

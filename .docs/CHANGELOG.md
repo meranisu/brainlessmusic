@@ -4,6 +4,18 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: A first-run setup after a phone's first sign-in (Android)
+
+- Owner request (A139-A141; plan in `.docs/features/first-run-setup/planning.md`). After the first sign-in on a phone,
+  guests included, `SetupScreen` walks through four steps: what the app is (library, downloads, Listen together,
+  skins); the look (light or dark, skin, colours, the app restyling as you pick; a game skin also picks its matching
+  colours); three playback switches (volume levelling, auto-play on resume, data saver); done. "Skip setup" on any
+  step keeps what was picked. The end opens Home and plays the welcome in the chosen skin.
+- `setup_done` lives with the phone's settings (`AppearanceSettings`), so a reinstall or cleared data shows it again.
+  Opening on a saved session sets it, so phones already signed in when this shipped skip it.
+- Settings' `ColorThemeTile` is now internal, shared with the setup.
+- Compiled (`compileDebugKotlin`); not tried on a phone.
+
 ## 2026-10-12: Tab switches look the same every way, in the skin's manner (Android)
 
 - Owner: the change between tabs looked different by tab. Every move used NavHost's 0.7 s crossfade, and going to Home

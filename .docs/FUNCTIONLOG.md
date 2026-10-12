@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `SetupScreen()` and its steps (new): `android/.../ui/setup/SetupScreen.kt`; `StartViewModel.signedIn()`, `setupFinished()` (new), init: `ui/splash/StartViewModel.kt`; `AppearanceSettings.setupDone`, `setSetupDone()` (new): `data/local/AppearanceSettings.kt`; `ColorThemeTile()` (now internal): `ui/settings/SettingsScreen.kt`
+**Date:** 2026-10-12
+**How added:** owner request (A139-A141)
+**Purpose:** a one-time setup after a phone's first sign-in: what the app is, the look, three playback switches.
+**Side effects:** writes `setup_done` (DataStore); the steps write the same settings as Settings.
+**Before:** sign-in went straight to Home with the welcome.
+**After:** a phone that hasn't been set up goes through the setup first; opening on a saved session marks it set up.
+
 **Function:** `tabEnter()`, `tabExit()`, `tabStep()` (new): `android/.../ui/navigation/TabTransitions.kt`; `BrainlessNavGraph()`: `BrainlessNavGraph.kt`
 **Date:** 2026-10-12
 **How added:** owner request

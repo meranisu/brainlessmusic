@@ -35,6 +35,7 @@ import com.brainlessmusic.app.ui.search.SearchScreen
 import com.brainlessmusic.app.ui.settings.SettingsPage
 import com.brainlessmusic.app.ui.settings.SettingsPageScreen
 import com.brainlessmusic.app.ui.settings.SettingsScreen
+import com.brainlessmusic.app.ui.setup.SetupScreen
 import com.brainlessmusic.app.ui.theme.LocalSkin
 import com.brainlessmusic.app.ui.splash.SplashScreen
 import com.brainlessmusic.app.ui.splash.StartViewModel
@@ -98,10 +99,22 @@ fun BrainlessNavGraph(
         }
         screen(Routes.LOGIN) {
             LoginScreen(
+                // A phone's first sign-in goes through the setup first (A139).
                 onLoggedIn = {
-                    startViewModel.welcome()
+                    startViewModel.signedIn { route ->
+                        navController.navigate(route) {
+                            popUpTo(Routes.LOGIN) { inclusive = true }
+                        }
+                    }
+                },
+            )
+        }
+        screen(Routes.SETUP) {
+            SetupScreen(
+                onDone = {
+                    startViewModel.setupFinished()
                     navController.navigate(Routes.HOME) {
-                        popUpTo(Routes.LOGIN) { inclusive = true }
+                        popUpTo(Routes.SETUP) { inclusive = true }
                     }
                 },
             )
