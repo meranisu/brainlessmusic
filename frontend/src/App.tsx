@@ -28,6 +28,7 @@ const OptionsPage = lazyPage(() => import('./pages/OptionsPage').then((m) => ({ 
 const TogetherPage = lazyPage(() => import('./pages/TogetherPage').then((m) => ({ default: m.TogetherPage })));
 const UploadPage = lazyPage(() => import('./pages/UploadPage').then((m) => ({ default: m.UploadPage })));
 const UsersPage = lazyPage(() => import('./pages/UsersPage').then((m) => ({ default: m.UsersPage })));
+const LevellingPage = lazyPage(() => import('./pages/LevellingPage').then((m) => ({ default: m.LevellingPage })));
 const ControlCenterPage = lazyPage(() =>
   import('./pages/ControlCenterPage').then((m) => ({ default: m.ControlCenterPage })),
 );
@@ -68,6 +69,7 @@ export function App() {
                 <Route index element={<ControlCenterPage />} />
                 <Route path="upload" element={<UploadPage />} />
                 <Route path="users" element={<UsersPage />} />
+                <Route path="levelling" element={<LevellingPage />} />
               </Route>
               {/* Old addresses, kept for bookmarks: the two pages before they became tabs, and the page's old name. */}
               <Route path="/upload" element={<Navigate to="/control-center/upload" replace />} />

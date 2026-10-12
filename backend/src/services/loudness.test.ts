@@ -7,7 +7,12 @@ import { getTrackSummaryById } from '../db/browse.js';
 import { db } from '../db/connection.js';
 import { findTrackById, upsertTrack } from '../db/library.js';
 import { insertLibraryRoot } from '../db/libraryRoots.js';
-import { findUnmeasuredTrackIds, setTrackLoudness } from '../db/loudness.js';
+import {
+  findUnmeasuredTrackIds,
+  listTrackLoudness,
+  setTrackLoudness,
+  summarizeLoudness,
+} from '../db/loudness.js';
 import { makeTempDir, resetDatabase } from '../testing/harness.js';
 import { measureLoudness, parseEbur128Summary } from './loudness.js';
 
@@ -132,6 +137,68 @@ describe('loudness', async () => {
     db.prepare("UPDATE tracks SET last_played_at = '2026-10-12 10:00:00' WHERE id = ?").run(second.id);
 
     assert.deepEqual(findUnmeasuredTrackIds(10, new Set()), [second.id, third.id, first.id]);
+  });
+
+  it('counts levelled, waiting and failed tracks, leaving out missing files', () => {
+    const levelled = addTrack(1);
+    const failedTrack = addTrack(2);
+    addTrack(3);
+    const gone = addTrack(4);
+    setTrackLoudness(levelled.id, -20, -3);
+    db.prepare("UPDATE tracks SET missing_since = '2026-10-12' WHERE id = ?").run(gone.id);
+
+    assert.deepEqual(summarizeLoudness(new Set([failedTrack.id, gone.id])), {
+      total: 3,
+      levelled: 1,
+      waiting: 1,
+      failed: 1,
+    });
+  });
+
+  it('lists a page of tracks by state, with gain for the levelled ones', () => {
+    const levelled = addTrack(1);
+    const failedTrack = addTrack(2);
+    const waiting = addTrack(3);
+    setTrackLoudness(levelled.id, -22.9, -6.4);
+    const failedIds = new Set([failedTrack.id]);
+    const page = (status?: 'levelled' | 'waiting' | 'failed') =>
+      listTrackLoudness({ status, limit: 10, offset: 0, failedIds });
+
+    const all = page();
+    assert.equal(all.total, 3);
+    assert.deepEqual(
+      all.tracks.map((t) => [t.id, t.status, t.gainDb]),
+      [
+        [levelled.id, 'levelled', 4.9],
+        [failedTrack.id, 'failed', null],
+        [waiting.id, 'waiting', null],
+      ],
+    );
+    assert.deepEqual(page('levelled').tracks.map((t) => t.id), [levelled.id]);
+    assert.deepEqual(page('failed').tracks.map((t) => t.id), [failedTrack.id]);
+    assert.deepEqual(page('waiting').tracks.map((t) => t.id), [waiting.id]);
+    assert.equal(listTrackLoudness({ limit: 1, offset: 2, failedIds }).tracks[0]?.id, waiting.id);
+  });
+
+  it('searches by title, short queries included', () => {
+    addTrack(1);
+    const wanted = upsertTrack({
+      path: '/loud-root/x.opus',
+      title: 'Winter fireworks',
+      artistName: null,
+      albumTitle: null,
+      albumYear: null,
+      trackNumber: null,
+      duration: 100,
+      format: 'OPUS',
+      fileSize: 1,
+      rootId,
+    });
+
+    for (const search of ['fireworks', 'Wi']) {
+      const result = listTrackLoudness({ search, limit: 10, offset: 0, failedIds: new Set() });
+      assert.deepEqual(result.tracks.map((t) => t.id), [wanted.id], search);
+    }
   });
 
   describe('measuring a real file', { skip: !ffmpegAvailable && 'ffmpeg not installed' }, () => {

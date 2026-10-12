@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Control Center "Levelling" tab (backend, web)
+
+- Owner request: see which songs volume levelling has reached. A fourth Control Center tab, `/control-center/levelling`:
+  songs levelled out of all on disk with a bar, the song being measured now (or why nothing is), filters All /
+  Levelled / Waiting / Couldn't measure with counts, a search over title, artist and album (FTS, LIKE under the
+  trigram floor), and a table of each song's loudness and gain ("Waiting", "Couldn't measure", "Silent" where there is
+  none), 50 a page. Waiting songs list in the order they will be measured.
+- `GET /admin/loudness` (admin only) backs it. "Couldn't measure" is the in-memory failure set, so it resets on a
+  restart, when those songs are tried again.
+- Verified: backend `npm test` 514/514 (new: the summary counts, each filter, paging, search incl. a two-letter query;
+  the route is in the admin gate table); `tsc -b` and `npm run lint` clean for the new files. Ran the tab in headless
+  Chromium against a dev backend at 1280 and 375 wide: each filter selects and narrows (9/10/0/19 rows), search finds
+  "Little fragments" and shows the no-match line, Tab + Enter moves the filter with a visible focus ring, "Measuring
+  now" showed a live song mid-run, no horizontal overflow, no console errors. Not clicked: Previous / Next, since the
+  dev library has 19 songs (fewer than a page).
+
 ## 2026-10-12: Volume levelling (backend, web, Android)
 
 - Owner noticed the volume jumping between songs. The server now measures every track's loudness with ffmpeg's

@@ -21,6 +21,8 @@ const PROGRESS_EVERY = 500;
 /** Ids that failed to measure, skipped until the server restarts so a broken file isn't decoded every pass. */
 const failed = new Set<number>();
 const priority = new Set<number>();
+/** The track ffmpeg is reading now, for the Control Center. */
+let current: number | null = null;
 let log: Logger | null = null;
 let running = false;
 let rerun = false;
@@ -78,6 +80,7 @@ async function measurePending(): Promise<number> {
       const track = findTrackById(id);
       // A priority id may already be measured by the batch, or have been measured when it was asked for.
       if (!track || track.loudness_lufs !== null || failed.has(id)) continue;
+      current = id;
       try {
         const { lufs, peak } = await measureLoudness(track.path);
         setTrackLoudness(id, lufs, peak);
@@ -87,6 +90,8 @@ async function measurePending(): Promise<number> {
         // The track still plays, just unlevelled.
         failed.add(id);
         log?.warn(`Loudness: could not measure track ${id}: ${err instanceof Error ? err.message : String(err)}`);
+      } finally {
+        current = null;
       }
     }
   }
@@ -112,6 +117,11 @@ export function requestLoudnessBackfill(): void {
       running = false;
     }
   })();
+}
+
+/** What the background measuring is doing, for the Control Center. */
+export function getLoudnessWork(): { running: boolean; currentTrackId: number | null; failedIds: ReadonlySet<number> } {
+  return { running, currentTrackId: current, failedIds: failed };
 }
 
 /**

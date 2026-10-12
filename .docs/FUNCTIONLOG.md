@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `summarizeLoudness()`, `listTrackLoudness()` (new): `backend/src/db/loudness.ts`; `getLoudnessWork()` (new): `backend/src/services/loudness.ts`; `GET /admin/loudness` (new): `backend/src/routes/health.ts`; `LevellingPage` (new): `frontend/src/pages/LevellingPage.tsx`
+**Date:** 2026-10-12
+**How added:** new feature (owner request)
+**Purpose:** a Control Center tab showing which songs are levelled, waiting or failed, and what is being measured now.
+**Side effects:** none; reads only.
+**Before:** no way to tell which songs levelling had reached.
+**After:** Control Center → Levelling.
+
 **Function:** `parseEbur128Summary()`, `measureLoudness()`, `requestLoudnessBackfill()`, `prioritizeLoudness()`, `startLoudnessBackfill()` (new): `backend/src/services/loudness.ts`; `trackGainSql()`, `findUnmeasuredTrackIds()`, `setTrackLoudness()` (new): `backend/src/db/loudness.ts`; `upsertTrack()`: `backend/src/db/library.ts`
 **Date:** 2026-10-12
 **How added:** new feature (owner request)

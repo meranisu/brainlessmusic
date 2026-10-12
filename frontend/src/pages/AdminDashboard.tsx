@@ -11,6 +11,7 @@ const TABS = [
   { to: '/control-center', label: 'Overview', end: true },
   { to: '/control-center/upload', label: 'Upload', end: false },
   { to: '/control-center/users', label: 'Users', end: false },
+  { to: '/control-center/levelling', label: 'Levelling', end: false },
 ];
 
 export function AdminDashboard() {
@@ -18,7 +19,7 @@ export function AdminDashboard() {
     <div>
       <div className="mb-4">
         <h1 className="text-xl font-semibold text-white">Control Center</h1>
-        <p className="mt-0.5 text-sm text-blue-300">Server health, uploads and accounts. Only admins see this.</p>
+        <p className="mt-0.5 text-sm text-blue-300">Server health, uploads, accounts and volume levelling. Only admins see this.</p>
       </div>
 
       {/* Same tab look as the header's nav, so it reads as the same machine. */}

@@ -85,6 +85,7 @@ const EXPECTED: Record<string, Gate> = {
   'POST /tracks/:id/scrobble': 'account',
   // Admin only (A14).
   'GET /admin/control-center': 'admin',
+  'GET /admin/loudness': 'admin',
   'GET /admin/rooms': 'admin',
   'GET /admin/playback-failures': 'admin',
   'GET /library/browse': 'admin',

@@ -405,3 +405,29 @@ export interface GuestCodesSnapshot {
   /** Pending requests, oldest first. */
   requests: GuestCodeRequest[];
 }
+
+/** Where a song stands in volume levelling (`GET /admin/loudness`). */
+export type LoudnessStatus = 'levelled' | 'waiting' | 'failed';
+
+export interface TrackLoudness {
+  id: number;
+  title: string;
+  artist: string | null;
+  album: string | null;
+  status: LoudnessStatus;
+  loudnessLufs: number | null;
+  loudnessPeak: number | null;
+  /** Null for a levelled song only when it is silent. */
+  gainDb: number | null;
+}
+
+export interface LoudnessReport {
+  summary: { total: number; levelled: number; waiting: number; failed: number };
+  /** The background pass is working through the waiting songs. */
+  running: boolean;
+  measuring: { id: number; title: string; artist: string | null } | null;
+  total: number;
+  tracks: TrackLoudness[];
+  limit: number;
+  offset: number;
+}
