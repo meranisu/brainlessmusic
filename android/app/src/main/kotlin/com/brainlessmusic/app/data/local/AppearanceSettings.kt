@@ -3,8 +3,8 @@ package com.brainlessmusic.app.data.local
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -140,17 +140,18 @@ class AppearanceSettings @Inject constructor(
     }
 
     /**
-     * Whether this phone has been through the first-run setup (A139). Kept with the other phone settings, so a
-     * reinstall or clearing the app's data brings the setup back.
+     * Whether [username] has been through the first-run setup on this phone (A139; per account, A142). Kept with the
+     * other phone settings, so a reinstall or clearing the app's data brings the setup back for everyone.
      */
-    val setupDone: Flow<Boolean> = dataStore.data.map { it[SETUP_DONE_KEY] ?: false }
+    suspend fun isSetUp(username: String): Boolean = username in (dataStore.data.first()[SETUP_ACCOUNTS_KEY] ?: emptySet())
 
-    suspend fun setSetupDone() {
-        dataStore.edit { it[SETUP_DONE_KEY] = true }
+    suspend fun markSetUp(username: String) {
+        dataStore.edit { it[SETUP_ACCOUNTS_KEY] = (it[SETUP_ACCOUNTS_KEY] ?: emptySet()) + username }
     }
 
     private companion object {
-        val SETUP_DONE_KEY = booleanPreferencesKey("setup_done")
+        // v0.3.62 kept one flag for the whole phone (`setup_done`); it is no longer read.
+        val SETUP_ACCOUNTS_KEY = stringSetPreferencesKey("setup_accounts")
         val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         val SEEK_STYLE_KEY = stringPreferencesKey("seek_style")
         val CONTROLS_STYLE_KEY = stringPreferencesKey("controls_style")

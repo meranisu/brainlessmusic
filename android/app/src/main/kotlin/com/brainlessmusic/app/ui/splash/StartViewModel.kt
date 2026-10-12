@@ -42,12 +42,13 @@ class StartViewModel @Inject constructor(
     }
 
     /**
-     * Just signed in: on to the first-run setup if this phone hasn't been through it (A139), otherwise the welcome and
-     * Home. [go] gets the route.
+     * Just signed in: on to the first-run setup if this account hasn't been through it on this phone (A139, A142),
+     * otherwise the welcome and Home. [go] gets the route.
      */
     fun signedIn(go: (String) -> Unit) {
         viewModelScope.launch {
-            if (appearance.setupDone.first()) {
+            val user = authRepository.savedUsername()
+            if (user == null || appearance.isSetUp(user)) {
                 _welcome.value = true
                 go(Routes.HOME)
             } else {
@@ -56,9 +57,9 @@ class StartViewModel @Inject constructor(
         }
     }
 
-    /** The setup is through: it won't show again on this phone, and the welcome plays in the skin just picked. */
+    /** The setup is through: it won't show again for this account here, and the welcome plays in the skin just picked. */
     fun setupFinished() {
-        viewModelScope.launch { appearance.setSetupDone() }
+        viewModelScope.launch { authRepository.savedUsername()?.let { appearance.markSetUp(it) } }
         _welcome.value = true
     }
 
@@ -70,8 +71,8 @@ class StartViewModel @Inject constructor(
             _resolvedRoute.value = when (val restored = authRepository.restoreSession()) {
                 // No signal: straight to what can play without it, if anything is downloaded.
                 is SessionRestoreResult.Restored -> {
-                    // Signed in already, so set up already: phones from before the setup existed never see it (A141).
-                    appearance.setSetupDone()
+                    // Signed in already, so set up already: accounts signed in before the setup existed never see it (A141).
+                    authRepository.savedUsername()?.let { appearance.markSetUp(it) }
                     _welcome.value = true
                     if (restored.offline && downloadDao.groupCount() > 0) Routes.DOWNLOADS else Routes.HOME
                 }

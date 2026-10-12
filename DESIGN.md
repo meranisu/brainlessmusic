@@ -171,7 +171,7 @@ beats twice and the name shows. Lane opens the app from behind Arcaea's shutter,
 Gear runs SOUND VOLTEX's entry: the lasers, ENTRY, the appeal card, then the critical line and GAME START. Ring pops maimai's
 round screen open, "Welcome!" bounces in, and the name plate drops in. About 2 s; a tap skips it.
 
-A phone's first sign-in goes through a short setup (`SetupScreen`, A139): what the app is, the look (the app
+An account's first sign-in on a phone goes through a short setup (`SetupScreen`, A139): what the app is, the look (the app
 restyles as you pick), three playback switches, done; then the welcome plays in the chosen skin.
 
 Signing out plays the welcome in reverse (`ArcadeGoodbye`, A138): Standard's card leaves the reader ("See you"), Hit

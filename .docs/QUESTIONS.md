@@ -61,6 +61,19 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A144 — "TAP TO START" before the sign-in form *(was Q144)*
+**Answered:** 2026-10-12, picked option B. The title screen shows alone with TAP TO START; a tap brings up the form.
+
+### A143 — A title screen per skin on sign-in *(was Q143)*
+**Answered:** 2026-10-12, picked option A. Standard keeps the web's beat mosaic; Hit circle osu!'s menu; Lane
+Arcaea's title; Gear SOUND VOLTEX's attract; Ring maimai's attract. Calmer while a field has focus; still with
+animations off.
+
+### A142 — The setup is per account, not per phone *(owner, 2026-10-12)*
+**Decided:** 2026-10-12, on the offer after A139. Each account (guests included, by their server username) gets the
+setup on its first sign-in on a phone; one that has done it there doesn't. A reinstall or cleared data brings it back
+for everyone. Phones already signed in when this shipped mark that account done (as A141).
+
 ### A141 — Phones already signed in skip the setup *(was Q141)*
 **Answered:** 2026-10-12, picked option A. Opening on a saved session marks the setup done, so only fresh installs,
 reinstalls and resets see it.

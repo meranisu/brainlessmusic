@@ -4,6 +4,15 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: The first-run setup is per account (Android)
+
+- Owner (A142): a second account signing in on a phone should get the setup too. `AppearanceSettings` now keeps the
+  usernames that have been through it (`setup_accounts`, guests by their server username) in place of v0.3.62's single
+  `setup_done` flag, which is no longer read. Opening on a saved session adds that account, so accounts signed in when
+  this shipped skip it (A141). A phone that did the setup on v0.3.62 and signs in again before opening on a saved
+  session sees it once more.
+- Compiled (`compileDebugKotlin`).
+
 ## 2026-10-12: A first-run setup after a phone's first sign-in (Android)
 
 - Owner request (A139-A141; plan in `.docs/features/first-run-setup/planning.md`). After the first sign-in on a phone,

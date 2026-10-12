@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `AppearanceSettings.isSetUp()`, `markSetUp()` (new; replace `setupDone` / `setSetupDone()`): `data/local/AppearanceSettings.kt`; `StartViewModel.signedIn()`, `setupFinished()`, init: `ui/splash/StartViewModel.kt`
+**Date:** 2026-10-12
+**How added:** owner request (A142)
+**Purpose:** the first-run setup once per account on a phone, not once per phone.
+**Side effects:** writes `setup_accounts` (DataStore string set).
+**Before:** one `setup_done` flag for the phone.
+**After:** the set of usernames that have done the setup here.
+
 **Function:** `SetupScreen()` and its steps (new): `android/.../ui/setup/SetupScreen.kt`; `StartViewModel.signedIn()`, `setupFinished()` (new), init: `ui/splash/StartViewModel.kt`; `AppearanceSettings.setupDone`, `setSetupDone()` (new): `data/local/AppearanceSettings.kt`; `ColorThemeTile()` (now internal): `ui/settings/SettingsScreen.kt`
 **Date:** 2026-10-12
 **How added:** owner request (A139-A141)
