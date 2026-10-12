@@ -360,6 +360,19 @@ export interface UserSummary {
   displayName: string;
   isAdmin: boolean;
   createdAt: string;
+  /** A guest can be turned into an account with an invite (A107). */
+  kind: 'account' | 'guest';
+}
+
+/** An account invite on the Users page (A107-A112). Dates are SQLite UTC strings. */
+export interface AccountInvite {
+  id: number;
+  createdAt: string;
+  expiresAt: string;
+  status: 'open' | 'used' | 'expired' | 'revoked';
+  guestUserId: number | null;
+  guestName: string | null;
+  usedBy: string | null;
 }
 
 /** One per-guest entry code on the admin panel (A42/A43). Dates are SQLite UTC strings. */

@@ -44,7 +44,19 @@ interface PasscodeLogin {
 }
 
 const USERNAME_PATTERN = /^[A-Za-z0-9._-]{2,32}$/;
-const MIN_PASSWORD_LENGTH = 8;
+export const MIN_PASSWORD_LENGTH = 8;
+
+/**
+ * Why `username` can't be an account name, or undefined if it can. Checked on the server because register and invite
+ * accept are reachable without the web client. `guest-` is reserved for minted guests (A112).
+ */
+export function usernameProblem(username: string): string | undefined {
+  if (!USERNAME_PATTERN.test(username)) {
+    return 'username must be 2-32 characters: letters, digits, dot, dash or underscore';
+  }
+  if (username.toLowerCase().startsWith('guest-')) return 'usernames starting with "guest-" are reserved';
+  return undefined;
+}
 const PASSCODE_PATTERN = /^\d{4,8}$/;
 /** A web theme id (`frontend/src/lib/theme.ts`): lowercase, short. */
 const THEME_ID = /^[a-z][a-z0-9-]{0,31}$/;
@@ -278,11 +290,8 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
 
       // Validated here, not only in the browser: with open registration this
       // endpoint is reachable by anyone, so the client is not a gate.
-      if (!USERNAME_PATTERN.test(username)) {
-        return reply.code(400).send({
-          error: 'username must be 2-32 characters: letters, digits, dot, dash or underscore',
-        });
-      }
+      const problem = usernameProblem(username);
+      if (problem) return reply.code(400).send({ error: problem });
 
       if (password.length < MIN_PASSWORD_LENGTH) {
         return reply

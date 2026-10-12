@@ -13,7 +13,7 @@ SQLite (`better-sqlite3`), WAL journal mode. Confirmed live against `backend/dat
 | `PRAGMA foreign_keys` | **`ON`** (confirmed live) — `better-sqlite3`'s per-connection default, not set explicitly anywhere in `backend/src/`. See [Discrepancy 1](#1-foreign-keys-are-enforced-not-off) |
 | `PRAGMA integrity_check` | `ok` (2026-09-03) |
 | `PRAGMA foreign_key_check` | no violations (2026-09-03) |
-| Domain tables | `users`, `artists`, `albums`, `tracks`, `playlists`, `playlist_tracks`, `play_history`, `favorites`, `less_often`, `guest_codes`, `guest_code_requests`, `guest_code_signins` (+ `server_settings`, see its section) |
+| Domain tables | `users`, `artists`, `albums`, `tracks`, `playlists`, `playlist_tracks`, `play_history`, `favorites`, `less_often`, `guest_codes`, `guest_code_requests`, `guest_code_signins`, `account_invites` (+ `server_settings`, see its section) |
 | Infrastructure tables | `schema_migrations` (migration bookkeeping only, not domain data) |
 
 ## Entity relationships
@@ -111,7 +111,7 @@ erDiagram
 | Column | Type | Null? | Default | Notes |
 |---|---|---|---|---|
 | `id` | INTEGER | — | — | **PK**, autoincrement |
-| `username` | TEXT | NOT NULL | — | **UNIQUE** (case-sensitive — see [Discrepancy 3](#3-case-sensitive-uniqueness-vs-case-insensitive-display-sort)) |
+| `username` | TEXT | NOT NULL | — | **UNIQUE, case-insensitive** since `0029` (A111): `idx_users_username_nocase`, and lookups use `COLLATE NOCASE`. Names starting with `guest-` are reserved for minted guests (A112) |
 | `password_hash` | TEXT | NOT NULL | — | bcrypt, 12 rounds |
 | `is_admin` | INTEGER | NOT NULL | `0` | boolean-as-int (see [Discrepancy 5](#5-booleans-are-stored-as-integer)). Set from the admin Users page, or `npm run set-admin -- <username>` for recovery |
 | `created_at` | TEXT | NOT NULL | `datetime('now')` | |
@@ -122,7 +122,7 @@ erDiagram
 | `session_version` | INTEGER | NOT NULL | `0` | Bumped on every password change (`setPasswordHash`, `setPasswordHashById`). Session and media tokens carry it as `sv`; `authenticate` and `authenticateMedia` refuse a token whose `sv` no longer matches, so a reset ends older sessions (C8). A token with no `sv` (signed before `0024`) counts as 0. Added `0024` |
 
 **FKs:** none (root entity).
-**Indexes:** unique index on `username` (auto, from the `UNIQUE` constraint); `idx_users_kind_last_seen` on `(kind, last_seen_at)` — both guest queries filter on kind and order by staleness.
+**Indexes:** unique index on `username` (auto, from the `UNIQUE` constraint, case-sensitive, now redundant); unique `idx_users_username_nocase` on `username COLLATE NOCASE` (`0029`, the one that decides); `idx_users_kind_last_seen` on `(kind, last_seen_at)` — both guest queries filter on kind and order by staleness.
 **Referenced by:** `playlists.owner_id`, `play_history.user_id`, `favorites.user_id`, `playback_state.user_id`.
 
 **Guests are deletable and accounts are not.** `pruneIdleGuests` removes
@@ -298,6 +298,24 @@ one seed in four, `db/lessOften.ts`). No extra index: every read is by `user_id`
 **The current set, not a history:** `replaceScanFailures()` (`db/scanFailures.ts`, called from `syncLibrary()` after a scan that actually ran) swaps a root's rows for the latest scan's, so a fixed file drops off and a file failing every scan doesn't accumulate. A reconcile-only pass does not touch it.
 **Deletion order matters:** `deleteLibraryRoot()` deletes the root's `scan_failures` rows first.
 
+### `account_invites`
+
+| Column | Type | Null? | Default | Notes |
+|---|---|---|---|---|
+| `id` | INTEGER | — | — | **PK**, autoincrement |
+| `token_hash` | TEXT | NOT NULL | — | **UNIQUE**; SHA-256 hex of the link's token. The raw token is returned once, when made |
+| `created_by` | INTEGER | NULL | — | **FK → `users.id`**, `NO ACTION`; the admin, nulled by `deleteUser()` |
+| `guest_user_id` | INTEGER | NULL | — | **FK → `users.id`**, `NO ACTION`; set on an upgrade invite (A107). `deleteUser()` and `pruneIdleGuests()` null it and set `revoked_at` |
+| `created_at` | TEXT | NOT NULL | `datetime('now')` | |
+| `expires_at` | TEXT | NOT NULL | — | `created_at + 7 days` (A108) |
+| `used_at` | TEXT | NULL | — | set on accept; one use |
+| `used_by` | INTEGER | NULL | — | **FK → `users.id`**, `NO ACTION`; the account made or upgraded, nulled by `deleteUser()` |
+| `revoked_at` | TEXT | NULL | — | admin revoke, a newer upgrade invite for the same guest, or the guest deleted |
+
+**FKs:** `created_by`, `guest_user_id`, `used_by → users.id` (`NO ACTION`).
+**Indexes:** unique on `token_hash` (auto); `idx_account_invites_guest` on `guest_user_id`.
+**Accept (`acceptInvite()`, `db/invites.ts`), one transaction:** a fresh invite inserts an account; an upgrade invite updates the guest row in place (`username`, `password_hash`, `kind = 'account'`, `session_version + 1`, a random `Guest NNNN` display name cleared) and deletes that guest's `guest_codes` with their `guest_code_signins`, nulling `guest_code_requests.code_id`. Added `0029`.
+
 ### `guest_codes`
 
 | Column | Type | Null? | Default | Notes |
@@ -400,6 +418,8 @@ Every FK in this schema is `NO ACTION` / `NO ACTION`. Combined with Discrepancy 
 
 ### 3. Case-sensitive uniqueness vs. case-insensitive display/sort
 
+**`users.username` is no longer part of this** since `0029` (A111): it is unique and matched without case. The rest below still holds.
+
 `artists.name UNIQUE` and `albums.UNIQUE(title, artist_id)` use SQLite's default `BINARY` collation — case-sensitive. But every browse/sort query (`db/browse.ts`) orders with `COLLATE NOCASE`. That mismatch means "Sting" and "STING" from inconsistently-tagged files would be accepted as two distinct `artists` rows (not deduplicated by `findOrCreateArtist`'s exact-match lookup), then sorted right next to each other in a case-insensitive list — reading like a UI bug when it's actually a data-dedup gap. Checked live: only 4 artists exist today, no case collisions currently. Same applies to `tracks.path UNIQUE` — case-sensitive, which matches the case-sensitive Linux/WSL2 filesystem this project runs on (per `.docs/CLAUDE.md`), but would behave differently if ever deployed to a case-insensitive filesystem.
 
 ### 4. `hidden` / `not_recommended` defaults are asymmetric by design, not oversight
@@ -491,6 +511,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | `0027_add_play_history_skipped.sql` | `play_history.skipped` — songs cut short before the threshold are recorded as skips (A113) |
 | `0028_add_track_loudness.sql` | `tracks.loudness_lufs`, `tracks.loudness_peak` — volume levelling (A3) |
 | `0026_add_play_history_client_play_id.sql` | `play_history.client_play_id` + unique partial `idx_play_history_client_play_id` — a resent play is counted once (C10) |
+| `0029_account_invites.sql` | `account_invites` + `idx_account_invites_guest`; unique `idx_users_username_nocase` — invite links and case-insensitive names (A107-A112) |
 | `0021_add_play_history_ms_final.sql` | `play_history.ms_final`: marks plays whose `ms_played` is the real total (A62) |
 | `0020_add_user_theme.sql` | `users.theme` — the web theme follows the profile (A55) |
 
@@ -498,6 +519,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-10-12 | Migration `0029_account_invites.sql` — `account_invites` table section, `users.username` now case-insensitive, Discrepancy 3 note, migration row. From the migration SQL and the test run | Friends kept asking to sign up; invites let them pick their own name and password (A107-A112) |
 | 2026-10-12 | Migration `0028_add_track_loudness.sql` — `tracks.loudness_lufs`, `loudness_peak`; column rows, ER diagram and migration row. From the migration SQL and the test run | Volume levelling: the owner heard songs at uneven loudness |
 | 2026-10-11 | Migration `0027_add_play_history_skipped.sql` — `play_history.skipped`; column row, ER diagram and migration row. From the migration SQL and the test run | A113: an account that skips a lot showed 0 plays and 0 minutes after 30 minutes of listening |
 | 2026-10-11 | Migration `0026_add_play_history_client_play_id.sql` — `play_history.client_play_id` and its partial unique index; column row and migration row. From the migration SQL and the test run | C10 (codebase review): a play resent after a lost answer, or with a skewed phone clock, was counted twice |

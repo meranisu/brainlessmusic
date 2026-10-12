@@ -2,10 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { GuestCodesPanel } from '../components/GuestCodesPanel';
+import { InviteLinkDialog, InvitesPanel, type CreatedInvite } from '../components/InvitesPanel';
 import { useToast } from '../components/ToastProvider';
 import { useScrollLock } from '../hooks/useScrollLock';
 import { ApiError, apiClient } from '../lib/apiClient';
 import { formatDate } from '../lib/format';
+import { createInvite, INVITES_KEY } from '../lib/invites';
 import type { UserSummary } from '../types/api';
 
 const MIN_PASSWORD_LENGTH = 8;
@@ -22,8 +24,9 @@ export function UsersPage() {
   const [resettingId, setResettingId] = useState<number | null>(null);
   const [resetPassword, setResetPassword] = useState('');
   const [deletingUser, setDeletingUser] = useState<UserSummary | null>(null);
+  const [createdInvite, setCreatedInvite] = useState<CreatedInvite | null>(null);
 
-  useScrollLock(deletingUser !== null);
+  useScrollLock(deletingUser !== null || createdInvite !== null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: USERS_KEY,
@@ -74,6 +77,15 @@ export function UsersPage() {
     onError: (err) => fail(err, 'Could not change that password'),
   });
 
+  const upgradeMutation = useMutation({
+    mutationFn: async (guest: UserSummary) => ({ ...(await createInvite(guest.id)), guestName: guest.displayName }),
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: INVITES_KEY });
+      setCreatedInvite(created);
+    },
+    onError: (err) => fail(err, 'Could not make an invite link'),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id: number) => apiClient.delete(`/users/${id}`),
     onSuccess: () => {
@@ -98,6 +110,8 @@ export function UsersPage() {
         </p>
       </div>
 
+      <InvitesPanel onCreated={setCreatedInvite} />
+
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -111,7 +125,7 @@ export function UsersPage() {
         }}
         className="card flex flex-col gap-3 p-4"
       >
-        <h3 className="text-sm font-semibold text-white">Add someone</h3>
+        <h3 className="text-sm font-semibold text-white">Add someone yourself</h3>
         <div className="flex flex-wrap gap-2">
           <input
             value={newUsername}
@@ -181,27 +195,43 @@ export function UsersPage() {
                       {isSelf && <span className="ml-2 text-xs font-normal text-blue-400">you</span>}
                     </td>
                     <td className="py-2.5">
-                      {u.isAdmin ? <span className="badge-admin">Admin</span> : <span className="text-blue-300">Listener</span>}
+                      {u.isAdmin ? (
+                        <span className="badge-admin">Admin</span>
+                      ) : (
+                        <span className="text-blue-300">{u.kind === 'guest' ? 'Guest' : 'Listener'}</span>
+                      )}
                     </td>
                     <td className="py-2.5 text-blue-300">{formatDate(u.createdAt)}</td>
                     <td className="py-2.5 pr-4">
                       <div className="flex flex-wrap justify-end gap-1.5">
-                        <button
-                          onClick={() => adminMutation.mutate({ id: u.id, isAdmin: !u.isAdmin })}
-                          disabled={adminMutation.isPending}
-                          className="btn-ghost btn-sm"
-                        >
-                          {u.isAdmin ? 'Make listener' : 'Make admin'}
-                        </button>
-                        <button
-                          onClick={() => {
-                            setResettingId(resettingId === u.id ? null : u.id);
-                            setResetPassword('');
-                          }}
-                          className="btn-ghost btn-sm"
-                        >
-                          Set password
-                        </button>
+                        {u.kind === 'guest' ? (
+                          <button
+                            onClick={() => upgradeMutation.mutate(u)}
+                            disabled={upgradeMutation.isPending}
+                            className="btn-ghost btn-sm"
+                          >
+                            Make an account
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => adminMutation.mutate({ id: u.id, isAdmin: !u.isAdmin })}
+                              disabled={adminMutation.isPending}
+                              className="btn-ghost btn-sm"
+                            >
+                              {u.isAdmin ? 'Make listener' : 'Make admin'}
+                            </button>
+                            <button
+                              onClick={() => {
+                                setResettingId(resettingId === u.id ? null : u.id);
+                                setResetPassword('');
+                              }}
+                              className="btn-ghost btn-sm"
+                            >
+                              Set password
+                            </button>
+                          </>
+                        )}
                         {!isSelf && (
                           <button onClick={() => setDeletingUser(u)} className="btn-ghost btn-sm text-red-300!">
                             Delete
@@ -247,6 +277,8 @@ export function UsersPage() {
           </table>
         </div>
       )}
+
+      {createdInvite && <InviteLinkDialog invite={createdInvite} onClose={() => setCreatedInvite(null)} />}
 
       {deletingUser && (
         <div

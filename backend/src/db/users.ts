@@ -46,8 +46,9 @@ export function nameOf(user: Pick<UserRow, 'username' | 'display_name'>): string
   return user.display_name ?? user.username;
 }
 
+/** Case-insensitive (A111): `Imran` finds `imran`. */
 export function findUserByUsername(username: string): UserRow | undefined {
-  return db.prepare('SELECT * FROM users WHERE username = ?').get(username) as UserRow | undefined;
+  return db.prepare('SELECT * FROM users WHERE username = ? COLLATE NOCASE').get(username) as UserRow | undefined;
 }
 
 export function findUserById(id: number): UserRow | undefined {
@@ -64,14 +65,14 @@ export function insertUser(username: string, passwordHash: string): UserRow {
 
 /** Also reachable from the admin Users page; the CLI (`npm run set-admin`) remains for recovery. */
 export function setAdmin(username: string, isAdmin: boolean): UserRow | undefined {
-  db.prepare('UPDATE users SET is_admin = ? WHERE username = ?').run(isAdmin ? 1 : 0, username);
+  db.prepare('UPDATE users SET is_admin = ? WHERE username = ? COLLATE NOCASE').run(isAdmin ? 1 : 0, username);
   return findUserByUsername(username);
 }
 
 /** Admins reset other people's passwords from the Users page; `npm run set-password` remains for recovery. */
 /** Also ends every session signed before the change (C8). */
 export function setPasswordHash(username: string, passwordHash: string): UserRow | undefined {
-  db.prepare('UPDATE users SET password_hash = ?, session_version = session_version + 1 WHERE username = ?').run(passwordHash, username);
+  db.prepare('UPDATE users SET password_hash = ?, session_version = session_version + 1 WHERE username = ? COLLATE NOCASE').run(passwordHash, username);
   return findUserByUsername(username);
 }
 
@@ -147,6 +148,9 @@ export function pruneIdleGuests(idleDays: number): number {
       db.prepare('DELETE FROM playback_state WHERE user_id = ?').run(id);
       db.prepare('DELETE FROM playback_failures WHERE user_id = ?').run(id);
       db.prepare('UPDATE guest_codes SET used_by = NULL WHERE used_by = ?').run(id);
+      db.prepare(
+        "UPDATE account_invites SET guest_user_id = NULL, revoked_at = COALESCE(revoked_at, datetime('now')) WHERE guest_user_id = ?",
+      ).run(id);
       db.prepare('DELETE FROM users WHERE id = ?').run(id);
     }
   });
@@ -243,6 +247,11 @@ export function deleteUser(id: number): boolean {
     db.prepare('DELETE FROM playback_failures WHERE user_id = ?').run(userId);
     db.prepare('UPDATE guest_codes SET used_by = NULL WHERE used_by = ?').run(userId);
     db.prepare('UPDATE guest_codes SET created_by = NULL WHERE created_by = ?').run(userId);
+    db.prepare('UPDATE account_invites SET created_by = NULL WHERE created_by = ?').run(userId);
+    db.prepare('UPDATE account_invites SET used_by = NULL WHERE used_by = ?').run(userId);
+    db.prepare(
+      "UPDATE account_invites SET guest_user_id = NULL, revoked_at = COALESCE(revoked_at, datetime('now')) WHERE guest_user_id = ?",
+    ).run(userId);
     return db.prepare('DELETE FROM users WHERE id = ?').run(userId).changes > 0;
   });
   return purge(id);

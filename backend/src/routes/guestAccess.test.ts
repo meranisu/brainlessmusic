@@ -21,6 +21,9 @@ const EXPECTED: Record<string, Gate> = {
   'POST /auth/guest/requests/:id/cancel': 'public',
   'POST /auth/login': 'public',
   'POST /auth/passcode-login': 'public',
+  // The invite link is the credential (A107-A112).
+  'GET /invites/:token': 'public',
+  'POST /invites/:token/accept': 'public',
   'GET /auth/registration-status': 'public',
   'GET /health': 'public',
   // No preHandler, but not open: the socket's first message must carry a valid token (`routes/rooms.ts`).
@@ -87,6 +90,9 @@ const EXPECTED: Record<string, Gate> = {
   'GET /admin/control-center': 'admin',
   'GET /admin/loudness': 'admin',
   'GET /admin/rooms': 'admin',
+  'GET /admin/invites': 'admin',
+  'POST /admin/invites': 'admin',
+  'DELETE /admin/invites/:id': 'admin',
   'GET /admin/playback-failures': 'admin',
   'GET /library/browse': 'admin',
   'GET /library/missing': 'admin',

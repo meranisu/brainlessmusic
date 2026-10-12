@@ -11,6 +11,7 @@ import { lazyPage } from './lib/lazyPage';
 const AccountSelectPage = lazyPage(() =>
   import('./pages/AccountSelectPage').then((m) => ({ default: m.AccountSelectPage })),
 );
+const InvitePage = lazyPage(() => import('./pages/InvitePage').then((m) => ({ default: m.InvitePage })));
 const LibraryPage = lazyPage(() => import('./pages/LibraryPage').then((m) => ({ default: m.LibraryPage })));
 const AlbumsPage = lazyPage(() => import('./pages/AlbumsPage').then((m) => ({ default: m.AlbumsPage })));
 const AlbumDetailPage = lazyPage(() => import('./pages/AlbumDetailPage').then((m) => ({ default: m.AlbumDetailPage })));
@@ -41,6 +42,8 @@ export function App() {
         {/* The way in: the title screen (at `/` while signed out, see RequireAuth), then account select (password,
             passcode or guest). No hidden admin door. */}
         <Route path="/login" element={<AccountSelectPage />} />
+        {/* An invite link (A107-A112): works signed out, and for a guest accepting their own upgrade. */}
+        <Route path="/invite/:token" element={<InvitePage />} />
         {/* The old addresses, kept for printed guest-code cards (`?code=`) and handoff links (`#t=`). */}
         <Route path="/enter" element={<Moved to="/" />} />
         <Route path="/enter/profile" element={<Moved to="/login" />} />

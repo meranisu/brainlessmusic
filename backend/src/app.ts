@@ -24,6 +24,7 @@ import statsRoute from './routes/stats.js';
 import tracksRoute from './routes/tracks.js';
 import usersRoute from './routes/users.js';
 import guestCodesRoute from './routes/guestCodes.js';
+import invitesRoute from './routes/invites.js';
 import { redactUrl } from './utils/redactUrl.js';
 
 export const API_PREFIX = '/api';
@@ -85,6 +86,7 @@ export function buildApp() {
       api.register(shuffledTracksRoute);
       api.register(usersRoute);
       api.register(guestCodesRoute);
+      api.register(invitesRoute);
       api.register(roomsRoute);
     },
     { prefix: API_PREFIX },

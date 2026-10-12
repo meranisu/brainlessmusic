@@ -4,6 +4,33 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Account invites, and turning a guest into an account (A107-A112)
+
+- Friends kept asking to sign up, and open registration stays off (A76). Now the admin makes a one-use invite link on
+  the Users page ("Invite someone"), and the friend picks their own name and password at `/invite/<token>`, then is
+  signed in. A link lasts 7 days (A108). Only a SHA-256 of the token is stored, so a link is shown once, when made.
+- Guest rows on the Users page get "Make an account": the same kind of link, tied to that guest. Accepting turns the
+  same `users` row into an account (A107), so resume stays. The guest's codes are deleted so they stop signing anyone in,
+  and `session_version` is bumped so the guest's other devices sign out; the accepting device gets a fresh token. A
+  name the guest chose is kept as the display name; a random `Guest 1234` is dropped. A new upgrade link for the same
+  guest revokes the old one; deleting or pruning the guest kills its open link.
+- Usernames are now case-insensitive (A111): migration `0029` adds a unique index on `username COLLATE NOCASE`, and
+  `findUserByUsername`, `setAdmin` and `setPasswordHash` match without case. Login with `Ali` finds `ali`.
+- Names starting with `guest-` are refused on register and invite accept (A112).
+- Guest rows on the Users page no longer show "Make admin" / "Set password", which did nothing useful for a guest; the
+  role column says Guest.
+- Endpoints: `POST/GET /admin/invites`, `DELETE /admin/invites/:id` (admin); `GET /invites/:token`,
+  `POST /invites/:token/accept` (public, 20 accepts per address per hour), classified in `guestAccess.test.ts`.
+- Verified: `npm test` 527 pass, 13 of them new in `invites.test.ts` (fresh invite, used twice, expired, revoked,
+  unknown token, case clash, `guest-` refused, listing, upgrade keeps id and resume and revokes codes and old sessions,
+  random name dropped, new link revokes old, account refused as upgrade target, deleted guest). `tsc --noEmit` clean;
+  frontend `tsc -b` and `npm run lint` clean (no new warnings). Ran a scratch backend from source on :3100 with a
+  scratch database, and drove it in headless Chromium: made a link and a guest-upgrade link on the Users page, accepted
+  the first on a phone-sized screen (`OWNER` refused as taken, `ali` accepted), reopened it (shows "doesn't work any
+  more"), upgraded guest Sam to `sam`; both log in, Sam kept id 2 and display name. Scratch server stopped after.
+- smol's check for names differing only by case (planning doc, Phase 1) came back `[]` on 2026-10-12, so `0029` is
+  safe there.
+
 ## 2026-10-12: The player opens and closes in the skin's game style (Android)
 
 - Owner (A145, A146): opening and closing the player was half-baked, a 0.7 s crossfade both ways, and a swipe down

@@ -4,6 +4,38 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `createInvite()`, `listInvites()`, `revokeInvite()`, `peekInvite()`, `acceptInvite()` (new): `backend/src/db/invites.ts`
+**Date:** 2026-10-12
+**How added:** new feature (A107-A112)
+**Purpose:** one-use, 7-day account invite links; with a guest id, the link upgrades that guest in place.
+**Side effects:** writes `account_invites`; accept inserts a user or updates the guest row (`kind`, name, password, `session_version`), and deletes the guest's `guest_codes` with their sign-ins.
+**Before:** nothing — new functions. Accounts were only made by the admin typing a password.
+**After:** the friend picks their own name and password.
+
+**Function:** `invitesRoute` (new): `backend/src/routes/invites.ts`; `usernameProblem()` (new), `MIN_PASSWORD_LENGTH` (exported): `backend/src/routes/auth.ts`
+**Date:** 2026-10-12
+**How added:** new feature (A107-A112)
+**Purpose:** admin endpoints to make, list and revoke invites; public endpoints to check and accept one. `usernameProblem` is the shared name rule, now also refusing `guest-` (A112).
+**Side effects:** as `db/invites.ts`; accept is rate limited per address.
+**Before:** `/auth/register` checked the name pattern inline.
+**After:** register and accept use the same rule.
+
+**Function:** `findUserByUsername()`, `setAdmin()`, `setPasswordHash()`, `deleteUser()`, `pruneIdleGuests()`: `backend/src/db/users.ts`
+**Date:** 2026-10-12
+**How added:** new feature (A111)
+**Purpose:** names match without case; deleting a user clears or revokes their invites.
+**Side effects:** `deleteUser` and `pruneIdleGuests` also update `account_invites`.
+**Before:** exact-case matching; no invites table.
+**After:** `COLLATE NOCASE` lookups, backed by the unique index from `0029`.
+
+**Function:** `InvitesPanel()`, `InviteLinkDialog()` (new): `frontend/src/components/InvitesPanel.tsx`; `createInvite()` (new): `frontend/src/lib/invites.ts`; `InvitePage()` (new): `frontend/src/pages/InvitePage.tsx`; `UsersPage()`
+**Date:** 2026-10-12
+**How added:** new feature (A107-A112)
+**Purpose:** "Invite someone" and "Make an account" on the Users page with a copy-once link; the signed-out accept page at `/invite/:token`.
+**Side effects:** API calls; accepting replaces this browser's sign-in with the new account (`adoptToken`).
+**Before:** nothing — new UI. Guest rows showed Make admin / Set password.
+**After:** guests show Make an account instead.
+
 **Function:** `playerPresence()`, `Modifier.playerEntrance()`, `PlayerAnchor` (new): `android/.../ui/playback/PlayerEntrance.kt`; `toPlayer()`, `fromPlayer()`, `UnderPlayer` (new): `ui/navigation/TabTransitions.kt`; `NowPlayingScreen()` (`presence`, swipe), `MiniPlayer()`, `BrainlessNavGraph()`
 **Date:** 2026-10-12
 **How added:** owner request (A145, A146)

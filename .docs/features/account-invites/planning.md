@@ -10,9 +10,9 @@ history. Decided in A107–A112 ([QUESTIONS.md](../../QUESTIONS.md#answered)); b
 
 | Phase | What it covers | Status | Checklist |
 |---|---|---|---|
-| 1. Plan | This doc; the smol case check (A111) | In progress | [Phase 1](#phase-1-plan) |
-| 2. Structure | Migration, invite table, endpoints, case-insensitive names, tests | Not started | [Phase 2](#phase-2-structure) |
-| 3. Interior (web) | Users page: make and revoke invites; the accept page | Not started | [Phase 3](#phase-3-interior-web) |
+| 1. Plan | This doc; the smol case check (A111) | Done 2026-10-12 | [Phase 1](#phase-1-plan) |
+| 2. Structure | Migration, invite table, endpoints, case-insensitive names, tests | Done 2026-10-12, not deployed | [Phase 2](#phase-2-structure) |
+| 3. Interior (web) | Users page: make and revoke invites; the accept page | Done 2026-10-12, not deployed | [Phase 3](#phase-3-interior-web) |
 | 4. Walkthrough | A real invite, a real upgrade, login on Android after | Not started | [Phase 4](#phase-4-walkthrough) |
 
 No Android work in the first version (A109): the friend accepts on the web and then uses Log in on the phone.
@@ -78,23 +78,23 @@ Read-only (`readonly: true`). The image has no `sqlite3` tool, so it uses the ap
 (`Dockerfile`: `WORKDIR /app`, `DB_PATH=/data/brainlessmusic.db`). `[]` means the migration is safe. Any rows get a
 question before anything is renamed.
 
-- [ ] Owner runs the smol check
+- [x] Owner runs the smol check (2026-10-12: `[]`, no names differ only by case)
 - [x] Container path and DB file name confirmed (`Dockerfile`, 2026-10-11)
 
 ## Phase 2: Structure
 
-- [ ] Migration: `account_invites`; case-insensitive unique index on `username`
-- [ ] `db/invites.ts` (create, list, revoke, peek, accept) and `findUserByUsername` with `COLLATE NOCASE`
-- [ ] Endpoints above, with `guestAccess.test.ts` classifying them
-- [ ] `guest-` prefix refused on register and accept
-- [ ] Tests: fresh invite, upgrade keeps the user id and plays, expired, used twice, revoked, a name differing only by
+- [x] Migration: `account_invites`; case-insensitive unique index on `username`
+- [x] `db/invites.ts` (create, list, revoke, peek, accept) and `findUserByUsername` with `COLLATE NOCASE`
+- [x] Endpoints above, with `guestAccess.test.ts` classifying them
+- [x] `guest-` prefix refused on register and accept
+- [x] Tests: fresh invite, upgrade keeps the user id and plays, expired, used twice, revoked, a name differing only by
       case, `guest-` refused, the accepting session still valid, the guest's codes revoked
 
 ## Phase 3: Interior (web)
 
-- [ ] Users page: "Invite someone" (copy link), and "Make an account" on each guest row; open invites with Revoke
-- [ ] `/invite/:token` page, reachable signed out: name and password form, or "this link has expired / was used"
-- [ ] After accepting: signed in, a note that Log in works on the Android app with the same name and password
+- [x] Users page: "Invite someone" (copy link), and "Make an account" on each guest row; open invites with Revoke
+- [x] `/invite/:token` page, reachable signed out: name and password form, or "this link has expired / was used"
+- [x] After accepting: signed in, a note that Log in works on the Android app with the same name and password
 
 ## Phase 4: Walkthrough
 
@@ -109,3 +109,4 @@ question before anything is renamed.
 | Date | Phase affected | What changed | Why | Still fits the Plan phase? |
 |---|---|---|---|---|
 | 2026-10-11 | Plan | Doc written from A107–A112 | Room sync committed, so the parked answers could be recorded | Yes |
+| 2026-10-12 | Structure, Interior | Built. Endpoints as sketched, except `POST /admin/invites` returns the raw token and the web builds the URL from its own origin. An upgrade bumps `session_version` and returns a fresh token, so the accepting device stays signed in and the guest's other devices sign out (the plan said bump nothing; that would have left them signed in as the new account). Guest codes are deleted on upgrade, not just revoked, because `deleteGuestCode()` deletes the user | Phase 1's smol check is still open, so nothing is pushed | Yes |
