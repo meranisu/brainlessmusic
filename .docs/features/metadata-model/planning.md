@@ -135,7 +135,11 @@ Box 25 landed as `0030_album_artist_and_folder.sql` (albums only); disc numbers 
 
 ## Phase 4: Walkthrough
 
-- [ ] Back up smol's database before the first deploy (ask the owner first; changes on smol need their say-so).
+- [x] Back up smol's database before the first deploy (owner OK 2026-10-12). `db.backup()` inside `brainless-app`, same
+  method as `deploy.sh`, into its own folder so no pruning touches it:
+  `/data/backups/pre-v0.4/pre-v0.4-2026-10-12T07-45-04.db` (69 MB, `integrity_check` ok). Baseline: 32,405 tracks,
+  14,123 albums (all with tracks), 6,682 artists, 8 favorites, 3 playlist entries, 299 plays, 0 less-often, 0 edited
+  tracks, 29 migrations. `deploy.sh` takes its own pre-deploy copy as well.
 - [ ] After the deploy's scan: album count before and after, favorites/playlist/history row counts unchanged.
 - [ ] Owner checks: a compilation is one album under Various Artists, a two-disc album plays in disc order, Genres
   browse works, on web and phone; an album downloaded before the update still opens.
