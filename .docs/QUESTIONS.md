@@ -31,6 +31,7 @@ is never asked twice.
 | [Q5](#q5--tag-editing-scope) | Tag-editing scope | 2026-09-09 | No |
 | [Q77](#q77--how-does-the-android-app-get-past-cloudflare-access) | How does the Android app get past Cloudflare Access? | 2026-10-11 | Yes, before Access goes on |
 | [Q78](#q78--who-goes-on-the-access-email-list) | Who goes on the Access email list? | 2026-10-11 | Yes, before Access goes on |
+| [Q147](#q147--a-fuller-playlists-tab) | A fuller Playlists tab | 2026-10-12 | Yes, the Playlists tab |
 
 ### Q5 — Tag-editing scope
 **Asked:** 2026-09-09 · **Blocking:** no
@@ -58,6 +59,23 @@ includes friends using a guest code on the web: without their email on the list 
 
 - **A. You and the friends who use the web (recommended).** Each friend's email goes on the list once.
 - **B. Only you.** Friends use the Android app only (with Q77's token), never the web.
+
+### Q147 — A fuller Playlists tab
+**Asked:** 2026-10-12 · **Blocking:** yes, the Playlists tab
+
+Owner: the Library's Playlists tab is bare (three plain rows with icons) and doesn't feel like the skin.
+
+- Liked songs as a hero card on top: a mosaic of the latest liked covers, the count, Play and Shuffle. In the skin's
+  dress: Hit circle an osu! collection, Lane an Arcaea pack banner, Gear a SOUND VOLTEX "FAVORITE" folder, Ring a
+  maimai list plate.
+- Playlists as a two-column grid of cover mosaics (as Downloads does), name and count under each; New playlist as an
+  outlined tile first.
+- No playlists yet: a line on how to add songs (hold a song, Add to playlist).
+- Guests: a styled card saying likes and playlists are for accounts.
+- Server: the playlist list adds each playlist's first four song ids for the covers (additive; a push deploys smol).
+
+- **A. Build as proposed (recommended).**
+- **B. Change something** (say what).
 
 ## Answered
 
