@@ -183,10 +183,7 @@ fun NowPlayingScreen(
                             contentColor = if (dataSaver) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         ),
                     ) {
-                        Icon(
-                            if (dataSaver) AppIcons.dataSaverOn else AppIcons.dataSaverOff,
-                            contentDescription = if (dataSaver) "Data saver on" else "Data saver off",
-                        )
+                        DataSaverIcon(on = dataSaver)
                     }
                     // Gear likes and adds from its FX keys instead, Ring from its rim buttons.
                     if (current != null && songActions.canEdit && !pills && skin != Skin.GEAR && skin != Skin.RING) {

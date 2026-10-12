@@ -163,6 +163,10 @@ pops it with a burst in the skin's shape, a dislike cracks it in two. The Librar
 as a card under a game label (COLLECTION, PACK, FAVORITE, MY LIST), then Disliked songs, then the playlists as a cover
 grid (A152).
 
+The player's data saver button (`DataSaverIcon`) squeezes flat and wide when switched on, the stream getting smaller,
+and stretches tall when switched off, then springs back; one shot per tap, its colour fading with it. Same in every
+skin, since the button sits in the shared top bar.
+
 The player opens from the mini player and closes in the skin's game (`PlayerEntrance.kt`, A145, A146): Standard a plain
 sheet up and down; Hit circle zooms out of the mini player's cover like osu! starting a map; Lane Arcaea's song-start
 shutter; Gear SOUND VOLTEX's fast slam, a slanted lit edge leading; Ring a maimai circle growing from the cover. A swipe
