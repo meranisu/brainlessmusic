@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `MainActivity.askForNotificationsOnFirstPlayback()` (removed), `PermissionsStep()`: `android/.../MainActivity.kt`, `android/.../ui/setup/SetupScreen.kt`
+**Date:** 2026-10-12
+**How added:** bug fix (owner report)
+**Purpose:** ask for the notification permission only in the first-run setup, and describe it truthfully there.
+**Side effects:** none.
+**Before:** a skipped permission was asked again on first playback; the setup said it controlled the media notification.
+**After:** no second prompt; the setup says it covers download progress and that the player notification shows either way.
+
 **Function:** `PlaybackController.stop()` (new `countAsSkip` parameter), `PlaybackService.onTaskRemoved()`, `MainActivity.onDestroy()`: `android/.../playback/`, `android/.../MainActivity.kt`
 **Date:** 2026-10-12
 **How added:** bug fix (owner report)

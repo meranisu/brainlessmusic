@@ -304,7 +304,8 @@ private fun SetupSwitch(title: String, detail: String, checked: Boolean, onChang
 }
 
 /**
- * What the app may use (owner, 2026-10-12). Notifications are the one runtime permission it asks for; storage needs
+ * What the app may use (owner, 2026-10-12). Notifications are the one runtime permission it asks for, and only here:
+ * the media notification is exempt from it on Android 13+, so it only gates the download progress. Storage needs
  * none, since downloads live in the app's own files, so that row says so and shows the room left; installing updates
  * is a per-app setting the update sheet needs. States are read again on return from Android's settings.
  */
@@ -335,7 +336,7 @@ private fun PermissionsStep() {
         PermissionRow(
             AppIcons.playCircle,
             "Notifications",
-            "Play, pause and skip from the notification shade and the lock screen, and see downloads as they run.",
+            "See downloads as they run. The player in the notification shade and on the lock screen shows either way: Android always allows it for music apps.",
             allowed = notifications,
         ) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !refused) {

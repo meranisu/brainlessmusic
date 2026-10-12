@@ -2,10 +2,8 @@ package com.brainlessmusic.app
 
 import com.brainlessmusic.app.ui.common.NoticeHost
 import com.brainlessmusic.app.ui.common.Notices
-import android.Manifest
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
-import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -16,7 +14,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
@@ -26,7 +23,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
@@ -47,7 +43,6 @@ import com.brainlessmusic.app.update.UpdateRepository
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
@@ -72,10 +67,6 @@ class MainActivity : ComponentActivity() {
     // media notification can do that without the exit callback, so regaining focus re-applies it as well.
     private var splashGone by mutableStateOf(false)
     private var focusGains by mutableIntStateOf(0)
-
-    // Without it Android 13+ hides the media notification, and with it the lock-screen controls.
-    private val notificationPermission =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splash = installSplashScreen()
@@ -108,7 +99,6 @@ class MainActivity : ComponentActivity() {
                 .start()
             Handler(Looper.getMainLooper()).postDelayed(::remove, SPLASH_FADE_MS + SPLASH_REMOVE_GRACE_MS)
         }
-        askForNotificationsOnFirstPlayback()
         // A newer release on GitHub: at most one look a day, quiet when offline (A104).
         updates.checkOnLaunch()
         // Room notices (it ended, you were removed, a song couldn't be added) from whichever screen is open.
@@ -175,18 +165,6 @@ class MainActivity : ComponentActivity() {
             if (keepPlayingWhenSwipedAway == false) playbackController.stop(countAsSkip = false)
         }
         super.onDestroy()
-    }
-
-    /** Asked when music first starts rather than at launch, when the reason for asking is obvious. */
-    private fun askForNotificationsOnFirstPlayback() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
-        val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED
-        if (granted) return
-        lifecycleScope.launch {
-            playbackController.state.map { it.hasQueue }.first { it }
-            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
     }
 }
 

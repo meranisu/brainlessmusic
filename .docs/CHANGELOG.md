@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Android asks for notifications only in the setup
+
+- Removed `MainActivity.askForNotificationsOnFirstPlayback`: it asked again when music first played, so someone who
+  skipped the permission in the first-run setup got a second prompt on Home. The setup is the one place it is asked;
+  accounts signed in before the setup existed (A141) were already asked by that prompt in earlier versions.
+- The setup's Notifications row no longer says it is for the shade and lock-screen controls. On Android 13+ the media
+  notification is exempt from the permission and shows either way (owner saw it with notifications refused); the
+  permission only covers the download progress notification (`MusicDownloadService`).
+- Verified: `:app:compileDebugKotlin` clean. Not run on a phone or emulator.
+
 ## 2026-10-12: Android swipe-away stops the music instead of pausing it (A58)
 
 - Swiping the app away from recents (with "Keep playing when swiped away" off, or with the music paused) now stops
