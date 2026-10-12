@@ -9,7 +9,7 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 **How added:** bug fix
 **Purpose:** only the top screen takes touches, so a page left behind can't catch taps.
 **Side effects:** none visible; a non-top screen is laid out off screen and drawn in place.
-**Before:** a page left behind (Appearance after a skin change) took taps that fell through Settings, picking skins.
+**Before:** the page being left, drawn on top while it faded out, took taps (picked skins from Appearance's rows).
 **After:** every destination is wrapped; only the top entry can be touched.
 
 **Function:** `LibraryHeader()`: `android/.../ui/library/LibraryScreen.kt`
