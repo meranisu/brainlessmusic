@@ -1,6 +1,15 @@
 package com.brainlessmusic.app.ui.profile
 
 import com.brainlessmusic.app.ui.common.Notices
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.combinedClickable
 import androidx.media3.common.util.UnstableApi
 import com.brainlessmusic.app.ui.common.SkinSheet
 import com.brainlessmusic.app.downloads.DownloadRepository
@@ -57,7 +66,7 @@ import com.brainlessmusic.app.ui.theme.AppIcons
 
 /**
  * Liking a song and adding it to a playlist, from anywhere a song is shown (A65); accounts only. Also the long-press
- * song menu's play next, play less often and details ([SongMenuSheet]).
+ * song menu's play next, dislike and details ([SongMenuSheet]).
  */
 @androidx.annotation.OptIn(UnstableApi::class)
 @HiltViewModel
@@ -78,15 +87,35 @@ class SongActionsViewModel @Inject constructor(
 
     val canEdit: Boolean = !profile.isGuest
     val likedIds: StateFlow<Set<Int>> = profile.likedIds
+    val dislikedIds: StateFlow<Set<Int>> = profile.dislikedIds
 
     private val _playlists = MutableStateFlow<List<PlaylistSummaryDto>?>(null)
     val playlists: StateFlow<List<PlaylistSummaryDto>?> = _playlists.asStateFlow()
 
     init {
-        if (canEdit) viewModelScope.launch { profile.loadLikedIds() }
+        if (canEdit) viewModelScope.launch {
+            profile.loadLikedIds()
+            profile.loadDislikedIds()
+        }
     }
 
+    /** The menu's Like / Unlike: says what it does, so it likes even a disliked song (which undislikes it). */
+    fun setLiked(trackId: Int, liked: Boolean) {
+        viewModelScope.launch {
+            if (!profile.likesLoaded) {
+                profile.loadLikedIds()
+                if (!profile.likesLoaded) return@launch
+            }
+            profile.setLiked(trackId, liked)
+        }
+    }
+
+    /** A tap on the heart (A148): a disliked song goes back to neither; otherwise like flips. */
     fun toggleLike(trackId: Int) {
+        if (trackId in dislikedIds.value) {
+            viewModelScope.launch { profile.setDisliked(trackId, false) }
+            return
+        }
         viewModelScope.launch {
             // An empty heart before the liked set ever loaded may be a liked song: load it first, or this would "like"
             // what is already liked.
@@ -105,15 +134,15 @@ class SongActionsViewModel @Inject constructor(
         return if (wasEmpty) "Playing \"${item.title}\"" else "\"${item.title}\" plays next"
     }
 
-    /** Fewer shuffle passes for this song from now on (A60), the same mark as a right swipe in the queue. */
-    fun playLessOften(trackId: Int, title: String, onDone: (String) -> Unit) {
+    /**
+     * Holding the heart, or the menu's Dislike (A148): dislikes the song, or takes the dislike back. Shuffle picks a
+     * disliked song about one pass in four (A60), the same mark as a right swipe in the queue. [onDone] gets a line
+     * only when it failed, since the heart shows the change.
+     */
+    fun toggleDislike(trackId: Int, onDone: (String) -> Unit = {}) {
         viewModelScope.launch {
-            onDone(
-                profile.setLessOften(trackId, true).fold(
-                    onSuccess = { "You'll hear \"$title\" less often" },
-                    onFailure = { "Couldn't change it. Try again." },
-                ),
-            )
+            if (!profile.likesLoaded) profile.loadLikedIds()
+            profile.setDisliked(trackId, trackId !in dislikedIds.value).onFailure { onDone("Couldn't change it. Try again.") }
         }
     }
 
@@ -186,16 +215,34 @@ class SongActionsViewModel @Inject constructor(
 }
 
 /** A heart that likes or unlikes [trackId]. Shows nothing for guests. */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun LikeButton(trackId: Int, modifier: Modifier = Modifier, viewModel: SongActionsViewModel = hiltViewModel()) {
     if (!viewModel.canEdit) return
     val liked by viewModel.likedIds.collectAsStateWithLifecycle()
-    val isLiked = trackId in liked
-    IconButton(onClick = { viewModel.toggleLike(trackId) }, modifier = modifier) {
-        Icon(
-            if (isLiked) AppIcons.favorite else AppIcons.favoriteBorder,
-            contentDescription = if (isLiked) "Unlike" else "Like",
-            tint = if (isLiked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+    val disliked by viewModel.dislikedIds.collectAsStateWithLifecycle()
+    val feeling = feelingOf(trackId, liked, disliked)
+    val haptics = LocalHapticFeedback.current
+    // Tap likes, hold dislikes (A148); an IconButton has no long press, so the same 48 dp target by hand.
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .combinedClickable(
+                role = Role.Button,
+                onClickLabel = feeling.tapLabel(),
+                onLongClickLabel = if (feeling == Feeling.DISLIKED) null else "Dislike",
+                onLongClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    viewModel.toggleDislike(trackId) { Notices.show(it) }
+                },
+                onClick = { viewModel.toggleLike(trackId) },
+            ),
+    ) {
+        FeelingHeart(
+            feeling,
+            tint = if (feeling == Feeling.LIKED) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

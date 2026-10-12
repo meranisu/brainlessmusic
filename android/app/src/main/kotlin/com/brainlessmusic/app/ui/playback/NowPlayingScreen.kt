@@ -1,5 +1,12 @@
 package com.brainlessmusic.app.ui.playback
 
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.combinedClickable
+import com.brainlessmusic.app.ui.profile.tapLabel
+import com.brainlessmusic.app.ui.profile.feelingOf
+import com.brainlessmusic.app.ui.profile.FeelingHeart
+import com.brainlessmusic.app.ui.profile.Feeling
 import com.brainlessmusic.app.ui.common.Notices
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.BorderStroke
@@ -294,13 +301,14 @@ fun NowPlayingScreen(
                 )
                 Skin.GEAR -> {
                     val liked by songActions.likedIds.collectAsStateWithLifecycle()
+                    val disliked by songActions.dislikedIds.collectAsStateWithLifecycle()
                     GearDeck(
                         state = state,
                         item = current,
                         fraction = fraction,
                         shownMs = shownMs,
                         record = record,
-                        liked = current.trackId in liked,
+                        feeling = feelingOf(current.trackId, liked, disliked),
                         canEdit = songActions.canEdit,
                         coverGestures = coverGestures,
                         coverLayer = coverLayer,
@@ -312,18 +320,20 @@ fun NowPlayingScreen(
                         onNext = viewModel::next,
                         onRepeat = viewModel::cycleRepeat,
                         onLike = { songActions.toggleLike(current.trackId) },
+                        onDislike = { songActions.toggleDislike(current.trackId) { Notices.show(it) } },
                         onAddToPlaylist = { addingToPlaylist = true },
                     )
                 }
                 Skin.RING -> {
                     val liked by songActions.likedIds.collectAsStateWithLifecycle()
+                    val disliked by songActions.dislikedIds.collectAsStateWithLifecycle()
                     RingDeck(
                         state = state,
                         item = current,
                         fraction = fraction,
                         shownMs = shownMs,
                         record = record,
-                        liked = current.trackId in liked,
+                        feeling = feelingOf(current.trackId, liked, disliked),
                         canEdit = songActions.canEdit,
                         coverGestures = coverGestures,
                         coverLayer = coverLayer,
@@ -335,6 +345,7 @@ fun NowPlayingScreen(
                         onNext = viewModel::next,
                         onRepeat = viewModel::cycleRepeat,
                         onLike = { songActions.toggleLike(current.trackId) },
+                        onDislike = { songActions.toggleDislike(current.trackId) { Notices.show(it) } },
                         onAddToPlaylist = { addingToPlaylist = true },
                         onQueue = { showQueue = true },
                     )
@@ -570,14 +581,17 @@ private fun PillRow(
     modifier: Modifier = Modifier,
 ) {
     val liked by songActions.likedIds.collectAsStateWithLifecycle()
+    val disliked by songActions.dislikedIds.collectAsStateWithLifecycle()
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         if (songActions.canEdit) {
-            val isLiked = trackId in liked
+            val feeling = feelingOf(trackId, liked, disliked)
             Pill(
-                icon = if (isLiked) AppIcons.favorite else AppIcons.favoriteBorder,
-                label = if (isLiked) "Unlike" else "Like",
-                lit = isLiked,
+                icon = AppIcons.favorite,
+                label = feeling.tapLabel(),
+                lit = feeling == Feeling.LIKED,
                 onClick = { songActions.toggleLike(trackId) },
+                onLongClick = { songActions.toggleDislike(trackId) { Notices.show(it) } },
+                heart = feeling,
             )
         }
         Pill(
@@ -601,17 +615,41 @@ private fun PillRow(
 }
 
 @Composable
-private fun RowScope.Pill(icon: ImageVector, label: String, lit: Boolean, onClick: () -> Unit, enabled: Boolean = true) {
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+private fun RowScope.Pill(
+    icon: ImageVector,
+    label: String,
+    lit: Boolean,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    // The like pill (A148): hold to dislike, and the animated heart in place of the icon.
+    onLongClick: (() -> Unit)? = null,
+    heart: Feeling? = null,
+) {
+    val haptics = LocalHapticFeedback.current
     Surface(
-        onClick = onClick,
-        enabled = enabled,
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         contentColor = litColor(lit),
-        modifier = Modifier.weight(1f).height(48.dp),
+        modifier = Modifier
+            .weight(1f)
+            .height(48.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .combinedClickable(
+                enabled = enabled,
+                role = Role.Button,
+                onLongClick = onLongClick?.let { hold -> { haptics.performHapticFeedback(HapticFeedbackType.LongPress); hold() } },
+                onLongClickLabel = if (onLongClick != null && heart != Feeling.DISLIKED) "Dislike" else null,
+                onClick = onClick,
+            )
+            .semantics { contentDescription = label },
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = label, modifier = Modifier.alpha(if (enabled) 1f else 0.38f))
+            if (heart != null) {
+                FeelingHeart(heart, tint = litColor(lit))
+            } else {
+                Icon(icon, contentDescription = null, modifier = Modifier.alpha(if (enabled) 1f else 0.38f))
+            }
         }
     }
 }

@@ -1,5 +1,11 @@
 package com.brainlessmusic.app.ui.playback.skins
 
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.foundation.combinedClickable
+import com.brainlessmusic.app.ui.profile.tapLabel
+import com.brainlessmusic.app.ui.profile.FeelingHeart
+import com.brainlessmusic.app.ui.profile.Feeling
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -162,7 +168,7 @@ fun ColumnScope.RingDeck(
     fraction: Float,
     shownMs: Float,
     record: TrackStatDto?,
-    liked: Boolean,
+    feeling: Feeling,
     canEdit: Boolean,
     coverGestures: Modifier,
     coverLayer: Modifier,
@@ -174,6 +180,7 @@ fun ColumnScope.RingDeck(
     onNext: () -> Unit,
     onRepeat: () -> Unit,
     onLike: () -> Unit,
+    onDislike: () -> Unit,
     onAddToPlaylist: () -> Unit,
     onQueue: () -> Unit,
 ) {
@@ -188,7 +195,7 @@ fun ColumnScope.RingDeck(
             fraction = fraction,
             shownMs = shownMs,
             plays = record?.plays,
-            liked = liked,
+            feeling = feeling,
             canEdit = canEdit,
             coverGestures = coverGestures,
             coverLayer = coverLayer,
@@ -200,6 +207,7 @@ fun ColumnScope.RingDeck(
             onNext = onNext,
             onRepeat = onRepeat,
             onLike = onLike,
+            onDislike = onDislike,
             onAddToPlaylist = onAddToPlaylist,
             onQueue = onQueue,
         )
@@ -232,7 +240,7 @@ private fun Cabinet(
     fraction: Float,
     shownMs: Float,
     plays: Int?,
-    liked: Boolean,
+    feeling: Feeling,
     canEdit: Boolean,
     coverGestures: Modifier,
     coverLayer: Modifier,
@@ -244,6 +252,7 @@ private fun Cabinet(
     onNext: () -> Unit,
     onRepeat: () -> Unit,
     onLike: () -> Unit,
+    onDislike: () -> Unit,
     onAddToPlaylist: () -> Unit,
     onQueue: () -> Unit,
 ) {
@@ -411,9 +420,9 @@ private fun Cabinet(
             label = "Queue", enabled = true, rim = rim, onClick = onQueue)
         RimButton(side, radius, 6, button, RingSky, Color.White, lit = true, icon = AppIcons.previous,
             label = "Previous", enabled = state.hasPrevious || state.positionMs > 3_000, rim = rim, onClick = onPrevious)
-        RimButton(side, radius, 7, button, scheme.primary, scheme.onPrimary, lit = liked,
-            icon = if (liked) AppIcons.favorite else AppIcons.favoriteBorder, label = if (liked) "Unlike" else "Like",
-            enabled = canEdit, rim = rim, onClick = onLike)
+        RimButton(side, radius, 7, button, scheme.primary, scheme.onPrimary, lit = feeling == Feeling.LIKED,
+            icon = AppIcons.favorite, label = feeling.tapLabel(),
+            enabled = canEdit, rim = rim, onClick = onLike, onLongClick = onDislike, heart = feeling)
         RimButton(side, radius, 8, button, RingYellow, RingInk, lit = state.shuffle, icon = shuffleIcon(state.shuffleMode),
             label = shuffleLabel(state.shuffleMode), enabled = !state.inRoom, rim = rim, onClick = onShuffle)
     }
@@ -434,6 +443,7 @@ private fun OutlinedText(text: String, size: TextUnit, stroke: Dp, letterSpacing
  * Button [n] (1 to 8, clockwise from the top right) on the ring: lit, it is filled with its [color] and edged in the
  * bezel's; unlit, it is the bezel's colour edged in [color], as an unlit cabinet button.
  */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun RimButton(
     side: Dp,
@@ -448,8 +458,12 @@ private fun RimButton(
     enabled: Boolean,
     rim: Color,
     onClick: () -> Unit,
+    // The like button (A148): hold to dislike, and the animated heart in place of the icon.
+    onLongClick: (() -> Unit)? = null,
+    heart: Feeling? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
+    val haptics = LocalHapticFeedback.current
     val a = Math.toRadians(buttonAngle(n).toDouble())
     val x = side / 2 + radius * sin(a).toFloat() - size / 2
     val y = side / 2 - radius * cos(a).toFloat() - size / 2
@@ -462,7 +476,18 @@ private fun RimButton(
             .clip(CircleShape)
             .background(if (lit) color else rim)
             .border(3.dp, if (lit) rim else color, CircleShape)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .combinedClickable(
+                enabled = enabled,
+                role = Role.Button,
+                onLongClick = onLongClick?.let { hold ->
+                    {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        hold()
+                    }
+                },
+                onLongClickLabel = if (onLongClick != null && heart != Feeling.DISLIKED) "Dislike" else null,
+                onClick = onClick,
+            )
             .semantics { contentDescription = label },
     ) {
         // Unlit, the yellow edge is too pale for a yellow glyph, so the glyph takes the screen's ink.
@@ -471,7 +496,11 @@ private fun RimButton(
             color == RingYellow -> scheme.onSurface
             else -> color
         }
-        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
+        if (heart != null) {
+            FeelingHeart(heart, tint = tint, size = 22.dp)
+        } else {
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
+        }
     }
 }
 

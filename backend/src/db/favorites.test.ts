@@ -3,7 +3,7 @@ import { beforeEach, describe, it } from 'node:test';
 import { listFavoritesForUser, starTrack } from './favorites.js';
 import { upsertTrack } from './library.js';
 import { insertLibraryRoot } from './libraryRoots.js';
-import { addTrackToPlaylist, createPlaylist, getPlaylistDetail } from './playlists.js';
+import { addTrackToPlaylist, createPlaylist, getPlaylistDetail, listPlaylistsForUser } from './playlists.js';
 import { insertUser } from './users.js';
 import { resetDatabase } from '../testing/harness.js';
 
@@ -60,5 +60,25 @@ describe('favorites and playlists', () => {
     const [entry] = getPlaylistDetail(playlist.id)!.tracks;
     assert.equal(entry.albumId, track.album_id);
     assert.equal(entry.trackNumber, 3);
+  });
+
+  it('lists each playlist with its first albums for the cover, in playlist order, each album once', () => {
+    const playlist = createPlaylist('Mix', userId);
+    const other = upsertTrack({
+      path: '/fav-root/other.mp3', title: 'Other', artistName: 'Artist', albumTitle: 'Second album', albumYear: null,
+      trackNumber: 1, duration: 100, format: 'MP3', fileSize: 1, rootId,
+    });
+    addTrackToPlaylist(playlist.id, other.id);
+    addTrackToPlaylist(playlist.id, addTrack(1).id);
+    addTrackToPlaylist(playlist.id, addTrack(2).id);
+    createPlaylist('Empty', userId);
+
+    const listed = listPlaylistsForUser(userId);
+    const mix = listed.find((p) => p.name === 'Mix')!;
+    const firstAlbum = getPlaylistDetail(playlist.id)!.tracks[1].albumId;
+
+    assert.equal(mix.trackCount, 3);
+    assert.deepEqual(mix.coverAlbumIds, [other.album_id, firstAlbum]);
+    assert.deepEqual(listed.find((p) => p.name === 'Empty')!.coverAlbumIds, []);
   });
 });

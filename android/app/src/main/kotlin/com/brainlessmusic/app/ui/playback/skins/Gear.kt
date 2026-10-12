@@ -1,5 +1,11 @@
 package com.brainlessmusic.app.ui.playback.skins
 
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.foundation.combinedClickable
+import com.brainlessmusic.app.ui.profile.tapLabel
+import com.brainlessmusic.app.ui.profile.FeelingHeart
+import com.brainlessmusic.app.ui.profile.Feeling
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -155,7 +161,7 @@ fun ColumnScope.GearDeck(
     fraction: Float,
     shownMs: Float,
     record: TrackStatDto?,
-    liked: Boolean,
+    feeling: Feeling,
     canEdit: Boolean,
     coverGestures: Modifier,
     coverLayer: Modifier,
@@ -167,6 +173,7 @@ fun ColumnScope.GearDeck(
     onNext: () -> Unit,
     onRepeat: () -> Unit,
     onLike: () -> Unit,
+    onDislike: () -> Unit,
     onAddToPlaylist: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -289,7 +296,7 @@ fun ColumnScope.GearDeck(
         // Like and add hide for guests (A65), as their pills and buttons do elsewhere.
         if (canEdit) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 52.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                FxKey(if (liked) AppIcons.favorite else AppIcons.favoriteBorder, if (liked) "Unlike" else "Like", lit = liked, onClick = onLike)
+                FxKey(AppIcons.favorite, feeling.tapLabel(), lit = feeling == Feeling.LIKED, onClick = onLike, onLongClick = onDislike, heart = feeling)
                 FxKey(AppIcons.playlistAdd, "Add to playlist", onClick = onAddToPlaylist)
             }
         }
@@ -696,10 +703,19 @@ private fun RowScope.PlayKey(state: PlaybackUiState, onClick: () -> Unit) {
     }
 }
 
-/** An orange FX key, wide and short, under the BT keys. */
+/** An orange FX key, wide and short, under the BT keys. The like key holds to dislike, its heart animated (A148). */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun RowScope.FxKey(icon: ImageVector, label: String, lit: Boolean = false, onClick: () -> Unit) {
+private fun RowScope.FxKey(
+    icon: ImageVector,
+    label: String,
+    lit: Boolean = false,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    heart: Feeling? = null,
+) {
     val pop = rememberCritical()
+    val haptics = LocalHapticFeedback.current
     Box(contentAlignment = Alignment.Center, modifier = Modifier.weight(1f)) {
         Box(
             contentAlignment = Alignment.Center,
@@ -709,13 +725,26 @@ private fun RowScope.FxKey(icon: ImageVector, label: String, lit: Boolean = fals
                 .clip(CutCornerShape(5.dp))
                 .background(if (lit) GearFx else GearFx.copy(alpha = 0.75f))
                 .then(if (lit) Modifier.border(2.dp, Color.White, CutCornerShape(5.dp)) else Modifier)
-                .clickable(role = Role.Button) {
+                .combinedClickable(
+                    role = Role.Button,
+                    onLongClick = onLongClick?.let { hold ->
+                        {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            hold()
+                        }
+                    },
+                    onLongClickLabel = if (onLongClick != null && heart != Feeling.DISLIKED) "Dislike" else null,
+                ) {
                     pop.fire()
                     onClick()
                 }
                 .semantics { contentDescription = label },
         ) {
-            Icon(icon, contentDescription = null, tint = GearInk, modifier = Modifier.size(18.dp))
+            if (heart != null) {
+                FeelingHeart(heart, tint = GearInk, size = 18.dp)
+            } else {
+                Icon(icon, contentDescription = null, tint = GearInk, modifier = Modifier.size(18.dp))
+            }
         }
         CriticalText(pop, Modifier.align(Alignment.TopCenter))
     }

@@ -49,7 +49,7 @@ import com.brainlessmusic.app.ui.theme.AppIcons
 private enum class MenuStep { MENU, PLAYLIST, DETAILS }
 
 /**
- * What a long press on a song opens: play next, like, add to a playlist, its album and artist, play less often, and its details.
+ * What a long press on a song opens: play next, like, add to a playlist, its album and artist, dislike, and its details.
  * Account-only rows hide for guests. [showPlayNext] is off where the song is the one playing; [onOpenAlbum] or
  * [onOpenArtist] null hides that row.
  */
@@ -65,6 +65,7 @@ fun SongMenuSheet(
 ) {
     val context = LocalContext.current
     val liked by viewModel.likedIds.collectAsStateWithLifecycle()
+    val disliked by viewModel.dislikedIds.collectAsStateWithLifecycle()
     val downloadStates by viewModel.downloadStates.collectAsStateWithLifecycle()
     var step by remember { mutableStateOf(MenuStep.MENU) }
     val toast: (String) -> Unit = { Notices.show(it) }
@@ -115,7 +116,7 @@ fun SongMenuSheet(
                     if (isLiked) "Unlike" else "Like",
                     tint = if (isLiked) MaterialTheme.colorScheme.primary else null,
                 ) {
-                    viewModel.toggleLike(item.trackId)
+                    viewModel.setLiked(item.trackId, !isLiked)
                     onDismiss()
                 }
                 MenuRow(AppIcons.playlistAdd, "Add to playlist") { step = MenuStep.PLAYLIST }
@@ -150,12 +151,14 @@ fun SongMenuSheet(
                 }
             }
             if (viewModel.canEdit) {
+                val isDisliked = item.trackId in disliked
                 MenuRow(
                     AppIcons.lessOften,
-                    "Play less often",
-                    detail = "Shuffle picks it about one pass in four. Undo it in You, under Songs you hear less.",
+                    if (isDisliked) "Remove dislike" else "Dislike",
+                    detail = if (isDisliked) "Back to normal in shuffle." else "Shuffle picks it about one pass in four. It still plays when you pick it.",
                 ) {
-                    viewModel.playLessOften(item.trackId, item.title, toast)
+                    viewModel.toggleDislike(item.trackId, toast)
+                    if (!isDisliked) toast("Disliked \"${item.title}\". Shuffle will pick it less.")
                     onDismiss()
                 }
             }

@@ -13,6 +13,8 @@ export interface PlaylistSummary {
   name: string;
   trackCount: number;
   createdAt: string;
+  /** Up to four albums, in playlist order, for the cover mosaic the app shows (A147). */
+  coverAlbumIds: number[];
 }
 
 export interface PlaylistTrack {
@@ -42,7 +44,7 @@ export function findPlaylistById(id: number): PlaylistRow | undefined {
 }
 
 export function listPlaylistsForUser(ownerId: number): PlaylistSummary[] {
-  return db
+  const playlists = db
     .prepare(
       `SELECT
          p.id as id,
@@ -55,7 +57,20 @@ export function listPlaylistsForUser(ownerId: number): PlaylistSummary[] {
        GROUP BY p.id
        ORDER BY p.created_at DESC`,
     )
-    .all(ownerId) as PlaylistSummary[];
+    .all(ownerId) as Omit<PlaylistSummary, 'coverAlbumIds'>[];
+  const covers = db.prepare(
+    `SELECT t.album_id as albumId
+     FROM playlist_tracks pt
+     JOIN tracks t ON t.id = pt.track_id
+     WHERE pt.playlist_id = ? AND t.album_id IS NOT NULL
+     GROUP BY t.album_id
+     ORDER BY MIN(pt.position) ASC
+     LIMIT 4`,
+  );
+  return playlists.map((p) => ({
+    ...p,
+    coverAlbumIds: (covers.all(p.id) as { albumId: number }[]).map((r) => r.albumId),
+  }));
 }
 
 export function getPlaylistDetail(id: number): PlaylistDetail | undefined {

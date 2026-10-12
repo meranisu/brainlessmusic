@@ -467,14 +467,14 @@ fun SettingsPageScreen(
                         if (!viewModel.isGuest) {
                             Divider()
                             Block(
-                                title = "Songs you hear less",
+                                title = "Disliked songs",
                                 detail = when (lessOftenReset) {
-                                    true -> "Done. Every song is back in shuffle as normal."
+                                    true -> "Done. Nothing is disliked now; every song is back in shuffle as normal."
                                     false -> "Couldn't reach the server. Try again."
-                                    null -> "Swipe a song right in the queue to hear it less. This puts them all back to normal."
+                                    null -> "Shuffle picks a disliked song about one pass in four. Reset undislikes them all."
                                 },
                             ) {
-                                // The list lives here since Home dropped its tile (A134).
+                                // The list is also in the Library's Playlists tab (A148).
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     FilledTonalButton(
                                         onClick = onOpenLessOften,

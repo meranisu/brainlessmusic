@@ -100,13 +100,6 @@ class LibraryRepository @Inject constructor(
     suspend fun savePlaybackState(trackIds: List<Int>, index: Int, positionSeconds: Double, playing: Boolean): Result<Unit> =
         callApi { it.savePlaybackState(SavePlaybackStateRequest(trackIds, index, positionSeconds, playing)) }
 
-    /** "Play less often" (A60): accounts only, so a guest's swipe is never sent. */
-    suspend fun setLessOften(trackId: Int, lessOften: Boolean): Result<Unit> {
-        if (tokenProvider.isGuest) return Result.success(Unit)
-        return callApi { if (lessOften) it.markLessOften(trackId) else it.unmarkLessOften(trackId) }
-    }
-
-    suspend fun clearLessOften(): Result<Unit> = callApi { it.clearLessOften() }
 
     /** Seekable, and authenticated by the shared client's bearer header, so no `?token=` is needed. */
     /** [dataSaver] asks for the server's smaller copy; it serves the file instead when that is already small. */

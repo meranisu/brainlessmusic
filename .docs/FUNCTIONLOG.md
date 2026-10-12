@@ -68,6 +68,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 **Before:** nothing — new UI. Guest rows showed Make admin / Set password.
 **After:** guests show Make an account instead.
 
+**Function:** `listPlaylistsForUser()` (`coverAlbumIds`): `backend/src/db/playlists.ts`; `PlaylistsTab()`, `PlaylistsViewModel` (`PlaylistsHome`, `playLiked()`), `LikedCard()`, `SkinLabel()`, `DislikedRow()`, `NewPlaylistTile()`, `PlaylistTile()`, `GuestPlaylists()` (new or rewritten): `android/.../ui/profile/PlaylistsScreen.kt`
+**Date:** 2026-10-12
+**How added:** owner request (A147)
+**Purpose:** a Playlists tab with covers, a Liked lead card in the skin's dress, and Disliked songs.
+**Side effects:** one more query per playlist on `GET /playlists`.
+**Before:** Liked, New playlist and each playlist as plain icon rows; no covers from the server.
+**After:** Liked card, Disliked row, cover grid; the server sends up to four album ids per playlist.
+
+**Function:** `FeelingHeart()`, `Feeling`, `feelingOf()` (new): `android/.../ui/profile/FeelingHeart.kt`; `ProfileRepository.setDisliked()`, `loadDislikedIds()`, `clearDisliked()`, `dislikedIds` (new), `setLiked()` (undislikes); `SongActionsViewModel.toggleDislike()`, `setLiked()` (new), `toggleLike()`; `LikeButton()`, `Pill()`, `FxKey()`, `RimButton()` (hold to dislike); `LibraryRepository.setLessOften()`, `clearLessOften()` (removed)
+**Date:** 2026-10-12
+**How added:** owner request (A148)
+**Purpose:** Hear less renamed Dislike and put on the heart, liked or disliked never both, animated per skin.
+**Side effects:** an extra `DELETE /tracks/:id/favorite` or `/less-often` when switching between like and dislike.
+**Before:** like only on the heart; "play less often" from the menu and the queue swipe, kept apart from likes.
+**After:** tap likes, hold dislikes, tap clears; one place keeps both sets.
+
 **Function:** `GuestCard()`, `GuestHomeList()`, `YouScreen()` top bar: `android/.../ui/profile/YouScreen.kt`; `StartRow()`, `Avatar()`, `YouViewModel.shuffleLibrary()` (removed)
 **Date:** 2026-10-12
 **How added:** owner report (guest Home still looked old)

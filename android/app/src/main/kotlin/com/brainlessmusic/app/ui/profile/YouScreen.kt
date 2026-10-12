@@ -155,7 +155,7 @@ fun YouScreen(
                     ) {
                         // The range first, then the skin's reading of it, which holds the range's hours, plays and songs
                         // (owner, 2026-10-12). Shuffle is in the Library, Listen together in the top bar and the player,
-                        // liked songs and playlists in the Library's Playlists tab, Hear less in Settings (A134-A137).
+                        // liked songs and playlists in the Library's Playlists tab, Disliked songs there too (A134-A137, A148).
                         item { RangePicker(range, viewModel::setRange) }
                         // The game skins read the range in their game's manner: Gear as SOUND VOLTEX's EFFECT RADAR,
                         // Hit circle as numbered hit circles, Lane as Arcaea's potential, Ring as maimai's rating plate.

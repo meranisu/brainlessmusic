@@ -151,6 +151,9 @@ interface ApiService {
     @DELETE("me/less-often")
     suspend fun clearLessOften()
 
+    @GET("me/less-often/ids")
+    suspend fun lessOftenIds(): FavoriteIdsDto
+
     // Profile (A61): stats, liked songs, songs heard less, playlists. Accounts only.
     @GET("me/stats")
     suspend fun stats(@Query("range") range: String, @Query("limit") limit: Int): UserStatsDto

@@ -172,6 +172,7 @@ fun LibraryScreen(
                 LibraryTab.PLAYLISTS -> PlaylistsTab(
                     topInset = TabBarClearance,
                     onOpenLiked = { navController.navigate(Routes.songList(SongListKind.LIKED.route)) { launchSingleTop = true } },
+                    onOpenDisliked = { navController.navigate(Routes.songList(SongListKind.LESS_OFTEN.route)) { launchSingleTop = true } },
                     onOpenPlaylist = { id -> navController.navigate(Routes.playlistDetail(id)) { launchSingleTop = true } },
                 )
             }

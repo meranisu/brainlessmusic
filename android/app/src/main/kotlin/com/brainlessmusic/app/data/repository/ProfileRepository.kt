@@ -60,6 +60,11 @@ class ProfileRepository @Inject constructor(
     // Taps the server hasn't answered yet. A liked set that loads meanwhile keeps them on top, rather than undoing them.
     private val pendingLikes = HashMap<Int, Boolean>()
 
+    // Disliked ("less often" on the server, A60; renamed Dislike, A148): one set too, so every heart shows it.
+    private val _dislikedIds = MutableStateFlow<Set<Int>>(emptySet())
+    val dislikedIds: StateFlow<Set<Int>> = _dislikedIds.asStateFlow()
+    private var dislikedLoaded = false
+
     suspend fun stats(range: StatsRange): Result<UserStatsDto> = callApi { it.stats(range.query, TOP_LIMIT) }
 
     /** This account's numbers for one song, all time (A91). */
@@ -84,12 +89,23 @@ class ProfileRepository @Inject constructor(
         }
     }
 
+    /** Loads the disliked set once per process; [force] reloads it. */
+    suspend fun loadDislikedIds(force: Boolean = false) {
+        if (isGuest || (dislikedLoaded && !force)) return
+        callApi { it.lessOftenIds() }.onSuccess {
+            _dislikedIds.value = it.trackIds.toSet()
+            dislikedLoaded = true
+        }
+    }
+
     /**
      * Flips the heart at once, then tells the server, after any earlier taps. If the server says no, the set is reloaded:
      * with taps queued, putting back just this one could undo a later one.
      */
     suspend fun setLiked(trackId: Int, liked: Boolean): Result<Unit> {
         if (isGuest) return Result.success(Unit)
+        // Liked or disliked, never both (A148).
+        if (liked && trackId in _dislikedIds.value) setDisliked(trackId, false)
         pendingLikes[trackId] = liked
         _likedIds.update { if (liked) it + trackId else it - trackId }
         val result = likeMutex.withLock { callApi { if (liked) it.like(trackId) else it.unlike(trackId) } }
@@ -105,8 +121,22 @@ class ProfileRepository @Inject constructor(
 
     suspend fun lessOftenPage(offset: Int, limit: Int): Result<LessOftenPageDto> = callApi { it.lessOften(limit, offset) }
 
-    suspend fun setLessOften(trackId: Int, lessOften: Boolean): Result<Unit> =
-        callApi { if (lessOften) it.markLessOften(trackId) else it.unmarkLessOften(trackId) }
+    /**
+     * Dislikes a song or takes it back (A148): shuffle picks a disliked song about one pass in four (A60). Shown at
+     * once; reloaded if the server says no. Disliking a liked song unlikes it.
+     */
+    suspend fun setDisliked(trackId: Int, disliked: Boolean): Result<Unit> {
+        if (isGuest) return Result.success(Unit)
+        if (disliked && trackId in _likedIds.value) setLiked(trackId, false)
+        _dislikedIds.update { if (disliked) it + trackId else it - trackId }
+        val result = likeMutex.withLock { callApi { if (disliked) it.markLessOften(trackId) else it.unmarkLessOften(trackId) } }
+        if (result.isFailure) loadDislikedIds(force = true)
+        return result
+    }
+
+    /** Settings' reset: nothing disliked any more. */
+    suspend fun clearDisliked(): Result<Unit> =
+        callApi { it.clearLessOften() }.onSuccess { _dislikedIds.value = emptySet() }
 
     suspend fun playlists(): Result<List<PlaylistSummaryDto>> = callApi { it.playlists().playlists }
 
@@ -136,6 +166,8 @@ class ProfileRepository @Inject constructor(
         _likedIds.value = emptySet()
         pendingLikes.clear()
         likedLoaded = false
+        _dislikedIds.value = emptySet()
+        dislikedLoaded = false
     }
 
     private fun api(): ApiService = apiServiceFactory.get(serverConfig.url)

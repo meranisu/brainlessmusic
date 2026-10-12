@@ -83,7 +83,7 @@ private val LessOftenColor = Color(0xFF2563EB)
 private data class QueueRow(val key: Long, val queueIndex: Int, val item: QueueItem)
 
 /**
- * The queue, in play order. Swipe left to remove, right to play less often (accounts only), drag the handle to move,
+ * The queue, in play order. Swipe left to remove, right to dislike (accounts only), drag the handle to move,
  * search to narrow it down. The playing track can't be swiped or searched away from its highlight.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -144,7 +144,7 @@ fun QueueSheet(
         scope.launch {
             snackbar.currentSnackbarData?.dismiss()
             val result = snackbar.showSnackbar(
-                message = if (lessOften) "You'll hear \"${removed.item.title}\" less often" else "Removed \"${removed.item.title}\"",
+                message = if (lessOften) "Disliked \"${removed.item.title}\". Shuffle will pick it less." else "Removed \"${removed.item.title}\"",
                 actionLabel = "Undo",
                 withDismissAction = false,
                 // With an action, M3 defaults to Indefinite, which left it over the bottom rows until something else happened.
@@ -348,7 +348,7 @@ private fun QueueRowItem(
     }
 }
 
-/** Red with a bin to remove, blue with a falling line for less often; the label says it too, not just the colour. */
+/** Red with a bin to remove, blue with a falling line to dislike; the label says it too, not just the colour. */
 @Composable
 private fun SwipeBackground(direction: SwipeToDismissBoxValue) {
     val (color, alignment) = when (direction) {
@@ -362,7 +362,7 @@ private fun SwipeBackground(direction: SwipeToDismissBoxValue) {
     ) {
         when (direction) {
             SwipeToDismissBoxValue.EndToStart -> SwipeLabel(AppIcons.delete, "Remove", iconFirst = false)
-            SwipeToDismissBoxValue.StartToEnd -> SwipeLabel(AppIcons.lessOften, "Less often", iconFirst = true)
+            SwipeToDismissBoxValue.StartToEnd -> SwipeLabel(AppIcons.lessOften, "Dislike", iconFirst = true)
             SwipeToDismissBoxValue.Settled -> Unit
         }
     }

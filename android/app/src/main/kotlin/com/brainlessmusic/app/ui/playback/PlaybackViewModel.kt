@@ -28,6 +28,7 @@ class PlaybackViewModel @Inject constructor(
     appearance: AppearanceSettings,
     private val playbackSettings: PlaybackSettings,
     private val libraryRepository: LibraryRepository,
+    private val profileRepository: com.brainlessmusic.app.data.repository.ProfileRepository,
     authRepository: AuthRepository,
     roomSession: RoomSession,
 ) : ViewModel() {
@@ -35,7 +36,7 @@ class PlaybackViewModel @Inject constructor(
     /** The "Listen together" room, if one is joined: the player names it and opens it. */
     val room: StateFlow<RoomUiState> = roomSession.state
 
-    /** Guests are listen-only (A37), so they get remove but not "play less often". */
+    /** Guests are listen-only (A37), so they get remove but not dislike. */
     val canPlayLessOften: Boolean = !authRepository.isGuest
 
     val state: StateFlow<PlaybackUiState> = controller.state
@@ -76,13 +77,13 @@ class PlaybackViewModel @Inject constructor(
     /** Undo for [removeFromQueue] and [playLessOften]; the latter also takes the mark back off. */
     fun undoRemove(entry: RemovedEntry, lessOften: Boolean) {
         controller.restore(entry)
-        if (lessOften) viewModelScope.launch { libraryRepository.setLessOften(entry.item.trackId, false) }
+        if (lessOften) viewModelScope.launch { profileRepository.setDisliked(entry.item.trackId, false) }
     }
 
     /** Out of this queue, and into fewer shuffle passes from now on (A60). A failed call is not retried. */
     fun playLessOften(index: Int): RemovedEntry? {
         val entry = controller.removeAt(index) ?: return null
-        viewModelScope.launch { libraryRepository.setLessOften(entry.item.trackId, true) }
+        viewModelScope.launch { profileRepository.setDisliked(entry.item.trackId, true) }
         return entry
     }
 }

@@ -65,7 +65,14 @@ data class FavoriteIdsDto(val trackIds: List<Int>)
 
 data class LessOftenPageDto(val total: Int, val limit: Int, val offset: Int, val tracks: List<TrackSummaryDto>)
 
-data class PlaylistSummaryDto(val id: Int, val name: String, val trackCount: Int, val createdAt: String)
+data class PlaylistSummaryDto(
+    val id: Int,
+    val name: String,
+    val trackCount: Int,
+    val createdAt: String,
+    // Up to four albums for the cover mosaic (A147). Null from an older server; Gson leaves a missing field null.
+    val coverAlbumIds: List<Int>? = null,
+)
 
 data class PlaylistsDto(val playlists: List<PlaylistSummaryDto>)
 

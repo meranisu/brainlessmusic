@@ -37,9 +37,9 @@ class SettingsViewModel @Inject constructor(
     private val _lessOftenReset = kotlinx.coroutines.flow.MutableStateFlow<Boolean?>(null)
     val lessOftenReset: StateFlow<Boolean?> = _lessOftenReset
 
-    /** Every song swiped to "less often" goes back into shuffle as normal (A60). */
+    /** Every disliked song goes back into shuffle as normal (A60, A148). */
     fun resetLessOften() {
-        viewModelScope.launch { _lessOftenReset.value = libraryRepository.clearLessOften().isSuccess }
+        viewModelScope.launch { _lessOftenReset.value = profileRepository.clearDisliked().isSuccess }
     }
 
     val autoPlayOnResume: StateFlow<Boolean> = settings.autoPlayOnResume

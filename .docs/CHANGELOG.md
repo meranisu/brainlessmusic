@@ -59,6 +59,25 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 - smol's check for names differing only by case (planning doc, Phase 1) came back `[]` on 2026-10-12, so `0029` is
   safe there.
 
+## 2026-10-12: A fuller Playlists tab; Hear less is Dislike, on the heart (backend + Android)
+
+- Owner (A147): the Library's Playlists tab was three plain rows. Now Liked songs leads as a card (the latest covers as
+  a mosaic, the count, Play and Shuffle) under a label in the skin's game: COLLECTION (Hit circle), PACK (Lane),
+  FAVORITE (Gear's orange folder tab), MY LIST (Ring); none for Standard. Disliked songs sits under it as a slim row.
+  Playlists are a two-column grid of cover mosaics, New playlist the first tile, with a hint when there are none.
+  Guests get a card saying likes and playlists are for accounts.
+- Backend: `GET /playlists` adds `coverAlbumIds` to each playlist, up to four different albums in playlist order
+  (`listPlaylistsForUser`). Additive; older apps ignore it. New test in `db/favorites.test.ts`.
+- Owner (A148): "Hear less" / "Play less often" is now Dislike in the app (song menu, queue swipe, Settings →
+  Playback, the list's title). Same behaviour: shuffle picks the song about one pass in four. A song is liked or
+  disliked, never both: liking a disliked song undislikes it and the other way round (`ProfileRepository.setDisliked`,
+  `dislikedIds`, loaded from `GET /me/less-often/ids`). Every like button (the top-bar heart, Standard's pills, Gear's
+  FX key, Ring's rim button) is tap to like, hold to dislike, tap again to clear.
+- `FeelingHeart` animates it: liking pops the heart and sends out a burst in the skin's shape (a ring with sparks,
+  osu!'s double hit ring, a diamond, a chamfered frame, maimai's two rings); disliking cracks it and tips the halves
+  apart; clearing puts it back. Still on first show and with animations off.
+- Backend: `npm test` (528 pass) and `tsc --noEmit`. Android: compiled (`compileDebugKotlin`); not run on a phone.
+
 ## 2026-10-12: A guest's Home follows the reworked Home too (Android)
 
 - Owner: a guest's Home still had the old player card ("Guest" with an icon) and the Shuffle library / Listen together

@@ -39,10 +39,10 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.brainlessmusic.app.ui.theme.AppIcons
 
-/** The two song lists under You: what you liked, and what you asked to hear less (A60). */
+/** The two song lists: what you liked, and what you disliked (A60, A148). */
 enum class SongListKind(val route: String, val title: String, val empty: String) {
     LIKED("liked", "Liked songs", "No liked songs yet. Tap the heart on Now Playing to like one."),
-    LESS_OFTEN("less-often", "Songs you hear less", "Nothing here. Swipe a song right in the queue to hear it less."),
+    LESS_OFTEN("less-often", "Disliked songs", "Nothing disliked. Hold the heart in the player, or swipe a song right in the queue."),
 }
 
 @HiltViewModel
@@ -82,14 +82,14 @@ class SongListViewModel @Inject constructor(
         playbackController.playQueue(tracks.map(libraryRepository::queueItem), index)
     }
 
-    /** Takes the song off this list: unlike, or back to normal in shuffle. */
+    /** Takes the song off this list: unlike, or undislike (back to normal in shuffle). */
     fun takeOff(trackId: Int) {
         val tracks = (_state.value as? LoadState.Content)?.data ?: return
         _state.value = LoadState.Content(tracks.filter { it.id != trackId })
         viewModelScope.launch {
             val result = when (kind) {
                 SongListKind.LIKED -> profile.setLiked(trackId, false)
-                SongListKind.LESS_OFTEN -> profile.setLessOften(trackId, false)
+                SongListKind.LESS_OFTEN -> profile.setDisliked(trackId, false)
             }
             result.onFailure { load() }
         }

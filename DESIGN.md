@@ -158,6 +158,11 @@ Switching tabs (`TabTransitions.kt`) is short and alike in both directions: Stan
 in, Lane slides along, Gear slams in, Ring bounces in. Opening a page keeps the plain crossfade.
 The bar under the tabs is one shared bar (`SharedTabBar`), so it stays still while the page changes.
 
+The heart is tap to like, hold to dislike, tap to clear (A148), on every skin's like button (`FeelingHeart`): a like
+pops it with a burst in the skin's shape, a dislike cracks it in two. The Library's Playlists tab leads with Liked songs
+as a card under a game label (COLLECTION, PACK, FAVORITE, MY LIST), then Disliked songs, then the playlists as a cover
+grid (A147).
+
 The player opens from the mini player and closes in the skin's game (`PlayerEntrance.kt`, A145, A146): Standard a plain
 sheet up and down; Hit circle zooms out of the mini player's cover like osu! starting a map; Lane Arcaea's song-start
 shutter; Gear SOUND VOLTEX's fast slam, a slanted lit edge leading; Ring a maimai circle growing from the cover. A swipe
