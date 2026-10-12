@@ -55,6 +55,9 @@ Nothing deletes an album row today, so old albums stay in the table, empty and i
    folder is a disc folder (`CD1`, `Disc 2`, `DISC 02`, `Disk 1`, case-insensitive). Stops two unrelated albums with a
    generic title and the same album artist from merging. Needs `albums.folder` and the unique key widened to
    `(title, artist_id, folder)`.
+1c. **Strays join (A154).** After a scan, an album of 1 or 2 songs joins the larger album with the same title and album
+   artist in another folder (the largest, if several), unless the album artist is Various Artists or an admin edited
+   one of its songs. Two equal-sized albums, full duplicate copies included, stay apart.
 2. **Compilation:** if the file's compilation flag is set (`common.compilation`), the album artist is "Various Artists",
    whatever `albumartist` says.
 3. **Albums with no `albumartist` and mixed track artists** join when they share a title and a folder; the album

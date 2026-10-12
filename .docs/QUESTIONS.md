@@ -31,7 +31,6 @@ is never asked twice.
 | [Q5](#q5--tag-editing-scope) | Tag-editing scope | 2026-09-09 | No |
 | [Q77](#q77--how-does-the-android-app-get-past-cloudflare-access) | How does the Android app get past Cloudflare Access? | 2026-10-11 | Yes, before Access goes on |
 | [Q78](#q78--who-goes-on-the-access-email-list) | Who goes on the Access email list? | 2026-10-11 | Yes, before Access goes on |
-| [Q154](#q154--same-album-in-two-folders) | Same album in two folders | 2026-10-12 | No |
 
 ### Q5 — Tag-editing scope
 **Asked:** 2026-09-09 · **Blocking:** no
@@ -60,24 +59,12 @@ includes friends using a guest code on the web: without their email on the list 
 - **A. You and the friends who use the web (recommended).** Each friend's email goes on the list once.
 - **B. Only you.** Friends use the Android app only (with Q77's token), never the web.
 
-### Q154 — Same album in two folders
-**Asked:** 2026-10-12 · **Blocking:** no ([metadata plan](features/metadata-model/planning.md), rule 1b)
-
-After the regroup on smol, 392 albums still appear twice under the same title and album artist, because their files sit
-in two folders. 338 of them are a stray song or two filed elsewhere (`/library/Blacky/AD_PIANO III/05. Brionac.opus`
-next to the full `/library/AD：PIANO III/`). 23 are two full copies of the same album ("Kalafina All Time Best
-2008-2018" three times, 12 songs each). 29 are under Various Artists.
-
-- **A. Join a stray into the big album when the stray side has 1 or 2 songs and the album artist isn't Various Artists
-  (recommended).** Full duplicate copies stay separate, so an album doesn't show every song twice; Various Artists stays
-  per folder so unrelated "Original Soundtrack"s never merge.
-- **B. Join every same-title, same-album-artist album across folders**, except Various Artists. Duplicate copies become
-  one album with each song listed twice.
-- **C. Leave it as is.** Tidying the files fixes it.
-
-**Assumption until answered:** C, nothing built.
-
 ## Answered
+
+### A154 — Stray songs join the big album *(was Q154)*
+**Answered:** 2026-10-12, picked option A. An album of 1 or 2 songs joins the larger album with the same title and album
+artist in another folder, unless the album artist is Various Artists. Full duplicate copies stay separate. Landed in
+the [metadata plan](features/metadata-model/planning.md), rule 1c.
 
 ### A153 — Tap likes, hold dislikes *(was Q148)*
 **Renumbered:** was A148 until 2026-10-12, when it turned out a second A148 (untagged albums) had been logged first; commit `bd5efce` and older docs commits still say A148.
