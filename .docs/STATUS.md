@@ -55,7 +55,7 @@ The list is [QUESTIONS.md](QUESTIONS.md) — check it before asking anything. Bl
 1. v0.2 is done: box 19 (offline downloads) passed the phone checklist 2026-10-11.
 2. Cloudflare Access (A74): switch on once Q77 and Q78 are answered.
 3. v0.3 is done: Listen together owner-confirmed 2026-10-12 (boxes 22, 23).
-4. v0.4, "The library makes sense" (A147): album artist, compilations, disc numbers, genres. Box 24 done ([features/metadata-model/planning.md](features/metadata-model/planning.md)): smol measured, 14,123 albums today, about 2,900 after. Box 25 (album artist, compilations, redirects) built and tested locally 2026-10-12, not pushed: a push deploys, and smol's first scan regroups the library, so its database is backed up first.
+4. v0.4, "The library makes sense" (A147): album artist, compilations, disc numbers, genres. Box 24 done ([features/metadata-model/planning.md](features/metadata-model/planning.md)): smol measured, 14,123 albums today, about 2,900 after. Boxes 25-27 (album regrouping, disc order, genres) built and tested locally 2026-10-12, not pushed; smol's database backed up first (`/data/backups/pre-v0.4/`). Next: box 28, the web and Android screens.
 5. Backend commits after 97ba069 (3724daa, 8fe408e, 920cd50) are not confirmed on smol yet.
 6. The 2026-10-11 review findings are fixed (ca945ba, 6ded2eb, and F2/F5/G2 after; on smol). Left: G3 (closed by
    Access, A74, once it is on), and the unconfirmed "plausible" items in

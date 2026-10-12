@@ -1,5 +1,6 @@
 import { basename, dirname } from 'node:path';
 import { db } from './connection.js';
+import { setTrackGenres, splitGenres } from './genres.js';
 
 export interface ArtistRow {
   id: number;
@@ -26,6 +27,8 @@ export interface TrackRow {
   artist_id: number | null;
   album_id: number | null;
   track_number: number | null;
+  /** Null = untagged, sorted as disc 1. See `0031`. */
+  disc_number: number | null;
   duration: number | null;
   format: string | null;
   file_size: number;
@@ -57,11 +60,14 @@ export interface TrackInput {
   albumTitle: string | null;
   albumYear: number | null;
   trackNumber: number | null;
+  discNumber?: number | null;
   duration: number | null;
   format: string | null;
   fileSize: number;
   bitrate?: number | null;
   sampleRate?: number | null;
+  /** The genre tag's values, as read; split and de-duplicated here (rule 5). Omitted: the track's genres are left as they are. */
+  genres?: readonly string[];
   /** Which `library_roots` row this file was found under. */
   rootId: number;
 }
@@ -185,13 +191,14 @@ export function upsertTrack(input: TrackInput): TrackRow {
     : null;
 
   db.prepare(
-    `INSERT INTO tracks (path, title, artist_id, album_id, track_number, duration, format, file_size, bitrate, sample_rate, root_id)
-     VALUES (@path, @title, @artistId, @albumId, @trackNumber, @duration, @format, @fileSize, @bitrate, @sampleRate, @rootId)
+    `INSERT INTO tracks (path, title, artist_id, album_id, track_number, disc_number, duration, format, file_size, bitrate, sample_rate, root_id)
+     VALUES (@path, @title, @artistId, @albumId, @trackNumber, @discNumber, @duration, @format, @fileSize, @bitrate, @sampleRate, @rootId)
      ON CONFLICT (path) DO UPDATE SET
        title = CASE WHEN tracks.tags_edited_at IS NULL THEN excluded.title ELSE tracks.title END,
        artist_id = CASE WHEN tracks.tags_edited_at IS NULL THEN excluded.artist_id ELSE tracks.artist_id END,
        album_id = CASE WHEN tracks.tags_edited_at IS NULL THEN excluded.album_id ELSE tracks.album_id END,
        track_number = CASE WHEN tracks.tags_edited_at IS NULL THEN excluded.track_number ELSE tracks.track_number END,
+       disc_number = excluded.disc_number,
        duration = excluded.duration,
        format = excluded.format,
        file_size = excluded.file_size,
@@ -207,6 +214,7 @@ export function upsertTrack(input: TrackInput): TrackRow {
     artistId: artist?.id ?? null,
     albumId: album?.id ?? null,
     trackNumber: input.trackNumber,
+    discNumber: input.discNumber ?? null,
     duration: input.duration,
     format: input.format,
     fileSize: input.fileSize,
@@ -215,7 +223,9 @@ export function upsertTrack(input: TrackInput): TrackRow {
     rootId: input.rootId,
   });
 
-  return findTrackByPath(input.path)!;
+  const track = findTrackByPath(input.path)!;
+  if (input.genres) setTrackGenres(track.id, splitGenres(input.genres));
+  return track;
 }
 
 /** Partial tag or visibility edit. Names resolve through the same find-or-create as a scan. */
@@ -503,7 +513,14 @@ export function setTrackFlags(
  * and none cascade. The file on disk is the caller's job.
  */
 /** Every table with rows that point at a track. Both deletes below clear these first. */
-const TRACK_CHILD_TABLES = ['favorites', 'less_often', 'playlist_tracks', 'play_history', 'playback_failures'] as const;
+const TRACK_CHILD_TABLES = [
+  'favorites',
+  'less_often',
+  'playlist_tracks',
+  'play_history',
+  'playback_failures',
+  'track_genres',
+] as const;
 
 export function deleteTrackRow(id: number): void {
   const cleanup = db.transaction((trackId: number) => {

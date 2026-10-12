@@ -6,6 +6,7 @@ import { config } from './config.js';
 import { registerAuthDecorator } from './plugins/auth.js';
 import { registerSpa } from './plugins/spa.js';
 import albumsRoute from './routes/albums.js';
+import genresRoute from './routes/genres.js';
 import artistsRoute from './routes/artists.js';
 import authRoute from './routes/auth.js';
 import favoritesRoute from './routes/favorites.js';
@@ -74,6 +75,7 @@ export function buildApp() {
       api.register(tracksRoute);
       api.register(artistsRoute);
       api.register(albumsRoute);
+      api.register(genresRoute);
       api.register(searchRoute);
       api.register(playlistsRoute);
       api.register(historyRoute);

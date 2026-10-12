@@ -163,10 +163,10 @@ alone, so two discs' track 1s sit together.
   *Done when:* a compilation in the real library is one album under Various Artists, and nothing that pointed at its old albums is lost. — **built 2026-10-12** (migration `0030`, `settleAlbums`, redirects; 8 new tests). Open until it runs on smol.
 
 - [ ] **26. Disc numbers** (backend). Store the disc number, sort album tracks by disc then track.
-  *Done when:* a two-disc album plays disc 1 straight through, then disc 2.
+  *Done when:* a two-disc album plays disc 1 straight through, then disc 2. — **built 2026-10-12** (migration `0031`; album pages, sorts and album shuffle). Open until it runs on smol.
 
 - [ ] **27. Genres** (backend). Store genres per track, an endpoint to list genres and browse one.
-  *Done when:* the API lists the library's genres and the albums in each.
+  *Done when:* the API lists the library's genres and the albums in each. — **built 2026-10-12** (migration `0032`, `GET /genres`, `GET /genres/:id`). Open until it runs on smol.
 
 - [ ] **28. Show it in the clients** (web, then Android). Album artist on album pages, disc headers on multi-disc
   albums, a Genres browse view.

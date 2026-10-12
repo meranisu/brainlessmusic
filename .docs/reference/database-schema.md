@@ -31,6 +31,8 @@ erDiagram
     tracks ||--o{ play_history : "played as"
     tracks ||--o{ favorites : "favorited as"
     playlists ||--o{ playlist_tracks : contains
+    tracks ||--o{ track_genres : "tagged with"
+    genres ||--o{ track_genres : groups
 
     users {
         INTEGER id PK
@@ -64,6 +66,7 @@ erDiagram
         INTEGER artist_id FK
         INTEGER album_id FK
         INTEGER track_number
+        INTEGER disc_number
         REAL duration
         TEXT format
         INTEGER file_size
@@ -180,6 +183,7 @@ Rebuilt by `0030` (v0.4 metadata model): same ids, new key. See [features/metada
 | `artist_id` | INTEGER | nullable | — | **FK → `artists.id`**, `ON DELETE NO ACTION` |
 | `album_id` | INTEGER | nullable | — | **FK → `albums.id`**, `ON DELETE NO ACTION` |
 | `track_number` | INTEGER | nullable | — | |
+| `disc_number` | INTEGER | nullable | — | Added `0031`. The file's disc tag; NULL = untagged, sorted as disc 1. Album order everywhere is disc, then track (`albumOrder()` in `db/browse.ts`, `seededAlbumOrder()` in `services/shuffle.ts`). Refreshed by every scan, admin-edited tracks included |
 | `duration` | REAL | nullable | — | seconds |
 | `format` | TEXT | nullable | — | codec/container, e.g. `"Opus"` |
 | `file_size` | INTEGER | NOT NULL | — | bytes |
@@ -200,8 +204,31 @@ Rebuilt by `0030` (v0.4 metadata model): same ids, new key. See [features/metada
 
 **FKs:** `artist_id → artists.id`, `album_id → albums.id` (both `NO ACTION` / `NO ACTION`).
 **Indexes:** `idx_tracks_artist_id`, `idx_tracks_album_id`, `idx_tracks_title`, `idx_tracks_hidden`, `idx_tracks_not_recommended`, `idx_tracks_missing_since`; unique index on `path` (auto).
-**Referenced by:** `playlist_tracks.track_id`, `play_history.track_id`, `favorites.track_id`.
+**Referenced by:** `playlist_tracks.track_id`, `play_history.track_id`, `favorites.track_id`, `track_genres.track_id`.
 **No `updated_at`** — see [Discrepancy 6](#6-no-updated_at-anywhere).
+
+### `genres`
+
+Added `0032` (v0.4 box 27).
+
+| Column | Type | Null? | Default | Notes |
+|---|---|---|---|---|
+| `id` | INTEGER | — | — | **PK**, autoincrement |
+| `name` | TEXT | NOT NULL | — | **UNIQUE `COLLATE NOCASE`**: "Rock" and "rock" are one row; the first spelling seen is kept |
+| `created_at` | TEXT | NOT NULL | `datetime('now')` | |
+
+**Referenced by:** `track_genres.genre_id`. Rows are never deleted; one with no playable track is not listed by `GET /genres`.
+
+### `track_genres`
+
+Added `0032`. Which genres a track has, from its genre tag split on `;` and `/` (`splitGenres()` in `db/genres.ts`).
+
+| Column | Type | Null? | Default | Notes |
+|---|---|---|---|---|
+| `track_id` | INTEGER | NOT NULL | — | **PK (composite, 1 of 2)**, **FK → `tracks.id`** |
+| `genre_id` | INTEGER | NOT NULL | — | **PK (composite, 2 of 2)**, **FK → `genres.id`** |
+
+**Indexes:** `idx_track_genres_genre_id`, plus the PK's own. Replaced on every scan of the track (`setTrackGenres()`); `deleteTrackRow()` and `deleteTrackRowsOfRoot()` delete these first.
 
 ### `playlists`
 
@@ -406,6 +433,9 @@ Written by `backend/src/db/migrate.ts` on every `npm run migrate` — not someth
 | `favorites` | `track_id` | `tracks` | `NO ACTION` | `deleteTrackRow()` — deletes `favorites` rows first |
 | `less_often` | `user_id` | `users` | `NO ACTION` | `pruneIdleGuests()` and `deleteUser()` — delete `less_often` rows first |
 | `less_often` | `track_id` | `tracks` | `NO ACTION` | `deleteTrackRow()` — deletes `less_often` rows first |
+| `track_genres` | `track_id` | `tracks` | `NO ACTION` | `deleteTrackRow()` / `deleteTrackRowsOfRoot()` — delete `track_genres` rows first |
+| `track_genres` | `genre_id` | `genres` | `NO ACTION` | nothing deletes genres |
+| `albums` | `merged_into_id` | `albums` | `NO ACTION` | nothing deletes albums |
 | `playback_failures` | `user_id` | `users` | `NO ACTION` | `pruneIdleGuests()` and `deleteUser()` (`db/users.ts`) — delete `playback_failures` rows first |
 | `playback_failures` | `track_id` | `tracks` | `NO ACTION` | `deleteTrackRow()` — deletes `playback_failures` rows first |
 | `scan_failures` | `root_id` | `library_roots` | `NO ACTION` | `deleteLibraryRoot()` (`db/libraryRoots.ts`) — deletes `scan_failures` rows first |
@@ -524,12 +554,15 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | `0029_account_invites.sql` | `account_invites` + `idx_account_invites_guest`; unique `idx_users_username_nocase` — invite links and case-insensitive names (A107-A112) |
 | `0021_add_play_history_ms_final.sql` | `play_history.ms_final`: marks plays whose `ms_played` is the real total (A62) |
 | `0020_add_user_theme.sql` | `users.theme` — the web theme follows the profile (A55) |
+| `0031_add_track_disc_number.sql` | `tracks.disc_number` — disc order (v0.4 box 26) |
+| `0032_create_genres.sql` | `genres`, `track_genres` + `idx_track_genres_genre_id` (v0.4 box 27) |
 | `0030_album_artist_and_folder.sql` | Rebuilds `albums` with ids kept: `folder`, `artist_from_tracks`, `merged_into_id`; `UNIQUE(title, artist_id)` replaced by `idx_albums_key` and `idx_albums_key_from_tracks`; `albums_fts` triggers recreated (v0.4, A148) |
 
 ## Change log
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-10-12 | Migrations `0031_add_track_disc_number.sql` and `0032_create_genres.sql` — `tracks.disc_number` row; new `genres` and `track_genres` sections, relationship rows (plus the missing `albums.merged_into_id` row from `0030`), migration rows. From the migration SQL and the test run | v0.4: two-disc albums played disc 1 and 2 interleaved; no way to browse by genre (smol: 83% of tracks have one) |
 | 2026-10-12 | Migration `0030_album_artist_and_folder.sql` — `albums` section rewritten (album artist meaning, `folder`, `artist_from_tracks`, `merged_into_id`, new unique indexes), `artists` referenced-by note, migration row. From the migration SQL, a dry run on a copy of the dev database (ids, FTS and `foreign_key_check` all clean) and the test run | v0.4: albums grouped by track artist split compilations and "feat." albums; smol had 14,123 albums for 32,409 tracks |
 | 2026-10-12 | Migration `0029_account_invites.sql` — `account_invites` table section, `users.username` now case-insensitive, Discrepancy 3 note, migration row. From the migration SQL and the test run | Friends kept asking to sign up; invites let them pick their own name and password (A107-A112) |
 | 2026-10-12 | Migration `0028_add_track_loudness.sql` — `tracks.loudness_lufs`, `loudness_peak`; column rows, ER diagram and migration row. From the migration SQL and the test run | Volume levelling: the owner heard songs at uneven loudness |

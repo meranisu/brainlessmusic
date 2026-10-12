@@ -10,7 +10,7 @@ genre, without losing anything that points at the existing library. Roadmap boxe
 | Phase | What it covers | Status | Checklist |
 |---|---|---|---|
 | 1. Plan | Measure the real library's tags, settle the grouping rules and what happens to old album ids | Done | [Phase 1](#phase-1-plan) |
-| 2. Structure | Migration, scanner, album regrouping, disc order, genres, API | In progress | [Phase 2](#phase-2-structure) |
+| 2. Structure | Migration, scanner, album regrouping, disc order, genres, API | Done | [Phase 2](#phase-2-structure) |
 | 3. Interior | Web, then Android: album artist, per-track artists on compilations, disc headers, Genres | Not started | [Phase 3](#phase-3-interior) |
 | 4. Walkthrough | Rescan on smol, check nothing was lost, owner tries it on web and phone | Not started | [Phase 4](#phase-4-walkthrough) |
 
@@ -107,21 +107,21 @@ Nothing deletes an album row today, so old albums stay in the table, empty and i
 
 Box 25 landed as `0030_album_artist_and_folder.sql` (albums only); disc numbers and genres get their own migration.
 
-- [ ] Migration `0030`: `tracks.disc_number INTEGER`, `albums.merged_into_id INTEGER` (FK to `albums.id`),
+- [x] Migration `0030`: `tracks.disc_number INTEGER`, `albums.merged_into_id INTEGER` (FK to `albums.id`),
   `albums.folder TEXT` with the unique key widened to `(title, artist_id, folder)` (rule 1b), `genres`
   (`id`, `name` unique `COLLATE NOCASE`), `track_genres` (`track_id`, `genre_id`, composite PK, index on `genre_id`).
   Update `.docs/reference/database-schema.md` in the same change.
-- [x] `extractTrackTags()`: return `albumArtistName`, `compilation` (box 25). `discNumber`, `genres`: boxes 26, 27.
-- [ ] `upsertTrack()`: key the album on the album artist (rule 1, 2); write `disc_number`; replace the track's
+- [x] `extractTrackTags()`: return `albumArtistName`, `compilation` (box 25), `discNumber` (box 26), `genres` (box 27).
+- [x] `upsertTrack()`: key the album on the album artist (rule 1, 2); write `disc_number`; replace the track's
   `track_genres` rows. `deleteTrackRow()` deletes `track_genres` first (FKs are enforced, no cascade).
 - [x] After a scan: for each album that went from having tracks to none, set `merged_into_id` (rule 7). Follow chains
   so a redirect never points at another emptied album. (`settleAlbums`, box 25)
-- [ ] Disc order in `TRACK_ORDER` and `getAlbumDetail()`; album detail returns `discNumber` and each track's artist.
+- [x] Disc order in `TRACK_ORDER`, `getAlbumDetail()` and album shuffle; album detail returns `discNumber` and each track's artist (`0031`).
 - [x] `GET /albums/:id` follows `merged_into_id` (and `/cover`).
-- [ ] `GET /genres` (name, album count, track count) and `GET /genres/:id` (its albums), behind the same auth as
-  browse. Hidden and missing tracks don't count.
-- [ ] Artist page: albums where they are the album artist, plus "Appears on" for albums where they only have track credits (A149).
-- [ ] Tests (`cd backend && npm test`, temp library from `makeTempDir()`): a compilation becomes one album; a
+- [x] `GET /genres` (name, album count, track count) and `GET /genres/:id` (its albums), behind the same auth as
+  browse. Hidden and missing tracks don't count (`0032`, `db/genres.ts`).
+- [x] Artist page: albums where they are the album artist, plus "Appears on" for albums where they only have track credits (A149).
+- [x] Tests (`cd backend && npm test`, temp library from `makeTempDir()`): a compilation becomes one album; a
   feat. album groups by album artist; an emptied album redirects; favorites, playlist entries and history are untouched
   after a regrouping rescan; disc order; genre split and case merge; an admin-edited track stays put.
 

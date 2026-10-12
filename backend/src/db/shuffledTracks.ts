@@ -11,13 +11,14 @@ export interface AlbumPlace {
   id: number;
   albumId: number | null;
   trackNumber: number | null;
+  discNumber: number | null;
 }
 
 /** Where each playable track sits in its album, by id, for album shuffle. */
 export function listPlayableAlbumPlaces(): AlbumPlace[] {
   return db
     .prepare(
-      `SELECT id, album_id AS albumId, track_number AS trackNumber FROM tracks
+      `SELECT id, album_id AS albumId, track_number AS trackNumber, disc_number AS discNumber FROM tracks
        WHERE missing_since IS NULL AND hidden = 0 ORDER BY id`,
     )
     .all() as AlbumPlace[];

@@ -91,10 +91,11 @@ export interface AlbumTrack {
   id: number;
   albumId: number | null;
   trackNumber: number | null;
+  discNumber?: number | null;
 }
 
 /**
- * Albums in a seeded order, each played through in track order (unnumbered last, then by id). A track with no album
+ * Albums in a seeded order, each played through in disc then track order (untagged disc = 1, unnumbered last, then by id). A track with no album
  * is an album of its own.
  */
 export function seededAlbumOrder(tracks: AlbumTrack[], seed: number): number[] {
@@ -108,7 +109,12 @@ export function seededAlbumOrder(tracks: AlbumTrack[], seed: number): number[] {
   // Map keys keep first-seen order, and the input is in id order, so the seed alone fixes the result.
   return seededShuffle([...albums.values()], seed).flatMap((album) =>
     [...album]
-      .sort((a, b) => (a.trackNumber ?? Infinity) - (b.trackNumber ?? Infinity) || a.id - b.id)
+      .sort(
+        (a, b) =>
+          (a.discNumber ?? 1) - (b.discNumber ?? 1) ||
+          (a.trackNumber ?? Infinity) - (b.trackNumber ?? Infinity) ||
+          a.id - b.id,
+      )
       .map((track) => track.id),
   );
 }

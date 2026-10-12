@@ -18,6 +18,10 @@ export interface TrackTags {
   albumTitle: string | null;
   albumYear: number | null;
   trackNumber: number | null;
+  /** The disc tag; null when untagged, which sorts as disc 1. */
+  discNumber: number | null;
+  /** The genre tag's values as read (often one); `upsertTrack` splits them. */
+  genres: string[];
   duration: number | null;
   format: string | null;
   bitrate: number | null;
@@ -50,6 +54,8 @@ export async function extractTrackTags(
     albumTitle,
     albumYear: common.year ?? null,
     trackNumber: common.track?.no ?? null,
+    discNumber: common.disk?.no ?? null,
+    genres: common.genre ?? [],
     duration: format.duration ?? null,
     format: format.codec ?? format.container ?? extname(filePath).slice(1).toUpperCase(),
     bitrate: format.bitrate ? Math.round(format.bitrate) : null,

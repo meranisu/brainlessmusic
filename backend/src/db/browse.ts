@@ -32,6 +32,8 @@ export interface AlbumTrack {
   artistId: number | null;
   artistName: string | null;
   trackNumber: number | null;
+  /** Null when untagged. Clients show disc headers when an album has more than one disc. */
+  discNumber: number | null;
   duration: number | null;
   gainDb: number | null;
   format: string | null;
@@ -185,8 +187,13 @@ const SORT_COLUMNS: Record<SortField, string> = {
   playCount: 't.play_count',
 };
 
+/** Album play order: disc (untagged = 1), then track number, unnumbered last. */
+function albumOrder(alias: string): string {
+  return `COALESCE(${alias}.disc_number, 1), ${alias}.track_number IS NULL, ${alias}.track_number`;
+}
+
 /** Tiebreak within a sort, ending in `t.id` so the order is total and LIMIT/OFFSET pages never repeat or skip rows. */
-const TRACK_ORDER = 't.track_number IS NULL, t.track_number, t.title COLLATE NOCASE, t.id';
+const TRACK_ORDER = `${albumOrder('t')}, t.title COLLATE NOCASE, t.id`;
 const SORT_TIEBREAKERS: Record<SortField, string> = {
   title: 't.id',
   artist: `al.title COLLATE NOCASE, ${TRACK_ORDER}`,
@@ -346,12 +353,12 @@ export function getAlbumDetail(id: number, includeHidden = false): AlbumDetail |
   const tracks = db
     .prepare(
       `SELECT tracks.id as id, tracks.title as title, tracks.artist_id as artistId, ar.name as artistName,
-         tracks.track_number as trackNumber, tracks.duration as duration, ${trackGainSql('tracks')} as gainDb,
+         tracks.track_number as trackNumber, tracks.disc_number as discNumber, tracks.duration as duration, ${trackGainSql('tracks')} as gainDb,
          tracks.format as format
        FROM tracks
        LEFT JOIN artists ar ON ar.id = tracks.artist_id
        WHERE tracks.album_id = ? AND tracks.missing_since IS NULL ${includeHidden ? '' : 'AND tracks.hidden = 0'}
-       ORDER BY tracks.track_number IS NULL, tracks.track_number ASC`,
+       ORDER BY ${albumOrder('tracks')}, tracks.id`,
     )
     .all(id) as AlbumTrack[];
 

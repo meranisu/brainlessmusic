@@ -19,6 +19,7 @@ const TABLES_IN_DELETION_ORDER = [
   'playback_failures',
   'scan_failures',
   'play_history',
+  'track_genres',
   'favorites',
   'less_often',
   'playback_state',
@@ -28,6 +29,7 @@ const TABLES_IN_DELETION_ORDER = [
   'library_roots',
   'albums',
   'artists',
+  'genres',
   'users',
 ];
 

@@ -4,6 +4,24 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Disc order and genres (v0.4 boxes 26, 27)
+
+- Two-disc albums sorted by track number alone, so disc 1 and disc 2 interleaved (smol: 4,555 tracks on disc 2 or
+  later). Migration `0031` adds `tracks.disc_number` from the disc tag; album pages, the track list's artist/album
+  sorts and album shuffle now go disc (untagged = 1), then track. Album detail tracks carry `discNumber`.
+- Genres: migration `0032` adds `genres` (name unique without case) and `track_genres`. The genre tag's values are
+  split on `;` and `/`, trimmed, and merged without case (rule 5); commas are kept, so "Chiptune, Video Game Music"
+  stays one name. Every scan replaces a track's genres; track deletes clear them first.
+- New endpoints, any signed-in user including guests: `GET /genres` (name, playable track and album counts; not paged,
+  smol has 359) and `GET /genres/:id` (the genre and its albums). Hidden and missing tracks don't count, so a genre
+  with only hidden tracks isn't listed.
+- Disc numbers and genres refresh for admin-edited tracks too; the edit form has neither field.
+- Verified: `npm test` 540 pass, 4 new in `services/albumGrouping.test.ts` (a two-disc album in CD1/CD2 plays
+  D1T1, D1T2, D2T1, D2T2 with `discNumber` 1,1,2,2; album shuffle puts an untagged disc first; genre splitting and case
+  merge; `GET /genres` data with a hidden-only genre left out, a deleted track's genres cleared, a rescan not doubling
+  counts). `guestAccess.test.ts` classifies the two new routes. `tsc --noEmit` clean. Endpoints not called over HTTP
+  (the db functions behind them are). Not deployed.
+
 ## 2026-10-12: Albums grouped by album artist, compilations, redirects for old album ids (v0.4 box 25, A148, A149)
 
 - Albums were keyed by (title, track artist), so a compilation or an album with "feat." tracks split into one album

@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `splitGenres()`, `setTrackGenres()`, `listGenres()`, `getGenreDetail()` (new): `backend/src/db/genres.ts`; `genresRoute` (new): `backend/src/routes/genres.ts`
+**Date:** 2026-10-12
+**How added:** new feature (v0.4 box 27)
+**Purpose:** store a track's genres from its tag (split on `;` `/`, case merged) and serve `GET /genres` and `GET /genres/:id`.
+**Side effects:** `setTrackGenres` replaces the track's `track_genres` rows and inserts `genres` rows; the rest read.
+**Before:** nothing — new functions. The genre tag wasn't read.
+**After:** `upsertTrack` calls `setTrackGenres` when the input carries genres (scan and upload do).
+
+**Function:** `albumOrder()` (new), `TRACK_ORDER`, `getAlbumDetail()`: `backend/src/db/browse.ts`; `seededAlbumOrder()`: `backend/src/services/shuffle.ts`; `listPlayableAlbumPlaces()`: `backend/src/db/shuffledTracks.ts`; `upsertTrack()`, `deleteTrackRow()`: `backend/src/db/library.ts`; `extractTrackTags()`: `backend/src/services/trackTags.ts`
+**Date:** 2026-10-12
+**How added:** new feature (v0.4 box 26)
+**Purpose:** read and store the disc tag; order album tracks by disc then track everywhere albums are played in order. `deleteTrackRow` also clears `track_genres`.
+**Side effects:** `upsertTrack` writes `disc_number`.
+**Before:** track number alone, so discs interleaved.
+**After:** disc 1 straight through, then disc 2.
+
 **Function:** `findOrCreateAlbum()` (changed), `albumFolder()`, `albumArtistId()` (new), `VARIOUS_ARTISTS`: `backend/src/db/library.ts`
 **Date:** 2026-10-12
 **How added:** new feature (v0.4, A148)

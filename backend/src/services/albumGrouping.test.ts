@@ -7,12 +7,14 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 import { getAlbumDetail, getArtistDetail, listArtists, resolveAlbumId } from '../db/browse.js';
 import { db } from '../db/connection.js';
 import { starTrack } from '../db/favorites.js';
-import { albumFolder, updateTrackFields } from '../db/library.js';
+import { getGenreDetail, listGenres, splitGenres } from '../db/genres.js';
+import { albumFolder, deleteTrackRow, setTrackFlags, updateTrackFields } from '../db/library.js';
 import { insertLibraryRoot } from '../db/libraryRoots.js';
 import { addTrackToPlaylist, createPlaylist, getPlaylistTrackIdsInOrder } from '../db/playlists.js';
 import { insertUser } from '../db/users.js';
 import { makeTempDir, resetDatabase } from '../testing/harness.js';
 import { scanLibrary } from './scanner.js';
+import { seededAlbumOrder } from './shuffle.js';
 
 const run = promisify(execFile);
 
@@ -22,6 +24,9 @@ interface Tags {
   album?: string;
   album_artist?: string;
   compilation?: string;
+  disc?: string;
+  track?: string;
+  genre?: string;
 }
 
 /** A real one-second mp3, since the scanner reads real tags. ffmpeg writes `album_artist` as TPE2, `compilation` as TCMP. */
@@ -257,5 +262,76 @@ describe('album grouping (v0.4, 0030)', async () => {
       assert.deepEqual(placement().get('E1'), before);
       assert.equal(before.album, 'Renamed');
     });
+  });
+
+  it('plays a two-disc album in disc order (box 26)', { skip: !ffmpegAvailable }, async () => {
+    const tags = { artist: 'Band', album: 'Double', album_artist: 'Band' };
+    await makeAudio(join(library, 'Double', 'CD2', '01.mp3'), { ...tags, title: 'D2T1', disc: '2', track: '1' });
+    await makeAudio(join(library, 'Double', 'CD1', '02.mp3'), { ...tags, title: 'D1T2', disc: '1', track: '2' });
+    await makeAudio(join(library, 'Double', 'CD1', '01.mp3'), { ...tags, title: 'D1T1', disc: '1', track: '1' });
+    await makeAudio(join(library, 'Double', 'CD2', '02.mp3'), { ...tags, title: 'D2T2', disc: '2', track: '2' });
+
+    await scanLibrary(library, rootId);
+    const detail = getAlbumDetail(placement().get('D1T1')!.albumId)!;
+
+    assert.deepEqual(
+      detail.tracks.map((t) => t.title),
+      ['D1T1', 'D1T2', 'D2T1', 'D2T2'],
+    );
+    assert.deepEqual(
+      detail.tracks.map((t) => t.discNumber),
+      [1, 1, 2, 2],
+    );
+  });
+
+  it('album shuffle plays each album in disc order', () => {
+    const order = seededAlbumOrder(
+      [
+        { id: 1, albumId: 7, trackNumber: 1, discNumber: 2 },
+        { id: 2, albumId: 7, trackNumber: 2, discNumber: 1 },
+        { id: 3, albumId: 7, trackNumber: 1, discNumber: null },
+      ],
+      42,
+    );
+    assert.deepEqual(order, [3, 2, 1], 'untagged counts as disc 1');
+  });
+
+  it('splits genre tags and merges them without case (box 27)', () => {
+    assert.deepEqual(splitGenres(['Rock; Pop', 'rock', 'Drum & Bass/Jungle', ' ', 'Chiptune, Video Game Music']), [
+      'Rock',
+      'Pop',
+      'Drum & Bass',
+      'Jungle',
+      'Chiptune, Video Game Music',
+    ]);
+  });
+
+  it('lists genres and their albums, leaving out hidden and deleted tracks', { skip: !ffmpegAvailable }, async () => {
+    await makeAudio(join(library, 'One', '1.mp3'), { title: 'O1', artist: 'X', album: 'One', genre: 'Trance;Eurobeat' });
+    await makeAudio(join(library, 'Two', '1.mp3'), { title: 'T1', artist: 'Y', album: 'Two', genre: 'trance' });
+    await makeAudio(join(library, 'Three', '1.mp3'), { title: 'H1', artist: 'Z', album: 'Three', genre: 'Metal' });
+
+    await scanLibrary(library, rootId);
+    const byName = () => new Map(listGenres().map((g) => [g.name, g]));
+
+    assert.deepEqual([...byName().keys()], ['Eurobeat', 'Metal', 'Trance']);
+    const trance = byName().get('Trance')!;
+    assert.equal(trance.trackCount, 2, '"trance" joined "Trance"');
+    assert.deepEqual(
+      getGenreDetail(trance.id)!.albums.map((a) => a.title),
+      ['One', 'Two'],
+    );
+
+    const metalTrack = (db.prepare("SELECT id FROM tracks WHERE title = 'H1'").get() as { id: number }).id;
+    setTrackFlags([metalTrack], { hidden: true });
+    assert.ok(!byName().has('Metal'), 'a genre with only hidden tracks is not listed');
+
+    const oneTrack = (db.prepare("SELECT id FROM tracks WHERE title = 'O1'").get() as { id: number }).id;
+    deleteTrackRow(oneTrack);
+    assert.ok(!byName().has('Eurobeat'), 'deleting a track clears its genres');
+
+    // A rescan replaces genres rather than adding to them.
+    await scanLibrary(library, rootId);
+    assert.equal(byName().get('Trance')!.trackCount, 2, 'O1 came back, nothing doubled');
   });
 });

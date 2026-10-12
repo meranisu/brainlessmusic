@@ -33,6 +33,8 @@ const EXPECTED: Record<string, Gate> = {
   'GET /albums': 'guest',
   'GET /albums/:id': 'guest',
   'GET /albums/:id/cover': 'guest',
+  'GET /genres': 'guest',
+  'GET /genres/:id': 'guest',
   'GET /artists': 'guest',
   'GET /artists/:id': 'guest',
   'GET /auth/me': 'guest',

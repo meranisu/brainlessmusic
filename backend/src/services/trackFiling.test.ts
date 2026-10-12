@@ -15,6 +15,8 @@ function tags(overrides: Partial<TrackTags> = {}): TrackTags {
     albumTitle: 'An Album',
     albumYear: null,
     trackNumber: null,
+    discNumber: null,
+    genres: [],
     duration: null,
     format: null,
     bitrate: null,
