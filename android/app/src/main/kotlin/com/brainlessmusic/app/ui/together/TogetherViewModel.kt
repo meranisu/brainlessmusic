@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.brainlessmusic.app.data.remote.TokenProvider
 import com.brainlessmusic.app.data.remote.dto.RoomLookupDto
+import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.PlaybackUiState
 import com.brainlessmusic.app.rooms.RoomLinks
@@ -34,6 +35,7 @@ class TogetherViewModel @Inject constructor(
     controller: PlaybackController,
     tokenProvider: TokenProvider,
     links: RoomLinks,
+    private val library: LibraryRepository,
 ) : ViewModel() {
     val room: StateFlow<RoomUiState> = session.state
     val playback: StateFlow<PlaybackUiState> = controller.state
@@ -118,6 +120,8 @@ class TogetherViewModel @Inject constructor(
     fun join() {
         if (_lookup.value is RoomLookup.Found) session.join(_code.value)
     }
+
+    fun coverUrl(trackId: Int): String? = library.trackCoverUrl(trackId)
 
     /** Leave, or stop trying to join. */
     fun leave() = session.leave()

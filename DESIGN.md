@@ -163,6 +163,12 @@ pops it with a burst in the skin's shape, a dislike cracks it in two. The Librar
 as a card under a game label (COLLECTION, PACK, FAVORITE, MY LIST), then Disliked songs, then the playlists as a cover
 grid (A152).
 
+Listen together (Android, 2026-10-12) shows the room code as six letter tiles in the skin's tile shape, typed into the
+same way when joining (an arcade name entry; the web's `CodeTiles` already did this). Joining is the large panel and
+starting a room a single row with the cover it would start from. In a room the code is the focal point, Now playing
+carries the cover and opens the player, and members show an initial in the skin's avatar shape, the host's edged in
+the accent.
+
 The player's data saver button (`DataSaverIcon`) squeezes flat and wide when switched on, the stream getting smaller,
 and stretches tall when switched off, then springs back; one shot per tap, its colour fading with it. Same in every
 skin, since the button sits in the shared top bar.

@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `CodeTiles`, `CodeEntry`, `NowPlayingCard` (new), `OutsideRoom`, `InsideRoom`, `MemberRow`: `android/.../ui/together/TogetherScreen.kt`; `TogetherViewModel.coverUrl()` (new)
+**Date:** 2026-10-12
+**How added:** redesign (owner request)
+**Purpose:** make Listen together look like the rest of the skinned app: letter tiles for the code, covers, avatars.
+**Side effects:** none; same actions and texts, the "Open the player and queue" button became the Now playing card.
+**Before:** three identical panels, a Material text field for the code, no covers.
+**After:** tiles for the code in and out of a room, a slim Start row, a tappable Now playing card, avatar rows.
+
+**Function:** `NavHostController.closePlayer()` (new), the Now Playing route's `onBack`: `android/.../ui/navigation/SafeNavigation.kt`, `android/.../ui/navigation/BrainlessNavGraph.kt`
+**Date:** 2026-10-12
+**How added:** bug fix (owner report)
+**Purpose:** close the player when swiped down even while its entrance is still running.
+**Side effects:** none.
+**Before:** a swipe inside the 700 ms entrance hold was ignored; the player slid off, the screen went blank, then it came back.
+**After:** the swipe closes the player onto the screen under it.
+
 **Function:** `RoomLinks` (new: `handle`, `take`, `linkFor`, `codeFrom`), `MainActivity.onNewIntent()`, `TogetherViewModel.switchRooms()` / `keepRoom()`, `BrainlessNavGraph(roomLinks)`: `android/.../rooms/RoomLinks.kt`, `android/.../MainActivity.kt`, `android/.../ui/together/`, `android/.../ui/navigation/BrainlessNavGraph.kt`; `appLinksRoute` (new): `backend/src/routes/appLinks.ts`; `JoinPage` (new), `lib/roomLink.ts` (new), `RequireAuth`, `TogetherPage`: `frontend/src/`
 **Date:** 2026-10-12
 **How added:** new feature (friend's request via the owner)

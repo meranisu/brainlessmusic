@@ -4,6 +4,28 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Android Listen together redesigned to match the skinned screens
+
+- The room code is six letter tiles in the skin's tile shape (`CodeTiles`), both when typing it (`CodeEntry`, an
+  invisible `BasicTextField` over the tiles; the next tile lights in the accent) and when showing it in a room. It
+  replaces the Material text field and the plain spaced-out code.
+- Outside a room, Join is the main panel with a full-width button; Start a room is one row with the current song's
+  cover and a Start button instead of a second identical panel.
+- In a room, Now playing shows the cover and the whole card opens the player (it was a separate button); members get
+  an initial in the skin's avatar shape (`coverShape`), the host's edged in the accent, someone away dimmed; the
+  dividers are gone and the count sits on the right of "In the room".
+- Verified: `:app:compileDebugKotlin` clean. Not run on a phone or emulator.
+
+## 2026-10-12: Android: swiping the player down right after opening it no longer blanks the screen
+
+- Owner report, seen in a screen recording: swiping Now Playing down within about 0.7 s of opening it slid the player
+  off onto a blank screen, which then came back. Its close went through `popFrom`, which only pops a RESUMED entry, and
+  the player is not RESUMED until the screen under it is let go (`PLAYER_ENTRANCE_HOLD_MS`). The swipe was dropped and
+  the player's 700 ms fallback brought it back.
+- New `closePlayer(entry)` pops whenever the player is the top entry, mid-entrance included; a double swipe still pops
+  once, because the second one no longer finds the player on top.
+- Verified: `./gradlew assembleDebug` built and installed on the phone. Not yet tried on the phone.
+
 ## 2026-10-12: Room links: Share sends a link that opens the app, or the web player without it
 
 - Friend's request: the shared room message now carries `https://music.nobrainmusic.my/join/<code>` instead of the bare

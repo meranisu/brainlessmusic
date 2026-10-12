@@ -1,5 +1,34 @@
 [
   {
+    "version": "0.4.4",
+    "date": "2026-10-12",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "the listen together screen got a makeover so it looks like the rest of the app in whatever skin you're using",
+              "the room code is now six letter tiles, both when you type one in and when you're showing yours to people",
+              "now playing in a room shows the cover, and tapping it opens the player and queue",
+              "people in the room have a little initial badge, the host's is outlined in your accent colour"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.4.3",
     "date": "2026-10-12",
     "sections": [
