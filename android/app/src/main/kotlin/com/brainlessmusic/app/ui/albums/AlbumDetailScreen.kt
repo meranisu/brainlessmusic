@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -111,7 +113,7 @@ fun AlbumDetailScreen(
                 onRefresh = { viewModel.refresh { Notices.show(it) } },
             ) {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    item { AlbumHeader(album, coverUrl = viewModel.coverUrl()) }
+                    item { AlbumHeader(album, coverUrl = viewModel.coverUrl(), onOpenArtist = onOpenArtist) }
                     item {
                         PlayShuffleRow(onPlay = { viewModel.playFrom(album, 0) }, onShuffle = { viewModel.shuffle(album) }) {
                             Spacer(Modifier.weight(1f))
@@ -123,13 +125,23 @@ fun AlbumDetailScreen(
                             )
                         }
                     }
-                    itemsIndexed(album.tracks, key = { _, track -> track.id }) { index, track ->
+                    // Disc headers only when the album really spans discs; untagged songs count as disc 1.
+                    val multiDisc = album.tracks.map { it.discNumber ?: 1 }.distinct().size > 1
+                    album.tracks.forEachIndexed { index, track ->
+                        val disc = track.discNumber ?: 1
+                        if (multiDisc && (index == 0 || (album.tracks[index - 1].discNumber ?: 1) != disc)) {
+                            item(key = "disc-$disc") { DiscHeader(disc) }
+                        }
+                        item(key = track.id) {
                         TrackRow(
                             track = track,
+                            // Only when it isn't the album's: a compilation or a "feat." song.
+                            artist = track.artistName?.takeIf { it != album.artistName },
                             isCurrent = playback.current?.trackId == track.id,
                             onClick = { viewModel.playFrom(album, index) },
                             onMenu = { menuFor = album to track },
                         )
+                        }
                     }
                 }
             }
@@ -138,7 +150,7 @@ fun AlbumDetailScreen(
 }
 
 @Composable
-private fun AlbumHeader(album: AlbumDetailDto, coverUrl: String?) {
+private fun AlbumHeader(album: AlbumDetailDto, coverUrl: String?, onOpenArtist: (Int) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -156,6 +168,8 @@ private fun AlbumHeader(album: AlbumDetailDto, coverUrl: String?) {
                 album.artistName ?: "Unknown Artist",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = album.artistId?.let { id -> Modifier.clickable(onClickLabel = "Open artist") { onOpenArtist(id) } }
+                    ?: Modifier,
             )
             album.year?.let {
                 Text(
@@ -188,11 +202,26 @@ internal fun PlayShuffleRow(onPlay: () -> Unit, onShuffle: () -> Unit, trailing:
     }
 }
 
+/** "Disc 2" above the first song of each disc, on albums that have more than one. */
+@Composable
+private fun DiscHeader(disc: Int) {
+    Text(
+        "Disc $disc",
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp)
+            .semantics { heading() },
+    )
+}
+
 /** Tap plays from here; the ⋮ button or a long press opens the song menu. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TrackRow(
     track: AlbumTrackDto,
+    artist: String?,
     isCurrent: Boolean,
     onClick: () -> Unit,
     onMenu: () -> Unit,
@@ -217,6 +246,7 @@ private fun TrackRow(
                 color = if (isCurrent) MaterialTheme.colorScheme.primary else Color.Unspecified,
             )
         },
+        supportingContent = artist?.let { { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
         trailingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(formatDuration(track.duration), style = MaterialTheme.typography.bodySmall)

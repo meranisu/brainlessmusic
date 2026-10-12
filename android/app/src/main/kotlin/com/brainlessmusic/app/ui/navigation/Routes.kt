@@ -15,6 +15,8 @@ object Routes {
     // Detail screens: no bottom nav, a back arrow instead.
     const val ARTIST_DETAIL = "artist/{artistId}"
     const val ALBUM_DETAIL = "album/{albumId}"
+    const val GENRES = "genres"
+    const val GENRE_DETAIL = "genre/{genreId}"
 
     const val NOW_PLAYING = "now_playing"
     const val SETTINGS_PAGE = "settings/{page}"
@@ -25,6 +27,7 @@ object Routes {
 
     const val ARG_ARTIST_ID = "artistId"
     const val ARG_ALBUM_ID = "albumId"
+    const val ARG_GENRE_ID = "genreId"
     const val ARG_SETTINGS_PAGE = "page"
     const val ARG_PLAYLIST_ID = "playlistId"
     const val ARG_DOWNLOAD_GROUP = "groupId"
@@ -32,6 +35,7 @@ object Routes {
 
     fun artistDetail(id: Int) = "artist/$id"
     fun albumDetail(id: Int) = "album/$id"
+    fun genreDetail(id: Int) = "genre/$id"
     fun settingsPage(page: String) = "settings/$page"
     fun playlistDetail(id: Int) = "playlist/$id"
 

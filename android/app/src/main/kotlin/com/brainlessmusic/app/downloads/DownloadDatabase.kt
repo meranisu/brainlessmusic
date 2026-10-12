@@ -178,6 +178,34 @@ abstract class DownloadDao {
         dropUnlinked()
     }
 
+    @Query("SELECT * FROM download_group_track WHERE groupId = :groupId ORDER BY position")
+    protected abstract suspend fun linksOf(groupId: String): List<DownloadGroupTrack>
+
+    @Query("UPDATE downloaded_track SET albumId = :newId WHERE albumId = :oldId")
+    protected abstract suspend fun moveTrackAlbum(oldId: Int, newId: Int)
+
+    /**
+     * The server merged album [oldId] into [newId] on a rescan (v0.4): the downloaded album becomes the new one, its
+     * songs joining the end of it if that is downloaded too, and songs point at the new album. Nothing is deleted from
+     * the phone; the files are keyed by song, which didn't change.
+     */
+    @Transaction
+    open suspend fun moveAlbum(oldId: Int, newId: Int) {
+        moveTrackAlbum(oldId, newId)
+        val oldGroupId = "album:$oldId"
+        val newGroupId = "album:$newId"
+        val old = group(oldGroupId) ?: return
+        if (group(newGroupId) == null) putGroup(old.copy(id = newGroupId))
+        val start = lastPosition(newGroupId) + 1
+        val held = linksOf(newGroupId).map { it.trackId }.toSet()
+        putLinks(
+            linksOf(oldGroupId).filter { it.trackId !in held }
+                .mapIndexed { i, link -> DownloadGroupTrack(newGroupId, link.trackId, start + i) },
+        )
+        deleteLinks(oldGroupId)
+        deleteGroupRow(oldGroupId)
+    }
+
     @Query("DELETE FROM download_group")
     protected abstract suspend fun deleteAllGroups()
 

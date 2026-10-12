@@ -2,6 +2,8 @@ package com.brainlessmusic.app.data.remote
 
 import com.brainlessmusic.app.data.remote.dto.AddPlaylistTrackRequest
 import com.brainlessmusic.app.data.remote.dto.AlbumDetailDto
+import com.brainlessmusic.app.data.remote.dto.GenreDetailDto
+import com.brainlessmusic.app.data.remote.dto.GenresDto
 import com.brainlessmusic.app.data.remote.dto.TrackDetailDto
 import com.brainlessmusic.app.data.remote.dto.WaveformDto
 import com.brainlessmusic.app.data.remote.dto.AlbumsPageDto
@@ -117,6 +119,12 @@ interface ApiService {
 
     @GET("albums/{id}")
     suspend fun albumDetail(@Path("id") id: Int): AlbumDetailDto
+
+    @GET("genres")
+    suspend fun genres(): GenresDto
+
+    @GET("genres/{id}")
+    suspend fun genreDetail(@Path("id") id: Int): GenreDetailDto
 
     @GET("tracks/{id}")
     suspend fun trackDetail(@Path("id") id: Int): TrackDetailDto

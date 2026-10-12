@@ -131,10 +131,13 @@ Box 25 landed as `0030_album_artist_and_folder.sql` (albums only); disc numbers 
 
 ## Phase 3: Interior
 
-- [ ] Web: album page shows the album artist and, on a compilation, each track's artist; "Disc 1", "Disc 2" headers
-  when an album has more than one disc; a Genres view; follow the redirect for old `/albums/<id>` links.
-- [ ] Android: same album page changes; Genres in browse; rewrite `album:<old>` download groups on redirect (Room
-  migration for `download_group` only if the id format changes, which it shouldn't).
+- [x] Web: album page shows the album artist and, on a compilation, each track's artist; "Disc 1", "Disc 2" headers
+  when an album has more than one disc; a Genres view; follow the redirect for old `/albums/<id>` links (`dd814cc`).
+  Genres sits under More and a "By genre" button on Albums, since the bar is full. Artist pages get Appears on.
+- [x] Android: same album page changes; Genres behind a "By genre" row on the Albums tab (every skin's tab bar is
+  full); Appears on, and the artist's Play includes their songs from those albums; a `mergedFrom` answer moves an
+  `album:<old>` download group and its songs' album ids to the new album (`DownloadDao.moveAlbum`, no schema change).
+  Downloaded compilation songs keep their own artist.
 - [ ] Skins: the album page and any list that shows an artist go through every skin, not only Standard.
 
 ## Phase 4: Walkthrough

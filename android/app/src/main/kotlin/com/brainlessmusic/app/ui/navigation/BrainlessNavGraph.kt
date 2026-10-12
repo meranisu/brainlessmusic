@@ -35,6 +35,8 @@ import com.brainlessmusic.app.ui.albums.AlbumDetailScreen
 import com.brainlessmusic.app.ui.artists.ArtistDetailScreen
 import com.brainlessmusic.app.ui.downloads.DownloadGroupScreen
 import com.brainlessmusic.app.ui.downloads.DownloadsScreen
+import com.brainlessmusic.app.ui.genres.GenreDetailScreen
+import com.brainlessmusic.app.ui.genres.GenresScreen
 import com.brainlessmusic.app.ui.library.LibraryScreen
 import com.brainlessmusic.app.ui.login.LoginScreen
 import com.brainlessmusic.app.ui.playback.NowPlayingScreen
@@ -155,6 +157,23 @@ fun BrainlessNavGraph(
                     arguments = listOf(intArg(Routes.ARG_ARTIST_ID)),
                 ) { entry ->
                     ArtistDetailScreen(
+                        onBack = { navController.popFrom(entry) },
+                        onAlbumClick = { albumId -> navController.navigate(Routes.albumDetail(albumId)) },
+                        onOpenNowPlaying = { navController.openNowPlaying() },
+                    )
+                }
+                screen(Routes.GENRES) { entry ->
+                    GenresScreen(
+                        onBack = { navController.popFrom(entry) },
+                        onGenreClick = { genreId -> navController.navigate(Routes.genreDetail(genreId)) },
+                        onOpenNowPlaying = { navController.openNowPlaying() },
+                    )
+                }
+                screen(
+                    Routes.GENRE_DETAIL,
+                    arguments = listOf(intArg(Routes.ARG_GENRE_ID)),
+                ) { entry ->
+                    GenreDetailScreen(
                         onBack = { navController.popFrom(entry) },
                         onAlbumClick = { albumId -> navController.navigate(Routes.albumDetail(albumId)) },
                         onOpenNowPlaying = { navController.openNowPlaying() },

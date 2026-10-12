@@ -6,6 +6,8 @@ import com.brainlessmusic.app.data.remote.MediaUrlProvider
 import com.brainlessmusic.app.data.remote.TokenProvider
 import com.brainlessmusic.app.data.remote.ServerConfig
 import com.brainlessmusic.app.data.remote.dto.AlbumDetailDto
+import com.brainlessmusic.app.data.remote.dto.GenreDetailDto
+import com.brainlessmusic.app.data.remote.dto.GenresDto
 import com.brainlessmusic.app.data.remote.dto.AlbumsPageDto
 import com.brainlessmusic.app.data.remote.dto.ArtistsPageDto
 import com.brainlessmusic.app.data.remote.dto.FinishPlayRequest
@@ -58,6 +60,12 @@ class LibraryRepository @Inject constructor(
 
     suspend fun getAlbumDetail(id: Int): Result<AlbumDetailDto> =
         callApi { it.albumDetail(id) }
+
+    suspend fun getGenres(): Result<GenresDto> =
+        callApi { it.genres() }
+
+    suspend fun getGenreDetail(id: Int): Result<GenreDetailDto> =
+        callApi { it.genreDetail(id) }
 
     suspend fun getTrackDetail(id: Int): Result<TrackDetailDto> =
         callApi { it.trackDetail(id) }

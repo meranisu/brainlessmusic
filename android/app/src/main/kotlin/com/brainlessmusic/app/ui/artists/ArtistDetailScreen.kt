@@ -27,6 +27,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.brainlessmusic.app.data.remote.dto.AlbumSummaryDto
@@ -72,7 +74,7 @@ fun ArtistDetailScreen(
             state = state,
             onRetry = viewModel::load,
             modifier = Modifier.padding(padding),
-            isEmpty = { it.albums.isEmpty() },
+            isEmpty = { it.albums.isEmpty() && it.appearsOn.isNullOrEmpty() },
             emptyMessage = "This artist has no albums.",
             loadingLabel = "Loading artist",
             skeleton = { SkeletonAlbumGrid() },
@@ -102,6 +104,25 @@ fun ArtistDetailScreen(
                             onClick = { onAlbumClick(album.id) },
                         )
                     }
+                    // Other artists' albums with a song of theirs (A149); here the album's artist is worth a line.
+                    val appearsOn = detail.appearsOn.orEmpty()
+                    if (appearsOn.isNotEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }, key = "appears-on") {
+                            Text(
+                                "Appears on",
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.padding(top = 8.dp).semantics { heading() },
+                            )
+                        }
+                        items(appearsOn, key = { "on-${it.id}" }) { album ->
+                            AlbumCard(
+                                album = album,
+                                coverUrl = viewModel.albumCoverUrl(album.id),
+                                onClick = { onAlbumClick(album.id) },
+                                subtitle = album.artistName,
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -109,7 +130,7 @@ fun ArtistDetailScreen(
 }
 
 @Composable
-private fun AlbumCard(album: AlbumSummaryDto, coverUrl: String?, onClick: () -> Unit) {
+private fun AlbumCard(album: AlbumSummaryDto, coverUrl: String?, onClick: () -> Unit, subtitle: String? = null) {
     Column(modifier = Modifier.clickable(onClick = onClick)) {
         CoverImage(
             url = coverUrl,
@@ -126,7 +147,7 @@ private fun AlbumCard(album: AlbumSummaryDto, coverUrl: String?, onClick: () -> 
             modifier = Modifier.padding(top = 6.dp),
         )
         Text(
-            text = album.year?.toString() ?: "${album.trackCount} tracks",
+            text = subtitle ?: album.year?.toString() ?: "${album.trackCount} tracks",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

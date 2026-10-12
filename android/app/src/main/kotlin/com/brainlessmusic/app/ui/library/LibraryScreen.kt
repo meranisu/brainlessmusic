@@ -53,6 +53,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -671,6 +672,12 @@ private fun AlbumsTab(viewModel: LibraryViewModel, navController: NavHostControl
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.fillMaxSize(),
             ) {
+                // Genres live behind this rather than a fifth tab: every skin's tab bar is full (v0.4 box 28).
+                item(key = "by-genre", span = { GridItemSpan(maxLineSpan) }) {
+                    OutlinedButton(onClick = { navController.navigate(Routes.GENRES) }) {
+                        Text("By genre")
+                    }
+                }
                 items(count = items.itemCount, key = items.itemKey { it.id }) { index ->
                     val album = items[index]
                     if (album != null) {
@@ -687,7 +694,8 @@ private fun AlbumsTab(viewModel: LibraryViewModel, navController: NavHostControl
             AlphabetRail(
                 letters = letters[LibraryTab.ALBUMS].orEmpty(),
                 state = gridState,
-                onJump = { scope.launch { gridState.scrollToItem(it) } },
+                // +1 for the By genre row above the albums.
+                onJump = { scope.launch { gridState.scrollToItem(it + 1) } },
                 topInset = TabBarClearance,
             )
         }

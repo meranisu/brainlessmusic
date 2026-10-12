@@ -75,11 +75,16 @@ class ArtistDetailViewModel @Inject constructor(
     fun playAll(shuffle: Boolean, onFailed: (String) -> Unit) {
         val detail = (_state.value as? LoadState.Content)?.data ?: return
         viewModelScope.launch {
-            val albums = detail.albums
+            val own = detail.albums
                 .map { async { libraryRepository.getAlbumDetail(it.id).getOrNull() } }
-                .awaitAll()
-                .filterNotNull()
-            val items = albums.flatMap { album -> album.tracks.map { libraryRepository.queueItem(album, it) } }
+            // Albums they only appear on (A149) give just their own songs, not the rest of the album.
+            val guest = detail.appearsOn.orEmpty()
+                .map { async { libraryRepository.getAlbumDetail(it.id).getOrNull() } }
+            val items = own.awaitAll().filterNotNull()
+                .flatMap { album -> album.tracks.map { libraryRepository.queueItem(album, it) } } +
+                guest.awaitAll().filterNotNull().flatMap { album ->
+                    album.tracks.filter { it.artistId == detail.id }.map { libraryRepository.queueItem(album, it) }
+                }
             if (items.isEmpty()) {
                 onFailed("Couldn't load this artist's songs. Check your connection.")
                 return@launch

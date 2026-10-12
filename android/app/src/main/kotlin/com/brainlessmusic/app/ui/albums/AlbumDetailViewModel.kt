@@ -56,7 +56,7 @@ class AlbumDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _refreshing.value = true
             libraryRepository.getAlbumDetail(albumId).fold(
-                onSuccess = { _state.value = LoadState.Content(it) },
+                onSuccess = { show(it) },
                 onFailure = { onFailed("Couldn't refresh. Check your connection.") },
             )
             _refreshing.value = false
@@ -67,7 +67,7 @@ class AlbumDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = LoadState.Loading
             libraryRepository.getAlbumDetail(albumId).fold(
-                onSuccess = { _state.value = LoadState.Content(it) },
+                onSuccess = { show(it) },
                 onFailure = {
                     _state.value = LoadState.Error(
                         (it as? ConnectionException)?.error?.toMessage() ?: "Something went wrong.",
@@ -75,6 +75,12 @@ class AlbumDetailViewModel @Inject constructor(
                 },
             )
         }
+    }
+
+    /** A rescan merged the album asked for into [album] (v0.4): a download of the old one follows it. */
+    private fun show(album: AlbumDetailDto) {
+        album.mergedFrom?.let { downloadRepository.albumMoved(it, album.id) }
+        _state.value = LoadState.Content(album)
     }
 
     fun coverUrl(): String? = libraryRepository.albumCoverUrl(albumId)

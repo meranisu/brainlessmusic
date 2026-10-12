@@ -4,6 +4,21 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Android shows album artists, disc headers, Appears on and Genres (v0.4 box 28, Android)
+
+- Album screen: each song's own artist under its title when it isn't the album's; "Disc 1", "Disc 2" headers when an
+  album spans discs; the album artist line opens the artist. The queue (and the lock screen) shows each song's artist.
+- Artist screen: an "Appears on" section (A149); Play and Shuffle also take the artist's own songs from those albums,
+  so a featured-only artist no longer gets "Couldn't load".
+- Genres: "By genre" at the top of the Library's Albums tab opens a genre list (biggest first, with a filter) and each
+  genre's albums. Not a fifth tab: every skin's tab bar is full. The A-Z rail's jump is offset by the new row.
+- Downloads: when the server answers an album with `mergedFrom`, a downloaded `album:<old>` group becomes the new album
+  (joining it if that was downloaded too) and its songs' album ids follow (`DownloadDao.moveAlbum`, no schema change).
+  Downloaded compilation songs now keep their own artist offline.
+- Older servers: every new field is nullable with a default; Gson leaves them null.
+- Verified: `:app:compileDebugKotlin` clean (no errors; the existing `Skin.kt` warnings only); `testDebugUnitTest` 123
+  pass. Not run on a phone or emulator; `moveAlbum` has no test (the unit tests have no Room setup).
+
 ## 2026-10-12: Web shows album artists, disc headers, Appears on and Genres (v0.4 box 28, web)
 
 - Album page: each song's own artist under its title when it isn't the album's (compilations, "feat." songs), linked to

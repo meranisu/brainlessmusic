@@ -66,11 +66,11 @@ fun LibraryRepository.queueItem(entry: HistoryEntryDto) = QueueItem(
     gainDb = entry.gainDb,
 )
 
-/** An album's tracks carry no artist/album/cover of their own; the album supplies them. */
+/** The album supplies album and cover; the artist is the song's own (a compilation's differ), else the album's. */
 fun LibraryRepository.queueItem(album: AlbumDetailDto, track: AlbumTrackDto) = QueueItem(
     trackId = track.id,
     title = track.title,
-    artist = album.artistName,
+    artist = track.artistName ?: album.artistName,
     album = album.title,
     durationSec = track.duration,
     coverUrl = albumCoverUrl(album.id),

@@ -14,7 +14,10 @@ data class ArtistDetailDto(
     val name: String,
     val trackCount: Int,
     val albumCount: Int,
+    /** Albums they are the album artist of. */
     val albums: List<AlbumSummaryDto>,
+    /** Other artists' albums with a song of theirs (A149). Null from a server before v0.4; Gson leaves it null. */
+    val appearsOn: List<AlbumSummaryDto>? = null,
 )
 
 data class ArtistsPageDto(
@@ -36,7 +39,12 @@ data class AlbumSummaryDto(
 data class AlbumTrackDto(
     val id: Int,
     val title: String,
+    /** The song's own artist; on a compilation it differs from the album's. Null from a server before v0.4. */
+    val artistId: Int? = null,
+    val artistName: String? = null,
     val trackNumber: Int?,
+    /** Null when untagged (played as disc 1), and from a server before v0.4. */
+    val discNumber: Int? = null,
     val duration: Double?,
     val format: String?,
     // Null until the server has measured the song, and from servers before levelling.
@@ -65,6 +73,8 @@ data class TrackDetailDto(
 
 data class AlbumDetailDto(
     val id: Int,
+    /** The id that was asked for, when a rescan merged that album into this one (v0.4). */
+    val mergedFrom: Int? = null,
     val title: String,
     val artistId: Int?,
     val artistName: String?,
@@ -184,3 +194,20 @@ data class LetterEntryDto(
 
 /** `PATCH /me/history/:id`: how long the play really lasted (A62). */
 data class FinishPlayRequest(val msPlayed: Long)
+
+data class GenreSummaryDto(
+    val id: Int,
+    val name: String,
+    val trackCount: Int,
+    val albumCount: Int,
+)
+
+data class GenresDto(val genres: List<GenreSummaryDto>)
+
+data class GenreDetailDto(
+    val id: Int,
+    val name: String,
+    val trackCount: Int,
+    val albumCount: Int,
+    val albums: List<AlbumSummaryDto>,
+)

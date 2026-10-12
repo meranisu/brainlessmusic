@@ -181,7 +181,7 @@ class DownloadRepository @Inject constructor(
         DownloadGroup("album:${album.id}", KIND_ALBUM, album.title, album.artistName, null, System.currentTimeMillis()),
         libraryRepository.albumCoverUrl(album.id),
         album.tracks.map {
-            DownloadedTrack(it.id, it.title, album.artistName, album.title, album.id, it.trackNumber, it.duration, it.format, it.gainDb)
+            DownloadedTrack(it.id, it.title, it.artistName ?: album.artistName, album.title, album.id, it.trackNumber, it.duration, it.format, it.gainDb)
         },
         onRefused,
     )
@@ -277,6 +277,20 @@ class DownloadRepository @Inject constructor(
         }
         missing.zip(sizes).forEach { (id, size) -> reserved[id] = size }
         null
+    }
+
+    /**
+     * The server answered album [oldId] with [newId] (`mergedFrom`, v0.4): a download of the old album becomes the new
+     * one. If both were downloaded, the old group's saved cover goes, since the new group keeps its own.
+     */
+    fun albumMoved(oldId: Int, newId: Int) {
+        if (oldId == newId) return
+        scope.launch {
+            val oldCover = dao.group("album:$oldId")?.coverPath
+            val newExisted = dao.group("album:$newId") != null
+            dao.moveAlbum(oldId, newId)
+            if (newExisted && oldCover != null) withContext(Dispatchers.IO) { File(oldCover).delete() }
+        }
     }
 
     /**
