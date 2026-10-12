@@ -70,12 +70,12 @@ import kotlin.math.sin
 import kotlinx.coroutines.launch
 
 /** Part of [p] that falls between [from] and [to], as 0 to 1. */
-private fun span(p: Float, from: Float, to: Float) = ((p - from) / (to - from)).coerceIn(0f, 1f)
+internal fun span(p: Float, from: Float, to: Float) = ((p - from) / (to - from)).coerceIn(0f, 1f)
 
-private fun easeOut(t: Float) = 1f - (1f - t) * (1f - t)
+internal fun easeOut(t: Float) = 1f - (1f - t) * (1f - t)
 
 /** Runs a little past 1 and settles back: maimai's bounce. */
-private fun overshoot(t: Float): Float {
+internal fun overshoot(t: Float): Float {
     val u = t - 1f
     return 1f + 2.70158f * u * u * u + 1.70158f * u * u
 }
@@ -84,7 +84,7 @@ private fun overshoot(t: Float): Float {
 private fun veil(p: Float) = span(p, 0f, 0.08f) * (1f - span(p, 0.82f, 1f))
 
 /** The name's first letter, for the square a game shows beside a player's name. */
-private fun initial(name: String) = name.trim().firstOrNull()?.uppercaseChar()?.toString() ?: ""
+internal fun initial(name: String) = name.trim().firstOrNull()?.uppercaseChar()?.toString() ?: ""
 
 /**
  * Signing in to an arcade machine (owner, 2026-10-11): after a sign-in, or when the app opens on a saved session, the

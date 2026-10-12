@@ -4,6 +4,18 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: A goodbye on sign-out, each skin's welcome in reverse (Android)
+
+- Owner asked for a sign-out animation like the welcome (A138). `ArcadeGoodbye` plays over the move to the sign-in
+  screen, which shows as it ends. Standard: the reader's light runs back, the card rises out, "See you" and the name.
+  Hit circle: "see you next time" in the disc as the visualiser quietens, then it folds to a line and the disc
+  shrinks away. Lane: the shutter closes on the app, "SEE YOU" on a slanted plate, then parts onto sign-in. Gear: the
+  critical line drops, the appeal card slides out, the lasers pull back, THANK YOU FOR PLAYING stamps in. Ring: the
+  name plate lifts off, the slide star runs the ring back, "See you next play!" bounces in, the round screen swells
+  and shrinks shut. About 1.6 s; a tap skips it; off with animations off. Guests see it after the confirm.
+- `Goodbye.play(name)` is posted from Settings → Account before sign-out clears the name.
+- Compiled (`compileDebugKotlin`); not watched on a phone (playing it signs the phone out).
+
 ## 2026-10-12: Floating buttons and messages wear the skin (Android)
 
 - Owner: the floating shuffle button and the toast messages didn't match the skins.

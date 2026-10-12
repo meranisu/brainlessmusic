@@ -61,6 +61,12 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A138 — A goodbye on sign-out, each skin's welcome in reverse *(was Q138)*
+**Answered:** 2026-10-12, picked option A. About 1.6 s, tap skips, off with animations off, login under it as it
+ends; guests after the confirm. Standard: card out, "See you". Hit circle: "see you next time" folds away in the
+disc. Lane: shutter closes, "SEE YOU", opens on login. Gear: appeal card out, critical line drops, "THANK YOU FOR
+PLAYING". Ring: plate lifts off, "See you next play!", the round screen shrinks shut.
+
 ### A137 — Playlists takes Genres' place in the Library *(was Q137)*
 **Answered:** 2026-10-12, picked option A. Library tabs: Songs, Albums, Artists, Playlists. Genres, a placeholder,
 comes back when the server reads genre tags.

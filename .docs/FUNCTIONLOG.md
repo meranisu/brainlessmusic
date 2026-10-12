@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `Goodbye`, `ArcadeGoodbye()`, `CardReaderGoodbye()`, `HitCircleGoodbye()`, `LaneGoodbye()`, `GearGoodbye()`, `RingGoodbye()` (new): `android/.../ui/splash/ArcadeGoodbye.kt`; `SettingsPageScreen()`: `ui/settings/SettingsScreen.kt`
+**Date:** 2026-10-12
+**How added:** owner request (A138)
+**Purpose:** a skinned goodbye over sign-out, the welcome in reverse.
+**Side effects:** none; an overlay that takes touches (a tap skips) while it plays.
+**Before:** sign-out cut straight to the sign-in screen.
+**After:** about 1.6 s of the skin's goodbye first; `span`, `easeOut`, `overshoot`, `initial` in `ArcadeWelcome.kt` are now internal to share.
+
 **Function:** `SkinFab()` (new): `android/.../ui/common/SkinFab.kt`; `Notices`, `NoticeHost()`, `NoticePanel()` (new): `ui/common/Notices.kt`
 **Date:** 2026-10-12
 **How added:** owner request

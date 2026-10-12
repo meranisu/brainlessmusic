@@ -1,5 +1,6 @@
 package com.brainlessmusic.app.ui.settings
 
+import com.brainlessmusic.app.ui.splash.Goodbye
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -267,6 +268,7 @@ fun SettingsPageScreen(
             confirmButton = {
                 TextButton(onClick = {
                     confirmingGuestLogout = false
+                    Goodbye.play("Guest")
                     viewModel.logout(onLoggedOut)
                 }) { Text("Leave") }
             },
@@ -498,7 +500,15 @@ fun SettingsPageScreen(
                             },
                         ) {
                             OutlinedButton(
-                                onClick = { if (viewModel.isGuest) confirmingGuestLogout = true else viewModel.logout(onLoggedOut) },
+                                onClick = {
+                                    if (viewModel.isGuest) {
+                                        confirmingGuestLogout = true
+                                    } else {
+                                        // Read now: sign-out clears the name.
+                                        Goodbye.play(displayName ?: username ?: "")
+                                        viewModel.logout(onLoggedOut)
+                                    }
+                                },
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                             ) {
                                 Icon(AppIcons.logout, contentDescription = null)

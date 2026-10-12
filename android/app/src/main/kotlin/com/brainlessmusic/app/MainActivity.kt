@@ -39,6 +39,7 @@ import com.brainlessmusic.app.ui.navigation.BrainlessNavGraph
 import com.brainlessmusic.app.ui.splash.StartViewModel
 import com.brainlessmusic.app.ui.theme.BrainlessMusicTheme
 import com.brainlessmusic.app.ui.theme.SkinTransition
+import com.brainlessmusic.app.ui.splash.ArcadeGoodbye
 import com.brainlessmusic.app.ui.splash.ArcadeWelcome
 import com.brainlessmusic.app.ui.theme.isDark
 import com.brainlessmusic.app.ui.update.UpdateSheetHost
@@ -144,6 +145,7 @@ class MainActivity : ComponentActivity() {
                     UpdateSheetHost()
                     NoticeHost()
                     ArcadeWelcome(startViewModel)
+                    ArcadeGoodbye()
                     SkinTransition(skin)
                 }
             }
