@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `MainActivity.onCreate()` (edge-to-edge effect): `android/.../MainActivity.kt`
+**Date:** 2026-10-12
+**How added:** bug fix (owner report)
+**Purpose:** stop the system whitening the navigation bar's strip.
+**Side effects:** no scrim in any skin or theme; the app's own colour shows under the bar.
+**Before:** a translucent white (light) or dark (dark) scrim over the gesture area.
+**After:** the tab bar or page runs under the gesture handle.
+
 **Function:** `MiniPlayer()`: `android/.../ui/playback/MiniPlayer.kt`; `MiniCover()`, `MiniProgress()` (Lane branches): `android/.../ui/common/SkinParts.kt`
 **Date:** 2026-10-12
 **How added:** redesign (owner request)

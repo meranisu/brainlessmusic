@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Android: the gesture bar's strip takes the app's colour
+
+- Owner report: in light mode the strip behind the gesture handle was whiter than the tab bar and the page. It was
+  the system's contrast scrim (#F3F3F5), which `SystemBarStyle.auto` leaves enforced. `MainActivity` now sets
+  `isNavigationBarContrastEnforced = false` (API 29+) after `enableEdgeToEdge`.
+- Verified: `assembleDebug`; on the phone the strip samples #E0E2EA, the app's light background, with no seam under
+  the tab bar.
+
 ## 2026-10-12: Android: Lane's mini player floats as a cut panel
 
 - Owner request: the Lane mini player was a flat band that blended into the tab bar. It now floats as a panel cut

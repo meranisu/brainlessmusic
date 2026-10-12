@@ -132,6 +132,9 @@ class MainActivity : ComponentActivity() {
                         android.graphics.Color.TRANSPARENT,
                     ) { darkTheme },
                 )
+                // `auto` leaves the system's contrast scrim on, which washed the gesture bar's strip whiter than the
+                // tab bar and the page in light mode. The app draws its own colour under the bar.
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) window.isNavigationBarContrastEnforced = false
                 onDispose { }
             }
             BrainlessMusicTheme(colorTheme = colorTheme, darkTheme = darkTheme, skin = skin) {
