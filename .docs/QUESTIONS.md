@@ -31,7 +31,6 @@ is never asked twice.
 | [Q5](#q5--tag-editing-scope) | Tag-editing scope | 2026-09-09 | No |
 | [Q77](#q77--how-does-the-android-app-get-past-cloudflare-access) | How does the Android app get past Cloudflare Access? | 2026-10-11 | Yes, before Access goes on |
 | [Q78](#q78--who-goes-on-the-access-email-list) | Who goes on the Access email list? | 2026-10-11 | Yes, before Access goes on |
-| [Q151](#q151--measure-on-smol-after-all) | Measure on smol after all? | 2026-10-12 | Yes, for the tag measurement |
 
 ### Q5 — Tag-editing scope
 **Asked:** 2026-09-09 · **Blocking:** no
@@ -60,19 +59,12 @@ includes friends using a guest code on the web: without their email on the list 
 - **A. You and the friends who use the web (recommended).** Each friend's email goes on the list once.
 - **B. Only you.** Friends use the Android app only (with Q77's token), never the web.
 
-### Q151 — Measure on smol after all?
-**Asked:** 2026-10-12 · **Blocking:** yes, for the tag measurement ([metadata plan](features/metadata-model/planning.md), Phase 1)
+## Answered
 
-A150 said this machine has the same music as smol. The measurement found one album of 19 tracks here
-(`/home/abcde/music`), with nothing that would regroup. If smol has more, this count doesn't tell us what the first
-scan there will change.
-
-- **A. Run the same read-only script on smol (recommended).** It reads tags and prints counts plus the albums that
-  would change; it writes nothing. Needs your OK to run it there.
-- **B. Skip the measurement.** Build it, and check album counts before and after the first deploy (Phase 4 already
-  backs up the database first).
-
-
+### A151 — Measure smol's library, read-only *(was Q151)*
+**Answered:** 2026-10-12, picked option A. A read-only tag count runs inside `brainless-app` on smol. Claude's SSH to
+smol was refused by the session's permission check, so the owner runs the command. Landed in the
+[metadata plan](features/metadata-model/planning.md), Phase 1.
 
 ### A150 — Measure the library on this machine *(was Q150)*
 **Answered:** 2026-10-12, picked option A. It is the same music as smol's, so the read-only tag count runs here and
