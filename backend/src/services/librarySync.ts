@@ -1,13 +1,19 @@
 import { stat } from 'node:fs/promises';
 import { config } from '../config.js';
-import { ensureDefaultLibraryRoot, listLibraryRoots, recordLibraryRootScan } from '../db/libraryRoots.js';
+import {
+  ensureDefaultLibraryRoot,
+  listLibraryRoots,
+  recordLibraryRootFullScan,
+  recordLibraryRootScan,
+} from '../db/libraryRoots.js';
 import { replaceScanFailures } from '../db/scanFailures.js';
 import { reconcileMissingTracks, scanLibrary, type ReconcileSummary, type ScanSummary } from './scanner.js';
 import { requestLoudnessBackfill } from './loudness.js';
 
 /**
  * Keeps database and disk in agreement. Reconciliation (one stat per track) runs at boot and before each scan; the
- * full tag-reading scan finds new music and runs only on the interval, since dev restarts on every save.
+ * full tag-reading scan finds new music and runs when a root's last one is older than the interval, checked at boot
+ * and hourly. Not on every boot: dev restarts on every save, and smol on every deploy.
  */
 
 export interface LibrarySyncResult {
@@ -62,7 +68,10 @@ export async function syncLibrary(
         : undefined;
     // Only after a scan that actually ran: a reconcile-only pass has no
     // failure list, and replacing with nothing would wipe the last real one.
-    if (scan) replaceScanFailures(rootId, scan.failures);
+    if (scan) {
+      replaceScanFailures(rootId, scan.failures);
+      recordLibraryRootFullScan(rootId);
+    }
     const reconcile = await reconcileMissingTracks(libraryRoot, rootId, {
       abortRatio: config.libraryMissingAbortRatio,
     });
@@ -96,9 +105,25 @@ function describe(label: string, result: LibrarySyncResult): string {
   return `Library sync (${label}): ${parts.join(', ')}.`;
 }
 
+/** How often the schedule looks for a root that is due a scan. */
+const DUE_CHECK_MS = 60 * 60 * 1000;
+
 /**
- * Reconciles at boot, then scans every root in turn each `libraryScanIntervalHours`. Roots are re-read per run, so new
- * ones are picked up without a restart. One root failing doesn't stop the rest. `unref`'d.
+ * Whether a root is due a full scan: never scanned, or the last one is at least `intervalHours` old. `lastFullScanAt`
+ * is SQLite's `datetime('now')`, UTC without a zone.
+ */
+export function isScanDue(lastFullScanAt: string | null, now: Date, intervalHours: number): boolean {
+  if (!lastFullScanAt) return true;
+  const last = Date.parse(`${lastFullScanAt.replace(' ', 'T')}Z`);
+  if (Number.isNaN(last)) return true;
+  return now.getTime() - last >= intervalHours * 60 * 60 * 1000;
+}
+
+/**
+ * At boot, reconciles every root and scans those due; then hourly, scans whichever are due. The clock is the
+ * database's `last_full_scan_at`, so a restart (each auto-deploy, A120) no longer starts the interval over. A manual
+ * scan stamps it too. Roots are re-read per run, so new ones are picked up without a restart. One root failing doesn't
+ * stop the rest. `unref`'d.
  */
 export function startLibrarySyncSchedule(log: Logger): NodeJS.Timeout | null {
   const runRoot = async (rootId: number, rootPath: string, label: string, withScan: boolean) => {
@@ -130,9 +155,12 @@ export function startLibrarySyncSchedule(log: Logger): NodeJS.Timeout | null {
     }
   };
 
-  const run = async (withScan: boolean) => {
+  /** Every root at boot (reconciling the rest); only due ones on the hourly check. */
+  const run = async (reconcileTheRest: boolean) => {
+    const now = new Date();
     for (const root of listLibraryRoots()) {
-      await runRoot(root.id, root.path, root.label ?? root.path, withScan);
+      const due = isScanDue(root.last_full_scan_at, now, config.libraryScanIntervalHours);
+      if (due || reconcileTheRest) await runRoot(root.id, root.path, root.label ?? root.path, due);
     }
   };
 
@@ -144,10 +172,10 @@ export function startLibrarySyncSchedule(log: Logger): NodeJS.Timeout | null {
     return null;
   }
 
-  // Boot: reconcile only. Cheap, and it is the half that catches drift.
-  void run(false);
+  // Boot: reconcile every root (cheap, and the half that catches drift), scanning any that are due.
+  void run(true);
 
-  const timer = setInterval(() => void run(true), config.libraryScanIntervalHours * 60 * 60 * 1000);
+  const timer = setInterval(() => void run(false), DUE_CHECK_MS);
   timer.unref();
   return timer;
 }

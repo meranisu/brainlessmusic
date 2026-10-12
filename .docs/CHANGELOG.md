@@ -4,6 +4,20 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Scheduled scans survive restarts
+
+- The full library scan ran on a 12-hour `setInterval` started at boot. Auto-deploy (A120) restarts the app on every
+  backend or frontend push, so on a day with deploys every hour or two the scheduled scan never ran. That also meant
+  v0.4's regrouping (migration `0030`) sat waiting after its deploy.
+- Migration `0033` adds `library_roots.last_full_scan_at`, stamped only by a real scan (a manual one too). At boot every
+  root is reconciled as before, and any root whose last full scan is NULL or 12+ hours old is scanned; after that the
+  check runs hourly. `LIBRARY_SCAN_INTERVAL_HOURS` and `LIBRARY_SCAN_ENABLED` keep their meaning.
+- First boot after this deploys: every root has NULL, so each is scanned once right away. On smol that is the v0.4
+  regroup, disc numbers and genres (owner asked for the scan now, 2026-10-12).
+- Verified: `npm test` 544 pass, 4 new in `services/librarySync.test.ts` (`isScanDue`: never scanned, exactly 12 h,
+  a second short, an unreadable stamp counts as due; a reconcile-only sync leaves `last_full_scan_at` NULL and a scan
+  stamps it). `tsc --noEmit` clean. The hourly timer itself isn't exercised by a test.
+
 ## 2026-10-12: Disc order and genres (v0.4 boxes 26, 27)
 
 - Two-disc albums sorted by track number alone, so disc 1 and disc 2 interleaved (smol: 4,555 tracks on disc 2 or

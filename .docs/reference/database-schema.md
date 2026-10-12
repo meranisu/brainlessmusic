@@ -320,6 +320,23 @@ one seed in four, `db/lessOften.ts`). No extra index: every read is by `user_id`
 **An event log** — append-only, newest first in `GET /admin/playback-failures` (admin-only: it names users). Deliberately **not** fed into `/admin/health`, which any signed-in user can read.
 **Deletion order matters:** `deleteTrackRow()`, `pruneIdleGuests()` and `deleteUser()` each delete a parent's `playback_failures` rows first (regression tests in `db/failureLogs.test.ts`).
 
+### `library_roots`
+
+Added `0013`; this section was missing until `0033` (2026-10-12). One row per scanned music folder; `LIBRARY_PATH` is
+seeded at boot (`ensureDefaultLibraryRoot`).
+
+| Column | Type | Null? | Default | Notes |
+|---|---|---|---|---|
+| `id` | INTEGER | — | — | **PK**, autoincrement |
+| `path` | TEXT | NOT NULL | — | **UNIQUE** |
+| `label` | TEXT | nullable | — | |
+| `added_at` | TEXT | NOT NULL | `datetime('now')` | |
+| `last_scanned_at` | TEXT | nullable | — | Stamped by every sync, reconcile-only passes at boot included (`recordLibraryRootScan`) |
+| `last_scan_error` | TEXT | nullable | — | The root itself was unreadable at the last sync |
+| `last_full_scan_at` | TEXT | nullable | — | Added `0033`. Stamped only after a full tag-reading scan (`recordLibraryRootFullScan`). The schedule scans a root when this is NULL or older than `LIBRARY_SCAN_INTERVAL_HOURS`, checked at boot and hourly (`isScanDue`, `services/librarySync.ts`) |
+
+**Referenced by:** `tracks.root_id`, `scan_failures.root_id`.
+
 ### `scan_failures`
 
 | Column | Type | Null? | Default | Notes |
@@ -554,6 +571,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | `0029_account_invites.sql` | `account_invites` + `idx_account_invites_guest`; unique `idx_users_username_nocase` — invite links and case-insensitive names (A107-A112) |
 | `0021_add_play_history_ms_final.sql` | `play_history.ms_final`: marks plays whose `ms_played` is the real total (A62) |
 | `0020_add_user_theme.sql` | `users.theme` — the web theme follows the profile (A55) |
+| `0033_add_library_root_full_scan.sql` | `library_roots.last_full_scan_at` — scans run when due, not reset by restarts |
 | `0031_add_track_disc_number.sql` | `tracks.disc_number` — disc order (v0.4 box 26) |
 | `0032_create_genres.sql` | `genres`, `track_genres` + `idx_track_genres_genre_id` (v0.4 box 27) |
 | `0030_album_artist_and_folder.sql` | Rebuilds `albums` with ids kept: `folder`, `artist_from_tracks`, `merged_into_id`; `UNIQUE(title, artist_id)` replaced by `idx_albums_key` and `idx_albums_key_from_tracks`; `albums_fts` triggers recreated (v0.4, A148) |
@@ -562,6 +580,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-10-12 | Migration `0033_add_library_root_full_scan.sql` — new `library_roots` section (it had none since `0013`), migration row. From the migration SQL and the test run | Each auto-deploy restarted the 12-hour scan timer, so on a busy day the scheduled scan never ran |
 | 2026-10-12 | Migrations `0031_add_track_disc_number.sql` and `0032_create_genres.sql` — `tracks.disc_number` row; new `genres` and `track_genres` sections, relationship rows (plus the missing `albums.merged_into_id` row from `0030`), migration rows. From the migration SQL and the test run | v0.4: two-disc albums played disc 1 and 2 interleaved; no way to browse by genre (smol: 83% of tracks have one) |
 | 2026-10-12 | Migration `0030_album_artist_and_folder.sql` — `albums` section rewritten (album artist meaning, `folder`, `artist_from_tracks`, `merged_into_id`, new unique indexes), `artists` referenced-by note, migration row. From the migration SQL, a dry run on a copy of the dev database (ids, FTS and `foreign_key_check` all clean) and the test run | v0.4: albums grouped by track artist split compilations and "feat." albums; smol had 14,123 albums for 32,409 tracks |
 | 2026-10-12 | Migration `0029_account_invites.sql` — `account_invites` table section, `users.username` now case-insensitive, Discrepancy 3 note, migration row. From the migration SQL and the test run | Friends kept asking to sign up; invites let them pick their own name and password (A107-A112) |

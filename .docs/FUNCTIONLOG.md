@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `startLibrarySyncSchedule()` (changed), `isScanDue()` (new), `syncLibrary()`: `backend/src/services/librarySync.ts`; `recordLibraryRootFullScan()` (new): `backend/src/db/libraryRoots.ts`
+**Date:** 2026-10-12
+**How added:** bug fix
+**Purpose:** scan a root when its last full scan is older than the interval, checked at boot and hourly, using `library_roots.last_full_scan_at` (`0033`) as the clock.
+**Side effects:** `syncLibrary` writes `last_full_scan_at` after a scan.
+**Before:** a 12-hour timer from boot; every restart (each auto-deploy) started it over, so busy days had no scan.
+**After:** restarts don't reset the schedule; the first boot after `0033` scans every root once.
+
 **Function:** `splitGenres()`, `setTrackGenres()`, `listGenres()`, `getGenreDetail()` (new): `backend/src/db/genres.ts`; `genresRoute` (new): `backend/src/routes/genres.ts`
 **Date:** 2026-10-12
 **How added:** new feature (v0.4 box 27)
