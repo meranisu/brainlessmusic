@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `loadReleaseHistory()`, `notesForHistory()` (new): `android/.../update/ReleaseHistory.kt`; `WhatsNewContent()` (new): `android/.../ui/settings/WhatsNewContent.kt`; `AppSignature()`, `SettingsPage.WHATS_NEW`: `android/.../ui/settings/SettingsScreen.kt`; `copyReleaseNotes` task: `android/app/build.gradle.kts`
+**Date:** 2026-10-12
+**How added:** new feature (owner request, A155)
+**Purpose:** let users read every release's notes from Settings.
+**Side effects:** reads APK assets on an IO thread; the build copies `android/release-notes/` into generated assets.
+**Before:** notes only appeared in the update sheet, for versions newer than the installed one.
+**After:** Settings → What's new (or a tap on the version) lists all releases, newest first, offline.
+
 **Function:** `TabIcon()` (new `pressed` parameter), `LibraryBottomBar()`, `tabIcon()` (new): `android/.../ui/common/SkinParts.kt`, `android/.../ui/navigation/LibraryBottomBar.kt`
 **Date:** 2026-10-12
 **How added:** bug fix (owner report)

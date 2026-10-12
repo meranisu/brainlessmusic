@@ -148,8 +148,9 @@ private fun UpdateSheetContent(offer: UpdateOffer, state: UpdateState, viewModel
     }
 }
 
+/** One release's notes; also Settings → What's new's rows. */
 @Composable
-private fun ReleaseNotesBlock(release: ReleaseNotes) {
+internal fun ReleaseNotesBlock(release: ReleaseNotes) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text("v${release.version}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         if (release.notes.isBlank()) {

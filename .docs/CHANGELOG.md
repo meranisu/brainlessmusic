@@ -4,6 +4,17 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Android: Settings → What's new lists every release's notes
+
+- Owner request (A155): users can read the changelog from Settings. A "What's new" row (in the card with Check for
+  updates, and shown in debug builds too) opens a page with every release, newest first; tapping the version line at
+  the foot of Settings opens it as well, like the web title screen's version.
+- The notes are written once, in `android/release-notes/vX.Y.Z.md`: a Gradle `Sync` task (`copyReleaseNotes`) copies
+  them into `assets/release-notes/` before each build, so the page needs no network. The "## upgrading" section (how
+  to install) is dropped there; the update sheet's renderer (`ReleaseNotesBlock`) draws each release.
+- Verified: `assembleDebug` and `testDebugUnitTest --tests '*ReleasesTest*'` (7 pass, one new); the debug APK holds
+  all 77 notes; installed on the phone, opened from the version line, newest first with no upgrading sections.
+
 ## 2026-10-12: Android: a pressed tab lights in the skin's own shape, not Material's pill
 
 - Owner report from a screen recording: in the game skins, tapping a bottom-bar tab drew Material's rounded-pill

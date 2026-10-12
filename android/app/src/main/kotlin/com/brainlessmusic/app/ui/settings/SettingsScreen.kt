@@ -98,6 +98,7 @@ enum class SettingsPage(val route: String, val title: String) {
     PLAYBACK("playback", "Playback"),
     DOWNLOADS("downloads", "Downloads"),
     ACCOUNT("account", "Account"),
+    WHATS_NEW("whats-new", "What's new"),
     LICENSES("licenses", "Licenses"),
 }
 
@@ -156,9 +157,9 @@ fun SettingsScreen(
                 )
             }
 
-            // Release builds only: a debug build is a separate app and never takes a release.
-            if (updateViewModel.enabled) {
-                Card {
+            Card {
+                // Release builds only: a debug build is a separate app and never takes a release.
+                if (updateViewModel.enabled) {
                     PageRow(
                         icon = AppIcons.update,
                         title = "Check for updates",
@@ -173,7 +174,14 @@ fun SettingsScreen(
                         },
                         onClick = updateViewModel::checkNow,
                     )
+                    Divider()
                 }
+                PageRow(
+                    icon = AppIcons.history,
+                    title = SettingsPage.WHATS_NEW.title,
+                    summary = "What changed in each version",
+                    onClick = { onOpenPage(SettingsPage.WHATS_NEW) },
+                )
             }
 
             Card {
@@ -185,7 +193,7 @@ fun SettingsScreen(
                 )
             }
 
-            AppSignature()
+            AppSignature(onVersionClick = { onOpenPage(SettingsPage.WHATS_NEW) })
         }
     }
 }
@@ -195,7 +203,7 @@ fun SettingsScreen(
  * when something needs reporting. The mark moved here from the Library title (owner, 2026-10-11).
  */
 @Composable
-private fun AppSignature() {
+private fun AppSignature(onVersionClick: () -> Unit) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 16.dp),
@@ -221,7 +229,11 @@ private fun AppSignature() {
             "Version ${BuildConfig.VERSION_NAME}",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 2.dp),
+            // Tapping the version opens What's new, like the version on the web's title screen.
+            modifier = Modifier
+                .padding(top = 2.dp)
+                .clickable(onClickLabel = "See what's new", onClick = onVersionClick)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
         )
     }
 }
@@ -490,6 +502,7 @@ fun SettingsPageScreen(
                         }
                     }
                     SettingsPage.LICENSES -> LicensesContent()
+                    SettingsPage.WHATS_NEW -> WhatsNewContent()
                     SettingsPage.ACCOUNT -> {
                         Block(
                             title = displayName ?: username ?: if (viewModel.isGuest) "Guest" else "Logged in",

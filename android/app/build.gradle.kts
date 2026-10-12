@@ -101,6 +101,16 @@ android {
     }
 }
 
+// Settings → What's new reads every release's notes from the APK (A155), so they're written once, in
+// android/release-notes/, and work offline. Copied to assets/release-notes/ on each build.
+val releaseNotesAssets = layout.buildDirectory.dir("generated/releaseNotesAssets")
+val copyReleaseNotes by tasks.registering(Sync::class) {
+    from(rootProject.file("release-notes")) { include("v*.md") }
+    into(releaseNotesAssets.map { it.dir("release-notes") })
+}
+android.sourceSets.getByName("main").assets.srcDir(releaseNotesAssets)
+tasks.named("preBuild") { dependsOn(copyReleaseNotes) }
+
 kapt {
     correctErrorTypes = true
 }

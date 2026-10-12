@@ -59,4 +59,11 @@ class ReleasesTest {
         assertEquals("## what changed\n\n- a thing", notesWithoutInstalling(body))
         assertEquals("", notesWithoutInstalling(null))
     }
+
+    @Test
+    fun `history notes drop the upgrading section but keep the rest`() {
+        val md = "## what changed\n\n- a thing\n\n## Upgrading from an earlier build\n\nthe update sheet will offer it\n\n## heads up\n\nbe nice"
+        assertEquals("## what changed\n\n- a thing\n\n## heads up\n\nbe nice", notesForHistory(md))
+        assertEquals("## what changed\n\n- a thing", notesForHistory("## what changed\n\n- a thing\n\n## upgrading\n\nx"))
+    }
 }

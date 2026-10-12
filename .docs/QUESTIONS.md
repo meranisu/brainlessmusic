@@ -61,6 +61,11 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A155 — "What's new" in Android Settings *(was Q155)*
+**Answered:** 2026-10-12, picked option A. A "What's new" row in the Android app's Settings, and a tap on the version
+line, open every release's notes, newest first, packed from `android/release-notes/` into the APK. The website's
+Options page is unchanged. Landed in the 2026-10-12 "Settings → What's new" CHANGELOG entry.
+
 ### A154 — Stray songs join the big album *(was Q154)*
 **Answered:** 2026-10-12, picked option A. An album of 1 or 2 songs joins the larger album with the same title and album
 artist in another folder, unless the album artist is Various Artists. Full duplicate copies stay separate. Landed in
