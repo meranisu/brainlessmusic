@@ -245,7 +245,10 @@ private fun LibraryHeader(
             SongFilterField(text = filter, onChange = onFilterChange, modifier = Modifier.weight(1f))
             HeaderButton(AppIcons.close, "Close search", onCloseSearch)
         } else {
-            LibraryTabBar(selected = tab, onSelect = onSelectTab, modifier = if (dockedHeader) Modifier.weight(1f) else Modifier)
+            // Lane's, Gear's and Ring's tabs stretch to fill, so they get only the space beside the search button; unbounded,
+            // Ring's chips took the whole row and pushed it off screen.
+            val stretched = dockedHeader || LocalSkin.current == Skin.RING
+            LibraryTabBar(selected = tab, onSelect = onSelectTab, modifier = if (stretched) Modifier.weight(1f) else Modifier)
             HeaderButton(AppIcons.search, "Search songs", onOpenSearch)
         }
     }

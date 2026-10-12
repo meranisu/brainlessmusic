@@ -4,6 +4,13 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Ring's Library search button is back (Android)
+
+- Owner found no search button in the Library under Ring. Ring's genre chips stretch to fill, and the header gave them
+  the whole row (only Lane and Gear were sized to the space beside the button), so the button was pushed off screen
+  (since v0.3.55). `LibraryHeader` now gives Ring's tabs the same leftover space.
+- Compiled (`compileDebugKotlin`); not checked on a phone.
+
 ## 2026-10-12: Control Center "Levelling" tab (backend, web)
 
 - Owner request: see which songs volume levelling has reached. A fourth Control Center tab, `/control-center/levelling`:

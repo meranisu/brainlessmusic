@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `LibraryHeader()`: `android/.../ui/library/LibraryScreen.kt`
+**Date:** 2026-10-12
+**How added:** bug fix
+**Purpose:** keep the search button on screen in every skin.
+**Side effects:** none.
+**Before:** under Ring, the tab chips took the full row and pushed the search button out of view.
+**After:** Ring's tabs, like Lane's and Gear's, take only the space beside the button.
+
 **Function:** `summarizeLoudness()`, `listTrackLoudness()` (new): `backend/src/db/loudness.ts`; `getLoudnessWork()` (new): `backend/src/services/loudness.ts`; `GET /admin/loudness` (new): `backend/src/routes/health.ts`; `LevellingPage` (new): `frontend/src/pages/LevellingPage.tsx`
 **Date:** 2026-10-12
 **How added:** new feature (owner request)
