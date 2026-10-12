@@ -1,5 +1,32 @@
 [
   {
+    "version": "0.4.5",
+    "date": "2026-10-12",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "swiping the player down straight after opening it now actually closes it, instead of going blank for a second and popping back up",
+              "in the game skins, tapping a tab at the bottom lights up the button in its own shape (slanted, cut corner or round) instead of a grey rounded blob"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.4.4",
     "date": "2026-10-12",
     "sections": [
