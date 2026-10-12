@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Android: a pressed tab lights in the skin's own shape, not Material's pill
+
+- Owner report from a screen recording: in the game skins, tapping a bottom-bar tab drew Material's rounded-pill
+  ripple around the slanted (Lane), cut-corner (Gear) or round (Hit circle, Ring) key.
+- The bar turns the ripple off for the game skins (`LocalRippleConfiguration provides null`) and `TabIcon` takes a
+  `pressed` flag, lighting the key's own shape in the icon's ink; a quick tap still shows it for about 120 ms then
+  fades. Lane draws its slant on any pressed tab, not only the open one. Standard keeps the ripple.
+- `LibraryBottomBar` builds its five tabs from one list instead of five copied `NavigationBarItem`s.
+- Verified: `:app:compileDebugKotlin` and `assembleDebug`; installed on the phone and owner-checked ("seem alright").
+
 ## 2026-10-12: Android Listen together redesigned to match the skinned screens
 
 - The room code is six letter tiles in the skin's tile shape (`CodeTiles`), both when typing it (`CodeEntry`, an

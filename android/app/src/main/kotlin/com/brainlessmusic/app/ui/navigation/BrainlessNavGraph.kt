@@ -205,7 +205,7 @@ fun BrainlessNavGraph(
                     val presence by transition.playerPresence(skin)
                     NowPlayingScreen(
                         presence = { presence },
-                        onBack = { navController.popFrom(entry) },
+                        onBack = { navController.closePlayer(entry) },
                         // The album opens in the player's place, so back from it goes to where the player was opened.
                         onOpenAlbum = { albumId ->
                             navController.navigate(Routes.albumDetail(albumId)) {

@@ -7,6 +7,12 @@ import androidx.compose.animation.core.tween
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import com.brainlessmusic.app.ui.playback.skins.rememberAnimationsOn
 import com.brainlessmusic.app.ui.theme.LaneFontFamily
 import com.brainlessmusic.app.ui.theme.SlantShape
@@ -423,11 +429,29 @@ fun tabColors(): NavigationBarItemColors = when (LocalSkin.current) {
 /**
  * A bottom-bar icon. Hit circle lights the selected tab as a hit circle, an approach ring closing on it as it opens,
  * the others outlined circles waiting their turn; Lane lights it as a slanted key, Arcaea's song-row shape; Gear makes
- * every tab a BT key, the open one lit.
+ * every tab a BT key, the open one lit. The game skins have no ripple ([LibraryBottomBar]): [pressed] lights the key's
+ * own shape instead, held long enough to see on a quick tap.
  */
 @Composable
-fun TabIcon(selected: Boolean, content: @Composable () -> Unit) {
+fun TabIcon(selected: Boolean, pressed: Boolean = false, content: @Composable () -> Unit) {
     val scheme = MaterialTheme.colorScheme
+    val press = remember { Animatable(0f) }
+    var armed by remember { mutableStateOf(false) }
+    LaunchedEffect(pressed) {
+        if (pressed) {
+            armed = true
+            press.animateTo(1f, tween(60))
+        } else if (armed) {
+            press.animateTo(1f, tween(60))
+            press.animateTo(0f, tween(260))
+        }
+    }
+    val ink = LocalContentColor.current
+    fun Modifier.pressMark(shape: Shape) = drawWithContent {
+        drawContent()
+        val p = press.value
+        if (p > 0f) drawOutline(shape.createOutline(size, layoutDirection, this), ink.copy(alpha = 0.2f * p))
+    }
     when {
         LocalSkin.current == Skin.HIT_CIRCLE -> {
             val animate = rememberAnimationsOn()
@@ -454,7 +478,8 @@ fun TabIcon(selected: Boolean, content: @Composable () -> Unit) {
                         } else {
                             Modifier.border(1.5.dp, scheme.outline, CircleShape)
                         },
-                    ),
+                    )
+                    .pressMark(CircleShape),
             ) { Box(Modifier.size(20.dp), contentAlignment = Alignment.Center) { content() } }
         }
         // Gear: every tab a BT key on the console, the open one lit.
@@ -468,7 +493,8 @@ fun TabIcon(selected: Boolean, content: @Composable () -> Unit) {
                     } else {
                         Modifier.border(1.5.dp, MaterialTheme.colorScheme.outline, CutCornerShape(5.dp))
                     },
-                ),
+                )
+                .pressMark(CutCornerShape(5.dp)),
         ) { content() }
         // Ring: every tab one of the cabinet's round buttons, the open one lit, its pale rim inside the coloured edge.
         LocalSkin.current == Skin.RING -> Box(
@@ -481,11 +507,16 @@ fun TabIcon(selected: Boolean, content: @Composable () -> Unit) {
                     } else {
                         Modifier.border(2.dp, scheme.outlineVariant, CircleShape)
                     },
-                ),
+                )
+                .pressMark(CircleShape),
         ) { Box(Modifier.size(20.dp), contentAlignment = Alignment.Center) { content() } }
-        selected && LocalSkin.current == Skin.LANE -> Box(
+        // Lane: the key is only drawn lit, but a press shows its slant on any tab.
+        LocalSkin.current == Skin.LANE -> Box(
             contentAlignment = Alignment.Center,
-            modifier = Modifier.size(width = 52.dp, height = 28.dp).background(scheme.primary, SlantShape(9.dp)),
+            modifier = Modifier
+                .size(width = 52.dp, height = 28.dp)
+                .then(if (selected) Modifier.background(scheme.primary, SlantShape(9.dp)) else Modifier)
+                .pressMark(SlantShape(9.dp)),
         ) { content() }
         else -> content()
     }

@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `TabIcon()` (new `pressed` parameter), `LibraryBottomBar()`, `tabIcon()` (new): `android/.../ui/common/SkinParts.kt`, `android/.../ui/navigation/LibraryBottomBar.kt`
+**Date:** 2026-10-12
+**How added:** bug fix (owner report)
+**Purpose:** show a tab press in the skin's key shape.
+**Side effects:** no ripple on the bottom bar in the game skins.
+**Before:** a rounded grey pill on tap, whatever the skin.
+**After:** the slanted, cut-corner or round key lights up; Standard unchanged.
+
 **Function:** `CodeTiles`, `CodeEntry`, `NowPlayingCard` (new), `OutsideRoom`, `InsideRoom`, `MemberRow`: `android/.../ui/together/TogetherScreen.kt`; `TogetherViewModel.coverUrl()` (new)
 **Date:** 2026-10-12
 **How added:** redesign (owner request)

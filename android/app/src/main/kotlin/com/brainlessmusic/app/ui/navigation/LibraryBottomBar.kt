@@ -24,52 +24,44 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalRippleConfiguration
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.brainlessmusic.app.data.local.Skin
+import com.brainlessmusic.app.ui.theme.LocalSkin
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.brainlessmusic.app.ui.theme.AppIcons
 
 /** The top-level tabs. Detail screens push on top with a back arrow instead. Tapping the current tab calls [onReselect]. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryBottomBar(navController: NavHostController, onReselect: () -> Unit = {}) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
 
     val items: @Composable RowScope.() -> Unit = {
-        NavigationBarItem(
-            selected = currentRoute == Routes.HOME,
-            onClick = { if (currentRoute == Routes.HOME) onReselect() else navController.navigateToTab(Routes.HOME) },
-            icon = { TabIcon(selected = currentRoute == Routes.HOME) { Icon(AppIcons.home, contentDescription = null) } },
-            label = { TabLabel("Home") },
-            colors = tabColors(),
-        )
-        NavigationBarItem(
-            selected = currentRoute == Routes.ARTISTS,
-            onClick = { if (currentRoute == Routes.ARTISTS) onReselect() else navController.navigateToTab(Routes.ARTISTS) },
-            icon = { TabIcon(selected = currentRoute == Routes.ARTISTS) { Icon(AppIcons.library, contentDescription = null) } },
-            label = { TabLabel("Library") },
-            colors = tabColors(),
-        )
-        NavigationBarItem(
-            selected = currentRoute == Routes.SEARCH,
-            onClick = { if (currentRoute == Routes.SEARCH) onReselect() else navController.navigateToTab(Routes.SEARCH) },
-            icon = { TabIcon(selected = currentRoute == Routes.SEARCH) { Icon(AppIcons.search, contentDescription = null) } },
-            label = { TabLabel("Search") },
-            colors = tabColors(),
-        )
-        NavigationBarItem(
-            selected = currentRoute == Routes.DOWNLOADS,
-            onClick = { if (currentRoute == Routes.DOWNLOADS) onReselect() else navController.navigateToTab(Routes.DOWNLOADS) },
-            icon = { TabIcon(selected = currentRoute == Routes.DOWNLOADS) { Icon(AppIcons.downloads, contentDescription = null) } },
-            label = { TabLabel("Downloads") },
-            colors = tabColors(),
-        )
-        NavigationBarItem(
-            selected = currentRoute == Routes.SETTINGS,
-            onClick = { if (currentRoute == Routes.SETTINGS) onReselect() else navController.navigateToTab(Routes.SETTINGS) },
-            icon = { TabIcon(selected = currentRoute == Routes.SETTINGS) { Icon(AppIcons.settings, contentDescription = null) } },
-            label = { TabLabel("Settings") },
-            colors = tabColors(),
-        )
+        // Material's ripple is a rounded pill whatever the skin; the game skins light their own key shape ([TabIcon]).
+        val ripple = if (LocalSkin.current == Skin.STANDARD) LocalRippleConfiguration.current else null
+        CompositionLocalProvider(LocalRippleConfiguration provides ripple) {
+            for ((route, label) in tabs) {
+                val selected = currentRoute == route
+                val interaction = remember { MutableInteractionSource() }
+                val pressed by interaction.collectIsPressedAsState()
+                NavigationBarItem(
+                    selected = selected,
+                    onClick = { if (selected) onReselect() else navController.navigateToTab(route) },
+                    icon = { TabIcon(selected = selected, pressed = pressed) { Icon(tabIcon(route), contentDescription = null) } },
+                    label = { TabLabel(label) },
+                    colors = tabColors(),
+                    interactionSource = interaction,
+                )
+            }
+        }
     }
     if (floatingBars) {
         // Hit circle: an outlined pill clear of the edges, above the system bar rather than under it.
@@ -90,6 +82,23 @@ fun LibraryBottomBar(navController: NavHostController, onReselect: () -> Unit = 
             NavigationBar(containerColor = tabBarColor(), content = items)
         }
     }
+}
+
+private val tabs = listOf(
+    Routes.HOME to "Home",
+    Routes.ARTISTS to "Library",
+    Routes.SEARCH to "Search",
+    Routes.DOWNLOADS to "Downloads",
+    Routes.SETTINGS to "Settings",
+)
+
+@Composable
+private fun tabIcon(route: String): ImageVector = when (route) {
+    Routes.HOME -> AppIcons.home
+    Routes.ARTISTS -> AppIcons.library
+    Routes.SEARCH -> AppIcons.search
+    Routes.DOWNLOADS -> AppIcons.downloads
+    else -> AppIcons.settings
 }
 
 /** Pops to the fixed `HOME` anchor (A97); fine for flat tabs, not for nested per-tab stacks. */
