@@ -11,8 +11,8 @@ genre, without losing anything that points at the existing library. Roadmap boxe
 |---|---|---|---|
 | 1. Plan | Measure the real library's tags, settle the grouping rules and what happens to old album ids | Done | [Phase 1](#phase-1-plan) |
 | 2. Structure | Migration, scanner, album regrouping, disc order, genres, API | Done | [Phase 2](#phase-2-structure) |
-| 3. Interior | Web, then Android: album artist, per-track artists on compilations, disc headers, Genres | Not started | [Phase 3](#phase-3-interior) |
-| 4. Walkthrough | Rescan on smol, check nothing was lost, owner tries it on web and phone | Not started | [Phase 4](#phase-4-walkthrough) |
+| 3. Interior | Web, then Android: album artist, per-track artists on compilations, disc headers, Genres | Done | [Phase 3](#phase-3-interior) |
+| 4. Walkthrough | Rescan on smol, check nothing was lost, owner tries it on web and phone | Done | [Phase 4](#phase-4-walkthrough) |
 
 ---
 
@@ -158,9 +158,9 @@ Box 25 landed as `0030_album_artist_and_folder.sql` (albums only); disc numbers 
   have a disc number, 359 genres over 28,607 track links. Favorites 8 and playlist entries 3 as at the backup, none
   dangling; plays 299 → 317 (people listening).
   - Left over: 392 title + album artist pairs split by folder (mostly a stray song filed elsewhere): Q154.
-- [ ] Owner checks: a compilation is one album under Various Artists, a two-disc album plays in disc order, Genres
-  browse works, on web and phone; an album downloaded before the update still opens.
-- [ ] CHANGELOG, FUNCTIONLOG, STATUS, roadmap boxes ticked.
+- [x] Owner checks: a compilation is one album under Various Artists, a two-disc album plays in disc order, Genres
+  browse works, on web and phone (owner-confirmed 2026-10-12: phone on Android v0.4.0, web after `088d9ce`).
+- [x] CHANGELOG, FUNCTIONLOG, STATUS, roadmap boxes ticked.
 
 ## Risks
 
