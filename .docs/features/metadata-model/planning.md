@@ -144,7 +144,14 @@ Box 25 landed as `0030_album_artist_and_folder.sql` (albums only); disc numbers 
 - [x] Deployed 2026-10-12 ~15:50 with `bd5efce` (pushed by the other agent along with box 25's `deb4211`). `0030` applied;
   app healthy. Checked read-only right after: 14,123 albums, all still pre-0030 (no scan yet), 8 favorites, 3 playlist
   entries, 301 plays (299 at the backup, people listening).
-- [ ] After the first scan (12 h after boot, or an admin's scan): album count before and after, favorites/playlist/history row counts unchanged.
+- [x] After the first scan: deployed 2026-10-12 with `28f7aed` (pushed by the other agent with boxes 26-27 and the
+  scan-schedule fix, `0033`). `0031`-`0033` applied; the first boot scanned at once (`last_full_scan_at` was NULL):
+  32,409 files, 4 unreadable, finished 08:22 UTC, "Albums settled: 184 artist(s) worked out from tracks, 10945 merged".
+  Checked read-only: albums with songs **14,123 → 3,404**, 332 of them under Various Artists; 10,939 redirect rows, none
+  pointing at an empty album, none chained, no empty album without one; 3,186 albums kept an old id. 16,200 tracks
+  have a disc number, 359 genres over 28,607 track links. Favorites 8 and playlist entries 3 as at the backup, none
+  dangling; plays 299 → 317 (people listening).
+  - Left over: 392 title + album artist pairs split by folder (mostly a stray song filed elsewhere): Q154.
 - [ ] Owner checks: a compilation is one album under Various Artists, a two-disc album plays in disc order, Genres
   browse works, on web and phone; an album downloaded before the update still opens.
 - [ ] CHANGELOG, FUNCTIONLOG, STATUS, roadmap boxes ticked.

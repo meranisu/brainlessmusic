@@ -158,15 +158,15 @@ alone, so two discs' track 1s sit together.
   `.docs/features/metadata-model/planning.md`. — **done 2026-10-12:** rules settled (A148–A151), smol measured: 32,409 tracks, 14,123 albums today, about 2,900 after.
   *Done when:* the plan says what happens to an album id that splits or merges on the rescan.
 
-- [ ] **25. Album artist and compilations** (backend). Read `albumartist` and the compilation flag at scan time,
+- [x] **25. Album artist and compilations** (backend). Read `albumartist` and the compilation flag at scan time,
   regroup albums, migrate the existing library.
-  *Done when:* a compilation in the real library is one album under Various Artists, and nothing that pointed at its old albums is lost. — **built 2026-10-12** (migration `0030`, `settleAlbums`, redirects; 8 new tests). Open until it runs on smol.
+  *Done when:* a compilation in the real library is one album under Various Artists, and nothing that pointed at its old albums is lost. — **built 2026-10-12** (migration `0030`, `settleAlbums`, redirects; 8 new tests). — **done 2026-10-12 on smol:** 14,123 albums → 3,404, 332 under Various Artists, every old id redirects, favorites and playlists intact.
 
-- [ ] **26. Disc numbers** (backend). Store the disc number, sort album tracks by disc then track.
-  *Done when:* a two-disc album plays disc 1 straight through, then disc 2. — **built 2026-10-12** (migration `0031`; album pages, sorts and album shuffle). Open until it runs on smol.
+- [x] **26. Disc numbers** (backend). Store the disc number, sort album tracks by disc then track.
+  *Done when:* a two-disc album plays disc 1 straight through, then disc 2. — **built 2026-10-12** (migration `0031`; album pages, sorts and album shuffle). — **done 2026-10-12 on smol:** 16,200 tracks have a disc number.
 
-- [ ] **27. Genres** (backend). Store genres per track, an endpoint to list genres and browse one.
-  *Done when:* the API lists the library's genres and the albums in each. — **built 2026-10-12** (migration `0032`, `GET /genres`, `GET /genres/:id`). Open until it runs on smol.
+- [x] **27. Genres** (backend). Store genres per track, an endpoint to list genres and browse one.
+  *Done when:* the API lists the library's genres and the albums in each. — **built 2026-10-12** (migration `0032`, `GET /genres`, `GET /genres/:id`). — **done 2026-10-12 on smol:** 359 genres.
 
 - [ ] **28. Show it in the clients** (web, then Android). Album artist on album pages, disc headers on multi-disc
   albums, a Genres browse view.
