@@ -31,6 +31,7 @@ is never asked twice.
 | [Q5](#q5--tag-editing-scope) | Tag-editing scope | 2026-09-09 | No |
 | [Q77](#q77--how-does-the-android-app-get-past-cloudflare-access) | How does the Android app get past Cloudflare Access? | 2026-10-11 | Yes, before Access goes on |
 | [Q78](#q78--who-goes-on-the-access-email-list) | Who goes on the Access email list? | 2026-10-11 | Yes, before Access goes on |
+| [Q148](#q148--like-and-dislike-on-the-players-button) | Like and dislike on the player's button | 2026-10-12 | Yes, the player's like button |
 
 ### Q5 — Tag-editing scope
 **Asked:** 2026-09-09 · **Blocking:** no
@@ -58,6 +59,18 @@ includes friends using a guest code on the web: without their email on the list 
 
 - **A. You and the friends who use the web (recommended).** Each friend's email goes on the list once.
 - **B. Only you.** Friends use the Android app only (with Q77's token), never the web.
+
+### Q148 — Like and dislike on the player's button
+**Asked:** 2026-10-12 · **Blocking:** yes, the player's like button
+
+Owner: the player's like button could cycle like → dislike → nothing. "Hear less" becomes "Dislike" (owner,
+2026-10-12): same behaviour, shuffle picks the song about one pass in four. A song is liked or disliked, never both.
+
+- **A. Tap likes, hold dislikes (recommended).** Tap toggles like as now; holding it dislikes (the heart turns into a
+  broken heart), tap again clears. Un-liking never passes through dislike by accident.
+- **B. Cycle on tap, as suggested.** Nothing → like → dislike → nothing. One button, but un-liking a song always
+  dislikes it first, so it sits out shuffles until the next tap.
+- **C. Two buttons.** A heart and a broken heart side by side; costs a slot in the player's top bar.
 
 ## Answered
 
