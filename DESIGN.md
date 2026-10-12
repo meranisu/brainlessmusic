@@ -154,6 +154,9 @@ range's hours, plays and songs and the change against the window before (`Listen
 those (`StandardListening`). Then Recently played and the top lists. Listen together is an icon in its top bar; liked
 songs and playlists are the Library's Playlists tab; Hear less is in Settings → Playback.
 
+Switching tabs (`TabTransitions.kt`) is short and alike in both directions: Standard fades through, Hit circle pops
+in, Lane slides along, Gear slams in, Ring bounces in. Opening a page keeps the plain crossfade.
+
 Floating buttons (`SkinFab`) and short messages (`Notices`) take the skin's form too: a hit circle, a diamond,
 console keys, a lit cabinet button; messages as the skin's panel. Standard keeps Material's button and the system toast.
 

@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `tabEnter()`, `tabExit()`, `tabStep()` (new): `android/.../ui/navigation/TabTransitions.kt`; `BrainlessNavGraph()`: `BrainlessNavGraph.kt`
+**Date:** 2026-10-12
+**How added:** owner request
+**Purpose:** one short, skin-styled transition for every tab switch, whichever way it goes.
+**Side effects:** none.
+**Before:** NavHost's 0.7 s crossfade, layered differently going to Home (a pop) than to other tabs.
+**After:** tab switches use the skin's transition for push and pop alike; other moves keep the default crossfade.
+
 **Function:** `Goodbye`, `ArcadeGoodbye()`, `CardReaderGoodbye()`, `HitCircleGoodbye()`, `LaneGoodbye()`, `GearGoodbye()`, `RingGoodbye()` (new): `android/.../ui/splash/ArcadeGoodbye.kt`; `SettingsPageScreen()`: `ui/settings/SettingsScreen.kt`
 **Date:** 2026-10-12
 **How added:** owner request (A138)

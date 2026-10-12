@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Tab switches look the same every way, in the skin's manner (Android)
+
+- Owner: the change between tabs looked different by tab. Every move used NavHost's 0.7 s crossfade, and going to Home
+  is a pop (the tabs sit on the Home anchor) while the other tabs push, so the two screens layered differently.
+- `tabEnter` / `tabExit` (`TabTransitions.kt`) give tab-to-tab switches their own short transition, the same for
+  push and pop: Standard fades through (0.21 s in after a 0.09 s fade out), Hit circle pops in and bursts out slightly,
+  Lane slides along in the switch's direction, Gear slams in from the side, Ring bounces in on a spring. Motions are
+  small, since each tab draws its own bottom bar. Opening and closing pages keep the 0.7 s crossfade.
+- Compiled (`compileDebugKotlin`); not watched on a phone.
+
 ## 2026-10-12: A goodbye on sign-out, each skin's welcome in reverse (Android)
 
 - Owner asked for a sign-out animation like the welcome (A138). `ArcadeGoodbye` plays over the move to the sign-in

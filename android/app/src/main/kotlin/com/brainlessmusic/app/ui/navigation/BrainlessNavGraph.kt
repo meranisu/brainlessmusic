@@ -35,6 +35,7 @@ import com.brainlessmusic.app.ui.search.SearchScreen
 import com.brainlessmusic.app.ui.settings.SettingsPage
 import com.brainlessmusic.app.ui.settings.SettingsPageScreen
 import com.brainlessmusic.app.ui.settings.SettingsScreen
+import com.brainlessmusic.app.ui.theme.LocalSkin
 import com.brainlessmusic.app.ui.splash.SplashScreen
 import com.brainlessmusic.app.ui.splash.StartViewModel
 import com.brainlessmusic.app.ui.together.TogetherScreen
@@ -72,7 +73,16 @@ fun BrainlessNavGraph(
         content: @Composable (NavBackStackEntry) -> Unit,
     ) = composable(route, arguments) { entry -> OnTopOnly(navController, entry) { content(entry) } }
 
-    NavHost(navController = navController, startDestination = Routes.SPLASH) {
+    val skin = LocalSkin.current
+    NavHost(
+        navController = navController,
+        startDestination = Routes.SPLASH,
+        // Going to Home pops and every other tab pushes, so one transition for both directions keeps switches alike.
+        enterTransition = { tabEnter(skin) },
+        exitTransition = { tabExit(skin) },
+        popEnterTransition = { tabEnter(skin) },
+        popExitTransition = { tabExit(skin) },
+    ) {
         screen(Routes.SPLASH) {
             SplashScreen(
                 viewModel = startViewModel,
