@@ -19,6 +19,7 @@ Each release has a **done-when** you can check by using the app, not by reading 
 | **v0.1** | *It works for me* | You spend a whole evening listening to your own library in the browser, on your LAN, and never once reach for a file manager or `library-player.html` |
 | **v0.2** | *It works away from home* | You play music from your own server, on your phone, on a bike ride |
 | **v0.3** | *It works with friends* | Two people in different places hear the same song at the same time, and either can skip it |
+| **v0.4** | *The library makes sense* | A compilation shows as one album under Various Artists, a two-disc album plays in disc order, and you can browse by genre, on the web and on the phone |
 
 Everything else — Android Auto, EQ, lyrics, smart mixes, year-in-review, voice control, Wear OS — is **backlog**. It stays in the brainstorm pool and is not scheduled.
 
@@ -142,6 +143,34 @@ The centerpiece. It lands here — not earlier — because syncing playback is o
 
 - [x] **23. Room sync clients.** Web room view + monitor, then the Android client side.
   *Done when:* the v0.3 done-when above is true. — **web, monitor and Android built 2026-10-11** (Android: room mode in the player, Listen together screen, lock-screen buttons send room commands). Needs the backend on smol and an Android release before the two-person walkthrough. — **done 2026-10-12:** owner confirmed Listen together works, synced playback and everything else. v0.3 is done.
+
+---
+
+## v0.4 — The library makes sense (metadata model)
+
+Chosen 2026-10-12 (A147) from the brainstorm pool's "Metadata model" section. Today albums group by the track artist,
+so a compilation or an album with "feat." tracks splits into several albums, and album tracks sort by track number
+alone, so two discs' track 1s sit together.
+
+- [ ] **24. Metadata plan** **[plan first]**. How albums are keyed (album artist, falling back to track artist), what
+  counts as a compilation, how multi-value genre tags split, and how the existing library on smol is re-read without
+  losing play counts, favorites, playlists or downloads that point at album and track ids. Write it into
+  `.docs/features/metadata-model/planning.md`.
+  *Done when:* the plan says what happens to an album id that splits or merges on the rescan.
+
+- [ ] **25. Album artist and compilations** (backend). Read `albumartist` and the compilation flag at scan time,
+  regroup albums, migrate the existing library.
+  *Done when:* a compilation in the real library is one album under Various Artists, and nothing that pointed at its old albums is lost.
+
+- [ ] **26. Disc numbers** (backend). Store the disc number, sort album tracks by disc then track.
+  *Done when:* a two-disc album plays disc 1 straight through, then disc 2.
+
+- [ ] **27. Genres** (backend). Store genres per track, an endpoint to list genres and browse one.
+  *Done when:* the API lists the library's genres and the albums in each.
+
+- [ ] **28. Show it in the clients** (web, then Android). Album artist on album pages, disc headers on multi-disc
+  albums, a Genres browse view.
+  *Done when:* the v0.4 done-when above is true.
 
 ---
 

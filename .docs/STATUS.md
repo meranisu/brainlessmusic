@@ -54,9 +54,10 @@ The list is [QUESTIONS.md](QUESTIONS.md) — check it before asking anything. Bl
 
 1. v0.2 is done: box 19 (offline downloads) passed the phone checklist 2026-10-11.
 2. Cloudflare Access (A74): switch on once Q77 and Q78 are answered.
-3. v0.3 is done: Listen together owner-confirmed 2026-10-12 (boxes 22, 23). All three releases are now done.
-4. Backend commits after 97ba069 (3724daa, 8fe408e, 920cd50) are not confirmed on smol yet.
-5. The 2026-10-11 review findings are fixed (ca945ba, 6ded2eb, and F2/F5/G2 after; on smol). Left: G3 (closed by
+3. v0.3 is done: Listen together owner-confirmed 2026-10-12 (boxes 22, 23).
+4. v0.4, "The library makes sense" (A147): album artist, compilations, disc numbers, genres. Next: box 24, the metadata plan.
+5. Backend commits after 97ba069 (3724daa, 8fe408e, 920cd50) are not confirmed on smol yet.
+6. The 2026-10-11 review findings are fixed (ca945ba, 6ded2eb, and F2/F5/G2 after; on smol). Left: G3 (closed by
    Access, A74, once it is on), and the unconfirmed "plausible" items in
    [process/session-review-2026-10-11.md](process/session-review-2026-10-11.md), mostly crossfade edge cases.
 

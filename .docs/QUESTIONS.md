@@ -61,6 +61,11 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A147 — v0.4 is "Library makes sense" *(was Q147)*
+**Answered:** 2026-10-12, picked option A. Album artist, compilations, disc numbers and genres from the brainstorm
+pool's metadata-model section. Not picked, still in the pool: on-the-road (sleep timer, Bluetooth auto-resume,
+widget, Android Auto), rediscovery (ratings, smart playlists, stats), synced lyrics. Landed in the roadmap's v0.4 section.
+
 ### A146 — Standard's player opens as a plain sheet *(was Q146)*
 **Answered:** 2026-10-12, picked option A. It slides up from the bottom and back down, like most music apps; no game
 style. An exception to Standard staying untouched, since the crossfade was half-baked there too.
