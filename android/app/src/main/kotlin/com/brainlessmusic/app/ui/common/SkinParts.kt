@@ -269,7 +269,8 @@ fun MiniProgress(progress: Float, modifier: Modifier = Modifier) {
             Canvas(modifier.fillMaxWidth().height(6.dp)) {
                 val y = size.height / 2
                 val x = size.width * progress.coerceIn(0f, 1f)
-                drawLine(scheme.outlineVariant, Offset(0f, y), Offset(size.width, y), 1.dp.toPx())
+                // `outline`, not `outlineVariant`: the mini player's panel is `outlineVariant`'s own shade in the dark.
+                drawLine(scheme.outline, Offset(0f, y), Offset(size.width, y), 1.dp.toPx())
                 drawLine(scheme.primary, Offset(0f, y), Offset(x, y), 2.dp.toPx())
                 val r = 3.dp.toPx()
                 drawPath(
@@ -282,11 +283,24 @@ fun MiniProgress(progress: Float, modifier: Modifier = Modifier) {
 }
 
 /**
- * The mini player's cover. In Hit circle it is round with the song's progress running clockwise around it from the
+ * The mini player's cover. Lane frames it as the player does. In Hit circle it is round with the song's progress running clockwise around it from the
  * top, like a hit circle's approach.
  */
 @Composable
 fun MiniCover(url: String?, progress: Float) {
+    if (LocalSkin.current == Skin.LANE) {
+        // The player's info-pane frame, scaled down: an accent outline cut on the diagonal.
+        Box(
+            Modifier
+                .size(48.dp)
+                .border(1.5.dp, MaterialTheme.colorScheme.primary, laneCut(7.dp))
+                .padding(3.dp)
+                .clip(laneCut(5.dp)),
+        ) {
+            CoverImage(url = url, contentDescription = null, cornerRadius = 0.dp, modifier = Modifier.fillMaxSize())
+        }
+        return
+    }
     if (LocalSkin.current != Skin.HIT_CIRCLE) {
         CoverImage(url = url, contentDescription = null, modifier = Modifier.size(44.dp))
         return

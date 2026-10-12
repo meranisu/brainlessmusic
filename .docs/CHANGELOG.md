@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Android: Lane's mini player floats as a cut panel
+
+- Owner request: the Lane mini player was a flat band that blended into the tab bar. It now floats as a panel cut
+  like the player's info pane (`laneCut(14.dp)`), with a 6 dp gap above the tab bar (or the system bar on detail
+  screens), one shade up in the dark (`surfaceContainerHighest`) and edged by `laneEdge()`.
+- The cover sits in the player's accent cut frame (`MiniCover`), the title is white `titleSmall`, and the progress
+  line runs inside the panel clear of the cut corner; its track is `outline`, as `outlineVariant` is the panel's own
+  shade in the dark. Other skins unchanged.
+- Verified: `assembleDebug`; installed on the phone and checked in dark and light, on Home and on an album page.
+
 ## 2026-10-12: Android Lane player: the format readout and Up next card stand off their panel
 
 - Owner report from a screenshot: in Lane's dark theme the format readout ("FLAC · 44.1 kHz · stereo", buffering)

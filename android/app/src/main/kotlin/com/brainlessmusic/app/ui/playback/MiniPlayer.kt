@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -33,10 +34,15 @@ import com.brainlessmusic.app.ui.common.MiniCover
 import com.brainlessmusic.app.ui.common.floatingBars
 import com.brainlessmusic.app.ui.common.MiniPlayButton
 import com.brainlessmusic.app.ui.common.MiniProgress
+import com.brainlessmusic.app.data.local.Skin
+import com.brainlessmusic.app.ui.playback.skins.laneEdge
+import com.brainlessmusic.app.ui.theme.LocalDarkTheme
+import com.brainlessmusic.app.ui.theme.LocalSkin
+import com.brainlessmusic.app.ui.theme.laneCut
 import kotlin.math.abs
 
 /**
- * Above the navigation bar, in its `surfaceContainer` color so the two read as one. Draws nothing with an empty queue.
+ * Above the navigation bar, in its `surfaceContainer` color so the two read as one; Lane floats it as a cut panel. Draws nothing with an empty queue.
  * Alone on a detail screen it extends under the system bar itself ([extendUnderSystemBar]). Swipe the song left or right
  * to skip, up to open the player.
  */
@@ -57,15 +63,29 @@ fun MiniPlayer(
         0f
     }
 
-    // Floating (Hit circle): the system bar's inset and a margin go outside the pill, not inside it.
-    val floating = floatingBars
+    // Floating (Hit circle's pill, Lane's cut panel): the system bar's inset and a margin go outside it, not inside.
+    val pill = floatingBars
+    val lane = LocalSkin.current == Skin.LANE
+    val floating = pill || lane
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        shape = if (floating) RoundedCornerShape(50) else RectangleShape,
-        border = if (floating) BorderStroke(1.dp, MaterialTheme.colorScheme.outline) else null,
+        // Lane lifts it a shade off the tab bar, as the player's panels sit off the page.
+        color = when {
+            lane && LocalDarkTheme.current -> MaterialTheme.colorScheme.surfaceContainerHighest
+            else -> MaterialTheme.colorScheme.surfaceContainer
+        },
+        shape = when {
+            pill -> RoundedCornerShape(50)
+            lane -> laneCut(14.dp)
+            else -> RectangleShape
+        },
+        border = when {
+            pill -> BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+            lane -> BorderStroke(1.dp, laneEdge())
+            else -> null
+        },
         modifier = modifier
             .then(if (floating && extendUnderSystemBar) Modifier.windowInsetsPadding(WindowInsets.navigationBars) else Modifier)
-            .then(if (floating) Modifier.padding(horizontal = 12.dp, vertical = 4.dp) else Modifier)
+            .then(if (floating) Modifier.padding(horizontal = 12.dp, vertical = if (lane) 6.dp else 4.dp) else Modifier)
             .fillMaxWidth()
             .swipeToSkip(
                 offset = swipe,
@@ -80,7 +100,8 @@ fun MiniPlayer(
         Column(
             modifier = if (extendUnderSystemBar && !floating) Modifier.windowInsetsPadding(WindowInsets.navigationBars) else Modifier,
         ) {
-            MiniProgress(progress)
+            // In Lane's panel the line sits inside the outline, clear of the cut corner that would hide its start.
+            MiniProgress(progress, if (lane) Modifier.padding(start = 18.dp, end = 12.dp, top = 6.dp) else Modifier)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -106,7 +127,8 @@ fun MiniPlayer(
                     ) {
                         Text(
                             current.title,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = if (lane) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium,
+                            color = if (lane) MaterialTheme.colorScheme.onSurface else Color.Unspecified,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )

@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `MiniPlayer()`: `android/.../ui/playback/MiniPlayer.kt`; `MiniCover()`, `MiniProgress()` (Lane branches): `android/.../ui/common/SkinParts.kt`
+**Date:** 2026-10-12
+**How added:** redesign (owner request)
+**Purpose:** make Lane's mini player read as a Lane panel, apart from the tab bar.
+**Side effects:** Lane only; the margin and system-bar inset go outside the panel, as for Hit circle's pill.
+**Before:** a flat full-width band, bare cover, dim title, progress on the top edge.
+**After:** a floating cut panel with a framed cover, white title and an inset progress line.
+
 **Function:** `laneEdge()` (new): `android/.../ui/playback/skins/Lane.kt`; `UpNextCard()`, `StreamReadout()`: `android/.../ui/playback/NowPlayingScreen.kt`
 **Date:** 2026-10-12
 **How added:** bug fix (owner report)
