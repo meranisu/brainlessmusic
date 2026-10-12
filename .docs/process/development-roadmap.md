@@ -152,10 +152,10 @@ Chosen 2026-10-12 (A147) from the brainstorm pool's "Metadata model" section. To
 so a compilation or an album with "feat." tracks splits into several albums, and album tracks sort by track number
 alone, so two discs' track 1s sit together.
 
-- [ ] **24. Metadata plan** **[plan first]**. How albums are keyed (album artist, falling back to track artist), what
+- [x] **24. Metadata plan** **[plan first]**. How albums are keyed (album artist, falling back to track artist), what
   counts as a compilation, how multi-value genre tags split, and how the existing library on smol is re-read without
   losing play counts, favorites, playlists or downloads that point at album and track ids. Write it into
-  `.docs/features/metadata-model/planning.md`. — **plan written 2026-10-12**; waits on the tag measurement and Q148–Q150.
+  `.docs/features/metadata-model/planning.md`. — **done 2026-10-12:** rules settled (A148–A151), smol measured: 32,409 tracks, 14,123 albums today, about 2,900 after.
   *Done when:* the plan says what happens to an album id that splits or merges on the rescan.
 
 - [ ] **25. Album artist and compilations** (backend). Read `albumartist` and the compilation flag at scan time,

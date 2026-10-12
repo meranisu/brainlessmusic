@@ -9,7 +9,7 @@ genre, without losing anything that points at the existing library. Roadmap boxe
 
 | Phase | What it covers | Status | Checklist |
 |---|---|---|---|
-| 1. Plan | Measure the real library's tags, settle the grouping rules and what happens to old album ids | In progress | [Phase 1](#phase-1-plan) |
+| 1. Plan | Measure the real library's tags, settle the grouping rules and what happens to old album ids | Done | [Phase 1](#phase-1-plan) |
 | 2. Structure | Migration, scanner, album regrouping, disc order, genres, API | Not started | [Phase 2](#phase-2-structure) |
 | 3. Interior | Web, then Android: album artist, per-track artists on compilations, disc headers, Genres | Not started | [Phase 3](#phase-3-interior) |
 | 4. Walkthrough | Rescan on smol, check nothing was lost, owner tries it on web and phone | Not started | [Phase 4](#phase-4-walkthrough) |
@@ -50,6 +50,10 @@ Nothing deletes an album row today, so old albums stay in the table, empty and i
 
 1. **Album artist** = the file's `albumartist` tag; if empty, the track artist. `albums.artist_id` now means the album
    artist. `tracks.artist_id` stays the track artist.
+1b. **Album key = title + album artist + album folder.** The album folder is the track's folder, or its parent when the
+   folder is a disc folder (`CD1`, `Disc 2`, `DISC 02`, `Disk 1`, case-insensitive). Stops two unrelated albums with a
+   generic title and the same album artist from merging. Needs `albums.folder` and the unique key widened to
+   `(title, artist_id, folder)`.
 2. **Compilation:** if the file's compilation flag is set (`common.compilation`), the album artist is "Various Artists",
    whatever `albumartist` says.
 3. **Albums with no `albumartist` and mixed track artists** join when they share a title and a folder; the album
@@ -70,21 +74,41 @@ Nothing deletes an album row today, so old albums stay in the table, empty and i
 ## Phase 1: Plan
 
 - [x] Map today's keying and everything that holds an album id (above).
-- [ ] **Measure the real library's tags** with a read-only script: how many tracks have `albumartist`, the compilation
-  flag, a disc number above 1, and a genre; how many albums today would merge. Run against a copy of the database
-  plus the files, never writing. Runs on this machine's library, which is the same music as smol's (A150).
+- [x] **Measure the real library's tags** with a read-only script (reads tags, writes nothing).
+  - 2026-10-12, this machine (`/home/abcde/music`): one 19-track album, nothing to regroup. Not smol's library after
+    all, so it said nothing (Q151 → A151).
+  - **2026-10-12, smol** (`docker exec -i brainless-app node --input-type=module - /library`, owner-approved, A151):
+
+    | | Tracks | Share |
+    |---|---|---|
+    | Files read | 32,409 (4 unreadable) | |
+    | Have `albumartist` | 27,137 | 84% |
+    | Compilation flag | 435 | 1% |
+    | Have a disc tag / disc above 1 | 16,200 / 4,555 | 50% / 14% |
+    | Have a genre | 27,043 (359 distinct names) | 83% |
+
+    Albums today: **14,123** (2.3 tracks each). Under the script's grouping: **2,886**; 2,295 albums change. So most of
+    today's albums are fragments, and v0.4 changes nearly every album id at once.
 - [x] Settle Q148 and Q149 with the owner (A148, A149).
-  - **Run 2026-10-12 on this machine** (`/home/abcde/music`, read-only, script in the session scratchpad): 19 files, all
-    one album ("Piano de Kanon"); 19/19 have `albumartist`, 0 compilation flags, 0 disc numbers, 19/19 genre "Piano".
-    Albums today 1, under the new rules 1. This does not look like smol's library, so it says nothing about
-    compilations or multi-disc albums: [Q151](../../QUESTIONS.md#q151--measure-on-smol-after-all).
-- [ ] Confirm the rules above against the measurement, then mark this phase Done.
+- [x] Confirm the rules above against the measurement (2026-10-12). The script keyed every album by folder without
+  collapsing disc folders, so its 2,886 is a little high; rule 1b will join those disc folders. What the smol run showed:
+  - **Same title, same album artist, different folders.** "AD:PIANO IV - Monochrome -" and others appear twice. Most look
+    like disc folders. But generic titles under one album artist ("Original Soundtrack" under "Various Artists") would
+    merge unrelated albums if the key ignored the folder. → rule 1b below.
+  - **Album artist spellings differ** ("Various" / "Various Artists", "Diverse System" / "Diverse Systems",
+    "Key Sound Label" / "Key Sounds Label"). The rules take tags as they are; fixing spellings is tag editing (Q5),
+    not this release.
+  - **Genre spellings differ** ("soundtrack" 7,805 / "soundtracks" 233; "chiptune, video game music" is one
+    comma-joined name). Same answer: shown as tagged, case merged only.
+  - **4,555 tracks are on disc 2 or later**, so disc order matters for real.
+
 
 ## Phase 2: Structure
 
 Next migration is `0030` (last is `0029_account_invites.sql`).
 
-- [ ] Migration `0030`: `tracks.disc_number INTEGER`, `albums.merged_into_id INTEGER` (FK to `albums.id`), `genres`
+- [ ] Migration `0030`: `tracks.disc_number INTEGER`, `albums.merged_into_id INTEGER` (FK to `albums.id`),
+  `albums.folder TEXT` with the unique key widened to `(title, artist_id, folder)` (rule 1b), `genres`
   (`id`, `name` unique `COLLATE NOCASE`), `track_genres` (`track_id`, `genre_id`, composite PK, index on `genre_id`).
   Update `.docs/reference/database-schema.md` in the same change.
 - [ ] `extractTrackTags()`: return `albumArtistName`, `compilation`, `discNumber`, `genres`.
@@ -130,3 +154,4 @@ Next migration is `0030` (last is `0029_account_invites.sql`).
 | Date | Phase affected | What changed | Why | Still fits the Plan phase? |
 |---|---|---|---|---|
 | 2026-10-12 | Plan | Plan written | v0.4 chosen (A147), box 24 | — |
+| 2026-10-12 | Plan | Album key gains the album folder (rule 1b) | smol run: generic titles under one album artist would merge unrelated albums | Yes, extends rule 1 and A148's folder idea |
