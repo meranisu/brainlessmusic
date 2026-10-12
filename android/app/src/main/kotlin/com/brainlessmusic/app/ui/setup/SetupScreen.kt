@@ -1,6 +1,21 @@
 package com.brainlessmusic.app.ui.setup
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
+import android.text.format.Formatter
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -60,7 +75,7 @@ import com.brainlessmusic.app.ui.theme.cardShape
 import com.brainlessmusic.app.ui.theme.isDark
 import com.brainlessmusic.app.ui.theme.supportsMaterialYou
 
-private const val STEPS = 4
+private const val STEPS = 5
 
 /** The colours each game skin was made with (A116, A127, A131, and Magenta for Hit circle). */
 private fun Skin.pairedColors(): ColorTheme? = when (this) {
@@ -101,6 +116,7 @@ fun SetupScreen(onDone: () -> Unit, viewModel: SettingsViewModel = hiltViewModel
                         0 -> AboutStep()
                         1 -> LookStep(viewModel)
                         2 -> PlaybackStep(viewModel)
+                        3 -> PermissionsStep()
                         else -> DoneStep()
                     }
                 }
@@ -283,6 +299,95 @@ private fun SetupSwitch(title: String, detail: String, checked: Boolean, onChang
             }
             Spacer(Modifier.width(12.dp))
             Switch(checked = checked, onCheckedChange = null)
+        }
+    }
+}
+
+/**
+ * What the app may use (owner, 2026-10-12). Notifications are the one runtime permission it asks for; storage needs
+ * none, since downloads live in the app's own files, so that row says so and shows the room left; installing updates
+ * is a per-app setting the update sheet needs. States are read again on return from Android's settings.
+ */
+@Composable
+private fun PermissionsStep() {
+    val context = LocalContext.current
+    fun notificationsAllowed() = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+    fun installsAllowed() = context.packageManager.canRequestPackageInstalls()
+
+    var notifications by remember { mutableStateOf(notificationsAllowed()) }
+    var installs by remember { mutableStateOf(installsAllowed()) }
+    // Once refused, Android may not show its prompt again, so a second tap goes to the app's notification settings.
+    var refused by rememberSaveable { mutableStateOf(false) }
+    LifecycleResumeEffect(Unit) {
+        notifications = notificationsAllowed()
+        installs = installsAllowed()
+        onPauseOrDispose { }
+    }
+    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        notifications = granted
+        if (!granted) refused = true
+    }
+    val free = remember { Formatter.formatShortFileSize(context, context.filesDir.usableSpace) }
+
+    StepTitle("What it can use", "Both are optional, and both can be changed later in Android's settings for the app.")
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        PermissionRow(
+            AppIcons.playCircle,
+            "Notifications",
+            "Play, pause and skip from the notification shade and the lock screen, and see downloads as they run.",
+            allowed = notifications,
+        ) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !refused) {
+                ask.launch(Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                context.startActivity(
+                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
+                )
+            }
+        }
+        PermissionRow(
+            AppIcons.downloads,
+            "Storage",
+            "Nothing to allow: downloads are kept in the app's own space, which other apps can't see. $free free on this phone.",
+            allowed = null,
+        )
+        PermissionRow(
+            AppIcons.update,
+            "Install updates",
+            "Lets the update sheet install a new version itself. Android opens a page with one switch to turn on.",
+            allowed = installs,
+        ) {
+            context.startActivity(
+                Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}")),
+            )
+        }
+    }
+}
+
+/** One thing the app may use: [allowed] null means there is nothing to ask for. */
+@Composable
+private fun PermissionRow(icon: ImageVector, title: String, detail: String, allowed: Boolean?, onAllow: () -> Unit = {}) {
+    Surface(
+        shape = MaterialTheme.cardShape,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(16.dp)) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+            Column(Modifier.padding(horizontal = 16.dp).weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleSmall)
+                Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            when (allowed) {
+                null -> Unit
+                true -> Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(AppIcons.check, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                    Text("Allowed", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(start = 4.dp))
+                }
+                false -> OutlinedButton(onClick = onAllow) { Text("Allow") }
+            }
         }
     }
 }

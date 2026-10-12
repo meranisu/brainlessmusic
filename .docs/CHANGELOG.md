@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: The first-run setup asks for notifications, and explains storage (Android)
+
+- Owner request. A new step before "All set", "What it can use": Notifications (player controls in the shade and on
+  the lock screen, downloads as they run) with an Allow button that asks Android, or opens the app's notification
+  settings once refused; Storage, with nothing to allow because downloads live in the app's own files, showing the free
+  space instead; Install updates, which opens Android's per-app "install unknown apps" switch for the update sheet. Each
+  row shows Allowed once it is, read again on coming back from Android's settings. The ask on first playback stays for
+  anyone who skipped it.
+- Compiled (`compileDebugKotlin`); not run on a phone.
+
 ## 2026-10-12: One bottom bar for every tab, so it stays still on a switch (Android)
 
 - Owner: the bar "refreshing" on every tab switch was jarring. Each tab screen drew its own bar in its `Scaffold`, so

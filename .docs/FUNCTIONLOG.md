@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `PermissionsStep()`, `PermissionRow()` (new): `android/.../ui/setup/SetupScreen.kt`
+**Date:** 2026-10-12
+**How added:** owner request
+**Purpose:** the setup offers notifications and the update install switch, and says why storage needs no permission.
+**Side effects:** may show Android's notification prompt or open the app's notification / install-unknown-apps settings.
+**Before:** four steps; notifications asked only on first playback.
+**After:** five steps, the fourth for permissions.
+
 **Function:** `SharedTabBar()`, `TabBarSpace()`, `TabReselect`, `LocalTabBarHeight`, `TabRoutes` (new): `android/.../ui/navigation/AppBottomBar.kt`; `BrainlessNavGraph()`: `ui/navigation/BrainlessNavGraph.kt`; the five tab screens' `bottomBar`
 **Date:** 2026-10-12
 **How added:** owner request
