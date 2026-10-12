@@ -31,9 +31,7 @@ is never asked twice.
 | [Q5](#q5--tag-editing-scope) | Tag-editing scope | 2026-09-09 | No |
 | [Q77](#q77--how-does-the-android-app-get-past-cloudflare-access) | How does the Android app get past Cloudflare Access? | 2026-10-11 | Yes, before Access goes on |
 | [Q78](#q78--who-goes-on-the-access-email-list) | Who goes on the Access email list? | 2026-10-11 | Yes, before Access goes on |
-| [Q148](#q148--untagged-mixed-artist-albums) | Untagged mixed-artist albums | 2026-10-12 | No |
-| [Q149](#q149--appears-on-on-artist-pages) | "Appears on" on artist pages | 2026-10-12 | No |
-| [Q150](#q150--which-library-to-measure) | Which library to measure | 2026-10-12 | Yes, for the tag measurement |
+| [Q151](#q151--measure-on-smol-after-all) | Measure on smol after all? | 2026-10-12 | Yes, for the tag measurement |
 
 ### Q5 — Tag-editing scope
 **Asked:** 2026-09-09 · **Blocking:** no
@@ -62,36 +60,31 @@ includes friends using a guest code on the web: without their email on the list 
 - **A. You and the friends who use the web (recommended).** Each friend's email goes on the list once.
 - **B. Only you.** Friends use the Android app only (with Q77's token), never the web.
 
-### Q148 — Untagged mixed-artist albums
-**Asked:** 2026-10-12 · **Blocking:** no ([metadata plan](features/metadata-model/planning.md), rule 3)
-
-Some albums have no album artist tag and different track artists ("A", "A feat. B"). Album artist alone can't join them.
-
-- **A. Join them when they share a title and a folder (recommended).** The album artist is the artist on most of
-  the tracks if one artist has more than half; otherwise Various Artists.
-- **B. Leave them split.** Fixing it means adding the album artist tag to the files.
-
-**Assumption until answered:** A, built only if the measurement shows such albums exist.
-
-### Q149 — "Appears on" on artist pages
-**Asked:** 2026-10-12 · **Blocking:** no ([metadata plan](features/metadata-model/planning.md), Phase 2)
-
-Once albums go by album artist, a featured artist's song on someone else's album stops showing on that artist's page.
-
-- **A. Add an "Appears on" section under their own albums (recommended).**
-- **B. No.** Their songs are still found by search.
-
-**Assumption until answered:** A.
-
-### Q150 — Which library to measure
+### Q151 — Measure on smol after all?
 **Asked:** 2026-10-12 · **Blocking:** yes, for the tag measurement ([metadata plan](features/metadata-model/planning.md), Phase 1)
 
-Before anything ships, a read-only script counts how many albums the new rules would change.
+A150 said this machine has the same music as smol. The measurement found one album of 19 tracks here
+(`/home/abcde/music`), with nothing that would regroup. If smol has more, this count doesn't tell us what the first
+scan there will change.
 
-- **A. The library on this machine, if it is the same music as smol's (recommended).** Nothing on smol is touched.
-- **B. smol's library, read-only.** Needs your OK to run a script there.
+- **A. Run the same read-only script on smol (recommended).** It reads tags and prints counts plus the albums that
+  would change; it writes nothing. Needs your OK to run it there.
+- **B. Skip the measurement.** Build it, and check album counts before and after the first deploy (Phase 4 already
+  backs up the database first).
 
-## Answered
+
+
+### A150 — Measure the library on this machine *(was Q150)*
+**Answered:** 2026-10-12, picked option A. It is the same music as smol's, so the read-only tag count runs here and
+nothing on smol is touched. Landed in the [metadata plan](features/metadata-model/planning.md), Phase 1.
+
+### A149 — Artist pages get "Appears on" *(was Q149)*
+**Answered:** 2026-10-12, picked option A. A featured artist's songs on someone else's album show in a section under
+their own albums. Landed in the metadata plan, Phase 2.
+
+### A148 — Untagged mixed-artist albums join by title and folder *(was Q148)*
+**Answered:** 2026-10-12, picked option A. Same album title in the same folder is one album; its album artist is the
+artist on more than half the songs, otherwise Various Artists. Landed in the metadata plan, rule 3.
 
 ### A147 — v0.4 is "Library makes sense" *(was Q147)*
 **Answered:** 2026-10-12, picked option A. Album artist, compilations, disc numbers and genres from the brainstorm

@@ -52,8 +52,8 @@ Nothing deletes an album row today, so old albums stay in the table, empty and i
    artist. `tracks.artist_id` stays the track artist.
 2. **Compilation:** if the file's compilation flag is set (`common.compilation`), the album artist is "Various Artists",
    whatever `albumartist` says.
-3. **Albums with no `albumartist` and mixed track artists:** see [Q148](../../QUESTIONS.md#q148--untagged-mixed-artist-albums).
-   Depends on the tag measurement below.
+3. **Albums with no `albumartist` and mixed track artists** join when they share a title and a folder; the album
+   artist is the artist on more than half the songs, otherwise Various Artists (A148).
 4. **Disc number** from `common.disk.no`, stored on the track. Order everywhere is disc (missing = 1), then track,
    then title.
 5. **Genres** come from `common.genre`, which is already a list. Each entry is also split on `;` and `/`, trimmed, and
@@ -72,8 +72,12 @@ Nothing deletes an album row today, so old albums stay in the table, empty and i
 - [x] Map today's keying and everything that holds an album id (above).
 - [ ] **Measure the real library's tags** with a read-only script: how many tracks have `albumartist`, the compilation
   flag, a disc number above 1, and a genre; how many albums today would merge. Run against a copy of the database
-  plus the files, never writing. Where it runs depends on [Q150](../../QUESTIONS.md#q150--which-library-to-measure).
-- [ ] Settle Q148 and Q149 with the owner.
+  plus the files, never writing. Runs on this machine's library, which is the same music as smol's (A150).
+- [x] Settle Q148 and Q149 with the owner (A148, A149).
+  - **Run 2026-10-12 on this machine** (`/home/abcde/music`, read-only, script in the session scratchpad): 19 files, all
+    one album ("Piano de Kanon"); 19/19 have `albumartist`, 0 compilation flags, 0 disc numbers, 19/19 genre "Piano".
+    Albums today 1, under the new rules 1. This does not look like smol's library, so it says nothing about
+    compilations or multi-disc albums: [Q151](../../QUESTIONS.md#q151--measure-on-smol-after-all).
 - [ ] Confirm the rules above against the measurement, then mark this phase Done.
 
 ## Phase 2: Structure
@@ -92,7 +96,7 @@ Next migration is `0030` (last is `0029_account_invites.sql`).
 - [ ] `GET /albums/:id` follows `merged_into_id`.
 - [ ] `GET /genres` (name, album count, track count) and `GET /genres/:id` (its albums), behind the same auth as
   browse. Hidden and missing tracks don't count.
-- [ ] Artist page: albums where they are the album artist, plus "Appears on" if Q149 says yes.
+- [ ] Artist page: albums where they are the album artist, plus "Appears on" for albums where they only have track credits (A149).
 - [ ] Tests (`cd backend && npm test`, temp library from `makeTempDir()`): a compilation becomes one album; a
   feat. album groups by album artist; an emptied album redirects; favorites, playlist entries and history are untouched
   after a regrouping rescan; disc order; genre split and case merge; an admin-edited track stays put.
