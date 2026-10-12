@@ -67,4 +67,5 @@ UI direction (identity, palette, type, motion — read before any UI work): [DES
 Stack and resolved decisions: [.docs/reference/tech-stack.md](.docs/reference/tech-stack.md) · schema: [.docs/reference/database-schema.md](.docs/reference/database-schema.md) ·
 Android order: [.docs/process/android-phased-plan.md](.docs/process/android-phased-plan.md) · dev setup: [.docs/process/dev-environment.md](.docs/process/dev-environment.md) ·
 feature plans: `.docs/features/<name>/planning.md` (template: [.docs/phase-plan-example.md](.docs/phase-plan-example.md)).
-Antigravity also works in this repo: run `git status` before editing and do not overwrite uncommitted work ([AGENTS.md](AGENTS.md)).
+Antigravity and Codex also work in this repo: run `git status` before editing and do not overwrite uncommitted work
+([AGENTS.md](AGENTS.md)). Codex's project reference and handoff workflow: [.docs/CODEX.md](.docs/CODEX.md).
