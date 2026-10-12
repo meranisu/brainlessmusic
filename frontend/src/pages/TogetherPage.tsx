@@ -6,15 +6,15 @@ import { useToast } from '../components/ToastProvider';
 import { ArrowUpIcon, CloseIcon, PlayIcon } from '../components/icons';
 import { ApiError, apiClient } from '../lib/apiClient';
 import type { RoomState } from '../lib/roomClient';
+import { ROOM_CODE_CHARS, ROOM_CODE_LENGTH, clearRoomLink, pendingRoomLink, roomLinkFor } from '../lib/roomLink';
 
 /**
  * "Listen together" (A102): start or join a room, then see who's in it and the shared queue. Everyone controls
  * everything; only the host ends the room or removes people (A101). Guests join with full controls (A100).
  */
 
-const CODE_LENGTH = 6;
-/** The server's alphabet: no O or I, so a code read out loud can't be misheard as 0 or 1. */
-const CODE_CHARS = /[^A-HJ-NP-Z]/g;
+const CODE_LENGTH = ROOM_CODE_LENGTH;
+const CODE_CHARS = ROOM_CODE_CHARS;
 
 interface RoomPreview {
   code: string;
@@ -39,11 +39,12 @@ function CodeTiles({ code }: { code: string }) {
   );
 }
 
-function OutsideRoom() {
+function OutsideRoom({ linked }: { linked: string | null }) {
   const { create, join, isJoining } = useRoom();
   const player = usePlayer();
   const { showToast } = useToast();
-  const [code, setCode] = useState('');
+  // A room link's code, filled in and looked up, so Join shows who's in before the click that changes the music.
+  const [code, setCode] = useState(linked ?? '');
   // The answer for one code; anything typed since makes it stale, so `lookup` is derived from it.
   const [result, setResult] = useState<{ code: string; preview: RoomPreview | null; failed: 'missing' | 'failed' | null }>();
   const [isStarting, setIsStarting] = useState(false);
@@ -155,10 +156,11 @@ function InsideRoom({ room }: { room: RoomState }) {
   const upNext = room.queue.slice(room.current + 1);
   const played = room.current > 0 ? room.current : 0;
 
-  async function copyCode() {
+  // The link, not the bare code: it opens the Android app where it's installed, and this page everywhere else.
+  async function copyLink() {
     try {
-      await navigator.clipboard.writeText(room.code);
-      showToast('Room code copied.');
+      await navigator.clipboard.writeText(roomLinkFor(room.code));
+      showToast('Room link copied.');
     } catch {
       showToast(`Couldn't copy. The code is ${room.code}.`, 'error');
     }
@@ -180,8 +182,8 @@ function InsideRoom({ room }: { room: RoomState }) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2 sm:flex-col sm:items-end">
-          <button onClick={() => void copyCode()} className="btn-secondary btn-md">
-            Copy code
+          <button onClick={() => void copyLink()} className="btn-secondary btn-md">
+            Copy link
           </button>
           <button onClick={leave} className="btn-ghost btn-md">
             Leave room
@@ -317,8 +319,12 @@ function InsideRoom({ room }: { room: RoomState }) {
 }
 
 export function TogetherPage() {
-  const { room, isJoining, leave } = useRoom();
+  const { room, isJoining, join, leave } = useRoom();
   const { user } = useAuth();
+  // Read once, then dropped, so the code from a room link is used one time (see `lib/roomLink.ts`).
+  const [linked, setLinked] = useState(pendingRoomLink);
+  useEffect(clearRoomLink, []);
+  const switchTo = room && linked && linked !== room.code ? linked : null;
 
   return (
     <div className="flex flex-col gap-5">
@@ -329,6 +335,27 @@ export function TogetherPage() {
           {user?.isGuest ? ' Guests can join and use every control.' : ''}
         </p>
       </div>
+      {switchTo && (
+        // Already in a room: the link's room is offered, not joined, so nobody is pulled out of one unasked.
+        <section className="card flex flex-wrap items-center gap-3 p-5" aria-live="polite">
+          <p className="flex-1 text-sm text-blue-200">
+            The link was for room <span className="font-semibold text-white">{switchTo}</span>. Switching leaves this one.
+          </p>
+          <button
+            onClick={() => {
+              setLinked(null);
+              leave();
+              join(switchTo);
+            }}
+            className="btn-primary btn-md"
+          >
+            Switch rooms
+          </button>
+          <button onClick={() => setLinked(null)} className="btn-ghost btn-md">
+            Stay here
+          </button>
+        </section>
+      )}
       {room ? (
         <InsideRoom room={room} />
       ) : isJoining ? (
@@ -340,7 +367,7 @@ export function TogetherPage() {
           </button>
         </div>
       ) : (
-        <OutsideRoom />
+        <OutsideRoom linked={linked} />
       )}
     </div>
   );

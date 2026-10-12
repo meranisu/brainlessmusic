@@ -57,6 +57,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.brainlessmusic.app.playback.PlaybackUiState
 import com.brainlessmusic.app.rooms.RoomConnection
+import com.brainlessmusic.app.rooms.RoomLinks
 import com.brainlessmusic.app.rooms.RoomMember
 import com.brainlessmusic.app.rooms.RoomUiState
 import com.brainlessmusic.app.ui.theme.accentInk
@@ -225,6 +226,18 @@ private fun InsideRoom(
     val room = state.room ?: return
     val context = LocalContext.current
     var confirmEnd by remember { mutableStateOf(false) }
+    val switchTo by viewModel.switchTo.collectAsStateWithLifecycle()
+
+    switchTo?.let { code ->
+        // Already in a room: the link's room is offered, not joined, so nobody is pulled out of one unasked.
+        Panel(Modifier.semantics { liveRegion = LiveRegionMode.Polite }) {
+            Text("The link was for room $code. Switching leaves this one.", style = MaterialTheme.typography.bodyMedium)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = viewModel::switchRooms) { Text("Switch rooms") }
+                TextButton(onClick = viewModel::keepRoom) { Text("Stay here") }
+            }
+        }
+    }
 
     Panel {
         Text("Room code", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -244,10 +257,11 @@ private fun InsideRoom(
             Button(onClick = {
                 val send = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
-                    putExtra(Intent.EXTRA_TEXT, "Listen with me on brainlessmusic. Room code: ${room.code}")
+                    // The link opens the app where it's installed and the web player's join page where it isn't.
+                    putExtra(Intent.EXTRA_TEXT, "Listen with me on brainlessmusic: ${RoomLinks.linkFor(room.code)}")
                 }
-                context.startActivity(Intent.createChooser(send, "Share the room code"))
-            }) { Text("Share code") }
+                context.startActivity(Intent.createChooser(send, "Share the room"))
+            }) { Text("Share link") }
             OutlinedButton(onClick = viewModel::leave) { Text("Leave room") }
             if (state.isHost) {
                 TextButton(

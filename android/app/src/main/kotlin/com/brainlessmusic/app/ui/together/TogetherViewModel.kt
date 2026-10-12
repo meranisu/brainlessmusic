@@ -6,6 +6,7 @@ import com.brainlessmusic.app.data.remote.TokenProvider
 import com.brainlessmusic.app.data.remote.dto.RoomLookupDto
 import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.PlaybackUiState
+import com.brainlessmusic.app.rooms.RoomLinks
 import com.brainlessmusic.app.rooms.RoomSession
 import com.brainlessmusic.app.rooms.RoomUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,6 +15,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -31,6 +33,7 @@ class TogetherViewModel @Inject constructor(
     private val session: RoomSession,
     controller: PlaybackController,
     tokenProvider: TokenProvider,
+    links: RoomLinks,
 ) : ViewModel() {
     val room: StateFlow<RoomUiState> = session.state
     val playback: StateFlow<PlaybackUiState> = controller.state
@@ -50,13 +53,45 @@ class TogetherViewModel @Inject constructor(
 
     private var lookupJob: Job? = null
 
+    private val _switchTo = MutableStateFlow<String?>(null)
+
+    /** A room link's code while already in another room: offered as a switch instead of dropping the room unasked. */
+    val switchTo: StateFlow<String?> = _switchTo.asStateFlow()
+
+    init {
+        // A link fills the code in and looks it up, so Join shows who's in before the tap that changes the music.
+        viewModelScope.launch {
+            links.pending.filterNotNull().collect {
+                val code = links.take() ?: return@collect
+                val current = session.state.value.room?.code
+                when {
+                    current == code -> Unit
+                    current != null -> _switchTo.value = code
+                    else -> onCodeChange(code)
+                }
+            }
+        }
+    }
+
+    /** Leaves this room for the one the link named. */
+    fun switchRooms() {
+        val code = _switchTo.value ?: return
+        _switchTo.value = null
+        session.leave()
+        session.join(code)
+    }
+
+    fun keepRoom() {
+        _switchTo.value = null
+    }
+
     /** Capitals only, from the letters a room code can hold (no I or O), six at most; looked up once complete. */
     fun onCodeChange(raw: String) {
-        val clean = raw.uppercase().filter { it in CODE_ALPHABET }.take(CODE_LENGTH)
+        val clean = raw.uppercase().filter { it in RoomLinks.CODE_ALPHABET }.take(RoomLinks.CODE_LENGTH)
         if (clean == _code.value) return
         _code.value = clean
         lookupJob?.cancel()
-        if (clean.length < CODE_LENGTH) {
+        if (clean.length < RoomLinks.CODE_LENGTH) {
             _lookup.value = RoomLookup.Idle
             return
         }
@@ -92,9 +127,6 @@ class TogetherViewModel @Inject constructor(
     fun kick(userId: Int) = session.kick(userId)
 
     private companion object {
-        /** `CODE_ALPHABET` in `backend/src/services/rooms.ts`: no I or O, which read as 1 and 0. */
-        const val CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ"
-        const val CODE_LENGTH = 6
         const val LOOKUP_DEBOUNCE_MS = 250L
     }
 }

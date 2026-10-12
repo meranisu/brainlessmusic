@@ -29,11 +29,23 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.BrainlessMusic.Starting">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Room links open the app on the room (RoomLinks). Verified against the server's assetlinks.json, so
+                 Android skips the "open with" prompt. singleTask: a link from a chat comes back to this one app. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="${serverScheme}"
+                    android:host="${serverHost}"
+                    android:pathPrefix="/join/" />
             </intent-filter>
         </activity>
 

@@ -53,10 +53,12 @@ import com.brainlessmusic.app.ui.theme.LocalSkin
 import com.brainlessmusic.app.ui.splash.SplashScreen
 import com.brainlessmusic.app.ui.splash.StartViewModel
 import com.brainlessmusic.app.ui.together.TogetherScreen
+import com.brainlessmusic.app.rooms.RoomLinks
 
 @Composable
 fun BrainlessNavGraph(
     startViewModel: StartViewModel,
+    roomLinks: RoomLinks,
     navController: NavHostController = rememberNavController(),
 ) {
     val resolvedRoute by startViewModel.resolvedRoute.collectAsStateWithLifecycle()
@@ -78,6 +80,15 @@ fun BrainlessNavGraph(
         navController.navigate(Routes.LOGIN) {
             popUpTo(navController.graph.id) { inclusive = true }
         }
+    }
+
+    // A room link opens Listen together, which takes the code. Signed out or mid-setup, it waits until Home is reached.
+    val pendingRoom by roomLinks.pending.collectAsStateWithLifecycle()
+    val onTop by navController.currentBackStackEntryAsState()
+    LaunchedEffect(pendingRoom, onTop?.destination?.route) {
+        val here = onTop?.destination?.route ?: return@LaunchedEffect
+        if (pendingRoom == null || here in setOf(Routes.SPLASH, Routes.LOGIN, Routes.SETUP, Routes.TOGETHER)) return@LaunchedEffect
+        navController.navigate(Routes.TOGETHER) { launchSingleTop = true }
     }
 
     // Every screen goes through this, so only the one on top takes touches (see `OnTopOnly`).

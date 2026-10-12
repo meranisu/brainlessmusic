@@ -6,6 +6,7 @@ import { config } from './config.js';
 import { registerAuthDecorator } from './plugins/auth.js';
 import { registerSpa } from './plugins/spa.js';
 import albumsRoute from './routes/albums.js';
+import appLinksRoute from './routes/appLinks.js';
 import genresRoute from './routes/genres.js';
 import artistsRoute from './routes/artists.js';
 import authRoute from './routes/auth.js';
@@ -93,6 +94,9 @@ export function buildApp() {
     },
     { prefix: API_PREFIX },
   );
+
+  // At the root, not under /api: Android looks for it at exactly this path on the domain.
+  app.register(appLinksRoute);
 
   // Registered last so it only ever sees requests no API route claimed.
   registerSpa(app, config.frontendPath);

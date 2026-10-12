@@ -27,6 +27,9 @@ android {
         // Override for a dev backend: ./gradlew assembleDebug -PserverUrl=http://10.0.2.2:3000
         val serverUrl = (project.findProperty("serverUrl") as String?) ?: "https://music.nobrainmusic.my"
         buildConfigField("String", "SERVER_URL", "\"$serverUrl\"")
+        // Room links (`/join/<code>`) on that host open the app; the manifest's intent filter reads these.
+        manifestPlaceholders["serverScheme"] = serverUrl.substringBefore("://")
+        manifestPlaceholders["serverHost"] = serverUrl.substringAfter("://").substringBefore("/").substringBefore(":")
 
         // Size: both target phones (POCO F5, Xperia 5 V) are arm64, and only English strings are
         // wanted. `-PallAbis` brings back the x86/32-bit libs for an emulator or an old phone.

@@ -4,6 +4,24 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-12: Room links: Share sends a link that opens the app, or the web player without it
+
+- Friend's request: the shared room message now carries `https://music.nobrainmusic.my/join/<code>` instead of the bare
+  code. Android "Share code" is "Share link"; the web's "Copy code" is "Copy link" (`roomLinkFor`).
+- Android: an App Links intent filter on `/join/` (`android:autoVerify`, host and scheme from `serverUrl` via manifest
+  placeholders) opens the app on Listen together with the code filled in and looked up; one tap on Join enters the room.
+  Already in another room, it offers "Switch rooms" / "Stay here" instead of leaving unasked. Signed out or mid-setup,
+  the link waits until Home. `MainActivity` is now `singleTask`, so a link from a chat reaches the running app
+  (`onNewIntent`) rather than opening a second copy.
+- Backend: `GET /.well-known/assetlinks.json` (root, no auth) names `com.brainlessmusic.app` and the release key's
+  SHA-256, read from the published v0.4.1 APK. Debug builds are not listed, so links open the release app.
+- Web: `/join/:code` (`JoinPage`, works signed out) shows the code, "Sign in to join" and "Get the Android app" (latest
+  GitHub release). The code waits in session storage through sign-in; `RequireAuth` then sends you to Listen together,
+  which fills it in, or offers the switch if you're already in a room.
+- Verified: `npm test` (546 pass, including the new `appLinks.test.ts`), `frontend npm run build` and `lint` (old
+  warnings only), backend `tsc --noEmit`, `:app:compileDebugKotlin` clean and the merged manifest checked. Not run on a
+  phone; App Link verification only happens once smol serves the new file and the new APK is installed.
+
 ## 2026-10-12: Android asks for notifications only in the setup
 
 - Removed `MainActivity.askForNotificationsOnFirstPlayback`: it asked again when music first played, so someone who

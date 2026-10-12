@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `RoomLinks` (new: `handle`, `take`, `linkFor`, `codeFrom`), `MainActivity.onNewIntent()`, `TogetherViewModel.switchRooms()` / `keepRoom()`, `BrainlessNavGraph(roomLinks)`: `android/.../rooms/RoomLinks.kt`, `android/.../MainActivity.kt`, `android/.../ui/together/`, `android/.../ui/navigation/BrainlessNavGraph.kt`; `appLinksRoute` (new): `backend/src/routes/appLinks.ts`; `JoinPage` (new), `lib/roomLink.ts` (new), `RequireAuth`, `TogetherPage`: `frontend/src/`
+**Date:** 2026-10-12
+**How added:** new feature (friend's request via the owner)
+**Purpose:** a shared room is a link that opens the Android app on the room, or the web player's join page without it.
+**Side effects:** `MainActivity` launches `singleTask`; a new public route `/.well-known/assetlinks.json`; one session-storage key (`brainlessmusic.pendingRoom`) on the web.
+**Before:** sharing sent "Room code: XXXXXX", typed in by hand.
+**After:** sharing sends `/join/XXXXXX`; tapping it fills the code in and looks it up, one tap joins.
+
 **Function:** `MainActivity.askForNotificationsOnFirstPlayback()` (removed), `PermissionsStep()`: `android/.../MainActivity.kt`, `android/.../ui/setup/SetupScreen.kt`
 **Date:** 2026-10-12
 **How added:** bug fix (owner report)

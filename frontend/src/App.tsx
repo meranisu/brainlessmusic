@@ -12,6 +12,7 @@ const AccountSelectPage = lazyPage(() =>
   import('./pages/AccountSelectPage').then((m) => ({ default: m.AccountSelectPage })),
 );
 const InvitePage = lazyPage(() => import('./pages/InvitePage').then((m) => ({ default: m.InvitePage })));
+const JoinPage = lazyPage(() => import('./pages/JoinPage').then((m) => ({ default: m.JoinPage })));
 const LibraryPage = lazyPage(() => import('./pages/LibraryPage').then((m) => ({ default: m.LibraryPage })));
 const AlbumsPage = lazyPage(() => import('./pages/AlbumsPage').then((m) => ({ default: m.AlbumsPage })));
 const AlbumDetailPage = lazyPage(() => import('./pages/AlbumDetailPage').then((m) => ({ default: m.AlbumDetailPage })));
@@ -48,6 +49,8 @@ export function App() {
         <Route path="/login" element={<AccountSelectPage />} />
         {/* An invite link (A107-A112): works signed out, and for a guest accepting their own upgrade. */}
         <Route path="/invite/:token" element={<InvitePage />} />
+        {/* A room link without the Android app: works signed out, and sends you on to the room after sign-in. */}
+        <Route path="/join/:code" element={<JoinPage />} />
         {/* The old addresses, kept for printed guest-code cards (`?code=`) and handoff links (`#t=`). */}
         <Route path="/enter" element={<Moved to="/" />} />
         <Route path="/enter/profile" element={<Moved to="/login" />} />
