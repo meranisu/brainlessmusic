@@ -396,6 +396,10 @@ export interface UserSummary {
   createdAt: string;
   /** A guest can be turned into an account with an invite (A107). */
   kind: 'account' | 'guest';
+  /** Last time the app checked in (`GET /auth/me`); null if never. SQLite UTC. */
+  lastSeenAt: string | null;
+  /** Plays in the last 7 days; skips don't count. */
+  plays7d: number;
 }
 
 /** An account invite on the Users page (A107-A112). Dates are SQLite UTC strings. */

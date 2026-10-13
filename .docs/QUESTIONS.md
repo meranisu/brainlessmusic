@@ -61,6 +61,19 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A161 — A person's row shows last seen, plays, date added and guest code *(was Q161)*
+**Answered:** 2026-10-13, all four. Last seen (`users.last_seen_at`, stamped by `GET /auth/me`; `GET /users`
+already sent it as `lastSeenAt`) and plays in the last 7 days (added to `GET /users`); guests also show their code and how many devices signed in with it.
+
+### A160 — A person's actions open in a detail panel *(was Q160)*
+**Answered:** 2026-10-13, picked A. Clicking a person opens a panel with their role, set password, make an account
+(guests), their code and sign-ins (guests), and delete. Rows carry no buttons.
+
+### A159 — The Users tab is roster first *(was Q159)*
+**Answered:** 2026-10-13, picked A. A "Waiting" strip for guest requests (only when any), then everyone in one roster
+with filters (All, Admins, Listeners, Guests) and one "Add someone" button (invite link, guest code, or create it
+yourself), then "Ways in" at the bottom (the guest-code switch, open invite links, unused codes, expired).
+
 ### A158 — Logs get their own tab *(was Q158)*
 **Answered:** 2026-10-13, picked A. Stream errors, playback failures and file integrity move to a new "Logs" tab in
 the Control Center; the Overview shows each one's count and newest entry, with a link.

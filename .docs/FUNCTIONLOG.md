@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `listUsers()` (`plays7d`): `backend/src/db/users.ts`
+**Date:** 2026-10-13
+**How added:** new feature (A161)
+**Purpose:** each person's plays in the last 7 days for the Users roster.
+**Side effects:** one indexed count of `play_history` per user (`idx_play_history_user_played_at`).
+**Before:** id, name, role, kind, created and last-seen dates.
+**After:** also `plays7d`, skips not counted.
+
+**Function:** `UsersPage()`, `RosterRow()`, `AddSomeoneDialog()`: `frontend/src/pages/UsersPage.tsx`; `PersonPanel()`, `PersonTile()` (new): `frontend/src/components/PersonPanel.tsx`; `WaitingRequests()`, `DoorSwitch()`, `UnusedCodes()`, `ExpiredCodes()`, `GuestCodeCreatedDialog()`, `RevokeGuestDialog()`: `frontend/src/components/GuestAccess.tsx`; `useGuestCodes()`, `useGuestCodeActions()`, `deviceCount()`: `frontend/src/hooks/useGuestCodes.ts`; `OpenInvites()`: `frontend/src/components/Invites.tsx`; `formatSince()`: `frontend/src/lib/format.ts`; `roleLabel()`: `frontend/src/lib/people.ts`
+**Date:** 2026-10-13
+**How added:** redesign (A159-A161)
+**Purpose:** the Users tab as waiting requests, one roster with a detail panel, one "Add someone", and the ways in.
+**Side effects:** revoking a used code or answering a request also refreshes the roster.
+**Before:** `GuestCodesPanel` and `InvitesPanel` as separate cards above a table with buttons on every row.
+**After:** the structure above; `GuestCodesPanel.tsx` removed, `InvitesPanel.tsx` renamed `Invites.tsx`.
+
 **Function:** `LogsPage()`, `folderRow()` (time display): `frontend/src/pages/LogsPage.tsx`, `frontend/src/pages/ControlCenterPage.tsx`
 **Date:** 2026-10-13
 **How added:** bug fix (owner request)

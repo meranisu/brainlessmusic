@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from './ToastProvider';
 import { ApiError, apiClient } from '../lib/apiClient';
-import { createInvite, INVITES_KEY } from '../lib/invites';
+import { INVITES_KEY } from '../lib/invites';
 import { formatDate } from '../lib/format';
 import type { AccountInvite } from '../types/api';
 
@@ -12,8 +12,8 @@ export interface CreatedInvite {
   guestName: string | null;
 }
 
-/** "Invite someone" on the Users page, and the invites still open. A link is shown once, when made. */
-export function InvitesPanel({ onCreated }: { onCreated: (invite: CreatedInvite) => void }) {
+/** Invite links not used yet, under "Ways in" (A159). A link is shown once, when made, so only revoking is left. */
+export function OpenInvites() {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
 
@@ -22,50 +22,23 @@ export function InvitesPanel({ onCreated }: { onCreated: (invite: CreatedInvite)
     queryFn: () => apiClient.get<{ invites: AccountInvite[] }>('/admin/invites'),
   });
 
-  const fail = (err: unknown, fallback: string) =>
-    showToast(err instanceof ApiError ? err.message : fallback, 'error');
-
-  const createMutation = useMutation({
-    mutationFn: () => createInvite(),
-    onSuccess: (created) => {
-      queryClient.invalidateQueries({ queryKey: INVITES_KEY });
-      onCreated({ ...created, guestName: null });
-    },
-    onError: (err) => fail(err, 'Could not make an invite link'),
-  });
-
   const revokeMutation = useMutation({
     mutationFn: (id: number) => apiClient.delete(`/admin/invites/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: INVITES_KEY });
       showToast('Invite revoked');
     },
-    onError: (err) => fail(err, 'Could not revoke that invite'),
+    onError: (err) => showToast(err instanceof ApiError ? err.message : 'Could not revoke that invite', 'error'),
   });
 
   const open = data?.invites.filter((invite) => invite.status === 'open') ?? [];
 
   return (
-    <section className="card flex flex-col gap-3 p-4" aria-labelledby="invites-heading">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 id="invites-heading" className="text-sm font-semibold text-white">
-          Invite someone
-        </h3>
-        <button
-          onClick={() => createMutation.mutate()}
-          disabled={createMutation.isPending}
-          className="btn-primary btn-md shrink-0"
-        >
-          {createMutation.isPending ? 'Making…' : 'Make invite link'}
-        </button>
-      </div>
-      <p className="text-xs text-blue-400">
-        Send the link to a friend. They pick their own name and password, then sign in on the web or the Android app.
-        One use, valid 7 days.
-      </p>
-
+    <div>
+      <p className="text-sm text-white">Open invite links ({open.length})</p>
+      <p className="mt-0.5 text-xs text-blue-300">One use each, valid 7 days. Revoke one you sent to the wrong person.</p>
       {open.length > 0 && (
-        <ul className="divide-y divide-blue-800/60 text-sm">
+        <ul className="mt-1 divide-y divide-blue-800/60 text-sm">
           {open.map((invite) => (
             <li key={invite.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
               <span className="text-blue-200">
@@ -83,7 +56,7 @@ export function InvitesPanel({ onCreated }: { onCreated: (invite: CreatedInvite)
           ))}
         </ul>
       )}
-    </section>
+    </div>
   );
 }
 

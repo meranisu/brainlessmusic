@@ -3,7 +3,7 @@ import { beforeEach, describe, it } from 'node:test';
 import { upsertTrack } from './library.js';
 import { insertLibraryRoot } from './libraryRoots.js';
 import { recordScrobble, summarizeRecentPlays } from './plays.js';
-import { insertUser } from './users.js';
+import { insertUser, listUsers } from './users.js';
 import { resetDatabase } from '../testing/harness.js';
 
 let trackId = 0;
@@ -49,5 +49,20 @@ describe('summarizeRecentPlays', () => {
   it('is all zeros with no history', () => {
     const zero = { plays: 0, skips: 0, listeners: 0, minutes: 0 };
     assert.deepEqual(summarizeRecentPlays(), { day: zero, week: zero });
+  });
+});
+
+describe('listUsers plays7d', () => {
+  it("counts each person's plays in the last 7 days, not skips or older plays", () => {
+    const a = insertUser('imran', 'hash');
+    insertUser('meran', 'hash');
+    recordScrobble(a.id, trackId, 180_000);
+    recordScrobble(a.id, trackId, 180_000, daysAgo(2));
+    recordScrobble(a.id, trackId, 20_000, null, null, true);
+    recordScrobble(a.id, trackId, 180_000, daysAgo(9));
+
+    const plays = Object.fromEntries(listUsers().map((u) => [u.username, u.plays7d]));
+    assert.equal(plays.imran, 2);
+    assert.equal(plays.meran, 0);
   });
 });

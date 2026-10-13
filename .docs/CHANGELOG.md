@@ -4,6 +4,29 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-13: Control Center: the Users tab is roster first
+
+- Owner request: the tab was disorganised (the list of people came last, under three cards; guests showed twice;
+  waiting guest requests sat inside the third card; up to four buttons per row). Redesigned per A159-A161.
+- **Waiting for a code**: guest requests at the top, only while someone waits, with Let in / Turn down.
+- **Roster**: everyone in one list, accounts and guests, filtered All / Admins / Listeners / Guests with counts. A row
+  shows an initial tile (an admin's edged in the accent, as a room shows its host), name, role, last seen, plays in
+  the last 7 days, date added, and a guest's code and device count. On a phone the columns fold into one line.
+- **Add someone**: one button and dialog for the three ways in: invite link (the usual), guest code (then a dialog to
+  copy the code or link or download the image), or making the account yourself.
+- **Person panel** (A160): clicking a row opens a panel from the right with the facts, role, set password, a guest's
+  code and sign-ins, make an account for a guest, and delete or revoke. Rendered into `<body>`, since inside the page
+  it sat under the sticky header.
+- **Ways in** at the bottom: the guest door switch, open invite links, unused guest codes, expired codes.
+- `GET /users` adds `plays7d`; `lastSeenAt` was already sent and is now used.
+- `GuestCodesPanel` split into `hooks/useGuestCodes.ts` and `components/GuestAccess.tsx`; `InvitesPanel.tsx` became
+  `Invites.tsx` (`OpenInvites`, `InviteLinkDialog`).
+- Verified: `npm test` (550 pass; new `plays7d` test in `recentPlays.test.ts`), `npm run build` and `npm run lint`
+  (no new warnings). A throwaway backend on :3111 against a migrated scratch copy of the local database, with test
+  rows (a waiting request, a guest with a code and two sign-ins, an unused code, a play), screenshotted in headless
+  Chromium at 1400 px and 390 px: the tab, a guest's panel, an account's panel, the Add someone dialog; no page errors.
+  Copy deleted afterwards. Not clicked through: Let in, role change, set password, delete and revoke against a server.
+
 ## 2026-10-13: Control Center: Logs show server times in the viewer's time zone
 
 - Owner request. Playback failure times are SQLite's `datetime('now')`, UTC with no zone, and the Logs tab read them

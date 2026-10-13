@@ -19,6 +19,7 @@ sharing links, jukebox mode, per-client transcoding profiles, plugins) are liste
 | Feature | Description | Layers | Priority | Complexity | Notes |
 |---|---|---|---|---|---|
 | Room sync (group listening) | Spotify Jam-style shared session — synced playback across multiple listeners, anyone can skip | 🔧🌐📱 | | High | Core feature. Build here first — full effort. No existing reference to lean on. |
+| User profile page | A page per person: most played songs, favourite artists, songs and genres, liked and disliked songs, playlists they made (each public or private), a profile picture they upload, a bio and other details | 🔧🌐📱 | | Med-High | Owner request, 2026-10-13, raised while redesigning the Users tab. Much of the data exists: per-user listening stats behind Home (`backend/src/db/listeningStats.ts`), likes and dislikes (A153), playlists. New: picture upload and storage (resize, size cap), bio fields, a public/private flag on playlists, and who can see whose profile. "Public" means other people on this server, not a sharing link (out of scope). Guests: decide whether they get one |
 
 ## Offline / on-the-road
 

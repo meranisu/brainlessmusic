@@ -20,6 +20,20 @@ export function formatDateTime(iso: string): string {
     : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
+/** How long ago, roughly: "just now", "5 min ago", "3 h ago", "2 days ago", then the date. `now` is passed in, so a render stays pure. */
+export function formatSince(iso: string, now: number): string {
+  const at = Date.parse(iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z');
+  if (Number.isNaN(at)) return iso;
+  const minutes = Math.floor((now - at) / 60_000);
+  if (minutes < 2) return 'just now';
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 14) return days === 1 ? 'yesterday' : `${days} days ago`;
+  return new Date(at).toLocaleDateString();
+}
+
 /**
  * A short device description from a user agent, for the guest sign-in log: "Firefox on Windows", "Android app". Rough
  * on purpose; the raw string is kept as a tooltip.

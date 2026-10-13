@@ -169,12 +169,17 @@ export interface UserSummary {
   lastSeenAt: string | null;
   /** `display_name`, else `username`. */
   displayName: string;
+  /** Plays past the scrobble threshold in the last 7 days; skips don't count. */
+  plays7d: number;
 }
 
 export function listUsers(): UserSummary[] {
   const rows = db
     .prepare(
-      'SELECT id, username, is_admin, created_at, kind, last_seen_at, display_name FROM users ORDER BY username COLLATE NOCASE',
+      `SELECT id, username, is_admin, created_at, kind, last_seen_at, display_name,
+              (SELECT COUNT(*) FROM play_history ph
+               WHERE ph.user_id = users.id AND ph.skipped = 0 AND ph.played_at > datetime('now', '-7 days')) AS plays_7d
+       FROM users ORDER BY username COLLATE NOCASE`,
     )
     .all() as {
     id: number;
@@ -184,6 +189,7 @@ export function listUsers(): UserSummary[] {
     kind: UserKind;
     last_seen_at: string | null;
     display_name: string | null;
+    plays_7d: number;
   }[];
 
   return rows.map((row) => ({
@@ -194,6 +200,7 @@ export function listUsers(): UserSummary[] {
     kind: row.kind,
     lastSeenAt: row.last_seen_at,
     displayName: nameOf(row),
+    plays7d: row.plays_7d,
   }));
 }
 
