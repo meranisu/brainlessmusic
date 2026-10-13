@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `AddToPlaylistDialog()` (`toggleMutation` per-row pending ids, `createMutation` reports a failed add separately): `frontend/src/components/AddToPlaylistDialog.tsx`; `PUT /me/avatar`: `backend/src/routes/profile.ts`
+**Date:** 2026-10-13
+**How added:** code review fixes
+**Purpose:** no duplicate playlist after a failed add, no double request from quick taps, no crop slot held by a slow upload.
+**Side effects:** none new.
+**Before:** a failed add after create looked like a failed create; only the last-tapped row was locked; the slot was taken before the upload was read.
+**After:** unticked row and a clear toast; every saving row locked; slot taken after the file is read.
+
 **Function:** `checkPlaylistName()` (new): `backend/src/routes/playlists.ts`; `POST /playlists`, `PATCH /playlists/:id`, `POST /playlists/:id/copy`, `GET /playlists`; `listPlaylistsForUser(ownerId, trackId?)`: `backend/src/db/playlists.ts`
 **Date:** 2026-10-13
 **How added:** hardening (S21) + owner request (add-to-playlist redo)

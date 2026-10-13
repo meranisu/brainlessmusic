@@ -42,6 +42,8 @@ export function AddToPlaylistDialog({ trackId, trackTitle, trackArtist, onClose 
   const [newName, setNewName] = useState('');
   const [triedToSave, setTriedToSave] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  // Rows with an add or take-out on its way. Per row, so a tap on another row doesn't free this one for a second try.
+  const [pendingIds, setPendingIds] = useState<ReadonlySet<number>>(() => new Set());
 
   const queryKey = ['playlists', 'with-track', trackId];
   const { data, isLoading, isError, refetch, isRefetching } = useQuery({
@@ -72,6 +74,13 @@ export function AddToPlaylistDialog({ trackId, trackTitle, trackArtist, onClose 
   }
 
   const toggleMutation = useMutation({
+    onMutate: (playlist: ListedPlaylist) => setPendingIds((ids) => new Set(ids).add(playlist.id)),
+    onSettled: (_res, _err, playlist) =>
+      setPendingIds((ids) => {
+        const next = new Set(ids);
+        next.delete(playlist.id);
+        return next;
+      }),
     mutationFn: async (playlist: ListedPlaylist) => {
       if (playlist.hasTrack) {
         await apiClient.delete(`/playlists/${playlist.id}/tracks/${trackId}`);
@@ -98,18 +107,24 @@ export function AddToPlaylistDialog({ trackId, trackTitle, trackArtist, onClose 
   const createMutation = useMutation({
     mutationFn: async (name: string) => {
       const playlist = await apiClient.post<PlaylistSummary>('/playlists', { name });
-      await apiClient.post(`/playlists/${playlist.id}/tracks`, { trackId });
-      return playlist;
+      // The playlist exists from here on, so a failed add is reported as that, not as a failed create: trying the
+      // create again would make a second one.
+      const added = await apiClient.post(`/playlists/${playlist.id}/tracks`, { trackId }).then(
+        () => true,
+        () => false,
+      );
+      return { playlist, added };
     },
-    onSuccess: (playlist) => {
+    onSuccess: ({ playlist, added }) => {
       queryClient.setQueryData<{ playlists: ListedPlaylist[] }>(queryKey, (old) => ({
         playlists: [
-          { ...playlist, trackCount: 1, isPublic: false, coverAlbumIds: [], hasTrack: true },
+          { ...playlist, trackCount: added ? 1 : 0, isPublic: false, coverAlbumIds: [], hasTrack: added },
           ...(old?.playlists ?? []),
         ],
       }));
       queryClient.invalidateQueries({ queryKey: ['playlists'] });
-      showToast(`Made “${playlist.name}” with this song in it`);
+      if (added) showToast(`Made “${playlist.name}” with this song in it`);
+      else showToast(`Made “${playlist.name}”, but couldn't add the song. Tap it to try again.`, 'error');
       setCreating(false);
       setNewName('');
       setTriedToSave(false);
@@ -185,7 +200,6 @@ export function AddToPlaylistDialog({ trackId, trackTitle, trackArtist, onClose 
   const query = filter.trim().toLocaleLowerCase();
   const shown = query ? playlists?.filter((p) => p.name.toLocaleLowerCase().includes(query)) : playlists;
   const inCount = playlists?.filter((p) => p.hasTrack).length ?? 0;
-  const busyId = toggleMutation.isPending ? toggleMutation.variables?.id : undefined;
 
   // On <body>, so the sticky site header (its own stacking context) can't sit on top of the dimmed page.
   return createPortal(
@@ -303,7 +317,7 @@ export function AddToPlaylistDialog({ trackId, trackTitle, trackArtist, onClose 
           {shown && shown.length > 0 && (
             <ul>
               {shown.map((playlist) => {
-                const busy = busyId === playlist.id;
+                const busy = pendingIds.has(playlist.id);
                 return (
                   <li key={playlist.id}>
                     <button

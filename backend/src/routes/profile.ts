@@ -172,24 +172,23 @@ const profileRoute: FastifyPluginAsync = async (fastify) => {
         .header('Retry-After', String(limit.retryAfterSeconds))
         .send({ error: 'Too many picture changes. Try again in a few minutes.' });
     }
+    const file = await request.file({ limits: { fileSize: MAX_AVATAR_BYTES, files: 1 } });
+    if (!file) return reply.code(400).send({ error: 'No picture sent' });
+    let image: Buffer;
+    try {
+      image = await file.toBuffer();
+    } catch {
+      return reply.code(413).send({ error: `The picture can be at most ${MAX_AVATAR_BYTES / 1024 / 1024} MB` });
+    }
+    // The slot is taken only once the whole file is here, so a slow upload can't hold one while it trickles in.
     if (!takeAvatarSlot()) {
       return reply.code(503).header('Retry-After', '5').send({ error: 'Busy with other pictures. Try again in a moment.' });
     }
     let avatarId: string;
     try {
-      const file = await request.file({ limits: { fileSize: MAX_AVATAR_BYTES, files: 1 } });
-      if (!file) return reply.code(400).send({ error: 'No picture sent' });
-      let image: Buffer;
-      try {
-        image = await file.toBuffer();
-      } catch {
-        return reply.code(413).send({ error: `The picture can be at most ${MAX_AVATAR_BYTES / 1024 / 1024} MB` });
-      }
-      try {
-        avatarId = await saveAvatar(config.avatarPath, image);
-      } catch {
-        return reply.code(400).send({ error: "That file couldn't be read as a picture" });
-      }
+      avatarId = await saveAvatar(config.avatarPath, image);
+    } catch {
+      return reply.code(400).send({ error: "That file couldn't be read as a picture" });
     } finally {
       releaseAvatarSlot();
     }

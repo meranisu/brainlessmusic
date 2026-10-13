@@ -4,6 +4,21 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-13: Review fixes for the add-to-playlist window and picture uploads
+
+- Code review of 311656d and 8ff0fb0 found three small bugs; all fixed.
+- Web `AddToPlaylistDialog`: a new playlist whose song add failed was reported as "Could not make the playlist",
+  so Create again made a second one. Now the playlist goes in the list unticked with "Made “X”, but couldn't add the
+  song. Tap it to try again." (as Android already did).
+- Web `AddToPlaylistDialog`: only the last-tapped row was locked while saving, so tapping A, B, then A again sent A
+  twice (a second take-out failed with an error toast). Each row now stays locked until its own save finishes.
+- `PUT /me/avatar`: a crop slot (S7) is now taken only after the whole file has arrived, so two slow uploads can't
+  hold both slots and make everyone else's picture changes answer 503.
+- Verified: backend `npm test` 596/596 and `tsc --noEmit`; frontend `tsc -b` and oxlint on the dialog. Web driven in
+  headless Chromium against a throwaway server with the add forced to fail and saves slowed to 1.5 s: the row stayed
+  locked after tapping another, one request per playlist, the failed-add toast, one unticked row, a tap on it added
+  the song; no page errors.
+
 ## 2026-10-13: Add to playlist redone, and playlist names checked everywhere (S21)
 
 - Owner request: the add-to-playlist window felt bare and gave no feedback. Web `AddToPlaylistDialog` now shows the
