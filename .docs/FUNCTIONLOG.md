@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `/auth/login`, `/auth/passcode-login`, `PUT /me/email` (`backend/src/routes/auth.ts`); `createInvite()` (`db/invites.ts`); `SignUpStep()` (`frontend/src/pages/InvitePage.tsx`); `EmailSection()` (`pages/OptionsPage.tsx`); `lib/accountRules.ts`; `AuthRepository.login()`, `acceptInvite()`, `needsEmail()`, `EmailPromptViewModel.check()` (Android)
+**Date:** 2026-10-13
+**How added:** bug fix (code review of `1b28034`)
+**Purpose:** close the gaps the review found in sign-up and email.
+**Side effects:** login answers carry `username`; changing a set email needs the password.
+**Before:** see the review fixes entry in the changelog of the same date.
+**After:** as described there.
+
 **Function:** `cleanEmail()`, `findUserByEmail()`, `findUserByLogin()`, `setEmail()` (`backend/src/db/users.ts`); `normalizedCode()`, `findByToken()`, `createInvite()`, `acceptInvite()` (`db/invites.ts`); `POST /invites/:token/accept`, `GET /invites/:token` (`routes/invites.ts`); `limitKeyOf()`, `/auth/login`, `/auth/passcode-login`, `/auth/register`, `/auth/me`, `PUT /me/email` (`routes/auth.ts`)
 **Date:** 2026-10-13
 **How added:** new feature (A189-A192)

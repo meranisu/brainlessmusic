@@ -95,10 +95,11 @@ class AuthRepository @Inject constructor(
             tokenProvider.isGuest = false
             _needsSignIn.value = false
             mediaUrlProvider.current = ApiServiceFactory.normalize(validated)
-            // [username] may be an email (A192); the saved name is the real username when the server says it, since
-            // the first-run setup and Settings key on it. A failure here doesn't undo the login.
+            // [username] may be an email (A192); the login answer carries the real one, which the first-run setup and
+            // Settings key on. A failure of the `me()` after doesn't undo the login.
             val me = runCatching { apiServiceFactory.get(validated).me() }.getOrNull()
-            sessionStore.saveSession(validated, me?.username ?: username.trim(), response.token, isGuest = false)
+            val realName = response.username ?: me?.username ?: username.trim()
+            sessionStore.saveSession(validated, realName, response.token, isGuest = false)
             if (me != null) {
                 sessionStore.saveDisplayName(nameOf(me))
                 runCatching { syncTheme(me) }
@@ -153,9 +154,8 @@ class AuthRepository @Inject constructor(
      */
     suspend fun acceptInvite(code: String, body: AcceptInviteRequest): Result<String> {
         val serverUrl = serverConfig.url
-        return try {
-            val response = apiServiceFactory.get(serverUrl).acceptInvite(code, body)
-            Result.success(adopt(serverUrl, response.token))
+        val response = try {
+            apiServiceFactory.get(serverUrl).acceptInvite(code, body)
         } catch (e: Exception) {
             val message = when ((e as? HttpException)?.code()) {
                 400, 409 -> serverError(e) ?: "Check what you typed and try again."
@@ -163,15 +163,28 @@ class AuthRepository @Inject constructor(
                 429 -> "Too many tries from here. Wait a little."
                 else -> classifyError(e).toMessage()
             }
-            Result.failure(IllegalStateException(message))
+            return Result.failure(IllegalStateException(message))
+        }
+        // The account exists and the invite is spent from here on, so a failed `/auth/me` must not throw the session
+        // away: trying again would only get "already used".
+        return try {
+            Result.success(adopt(serverUrl, response.token))
+        } catch (e: Exception) {
+            tokenProvider.current = response.token
+            tokenProvider.isGuest = false
+            _needsSignIn.value = false
+            mediaUrlProvider.current = ApiServiceFactory.normalize(serverUrl)
+            sessionStore.saveSession(serverUrl, response.username, response.token, isGuest = false)
+            sessionStore.saveDisplayName(response.username)
+            Result.success(response.username)
         }
     }
 
-    /** True when this is an account with no email yet (A190), so the app asks for one. Quietly false offline. */
-    suspend fun needsEmail(): Boolean =
+    /** True when this is an account with no email yet (A190), so the app asks for one; null when the server can't say. */
+    suspend fun needsEmail(): Boolean? =
         runCatching { apiServiceFactory.get(serverConfig.url).me() }
             .map { !it.isGuest && it.email == null }
-            .getOrDefault(false)
+            .getOrNull()
 
     /** Adds or changes the account's email; the failure carries a sentence to show. */
     suspend fun setEmail(email: String): Result<String> =

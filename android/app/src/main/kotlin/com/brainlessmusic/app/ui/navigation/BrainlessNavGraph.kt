@@ -350,7 +350,7 @@ fun BrainlessNavGraph(
         )
         // An account with no email is asked for one once it is in the app (A190).
         val here = onTop?.destination?.route
-        EmailPrompt(active = here != null && here !in setOf(Routes.SPLASH, Routes.LOGIN, Routes.SIGNUP, Routes.SETUP))
+        EmailPrompt(active = here != null && here !in setOf(Routes.SPLASH, Routes.LOGIN, Routes.SIGNUP, Routes.SETUP), route = here)
     }
 }
 

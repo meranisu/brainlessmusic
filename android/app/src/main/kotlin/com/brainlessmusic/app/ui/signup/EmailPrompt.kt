@@ -53,13 +53,17 @@ class EmailPromptViewModel @Inject constructor(
 
     private var checkedFor: String? = null
 
-    /** Called whenever the app proper is reached; asks the server once per signed-in username. */
+    /**
+     * Called on every screen change in the app proper; asks the server until it has answered once for this username.
+     * Offline, the next screen change asks again.
+     */
     fun check() {
         viewModelScope.launch {
             val who = authRepository.savedUsername() ?: return@launch
             if (who == checkedFor || laterThisRun) return@launch
+            val needs = authRepository.needsEmail() ?: return@launch
             checkedFor = who
-            if (authRepository.needsEmail()) _state.update { it.copy(visible = true) }
+            if (needs) _state.update { it.copy(visible = true) }
         }
     }
 
@@ -91,11 +95,11 @@ class EmailPromptViewModel @Inject constructor(
     }
 }
 
-/** Shown over the app while [active] (a signed-in screen, not login, sign-up or setup). */
+/** Shown over the app while [active] (a signed-in screen, not login, sign-up or setup); [route] retriggers the check. */
 @Composable
-fun EmailPrompt(active: Boolean, viewModel: EmailPromptViewModel = hiltViewModel()) {
+fun EmailPrompt(active: Boolean, route: String?, viewModel: EmailPromptViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    LaunchedEffect(active) { if (active) viewModel.check() }
+    LaunchedEffect(active, route) { if (active) viewModel.check() }
     if (!active || !state.visible) return
 
     AlertDialog(

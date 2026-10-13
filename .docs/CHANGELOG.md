@@ -4,6 +4,26 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-13: Review fixes for sign-up and email (A187-A192)
+
+- Backend: `/auth/login` and `/auth/passcode-login` also answer with the real `username`, so a client signed in by
+  email knows it. `PUT /me/email` takes the current password to change an email already set (adding the first needs
+  none). A freshly made invite code that clashes with an existing one is drawn again instead of failing on the index.
+- Web: the sign-up page checks its code once (no refetch on focus or reconnect) and stops checking after sign-up, so
+  switching tabs mid-form neither spends the address's check limit nor swaps the form for an error. The "done"
+  screen shows before the sign-in step, which no longer bounces it to "already used". "Got an invite?" shows with
+  open sign-ups too, since an upgrade code only works there. Options asks for the current password to change an email.
+  `lib/accountRules.ts` holds the password and passcode rules and the error-to-sentence helper both forms used.
+- Android: if the account is made but the follow-up `/auth/me` fails, the phone keeps the session instead of an error
+  and a spent code. Email sign-in saves the username the server returns. The email prompt asks again on the next
+  screen when the first check was offline, instead of giving up until the app restarts.
+- Not changed: invite codes are still hashed with plain SHA-256. 40 bits is guessable offline, but only by someone
+  holding the database, who already has more than invites. Accept still writes the row then email and passcode in a
+  second statement, inside one transaction.
+- Verified: backend `tsc --noEmit` and `npm test` (617 pass, new tests for the password on an email change and the
+  username in the login answer); web `npm run build` and `npm run lint`; Android `compileDebugKotlin` and
+  `InviteCodeTest`. Not run in a browser or on a phone after these fixes.
+
 ## 2026-10-13: Sign up with an invite code, email and an optional passcode; sign in by email (A187-A192)
 
 - Backend: migration `0037` adds `users.email` (lowercase, unique when set). Invites are now an 8-character code

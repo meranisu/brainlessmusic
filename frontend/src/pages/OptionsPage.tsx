@@ -7,6 +7,7 @@ import { useRef, useState, type FormEvent } from 'react';
 import { HandoffDialog } from '../components/HandoffDialog';
 import { LibraryBrowseDialog } from '../components/LibraryBrowseDialog';
 import { Numpad } from '../components/Numpad';
+import { PasswordInput } from '../components/PasswordInput';
 import { useToast } from '../components/ToastProvider';
 import { ApiError, apiClient } from '../lib/apiClient';
 import { formatScanStatus } from '../lib/format';
@@ -599,15 +600,19 @@ function EmailSection({ current }: { current: string | null }) {
   const { showToast } = useToast();
   const [editing, setEditing] = useState(false);
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [saving, setSaving] = useState(false);
+  // Changing one already set takes the current password (the server checks too).
+  const needsPassword = current !== null && email.trim().toLowerCase() !== current;
 
   async function save(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
     try {
-      await apiClient.put('/me/email', { email: email.trim() });
+      await apiClient.put('/me/email', { email: email.trim(), password: needsPassword ? password : undefined });
       await refreshUser();
       setEditing(false);
+      setPassword('');
       showToast('Email saved');
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : 'Could not save the email', 'error');
@@ -637,11 +642,37 @@ function EmailSection({ current }: { current: string | null }) {
               autoFocus
               className="input w-full"
             />
+            {needsPassword && (
+              <>
+                <label htmlFor="options-email-password" className="mt-3 mb-1 block text-sm text-blue-200">
+                  Current password
+                </label>
+                <PasswordInput
+                  id="options-email-password"
+                  value={password}
+                  onChange={setPassword}
+                  autoComplete="current-password"
+                  required
+                />
+              </>
+            )}
             <div className="mt-3 flex gap-2">
-              <button type="submit" disabled={saving || !email.trim()} className="btn-primary btn-md">
+              <button
+                type="submit"
+                disabled={saving || !email.trim() || (needsPassword && !password)}
+                className="btn-primary btn-md"
+              >
                 {saving ? 'Saving…' : 'Save'}
               </button>
-              <button type="button" onClick={() => setEditing(false)} disabled={saving} className="btn-ghost btn-md">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditing(false);
+                  setPassword('');
+                }}
+                disabled={saving}
+                className="btn-ghost btn-md"
+              >
                 Cancel
               </button>
             </div>

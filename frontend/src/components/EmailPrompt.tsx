@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { useScrollLock } from '../hooks/useScrollLock';
+import { sentence } from '../lib/accountRules';
 import { ApiError, apiClient } from '../lib/apiClient';
 
 /** "Later" lasts for this browser session; the next one asks again (A190). */
@@ -49,7 +50,7 @@ function EmailDialog({ onLater }: { onLater: () => void }) {
       await apiClient.put('/me/email', { email: email.trim() });
       await refreshUser();
     } catch (err) {
-      setError(err instanceof ApiError ? capitalize(err.message) : 'Could not save it. Try again.');
+      setError(err instanceof ApiError ? sentence(err.message) : 'Could not save it. Try again.');
       setSaving(false);
     }
   }
@@ -100,8 +101,4 @@ function EmailDialog({ onLater }: { onLater: () => void }) {
       </form>
     </div>
   );
-}
-
-function capitalize(message: string): string {
-  return message.charAt(0).toUpperCase() + message.slice(1);
 }

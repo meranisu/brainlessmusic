@@ -5,11 +5,9 @@ import { useAuth } from '../auth/AuthContext';
 import { ShellBackdrop } from '../components/BackdropDepth';
 import { BrandMark, Wordmark } from '../components/BrandLockup';
 import { PasswordInput } from '../components/PasswordInput';
+import { MIN_PASSWORD_LENGTH, PASSCODE_PATTERN, sentence } from '../lib/accountRules';
 import { ApiError, apiClient } from '../lib/apiClient';
 import { formatDate } from '../lib/format';
-
-const MIN_PASSWORD_LENGTH = 8;
-const PASSCODE_PATTERN = /^\d{4,8}$/;
 
 interface InvitePeek {
   status: 'open' | 'used' | 'expired' | 'revoked';
@@ -106,6 +104,12 @@ function SignUpStep({ code, onBadCode }: { code: string; onBadCode?: () => void 
     queryKey: ['invite', code],
     queryFn: () => apiClient.get<InvitePeek>(`/invites/${encodeURIComponent(code)}`),
     retry: false,
+    // Checks are rate limited per address (30 an hour), and a refetch that failed would swap a half-filled form for
+    // an error. Once is enough; after sign-up it would only answer "used".
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    enabled: done === null,
   });
 
   async function onSubmit(e: FormEvent) {
@@ -126,10 +130,11 @@ function SignUpStep({ code, onBadCode }: { code: string; onBadCode?: () => void 
         `/invites/${encodeURIComponent(code)}/accept`,
         { username: username.trim(), email: email.trim(), password, passcode: passcode || undefined },
       );
-      await adoptToken(result.token);
+      // Done first: signing in clears every cached query, and the account exists whether or not that part works.
       setDone(result.username);
+      await adoptToken(result.token).catch(() => {});
     } catch (err) {
-      setError(err instanceof ApiError ? capitalize(err.message) : 'Something went wrong. Try again.');
+      setError(err instanceof ApiError ? sentence(err.message) : 'Something went wrong. Try again.');
     } finally {
       setSubmitting(false);
     }
@@ -266,7 +271,3 @@ function SignUpStep({ code, onBadCode }: { code: string; onBadCode?: () => void 
   );
 }
 
-/** Server errors start lower-case ("username already taken"); this page shows them as sentences. */
-function capitalize(message: string): string {
-  return message.charAt(0).toUpperCase() + message.slice(1);
-}

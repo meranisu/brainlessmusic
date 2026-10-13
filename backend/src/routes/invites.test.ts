@@ -283,6 +283,27 @@ describe('signing up with a code (A189-A192)', () => {
     assert.equal((await app.inject({ method: 'GET', url: '/api/auth/me', headers: adminAuth })).json().email, 'boss@example.com');
   });
 
+  it('changing an email already set takes the current password', async () => {
+    const put = (payload: object) => app.inject({ method: 'PUT', url: '/api/me/email', headers: adminAuth, payload });
+    assert.equal((await put({ email: 'first@example.com' })).statusCode, 200, 'the first one needs none');
+    assert.equal((await put({ email: 'first@example.com' })).statusCode, 200, 'the same one again is no change');
+    assert.equal((await put({ email: 'second@example.com' })).statusCode, 403);
+    assert.equal((await put({ email: 'second@example.com', password: 'wrong password' })).statusCode, 403);
+    const ok = await put({ email: 'second@example.com', password: 'correct horse battery staple' });
+    assert.equal(ok.statusCode, 200, ok.body);
+  });
+
+  it('login answers with the real username when signed in by email', async () => {
+    const { token } = await invite();
+    assert.equal((await accept(token, 'Robin', { email: 'robin@example.com' })).statusCode, 201);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { username: 'robin@example.com', password: 'a long enough password' },
+    });
+    assert.equal(res.json().username, 'Robin');
+  });
+
   it('guests can\'t add an email', async () => {
     const guest = insertGuest();
     const headers = bearer(signToken({ id: guest.id, username: guest.username, sessionVersion: guest.session_version }));

@@ -77,8 +77,12 @@ export const createInvite = db.transaction(
       ).run(guestUserId);
     }
 
+    // A clash with an existing code is about one in a trillion, but would be a 500 from the UNIQUE index.
     let token = '';
-    for (let i = 0; i < CODE_LENGTH; i += 1) token += CODE_ALPHABET[randomInt(CODE_ALPHABET.length)];
+    do {
+      token = '';
+      for (let i = 0; i < CODE_LENGTH; i += 1) token += CODE_ALPHABET[randomInt(CODE_ALPHABET.length)];
+    } while (findByToken(token));
     const result = db
       .prepare(
         `INSERT INTO account_invites (token_hash, created_by, guest_user_id, expires_at)

@@ -367,7 +367,8 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
     }
 
     const token = signToken(tokenUserOf(user));
-    return reply.send({ token });
+    // The real username, since what was typed may be an email (A192); the Android app keys per-account settings on it.
+    return reply.send({ token, username: user.username });
   });
 
   /** Username plus a short numeric passcode. Rate-limited (default 8 failures/minute per IP), since the keyspace is small. */
@@ -398,7 +399,8 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
     }
 
     const token = signToken(tokenUserOf(user));
-    return reply.send({ token });
+    // The real username, since what was typed may be an email (A192); the Android app keys per-account settings on it.
+    return reply.send({ token, username: user.username });
   });
 
   /** Creates or replaces the signed-in account's own passcode. */
@@ -470,13 +472,26 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
     return reply.send({ displayName: stored ?? user.username });
   });
 
-  /** Adds or changes the signed-in account's email (A190). Clearing it isn't offered: new accounts must have one. */
-  fastify.put<{ Body: { email?: unknown } }>(
+  /**
+   * Adds or changes the signed-in account's email (A190). Clearing it isn't offered: new accounts must have one. A wrong
+   * password here isn't rate limited separately: the session already proves who this is.
+   */
+  fastify.put<{ Body: { email?: unknown; password?: unknown } }>(
     '/me/email',
     { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
       const email = cleanEmail(request.body?.email);
       if (email === undefined) return reply.code(400).send({ error: 'enter a valid email' });
+
+      // Changing an email someone already has takes their password: it signs in, and will reset the password one day,
+      // so a borrowed session must not be able to swap it. Adding the first one doesn't, so the prompt stays one field.
+      const me = findUserById(request.user!.id)!;
+      if (me.email !== null && me.email !== email) {
+        const password = request.body?.password;
+        if (typeof password !== 'string' || !(await verifyPassword(password, me.password_hash))) {
+          return reply.code(403).send({ error: 'your current password is needed to change your email' });
+        }
+      }
 
       const owner = findUserByEmail(email);
       if (owner && owner.id !== request.user!.id) {

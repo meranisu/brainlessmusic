@@ -61,6 +61,8 @@ data class DisplayNameResponse(
 /** Shared by `/auth/login` and `/auth/guest`: both hand back an ordinary session token. */
 data class LoginResponse(
     val token: String,
+    /** The real username from `/auth/login`, even when an email was typed (A192); null from `/auth/guest` and older servers. */
+    val username: String? = null,
 )
 
 data class MeResponse(

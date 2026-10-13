@@ -835,8 +835,9 @@ export function AccountSelectPage() {
                 )}
               </div>
 
-              {/* Closed sign-ups: the way in for someone holding an invite code (A191). */}
-              {registrationOpen === false && (
+              {/* The way in for someone holding an invite code (A191), whether or not open sign-ups are on: an upgrade
+                  invite only works here. Hidden until the status check answers, like Register. */}
+              {registrationOpen !== null && (
                 <div className={`profile-stage-3b profile-card-glow card p-6 sm:p-7 ${gridFade('guest')}`}>
                   <h2 className="text-lg font-semibold text-white">Got an invite?</h2>
                   <p className="mt-1 text-sm text-blue-300">Make your account with the code you were sent.</p>
