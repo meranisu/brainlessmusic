@@ -61,6 +61,19 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A164 — Public playlists ship on web and Android together *(was Q164)*
+**Answered:** 2026-10-13, picked A. One server change, both clients in the same piece of work.
+
+### A163 — Guests see public playlists but don't publish *(was Q163)*
+**Answered:** 2026-10-13, picked A. Guests can browse and play other people's public playlists; a guest's own
+playlists stay private (guests are anonymous and pruned when idle).
+
+### A162 — Someone else's public playlist: listen and save a copy *(was Q162)*
+**Answered:** 2026-10-13, picked A. Play, shuffle, add to queue, and "Save a copy" to make your own editable one; only
+the owner edits theirs. Built on these, stated when asked: every playlist is private until its owner makes it public;
+the Playlists section gets a "From others" part showing each owner; search gets a Playlists group (your own and public
+ones); "public" means people on this server, not a sharing link.
+
 ### A161 — A person's row shows last seen, plays, date added and guest code *(was Q161)*
 **Answered:** 2026-10-13, all four. Last seen (`users.last_seen_at`, stamped by `GET /auth/me`; `GET /users`
 already sent it as `lastSeenAt`) and plays in the last 7 days (added to `GET /users`); guests also show their code and how many devices signed in with it.
