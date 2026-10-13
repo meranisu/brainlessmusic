@@ -4,6 +4,20 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-13: Review fixes: Overview minutes, admin create, stale check rows
+
+- From the review of the six commits pushed earlier today (findings 1 to 3).
+- Overview's LISTENED minutes summed raw `ms_played`, so a web play (scrobbled at the threshold, never finished)
+  counted about half a song and disagreed with the Stats page. `summarizeRecentPlays` now joins `tracks` and uses the
+  Stats page's `LISTENED_MS` rule (A62), exported from `listeningStats.ts` (that export went out in `abc35a4`).
+- Users, "Make the account yourself" with Admin ticked: if the account was created but the role change failed, the
+  toast said "Could not create that account" and the roster wasn't refreshed. It now says the account was created
+  as a listener and to try Make admin from their panel, and the roster refreshes.
+- Overview board: after a failed poll React Query keeps the last answer, so every row but SERVER still read OK with
+  old numbers. A row whose source query failed now shows "--" and "last known: ..." without its link.
+- Verified: `npm test` in `backend/` (573 pass, a new case for an unfinished play counting as the whole song),
+  `npm run build` and `npm run lint` in `frontend/` (no new warnings). The two web changes not checked in a browser.
+
 ## 2026-10-13: Profile page: server (A167-A170)
 
 - Migration `0035`: `users.bio`, `avatar_id`, `favorite_track_id`, `favorite_artist_id` (the pins have no foreign key

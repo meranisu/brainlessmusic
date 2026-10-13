@@ -4,6 +4,30 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `summarizeRecentPlays()`: `backend/src/db/plays.ts`
+**Date:** 2026-10-13
+**How added:** bug fix (review finding 1)
+**Purpose:** plays, skips, listeners and minutes for the Overview's last 24 hours and 7 days.
+**Side effects:** none (read only); now joins `tracks`.
+**Before:** minutes were the raw `ms_played` sum, so an unfinished play counted only what was stored at the scrobble.
+**After:** minutes use `LISTENED_MS`, the Stats page's rule: an unfinished play counts as the whole song.
+
+**Function:** `AddSomeoneDialog` `createMutation`: `frontend/src/pages/UsersPage.tsx`
+**Date:** 2026-10-13
+**How added:** bug fix (review finding 2)
+**Purpose:** creates an account, then makes it an admin when ticked.
+**Side effects:** `POST /auth/register`, then `PATCH /users/:id`.
+**Before:** a failed role change after a successful create reported a failed create and skipped the roster refresh.
+**After:** the role change failing says the account exists as a listener; the roster refreshes either way.
+
+**Function:** `ControlCenterPage()` `failedSource` / `board`: `frontend/src/pages/ControlCenterPage.tsx`
+**Date:** 2026-10-13
+**How added:** bug fix (review finding 3)
+**Purpose:** marks a check row whose query's last poll failed as last known.
+**Side effects:** none.
+**Before:** rows kept their old OK verdict and numbers after a failed poll; only SERVER showed the failure.
+**After:** such rows show "--" and "last known: ...", and drop their link.
+
 **Function:** `getProfileHeader()`, `setAvatarId()`, `isAvatarInUse()`, `updateProfile()`, `listPeople()` (new): `backend/src/db/profile.ts`; `saveAvatar()`, `removeAvatar()`, `sendAvatar()` (new): `backend/src/services/avatars.ts`; `getTopGenres()` (new): `backend/src/db/listeningStats.ts`; `listPublicPlaylistsOf()` (new): `backend/src/db/playlists.ts`; profile routes: `backend/src/routes/profile.ts`; `DELETE /users/:id` (removes the picture): `backend/src/routes/users.ts`
 **Date:** 2026-10-13
 **How added:** new feature (A167-A170)

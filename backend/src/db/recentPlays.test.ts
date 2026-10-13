@@ -41,9 +41,20 @@ describe('summarizeRecentPlays', () => {
     // Ten days ago: in neither.
     recordScrobble(b.id, trackId, 60_000, daysAgo(10));
 
+    // Both plays are unfinished, so each counts as the whole 200s song (A62); the skip's 30s is final.
     const { day, week } = summarizeRecentPlays();
     assert.deepEqual(day, { plays: 1, skips: 1, listeners: 2, minutes: 3 });
-    assert.deepEqual(week, { plays: 2, skips: 1, listeners: 2, minutes: 5 });
+    assert.deepEqual(week, { plays: 2, skips: 1, listeners: 2, minutes: 7 });
+  });
+
+  it('counts an unfinished play as the whole song, the same as the Stats page', () => {
+    const a = insertUser('imran', 'hash');
+    // The web player only scrobbles at the threshold and never finishes the play: half the song is stored.
+    recordScrobble(a.id, trackId, 100_000);
+    recordScrobble(a.id, trackId, 100_000);
+    recordScrobble(a.id, trackId, 100_000);
+    // 3 x 200s, not 3 x 100s.
+    assert.equal(summarizeRecentPlays().day.minutes, 10);
   });
 
   it('is all zeros with no history', () => {

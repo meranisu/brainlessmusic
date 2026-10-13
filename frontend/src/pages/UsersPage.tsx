@@ -309,12 +309,27 @@ function AddSomeoneDialog({
     mutationFn: async () => {
       // Created through /auth/register, the one place that makes users.
       const created = await apiClient.post<UserSummary>('/auth/register', { username: username.trim(), password });
-      if (makeAdmin) await apiClient.patch(`/users/${created.id}`, { isAdmin: true });
-      return created;
+      // The account exists from here on, so a failed role change must not read as a failed create.
+      let adminFailed = false;
+      if (makeAdmin) {
+        try {
+          await apiClient.patch(`/users/${created.id}`, { isAdmin: true });
+        } catch {
+          adminFailed = true;
+        }
+      }
+      return { created, adminFailed };
     },
-    onSuccess: (created) => {
+    onSuccess: ({ created, adminFailed }) => {
       void queryClient.invalidateQueries({ queryKey: USERS_KEY });
-      showToast(`Created “${created.username}”`);
+      if (adminFailed) {
+        showToast(
+          `Created “${created.username}” as a listener. Making them an admin failed; try again from their panel.`,
+          'error',
+        );
+      } else {
+        showToast(`Created “${created.username}”`);
+      }
       onClose();
     },
     onError: (err) => fail(err, 'Could not create that account'),

@@ -36,7 +36,10 @@ const SCANNING_POLL_INTERVAL_MS = 2_000;
 const RECENT_FAILURES_FETCHED = 50;
 const DAY_MS = 86_400_000;
 
-/** OK and NG as a cabinet prints them; CHECK is "look at this", not broken. `wait` is before the first answer. */
+/**
+ * OK and NG as a cabinet prints them; CHECK is "look at this", not broken. `wait` is before the first answer, or a
+ * last-known reading after a failed poll.
+ */
 type Verdict = 'ok' | 'check' | 'ng' | 'wait';
 
 const VERDICT_TEXT: Record<Verdict, string> = { ok: 'OK', check: 'CHECK', ng: 'NG', wait: '--' };
@@ -491,6 +494,25 @@ export function ControlCenterPage() {
     });
   }
 
+  // After a failed poll React Query keeps the last answer, so a row built from it would still read OK. It shows as
+  // last known instead; SERVER (and the rows with no answer yet) already say what failed.
+  const failedSource = (key: string): boolean => {
+    if (key.startsWith('disk-') || key === 'cache' || key === 'files') return center.isError;
+    if (key.startsWith('root-')) return roots.isError;
+    if (key === 'library') return library.isError;
+    if (key === 'level') return levelling.isError;
+    if (key === 'streams') return health.isError;
+    if (key === 'playback') return failures.isError;
+    if (key === 'rooms') return rooms.isError;
+    if (key === 'accounts') return users.isError || guestCodes.isError;
+    return false;
+  };
+  const board = rows.map((row) =>
+    row.verdict !== 'wait' && failedSource(row.key)
+      ? { ...row, verdict: 'wait' as const, readout: <>last known: {row.readout}</>, link: undefined }
+      : row,
+  );
+
   const listeners = c?.listeners ?? [];
   const checkedAt = health.dataUpdatedAt ? new Date(health.dataUpdatedAt).toLocaleTimeString() : null;
 
@@ -518,7 +540,7 @@ export function ControlCenterPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <CheckBoard rows={rows} />
+        <CheckBoard rows={board} />
 
         <div className="space-y-4">
           <Bookkeeping plays={c?.plays} />

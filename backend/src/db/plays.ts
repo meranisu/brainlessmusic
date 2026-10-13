@@ -1,4 +1,5 @@
 import { db } from './connection.js';
+import { LISTENED_MS } from './listeningStats.js';
 import { trackGainSql } from './loudness.js';
 
 export interface PlayHistoryEntry {
@@ -234,17 +235,20 @@ export interface PlayWindow {
   minutes: number;
 }
 
-/** The last 24 hours and the last 7 days, rolling, so the server's time zone doesn't decide where a day starts. */
+/**
+ * The last 24 hours and the last 7 days, rolling, so the server's time zone doesn't decide where a day starts. Minutes
+ * follow the Stats page's rule (A62): a play the app never finished reporting counts as the whole song.
+ */
 export function summarizeRecentPlays(): { day: PlayWindow; week: PlayWindow } {
   const window = (hours: number): PlayWindow =>
     db
       .prepare(
-        `SELECT COALESCE(SUM(skipped = 0), 0) AS plays,
-                COALESCE(SUM(skipped = 1), 0) AS skips,
-                COUNT(DISTINCT user_id) AS listeners,
-                CAST(COALESCE(SUM(ms_played), 0) / 60000 AS INTEGER) AS minutes
-         FROM play_history
-         WHERE played_at > datetime('now', ?)`,
+        `SELECT COALESCE(SUM(ph.skipped = 0), 0) AS plays,
+                COALESCE(SUM(ph.skipped = 1), 0) AS skips,
+                COUNT(DISTINCT ph.user_id) AS listeners,
+                CAST(COALESCE(SUM(${LISTENED_MS}), 0) / 60000 AS INTEGER) AS minutes
+         FROM play_history ph JOIN tracks t ON t.id = ph.track_id
+         WHERE ph.played_at > datetime('now', ?)`,
       )
       .get(`-${hours} hours`) as PlayWindow;
   return { day: window(24), week: window(24 * 7) };
