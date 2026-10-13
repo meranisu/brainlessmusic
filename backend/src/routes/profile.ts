@@ -1,9 +1,8 @@
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import { config } from '../config.js';
-import type { TrackSummary } from '../db/browse.js';
 import { countFavoritesForUser, listFavoritesForUser } from '../db/favorites.js';
 import { findTrackById } from '../db/library.js';
-import { listLessOftenTrackIds } from '../db/lessOften.js';
+import { countLessOften } from '../db/lessOften.js';
 import { getTopGenres, getUserStats, listLessOftenTracks, type StatsRange } from '../db/listeningStats.js';
 import { listPlaylistsForUser, listPublicPlaylistsOf } from '../db/playlists.js';
 import {
@@ -37,10 +36,12 @@ function parseId(raw: string): number | undefined {
   return Number.isInteger(id) && id > 0 ? id : undefined;
 }
 
-/** Hidden songs leave someone else's lists unless an admin is looking, as they leave browsing (A34). */
-function visibleTo(request: FastifyRequest, ownerId: number): (track: TrackSummary) => boolean {
-  const seesHidden = request.user!.id === ownerId || isAdminRequest(request);
-  return (track) => seesHidden || !track.hidden;
+/**
+ * Hidden songs leave someone else's lists unless an admin is looking, as they leave browsing (A34). Filtered in the
+ * queries, not afterwards, so totals and pages agree with what is listed.
+ */
+function seesHidden(request: FastifyRequest, ownerId: number): boolean {
+  return request.user!.id === ownerId || isAdminRequest(request);
 }
 
 const profileRoute: FastifyPluginAsync = async (fastify) => {
@@ -60,28 +61,30 @@ const profileRoute: FastifyPluginAsync = async (fastify) => {
       if (!RANGES.includes(range)) return reply.code(400).send({ error: 'range must be week, month, year or all' });
 
       const isSelf = request.user!.id === header.id;
-      const visible = visibleTo(request, header.id);
-      const seesHidden = isSelf || isAdminRequest(request);
-      const stats = getUserStats(header.id, range, TOP_LIMIT)!;
+      const hidden = seesHidden(request, header.id);
+      const stats = getUserStats(header.id, range, TOP_LIMIT, hidden)!;
+      // Others see the display name only, never the login name or admin status (A174).
+      const { username: _username, isAdmin: _isAdmin, ...shared } = header;
 
       return reply.send({
-        ...header,
+        ...(isSelf ? header : shared),
+        favoriteTrack: hidden || !header.favoriteTrack?.hidden ? header.favoriteTrack : null,
         isSelf,
         range,
         totals: stats.totals,
-        topTracks: stats.topTracks.filter((t) => visible(t.track)),
+        topTracks: stats.topTracks,
         topArtists: stats.topArtists,
         topAlbums: stats.topAlbums,
-        topGenres: getTopGenres(header.id, range, TOP_LIMIT),
+        topGenres: getTopGenres(header.id, range, TOP_LIMIT, hidden),
         // Yours includes private ones; someone else's shows only what they made public (A162).
-        playlists: isSelf ? listPlaylistsForUser(header.id) : listPublicPlaylistsOf(header.id, seesHidden),
+        playlists: isSelf ? listPlaylistsForUser(header.id) : listPublicPlaylistsOf(header.id, hidden),
         liked: {
-          total: countFavoritesForUser(header.id),
-          tracks: listFavoritesForUser(header.id, PREVIEW_LIMIT, 0).filter(visible),
+          total: countFavoritesForUser(header.id, hidden),
+          tracks: listFavoritesForUser(header.id, PREVIEW_LIMIT, 0, hidden),
         },
         disliked: {
-          total: listLessOftenTrackIds(header.id).length,
-          tracks: listLessOftenTracks(header.id, PREVIEW_LIMIT, 0).filter(visible),
+          total: countLessOften(header.id, hidden),
+          tracks: listLessOftenTracks(header.id, PREVIEW_LIMIT, 0, hidden),
         },
       });
     },
@@ -94,8 +97,9 @@ const profileRoute: FastifyPluginAsync = async (fastify) => {
       const id = parseId(request.params.id);
       if (id === undefined || !getProfileHeader(id)) return reply.code(404).send({ error: 'No such profile' });
       const { limit, offset } = parsePagination(request.query);
-      const tracks = listFavoritesForUser(id, limit, offset).filter(visibleTo(request, id));
-      return reply.send({ total: countFavoritesForUser(id), limit, offset, tracks });
+      const hidden = seesHidden(request, id);
+      const tracks = listFavoritesForUser(id, limit, offset, hidden);
+      return reply.send({ total: countFavoritesForUser(id, hidden), limit, offset, tracks });
     },
   );
 
@@ -106,8 +110,9 @@ const profileRoute: FastifyPluginAsync = async (fastify) => {
       const id = parseId(request.params.id);
       if (id === undefined || !getProfileHeader(id)) return reply.code(404).send({ error: 'No such profile' });
       const { limit, offset } = parsePagination(request.query);
-      const tracks = listLessOftenTracks(id, limit, offset).filter(visibleTo(request, id));
-      return reply.send({ total: listLessOftenTrackIds(id).length, limit, offset, tracks });
+      const hidden = seesHidden(request, id);
+      const tracks = listLessOftenTracks(id, limit, offset, hidden);
+      return reply.send({ total: countLessOften(id, hidden), limit, offset, tracks });
     },
   );
 

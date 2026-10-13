@@ -15,6 +15,12 @@ export function clearLessOften(userId: number): number {
   return db.prepare('DELETE FROM less_often WHERE user_id = ?').run(userId).changes;
 }
 
+/** How many songs [userId] marked less often; hidden ones left out unless [includeHidden] (A34). */
+export function countLessOften(userId: number, includeHidden = true): number {
+  const join = includeHidden ? '' : 'JOIN tracks t ON t.id = lo.track_id AND t.hidden = 0';
+  return (db.prepare(`SELECT COUNT(*) AS c FROM less_often lo ${join} WHERE lo.user_id = ?`).get(userId) as { c: number }).c;
+}
+
 export function listLessOftenTrackIds(userId: number): number[] {
   return db
     .prepare('SELECT track_id FROM less_often WHERE user_id = ? ORDER BY track_id')

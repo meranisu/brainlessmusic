@@ -4,6 +4,26 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-13: Profile review fixes: picture uploads, sideways photos, hidden songs, display names (A174)
+
+- From the review of `abc35a4`. Not pushed.
+- Picture uploads: `saveAvatar` reads the first bytes and accepts only PNG, JPEG, WebP or GIF, then pins ffmpeg to
+  that demuxer with `-protocol_whitelist file`, so an upload can't be probed as a playlist that makes ffmpeg fetch
+  URLs or read files. `-max_pixels` (50 million) refuses a small file that declares a huge picture, and a 20 s timeout
+  kills a stuck crop.
+- Sideways phone photos: the server's ffmpeg (Debian bookworm, 5.1) ignores EXIF orientation, so `jpegOrientation`
+  reads it and the crop turns the picture upright first. `-noautorotate` stops a newer ffmpeg turning it twice.
+- Hidden songs on someone else's profile (A34): liked and disliked totals counted them, so pages came back short and
+  showed "Liked songs 12" over an empty list; top artists, albums and genres and the pinned song showed them too. The
+  queries now take `includeHidden` (`countFavoritesForUser`, `listFavoritesForUser`, `countLessOften` (new),
+  `listLessOftenTracks`, `getUserStats`, `getTopGenres`); every default is the old behaviour, so other callers are
+  unchanged. The owner and admins still see everything.
+- A174 (owner, 2026-10-13): someone else's profile drops `username` and `isAdmin`. That route change was written by the
+  other session and goes out in this commit, because both edits are in the same handler.
+- Verified: `npm test` in `backend/` (587 pass; new `services/avatars.test.ts` and `routes/profileHidden.test.ts`,
+  including a phone photo turned upright, a playlist file refused and a 20000 x 20000 PNG refused).
+  Uploading from a real phone not tried.
+
 ## 2026-10-13: Profile page: web pages (A167-A170)
 
 - `/people` lists everyone, most recently listening first, with picture and bio. `/people/:id` is a profile: picture

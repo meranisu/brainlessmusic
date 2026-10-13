@@ -132,8 +132,11 @@ function count(sql: string, userId: number): number {
   return (db.prepare(sql).get(userId) as { c: number }).c;
 }
 
-/** One account's listening over [range]: totals, the top [limit] songs, artists and albums, and library counts. */
-export function getUserStats(userId: number, range: StatsRange, limit: number): UserStats | undefined {
+/**
+ * One account's listening over [range]: totals, the top [limit] songs, artists and albums, and library counts. With
+ * [includeHidden] false (someone else's profile, A34) the top lists leave hidden songs out; the totals still count them.
+ */
+export function getUserStats(userId: number, range: StatsRange, limit: number, includeHidden = true): UserStats | undefined {
   const user = db.prepare('SELECT created_at FROM users WHERE id = ?').get(userId) as { created_at: string } | undefined;
   if (!user) return undefined;
 
@@ -141,6 +144,7 @@ export function getUserStats(userId: number, range: StatsRange, limit: number): 
   // `played_at >= ''` is every row, so one statement serves every range.
   const params = { userId, since: since ?? '', limit };
   const scope = 'ph.user_id = @userId AND ph.played_at >= @since';
+  const listed = includeHidden ? '' : 'AND t.hidden = 0';
 
   const totals = db.prepare(TOTALS_SQL(scope)).get(params) as StatsTotals;
 
@@ -149,7 +153,7 @@ export function getUserStats(userId: number, range: StatsRange, limit: number): 
     .prepare(
       `SELECT ph.track_id AS id, COUNT(*) AS plays, SUM(${LISTENED_MS}) AS msListened, MAX(ph.played_at) AS last
        FROM play_history ph JOIN tracks t ON t.id = ph.track_id
-       WHERE ${scope} AND ${PLAYED_ONLY} AND t.missing_since IS NULL
+       WHERE ${scope} AND ${PLAYED_ONLY} AND t.missing_since IS NULL ${listed}
        GROUP BY ph.track_id
        ORDER BY ${TRACK_ORDER}
        LIMIT @limit`,
@@ -165,7 +169,7 @@ export function getUserStats(userId: number, range: StatsRange, limit: number): 
     .prepare(
       `SELECT a.id AS id, a.name AS name, COUNT(*) AS plays, SUM(${LISTENED_MS}) AS msListened
        FROM play_history ph JOIN tracks t ON t.id = ph.track_id JOIN artists a ON a.id = t.artist_id
-       WHERE ${scope} AND ${PLAYED_ONLY}
+       WHERE ${scope} AND ${PLAYED_ONLY} ${listed}
        GROUP BY a.id
        ORDER BY ${ARTIST_ORDER}
        LIMIT @limit`,
@@ -177,7 +181,7 @@ export function getUserStats(userId: number, range: StatsRange, limit: number): 
       `SELECT al.id AS id, al.title AS title, a.name AS artist, COUNT(*) AS plays, SUM(${LISTENED_MS}) AS msListened
        FROM play_history ph JOIN tracks t ON t.id = ph.track_id JOIN albums al ON al.id = t.album_id
        LEFT JOIN artists a ON a.id = al.artist_id
-       WHERE ${scope} AND ${PLAYED_ONLY}
+       WHERE ${scope} AND ${PLAYED_ONLY} ${listed}
        GROUP BY al.id
        ORDER BY plays DESC, msListened DESC, al.title
        LIMIT @limit`,
@@ -245,11 +249,14 @@ export function finishPlay(userId: number, playId: number, msPlayed: number): bo
   );
 }
 
-/** The songs this user marked "less often", newest mark first, as track summaries. */
-export function listLessOftenTracks(userId: number, limit: number, offset: number): TrackSummary[] {
+/** The songs this user marked "less often", newest mark first, as track summaries; hidden ones only if [includeHidden]. */
+export function listLessOftenTracks(userId: number, limit: number, offset: number, includeHidden = true): TrackSummary[] {
   const ids = (
     db
-      .prepare('SELECT track_id FROM less_often WHERE user_id = ? ORDER BY created_at DESC, track_id DESC LIMIT ? OFFSET ?')
+      .prepare(
+        `SELECT lo.track_id FROM less_often lo ${includeHidden ? '' : 'JOIN tracks t ON t.id = lo.track_id AND t.hidden = 0'}
+         WHERE lo.user_id = ? ORDER BY lo.created_at DESC, lo.track_id DESC LIMIT ? OFFSET ?`,
+      )
       .all(userId, limit, offset) as { track_id: number }[]
   ).map((r) => r.track_id);
   const byId = new Map(getTrackSummariesByIds(ids).map((s) => [s.id, s]));
@@ -265,13 +272,17 @@ export interface TopGenreStat {
   plays: number;
 }
 
-/** One person's most played genres over [range] (profile page, A169). A song with two genres counts toward both. */
-export function getTopGenres(userId: number, range: StatsRange, limit: number): TopGenreStat[] {
+/**
+ * One person's most played genres over [range] (profile page, A169). A song with two genres counts toward both. Hidden
+ * songs count only if [includeHidden] (A34).
+ */
+export function getTopGenres(userId: number, range: StatsRange, limit: number, includeHidden = true): TopGenreStat[] {
   const since = sinceFor(range);
   return db
     .prepare(
       `SELECT g.id AS id, g.name AS name, COUNT(*) AS plays
        FROM play_history ph
+       ${includeHidden ? '' : 'JOIN tracks t ON t.id = ph.track_id AND t.hidden = 0'}
        JOIN track_genres tg ON tg.track_id = ph.track_id
        JOIN genres g ON g.id = tg.genre_id
        WHERE ph.user_id = ? AND ph.played_at >= ? AND ${PLAYED_ONLY}

@@ -4,6 +4,26 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `saveAvatar()`, `imageDemuxer()` (new), `jpegOrientation()` (new): `backend/src/services/avatars.ts`
+**Date:** 2026-10-13
+**How added:** hardening (review of `abc35a4`)
+**Purpose:** crop an uploaded picture safely and upright.
+**Side effects:** runs ffmpeg on the upload; writes under the avatar root it is given.
+**Before:** ffmpeg probed the upload's format itself, with no pixel cap or timeout, and ignored EXIF orientation.
+**After:** only PNG, JPEG, WebP or GIF, read with a pinned demuxer, local files only, at most 50 million pixels and
+20 s; a JPEG's EXIF orientation is applied before the crop.
+
+**Function:** `countFavoritesForUser()`, `listFavoritesForUser()`: `backend/src/db/favorites.ts`; `countLessOften()`
+(new): `backend/src/db/lessOften.ts`; `listLessOftenTracks()`, `getUserStats()`, `getTopGenres()`:
+`backend/src/db/listeningStats.ts`; `seesHidden()` (was `visibleTo()`): `backend/src/routes/profile.ts`
+**Date:** 2026-10-13
+**How added:** bug fix (review of `abc35a4`)
+**Purpose:** someone else's profile leaves hidden songs out of its lists, totals, top lists and pinned song (A34).
+**Side effects:** none.
+**Before:** the route dropped hidden songs after paging, so totals counted them and pages came back short; top
+artists, albums, genres and the pinned song included them.
+**After:** each takes `includeHidden` (default true, the old behaviour) and filters in SQL.
+
 **Function:** `PeoplePage()`, `ProfilePage()`, `EditProfileDialog()`, `SongRows()`, `SongListSection()` (new): `frontend/src/pages/PeoplePage.tsx`, `frontend/src/pages/ProfilePage.tsx`; `Avatar()` (new): `frontend/src/components/Avatar.tsx`; `buildAvatarUrl()` (new), `apiClient.upload` (method): `frontend/src/lib/apiClient.ts`
 **Date:** 2026-10-13
 **How added:** new feature (A167-A170)

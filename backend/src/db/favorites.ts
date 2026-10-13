@@ -26,9 +26,14 @@ export function listFavoriteTrackIdsForUser(userId: number): number[] {
     .map((row) => (row as { track_id: number }).track_id);
 }
 
-export function countFavoritesForUser(userId: number): number {
+/** Leaves out hidden songs when [includeHidden] is false: someone else's profile, unless an admin is looking (A34). */
+function hiddenJoin(includeHidden: boolean): string {
+  return includeHidden ? '' : 'JOIN tracks t ON t.id = f.track_id AND t.hidden = 0';
+}
+
+export function countFavoritesForUser(userId: number, includeHidden = true): number {
   return (
-    db.prepare('SELECT COUNT(*) as count FROM favorites WHERE user_id = ?').get(userId) as {
+    db.prepare(`SELECT COUNT(*) as count FROM favorites f ${hiddenJoin(includeHidden)} WHERE f.user_id = ?`).get(userId) as {
       count: number;
     }
   ).count;
@@ -38,13 +43,14 @@ export function listFavoritesForUser(
   userId: number,
   limit: number,
   offset: number,
+  includeHidden = true,
 ): FavoriteTrack[] {
   const page = db
     .prepare(
-      `SELECT track_id as id, created_at as favoritedAt
-       FROM favorites
-       WHERE user_id = ?
-       ORDER BY created_at DESC, track_id DESC
+      `SELECT f.track_id as id, f.created_at as favoritedAt
+       FROM favorites f ${hiddenJoin(includeHidden)}
+       WHERE f.user_id = ?
+       ORDER BY f.created_at DESC, f.track_id DESC
        LIMIT ? OFFSET ?`,
     )
     .all(userId, limit, offset) as { id: number; favoritedAt: string }[];

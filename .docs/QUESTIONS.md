@@ -61,6 +61,10 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A174 — Profiles show display names only *(was Q174)*
+**Answered:** 2026-10-13, picked A. Someone else's profile no longer carries the login `username` or `isAdmin`; your own
+still does. People search keeps matching usernames but returns only display names. Found in the review of `abc35a4`.
+
 ### A173 — Opening a profile during Listen together keeps the room playing *(was Q173)*
 **Answered:** 2026-10-13, picked A. The room keeps playing and Back returns to it. Playing a song from the profile asks
 first, since in a room it adds to the queue for everyone.
