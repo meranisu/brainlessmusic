@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `LogsPage()`, `folderRow()` (time display): `frontend/src/pages/LogsPage.tsx`, `frontend/src/pages/ControlCenterPage.tsx`
+**Date:** 2026-10-13
+**How added:** bug fix (owner request)
+**Purpose:** show server times in the viewer's zone.
+**Side effects:** none.
+**Before:** `new Date(sqliteTime).toLocaleString()`, off by the viewer's UTC offset.
+**After:** `formatDateTime()`, medium date and short time, read as UTC.
+
 **Function:** `summarizeRecentPlays()` (new): `backend/src/db/plays.ts`; `GET /admin/control-center` (`plays`): `backend/src/routes/health.ts`
 **Date:** 2026-10-13
 **How added:** new feature (A157)

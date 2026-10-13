@@ -4,6 +4,15 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-13: Control Center: Logs show server times in the viewer's time zone
+
+- Owner request. Playback failure times are SQLite's `datetime('now')`, UTC with no zone, and the Logs tab read them
+  with `new Date()`, which takes a bare time as local: on a Malaysian clock every row showed 8 hours early. It now uses
+  `formatDateTime` (`frontend/src/lib/format.ts`), which reads them as UTC; stream errors (already ISO with `Z`) and
+  the Overview's folder scan times go through it too.
+- Verified: `npm run build`; under `TZ=Asia/Kuala_Lumpur`, `2026-10-12 16:10:46` printed 4:10 PM the old way and
+  12:10 AM the next day the new way.
+
 ## 2026-10-13: Control Center: the Overview is a system check board; logs get their own tab
 
 - Owner request: make the Overview a dashboard to check at a glance. Direction A156 (the cabinet's operator test

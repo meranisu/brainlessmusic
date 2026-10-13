@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { useUploads } from '../components/UploadProvider';
 import { UploadQueueList } from '../components/UploadQueueList';
 import { apiClient } from '../lib/apiClient';
-import { formatBytes, formatTotalLength } from '../lib/format';
+import { formatBytes, formatDateTime, formatTotalLength } from '../lib/format';
 import type {
   AdminRoomsResponse,
   ControlCenterSnapshot,
@@ -251,7 +251,7 @@ function folderRow(root: LibraryRoot): CheckRow {
     label: 'FOLDER',
     verdict: root.lastScannedAt ? 'ok' : 'check',
     readout: `${name}: ${root.trackCount.toLocaleString()} tracks, ${
-      root.lastScannedAt ? `scanned ${new Date(parseServerTime(root.lastScannedAt)).toLocaleString()}` : 'never scanned'
+      root.lastScannedAt ? `scanned ${formatDateTime(root.lastScannedAt)}` : 'never scanned'
     }`,
   };
 }

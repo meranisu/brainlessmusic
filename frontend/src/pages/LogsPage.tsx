@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { apiClient } from '../lib/apiClient';
+import { formatDateTime } from '../lib/format';
 import type { ControlCenterSnapshot, HealthSnapshot, PlaybackFailureEntry } from '../types/api';
 import { EmptyRow, Section } from './controlCenterParts';
 
@@ -73,7 +74,7 @@ export function LogsPage() {
               {failures?.failures.map((f) => (
                 <tr key={f.id}>
                   <td className="px-4 py-2.5 whitespace-nowrap text-blue-200">
-                    {new Date(f.createdAt).toLocaleString()}
+                    {formatDateTime(f.createdAt)}
                   </td>
                   <td className="px-4 py-2.5 text-blue-200">{f.username}</td>
                   <td className="px-4 py-2.5 text-blue-100">{f.trackTitle ?? `#${f.trackId}`}</td>
@@ -137,7 +138,7 @@ export function LogsPage() {
               {health?.recentErrors.map((e, i) => (
                 <tr key={i}>
                   <td className="px-4 py-2.5 whitespace-nowrap text-blue-200">
-                    {new Date(e.timestamp).toLocaleString()}
+                    {formatDateTime(e.timestamp)}
                   </td>
                   <td className="px-4 py-2.5 text-blue-200">#{e.trackId}</td>
                   <td className="px-4 py-2.5 text-blue-100">{e.message}</td>
