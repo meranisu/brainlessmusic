@@ -48,6 +48,12 @@ const EXPECTED: Record<string, Gate> = {
   // Public playlists: guests see and play them (A163).
   'GET /playlists/public': 'guest',
   'GET /playlists/:id': 'guest',
+  // Profiles (A167): anyone signed in can look; only an account has one to change.
+  'GET /people': 'guest',
+  'GET /users/:id/profile': 'guest',
+  'GET /users/:id/liked': 'guest',
+  'GET /users/:id/disliked': 'guest',
+  'GET /users/:id/avatar': 'guest',
   // Guests join rooms with full controls (A100).
   'POST /rooms': 'guest',
   'GET /rooms/mine': 'guest',
@@ -81,6 +87,9 @@ const EXPECTED: Record<string, Gate> = {
   'DELETE /playlists/:id': 'account',
   'PATCH /playlists/:id': 'account',
   'POST /playlists/:id/copy': 'account',
+  'PUT /me/profile': 'account',
+  'PUT /me/avatar': 'account',
+  'DELETE /me/avatar': 'account',
   'POST /playlists/:id/tracks': 'account',
   'DELETE /playlists/:id/tracks/:trackId': 'account',
   'PATCH /playlists/:id/tracks/reorder': 'account',

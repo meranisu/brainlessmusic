@@ -40,6 +40,8 @@ export const config = {
   uploadStagingPath: process.env.UPLOAD_STAGING_PATH ?? './data/upload-staging',
   // Extracted cover art, content-addressed. Safe to delete; a re-scan rebuilds it.
   artworkPath: process.env.ARTWORK_PATH ?? './data/artwork',
+  // Profile pictures (profile page plan), content-addressed. Beside the database by default, inside the /data volume.
+  avatarPath: process.env.AVATAR_PATH ?? join(dirname(process.env.DB_PATH ?? './data/brainlessmusic.db'), 'avatars'),
   // Per file. 1024 because one hi-res FLAC can exceed 100 MB. Staging needs about 3× this (the client uploads 3 at
   // once), and a reverse proxy's own body limit must be raised to match.
   maxUploadSizeMb: Number(process.env.MAX_UPLOAD_SIZE_MB ?? 1024),

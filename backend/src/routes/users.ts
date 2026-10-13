@@ -1,4 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
+import { config } from '../config.js';
+import { getAvatarId, isAvatarInUse } from '../db/profile.js';
+import { removeAvatar } from '../services/avatars.js';
 import {
   countAdmins,
   deleteUser,
@@ -74,7 +77,10 @@ const usersRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(409).send({ error: 'Cannot delete the last admin' });
       }
 
+      const avatarId = getAvatarId(id);
       deleteUser(id);
+      // Their profile picture goes too, unless someone else uploaded the same one.
+      if (avatarId && !isAvatarInUse(avatarId)) await removeAvatar(config.avatarPath, avatarId);
       return reply.code(204).send();
     },
   );

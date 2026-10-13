@@ -50,6 +50,7 @@ ENV PORT=3000 \
     DB_PATH=/data/brainlessmusic.db \
     LIBRARY_PATH=/library \
     ARTWORK_PATH=/data/artwork \
+    AVATAR_PATH=/data/avatars \
     UPLOAD_STAGING_PATH=/data/upload-staging \
     TRANSCODE_PATH=/data/transcodes \
     FRONTEND_PATH=/app/public

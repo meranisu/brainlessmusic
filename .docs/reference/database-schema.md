@@ -129,6 +129,10 @@ erDiagram
 | `theme` | TEXT | — | — | Web theme id (`blue`, `red`, …, from `frontend/src/lib/theme.ts`), set by `PUT /me/theme` and returned on `/auth/me`. NULL until chosen; the web client then uploads the browser's own choice once. Shape-checked only (`/^[a-z][a-z0-9-]{0,31}$/`). Added `0020` (A55) |
 | `display_name` | TEXT | — | — | What to call this user (A68), set by `PUT /me/name` or at guest sign-in; `/auth/me` returns it as `displayName`, falling back to `username`. New guests always get one (`Guest NNNN` if unnamed); NULL on rows from before `0022` and on accounts that never set one. Not unique. Added `0022` |
 | `session_version` | INTEGER | NOT NULL | `0` | Bumped on every password change (`setPasswordHash`, `setPasswordHashById`). Session and media tokens carry it as `sv`; `authenticate` and `authenticateMedia` refuse a token whose `sv` no longer matches, so a reset ends older sessions (C8). A token with no `sv` (signed before `0024`) counts as 0. Added `0024` |
+| `bio` | TEXT | nullable | — | Added `0035`. Up to 300 characters, shown on the profile (A167) |
+| `avatar_id` | TEXT | nullable | — | Added `0035`. Profile picture: a SHA-256 naming `<id>.jpg` under `AVATAR_PATH` (512 px square). Removed from disk when nobody has it any more |
+| `favorite_track_id` | INTEGER | nullable | — | Added `0035`. Pinned favourite song (A169). **No FK on purpose**: a removed song must not block its delete; a stale id just isn't shown |
+| `favorite_artist_id` | INTEGER | nullable | — | Added `0035`. Pinned favourite artist (A169). No FK, as above |
 
 **FKs:** none (root entity).
 **Indexes:** unique index on `username` (auto, from the `UNIQUE` constraint, case-sensitive, now redundant); unique `idx_users_username_nocase` on `username COLLATE NOCASE` (`0029`, the one that decides); `idx_users_kind_last_seen` on `(kind, last_seen_at)` — both guest queries filter on kind and order by staleness.
@@ -577,6 +581,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | `0020_add_user_theme.sql` | `users.theme` — the web theme follows the profile (A55) |
 | `0033_add_library_root_full_scan.sql` | `library_roots.last_full_scan_at` — scans run when due, not reset by restarts |
 | `0034_add_playlist_public.sql` | `playlists.is_public`, `playlists.public_at`, `idx_playlists_public_at` — public playlists (A162-A166) |
+| `0035_add_user_profile.sql` | `users.bio`, `avatar_id`, `favorite_track_id`, `favorite_artist_id` — the profile page (A167-A170) |
 | `0031_add_track_disc_number.sql` | `tracks.disc_number` — disc order (v0.4 box 26) |
 | `0032_create_genres.sql` | `genres`, `track_genres` + `idx_track_genres_genre_id` (v0.4 box 27) |
 | `0030_album_artist_and_folder.sql` | Rebuilds `albums` with ids kept: `folder`, `artist_from_tracks`, `merged_into_id`; `UNIQUE(title, artist_id)` replaced by `idx_albums_key` and `idx_albums_key_from_tracks`; `albums_fts` triggers recreated (v0.4, A148) |
@@ -585,6 +590,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-10-13 | Migration `0035_add_user_profile.sql` — four `users` columns and the migration row. From the migration SQL and the test run | The profile page (A167-A170) |
 | 2026-10-13 | Migration `0034_add_playlist_public.sql` — `playlists.is_public` and `public_at`, the index, the ownership note, migration row. From the migration SQL and the test run | Public playlists (A162-A166) |
 | 2026-10-12 | Migration `0033_add_library_root_full_scan.sql` — new `library_roots` section (it had none since `0013`), migration row. From the migration SQL and the test run | Each auto-deploy restarted the 12-hour scan timer, so on a busy day the scheduled scan never ran |
 | 2026-10-12 | Migrations `0031_add_track_disc_number.sql` and `0032_create_genres.sql` — `tracks.disc_number` row; new `genres` and `track_genres` sections, relationship rows (plus the missing `albums.merged_into_id` row from `0030`), migration rows. From the migration SQL and the test run | v0.4: two-disc albums played disc 1 and 2 interleaved; no way to browse by genre (smol: 83% of tracks have one) |

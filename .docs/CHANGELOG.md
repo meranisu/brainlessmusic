@@ -4,6 +4,25 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-13: Profile page: server (A167-A170)
+
+- Migration `0035`: `users.bio`, `avatar_id`, `favorite_track_id`, `favorite_artist_id` (the pins have no foreign key
+  on purpose, so a scan removing a song or artist is never blocked). `database-schema.md` updated.
+- `GET /people` lists every account, most recently listening first. `GET /users/:id/profile?range=` returns name,
+  picture, bio, pins, totals, top songs, artists, albums and genres, playlists (public ones, or all of yours), and the
+  first 12 liked and disliked songs with totals; `GET /users/:id/liked` and `/disliked` page them. Anyone signed in,
+  guests included, can read any account's profile; a guest has none (404). Hidden songs leave someone else's lists
+  unless an admin is looking (A34).
+- `PUT /me/profile` (bio up to 300 characters, pins checked against the library, null clears), `PUT /me/avatar` (one
+  image up to 5 MB, cropped square to 512 px JPEG with ffmpeg, stored by hash), `DELETE /me/avatar`,
+  `GET /users/:id/avatar` (media token, like covers). A replaced or deleted user's picture is removed from disk unless
+  someone else uploaded the same one.
+- New `AVATAR_PATH` (default `avatars/` beside the database; `/data/avatars` in the Dockerfile). `npm test` points it
+  into `.test-tmp/`, and the harness refuses a run where it doesn't.
+- `getTopGenres()` in `db/listeningStats.ts`.
+- Verified: `npm test`, 572 pass (new `routes/profile.test.ts`, 11 tests, including a real PNG through ffmpeg and a
+  non-image refused; `guestAccess.test.ts` lists the new routes).
+
 ## 2026-10-13: Every page-change card has a line under its title
 
 - Owner request: the card shown when changing pages had a line under the title for Listen together, Genres, Options

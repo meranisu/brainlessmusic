@@ -22,7 +22,7 @@ the per-user stats (`getUserStats`, `backend/src/db/listeningStats.ts:136`), and
 | Phase | What it covers | Status | Checklist |
 |---|---|---|---|
 | 1. Plan | Decisions above, API shape | Done | [Phase 1](#phase-1-plan) |
-| 2. Structure | Migration, profile and people endpoints, picture upload, top genres, tests | Not started | [Phase 2](#phase-2-structure) |
+| 2. Structure | Migration, profile and people endpoints, picture upload, top genres, tests | Done | [Phase 2](#phase-2-structure) |
 | 3. Interior (web) | People page, profile page, edit your own, names link to profiles | Not started | [Phase 3](#phase-3-interior-web) |
 | 4. Interior (Android) | Same, in every skin; "You" becomes your profile | Not started | [Phase 4](#phase-4-interior-android) |
 | 5. Walkthrough | Two accounts and a guest, web and phone | Not started | [Phase 5](#phase-5-walkthrough) |
@@ -43,12 +43,12 @@ the per-user stats (`getUserStats`, `backend/src/db/listeningStats.ts:136`), and
 
 ## Phase 2: Structure
 
-- [ ] Migration `0035`: `users.bio`, `users.avatar_id`, `users.favorite_track_id`, `users.favorite_artist_id`;
+- [x] Migration `0035`: `users.bio`, `users.avatar_id`, `users.favorite_track_id`, `users.favorite_artist_id`;
       `database-schema.md` in the same change. Deleting a user or a track clears what points at it.
-- [ ] Top genres per person and range, from `track_genres` joined to their plays.
-- [ ] The endpoints above; guests can read profiles, not have one; hidden tracks follow A34.
-- [ ] Picture upload: type and size checked, ffmpeg crop, old file removed when replaced.
-- [ ] Tests through `npm test`.
+- [x] Top genres per person and range, from `track_genres` joined to their plays.
+- [x] The endpoints above; guests can read profiles, not have one; hidden tracks follow A34.
+- [x] Picture upload: type and size checked, ffmpeg crop, old file removed when replaced.
+- [x] Tests through `npm test`.
 
 ## Phase 3: Interior (web)
 
@@ -73,3 +73,4 @@ the per-user stats (`getUserStats`, `backend/src/db/listeningStats.ts:136`), and
 | Date | Change |
 |---|---|
 | 2026-10-13 | Plan written from A167-A170. |
+| 2026-10-13 | Server done. Pins carry no foreign key, so a scan's deletes are never blocked; a stale pin just isn't shown. |

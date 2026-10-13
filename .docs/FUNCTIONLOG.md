@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `getProfileHeader()`, `setAvatarId()`, `isAvatarInUse()`, `updateProfile()`, `listPeople()` (new): `backend/src/db/profile.ts`; `saveAvatar()`, `removeAvatar()`, `sendAvatar()` (new): `backend/src/services/avatars.ts`; `getTopGenres()` (new): `backend/src/db/listeningStats.ts`; `listPublicPlaylistsOf()` (new): `backend/src/db/playlists.ts`; profile routes: `backend/src/routes/profile.ts`; `DELETE /users/:id` (removes the picture): `backend/src/routes/users.ts`
+**Date:** 2026-10-13
+**How added:** new feature (A167-A170)
+**Purpose:** the server side of the profile page: read any profile, edit your own, store a picture.
+**Side effects:** writes `users` profile columns; writes and deletes files under the root passed in (`AVATAR_PATH`).
+**Before:** only your own stats (`/me/stats`), to you.
+**After:** every account has a profile anyone signed in can read.
+
 **Function:** `navItemsFor()`, `onTabClick()`: `frontend/src/components/AppShell.tsx`
 **Date:** 2026-10-13
 **How added:** refactor (owner request)

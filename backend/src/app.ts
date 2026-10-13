@@ -17,6 +17,7 @@ import healthRoute from './routes/health.js';
 import historyRoute from './routes/history.js';
 import libraryRoute from './routes/library.js';
 import playlistsRoute from './routes/playlists.js';
+import profileRoute from './routes/profile.js';
 import roomsRoute from './routes/rooms.js';
 import searchRoute from './routes/search.js';
 import lettersRoute from './routes/letters.js';
@@ -79,6 +80,7 @@ export function buildApp() {
       api.register(genresRoute);
       api.register(searchRoute);
       api.register(playlistsRoute);
+      api.register(profileRoute);
       api.register(historyRoute);
       api.register(statsRoute);
       api.register(favoritesRoute);

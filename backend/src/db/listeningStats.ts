@@ -12,9 +12,9 @@ const RANGE_MODIFIER: Record<Exclude<StatsRange, 'all'>, string> = {
 
 /**
  * Milliseconds a play counts for (A62): the reported total once the app sent it, otherwise one full play of the song.
- * Needs `ph` (play_history) and `t` (tracks) in scope.
+ * Needs `ph` (play_history) and `t` (tracks) in scope. The Control Center's Overview uses it too (`summarizeRecentPlays`).
  */
-const LISTENED_MS = `CASE WHEN ph.ms_final = 1 THEN COALESCE(ph.ms_played, 0)
+export const LISTENED_MS = `CASE WHEN ph.ms_final = 1 THEN COALESCE(ph.ms_played, 0)
   ELSE COALESCE(CAST(t.duration * 1000 AS INTEGER), ph.ms_played, 0) END`;
 
 export interface StatsTotals {
@@ -257,4 +257,27 @@ export function listLessOftenTracks(userId: number, limit: number, offset: numbe
     const s = byId.get(id);
     return s ? [s] : [];
   });
+}
+
+export interface TopGenreStat {
+  id: number;
+  name: string;
+  plays: number;
+}
+
+/** One person's most played genres over [range] (profile page, A169). A song with two genres counts toward both. */
+export function getTopGenres(userId: number, range: StatsRange, limit: number): TopGenreStat[] {
+  const since = sinceFor(range);
+  return db
+    .prepare(
+      `SELECT g.id AS id, g.name AS name, COUNT(*) AS plays
+       FROM play_history ph
+       JOIN track_genres tg ON tg.track_id = ph.track_id
+       JOIN genres g ON g.id = tg.genre_id
+       WHERE ph.user_id = ? AND ph.played_at >= ? AND ${PLAYED_ONLY}
+       GROUP BY g.id
+       ORDER BY plays DESC, g.name COLLATE NOCASE
+       LIMIT ?`,
+    )
+    .all(userId, since ?? '', limit) as TopGenreStat[];
 }

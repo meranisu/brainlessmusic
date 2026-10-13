@@ -62,6 +62,7 @@ export function assertIsolatedEnvironment(): void {
       ['LIBRARY_PATH', process.env.LIBRARY_PATH],
       ['ARTWORK_PATH', process.env.ARTWORK_PATH],
       ['UPLOAD_STAGING_PATH', process.env.UPLOAD_STAGING_PATH],
+      ['AVATAR_PATH', process.env.AVATAR_PATH],
     ] as const
   ).filter(([, value]) => !(value ?? '').includes('.test-tmp'));
 

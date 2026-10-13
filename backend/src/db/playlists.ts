@@ -309,3 +309,23 @@ export function reorderPlaylistTracks(playlistId: number, trackIds: number[]): v
   });
   reorder();
 }
+
+/** One person's public playlists, newest public first, for their profile (profile page, A168). */
+export function listPublicPlaylistsOf(ownerId: number, includeHidden = false): PlaylistSummary[] {
+  const rows = db
+    .prepare(
+      `SELECT
+         p.id as id,
+         p.name as name,
+         p.created_at as createdAt,
+         COUNT(t.id) as trackCount
+       FROM playlists p
+       LEFT JOIN playlist_tracks pt ON pt.playlist_id = p.id
+       LEFT JOIN tracks t ON t.id = pt.track_id ${hiddenClause(includeHidden)}
+       WHERE p.is_public = 1 AND p.owner_id = ?
+       GROUP BY p.id
+       ORDER BY p.public_at DESC, p.id DESC`,
+    )
+    .all(ownerId) as Omit<PlaylistSummary, 'coverAlbumIds' | 'isPublic'>[];
+  return rows.map((p) => ({ ...p, isPublic: true, coverAlbumIds: coverAlbumIdsOf(p.id, includeHidden) }));
+}
