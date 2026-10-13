@@ -31,6 +31,9 @@ is never asked twice.
 | [Q5](#q5--tag-editing-scope) | Tag-editing scope | 2026-09-09 | No |
 | [Q77](#q77--how-does-the-android-app-get-past-cloudflare-access) | How does the Android app get past Cloudflare Access? | 2026-10-11 | Yes, before Access goes on |
 | [Q78](#q78--who-goes-on-the-access-email-list) | Who goes on the Access email list? | 2026-10-11 | Yes, before Access goes on |
+| [Q175](#q175--how-strong-must-a-passcode-be) | How strong must a passcode be? | 2026-10-13 | No |
+| [Q176](#q176--protect-main-on-github) | Protect `main` on GitHub? | 2026-10-13 | No |
+| [Q177](#q177--can-someone-take-an-accounts-display-name) | Can someone take an account's display name? | 2026-10-13 | No |
 
 ### Q5 — Tag-editing scope
 **Asked:** 2026-09-09 · **Blocking:** no
@@ -58,6 +61,40 @@ includes friends using a guest code on the web: without their email on the list 
 
 - **A. You and the friends who use the web (recommended).** Each friend's email goes on the list once.
 - **B. Only you.** Friends use the Android app only (with Q77's token), never the web.
+
+### Q175 — How strong must a passcode be?
+**Asked:** 2026-10-13 · **Blocking:** no ([security audit](process/security-audit-2026-10-13.md) S3)
+
+Passcodes are 4 to 8 digits (`backend/src/routes/auth.ts:60`). Even with the parallel-request hole (S1) fixed, the
+limit of 20 failures an hour lets a stranger guess a 4-digit one in about 10 days, and those failures also lock the
+owner out of password sign-in.
+
+- **A. Lock after 10 wrong passcodes until the next password sign-in, keep 4 digits (recommended).** Nothing changes
+  for anyone who types it right; a stranger gets 10 guesses, ever.
+- **B. Require 6 or more digits.** Existing 4- and 5-digit passcodes would have to be set again.
+- **C. Both.**
+
+Assumption until answered: S1 and S2 get fixed anyway; the passcode rules stay as they are.
+
+### Q176 — Protect `main` on GitHub?
+**Asked:** 2026-10-13 · **Blocking:** no ([security audit](process/security-audit-2026-10-13.md) S12)
+
+The repo is public and `main` has no protection, so anything pushed to it that passes CI is live on smol within 5
+minutes. Agents push straight to `main` today.
+
+- **A. Protect it: CI must pass, no force-push, no deletion; direct pushes still allowed (recommended).** Changes a
+  GitHub setting, so you'd do it or say go.
+- **B. Leave it.**
+
+### Q177 — Can someone take an account's display name?
+**Asked:** 2026-10-13 · **Blocking:** no ([security audit](process/security-audit-2026-10-13.md) S20)
+
+Since A174 others see only display names, and anyone, guests included, can pick any name, including yours, and look
+like you in a room.
+
+- **A. Refuse a name that matches another account's name or username, ignoring case (recommended).** Guests can
+  still share names with each other.
+- **B. Leave names free.**
 
 ## Answered
 
