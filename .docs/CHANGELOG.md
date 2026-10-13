@@ -4,6 +4,12 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-13: Android: your picture moves to the right of Home's top bar (A178, v0.4.10)
+
+- The owner found the left edge wrong. It now sits after People and Listen together, where Google's apps put your
+  account picture; the greeting keeps the left. Same button, same TalkBack label ("Your profile").
+- Verified: `./gradlew compileDebugKotlin`. Not run on a phone. Release notes `android/release-notes/v0.4.10.md`.
+
 ## 2026-10-13: Profiles on Android (v0.4.9, A167-A174)
 
 - Your picture (or initial) at the left of Home's top bar opens your profile (A171); a person icon beside Listen

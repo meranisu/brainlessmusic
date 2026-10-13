@@ -98,6 +98,10 @@ like you in a room.
 
 ## Answered
 
+### A178 — Your picture goes at the right end of Android Home's top bar *(was Q178)*
+**Answered:** 2026-10-13, picked A. After People and Listen together, where Google's apps put your account picture;
+the greeting keeps the left edge. Replaces A171's left-of-the-bar spot on Android (the web is unchanged).
+
 ### A174 — Profiles show display names only *(was Q174)*
 **Answered:** 2026-10-13, picked A. Someone else's profile no longer carries the login `username` or `isAdmin`; your own
 still does. People search keeps matching usernames but returns only display names. Found in the review of `abc35a4`.

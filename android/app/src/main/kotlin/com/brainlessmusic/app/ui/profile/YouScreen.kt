@@ -124,8 +124,14 @@ fun YouScreen(
         topBar = {
             TopAppBar(
                 title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                // Your picture opens your profile (A171). Guests have none, so no button.
-                navigationIcon = {
+                // With nothing playing, the player (its other door) can't open, so it sits here for everyone (A136).
+                // People next to it, for guests too (A172).
+                actions = {
+                    IconButton(onClick = { navController.navigate(Routes.PEOPLE) { launchSingleTop = true } }) {
+                        Icon(AppIcons.person, contentDescription = "People")
+                    }
+                    IconButton(onClick = together) { Icon(AppIcons.groups, contentDescription = "Listen together") }
+                    // Your picture last, where Google's apps put your account (A178). Guests have none, so no button.
                     me?.let { person ->
                         IconButton(
                             onClick = { navController.navigate(Routes.profile(person.id)) },
@@ -134,14 +140,6 @@ fun YouScreen(
                             Avatar(url = viewModel.avatarUrl(person), name = person.name, size = 32.dp)
                         }
                     }
-                },
-                // With nothing playing, the player (its other door) can't open, so it sits here for everyone (A136).
-                // People next to it, for guests too (A172).
-                actions = {
-                    IconButton(onClick = { navController.navigate(Routes.PEOPLE) { launchSingleTop = true } }) {
-                        Icon(AppIcons.person, contentDescription = "People")
-                    }
-                    IconButton(onClick = together) { Icon(AppIcons.groups, contentDescription = "Listen together") }
                 },
             )
         },

@@ -1,5 +1,31 @@
 [
   {
+    "version": "0.4.10",
+    "date": "2026-10-13",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "your picture moved to the top right of home, after people and listen together. tap it for your profile, same as before"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.4.9",
     "date": "2026-10-13",
     "sections": [
