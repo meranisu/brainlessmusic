@@ -4,6 +4,24 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-13: Playlist reorder sorts once, and playlist ids must be above zero
+
+- Code review: `PATCH /playlists/:id/tracks/reorder` sorted the requested list again for every song while comparing,
+  so a playlist of a few thousand songs made each reorder slow. Both lists are now sorted once.
+- Code review: the playlist routes' `parseId` took any whole number, so `GET /playlists?trackId=` accepted 0, negative
+  and empty ids (answering that nothing held them). It now needs an id above zero, like the other routes: a bad
+  `trackId` is a 400, and a playlist id of 0 or below a 404 as before.
+- Verified: backend `npm test` (new reorder test: reordered order comes back, missing, repeated and extra songs are
+  400; bad `trackId` cases `abc`, `0`, `-1`, empty) and `tsc --noEmit`.
+
+## 2026-10-13: Android add sheet ignores answers meant for another song
+
+- Code review: one `SongActionsViewModel` serves every add sheet on a screen, so an add or take-out still running when
+  the sheet was closed and reopened for another song ticked (and recounted) that playlist on the new song's list,
+  and a slow first load could replace the new song's list. `loadPlaylists()` now records the sheet's song, and
+  `mark()`, the load and `createAndAdd()` drop an answer for any other song. Release notes `v0.4.13.md`.
+- Verified: `compileDebugKotlin` and `PlaylistNameTest`. Not run on a phone; the race needs a slow connection.
+
 ## 2026-10-13: Review fixes for the add-to-playlist window and picture uploads
 
 - Code review of 311656d and 8ff0fb0 found three small bugs; all fixed.

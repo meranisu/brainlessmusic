@@ -195,20 +195,29 @@ class SongActionsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * The song the sheet's list is for. One view model serves every sheet on a screen, so an answer that arrives after
+     * the sheet was closed and opened for another song is dropped rather than put on that song's list.
+     */
+    private var sheetTrackId: Int? = null
+
     fun loadPlaylists(trackId: Int) {
+        sheetTrackId = trackId
         _playlists.value = LoadState.Loading
         viewModelScope.launch {
-            _playlists.value = profile.playlists(trackId).fold(
+            val loaded = profile.playlists(trackId).fold(
                 onSuccess = { LoadState.Content(it) },
                 onFailure = { LoadState.Error("Couldn't load your playlists.") },
             )
+            if (trackId == sheetTrackId) _playlists.value = loaded
         }
     }
 
     fun albumCoverUrl(albumId: Int): String? = library.albumCoverUrl(albumId)
 
-    /** Moves one row's tick (and its song count) without a reload. */
-    private fun mark(playlistId: Int, hasTrack: Boolean) {
+    /** Moves one row's tick (and its song count) without a reload, if the list is still [trackId]'s. */
+    private fun mark(trackId: Int, playlistId: Int, hasTrack: Boolean) {
+        if (trackId != sheetTrackId) return
         val list = (_playlists.value as? LoadState.Content)?.data ?: return
         _playlists.value = LoadState.Content(
             list.map {
@@ -229,7 +238,7 @@ class SongActionsViewModel @Inject constructor(
             if (playlist.hasTrack == true) {
                 profile.removeFromPlaylist(playlist.id, trackId).fold(
                     onSuccess = {
-                        mark(playlist.id, false)
+                        mark(trackId, playlist.id, false)
                         onDone("Taken out of ${playlist.name}")
                     },
                     onFailure = { onDone("Couldn't take it out. Try again.") },
@@ -237,11 +246,11 @@ class SongActionsViewModel @Inject constructor(
             } else {
                 when (profile.addToPlaylist(playlist.id, trackId)) {
                     AddToPlaylistResult.ADDED -> {
-                        mark(playlist.id, true)
+                        mark(trackId, playlist.id, true)
                         onDone("Added to ${playlist.name}")
                     }
                     // Added somewhere else meanwhile: it's where it was meant to go, so just show the tick.
-                    AddToPlaylistResult.ALREADY_THERE -> mark(playlist.id, true)
+                    AddToPlaylistResult.ALREADY_THERE -> mark(trackId, playlist.id, true)
                     AddToPlaylistResult.FAILED -> onDone("Couldn't add it. Try again.")
                 }
             }
@@ -256,7 +265,9 @@ class SongActionsViewModel @Inject constructor(
                 onSuccess = { created ->
                     val added = profile.addToPlaylist(created.id, trackId) != AddToPlaylistResult.FAILED
                     val row = PlaylistSummaryDto(created.id, created.name, if (added) 1 else 0, "", hasTrack = added)
-                    (_playlists.value as? LoadState.Content)?.let { _playlists.value = LoadState.Content(listOf(row) + it.data) }
+                    if (trackId == sheetTrackId) {
+                        (_playlists.value as? LoadState.Content)?.let { _playlists.value = LoadState.Content(listOf(row) + it.data) }
+                    }
                     onDone(if (added) "Made ${created.name} with this song in it" else "Made ${created.name}, but couldn't add the song. Tap it to try again.")
                 },
                 onFailure = { onDone("Couldn't make the playlist. Try again.") },

@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `parseId()`, `PATCH /playlists/:id/tracks/reorder`: `backend/src/routes/playlists.ts`
+**Date:** 2026-10-13
+**How added:** code review fix
+**Purpose:** a reorder that stays quick on long playlists; ids above zero only.
+**Side effects:** none new.
+**Before:** the requested list was re-sorted per compared song; 0, negative and empty ids passed.
+**After:** each list sorted once; ids must be whole numbers above zero.
+
+**Function:** `SongActionsViewModel.loadPlaylists()`, `mark(trackId, …)`, `toggle()`, `createAndAdd()`: `android/app/src/main/kotlin/com/brainlessmusic/app/ui/profile/SongActions.kt`
+**Date:** 2026-10-13
+**How added:** code review fix
+**Purpose:** a late answer for one song's sheet no longer changes another song's list.
+**Side effects:** none new.
+**Before:** answers applied to whatever list the shared view model held.
+**After:** applied only while the sheet is still for the same song (`sheetTrackId`).
+
 **Function:** `AddToPlaylistDialog()` (`toggleMutation` per-row pending ids, `createMutation` reports a failed add separately): `frontend/src/components/AddToPlaylistDialog.tsx`; `PUT /me/avatar`: `backend/src/routes/profile.ts`
 **Date:** 2026-10-13
 **How added:** code review fixes

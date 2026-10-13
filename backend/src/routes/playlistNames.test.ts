@@ -111,10 +111,27 @@ describe('GET /playlists?trackId=', () => {
     assert.equal(byId.get(empty)!.hasTrack, false);
   });
 
+  it('reorders to exactly the current songs and turns away any other set', async () => {
+    const id = (await call('POST', '/playlists', { name: 'Order' })).json().id as number;
+    await call('POST', `/playlists/${id}/tracks`, { trackId: tracks[0] });
+    await call('POST', `/playlists/${id}/tracks`, { trackId: tracks[1] });
+    const reordered = await call('PATCH', `/playlists/${id}/tracks/reorder`, { trackIds: [tracks[1], tracks[0]] });
+    assert.equal(reordered.statusCode, 200, reordered.body);
+    assert.deepEqual(
+      (reordered.json().tracks as { id: number }[]).map((t) => t.id),
+      [tracks[1], tracks[0]],
+    );
+    for (const trackIds of [[tracks[0]], [tracks[0], tracks[0]], [tracks[0], tracks[1], tracks[1]]]) {
+      assert.equal((await call('PATCH', `/playlists/${id}/tracks/reorder`, { trackIds })).statusCode, 400);
+    }
+  });
+
   it('leaves hasTrack out without a trackId, and rejects a bad one', async () => {
     await call('POST', '/playlists', { name: 'Any' });
     const plain = (await call('GET', '/playlists')).json().playlists;
     assert.equal('hasTrack' in plain[0], false);
-    assert.equal((await call('GET', '/playlists?trackId=abc')).statusCode, 400);
+    for (const bad of ['abc', '0', '-1', '']) {
+      assert.equal((await call('GET', `/playlists?trackId=${bad}`)).statusCode, 400, `trackId=${bad}`);
+    }
   });
 });

@@ -38,7 +38,7 @@ export function checkPlaylistName(raw: unknown): { name: string } | { error: str
 
 function parseId(raw: string): number | undefined {
   const id = Number(raw);
-  return Number.isInteger(id) ? id : undefined;
+  return Number.isInteger(id) && id > 0 ? id : undefined;
 }
 
 /** Loads the playlist and checks ownership; on 404/403 it replies itself and returns undefined. */
@@ -271,9 +271,10 @@ const playlistsRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       const current = getPlaylistTrackIdsInOrder(playlist.id);
+      // Each list sorted once: sorting inside the comparison made a long playlist's reorder slow.
+      const wanted = [...trackIds].sort((a, b) => a - b);
       const sameSet =
-        current.length === trackIds.length &&
-        [...current].sort((a, b) => a - b).every((v, i) => v === [...trackIds].sort((a, b) => a - b)[i]);
+        current.length === trackIds.length && [...current].sort((a, b) => a - b).every((v, i) => v === wanted[i]);
 
       if (!sameSet) {
         return reply
