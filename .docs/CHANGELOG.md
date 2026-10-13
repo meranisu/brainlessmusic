@@ -4,6 +4,19 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-13: Room members show their pictures; full-page windows match the system bars; Lane goodbye fix
+
+- Owner requests. Server: each room member now carries `avatarId` (set on join, refreshed on reconnect), in the room
+  snapshot and the Control Center overview. Android's member rows and the web's members list show the picture, or
+  the initial without one; someone away stays dimmed and the host keeps the accent edge.
+- Android Listen together: "End room" is an outlined button like "Leave room", in the error colour, instead of a bare
+  text button.
+- Android: Edit profile, its pin picker and the picture cropper open through a new `FullScreenDialog`, which draws
+  under the status and navigation bars with no dim and sets their icons to suit, so the bars match the page.
+- Android Lane goodbye: the lock diamond sits 24 dp above the "SEE YOU" plate, as the welcome's does since today.
+- Verified: backend `tsc --noEmit` and `npm test` (603 pass, new room picture test); web `npm run build`, `npm run
+  lint`; Android `assembleDebug`. Not run on a phone or in a browser.
+
 ## 2026-10-13: Web shows and edits playlist descriptions; "See everyone" leaves the web profile
 
 - Owner request, to match Android v0.4.13. The playlist page shows the description under the name; the owner gets

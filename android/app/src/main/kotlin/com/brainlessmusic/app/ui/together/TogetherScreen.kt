@@ -75,6 +75,7 @@ import com.brainlessmusic.app.ui.theme.accentInk
 import com.brainlessmusic.app.ui.theme.cardShape
 import com.brainlessmusic.app.ui.theme.coverShape
 import com.brainlessmusic.app.ui.theme.tileShape
+import com.brainlessmusic.app.ui.common.Avatar
 
 /**
  * "Listen together" (A102): start a room, join one by its code, or, inside one, the code to pass on, who's in and the
@@ -361,10 +362,12 @@ private fun InsideRoom(
                 context.startActivity(Intent.createChooser(send, "Share the room"))
             }) { Text("Share link") }
             OutlinedButton(onClick = viewModel::leave) { Text("Leave room") }
+            // The same outlined button as Leave, in the error colour, so the three read as one row.
             if (state.isHost) {
-                TextButton(
+                OutlinedButton(
                     onClick = { confirmEnd = true },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
                 ) { Text("End room") }
             }
         }
@@ -384,6 +387,7 @@ private fun InsideRoom(
         room.members.forEach { member ->
             MemberRow(
                 member = member,
+                pictureUrl = viewModel.avatarUrl(member),
                 isYou = member.userId == state.you,
                 isHost = member.userId == room.hostUserId,
                 canRemove = state.isHost && member.userId != state.you,
@@ -479,6 +483,7 @@ private fun NowPlayingCard(state: RoomUiState, viewModel: TogetherViewModel, can
 @Composable
 private fun MemberRow(
     member: RoomMember,
+    pictureUrl: String?,
     isYou: Boolean,
     isHost: Boolean,
     canRemove: Boolean,
@@ -492,23 +497,16 @@ private fun MemberRow(
             .heightIn(min = 48.dp)
             .then(if (onOpen != null) Modifier.clickable(onClickLabel = "Open ${member.name}'s profile", onClick = onOpen) else Modifier),
     ) {
-        // An initial in the skin's avatar shape; the host's is edged in the accent, someone away is dimmed.
-        val avatar = coverShape(10.dp)
-        Box(
-            contentAlignment = Alignment.Center,
+        // Their picture, or their initial without one, as everywhere else; the host's is edged in the accent, someone
+        // away is dimmed.
+        Avatar(
+            url = pictureUrl,
+            name = member.name,
+            size = 40.dp,
             modifier = Modifier
-                .size(40.dp)
                 .alpha(if (member.connected) 1f else 0.5f)
-                .clip(avatar)
-                .background(scheme.surfaceContainerHighest)
-                .border(2.dp, if (isHost) scheme.primary else scheme.outlineVariant, avatar),
-        ) {
-            Text(
-                member.name.firstOrNull()?.uppercase() ?: "?",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = scheme.onSurface,
-            )
-        }
+                .border(2.dp, if (isHost) scheme.primary else scheme.outlineVariant, coverShape(8.dp)),
+        )
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(

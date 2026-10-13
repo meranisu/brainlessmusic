@@ -58,7 +58,12 @@ function memberFromToken(token: unknown): MemberInfo | undefined {
 }
 
 function memberInfo(user: UserRow): MemberInfo {
-  return { userId: user.id, name: nameOf(user), kind: user.kind === 'guest' ? 'guest' : 'account' };
+  return {
+    userId: user.id,
+    name: nameOf(user),
+    kind: user.kind === 'guest' ? 'guest' : 'account',
+    avatarId: user.avatar_id,
+  };
 }
 
 function stillValid(userId: number, sessionVersion: number): boolean {

@@ -127,6 +127,17 @@ describe('room registry: making and joining', () => {
     assert.equal(rooms.snapshot(code)!.members.find((m) => m.userId === bob.userId)!.connected, true);
   });
 
+  it("shows each member's picture, and a reconnect picks up a new one", () => {
+    const code = makeRoom();
+    assert.equal(rooms.snapshot(code)!.members[0].avatarId, null);
+    const socket = fakeSocket();
+    rooms.connect(code, { ...bob, avatarId: 'a'.repeat(64) }, socket.connection);
+    const bobOf = () => rooms.snapshot(code)!.members.find((m) => m.userId === bob.userId)!;
+    assert.equal(bobOf().avatarId, 'a'.repeat(64));
+    rooms.connect(code, { ...bob, avatarId: null }, fakeSocket().connection);
+    assert.equal(bobOf().avatarId, null);
+  });
+
   it('joining another room leaves the first', () => {
     const first = makeRoom();
     const socket = fakeSocket();

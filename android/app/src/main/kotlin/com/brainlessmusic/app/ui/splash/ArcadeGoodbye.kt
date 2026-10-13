@@ -68,6 +68,8 @@ import kotlin.math.min
 import kotlin.math.sin
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.runtime.mutableIntStateOf
 
 /** Asks [ArcadeGoodbye] to play; posted by sign-out with the name to say goodbye to, read before it is cleared. */
 object Goodbye {
@@ -265,13 +267,16 @@ private fun LaneGoodbye(p: Float, name: String) {
     val content = span(p, 0.2f, 0.28f) * (1f - span(p, 0.66f, 0.74f))
     val lock = easeOut(span(p, 0.2f, 0.32f))
     val plate = easeOut(span(p, 0.26f, 0.42f))
+    // As in the Lane welcome: the plate's height follows the font scale, so the diamond sits a gap above its top edge.
+    var plateHeight by remember { mutableIntStateOf(0) }
 
     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
         Canvas(Modifier.fillMaxSize()) {
             drawShutter(closed, scheme.surfaceContainerHigh, scheme.surfaceContainerHighest, scheme.primary)
-            val d = 56.dp.toPx() * lock
+            val full = 56.dp.toPx()
+            val d = full * lock
             if (d > 0f && content > 0f) {
-                val c = Offset(size.width / 2, size.height / 2 - 96.dp.toPx())
+                val c = Offset(size.width / 2, size.height / 2 - plateHeight / 2f - 24.dp.toPx() - full)
                 val outer = Path().apply { moveTo(c.x, c.y - d); lineTo(c.x + d, c.y); lineTo(c.x, c.y + d); lineTo(c.x - d, c.y); close() }
                 drawPath(outer, scheme.background, alpha = content)
                 drawPath(outer, scheme.primary, alpha = content, style = Stroke(2.dp.toPx()))
@@ -281,6 +286,7 @@ private fun LaneGoodbye(p: Float, name: String) {
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .padding(horizontal = 32.dp)
+                .onSizeChanged { plateHeight = it.height }
                 .graphicsLayer {
                     alpha = plate * content
                     translationX = 64.dp.toPx() * (1f - plate)

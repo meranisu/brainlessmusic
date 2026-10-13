@@ -8,6 +8,7 @@ import { ArrowUpIcon, CloseIcon, PlayIcon } from '../components/icons';
 import { ApiError, apiClient } from '../lib/apiClient';
 import type { RoomState } from '../lib/roomClient';
 import { ROOM_CODE_CHARS, ROOM_CODE_LENGTH, clearRoomLink, pendingRoomLink, roomLinkFor } from '../lib/roomLink';
+import { Avatar } from '../components/Avatar';
 
 /**
  * "Listen together" (A102): start or join a room, then see who's in it and the shared queue. Everyone controls
@@ -289,7 +290,10 @@ function InsideRoom({ room }: { room: RoomState }) {
           <h2 className="text-sm font-semibold text-blue-200">In the room ({room.members.length} of 8)</h2>
           <ul className="card divide-y divide-blue-800/60">
             {room.members.map((m) => (
-              <li key={m.userId} className="flex items-center gap-2 py-2 pl-4 pr-2">
+              <li key={m.userId} className="flex items-center gap-3 py-2 pl-4 pr-2">
+                <span className={m.connected ? '' : 'opacity-50'}>
+                  <Avatar userId={m.userId} name={m.name} avatarId={m.avatarId ?? null} />
+                </span>
                 <span className="min-w-0 flex-1 truncate text-sm text-white">
                   {/* An account's name opens its profile; the room keeps playing (A172, A173). Guests have none. */}
                   {m.kind === 'account' ? (

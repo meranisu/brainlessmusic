@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.brainlessmusic.app.rooms.RoomMember
+import com.brainlessmusic.app.data.repository.ProfileRepository
 
 /** What the code typed so far turned up. */
 sealed interface RoomLookup {
@@ -36,10 +38,14 @@ class TogetherViewModel @Inject constructor(
     tokenProvider: TokenProvider,
     links: RoomLinks,
     private val library: LibraryRepository,
+    private val profiles: ProfileRepository,
 ) : ViewModel() {
     val room: StateFlow<RoomUiState> = session.state
     val playback: StateFlow<PlaybackUiState> = controller.state
     val isGuest: Boolean = tokenProvider.isGuest
+
+    /** A member's picture for the members list, or null to show their initial. */
+    fun avatarUrl(member: RoomMember): String? = profiles.avatarUrl(member.userId, member.avatarId)
 
     private val _code = MutableStateFlow("")
     val code: StateFlow<String> = _code.asStateFlow()

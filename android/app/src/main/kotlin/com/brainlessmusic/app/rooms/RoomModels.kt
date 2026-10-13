@@ -22,6 +22,8 @@ data class RoomMember(
     /** `account` or `guest`. */
     val kind: String,
     val connected: Boolean,
+    /** Their profile picture; null without one, for guests, and from a server older than it. */
+    val avatarId: String? = null,
 )
 
 /** While [playing], the song is at `positionMs + (serverNow - anchorMs)`; before [anchorMs] it hasn't started. */

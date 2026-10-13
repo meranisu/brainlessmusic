@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.consumeWindowInsets
+import com.brainlessmusic.app.ui.common.FullScreenDialog
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -110,8 +112,6 @@ import com.brainlessmusic.app.ui.profile.HitCircleListening
 import com.brainlessmusic.app.ui.profile.LaneListening
 import com.brainlessmusic.app.ui.profile.RingListening
 import com.brainlessmusic.app.ui.profile.StandardListening
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.brainlessmusic.app.data.repository.AuthRepository
 import com.brainlessmusic.app.data.remote.dto.SearchResultsDto
 import androidx.compose.foundation.shape.CircleShape
@@ -682,7 +682,7 @@ private fun EditProfilePage(
             .distinctBy { it.id }
     }
 
-    Dialog(onDismissRequest = leave, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    FullScreenDialog(onDismissRequest = leave) {
         Scaffold(
             topBar = {
                 TopAppBar(
@@ -700,6 +700,7 @@ private fun EditProfilePage(
             Column(
                 Modifier
                     .padding(padding)
+                    .consumeWindowInsets(padding)
                     .fillMaxSize()
                     .imePadding()
                     .verticalScroll(rememberScrollState())
@@ -905,7 +906,7 @@ private fun PinPickerPage(
     val artists = if (query.isBlank()) suggestedArtists else results?.artists.orEmpty().map { PinnedArtist(it.id, it.name) }
     val what = if (kind == PinKind.SONG) "song" else "artist"
 
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    FullScreenDialog(onDismissRequest = onDismiss) {
         Scaffold(
             topBar = {
                 TopAppBar(
@@ -929,7 +930,7 @@ private fun PinPickerPage(
                 )
             },
         ) { padding ->
-            LazyColumn(Modifier.padding(padding).fillMaxSize().imePadding()) {
+            LazyColumn(Modifier.padding(padding).consumeWindowInsets(padding).fillMaxSize().imePadding()) {
                 item {
                     Text(
                         when {

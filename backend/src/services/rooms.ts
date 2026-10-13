@@ -41,6 +41,8 @@ export interface MemberInfo {
   userId: number;
   name: string;
   kind: 'account' | 'guest';
+  /** Their profile picture, so the members list can show it; null without one (guests never have one). */
+  avatarId?: string | null;
 }
 
 export type CloseReason = 'ended' | 'kicked' | 'not-found' | 'replaced' | 'left';
@@ -82,7 +84,7 @@ export interface RoomSnapshot {
   code: string;
   version: number;
   hostUserId: number;
-  members: { userId: number; name: string; kind: 'account' | 'guest'; connected: boolean }[];
+  members: { userId: number; name: string; kind: 'account' | 'guest'; avatarId: string | null; connected: boolean }[];
   queue: QueueEntry[];
   current: number;
   playback: Playback;
@@ -143,6 +145,7 @@ export function createRoomRegistry(deps: RegistryDeps) {
         userId: m.userId,
         name: m.name,
         kind: m.kind,
+        avatarId: m.avatarId ?? null,
         connected: m.connection !== null,
       })),
       queue: room.queue,
@@ -436,6 +439,7 @@ export function createRoomRegistry(deps: RegistryDeps) {
       member.awayTimer = null;
       member.connection = connection;
       member.name = info.name;
+      member.avatarId = info.avatarId ?? null;
       broadcast(room, connection);
       return { ok: true, room: snapshot(room) };
     },
@@ -494,6 +498,7 @@ export function createRoomRegistry(deps: RegistryDeps) {
           userId: m.userId,
           name: m.name,
           kind: m.kind,
+          avatarId: m.avatarId ?? null,
           connected: m.connection !== null,
           driftMs: m.driftMs,
           buffering: m.buffering,

@@ -48,12 +48,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.brainlessmusic.app.ui.theme.coverShape
 import java.io.ByteArrayOutputStream
 import kotlin.math.min
 import kotlin.math.roundToInt
+import com.brainlessmusic.app.ui.common.FullScreenDialog
 
 /**
  * Crop before upload (profile page plan, Phase 6): the phone opens the picked photo, you move and zoom it in a frame
@@ -187,7 +186,7 @@ internal fun AvatarCropDialog(
         zoom = z
     }
 
-    Dialog(onDismissRequest = onCancel, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    FullScreenDialog(onDismissRequest = onCancel) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
             Column(
                 Modifier.fillMaxSize().systemBarsPadding().padding(16.dp),

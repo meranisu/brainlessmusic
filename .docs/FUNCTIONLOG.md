@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `MemberInfo.avatarId`, `snapshot()`, `connect()`, `overview()`: `backend/src/services/rooms.ts`; `memberInfo()`: `backend/src/routes/rooms.ts`; `FullScreenDialog()`: `android/app/src/main/kotlin/com/brainlessmusic/app/ui/common/FullScreenDialog.kt`; `MemberRow()`, `TogetherViewModel.avatarUrl()`: `ui/together/`; `LaneGoodbye()`: `ui/splash/ArcadeGoodbye.kt`; web `TogetherPage()`
+**Date:** 2026-10-13
+**How added:** owner requests
+**Purpose:** pictures in rooms; matching system bars on full-page windows; goodbye diamond clear of the plate.
+**Side effects:** room snapshots gain `avatarId` per member.
+**Before:** members showed an initial only; dialog pages left the bars dimmed; the goodbye diamond touched the plate.
+**After:** as described in the changelog entry of the same date.
+
 **Function:** `PlaylistDetailPage()` (`describeMutation`, description editor), `PlaylistListItem()` (`description`), `ProfilePage()`: `frontend/src/`; `listPublicPlaylistsOf()`: `backend/src/db/playlists.ts`
 **Date:** 2026-10-13
 **How added:** owner request (A185, A182)

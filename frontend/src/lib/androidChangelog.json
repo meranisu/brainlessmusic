@@ -1,5 +1,34 @@
 [
   {
+    "version": "0.4.14",
+    "date": "2026-10-13",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "people in a listen together room show their profile picture now, not just a letter",
+              "the end room button looks like the leave room one now (just red), instead of floating text",
+              "edit profile and the photo cropper now colour the status bar and the bottom bar to match the page",
+              "fixed the lane log out animation where the \"see you\" box was touching the diamond, same fix as the intro got"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.4.13",
     "date": "2026-10-13",
     "sections": [

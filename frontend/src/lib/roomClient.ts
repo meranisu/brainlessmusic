@@ -20,6 +20,8 @@ export interface RoomMember {
   userId: number;
   name: string;
   kind: 'account' | 'guest';
+  /** Their profile picture; null without one and for guests. Missing from a server older than it. */
+  avatarId?: string | null;
   connected: boolean;
 }
 
