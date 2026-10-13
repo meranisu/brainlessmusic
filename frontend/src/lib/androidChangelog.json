@@ -1,5 +1,34 @@
 [
   {
+    "version": "0.4.16",
+    "date": "2026-10-13",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "you can sign up in the app now. tap \"got an invite code? sign up\" on the login screen, type the 8 letter code you were sent, then pick a name, email, password and a passcode if you want one",
+              "invite links open the app straight on sign up with the code filled in. if you're a guest and the link was made for you, your guest turns into the account and keeps where you left off",
+              "log in with your username or your email, whichever you remember",
+              "if your account has no email yet the app asks for one once. \"later\" is fine, it asks again next time you open the app. nothing gets sent to it for now, it's for resetting a forgotten password down the line"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.4.15",
     "date": "2026-10-13",
     "sections": [

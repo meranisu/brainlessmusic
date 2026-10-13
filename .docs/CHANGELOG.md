@@ -4,6 +4,31 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-13: Sign up with an invite code, email and an optional passcode; sign in by email (A187-A192)
+
+- Backend: migration `0037` adds `users.email` (lowercase, unique when set). Invites are now an 8-character code
+  (`ABCD2345`, the guest-code alphabet) instead of a 32-character token; the link carries the same code, a typed code
+  is matched ignoring case, spaces and dashes, and links sent before still work. `GET /invites/:token` is rate limited
+  (30 an hour per address) now that codes are short. `POST /invites/:token/accept` requires `email` and takes an
+  optional `passcode` (4-8 digits); an email already in use is a 409. `/auth/login` and `/auth/passcode-login` take an
+  email in place of the username, with the per-account failure limit keyed on the account so switching between the
+  two gives no extra guesses. `/auth/me` returns `email`; new `PUT /me/email` (accounts only) adds or changes it.
+  `/auth/register` accepts an optional `email`.
+- Web: `/signup` asks for the code, then the same form an invite link opens: name, email, password, optional passcode.
+  The sign-in screen says "Username or email" and, with sign-ups closed, shows "Got an invite?" with Sign up. The
+  invite dialog shows the code in large type above the link. An account with no email gets an "Add your email" window
+  in the app (Later holds for the browser session); Options has an Email section to add or change it.
+- Android: Sign up screen (code, then the form) from "Got an invite code? Sign up" on the login card, and from
+  `/invite/` links, which now open the app (A187), including upgrade links opened by a signed-in guest (A188). Login
+  says "Username or email" and saves the real username after an email sign-in, so first-run setup and Settings still
+  key on it. An account with no email is asked once per app start.
+- Verified: backend `tsc --noEmit` and `npm test` (615 pass; new tests for typed codes, old long tokens, email
+  required and unique, sign-in by email with password and passcode, `PUT /me/email`, guests refused). Web
+  `npm run build` and `npm run lint` (no new warnings), then used in headless Chromium against a throwaway server on a
+  temp database: signed up with a typed lower-case dashed code, a used code refused, the email prompt refused a taken
+  email then saved, Options showed it, and signing in with the email worked. Android `compileDebugKotlin` and the new
+  `InviteCodeTest` (2). Not run on a phone; invite links opening the app not tried.
+
 ## 2026-10-13: Search reworked on Android and the web (A193)
 
 - Backend `GET /search`: artists, albums and short-query songs are ordered best match first (the exact name, then

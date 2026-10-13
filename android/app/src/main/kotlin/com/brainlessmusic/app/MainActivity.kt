@@ -31,6 +31,7 @@ import com.brainlessmusic.app.data.local.AppearanceSettings
 import com.brainlessmusic.app.data.local.PlaybackSettings
 import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.PlaybackResume
+import com.brainlessmusic.app.invites.InviteLinks
 import com.brainlessmusic.app.rooms.RoomLinks
 import com.brainlessmusic.app.rooms.RoomSession
 import com.brainlessmusic.app.ui.navigation.BrainlessNavGraph
@@ -57,6 +58,7 @@ class MainActivity : ComponentActivity() {
     // From launch too, so a restarted app gets back into the room it was in.
     @Inject lateinit var roomSession: RoomSession
     @Inject lateinit var roomLinks: RoomLinks
+    @Inject lateinit var inviteLinks: InviteLinks
     @Inject lateinit var updates: UpdateRepository
     @Inject lateinit var playbackSettings: PlaybackSettings
 
@@ -104,8 +106,11 @@ class MainActivity : ComponentActivity() {
         }
         // A newer release on GitHub: at most one look a day, quiet when offline (A104).
         updates.checkOnLaunch()
-        // A room link that started the app. Not on a re-creation, which would replay the link already used.
-        if (savedInstanceState == null) roomLinks.handle(intent)
+        // A room or invite link that started the app. Not on a re-creation, which would replay the link already used.
+        if (savedInstanceState == null) {
+            roomLinks.handle(intent)
+            inviteLinks.handle(intent)
+        }
         // Room notices (it ended, you were removed, a song couldn't be added) from whichever screen is open.
         lifecycleScope.launch {
             roomSession.messages.collect { Notices.show(it, long = true) }
@@ -139,7 +144,7 @@ class MainActivity : ComponentActivity() {
             }
             BrainlessMusicTheme(colorTheme = colorTheme, darkTheme = darkTheme, skin = skin) {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    BrainlessNavGraph(startViewModel = startViewModel, roomLinks = roomLinks)
+                    BrainlessNavGraph(startViewModel = startViewModel, roomLinks = roomLinks, inviteLinks = inviteLinks)
                     UpdateSheetHost()
                     NoticeHost()
                     ArcadeWelcome(startViewModel)
@@ -155,6 +160,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         roomLinks.handle(intent)
+        inviteLinks.handle(intent)
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {

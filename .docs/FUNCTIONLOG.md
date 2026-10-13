@@ -4,6 +4,30 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `cleanEmail()`, `findUserByEmail()`, `findUserByLogin()`, `setEmail()` (`backend/src/db/users.ts`); `normalizedCode()`, `findByToken()`, `createInvite()`, `acceptInvite()` (`db/invites.ts`); `POST /invites/:token/accept`, `GET /invites/:token` (`routes/invites.ts`); `limitKeyOf()`, `/auth/login`, `/auth/passcode-login`, `/auth/register`, `/auth/me`, `PUT /me/email` (`routes/auth.ts`)
+**Date:** 2026-10-13
+**How added:** new feature (A189-A192)
+**Purpose:** sign-up with a typed invite code, email and optional passcode; sign-in by email; asking older accounts for an email.
+**Side effects:** writes `users.email` and `passcode_hash` on accept; new rate limiter on invite checks.
+**Before:** invites were long link tokens; accept took a name and password only; sign-in by username only.
+**After:** 8-character codes (old tokens still match), email required on accept, either name or email signs in.
+
+**Function:** `InvitePage()`, `CodeStep()`, `SignUpStep()` (`frontend/src/pages/InvitePage.tsx`); `EmailPrompt()` (`components/EmailPrompt.tsx`); `EmailSection()` (`pages/OptionsPage.tsx`); `createInvite()` (`lib/invites.ts`); `InviteLinkDialog()` (`components/Invites.tsx`)
+**Date:** 2026-10-13
+**How added:** new feature (A189-A192)
+**Purpose:** the web sign-up page at `/signup` and `/invite/:token`, the email prompt and Options section, the code in the invite dialog.
+**Side effects:** `PUT /me/email`; "Later" is kept in `sessionStorage`.
+**Before:** an invite link page with name and password only.
+**After:** as in the changelog entry of the same date.
+
+**Function:** `InviteLinks` (`android/.../invites/InviteLinks.kt`); `SignUpScreen()`, `SignUpViewModel` (`ui/signup/`); `EmailPrompt()`, `EmailPromptViewModel` (`ui/signup/EmailPrompt.kt`); `AuthRepository.peekInvite()`, `acceptInvite()`, `needsEmail()`, `setEmail()`, `login()`
+**Date:** 2026-10-13
+**How added:** new feature (A187-A192)
+**Purpose:** sign up in the app, invite links opening it, the email prompt.
+**Side effects:** stores the new session; a guest upgrade keeps the phone's setup marker.
+**Before:** no sign-up in the app; `/invite/` links opened the browser; login saved what was typed as the username.
+**After:** as in the changelog entry of the same date.
+
 **Function:** `searchLibrary(query, includeHidden, page)`, `rankBy()`, `likeEscape()` (`backend/src/db/browse.ts`); `GET /search` (`routes/search.ts`); `pickTopResult()`, `suggestSpelling()`, `editDistance()` (`services/searchHelp.ts`); `foldText()` and the `fold()` SQL function (`utils/foldText.ts`, `db/connection.ts`); `searchPeople()`/`searchPlaylists()` gain `offset` and fold accents
 **Date:** 2026-10-13
 **How added:** owner request (A193)

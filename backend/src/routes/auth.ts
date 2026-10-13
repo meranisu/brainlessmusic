@@ -14,7 +14,10 @@ import {
   clearPasscodeById,
   countAccounts,
   countGuests,
+  cleanEmail,
+  findUserByEmail,
   findUserById,
+  findUserByLogin,
   findUserByUsername,
   insertGuest,
   insertUser,
@@ -23,6 +26,7 @@ import {
   randomGuestName,
   setAdmin,
   setDisplayName,
+  setEmail,
   setPasscodeHashById,
   setUserTheme,
   touchLastSeen,
@@ -36,6 +40,8 @@ import { clientIp } from '../utils/clientIp.js';
 interface Credentials {
   username: string;
   password: string;
+  /** Register only, optional there: an account made without one is asked for it after signing in (A190). */
+  email?: unknown;
 }
 
 interface PasscodeLogin {
@@ -57,7 +63,7 @@ export function usernameProblem(username: string): string | undefined {
   if (username.toLowerCase().startsWith('guest-')) return 'usernames starting with "guest-" are reserved';
   return undefined;
 }
-const PASSCODE_PATTERN = /^\d{4,8}$/;
+export const PASSCODE_PATTERN = /^\d{4,8}$/;
 /** A web theme id (`frontend/src/lib/theme.ts`): lowercase, short. */
 const THEME_ID = /^[a-z][a-z0-9-]{0,31}$/;
 
@@ -95,6 +101,11 @@ function loginLimitFor(byIp: RateLimiter, ip: string, perMinute: number, usernam
   const ipRate = byIp.peek(ip, { limit: perMinute, windowMs: MINUTE_MS });
   if (!ipRate.allowed) return ipRate;
   return accountLoginLimiter.peek(username, { limit: config.accountLoginFailuresPerHour, windowMs: HOUR_MS });
+}
+
+/** The per-account limit's key: the account when the name or email finds one, else what was typed, ignoring case. */
+function limitKeyOf(user: UserRow | undefined, typed: unknown): string {
+  return user ? `id:${user.id}` : `typed:${String(typed).trim().toLowerCase()}`;
 }
 
 function countLoginFailure(byIp: RateLimiter, ip: string, perMinute: number, username: string): void {
@@ -288,6 +299,10 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(400).send({ error: 'username and password are required' });
       }
 
+      const rawEmail = request.body?.email;
+      const email = rawEmail === undefined || rawEmail === null || rawEmail === '' ? null : cleanEmail(rawEmail);
+      if (email === undefined) return reply.code(400).send({ error: 'enter a valid email' });
+
       // Validated here, not only in the browser: with open registration this
       // endpoint is reachable by anyone, so the client is not a gate.
       const problem = usernameProblem(username);
@@ -312,15 +327,18 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       // constraint as a 500.
       const outcome = db.transaction(() => {
         if (findUserByUsername(username)) return 'taken' as const;
+        if (email !== null && findUserByEmail(email)) return 'emailTaken' as const;
         const isBootstrap = countAccounts() === 0;
         // Let through only because the server was empty, and someone else has claimed it since.
         if (!isBootstrap && !request.user && !config.allowOpenRegistration) return 'closed' as const;
         const user = insertUser(username, passwordHash);
+        if (email !== null) setEmail(user.id, email);
         if (isBootstrap) setAdmin(user.username, true);
         return { user, isBootstrap };
       })();
 
       if (outcome === 'taken') return reply.code(409).send({ error: 'username already taken' });
+      if (outcome === 'emailTaken') return reply.code(409).send({ error: 'that email is already in use' });
       if (outcome === 'closed') return reply.code(401).send({ error: 'Registration is closed' });
       const { user, isBootstrap } = outcome;
       return reply.code(201).send({ id: user.id, username: user.username, isAdmin: isBootstrap });
@@ -336,14 +354,15 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
 
     const ip = clientIp(request);
     const limit = config.loginAttemptsPerMinute;
-    const rate = loginLimitFor(passwordLoginLimiter, ip, limit, String(username));
+    // `username` may be an email (A192). Counted per account, so switching between the two buys no extra guesses.
+    const user = findUserByLogin(String(username));
+    const accountKey = limitKeyOf(user, username);
+    const rate = loginLimitFor(passwordLoginLimiter, ip, limit, accountKey);
     if (!rate.allowed) return tooManyTries(reply, rate);
-
-    const user = findUserByUsername(username);
 
     // Guests are refused before bcrypt, as a stated rule rather than a lost comparison.
     if (!user || user.kind === 'guest' || !(await verifyPassword(password, user.password_hash))) {
-      countLoginFailure(passwordLoginLimiter, ip, limit, String(username));
+      countLoginFailure(passwordLoginLimiter, ip, limit, accountKey);
       return reply.code(401).send({ error: 'invalid username or password' });
     }
 
@@ -361,10 +380,10 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
 
     const ip = clientIp(request);
     const limit = config.passcodeAttemptsPerMinute;
-    const rate = loginLimitFor(passcodeLoginLimiter, ip, limit, String(username));
+    const user = findUserByLogin(String(username));
+    const accountKey = limitKeyOf(user, username);
+    const rate = loginLimitFor(passcodeLoginLimiter, ip, limit, accountKey);
     if (!rate.allowed) return tooManyTries(reply, rate);
-
-    const user = findUserByUsername(username);
 
     // Same refusal shape as `/auth/login`: no user, a guest, no passcode ever
     // set, or a wrong one, all look identical from the outside.
@@ -374,7 +393,7 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       !user.passcode_hash ||
       !(await verifyPasscode(passcode, user.passcode_hash))
     ) {
-      countLoginFailure(passcodeLoginLimiter, ip, limit, String(username));
+      countLoginFailure(passcodeLoginLimiter, ip, limit, accountKey);
       return reply.code(401).send({ error: 'invalid username or passcode' });
     }
 
@@ -419,6 +438,8 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       isAdmin: Boolean(user.is_admin),
       isGuest: user.kind === 'guest',
       hasPasscode: Boolean(user.passcode_hash),
+      // Null asks the client to prompt for one (A190); guests are never asked.
+      email: user.email,
       theme: user.theme,
       // So the header's picture button needs no second request (A171).
       avatarId: user.avatar_id,
@@ -448,6 +469,31 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
     setDisplayName(user.id, stored);
     return reply.send({ displayName: stored ?? user.username });
   });
+
+  /** Adds or changes the signed-in account's email (A190). Clearing it isn't offered: new accounts must have one. */
+  fastify.put<{ Body: { email?: unknown } }>(
+    '/me/email',
+    { preHandler: [fastify.authenticate, fastify.requireAccount] },
+    async (request, reply) => {
+      const email = cleanEmail(request.body?.email);
+      if (email === undefined) return reply.code(400).send({ error: 'enter a valid email' });
+
+      const owner = findUserByEmail(email);
+      if (owner && owner.id !== request.user!.id) {
+        return reply.code(409).send({ error: 'that email is already in use' });
+      }
+      try {
+        setEmail(request.user!.id, email);
+      } catch (err) {
+        // Taken by someone else between the check and the write.
+        if ((err as { code?: string }).code === 'SQLITE_CONSTRAINT_UNIQUE') {
+          return reply.code(409).send({ error: 'that email is already in use' });
+        }
+        throw err;
+      }
+      return reply.send({ email });
+    },
+  );
 
   // Swaps a session token for a short-lived media token for `<audio src>` / `<img src>`. Clients cache it until `expiresAt`.
   fastify.post('/auth/media-token', { preHandler: fastify.authenticate }, async (request, reply) => {

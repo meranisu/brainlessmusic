@@ -7,7 +7,10 @@ import com.brainlessmusic.app.data.remote.ApiServiceFactory
 import com.brainlessmusic.app.data.remote.MediaUrlProvider
 import com.brainlessmusic.app.data.remote.ServerConfig
 import com.brainlessmusic.app.data.remote.TokenProvider
+import com.brainlessmusic.app.data.remote.dto.AcceptInviteRequest
 import com.brainlessmusic.app.data.remote.dto.DisplayNameRequest
+import com.brainlessmusic.app.data.remote.dto.EmailRequest
+import com.brainlessmusic.app.data.remote.dto.InvitePeek
 import com.brainlessmusic.app.data.remote.dto.GuestCodeRequestBody
 import com.brainlessmusic.app.data.remote.dto.GuestRequest
 import com.brainlessmusic.app.data.remote.dto.GuestRequestSecret
@@ -87,17 +90,18 @@ class AuthRepository @Inject constructor(
     suspend fun login(username: String, password: String): Result<Unit> {
         val validated = serverConfig.url
         return runCatching {
-            val response = apiServiceFactory.get(validated).login(LoginRequest(username, password))
+            val response = apiServiceFactory.get(validated).login(LoginRequest(username.trim(), password))
             tokenProvider.current = response.token
             tokenProvider.isGuest = false
             _needsSignIn.value = false
             mediaUrlProvider.current = ApiServiceFactory.normalize(validated)
-            sessionStore.saveSession(validated, username, response.token, isGuest = false)
-            // Only for Settings' name and the theme; a failure here doesn't undo the login.
-            runCatching {
-                val me = apiServiceFactory.get(validated).me()
+            // [username] may be an email (A192); the saved name is the real username when the server says it, since
+            // the first-run setup and Settings key on it. A failure here doesn't undo the login.
+            val me = runCatching { apiServiceFactory.get(validated).me() }.getOrNull()
+            sessionStore.saveSession(validated, me?.username ?: username.trim(), response.token, isGuest = false)
+            if (me != null) {
                 sessionStore.saveDisplayName(nameOf(me))
-                syncTheme(me)
+                runCatching { syncTheme(me) }
             }
             Unit
         }.recoverCatching {
@@ -129,6 +133,64 @@ class AuthRepository @Inject constructor(
             }
         }
     }
+
+    /** What an invite code is good for, or why not (A191). */
+    suspend fun peekInvite(code: String): InviteCheck =
+        try {
+            val peek = apiServiceFactory.get(serverConfig.url).peekInvite(code)
+            if (peek.status == "open") InviteCheck.Open(peek) else InviteCheck.Closed(peek.status)
+        } catch (e: Exception) {
+            when ((e as? HttpException)?.code()) {
+                404 -> InviteCheck.Closed("unknown")
+                429 -> InviteCheck.Failed("Too many tries from here. Wait a little.")
+                else -> InviteCheck.Failed(classifyError(e).toMessage())
+            }
+        }
+
+    /**
+     * Makes the account (A189-A192) and signs this phone in as it; an upgrade invite turns the signed-in guest into it.
+     * Returns the display name, or the server's reason as a sentence.
+     */
+    suspend fun acceptInvite(code: String, body: AcceptInviteRequest): Result<String> {
+        val serverUrl = serverConfig.url
+        return try {
+            val response = apiServiceFactory.get(serverUrl).acceptInvite(code, body)
+            Result.success(adopt(serverUrl, response.token))
+        } catch (e: Exception) {
+            val message = when ((e as? HttpException)?.code()) {
+                400, 409 -> serverError(e) ?: "Check what you typed and try again."
+                410 -> "This invite has expired or was already used."
+                429 -> "Too many tries from here. Wait a little."
+                else -> classifyError(e).toMessage()
+            }
+            Result.failure(IllegalStateException(message))
+        }
+    }
+
+    /** True when this is an account with no email yet (A190), so the app asks for one. Quietly false offline. */
+    suspend fun needsEmail(): Boolean =
+        runCatching { apiServiceFactory.get(serverConfig.url).me() }
+            .map { !it.isGuest && it.email == null }
+            .getOrDefault(false)
+
+    /** Adds or changes the account's email; the failure carries a sentence to show. */
+    suspend fun setEmail(email: String): Result<String> =
+        try {
+            Result.success(apiServiceFactory.get(serverConfig.url).setEmail(EmailRequest(email.trim())).email)
+        } catch (e: Exception) {
+            val message = when ((e as? HttpException)?.code()) {
+                400, 409 -> serverError(e) ?: "Check the email and try again."
+                else -> classifyError(e).toMessage()
+            }
+            Result.failure(IllegalStateException(message))
+        }
+
+    /** The `error` field of a JSON refusal, as a sentence. */
+    private fun serverError(e: HttpException): String? =
+        runCatching {
+            val body = e.response()?.errorBody()?.string() ?: return null
+            org.json.JSONObject(body).optString("error").takeIf { it.isNotEmpty() }
+        }.getOrNull()?.replaceFirstChar { it.uppercase() }
 
     /** Stores [token] as this phone's session and returns the display name `/auth/me` gives it. */
     private suspend fun adopt(serverUrl: String, token: String): String {
@@ -329,6 +391,13 @@ class AuthRepository @Inject constructor(
 }
 
 private fun nameOf(me: MeResponse): String = me.displayName ?: me.username
+
+sealed interface InviteCheck {
+    data class Open(val peek: InvitePeek) : InviteCheck
+    /** `used`, `expired`, `revoked`, or `unknown` for a code never issued. */
+    data class Closed(val status: String) : InviteCheck
+    data class Failed(val message: String) : InviteCheck
+}
 
 sealed interface GuestEntryResult {
     /** [name] is the display name: the one typed, `Guest 1234`, or the existing guest's when the code had one. */

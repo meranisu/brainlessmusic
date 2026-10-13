@@ -12,6 +12,8 @@ export interface User {
   theme: string | null;
   /** Profile picture (A167), or `null` for the initial tile. Always `null` for a guest. */
   avatarId: string | null;
+  /** Null asks for one (A190). Always `null` for a guest, who is never asked. */
+  email: string | null;
 }
 
 export interface TrackSummary {

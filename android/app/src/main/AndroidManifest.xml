@@ -36,8 +36,9 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Room links open the app on the room (RoomLinks). Verified against the server's assetlinks.json, so
-                 Android skips the "open with" prompt. singleTask: a link from a chat comes back to this one app. -->
+            <!-- Room links open the app on the room (RoomLinks), invite links on Sign up (InviteLinks). Verified against
+                 the server's assetlinks.json, so Android skips the "open with" prompt. singleTask: a link from a chat
+                 comes back to this one app. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -46,6 +47,10 @@
                     android:scheme="${serverScheme}"
                     android:host="${serverHost}"
                     android:pathPrefix="/join/" />
+                <data
+                    android:scheme="${serverScheme}"
+                    android:host="${serverHost}"
+                    android:pathPrefix="/invite/" />
             </intent-filter>
         </activity>
 

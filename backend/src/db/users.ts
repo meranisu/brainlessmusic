@@ -22,6 +22,8 @@ export interface UserRow {
   session_version: number;
   /** The profile picture's content hash (A167); NULL means none. See `0035`. */
   avatar_id: string | null;
+  /** Lowercase; NULL until added, and always for guests (A190). See `0037`. */
+  email: string | null;
 }
 
 /** Longest display name, in characters. */
@@ -51,6 +53,32 @@ export function nameOf(user: Pick<UserRow, 'username' | 'display_name'>): string
 /** Case-insensitive (A111): `Imran` finds `imran`. */
 export function findUserByUsername(username: string): UserRow | undefined {
   return db.prepare('SELECT * FROM users WHERE username = ? COLLATE NOCASE').get(username) as UserRow | undefined;
+}
+
+/** Longest email, in characters (the SMTP path limit). */
+export const EMAIL_MAX = 254;
+/** One `@`, something either side, a dot in the domain. A typo check, not proof the mailbox exists. */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Trimmed and lowercased, or undefined when it doesn't look like an email. */
+export function cleanEmail(input: unknown): string | undefined {
+  if (typeof input !== 'string') return undefined;
+  const email = input.trim().toLowerCase();
+  return email.length <= EMAIL_MAX && EMAIL_PATTERN.test(email) ? email : undefined;
+}
+
+export function findUserByEmail(email: string): UserRow | undefined {
+  return db.prepare('SELECT * FROM users WHERE email = ?').get(email.trim().toLowerCase()) as UserRow | undefined;
+}
+
+/** Sign-in takes a username or an email (A192). Usernames can't contain `@`, so the two never collide. */
+export function findUserByLogin(login: string): UserRow | undefined {
+  return login.includes('@') ? findUserByEmail(login) : findUserByUsername(login);
+}
+
+/** `email` must already be cleaned; the caller checks it isn't someone else's. */
+export function setEmail(id: number, email: string): void {
+  db.prepare('UPDATE users SET email = ? WHERE id = ?').run(email, id);
 }
 
 export function findUserById(id: number): UserRow | undefined {

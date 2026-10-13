@@ -134,9 +134,10 @@ erDiagram
 | `avatar_id` | TEXT | nullable | — | Added `0035`. Profile picture: a SHA-256 naming `<id>.jpg` under `AVATAR_PATH` (512 px square). Removed from disk when nobody has it any more |
 | `favorite_track_id` | INTEGER | nullable | — | Added `0035`. Pinned favourite song (A169). **No FK on purpose**: a removed song must not block its delete; a stale id just isn't shown |
 | `favorite_artist_id` | INTEGER | nullable | — | Added `0035`. Pinned favourite artist (A169). No FK, as above |
+| `email` | TEXT | nullable | — | Added `0037`. Stored trimmed and lowercased (`cleanEmail()`); unique among non-NULL rows. Required when signing up from an invite, asked for on accounts made before (A189-A190), accepted by password and passcode sign-in in place of the username (A192). Always NULL for guests. Nothing sends mail to it yet |
 
 **FKs:** none (root entity).
-**Indexes:** unique index on `username` (auto, from the `UNIQUE` constraint, case-sensitive, now redundant); unique `idx_users_username_nocase` on `username COLLATE NOCASE` (`0029`, the one that decides); `idx_users_kind_last_seen` on `(kind, last_seen_at)` — both guest queries filter on kind and order by staleness.
+**Indexes:** unique index on `username` (auto, from the `UNIQUE` constraint, case-sensitive, now redundant); unique `idx_users_username_nocase` on `username COLLATE NOCASE` (`0029`, the one that decides); partial unique `users_email_unique` on `email WHERE email IS NOT NULL` (`0037`); `idx_users_kind_last_seen` on `(kind, last_seen_at)` — both guest queries filter on kind and order by staleness.
 **Referenced by:** `playlists.owner_id`, `play_history.user_id`, `favorites.user_id`, `playback_state.user_id`.
 
 **Guests are deletable and accounts are not.** `pruneIdleGuests` removes
@@ -367,7 +368,7 @@ seeded at boot (`ensureDefaultLibraryRoot`).
 | Column | Type | Null? | Default | Notes |
 |---|---|---|---|---|
 | `id` | INTEGER | — | — | **PK**, autoincrement |
-| `token_hash` | TEXT | NOT NULL | — | **UNIQUE**; SHA-256 hex of the link's token. The raw token is returned once, when made |
+| `token_hash` | TEXT | NOT NULL | — | **UNIQUE**; SHA-256 hex of the token. Since 2026-10-13 the token is an 8-character code (`ABCD2345`, A191) typed at `/signup` or carried by the link; a code typed in lower case or with a dash is normalised before hashing. Older 32-character link tokens still match as they are. The raw token is returned once, when made |
 | `created_by` | INTEGER | NULL | — | **FK → `users.id`**, `NO ACTION`; the admin, nulled by `deleteUser()` |
 | `guest_user_id` | INTEGER | NULL | — | **FK → `users.id`**, `NO ACTION`; set on an upgrade invite (A107). `deleteUser()` and `pruneIdleGuests()` null it and set `revoked_at` |
 | `created_at` | TEXT | NOT NULL | `datetime('now')` | |
@@ -378,7 +379,7 @@ seeded at boot (`ensureDefaultLibraryRoot`).
 
 **FKs:** `created_by`, `guest_user_id`, `used_by → users.id` (`NO ACTION`).
 **Indexes:** unique on `token_hash` (auto); `idx_account_invites_guest` on `guest_user_id`.
-**Accept (`acceptInvite()`, `db/invites.ts`), one transaction:** a fresh invite inserts an account; an upgrade invite updates the guest row in place (`username`, `password_hash`, `kind = 'account'`, `session_version + 1`, a random `Guest NNNN` display name cleared) and deletes that guest's `guest_codes` with their `guest_code_signins`, nulling `guest_code_requests.code_id`. Added `0029`.
+**Accept (`acceptInvite()`, `db/invites.ts`), one transaction:** a fresh invite inserts an account; an upgrade invite updates the guest row in place (`username`, `password_hash`, `kind = 'account'`, `session_version + 1`, a random `Guest NNNN` display name cleared) and either way sets `email` and `passcode_hash` (NULL without one) from the sign-up form; it deletes that guest's `guest_codes` with their `guest_code_signins`, nulling `guest_code_requests.code_id`. Added `0029`.
 
 ### `guest_codes`
 
@@ -585,6 +586,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | `0034_add_playlist_public.sql` | `playlists.is_public`, `playlists.public_at`, `idx_playlists_public_at` — public playlists (A162-A166) |
 | `0035_add_user_profile.sql` | `users.bio`, `avatar_id`, `favorite_track_id`, `favorite_artist_id` — the profile page (A167-A170) |
 | `0036_add_playlist_description.sql` | `playlists.description` — playlist descriptions (A185) |
+| `0037_add_user_email.sql` | `users.email` + partial unique `users_email_unique` — sign-up with email, sign-in by email (A189-A192) |
 | `0031_add_track_disc_number.sql` | `tracks.disc_number` — disc order (v0.4 box 26) |
 | `0032_create_genres.sql` | `genres`, `track_genres` + `idx_track_genres_genre_id` (v0.4 box 27) |
 | `0030_album_artist_and_folder.sql` | Rebuilds `albums` with ids kept: `folder`, `artist_from_tracks`, `merged_into_id`; `UNIQUE(title, artist_id)` replaced by `idx_albums_key` and `idx_albums_key_from_tracks`; `albums_fts` triggers recreated (v0.4, A148) |
@@ -593,6 +595,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-10-13 | Migration `0037_add_user_email.sql` — `users.email` row, the index note, `account_invites.token_hash` now short codes, the accept note, migration row. From the migration SQL and the test run | Sign up with an invite code, email and optional passcode; sign in by email (A189-A192) |
 | 2026-10-13 | Migration `0035_add_user_profile.sql` — four `users` columns and the migration row. From the migration SQL and the test run | The profile page (A167-A170) |
 | 2026-10-13 | Migration `0036_add_playlist_description.sql` — one `playlists` column. From the migration SQL and the test run | Playlist descriptions (A185) |
 | 2026-10-13 | Migration `0034_add_playlist_public.sql` — `playlists.is_public` and `public_at`, the index, the ownership note, migration row. From the migration SQL and the test run | Public playlists (A162-A166) |

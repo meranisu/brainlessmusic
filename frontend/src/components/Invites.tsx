@@ -7,6 +7,8 @@ import type { AccountInvite } from '../types/api';
 
 export interface CreatedInvite {
   url: string;
+  /** What to type on the sign-up page instead of opening the link. */
+  code: string;
   expiresAt: string;
   /** Set when the link turns a guest into an account. */
   guestName: string | null;
@@ -83,14 +85,17 @@ export function InviteLinkDialog({ invite, onClose }: { invite: CreatedInvite; o
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="invite-link-heading" className="mb-2 text-sm font-semibold text-white">
-          {invite.guestName ? `Invite link for ${invite.guestName}` : 'Invite link'}
+          {invite.guestName ? `Invite for ${invite.guestName}` : 'Invite'}
         </h2>
         <p className="mb-3 text-xs text-blue-400">
           {invite.guestName
             ? 'Opening it turns this guest into an account. Their resume point stays, and their guest code stops working.'
-            : 'Anyone with this link can make one account.'}{' '}
+            : 'Anyone with this link or code can make one account.'}{' '}
           It works once, until {formatDate(invite.expiresAt)}. Copy it now: it isn't shown again.
         </p>
+        <p className="mb-1 text-xs text-blue-300">Code, for Sign up in the app or on the site</p>
+        <p className="mb-3 font-mono text-2xl font-bold tracking-widest text-white select-all">{invite.code}</p>
+        <p className="mb-1 text-xs text-blue-300">Link</p>
         <input
           readOnly
           value={invite.url}

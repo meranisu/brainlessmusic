@@ -75,4 +75,32 @@ data class MeResponse(
     val theme: String? = null,
     /** Profile picture (A171); null without one, and from a server older than profiles. */
     val avatarId: String? = null,
+    /** Null asks for one (A190); always null for a guest, who is never asked, and from a server older than emails. */
+    val email: String? = null,
+)
+
+/** `GET /invites/:code` (A107-A112): `open`, `used`, `expired` or `revoked`. [forGuest] is set on an upgrade invite. */
+data class InvitePeek(
+    val status: String,
+    val expiresAt: String,
+    val forGuest: String? = null,
+)
+
+/** `POST /invites/:code/accept` (A189-A192). [passcode] is left out of the JSON when null (Gson skips nulls). */
+data class AcceptInviteRequest(
+    val username: String,
+    val email: String,
+    val password: String,
+    val passcode: String?,
+)
+
+data class AcceptInviteResponse(
+    val token: String,
+    val username: String,
+    val upgraded: Boolean,
+)
+
+/** `PUT /me/email` (A190), sent and answered with the same shape. */
+data class EmailRequest(
+    val email: String,
 )

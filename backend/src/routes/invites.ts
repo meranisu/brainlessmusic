@@ -1,16 +1,23 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { acceptInvite, createInvite, listInvites, peekInvite, revokeInvite } from '../db/invites.js';
-import { hashPassword } from '../services/password.js';
+import { cleanEmail } from '../db/users.js';
+import { hashPasscode, hashPassword } from '../services/password.js';
 import { createRateLimiter } from '../services/rateLimit.js';
 import { signToken } from '../services/token.js';
 import { clientIp } from '../utils/clientIp.js';
-import { MIN_PASSWORD_LENGTH, usernameProblem } from './auth.js';
+import { MIN_PASSWORD_LENGTH, PASSCODE_PATTERN, usernameProblem } from './auth.js';
 
 const HOUR_MS = 60 * 60 * 1000;
-/** Accept attempts per address per hour. The token is 192 random bits, so this is about bcrypt cost, not guessing. */
+/** Accept attempts per address per hour; mostly about bcrypt cost. */
 const ACCEPTS_PER_HOUR = 20;
+/**
+ * Code checks per address per hour. Codes are 8 characters from 31 (A191), about 40 bits, so at this rate guessing one
+ * of a handful of open invites before it expires is out of reach.
+ */
+const PEEKS_PER_HOUR = 30;
 
 const acceptLimiter = createRateLimiter();
+const peekLimiter = createRateLimiter();
 
 /**
  * Account invites (A107-A112). The admin makes a one-use link from the Users page; the friend opens it signed out and
@@ -46,12 +53,22 @@ const invitesRoute: FastifyPluginAsync = async (fastify) => {
 
   /** For the accept page. 404 only for a token never issued; used, expired and revoked come back as a status. */
   fastify.get<{ Params: { token: string } }>('/invites/:token', async (request, reply) => {
+    const rate = peekLimiter.check(clientIp(request), { limit: PEEKS_PER_HOUR, windowMs: HOUR_MS });
+    if (!rate.allowed) {
+      return reply
+        .code(429)
+        .header('retry-after', String(rate.retryAfterSeconds))
+        .send({ error: 'Too many tries. Wait a moment.' });
+    }
     const peek = peekInvite(request.params.token);
     if (!peek) return reply.code(404).send({ error: 'Invite not found' });
     return reply.send(peek);
   });
 
-  fastify.post<{ Params: { token: string }; Body: { username?: unknown; password?: unknown } }>(
+  fastify.post<{
+    Params: { token: string };
+    Body: { username?: unknown; password?: unknown; email?: unknown; passcode?: unknown };
+  }>(
     '/invites/:token/accept',
     async (request, reply) => {
       const rate = acceptLimiter.check(clientIp(request), { limit: ACCEPTS_PER_HOUR, windowMs: HOUR_MS });
@@ -62,7 +79,7 @@ const invitesRoute: FastifyPluginAsync = async (fastify) => {
           .send({ error: 'Too many tries. Wait a moment.' });
       }
 
-      const { username, password } = request.body ?? {};
+      const { username, password, passcode } = request.body ?? {};
       if (typeof username !== 'string' || typeof password !== 'string' || !username || !password) {
         return reply.code(400).send({ error: 'username and password are required' });
       }
@@ -74,16 +91,32 @@ const invitesRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(400).send({ error: `password must be at least ${MIN_PASSWORD_LENGTH} characters` });
       }
 
+      // Required on sign-up (A190).
+      const email = cleanEmail(request.body?.email);
+      if (email === undefined) return reply.code(400).send({ error: 'enter a valid email' });
+
+      // Optional: empty or missing means none.
+      if (passcode !== undefined && passcode !== null && passcode !== '') {
+        if (typeof passcode !== 'string' || !PASSCODE_PATTERN.test(passcode)) {
+          return reply.code(400).send({ error: 'passcode must be 4-8 digits' });
+        }
+      }
+
       // Refuse a dead link before paying for bcrypt.
       if (peekInvite(request.params.token)?.status !== 'open') {
         return reply.code(410).send({ error: 'This invite link has expired or was already used' });
       }
 
-      const outcome = acceptInvite(request.params.token, username, await hashPassword(password));
+      const outcome = acceptInvite(request.params.token, {
+        username,
+        email,
+        passwordHash: await hashPassword(password),
+        passcodeHash: typeof passcode === 'string' && passcode !== '' ? await hashPasscode(passcode) : null,
+      });
       if (!outcome.ok) {
-        return outcome.reason === 'taken'
-          ? reply.code(409).send({ error: 'username already taken' })
-          : reply.code(410).send({ error: 'This invite link has expired or was already used' });
+        if (outcome.reason === 'taken') return reply.code(409).send({ error: 'username already taken' });
+        if (outcome.reason === 'emailTaken') return reply.code(409).send({ error: 'that email is already in use' });
+        return reply.code(410).send({ error: 'This invite link has expired or was already used' });
       }
 
       const { user, upgraded } = outcome;

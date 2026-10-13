@@ -55,12 +55,16 @@ import com.brainlessmusic.app.ui.splash.StartViewModel
 import com.brainlessmusic.app.ui.together.TogetherScreen
 import com.brainlessmusic.app.ui.people.PeopleScreen
 import com.brainlessmusic.app.ui.people.ProfileScreen
+import com.brainlessmusic.app.invites.InviteLinks
 import com.brainlessmusic.app.rooms.RoomLinks
+import com.brainlessmusic.app.ui.signup.EmailPrompt
+import com.brainlessmusic.app.ui.signup.SignUpScreen
 
 @Composable
 fun BrainlessNavGraph(
     startViewModel: StartViewModel,
     roomLinks: RoomLinks,
+    inviteLinks: InviteLinks,
     navController: NavHostController = rememberNavController(),
 ) {
     val resolvedRoute by startViewModel.resolvedRoute.collectAsStateWithLifecycle()
@@ -78,7 +82,7 @@ fun BrainlessNavGraph(
     LaunchedEffect(needsSignIn) {
         if (!needsSignIn) return@LaunchedEffect
         val here = navController.currentDestination?.route
-        if (here == Routes.LOGIN || here == Routes.SPLASH) return@LaunchedEffect
+        if (here == Routes.LOGIN || here == Routes.SPLASH || here == Routes.SIGNUP) return@LaunchedEffect
         navController.navigate(Routes.LOGIN) {
             popUpTo(navController.graph.id) { inclusive = true }
         }
@@ -89,8 +93,28 @@ fun BrainlessNavGraph(
     val onTop by navController.currentBackStackEntryAsState()
     LaunchedEffect(pendingRoom, onTop?.destination?.route) {
         val here = onTop?.destination?.route ?: return@LaunchedEffect
-        if (pendingRoom == null || here in setOf(Routes.SPLASH, Routes.LOGIN, Routes.SETUP, Routes.TOGETHER)) return@LaunchedEffect
+        if (pendingRoom == null || here in setOf(Routes.SPLASH, Routes.LOGIN, Routes.SIGNUP, Routes.SETUP, Routes.TOGETHER)) return@LaunchedEffect
         navController.navigate(Routes.TOGETHER) { launchSingleTop = true }
+    }
+
+    // An invite link opens Sign up with its code, signed in or not: an upgrade invite is opened by the signed-in guest.
+    val pendingInvite by inviteLinks.pending.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingInvite, onTop?.destination?.route) {
+        val here = onTop?.destination?.route ?: return@LaunchedEffect
+        if (pendingInvite == null || here == Routes.SPLASH) return@LaunchedEffect
+        val code = inviteLinks.take() ?: return@LaunchedEffect
+        navController.navigate(Routes.signup(code)) {
+            if (here == Routes.SIGNUP) popUpTo(Routes.SIGNUP) { inclusive = true }
+        }
+    }
+
+    // After sign-up or log-in, and after setup: the session is whoever signed in now, with nothing behind it.
+    val enterApp: () -> Unit = {
+        startViewModel.signedIn { route ->
+            navController.navigate(route) {
+                popUpTo(navController.graph.id) { inclusive = true }
+            }
+        }
     }
 
     // Every screen goes through this, so only the one on top takes touches (see `OnTopOnly`).
@@ -128,8 +152,21 @@ fun BrainlessNavGraph(
                         },
                     )
                 }
+                screen(
+                    Routes.SIGNUP,
+                    arguments = listOf(
+                        navArgument(Routes.ARG_INVITE_CODE) {
+                            type = NavType.StringType
+                            nullable = true
+                            defaultValue = null
+                        },
+                    ),
+                ) { entry ->
+                    SignUpScreen(onBack = { navController.popFrom(entry) }, onSignedUp = enterApp)
+                }
                 screen(Routes.LOGIN) {
                     LoginScreen(
+                        onSignUp = { navController.navigate(Routes.signup()) },
                         // A phone's first sign-in goes through the setup first (A139).
                         onLoggedIn = {
                             startViewModel.signedIn { route ->
@@ -311,6 +348,9 @@ fun BrainlessNavGraph(
             onHeight = { if (it > 0.dp) tabBarHeight = it },
             modifier = Modifier.align(Alignment.BottomCenter),
         )
+        // An account with no email is asked for one once it is in the app (A190).
+        val here = onTop?.destination?.route
+        EmailPrompt(active = here != null && here !in setOf(Routes.SPLASH, Routes.LOGIN, Routes.SIGNUP, Routes.SETUP))
     }
 }
 

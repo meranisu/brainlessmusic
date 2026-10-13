@@ -477,6 +477,9 @@ export function OptionsPage() {
         )}
       </section>
 
+      {/* Sign-in by email (A192), and a password reset by email later (A189). Guests have none. */}
+      {user && !user.isGuest && <EmailSection current={user.email} />}
+
       {/* Passcodes are self-service only, so this is where they're managed. Guests have none. */}
       {user && !user.isGuest && (
         <section className="mt-7">
@@ -587,6 +590,79 @@ function NameSection({ current, onSave }: { current: string; onSave: (name: stri
           Clear it and save to go back to the default.
         </p>
       </form>
+    </section>
+  );
+}
+
+function EmailSection({ current }: { current: string | null }) {
+  const { refreshUser } = useAuth();
+  const { showToast } = useToast();
+  const [editing, setEditing] = useState(false);
+  const [email, setEmail] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await apiClient.put('/me/email', { email: email.trim() });
+      await refreshUser();
+      setEditing(false);
+      showToast('Email saved');
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : 'Could not save the email', 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="mt-7">
+      <h2 className="mb-3 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-blue-400">Email</h2>
+      <div className="rounded-lg border border-blue-800 bg-blue-900/60 p-4">
+        {editing ? (
+          <form onSubmit={save}>
+            <label htmlFor="options-email" className="sr-only">
+              Email
+            </label>
+            <input
+              id="options-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+              autoCapitalize="none"
+              spellCheck={false}
+              required
+              autoFocus
+              className="input w-full"
+            />
+            <div className="mt-3 flex gap-2">
+              <button type="submit" disabled={saving || !email.trim()} className="btn-primary btn-md">
+                {saving ? 'Saving…' : 'Save'}
+              </button>
+              <button type="button" onClick={() => setEditing(false)} disabled={saving} className="btn-ghost btn-md">
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : (
+          <>
+            <p className="text-sm break-all text-blue-100">
+              {current ?? 'No email yet. Add one to sign in with it.'}
+            </p>
+            <button
+              onClick={() => {
+                setEmail(current ?? '');
+                setEditing(true);
+              }}
+              className="btn-secondary btn-md mt-3"
+            >
+              {current ? 'Change email' : 'Add email'}
+            </button>
+          </>
+        )}
+      </div>
     </section>
   );
 }

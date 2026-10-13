@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../app.js';
@@ -45,8 +46,13 @@ async function invite(guestUserId?: number): Promise<{ id: number; token: string
   return res.json();
 }
 
-function accept(token: string, username: string, password = 'a long enough password') {
-  return app.inject({ method: 'POST', url: `/api/invites/${token}/accept`, payload: { username, password } });
+function accept(
+  token: string,
+  username: string,
+  extra: { password?: string; email?: string; passcode?: string } = {},
+) {
+  const payload = { password: 'a long enough password', email: `${username.toLowerCase()}@example.com`, ...extra, username };
+  return app.inject({ method: 'POST', url: `/api/invites/${token}/accept`, payload });
 }
 
 function bearer(token: string) {
@@ -208,3 +214,80 @@ describe('guest upgrade', () => {
     assert.equal((await accept(token, 'sam')).statusCode, 410);
   });
 });
+
+describe('signing up with a code (A189-A192)', () => {
+  it('a code is 8 typeable characters and works typed loosely', async () => {
+    const { token } = await invite();
+    assert.match(token, /^[A-HJ-NP-Z2-9]{8}$/);
+
+    const typed = `${token.slice(0, 4).toLowerCase()}-${token.slice(4).toLowerCase()} `;
+    assert.equal((await app.inject({ method: 'GET', url: `/api/invites/${encodeURIComponent(typed)}` })).json().status, 'open');
+    assert.equal((await accept(encodeURIComponent(typed), 'typed')).statusCode, 201);
+  });
+
+  it('a long link token from before codes still works', async () => {
+    const hash = createHash('sha256').update('OldLongToken_abcdefghijklmnop', 'utf8').digest('hex');
+    db.prepare(
+      "INSERT INTO account_invites (token_hash, created_by, expires_at) VALUES (?, ?, datetime('now', '+1 day'))",
+    ).run(hash, adminId);
+    assert.equal((await accept('OldLongToken_abcdefghijklmnop', 'oldlink')).statusCode, 201);
+  });
+
+  it('needs a valid email, and one nobody else has', async () => {
+    const { token } = await invite();
+    assert.equal((await accept(token, 'noemail', { email: '' })).statusCode, 400);
+    assert.equal((await accept(token, 'bademail', { email: 'not an email' })).statusCode, 400);
+    assert.equal((await accept(token, 'first', { email: 'Same@Example.com' })).statusCode, 201);
+
+    const second = await invite();
+    const clash = await accept(second.token, 'second', { email: 'same@example.com' });
+    assert.equal(clash.statusCode, 409);
+    assert.match(clash.json().error, /email/);
+  });
+
+  it('signs in with the email, by password or the passcode chosen at sign-up', async () => {
+    const { token } = await invite();
+    assert.equal((await accept(token, 'pat', { passcode: '12a4' })).statusCode, 400);
+    const res = await accept(token, 'pat', { email: 'Pat@Example.com', passcode: '2468' });
+    assert.equal(res.statusCode, 201, res.body);
+
+    const me = await app.inject({ method: 'GET', url: '/api/auth/me', headers: bearer(res.json().token) });
+    assert.equal(me.json().email, 'pat@example.com');
+    assert.equal(me.json().hasPasscode, true);
+
+    const byPassword = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { username: 'PAT@example.com', password: 'a long enough password' },
+    });
+    assert.equal(byPassword.statusCode, 200, byPassword.body);
+    const byPasscode = await app.inject({
+      method: 'POST',
+      url: '/api/auth/passcode-login',
+      payload: { username: 'pat@example.com', passcode: '2468' },
+    });
+    assert.equal(byPasscode.statusCode, 200, byPasscode.body);
+  });
+
+  it('an account without an email can add one, but not someone else\'s', async () => {
+    const me = await app.inject({ method: 'GET', url: '/api/auth/me', headers: adminAuth });
+    assert.equal(me.json().email, null, 'null is the client\'s cue to ask');
+
+    const { token } = await invite();
+    assert.equal((await accept(token, 'taker', { email: 'taken@example.com' })).statusCode, 201);
+
+    const put = (email: string) => app.inject({ method: 'PUT', url: '/api/me/email', headers: adminAuth, payload: { email } });
+    assert.equal((await put('nope')).statusCode, 400);
+    assert.equal((await put('TAKEN@example.com')).statusCode, 409);
+    assert.equal((await put(' Boss@Example.com ')).statusCode, 200);
+    assert.equal((await app.inject({ method: 'GET', url: '/api/auth/me', headers: adminAuth })).json().email, 'boss@example.com');
+  });
+
+  it('guests can\'t add an email', async () => {
+    const guest = insertGuest();
+    const headers = bearer(signToken({ id: guest.id, username: guest.username, sessionVersion: guest.session_version }));
+    const res = await app.inject({ method: 'PUT', url: '/api/me/email', headers, payload: { email: 'g@example.com' } });
+    assert.equal(res.statusCode, 403);
+  });
+});
+

@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { ArcadeInterstitial, ArrivalVeil } from '../components/ArcadeInterstitial';
 import { ShellBackdrop } from '../components/BackdropDepth';
@@ -98,7 +98,7 @@ export function AccountSelectPage() {
   useThemeCycle();
 
   // Hidden until the check resolves, so the button never flashes on a closed server.
-  const [registrationOpen, setRegistrationOpen] = useState(false);
+  const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(null);
   const [showRegister, setShowRegister] = useState(false);
   /** True for the brief window where the grid is fading out on its way to `showRegister`. */
   const [startingRegister, setStartingRegister] = useState(false);
@@ -590,7 +590,7 @@ export function AccountSelectPage() {
               {authMode === 'password' ? (
                 <form onSubmit={handleLogin} className="mt-5">
                   <label className="mb-1 block text-sm text-blue-200" htmlFor="username">
-                    Username
+                    Username or email
                   </label>
                   <input
                     id="username"
@@ -632,7 +632,7 @@ export function AccountSelectPage() {
               ) : (
                 <form onSubmit={submitPasscodeLogin} className="mt-5">
                   <label className="mb-1 block text-sm text-blue-200" htmlFor="passcode-username">
-                    Username
+                    Username or email
                   </label>
                   <input
                     id="passcode-username"
@@ -834,6 +834,17 @@ export function AccountSelectPage() {
                   </>
                 )}
               </div>
+
+              {/* Closed sign-ups: the way in for someone holding an invite code (A191). */}
+              {registrationOpen === false && (
+                <div className={`profile-stage-3b profile-card-glow card p-6 sm:p-7 ${gridFade('guest')}`}>
+                  <h2 className="text-lg font-semibold text-white">Got an invite?</h2>
+                  <p className="mt-1 text-sm text-blue-300">Make your account with the code you were sent.</p>
+                  <Link to="/signup" className="btn-secondary btn-md mt-5 w-full text-center">
+                    Sign up
+                  </Link>
+                </div>
+              )}
 
               {registrationOpen && (
                 <div

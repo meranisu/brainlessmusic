@@ -52,6 +52,8 @@ export function App() {
         <Route path="/login" element={<AccountSelectPage />} />
         {/* An invite link (A107-A112): works signed out, and for a guest accepting their own upgrade. */}
         <Route path="/invite/:token" element={<InvitePage />} />
+        {/* The same page without a link: type the invite code (A191). */}
+        <Route path="/signup" element={<InvitePage />} />
         {/* A room link without the Android app: works signed out, and sends you on to the room after sign-in. */}
         <Route path="/join/:code" element={<JoinPage />} />
         {/* The old addresses, kept for printed guest-code cards (`?code=`) and handoff links (`#t=`). */}

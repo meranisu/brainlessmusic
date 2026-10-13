@@ -88,6 +88,7 @@ import com.brainlessmusic.app.ui.theme.AppIcons
 @Composable
 fun LoginScreen(
     onLoggedIn: (username: String) -> Unit,
+    onSignUp: () -> Unit,
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -157,6 +158,7 @@ fun LoginScreen(
                                 EntryMode.CHOOSE -> ChooseEntry(
                                     onLogin = viewModel::chooseLogin,
                                     onGuest = viewModel::chooseGuest,
+                                    onSignUp = onSignUp,
                                 )
                                 EntryMode.LOGIN -> LoginForm(
                                     state = state,
@@ -231,9 +233,12 @@ private fun canLogin(state: LoginUiState) =
 private fun canEnterGuest(state: LoginUiState) =
     !state.isEnteringGuest && (!state.guestNeedsCode || state.guestCode.isNotBlank())
 
-/** The first thing on the card: two ways in, account first because this app is mostly for accounts. */
+/**
+ * The first thing on the card: two ways in, account first because this app is mostly for accounts. Sign up sits under
+ * them, smaller: only someone holding an invite code can use it (A191).
+ */
 @Composable
-private fun ChooseEntry(onLogin: () -> Unit, onGuest: () -> Unit) {
+private fun ChooseEntry(onLogin: () -> Unit, onGuest: () -> Unit, onSignUp: () -> Unit) {
     Button(onClick = onLogin, modifier = Modifier.fillMaxWidth().height(56.dp)) {
         Text("LOG IN", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, letterSpacing = 2.sp)
     }
@@ -245,6 +250,9 @@ private fun ChooseEntry(onLogin: () -> Unit, onGuest: () -> Unit) {
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+    TextButton(onClick = onSignUp, modifier = Modifier.fillMaxWidth().height(48.dp)) {
+        Text("Got an invite code? Sign up")
+    }
 }
 
 @Composable
@@ -272,10 +280,10 @@ private fun LoginForm(
     OutlinedTextField(
         value = state.username,
         onValueChange = onUsernameChange,
-        label = { Text("Username") },
+        label = { Text("Username or email") },
         singleLine = true,
         shape = RoundedCornerShape(16.dp),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
         modifier = Modifier.fillMaxWidth(),
     )
 

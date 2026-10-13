@@ -34,7 +34,7 @@ Work the first unticked box there.
 | Reach it from outside (roadmap box 13) | Done, owner-confirmed 2026-10-11 (box 13); Cloudflare Access still off pending Q77/Q78 | [ops/cloudflare-tunnel-deployment.md](ops/cloudflare-tunnel-deployment.md) |
 | Room sync (v0.3) | **Done, owner-confirmed 2026-10-12** (boxes 22, 23): Listen together works, playback stays in sync. Spec agreed (box 21, A100–A103); backend, web and Android built 2026-10-11 (`/together`, Listen together screen on Android); web checked in headless Chromium, Android socket client checked against a scratch server, not on a phone yet; smol answers the room routes and socket (checked 2026-10-11); Android v0.3.28 released with it | [specs/room-sync.md](specs/room-sync.md) |
 | In-app updates (Android) | Built 2026-10-11 (A104–A106), first shipped in v0.3.29; untested on a phone until a v0.3.29 install sees the next release | [features/app-self-update/planning.md](features/app-self-update/planning.md) |
-| Account invites | Built 2026-10-12 (A107–A112) and pushed; smol check came back clean. Next: the Phase 4 walkthrough on smol (a real invite, a guest upgrade, Android login after) | [features/account-invites/planning.md](features/account-invites/planning.md) |
+| Account invites | Built 2026-10-12 (A107–A112). 2026-10-13: sign-up page with typed 8-character codes, email (required) and optional passcode, sign-in by email, invite links open the Android app (A187–A192); committed locally, not pushed. Next: push, then a walkthrough on smol and the phone (a real invite, a guest upgrade, email sign-in) | [features/account-invites/planning.md](features/account-invites/planning.md) |
 
 ## Resolved decisions (one line each; reasoning is in the linked doc)
 

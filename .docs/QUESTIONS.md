@@ -104,6 +104,31 @@ found". Top result, kind filters, songs first and best-match order, "See all" pa
 before typing, highlighted matches, richer album and artist rows, accent-blind people and playlist search with a
 "Did you mean" suggestion when nothing matches (no fuzzy matching inside results), and the same on the web.
 
+### A192 — Sign in with username or email *(owner request)*
+**Answered:** 2026-10-13, in chat: "if email included, then they can login using either username or email then".
+Password and passcode sign-in accept either. Emails are unique ignoring case, and a username can't contain `@`, so the
+two never collide.
+
+### A191 — Invites get a short code you can type *(was Q191)*
+**Answered:** 2026-10-13, in chat: "a". An 8-character code like guest codes; the invite link carries the same code
+and fills it in. Checking a code is rate limited. Links already sent keep working.
+
+### A190 — Email is required on sign-up; existing accounts are asked *(was Q190)*
+**Answered:** 2026-10-13, in chat: "a". New accounts must give one. An account without one sees "Add your email" after
+signing in, with a "Later" button, shown again next time until added. Guests are left out.
+
+### A189 — Email is for a password reset, later *(was Q189)*
+**Answered:** 2026-10-13, in chat: "a". Stored now; "Forgot password?" is its own later feature (needs a mail service
+and a check that the address is theirs). Until then nothing is sent to it.
+
+### A188 — Guest upgrade invites work in the Android app too *(was Q188)*
+**Answered:** 2026-10-13, in chat: "sure". An invite tied to a guest, opened in the app, turns that guest into an
+account, as on the web.
+
+### A187 — Invite links open the Android app *(was Q187; follows A109)*
+**Answered:** 2026-10-13, in chat: "yes". `/invite/` links open an in-app screen to pick a name and password, then
+sign in, like `/join` room links. A109 ("not in the first version") stays as the record of the first version.
+
 ### A186 — Android Edit profile becomes a full-screen page *(was Q186)*
 **Answered:** 2026-10-13, in chat: "pick your suggestions but take note of 4, maybe we could add it later". Built: a
 full-screen page with sections (1), a big picture with a camera badge (2), the display name editable there (3), pins

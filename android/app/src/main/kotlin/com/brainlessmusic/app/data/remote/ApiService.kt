@@ -1,6 +1,10 @@
 package com.brainlessmusic.app.data.remote
 
+import com.brainlessmusic.app.data.remote.dto.AcceptInviteRequest
+import com.brainlessmusic.app.data.remote.dto.AcceptInviteResponse
 import com.brainlessmusic.app.data.remote.dto.AddPlaylistTrackRequest
+import com.brainlessmusic.app.data.remote.dto.EmailRequest
+import com.brainlessmusic.app.data.remote.dto.InvitePeek
 import com.brainlessmusic.app.data.remote.dto.AlbumDetailDto
 import com.brainlessmusic.app.data.remote.dto.PlaylistDetailsRequest
 import com.brainlessmusic.app.data.remote.dto.GenreDetailDto
@@ -83,6 +87,17 @@ interface ApiService {
 
     @GET("auth/me")
     suspend fun me(): MeResponse
+
+    // Sign-up with an invite code (A189-A192). The peek answers 404 for a code never issued, 429 when tried too often.
+    @GET("invites/{code}")
+    suspend fun peekInvite(@Path("code") code: String): InvitePeek
+
+    @POST("invites/{code}/accept")
+    suspend fun acceptInvite(@Path("code") code: String, @Body body: AcceptInviteRequest): AcceptInviteResponse
+
+    // 409 when another account has it.
+    @PUT("me/email")
+    suspend fun setEmail(@Body body: EmailRequest): EmailRequest
 
     // "Request a code" (A67): queue it, poll it, or withdraw it. The poll answers 404 once collected or unknown.
     @POST("auth/guest/requests")

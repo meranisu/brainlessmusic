@@ -1,9 +1,12 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomInt } from 'node:crypto';
 import { db } from './connection.js';
-import { findUserById, findUserByUsername, insertUser, nameOf, type UserRow } from './users.js';
+import { findUserByEmail, findUserById, findUserByUsername, insertUser, nameOf, type UserRow } from './users.js';
 
 /** One use, 7 days, like guest codes (A108). */
 const LIFETIME_DAYS = 7;
+/** Short enough to type (A191): no 0/O, 1/I/L. Same alphabet as guest codes. */
+const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const CODE_LENGTH = 8;
 
 export interface InviteRow {
   id: number;
@@ -46,9 +49,17 @@ function statusOf(row: InviteRow): InviteStatus {
   return row.expires_at > sqliteNow() ? 'open' : 'expired';
 }
 
+/** A typed code in its stored form: uppercase, spaces and dashes dropped. Undefined when it isn't code-shaped. */
+function normalizedCode(input: string): string | undefined {
+  const code = input.replace(/[\s-]/g, '').toUpperCase();
+  return code.length === CODE_LENGTH && [...code].every((ch) => CODE_ALPHABET.includes(ch)) ? code : undefined;
+}
+
+/** A code, typed loosely, or a long token from a link sent before codes (A191), which is matched exactly. */
 function findByToken(token: unknown): InviteRow | undefined {
   if (typeof token !== 'string' || token === '') return undefined;
-  return db.prepare('SELECT * FROM account_invites WHERE token_hash = ?').get(hashToken(token)) as InviteRow | undefined;
+  const key = normalizedCode(token) ?? token;
+  return db.prepare('SELECT * FROM account_invites WHERE token_hash = ?').get(hashToken(key)) as InviteRow | undefined;
 }
 
 /**
@@ -66,7 +77,8 @@ export const createInvite = db.transaction(
       ).run(guestUserId);
     }
 
-    const token = randomBytes(24).toString('base64url');
+    let token = '';
+    for (let i = 0; i < CODE_LENGTH; i += 1) token += CODE_ALPHABET[randomInt(CODE_ALPHABET.length)];
     const result = db
       .prepare(
         `INSERT INTO account_invites (token_hash, created_by, guest_user_id, expires_at)
@@ -142,22 +154,34 @@ function keptDisplayName(displayName: string | null): string | null {
 
 export type AcceptOutcome =
   | { ok: true; user: UserRow; upgraded: boolean }
-  | { ok: false; reason: 'invalid' | 'taken' };
+  | { ok: false; reason: 'invalid' | 'taken' | 'emailTaken' };
+
+export interface AcceptDetails {
+  username: string;
+  /** Cleaned by the caller (`cleanEmail`). */
+  email: string;
+  passwordHash: string;
+  /** Set when they chose a passcode while signing up. */
+  passcodeHash: string | null;
+}
 
 /**
  * Uses an invite, in one transaction so a link can't be spent twice. A fresh invite adds an account. An upgrade turns
  * the same guest row into an account (A107): name, password, `kind`, and the guest's codes deleted so they stop
  * signing anyone in. `session_version` is bumped so the guest's other devices sign out; the caller hands the accepting
- * device a new token. The password is hashed by the caller, before this runs, since a transaction can't await.
+ * device a new token. The password and passcode are hashed by the caller, before this runs, since a transaction can't
+ * await.
  */
 export const acceptInvite = db.transaction(
-  (token: unknown, username: string, passwordHash: string): AcceptOutcome => {
+  (token: unknown, { username, email, passwordHash, passcodeHash }: AcceptDetails): AcceptOutcome => {
     const row = findByToken(token);
     if (!row || statusOf(row) !== 'open') return { ok: false, reason: 'invalid' };
 
     const clash = findUserByUsername(username);
     // An upgrading guest may not keep its `guest-` name (A112), so any clash is someone else.
     if (clash) return { ok: false, reason: 'taken' };
+    // Guests never have an email, so this is someone else's too.
+    if (findUserByEmail(email)) return { ok: false, reason: 'emailTaken' };
 
     let user: UserRow;
     if (row.guest_user_id !== null) {
@@ -180,6 +204,8 @@ export const acceptInvite = db.transaction(
     } else {
       user = insertUser(username, passwordHash);
     }
+    db.prepare('UPDATE users SET email = ?, passcode_hash = ? WHERE id = ?').run(email, passcodeHash, user.id);
+    user = findUserById(user.id)!;
 
     db.prepare("UPDATE account_invites SET used_at = datetime('now'), used_by = ? WHERE id = ?").run(user.id, row.id);
     return { ok: true, user, upgraded: row.guest_user_id !== null };

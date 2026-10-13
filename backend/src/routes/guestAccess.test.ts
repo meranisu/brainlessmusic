@@ -73,6 +73,7 @@ const EXPECTED: Record<string, Gate> = {
   // Real accounts only: anything that builds up personal data (A37).
   'DELETE /auth/passcode': 'account',
   'POST /auth/passcode': 'account',
+  'PUT /me/email': 'account',
   'GET /me/favorites': 'account',
   'GET /me/favorites/ids': 'account',
   'GET /me/less-often/ids': 'account',

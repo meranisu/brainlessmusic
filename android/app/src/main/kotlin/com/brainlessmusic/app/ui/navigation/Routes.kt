@@ -26,6 +26,8 @@ object Routes {
     const val PEOPLE = "people"
     const val PROFILE = "people/{userId}"
     const val SETUP = "setup"
+    /** Sign up with an invite code (A189-A192); `code` is filled in from an invite link, else typed. */
+    const val SIGNUP = "signup?code={code}"
 
     const val ARG_ARTIST_ID = "artistId"
     const val ARG_ALBUM_ID = "albumId"
@@ -35,6 +37,7 @@ object Routes {
     const val ARG_DOWNLOAD_GROUP = "groupId"
     const val ARG_SONG_LIST = "list"
     const val ARG_USER_ID = "userId"
+    const val ARG_INVITE_CODE = "code"
 
     fun artistDetail(id: Int) = "artist/$id"
     fun albumDetail(id: Int) = "album/$id"
@@ -42,6 +45,7 @@ object Routes {
     fun settingsPage(page: String) = "settings/$page"
     fun playlistDetail(id: Int) = "playlist/$id"
     fun profile(userId: Int) = "people/$userId"
+    fun signup(code: String? = null) = if (code == null) "signup" else "signup?code=${android.net.Uri.encode(code)}"
 
     /** Group ids hold a colon (`album:5`); encoded so the route stays one segment. */
     fun downloadGroup(id: String) = "downloads/${android.net.Uri.encode(id)}"

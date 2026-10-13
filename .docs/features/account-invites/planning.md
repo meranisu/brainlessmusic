@@ -102,6 +102,15 @@ question before anything is renamed.
 - [ ] Upgrade a guest who has plays and a saved queue; both still there after
 - [ ] An old link and a used link both refuse cleanly
 
+## Round 2: sign-up page, email, the app (A187-A192)
+
+- [x] Migration `0037`: `users.email`, unique when set; invites become 8-character codes, old link tokens still match
+- [x] Accept requires an email, takes an optional passcode; `PUT /me/email`; sign-in by name or email
+- [x] Web `/signup` (type the code) and the invite link both open the same form; "Add your email" prompt; Options section
+- [x] Android Sign up screen, `/invite/` links open the app, "Username or email", email prompt
+- [ ] Walkthrough: a typed code on the phone, a link opening the app, a guest upgrade in the app, an old account asked
+      for its email, email sign-in on both
+
 ---
 
 ## Change Log
@@ -110,3 +119,4 @@ question before anything is renamed.
 |---|---|---|---|---|
 | 2026-10-11 | Plan | Doc written from A107–A112 | Room sync committed, so the parked answers could be recorded | Yes |
 | 2026-10-12 | Structure, Interior | Built. Endpoints as sketched, except `POST /admin/invites` returns the raw token and the web builds the URL from its own origin. An upgrade bumps `session_version` and returns a fresh token, so the accepting device stays signed in and the guest's other devices sign out (the plan said bump nothing; that would have left them signed in as the new account). Guest codes are deleted on upgrade, not just revoked, because `deleteGuestCode()` deletes the user | Phase 1's smol check is still open, so nothing is pushed | Yes |
+| 2026-10-13 | Round 2 | Sign-up page with typed codes, email and optional passcode, sign-in by email, the Android screen and links (A187-A192). A109's "no Android screen in the first version" is followed by A187 | Owner asked how a friend registers, then for a code-gated sign-up page | Yes |
