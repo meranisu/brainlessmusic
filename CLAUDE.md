@@ -64,6 +64,7 @@ A Stop hook (`.claude/hooks/`) type-checks touched packages and flags a missing 
 ## Where to look
 
 UI direction (identity, palette, type, motion — read before any UI work): [DESIGN.md](DESIGN.md) ·
+Security (open findings, audits, rules): [.docs/SECURITY.md](.docs/SECURITY.md) ·
 Stack and resolved decisions: [.docs/reference/tech-stack.md](.docs/reference/tech-stack.md) · schema: [.docs/reference/database-schema.md](.docs/reference/database-schema.md) ·
 Android order: [.docs/process/android-phased-plan.md](.docs/process/android-phased-plan.md) · dev setup: [.docs/process/dev-environment.md](.docs/process/dev-environment.md) ·
 feature plans: `.docs/features/<name>/planning.md` (template: [.docs/phase-plan-example.md](.docs/phase-plan-example.md)).
