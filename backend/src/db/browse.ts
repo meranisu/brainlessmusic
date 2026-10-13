@@ -463,6 +463,35 @@ export function getTrackDetailById(id: number): TrackDetail | undefined {
 
 const SEARCH_RESULT_LIMIT = 20;
 
+/** A window of results: how many and from where. The search page's "See all" pages through one kind with it. */
+export interface SearchPage {
+  limit: number;
+  offset: number;
+}
+
+const FIRST_PAGE: SearchPage = { limit: SEARCH_RESULT_LIMIT, offset: 0 };
+
+/** `%` and `_` in a query are literal in LIKE, not wildcards. */
+function likeEscape(text: string): string {
+  return text.replace(/[\\%_]/g, (c) => `\\${c}`);
+}
+
+/**
+ * Best match first for a name column: the whole name, then names starting with the query, then a later word starting
+ * with it, then anything containing it; A to Z within each. Takes three parameters (`rankParams`).
+ */
+function rankBy(column: string): string {
+  return `CASE WHEN ${column} = ? COLLATE NOCASE THEN 0
+               WHEN ${column} LIKE ? ESCAPE '\\' THEN 1
+               WHEN ${column} LIKE ? ESCAPE '\\' THEN 2
+               ELSE 3 END, ${column} COLLATE NOCASE`;
+}
+
+function rankParams(query: string): string[] {
+  const q = query.trim();
+  return [q, `${likeEscape(q)}%`, `% ${likeEscape(q)}%`];
+}
+
 /** BM25 weights: title over artist over album, so an album-name search doesn't bury the track with that name. */
 const TRACK_BM25_WEIGHTS = '10.0, 5.0, 3.0';
 
@@ -470,9 +499,9 @@ const TRACK_BM25_WEIGHTS = '10.0, 5.0, 3.0';
  * FTS5 trigram search (migration 0008). A term under three characters falls back to LIKE, which a two-character
  * CJK query needs.
  */
-export function searchLibrary(query: string, includeHidden = false): SearchResults {
+export function searchLibrary(query: string, includeHidden = false, page: SearchPage = FIRST_PAGE): SearchResults {
   const match = buildMatchQuery(query);
-  return match === null ? searchWithLike(query, includeHidden) : searchWithFts(match, includeHidden);
+  return match === null ? searchWithLike(query, includeHidden, page) : searchWithFts(match, query, includeHidden, page);
 }
 
 /** Track results leave out hidden tracks unless an admin asked (A34). */
@@ -480,22 +509,22 @@ function hiddenTrackClause(includeHidden: boolean): string {
   return includeHidden ? '' : 'AND t.hidden = 0';
 }
 
-function searchWithFts(match: string, includeHidden: boolean): SearchResults {
+function searchWithFts(match: string, query: string, includeHidden: boolean, page: SearchPage): SearchResults {
   const artists = db
     .prepare(
       `${ARTIST_SUMMARY_SELECT}
        WHERE a.id IN (SELECT rowid FROM artists_fts WHERE artists_fts MATCH ?) AND ${ARTIST_HAS_MUSIC}
-       ORDER BY a.name COLLATE NOCASE LIMIT ?`,
+       ORDER BY ${rankBy('a.name')} LIMIT ? OFFSET ?`,
     )
-    .all(match, SEARCH_RESULT_LIMIT) as ArtistSummary[];
+    .all(match, ...rankParams(query), page.limit, page.offset) as ArtistSummary[];
 
   const albums = db
     .prepare(
       `${ALBUM_SUMMARY_SELECT}
        WHERE al.id IN (SELECT rowid FROM albums_fts WHERE albums_fts MATCH ?)
-       GROUP BY al.id ${HAS_PLAYABLE_TRACKS} ORDER BY al.title COLLATE NOCASE LIMIT ?`,
+       GROUP BY al.id ${HAS_PLAYABLE_TRACKS} ORDER BY ${rankBy('al.title')} LIMIT ? OFFSET ?`,
     )
-    .all(match, SEARCH_RESULT_LIMIT) as AlbumSummary[];
+    .all(match, ...rankParams(query), page.limit, page.offset) as AlbumSummary[];
 
   // Tracks join the index directly rather than using an `IN (...)` subquery,
   // because ranking needs bm25() over the matched rows.
@@ -505,43 +534,43 @@ function searchWithFts(match: string, includeHidden: boolean): SearchResults {
         `${TRACK_SUMMARY_SELECT}
          JOIN tracks_fts ON tracks_fts.rowid = t.id
          WHERE tracks_fts MATCH ? AND t.missing_since IS NULL ${hiddenTrackClause(includeHidden)}
-         ORDER BY bm25(tracks_fts, ${TRACK_BM25_WEIGHTS})
-         LIMIT ?`,
+         ORDER BY (t.title = ? COLLATE NOCASE) DESC, bm25(tracks_fts, ${TRACK_BM25_WEIGHTS})
+         LIMIT ? OFFSET ?`,
       )
-      .all(match, SEARCH_RESULT_LIMIT) as RawTrackSummary[]
+      .all(match, query.trim(), page.limit, page.offset) as RawTrackSummary[]
   ).map(toTrackSummary);
 
   return { artists, albums, tracks };
 }
 
 /** The pre-FTS path, still reached by queries shorter than a trigram. */
-function searchWithLike(query: string, includeHidden: boolean): SearchResults {
-  const pattern = `%${query.trim()}%`;
+function searchWithLike(query: string, includeHidden: boolean, page: SearchPage): SearchResults {
+  const pattern = `%${likeEscape(query.trim())}%`;
 
   const artists = db
     .prepare(
-      `${ARTIST_SUMMARY_SELECT} WHERE a.name LIKE ? AND ${ARTIST_HAS_MUSIC}
-       ORDER BY a.name COLLATE NOCASE LIMIT ?`,
+      `${ARTIST_SUMMARY_SELECT} WHERE a.name LIKE ? ESCAPE '\\' AND ${ARTIST_HAS_MUSIC}
+       ORDER BY ${rankBy('a.name')} LIMIT ? OFFSET ?`,
     )
-    .all(pattern, SEARCH_RESULT_LIMIT) as ArtistSummary[];
+    .all(pattern, ...rankParams(query), page.limit, page.offset) as ArtistSummary[];
 
   const albums = db
     .prepare(
-      `${ALBUM_SUMMARY_SELECT} WHERE al.title LIKE ? GROUP BY al.id ${HAS_PLAYABLE_TRACKS}
-       ORDER BY al.title COLLATE NOCASE LIMIT ?`,
+      `${ALBUM_SUMMARY_SELECT} WHERE al.title LIKE ? ESCAPE '\\' GROUP BY al.id ${HAS_PLAYABLE_TRACKS}
+       ORDER BY ${rankBy('al.title')} LIMIT ? OFFSET ?`,
     )
-    .all(pattern, SEARCH_RESULT_LIMIT) as AlbumSummary[];
+    .all(pattern, ...rankParams(query), page.limit, page.offset) as AlbumSummary[];
 
   // Same three fields as the FTS index, so a short query doesn't quietly search fewer.
   const tracks = (
     db
       .prepare(
         `${TRACK_SUMMARY_SELECT}
-         WHERE (t.title LIKE ? OR a.name LIKE ? OR al.title LIKE ?)
+         WHERE (t.title LIKE ? ESCAPE '\\' OR a.name LIKE ? ESCAPE '\\' OR al.title LIKE ? ESCAPE '\\')
            AND t.missing_since IS NULL ${hiddenTrackClause(includeHidden)}
-         ORDER BY t.title COLLATE NOCASE LIMIT ?`,
+         ORDER BY ${rankBy('t.title')} LIMIT ? OFFSET ?`,
       )
-      .all(pattern, pattern, pattern, SEARCH_RESULT_LIMIT) as RawTrackSummary[]
+      .all(pattern, pattern, pattern, ...rankParams(query), page.limit, page.offset) as RawTrackSummary[]
   ).map(toTrackSummary);
 
   return { artists, albums, tracks };

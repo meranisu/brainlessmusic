@@ -113,7 +113,27 @@ data class SearchResultsDto(
     val playlists: List<PlaylistSearchDto>? = null,
     // People whose name matches, to open their profile (A172). Null from an older server.
     val people: List<PersonDto>? = null,
+    // Whether each kind has more than it shows, for "See all". Null from an older server.
+    val hasMore: SearchHasMoreDto? = null,
+    // The one result shown big, with Play. Null when nothing matched, or from an older server.
+    val top: SearchTopDto? = null,
+    // "Did you mean …?" when nothing matched and a name is close.
+    val suggestion: String? = null,
 )
+
+data class SearchHasMoreDto(
+    val artists: Boolean = false,
+    val albums: Boolean = false,
+    val tracks: Boolean = false,
+    val playlists: Boolean = false,
+    val people: Boolean = false,
+)
+
+/** [kind] is `artist`, `album` or `track`; [id] is one of the results of that kind. */
+data class SearchTopDto(val kind: String, val id: Int)
+
+/** One kind's "See all" page (`GET /search?type=`). */
+data class SearchPageDto<T>(val items: List<T>, val hasMore: Boolean)
 
 /** 128 peaks, 0-255, absolute (A8: scaling per track happens where they are drawn). */
 data class WaveformDto(val peaks: List<Int>)

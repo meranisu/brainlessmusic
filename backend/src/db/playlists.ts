@@ -1,5 +1,6 @@
 import { db } from './connection.js';
 import { trackGainSql } from './loudness.js';
+import { foldText } from '../utils/foldText.js';
 
 export interface PlaylistRow {
   id: number;
@@ -158,9 +159,9 @@ export function listPublicPlaylists(viewerId: number, includeHidden = false): Pu
 }
 
 /** Playlists whose name contains `query`: the viewer's own and everyone's public ones, own first. */
-export function searchPlaylists(query: string, viewerId: number, limit = 20): PlaylistSearchResult[] {
-  // `%` and `_` in a name are literal here, not wildcards.
-  const pattern = `%${query.trim().replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+export function searchPlaylists(query: string, viewerId: number, limit = 20, offset = 0): PlaylistSearchResult[] {
+  // `%` and `_` in a name are literal here, not wildcards. Folded, so accents don't matter.
+  const pattern = `%${foldText(query.trim()).replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
   const rows = db
     .prepare(
       `SELECT
@@ -173,11 +174,11 @@ export function searchPlaylists(query: string, viewerId: number, limit = 20): Pl
          (SELECT COUNT(*) FROM playlist_tracks pt WHERE pt.playlist_id = p.id) as trackCount
        FROM playlists p
        JOIN users u ON u.id = p.owner_id
-       WHERE p.name LIKE ? ESCAPE '\\' AND (p.owner_id = ? OR p.is_public = 1)
+       WHERE fold(p.name) LIKE ? ESCAPE '\\' AND (p.owner_id = ? OR p.is_public = 1)
        ORDER BY (p.owner_id = ?) DESC, p.name COLLATE NOCASE
-       LIMIT ?`,
+       LIMIT ? OFFSET ?`,
     )
-    .all(viewerId, pattern, viewerId, viewerId, limit) as (Omit<PlaylistSearchResult, 'coverAlbumIds' | 'isPublic' | 'isOwner'> & {
+    .all(viewerId, pattern, viewerId, viewerId, limit, offset) as (Omit<PlaylistSearchResult, 'coverAlbumIds' | 'isPublic' | 'isOwner'> & {
     isPublic: number;
     isOwner: number;
   })[];

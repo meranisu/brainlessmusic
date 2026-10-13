@@ -78,6 +78,12 @@ class LibraryRepository @Inject constructor(
         return callApi { it.waveform(trackId).peaks }.onSuccess { waveforms[trackId] = it }
     }
 
+    suspend fun searchTracks(query: String, offset: Int, limit: Int) = callApi { it.searchTracks(query, offset, limit) }
+    suspend fun searchArtists(query: String, offset: Int, limit: Int) = callApi { it.searchArtists(query, offset, limit) }
+    suspend fun searchAlbums(query: String, offset: Int, limit: Int) = callApi { it.searchAlbums(query, offset, limit) }
+    suspend fun searchPlaylists(query: String, offset: Int, limit: Int) = callApi { it.searchPlaylists(query, offset, limit) }
+    suspend fun searchPeople(query: String, offset: Int, limit: Int) = callApi { it.searchPeople(query, offset, limit) }
+
     suspend fun search(query: String): Result<SearchResultsDto> =
         callApi { it.search(query) }
 

@@ -1,5 +1,37 @@
 [
   {
+    "version": "0.4.15",
+    "date": "2026-10-13",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "search got a proper redo. there's a top result up top with a play button, then songs first, then artists, albums, playlists and people, each with \"see all\"",
+              "chips under the search box let you look at just songs, just artists and so on, and those lists keep loading as you scroll",
+              "the words you typed are highlighted in the results",
+              "albums in search show the year and have a play button, artists show how many songs they have",
+              "before you type, you get your recent searches (tap one to search again, or the x to drop it) and genres to browse",
+              "if nothing turns up you get a \"did you mean\" with the closest name, plus a few tips, instead of a blank page",
+              "accents don't matter anymore when searching people and playlists either, so \"zoe\" finds \"Zoë\""
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.4.14",
     "date": "2026-10-13",
     "sections": [

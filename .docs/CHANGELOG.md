@@ -4,6 +4,28 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-13: Search reworked on Android and the web (A193)
+
+- Backend `GET /search`: artists, albums and short-query songs are ordered best match first (the exact name, then
+  names starting with it, then a later word, then the rest); a song titled exactly the query comes first. The answer
+  adds `hasMore` per kind, a `top` result (an exact artist, album or song name, else the best song) and, when nothing
+  matched, a `suggestion` (the closest artist, album or song name by edit distance, whole or by word runs). With
+  `type=tracks|artists|albums|playlists|people` plus `limit` (up to 50) and `offset` it pages one kind for "See all".
+  People and playlist search ignore accents through a new `fold()` SQL function (`utils/foldText.ts`); the library
+  index already did.
+- Android search: kind chips (All, Songs, Artists, Albums, Playlists, People); on All a "Top result" card (Play for a
+  song or album, Open for an artist) and up to 5 songs then 4 of each other kind, songs first, each with "See all";
+  one kind pages as you scroll. Matched words are bold in the accent. Album rows show the year and a play button;
+  artist rows their song and album counts. Before typing: recent searches (tap to rerun, X to forget, Clear all;
+  cleared on logout) and the biggest genres. Nothing found: "Did you mean" with the suggestion, tips, and "Search
+  everything" from a filtered kind.
+- Web search page: the same, with the kind in the URL (`&kind=`), Load more, and recent searches per account in this
+  browser.
+- Verified: backend `tsc --noEmit` and `npm test` with only these changes applied (609 pass, new
+  `searchPage.test.ts`; the shared tree also holds another session's unfinished invite/email work, which fails tests
+  on its own); Android `assembleDebug` and `SearchHighlightTest` (4); web `npm run build` and `npm run lint`. Not run
+  on a phone or in a browser.
+
 ## 2026-10-13: Room members show their pictures; full-page windows match the system bars; Lane goodbye fix
 
 - Owner requests. Server: each room member now carries `avatarId` (set on join, refreshed on reconnect), in the room

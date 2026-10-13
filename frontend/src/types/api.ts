@@ -423,6 +423,22 @@ export interface SearchResults {
   playlists: PlaylistSearchResult[];
   /** Accounts whose name matches, to reach their profile (A172). */
   people: Person[];
+  /** Whether each kind has more than it shows, for "See all". */
+  hasMore?: Record<SearchKind, boolean>;
+  /** The best match, shown big with Play; null when nothing matched. */
+  top?: { kind: 'artist' | 'album' | 'track'; id: number } | null;
+  /** "Did you mean …?" when nothing matched and a name is close. */
+  suggestion?: string | null;
+}
+
+export type SearchKind = 'tracks' | 'artists' | 'albums' | 'playlists' | 'people';
+
+/** `GET /search?type=`: one kind's page, for "See all". */
+export interface SearchKindPage<T> {
+  type: SearchKind;
+  items: T[];
+  hasMore: boolean;
+  offset: number;
 }
 
 export interface UserSummary {

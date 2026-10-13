@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `searchLibrary(query, includeHidden, page)`, `rankBy()`, `likeEscape()` (`backend/src/db/browse.ts`); `GET /search` (`routes/search.ts`); `pickTopResult()`, `suggestSpelling()`, `editDistance()` (`services/searchHelp.ts`); `foldText()` and the `fold()` SQL function (`utils/foldText.ts`, `db/connection.ts`); `searchPeople()`/`searchPlaylists()` gain `offset` and fold accents
+**Date:** 2026-10-13
+**How added:** owner request (A193)
+**Purpose:** better-ordered search with a top result, paging and a spelling suggestion.
+**Side effects:** every connection registers `fold()`.
+**Before:** A–Z order, fixed caps, nothing when a name was misspelled.
+**After:** best match first, `hasMore`/`top`/`suggestion`, `type` paging.
+
+**Function:** `SearchScreen()` and its parts, `highlight()` (`android/.../ui/search/SearchScreen.kt`); `SearchViewModel` (kinds, paging, recents, genres, `playAlbum()`); `RecentSearches` (`data/local/`); web `SearchPage()`, `highlightRuns()` (`lib/searchText.ts`), `lib/recentSearches.ts`
+**Date:** 2026-10-13
+**How added:** owner request (A193)
+**Purpose:** the reworked search tab.
+**Side effects:** `SessionStore.clearCredentials()` also clears recent searches.
+**Before:** one list, songs last, a bare empty state.
+**After:** as in the changelog entry of the same date.
+
 **Function:** `MemberInfo.avatarId`, `snapshot()`, `connect()`, `overview()`: `backend/src/services/rooms.ts`; `memberInfo()`: `backend/src/routes/rooms.ts`; `FullScreenDialog()`: `android/app/src/main/kotlin/com/brainlessmusic/app/ui/common/FullScreenDialog.kt`; `MemberRow()`, `TogetherViewModel.avatarUrl()`: `ui/together/`; `LaneGoodbye()`: `ui/splash/ArcadeGoodbye.kt`; web `TogetherPage()`
 **Date:** 2026-10-13
 **How added:** owner requests

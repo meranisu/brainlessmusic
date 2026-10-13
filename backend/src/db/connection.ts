@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { config } from '../config.js';
+import { foldText } from '../utils/foldText.js';
 
 /**
  * Opened on first use, not on import: opening creates the file, and import-time opens have twice touched the real
@@ -14,6 +15,8 @@ export function getDb(): Database.Database {
     mkdirSync(dirname(config.dbPath), { recursive: true });
     instance = new Database(config.dbPath);
     instance.pragma('journal_mode = WAL');
+    // Accent-blind matching for the LIKE searches (people, playlists).
+    instance.function('fold', { deterministic: true }, (text: unknown) => (typeof text === 'string' ? foldText(text) : text));
   }
   return instance;
 }

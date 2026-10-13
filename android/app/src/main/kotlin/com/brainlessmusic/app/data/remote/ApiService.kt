@@ -63,6 +63,12 @@ import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
+import com.brainlessmusic.app.data.remote.dto.TrackSummaryDto
+import com.brainlessmusic.app.data.remote.dto.AlbumSummaryDto
+import com.brainlessmusic.app.data.remote.dto.ArtistSummaryDto
+import com.brainlessmusic.app.data.remote.dto.PersonDto
+import com.brainlessmusic.app.data.remote.dto.PlaylistSearchDto
+import com.brainlessmusic.app.data.remote.dto.SearchPageDto
 
 /** Paths are relative to the `/api/` base [ApiServiceFactory] builds. */
 interface ApiService {
@@ -145,6 +151,22 @@ interface ApiService {
 
     @GET("search")
     suspend fun search(@Query("q") query: String): SearchResultsDto
+
+    // One kind at a time, for "See all".
+    @GET("search?type=tracks")
+    suspend fun searchTracks(@Query("q") query: String, @Query("offset") offset: Int, @Query("limit") limit: Int): SearchPageDto<TrackSummaryDto>
+
+    @GET("search?type=artists")
+    suspend fun searchArtists(@Query("q") query: String, @Query("offset") offset: Int, @Query("limit") limit: Int): SearchPageDto<ArtistSummaryDto>
+
+    @GET("search?type=albums")
+    suspend fun searchAlbums(@Query("q") query: String, @Query("offset") offset: Int, @Query("limit") limit: Int): SearchPageDto<AlbumSummaryDto>
+
+    @GET("search?type=playlists")
+    suspend fun searchPlaylists(@Query("q") query: String, @Query("offset") offset: Int, @Query("limit") limit: Int): SearchPageDto<PlaylistSearchDto>
+
+    @GET("search?type=people")
+    suspend fun searchPeople(@Query("q") query: String, @Query("offset") offset: Int, @Query("limit") limit: Int): SearchPageDto<PersonDto>
 
     @POST("tracks/{id}/scrobble")
     suspend fun scrobble(@Path("id") id: Int, @Body body: ScrobbleRequest): ScrobbleResponse

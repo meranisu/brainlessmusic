@@ -98,6 +98,12 @@ like you in a room.
 
 ## Answered
 
+### A193 — The search tab gets all nine ideas, on Android and the web *(was Q193, first logged as a second Q187)*
+**Answered:** 2026-10-13, in chat: "pick all of it, also lets enhance when nothing is being search and nothing is
+found". Top result, kind filters, songs first and best-match order, "See all" paging, recent searches and genres
+before typing, highlighted matches, richer album and artist rows, accent-blind people and playlist search with a
+"Did you mean" suggestion when nothing matches (no fuzzy matching inside results), and the same on the web.
+
 ### A186 — Android Edit profile becomes a full-screen page *(was Q186)*
 **Answered:** 2026-10-13, in chat: "pick your suggestions but take note of 4, maybe we could add it later". Built: a
 full-screen page with sections (1), a big picture with a camera badge (2), the display name editable there (3), pins

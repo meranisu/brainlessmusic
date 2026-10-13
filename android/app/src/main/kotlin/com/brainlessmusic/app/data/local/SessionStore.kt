@@ -86,6 +86,8 @@ class SessionStore @Inject constructor(
             prefs.remove(IS_GUEST_KEY)
             prefs.remove(TOKEN_CIPHER_KEY)
             prefs.remove(TOKEN_IV_KEY)
+            // Searches belong to the account that made them.
+            prefs.remove(RecentSearches.KEY)
         }
     }
 
