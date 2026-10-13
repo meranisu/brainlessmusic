@@ -224,3 +224,28 @@ export function countTopTracks(): number {
     }
   ).count;
 }
+
+/** Everyone's listening over one window, for the Control Center. A skip counts toward minutes, never toward plays. */
+export interface PlayWindow {
+  plays: number;
+  skips: number;
+  /** Accounts and guests with at least one row in the window. */
+  listeners: number;
+  minutes: number;
+}
+
+/** The last 24 hours and the last 7 days, rolling, so the server's time zone doesn't decide where a day starts. */
+export function summarizeRecentPlays(): { day: PlayWindow; week: PlayWindow } {
+  const window = (hours: number): PlayWindow =>
+    db
+      .prepare(
+        `SELECT COALESCE(SUM(skipped = 0), 0) AS plays,
+                COALESCE(SUM(skipped = 1), 0) AS skips,
+                COUNT(DISTINCT user_id) AS listeners,
+                CAST(COALESCE(SUM(ms_played), 0) / 60000 AS INTEGER) AS minutes
+         FROM play_history
+         WHERE played_at > datetime('now', ?)`,
+      )
+      .get(`-${hours} hours`) as PlayWindow;
+  return { day: window(24), week: window(24 * 7) };
+}

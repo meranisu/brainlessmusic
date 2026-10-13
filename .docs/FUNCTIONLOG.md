@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `summarizeRecentPlays()` (new): `backend/src/db/plays.ts`; `GET /admin/control-center` (`plays`): `backend/src/routes/health.ts`
+**Date:** 2026-10-13
+**How added:** new feature (A157)
+**Purpose:** everyone's plays, skips, listeners and minutes over the last 24 hours and 7 days, for the Overview's bookkeeping.
+**Side effects:** none; two reads of `play_history` per call (no index on `played_at` alone, fine at this size).
+**Before:** nothing; the Control Center had no listening numbers.
+**After:** the response carries `plays: { day, week }`.
+
+**Function:** `ControlCenterPage()`, `CheckBoard()`, `Bookkeeping()`, `folderRow()`, `parseServerTime()` (new): `frontend/src/pages/ControlCenterPage.tsx`; `LogsPage()` (new): `frontend/src/pages/LogsPage.tsx`; `Section()`, `EmptyRow()` (moved): `frontend/src/pages/controlCenterParts.tsx`
+**Date:** 2026-10-13
+**How added:** redesign (A156-A158)
+**Purpose:** the Overview as a system check board with bookkeeping and who is on air; the long tables on a Logs tab.
+**Side effects:** the Overview also polls `/library/stats`, `/admin/loudness?limit=1`, `/users` and `/guest-codes` every 10 s.
+**Before:** stat tiles, bars and every table down one long page.
+**After:** one board answering "is anything wrong", with links to where to fix it; the tables live on Logs.
+
 **Function:** `countPlaybackFailures()` (new), `listRecentPlaybackFailures()` (`offset`): `backend/src/db/playbackFailures.ts`; `GET /admin/playback-failures`: `backend/src/routes/health.ts`; `ControlCenterPage()` (failures panel): `frontend/src/pages/ControlCenterPage.tsx`
 **Date:** 2026-10-13
 **How added:** owner request

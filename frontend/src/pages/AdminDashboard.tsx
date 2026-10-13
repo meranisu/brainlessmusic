@@ -9,6 +9,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 
 const TABS = [
   { to: '/control-center', label: 'Overview', end: true },
+  { to: '/control-center/logs', label: 'Logs', end: false },
   { to: '/control-center/upload', label: 'Upload', end: false },
   { to: '/control-center/users', label: 'Users', end: false },
   { to: '/control-center/levelling', label: 'Levelling', end: false },
@@ -19,7 +20,7 @@ export function AdminDashboard() {
     <div>
       <div className="mb-4">
         <h1 className="text-xl font-semibold text-white">Control Center</h1>
-        <p className="mt-0.5 text-sm text-blue-300">Server health, uploads, accounts and volume levelling. Only admins see this.</p>
+        <p className="mt-0.5 text-sm text-blue-300">Server health, logs, uploads, accounts and volume levelling. Only admins see this.</p>
       </div>
 
       {/* Same tab look as the header's nav, so it reads as the same machine. */}
@@ -30,7 +31,7 @@ export function AdminDashboard() {
             to={tab.to}
             end={tab.end}
             className={({ isActive }) =>
-              `-mb-px border-b-2 px-3 py-2.5 text-sm font-medium transition-colors ${
+              `-mb-px whitespace-nowrap border-b-2 px-2 py-2.5 sm:px-3 text-sm font-medium transition-colors ${
                 isActive
                   ? 'border-orange-600 text-white'
                   : 'border-transparent text-blue-300 hover:border-blue-500 hover:text-white'

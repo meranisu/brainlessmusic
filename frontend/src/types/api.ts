@@ -156,11 +156,21 @@ export interface ScanFailureEntry {
   createdAt: string;
 }
 
+/** Everyone's listening over one rolling window. A skip counts toward minutes, never toward plays. */
+export interface PlayWindow {
+  plays: number;
+  skips: number;
+  listeners: number;
+  minutes: number;
+}
+
 export interface ControlCenterSnapshot {
   system: SystemStats;
   listeners: Listener[];
   scanFailures: ScanFailureEntry[];
   scanFailureCount: number;
+  /** The last 24 hours and the last 7 days. */
+  plays: { day: PlayWindow; week: PlayWindow };
 }
 
 /** `GET /admin/rooms`: live "Listen together" rooms with each member's last reported drift (`services/rooms.ts`). */

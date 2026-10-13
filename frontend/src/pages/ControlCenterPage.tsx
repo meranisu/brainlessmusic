@@ -1,19 +1,29 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useUploads } from '../components/UploadProvider';
 import { UploadQueueList } from '../components/UploadQueueList';
 import { apiClient } from '../lib/apiClient';
-import { formatBytes } from '../lib/format';
+import { formatBytes, formatTotalLength } from '../lib/format';
 import type {
   AdminRoomsResponse,
   ControlCenterSnapshot,
-  DiskUsage,
+  GuestCodesSnapshot,
   HealthSnapshot,
   LibraryRoot,
   LibraryRootListResponse,
+  LibraryStats,
+  LoudnessReport,
   PlaybackFailureEntry,
+  PlayWindow,
+  UserSummary,
 } from '../types/api';
+import { Section } from './controlCenterParts';
+
+/**
+ * The Control Center's Overview as an arcade cabinet's operator test mode (A156): a self-check board, one line per
+ * subsystem with OK / CHECK / NG, then the bookkeeping and who is on air. The long tables are on the Logs tab (A158).
+ */
 
 const POLL_INTERVAL_MS = 10_000;
 /** Players report their drift every 5 s, so polling slower would show stale numbers. */
@@ -22,16 +32,30 @@ const ROOMS_POLL_INTERVAL_MS = 5_000;
 const ROOM_DRIFT_LIMIT_MS = 300;
 /** A scan moves fast enough that a 10s poll makes the bar jump instead of crawl. */
 const SCANNING_POLL_INTERVAL_MS = 2_000;
-/** Playback failures per page; the server keeps up to 1000. */
-const FAILURES_PAGE_SIZE = 50;
+/** Newest failures fetched to count the last day's; more than this in a day shows as "50+". */
+const RECENT_FAILURES_FETCHED = 50;
+const DAY_MS = 86_400_000;
 
-/** MediaError codes, for a reader who doesn't have the spec memorized. */
-const MEDIA_ERROR_LABELS: Record<number, string> = {
-  1: 'aborted',
-  2: 'network error',
-  3: 'decode error',
-  4: 'format not supported',
+/** OK and NG as a cabinet prints them; CHECK is "look at this", not broken. `wait` is before the first answer. */
+type Verdict = 'ok' | 'check' | 'ng' | 'wait';
+
+const VERDICT_TEXT: Record<Verdict, string> = { ok: 'OK', check: 'CHECK', ng: 'NG', wait: '--' };
+const VERDICT_STYLE: Record<Verdict, string> = {
+  ok: 'text-emerald-400',
+  check: 'text-accent-ink',
+  ng: 'text-red-400',
+  wait: 'text-blue-400',
 };
+
+interface CheckRow {
+  key: string;
+  label: string;
+  verdict: Verdict;
+  readout: ReactNode;
+  /** How full, for disks, the cache, levelling and a scan in progress. */
+  fill?: number;
+  link?: { to: string; text: string };
+}
 
 function formatUptime(seconds: number): string {
   const d = Math.floor(seconds / 86400);
@@ -42,102 +66,117 @@ function formatUptime(seconds: number): string {
   return `${m}m`;
 }
 
-const STATUS_STYLES: Record<HealthSnapshot['status'], string> = {
-  ok: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
-  degraded: 'bg-orange-600/10 text-accent-ink border-orange-600/30',
+/** SQLite's `datetime('now')` is UTC without a zone; read bare, a browser would take it as local time. */
+function parseServerTime(value: string): number {
+  return Date.parse(/[zZ]|[+-]\d\d:?\d\d$/.test(value) ? value : `${value.replace(' ', 'T')}Z`);
+}
+
+/** Same thresholds as a disk filling up: the colour follows how close to full, not what it holds. */
+function fillVerdict(fraction: number): Verdict {
+  if (fraction >= 0.95) return 'ng';
+  if (fraction >= 0.85) return 'check';
+  return 'ok';
+}
+
+const FILL_STYLE: Record<Verdict, string> = {
+  ok: 'bg-emerald-500',
+  check: 'bg-orange-500',
+  ng: 'bg-red-500',
+  wait: 'bg-blue-700',
 };
 
-function StatTile({ label, value, hint }: { label: string; value: string | number; hint?: string }) {
-  return (
-    <div className="card p-4">
-      <p className="text-xs text-blue-300">{label}</p>
-      <p className="mt-1.5 text-2xl font-semibold tabular-nums text-white">{value}</p>
-      {hint && <p className="mt-0.5 text-xs text-blue-400">{hint}</p>}
-    </div>
-  );
-}
-
-function Section({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
-  return (
-    <section>
-      {/* h3: under the tab's own "Overview" heading. */}
-      <h3 className="text-sm font-semibold text-white">{title}</h3>
-      {description && <p className="mt-0.5 mb-2 text-xs text-blue-300">{description}</p>}
-      <div className={description ? '' : 'mt-2'}>{children}</div>
-    </section>
-  );
-}
-
-function EmptyRow({ colSpan, children }: { colSpan: number; children: ReactNode }) {
-  return (
-    <tr>
-      <td colSpan={colSpan} className="px-4 py-8 text-center text-blue-300">
-        {children}
-      </td>
-    </tr>
-  );
-}
-
-/** Bar colour follows how close to full it is, not what it holds. */
-function barColor(fraction: number): string {
-  if (fraction >= 0.95) return 'bg-red-500';
-  if (fraction >= 0.85) return 'bg-orange-500';
-  return 'bg-emerald-500';
-}
-
-function UsageBar({ fraction, label, detail }: { fraction: number; label: string; detail: string }) {
+function FillBar({ fraction, verdict }: { fraction: number; verdict: Verdict }) {
   const clamped = Math.min(Math.max(fraction, 0), 1);
   return (
-    <div className="card p-4">
-      <div className="flex items-baseline justify-between gap-3">
-        <p className="text-sm text-white">{label}</p>
-        <p className="text-xs tabular-nums text-blue-300">{detail}</p>
+    <span className="inline-block h-2 w-20 shrink-0 bg-blue-950" aria-hidden="true">
+      <span className={`block h-full ${FILL_STYLE[verdict]}`} style={{ width: `${clamped * 100}%` }} />
+    </span>
+  );
+}
+
+function CheckBoard({ rows }: { rows: CheckRow[] }) {
+  const ng = rows.filter((r) => r.verdict === 'ng').length;
+  const check = rows.filter((r) => r.verdict === 'check').length;
+  const waiting = rows.some((r) => r.verdict === 'wait');
+  const summary: { text: string; verdict: Verdict } = ng
+    ? { text: `${ng} NG`, verdict: 'ng' }
+    : check
+      ? { text: `${check} TO CHECK`, verdict: 'check' }
+      : waiting
+        ? { text: 'CHECKING', verdict: 'wait' }
+        : { text: 'ALL OK', verdict: 'ok' };
+
+  return (
+    <div className="card overflow-hidden font-mono">
+      <div className="flex items-baseline justify-between gap-3 border-b border-blue-800 px-4 py-3">
+        <h3 className="text-xs font-semibold tracking-[0.2em] text-blue-300">SYSTEM CHECK</h3>
+        <p className={`text-sm font-bold tracking-wider ${VERDICT_STYLE[summary.verdict]}`}>{summary.text}</p>
       </div>
-      <div className="mt-2 h-2 overflow-hidden rounded-full bg-blue-950">
-        <div className={`h-full rounded-full ${barColor(clamped)}`} style={{ width: `${clamped * 100}%` }} />
-      </div>
+      <ul className="divide-y divide-blue-800/60">
+        {rows.map((row) => (
+          <li
+            key={row.key}
+            className="grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-baseline gap-x-3 px-4 py-2 text-sm sm:grid-cols-[6rem_minmax(0,1fr)_auto]"
+          >
+            <span className="text-xs tracking-widest text-blue-300">{row.label}</span>
+            <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-blue-100">
+              {row.fill !== undefined && <FillBar fraction={row.fill} verdict={row.verdict} />}
+              <span className="min-w-0 wrap-break-word">{row.readout}</span>
+              {row.link && (
+                <Link
+                  to={row.link.to}
+                  className="font-sans text-xs text-accent-ink underline underline-offset-2 hover:text-white"
+                >
+                  {row.link.text}
+                </Link>
+              )}
+            </span>
+            <span className={`w-12 text-right text-sm font-bold ${VERDICT_STYLE[row.verdict]}`}>
+              {VERDICT_TEXT[row.verdict]}
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
 
-function DiskBar({ disk }: { disk: DiskUsage }) {
-  const used = disk.totalBytes - disk.freeBytes;
+function Bookkeeping({ plays }: { plays: { day: PlayWindow; week: PlayWindow } | undefined }) {
+  const lines: { label: string; value: (w: PlayWindow) => string }[] = [
+    { label: 'PLAYS', value: (w) => w.plays.toLocaleString() },
+    { label: 'SKIPS', value: (w) => w.skips.toLocaleString() },
+    { label: 'LISTENERS', value: (w) => w.listeners.toLocaleString() },
+    { label: 'LISTENED', value: (w) => formatTotalLength(w.minutes * 60) },
+  ];
   return (
-    <UsageBar
-      label={`${disk.label} disk`}
-      fraction={disk.totalBytes > 0 ? used / disk.totalBytes : 0}
-      detail={`${formatBytes(used)} used · ${formatBytes(disk.freeBytes)} free of ${formatBytes(disk.totalBytes)}`}
-    />
-  );
-}
-
-function RootScan({ root }: { root: LibraryRoot }) {
-  const progress = root.scanProgress;
-  const name = root.label ?? root.path;
-
-  if (root.scanning) {
-    return (
-      <UsageBar
-        label={`${name}: scanning`}
-        fraction={progress && progress.total > 0 ? progress.processed / progress.total : 0}
-        detail={
-          progress
-            ? `${progress.processed.toLocaleString()} of ${progress.total.toLocaleString()} files`
-            : 'walking the folder tree…'
-        }
-      />
-    );
-  }
-
-  return (
-    <div className="card flex items-baseline justify-between gap-3 p-4">
-      <p className="text-sm text-white">
-        {name}
-        {root.status === 'unreachable' && <span className="ml-2 text-xs text-red-300">unreachable</span>}
-      </p>
-      <p className="text-xs text-blue-300">
-        {root.trackCount.toLocaleString()} tracks ·{' '}
-        {root.lastScannedAt ? `scanned ${new Date(root.lastScannedAt).toLocaleString()}` : 'never scanned'}
+    <div className="card overflow-hidden font-mono">
+      <h3 className="border-b border-blue-800 px-4 py-3 text-xs font-semibold tracking-[0.2em] text-blue-300">
+        BOOKKEEPING
+      </h3>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-xs tracking-widest text-blue-400">
+            <th className="px-4 pt-2.5 pb-1 text-left font-normal">
+              <span className="sr-only">Count</span>
+            </th>
+            <th className="px-4 pt-2.5 pb-1 text-right font-normal">24 H</th>
+            <th className="px-4 pt-2.5 pb-1 text-right font-normal">7 DAYS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lines.map((line) => (
+            <tr key={line.label}>
+              <th scope="row" className="px-4 py-1.5 text-left text-xs font-normal tracking-widest text-blue-300">
+                {line.label}
+              </th>
+              <td className="px-4 py-1.5 text-right tabular-nums text-white">{plays ? line.value(plays.day) : '--'}</td>
+              <td className="px-4 py-1.5 text-right tabular-nums text-white">{plays ? line.value(plays.week) : '--'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="px-4 pt-1 pb-3 font-sans text-xs text-blue-400">
+        Everyone, rolling windows. A skip is a song stopped before it counts as a play.
       </p>
     </div>
   );
@@ -189,344 +228,346 @@ function RoomCard({ room }: { room: AdminRoom }) {
   );
 }
 
+function folderRow(root: LibraryRoot): CheckRow {
+  const key = `root-${root.id}`;
+  const name = root.label ?? root.path;
+  const progress = root.scanProgress;
+  if (root.status === 'unreachable') {
+    return { key, label: 'FOLDER', verdict: 'ng', readout: `${name}: unreachable` };
+  }
+  if (root.scanning) {
+    return {
+      key,
+      label: 'FOLDER',
+      verdict: 'ok',
+      fill: progress && progress.total > 0 ? progress.processed / progress.total : 0,
+      readout: progress
+        ? `${name}: scanning ${progress.processed.toLocaleString()} of ${progress.total.toLocaleString()} files`
+        : `${name}: scanning, walking the folder tree`,
+    };
+  }
+  return {
+    key,
+    label: 'FOLDER',
+    verdict: root.lastScannedAt ? 'ok' : 'check',
+    readout: `${name}: ${root.trackCount.toLocaleString()} tracks, ${
+      root.lastScannedAt ? `scanned ${new Date(parseServerTime(root.lastScannedAt)).toLocaleString()}` : 'never scanned'
+    }`,
+  };
+}
+
 export function ControlCenterPage() {
-  const { data, isLoading, isError, refetch, isFetching } = useQuery({
+  const health = useQuery({
     queryKey: ['health'],
     queryFn: () => apiClient.get<HealthSnapshot>('/admin/health'),
     refetchInterval: POLL_INTERVAL_MS,
   });
-
-  const { data: center } = useQuery({
+  const center = useQuery({
     queryKey: ['control-center'],
     queryFn: () => apiClient.get<ControlCenterSnapshot>('/admin/control-center'),
     refetchInterval: POLL_INTERVAL_MS,
   });
-
-  const {
-    data: rooms,
-    isLoading: isLoadingRooms,
-    isError: isRoomsError,
-  } = useQuery({
+  const rooms = useQuery({
     queryKey: ['admin-rooms'],
     queryFn: () => apiClient.get<AdminRoomsResponse>('/admin/rooms'),
     refetchInterval: ROOMS_POLL_INTERVAL_MS,
   });
-
-  const [failuresPage, setFailuresPage] = useState(0);
-  const { data: failures, isLoading: isLoadingFailures } = useQuery({
-    queryKey: ['playback-failures', failuresPage],
+  const failures = useQuery({
+    queryKey: ['playback-failures', 'recent'],
     queryFn: () =>
       apiClient.get<{ failures: PlaybackFailureEntry[]; total: number }>(
-        `/admin/playback-failures?limit=${FAILURES_PAGE_SIZE}&offset=${failuresPage * FAILURES_PAGE_SIZE}`,
+        `/admin/playback-failures?limit=${RECENT_FAILURES_FETCHED}`,
       ),
     refetchInterval: POLL_INTERVAL_MS,
-    placeholderData: (prev) => prev,
   });
-  const failurePages = failures ? Math.max(1, Math.ceil(failures.total / FAILURES_PAGE_SIZE)) : 1;
-
-  const { data: roots } = useQuery({
+  const roots = useQuery({
     queryKey: ['library-roots'],
     queryFn: () => apiClient.get<LibraryRootListResponse>('/library/roots'),
     refetchInterval: (query) =>
       query.state.data?.roots.some((r) => r.scanning) ? SCANNING_POLL_INTERVAL_MS : POLL_INTERVAL_MS,
   });
+  const library = useQuery({
+    queryKey: ['library-stats'],
+    queryFn: () => apiClient.get<LibraryStats>('/library/stats'),
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+  const levelling = useQuery({
+    queryKey: ['loudness', 'overview'],
+    queryFn: () => apiClient.get<LoudnessReport>('/admin/loudness?limit=1'),
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+  const users = useQuery({
+    queryKey: ['users'],
+    queryFn: () => apiClient.get<{ users: UserSummary[] }>('/users'),
+    refetchInterval: POLL_INTERVAL_MS,
+  });
+  const guestCodes = useQuery({
+    queryKey: ['guest-codes'],
+    queryFn: () => apiClient.get<GuestCodesSnapshot>('/guest-codes'),
+    refetchInterval: POLL_INTERVAL_MS,
+  });
 
-  const system = center?.system;
   const { queue: uploads } = useUploads();
-  const uploading = uploads.filter((u) => u.status === 'queued' || u.status === 'uploading').length;
+
+  const h = health.data;
+  const c = center.data;
+  const system = c?.system;
+  const rows: CheckRow[] = [];
+
+  rows.push(
+    health.isError
+      ? { key: 'server', label: 'SERVER', verdict: 'ng', readout: 'No answer. The server may be down or restarting.' }
+      : !h
+        ? { key: 'server', label: 'SERVER', verdict: 'wait', readout: 'Asking the server…' }
+        : {
+            key: 'server',
+            label: 'SERVER',
+            verdict: 'ok',
+            readout: `up ${formatUptime(h.uptimeSeconds)}${
+              system
+                ? `, cpu ${system.cpuPercent}%, memory ${formatBytes(system.memoryBytes)} (${formatBytes(system.heapUsedBytes)} heap)`
+                : ''
+            }`,
+          },
+  );
+
+  for (const disk of system?.disks ?? []) {
+    const used = disk.totalBytes - disk.freeBytes;
+    const fraction = disk.totalBytes > 0 ? used / disk.totalBytes : 0;
+    rows.push({
+      key: `disk-${disk.path}`,
+      label: 'DISK',
+      verdict: fillVerdict(fraction),
+      fill: fraction,
+      readout: `${disk.label}: ${Math.round(fraction * 100)}% used, ${formatBytes(disk.freeBytes)} free of ${formatBytes(disk.totalBytes)}`,
+    });
+  }
+
+  if (system) {
+    const { usedBytes, maxBytes } = system.transcodeCache;
+    rows.push({
+      key: 'cache',
+      label: 'CACHE',
+      // It evicts the least recently used past its cap, so full is normal.
+      verdict: 'ok',
+      fill: maxBytes > 0 ? usedBytes / maxBytes : 0,
+      readout: `transcodes ${formatBytes(usedBytes)} of ${formatBytes(maxBytes)} cap`,
+    });
+  }
+
+  for (const root of roots.data?.roots ?? []) rows.push(folderRow(root));
+
+  const missing = h?.missingTracks ?? 0;
+  rows.push(
+    !library.data
+      ? { key: 'library', label: 'LIBRARY', verdict: 'wait', readout: 'Counting…' }
+      : {
+          key: 'library',
+          label: 'LIBRARY',
+          verdict: missing > 0 ? 'check' : 'ok',
+          readout: `${library.data.tracks.toLocaleString()} tracks, ${formatTotalLength(library.data.seconds)}, ${formatBytes(library.data.bytes)}${
+            missing > 0 ? `; ${missing.toLocaleString()} missing from disk` : ''
+          }${library.data.hidden ? `; ${library.data.hidden.toLocaleString()} hidden` : ''}`,
+          link: missing > 0 ? { to: '/?view=full', text: 'Library' } : undefined,
+        },
+  );
+
+  rows.push(
+    !c
+      ? { key: 'files', label: 'FILES', verdict: 'wait', readout: 'Reading the last scan…' }
+      : c.scanFailureCount > 0
+        ? {
+            key: 'files',
+            label: 'FILES',
+            verdict: 'check',
+            readout: `${c.scanFailureCount.toLocaleString()} the last scan couldn't read`,
+            link: { to: '/control-center/logs', text: 'Logs' },
+          }
+        : { key: 'files', label: 'FILES', verdict: 'ok', readout: 'every scanned file was readable' },
+  );
+
+  const lev = levelling.data;
+  rows.push(
+    !lev
+      ? { key: 'level', label: 'LEVEL', verdict: 'wait', readout: 'Asking…' }
+      : {
+          key: 'level',
+          label: 'LEVEL',
+          verdict: lev.summary.failed > 0 ? 'check' : 'ok',
+          fill: lev.summary.total > 0 ? lev.summary.levelled / lev.summary.total : 0,
+          readout: `${lev.summary.levelled.toLocaleString()} of ${lev.summary.total.toLocaleString()} levelled${
+            lev.summary.waiting > 0 ? `, ${lev.summary.waiting.toLocaleString()} waiting` : ''
+          }${lev.summary.failed > 0 ? `, ${lev.summary.failed.toLocaleString()} failed` : ''}${
+            lev.measuring ? `; measuring "${lev.measuring.title}"` : ''
+          }`,
+          link: lev.summary.failed > 0 ? { to: '/control-center/levelling', text: 'Levelling' } : undefined,
+        },
+  );
+
+  rows.push(
+    !h
+      ? { key: 'streams', label: 'STREAMS', verdict: health.isError ? 'ng' : 'wait', readout: '--' }
+      : {
+          key: 'streams',
+          label: 'STREAMS',
+          // The server's own call: degraded means a stream error in the last 15 minutes.
+          verdict: h.status === 'degraded' ? 'check' : 'ok',
+          readout: `${h.activeStreams} live, ${h.activeTranscodes} transcoding${
+            h.status === 'degraded' ? '; an error in the last 15\u00a0min' : ''
+          }`,
+          link: h.recentErrors.length > 0 ? { to: '/control-center/logs', text: 'Logs' } : undefined,
+        },
+  );
+
+  // Measured from when the list arrived, which a render can't move.
+  const recentFailures = (failures.data?.failures ?? []).filter(
+    (f) => failures.dataUpdatedAt - parseServerTime(f.createdAt) < DAY_MS,
+  );
+  const newestFailure = recentFailures[0];
+  rows.push(
+    !failures.data
+      ? { key: 'playback', label: 'PLAYBACK', verdict: 'wait', readout: 'Asking…' }
+      : !newestFailure
+        ? { key: 'playback', label: 'PLAYBACK', verdict: 'ok', readout: 'no failures in 24\u00a0h' }
+        : {
+            key: 'playback',
+            label: 'PLAYBACK',
+            verdict: 'check',
+            readout: `${
+              recentFailures.length === RECENT_FAILURES_FETCHED ? `${RECENT_FAILURES_FETCHED}+` : recentFailures.length
+            } failed in 24\u00a0h; newest "${newestFailure.trackTitle ?? `#${newestFailure.trackId}`}" for ${newestFailure.username}`,
+            link: { to: '/control-center/logs', text: 'Logs' },
+          },
+  );
+
+  const roomList = rooms.data?.rooms ?? [];
+  const members = roomList.reduce((n, r) => n + r.members.length, 0);
+  const outOfStep = roomList.reduce((n, r) => n + r.members.filter((m) => memberState(m).outOfStep).length, 0);
+  rows.push(
+    !rooms.data
+      ? {
+          key: 'rooms',
+          label: 'ROOMS',
+          verdict: rooms.isError ? 'ng' : 'wait',
+          readout: rooms.isError ? "Couldn't load the rooms. This retries every 5 seconds." : 'Asking…',
+        }
+      : {
+          key: 'rooms',
+          label: 'ROOMS',
+          verdict: outOfStep > 0 ? 'check' : 'ok',
+          readout:
+            roomList.length === 0
+              ? 'none open'
+              : `${roomList.length} open, ${members} ${members === 1 ? 'member' : 'members'}${
+                  outOfStep > 0 ? `, ${outOfStep} out of step` : ', all in step'
+                }`,
+        },
+  );
+
+  const accounts = users.data?.users ?? [];
+  const pending = guestCodes.data?.requests.length ?? 0;
+  rows.push(
+    !users.data
+      ? { key: 'accounts', label: 'ACCOUNTS', verdict: 'wait', readout: 'Asking…' }
+      : {
+          key: 'accounts',
+          label: 'ACCOUNTS',
+          verdict: pending > 0 ? 'check' : 'ok',
+          readout: `${accounts.filter((u) => u.kind === 'account').length} accounts, ${
+            accounts.filter((u) => u.kind === 'guest').length
+          } guests${pending > 0 ? `; ${pending} waiting for a guest code` : ''}`,
+          link: pending > 0 ? { to: '/control-center/users', text: 'Users' } : undefined,
+        },
+  );
+
+  if (uploads.length > 0) {
+    const active = uploads.filter((u) => u.status === 'queued' || u.status === 'uploading').length;
+    const failed = uploads.filter((u) => u.status === 'error').length;
+    rows.push({
+      key: 'uploads',
+      label: 'UPLOADS',
+      verdict: failed > 0 ? 'check' : 'ok',
+      readout: `${active} in progress, ${uploads.length - active - failed} done${failed > 0 ? `, ${failed} failed` : ''} (this tab)`,
+    });
+  }
+
+  const listeners = c?.listeners ?? [];
+  const checkedAt = health.dataUpdatedAt ? new Date(health.dataUpdatedAt).toLocaleTimeString() : null;
 
   return (
-    <div>
-      <div className="mb-5 flex items-center justify-between">
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          {/* A tab of the dashboard now (`AdminDashboard`), which carries the page title. */}
+          {/* A tab of the dashboard (`AdminDashboard`), which carries the page title. */}
           <h2 className="text-base font-semibold text-white">Overview</h2>
-          <p className="mt-0.5 text-sm text-blue-300">Auto-refreshes every 10s.</p>
+          <p className="mt-0.5 text-sm text-blue-300">
+            {checkedAt ? `Checked ${checkedAt}, again every 10s.` : 'Checks every 10s.'}
+          </p>
         </div>
         <button
           onClick={() => {
-            void refetch();
+            for (const q of [health, center, rooms, failures, roots, library, levelling, users, guestCodes]) {
+              void q.refetch();
+            }
           }}
-          disabled={isFetching}
+          disabled={health.isFetching}
           className="btn-secondary btn-sm"
         >
-          {isFetching ? 'Refreshing…' : 'Refresh now'}
+          {health.isFetching ? 'Checking…' : 'Check now'}
         </button>
       </div>
 
-      {/* Outside the health data: uploads run in this tab, so they show even when the server checks fail. */}
-      <div className="mb-6">
-        <Section
-          title={uploading > 0 ? `Uploads (${uploading} in progress)` : 'Uploads'}
-          description="Started in this tab. They keep going on other pages; closing or reloading the tab stops them."
-        >
-          {uploads.length > 0 ? (
-            // Scrolls inside its box: a big batch would otherwise push every other section off the screen.
-            <UploadQueueList scrollable />
-          ) : (
-            <div className="card px-4 py-6 text-center text-sm text-blue-300">
-              No uploads in this tab.{' '}
-              <Link to="/control-center/upload" className="text-accent-ink underline">
-                Upload files
-              </Link>
-            </div>
-          )}
-        </Section>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <CheckBoard rows={rows} />
+
+        <div className="space-y-4">
+          <Bookkeeping plays={c?.plays} />
+
+          <div className="card overflow-hidden">
+            <h3 className="border-b border-blue-800 px-4 py-3 font-mono text-xs font-semibold tracking-[0.2em] text-blue-300">
+              ON AIR ({listeners.length})
+            </h3>
+            {listeners.length > 0 ? (
+              <ul className="divide-y divide-blue-800/60">
+                {listeners.map((l) => (
+                  <li key={`${l.userId}-${l.client}-${l.since}`} className="px-4 py-2 text-sm">
+                    <p className="truncate text-white">{l.trackTitle}</p>
+                    <p className="truncate text-xs text-blue-300">
+                      {l.username} on {l.client}, since {new Date(l.since).toLocaleTimeString()}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="px-4 py-6 text-center text-sm text-blue-300">
+                {c ? 'Nobody is listening. A player shows here within 30 s of starting a song.' : 'Asking…'}
+              </p>
+            )}
+          </div>
+        </div>
       </div>
 
-      {isLoading && (
-        <div className="card flex items-center justify-center py-16 text-sm text-blue-300">Loading…</div>
-      )}
-      {isError && (
-        <div className="card flex items-center justify-center py-16 text-sm text-red-300">
-          Couldn't reach the server, which is a "down" signal in itself.
-        </div>
-      )}
-
-      {data && (
-        <div className="space-y-6">
-          <div
-            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium ${STATUS_STYLES[data.status]}`}
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-current" />
-            {data.status === 'ok' ? 'All good' : 'Degraded'}
+      {roomList.length > 0 && (
+        <Section
+          title={`Listen together (${roomList.length} ${roomList.length === 1 ? 'room' : 'rooms'})`}
+          description={`Each person's distance from the room, from their last report (every 5 s). Under ${ROOM_DRIFT_LIMIT_MS} ms is in step; more is shown in red until their player corrects it.`}
+        >
+          <div className="grid gap-3 lg:grid-cols-2">
+            {roomList.map((room) => (
+              <RoomCard key={room.code} room={room} />
+            ))}
           </div>
+        </Section>
+      )}
 
-          <Section title="Server">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              <StatTile label="Uptime" value={formatUptime(data.uptimeSeconds)} />
-              <StatTile
-                label="Memory"
-                value={system ? formatBytes(system.memoryBytes) : '—'}
-                hint={system ? `${formatBytes(system.heapUsedBytes)} heap in use` : undefined}
-              />
-              <StatTile
-                label="CPU"
-                value={system ? `${system.cpuPercent}%` : '—'}
-                hint="server process, not ffmpeg"
-              />
-              <StatTile label="Transcoding" value={data.activeTranscodes} hint="ffmpeg jobs running" />
-            </div>
-          </Section>
-
-          {system && (
-            <Section title="Storage">
-              <div className="grid gap-3 md:grid-cols-2">
-                {system.disks.map((disk) => (
-                  <DiskBar key={disk.path} disk={disk} />
-                ))}
-                <UsageBar
-                  label="Transcode cache"
-                  fraction={system.transcodeCache.maxBytes > 0 ? system.transcodeCache.usedBytes / system.transcodeCache.maxBytes : 0}
-                  detail={`${formatBytes(system.transcodeCache.usedBytes)} of ${formatBytes(system.transcodeCache.maxBytes)} cap`}
-                />
-              </div>
-            </Section>
-          )}
-
-          <Section
-            title={`Now playing (${center?.listeners.length ?? 0})`}
-            description="Players that checked in within the last 30 seconds. One account on a phone and a browser shows twice."
-          >
-            <div className="card overflow-hidden">
-              <table className="w-full text-left text-sm">
-                <thead className="border-b border-blue-800">
-                  <tr className="text-xs uppercase tracking-wide text-blue-400">
-                    <th className="px-4 py-2.5 font-medium">Listener</th>
-                    <th className="px-4 py-2.5 font-medium">Device</th>
-                    <th className="px-4 py-2.5 font-medium">Track</th>
-                    <th className="px-4 py-2.5 font-medium">Since</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-blue-800/60">
-                  {center?.listeners.map((l) => (
-                    <tr key={`${l.userId}-${l.client}-${l.since}`}>
-                      <td className="px-4 py-2.5 text-blue-200">{l.username}</td>
-                      <td className="px-4 py-2.5 whitespace-nowrap text-blue-200">{l.client}</td>
-                      <td className="px-4 py-2.5 text-blue-100">{l.trackTitle}</td>
-                      <td className="px-4 py-2.5 whitespace-nowrap text-blue-200">
-                        {new Date(l.since).toLocaleTimeString()}
-                      </td>
-                    </tr>
-                  ))}
-                  {(center?.listeners.length ?? 0) === 0 && <EmptyRow colSpan={4}>Nobody is listening.</EmptyRow>}
-                </tbody>
-              </table>
-            </div>
-          </Section>
-
-          <Section
-            title={`Listen together (${rooms?.rooms.length ?? 0} ${rooms?.rooms.length === 1 ? 'room' : 'rooms'})`}
-            description={`Each person's distance from the room, from their last report (every 5 s). Under ${ROOM_DRIFT_LIMIT_MS} ms is in step; more is shown in red until their player corrects it.`}
-          >
-            {isLoadingRooms ? (
-              <p className="card px-4 py-6 text-center text-sm text-blue-300">Loading rooms…</p>
-            ) : isRoomsError ? (
-              <p className="card px-4 py-6 text-center text-sm text-red-300">
-                Couldn't load the rooms. This retries every 5 seconds.
-              </p>
-            ) : rooms && rooms.rooms.length > 0 ? (
-              <div className="grid gap-3 lg:grid-cols-2">
-                {rooms.rooms.map((room) => (
-                  <RoomCard key={room.code} room={room} />
-                ))}
-              </div>
-            ) : (
-              <p className="card px-4 py-6 text-center text-sm text-blue-300">
-                No rooms right now. Anyone can start one from{' '}
-                <Link to="/together" className="text-accent-ink underline underline-offset-2">
-                  Listen together
-                </Link>
-                .
-              </p>
-            )}
-          </Section>
-
-          <Section title="Library">
-            <div className="grid gap-3 md:grid-cols-2">
-              {roots?.roots.map((root) => <RootScan key={root.id} root={root} />)}
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <StatTile
-                label="Missing files"
-                value={data.missingTracks}
-                hint="in the library, gone from disk"
-              />
-              <StatTile
-                label="Unreadable files"
-                value={center?.scanFailureCount ?? '—'}
-                hint="failed the last scan"
-              />
-            </div>
-          </Section>
-
-          <Section
-            title="File integrity"
-            description="Files the last scan of each folder couldn't read: truncated, corrupt, or a tag block the reader chokes on. Replaced by each scan, so a fixed file drops off."
-          >
-            <div className="card overflow-hidden">
-              <table className="w-full text-left text-sm">
-                <thead className="border-b border-blue-800">
-                  <tr className="text-xs uppercase tracking-wide text-blue-400">
-                    <th className="px-4 py-2.5 font-medium">Folder</th>
-                    <th className="px-4 py-2.5 font-medium">File</th>
-                    <th className="px-4 py-2.5 font-medium">Problem</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-blue-800/60">
-                  {center?.scanFailures.map((f) => (
-                    <tr key={f.id}>
-                      <td className="px-4 py-2.5 text-blue-200">{f.rootLabel ?? f.rootPath}</td>
-                      <td className="px-4 py-2.5 break-all text-blue-100">{f.path}</td>
-                      <td className="px-4 py-2.5 text-blue-200">{f.message}</td>
-                    </tr>
-                  ))}
-                  {center && center.scanFailures.length === 0 && (
-                    <EmptyRow colSpan={3}>Every file the last scan touched was readable.</EmptyRow>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            {center && center.scanFailureCount > center.scanFailures.length && (
-              <p className="mt-2 text-xs text-blue-300">
-                Showing {center.scanFailures.length} of {center.scanFailureCount}.
-              </p>
-            )}
-          </Section>
-
-          <Section title={`Stream errors (${data.recentErrors.length})`}>
-            {/* Scrolls inside its own box too, header pinned, so a burst of errors doesn't push the rest of the page away. */}
-            <div className="card max-h-[60vh] overflow-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="sticky top-0 border-b border-blue-800 bg-blue-900">
-                  <tr className="text-xs uppercase tracking-wide text-blue-400">
-                    <th className="px-4 py-2.5 font-medium">Time</th>
-                    <th className="px-4 py-2.5 font-medium">Track</th>
-                    <th className="px-4 py-2.5 font-medium">Message</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-blue-800/60">
-                  {data.recentErrors.map((e, i) => (
-                    <tr key={i}>
-                      <td className="px-4 py-2.5 whitespace-nowrap text-blue-200">
-                        {new Date(e.timestamp).toLocaleString()}
-                      </td>
-                      <td className="px-4 py-2.5 text-blue-200">#{e.trackId}</td>
-                      <td className="px-4 py-2.5 text-blue-100">{e.message}</td>
-                    </tr>
-                  ))}
-                  {data.recentErrors.length === 0 && <EmptyRow colSpan={3}>No errors recently.</EmptyRow>}
-                </tbody>
-              </table>
-            </div>
-          </Section>
-
-          <Section
-            title="Playback failures"
-            description="Who hit a track that wouldn't play, and why. A track a listener's device couldn't decode is invisible to the stream errors above, since the server served it fine."
-          >
-            {/* Scrolls inside its own box, header pinned, so 50 rows don't push the rest of the page away. */}
-            <div className="card max-h-[60vh] overflow-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="sticky top-0 border-b border-blue-800 bg-blue-900">
-                  <tr className="text-xs uppercase tracking-wide text-blue-400">
-                    <th className="px-4 py-2.5 font-medium">Time</th>
-                    <th className="px-4 py-2.5 font-medium">User</th>
-                    <th className="px-4 py-2.5 font-medium">Track</th>
-                    <th className="px-4 py-2.5 font-medium">Client</th>
-                    <th className="px-4 py-2.5 font-medium">Detail</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-blue-800/60">
-                  {failures?.failures.map((f) => (
-                    <tr key={f.id}>
-                      <td className="px-4 py-2.5 whitespace-nowrap text-blue-200">
-                        {new Date(f.createdAt).toLocaleString()}
-                      </td>
-                      <td className="px-4 py-2.5 text-blue-200">{f.username}</td>
-                      <td className="px-4 py-2.5 text-blue-100">{f.trackTitle ?? `#${f.trackId}`}</td>
-                      <td className="px-4 py-2.5 text-blue-200">{f.userAgent ?? '—'}</td>
-                      <td className="px-4 py-2.5 text-blue-100">
-                        {f.message}
-                        {f.mediaErrorCode !== null && (
-                          <span className="text-blue-300">
-                            {' '}
-                            ({MEDIA_ERROR_LABELS[f.mediaErrorCode] ?? `code ${f.mediaErrorCode}`}
-                            {f.contentType ? `, served as ${f.contentType}` : ''})
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                  {!isLoadingFailures && (failures?.failures.length ?? 0) === 0 && (
-                    <EmptyRow colSpan={5}>No playback failures reported.</EmptyRow>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            {failurePages > 1 && (
-              <div className="mt-3 flex items-center gap-3 text-sm text-blue-200">
-                <button
-                  disabled={failuresPage === 0}
-                  onClick={() => setFailuresPage((p) => p - 1)}
-                  className="btn-secondary btn-sm"
-                >
-                  Prev
-                </button>
-                <span>
-                  Page {failuresPage + 1} of {failurePages} · {failures?.total} failures
-                </span>
-                <button
-                  disabled={failuresPage + 1 >= failurePages}
-                  onClick={() => setFailuresPage((p) => p + 1)}
-                  className="btn-secondary btn-sm"
-                >
-                  Next
-                </button>
-              </div>
-            )}
-          </Section>
-        </div>
+      {uploads.length > 0 && (
+        <Section
+          title="Uploads"
+          description="Started in this tab. They keep going on other pages; closing or reloading the tab stops them."
+        >
+          {/* Scrolls inside its box: a big batch would otherwise push every other section off the screen. */}
+          <UploadQueueList scrollable />
+        </Section>
       )}
     </div>
   );

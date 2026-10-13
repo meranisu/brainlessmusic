@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { countMissingTracks } from '../db/library.js';
+import { summarizeRecentPlays } from '../db/plays.js';
 import { countPlaybackFailures, listRecentPlaybackFailures } from '../db/playbackFailures.js';
 import { countScanFailures, listScanFailures } from '../db/scanFailures.js';
 import { isAnyLibrarySyncRunning } from '../services/librarySync.js';
@@ -47,6 +48,7 @@ const healthRoute: FastifyPluginAsync = async (fastify) => {
       listeners: listListeners(),
       scanFailures: listScanFailures(),
       scanFailureCount: countScanFailures(),
+      plays: summarizeRecentPlays(),
     }),
   );
 

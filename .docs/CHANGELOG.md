@@ -4,6 +4,29 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-13: Control Center: the Overview is a system check board; logs get their own tab
+
+- Owner request: make the Overview a dashboard to check at a glance. Direction A156 (the cabinet's operator test
+  mode), contents A157, logs A158.
+- **SYSTEM CHECK** board, one line per subsystem with OK / CHECK / NG and a summary at the top: server (uptime, CPU,
+  memory), each disk, the transcode cache, each library folder (scan progress, unreachable), library totals and
+  missing files, unreadable files, volume levelling, streams, playback failures in the last 24 h, rooms, accounts and
+  pending guest code requests, and this tab's uploads. Rows that need a look link to Logs, Levelling, Users or the
+  Library.
+- **BOOKKEEPING**: plays, skips, listeners and time listened across everyone, last 24 h and last 7 days.
+  `/admin/control-center` returns them as `plays` (`summarizeRecentPlays`, rolling windows so the server's time zone
+  doesn't decide where a day starts).
+- **ON AIR** lists who is playing what. Room details and the upload queue show only when there is something in them.
+- New **Logs** tab (`/control-center/logs`): playback failures (paged), stream errors and file integrity, each in a
+  scrolling box with its count in the heading.
+- Server timestamps (SQLite UTC without a zone) are read as UTC on the board; the browser took them as local time.
+- The dashboard's tabs take less padding on a phone, so all five fit.
+- Verified: `npm test` (549 pass, new `recentPlays.test.ts`), `npm run build` and `npm run lint` in `frontend/` (no
+  new warnings). Ran a throwaway backend on :3111 against a scratch copy of the local database, with scanning and
+  backups off and every writable path in the scratchpad, and screenshotted the Overview and Logs at 1400 px and
+  390 px in headless Chromium: no page errors; OK, CHECK (a test playback failure) and NG (the local copy's
+  unreachable folder) all shown; bookkeeping counted the test play and skip. Copy deleted afterwards.
+
 ## 2026-10-13: Control Center: playback failures scroll in a box and page
 
 - Owner request: the panel listed the newest 100 rows straight down the page. It now scrolls inside its own box

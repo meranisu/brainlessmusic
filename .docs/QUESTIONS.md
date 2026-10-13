@@ -61,6 +61,18 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A158 — Logs get their own tab *(was Q158)*
+**Answered:** 2026-10-13, picked A. Stream errors, playback failures and file integrity move to a new "Logs" tab in
+the Control Center; the Overview shows each one's count and newest entry, with a link.
+
+### A157 — The Overview adds plays, library, accounts and levelling *(was Q157)*
+**Answered:** 2026-10-13, all four. Plays today and this week across everyone (a new small query), library totals
+(`/library/stats`), accounts and pending account requests, and volume levelling progress (`/admin/loudness`).
+
+### A156 — The Overview is the cabinet's operator test mode *(was Q156)*
+**Answered:** 2026-10-13, picked A. Like an arcade machine's boot self-check: one line per subsystem with OK / CHECK /
+NG, then live panels for listeners and rooms. Flat, monospace readouts, colour only for state.
+
 ### A155 — "What's new" in Android Settings *(was Q155)*
 **Answered:** 2026-10-12, picked option A. A "What's new" row in the Android app's Settings, and a tap on the version
 line, open every release's notes, newest first, packed from `android/release-notes/` into the APK. The website's

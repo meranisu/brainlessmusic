@@ -34,6 +34,7 @@ const OptionsPage = lazyPage(() => import('./pages/OptionsPage').then((m) => ({ 
 const TogetherPage = lazyPage(() => import('./pages/TogetherPage').then((m) => ({ default: m.TogetherPage })));
 const UploadPage = lazyPage(() => import('./pages/UploadPage').then((m) => ({ default: m.UploadPage })));
 const UsersPage = lazyPage(() => import('./pages/UsersPage').then((m) => ({ default: m.UsersPage })));
+const LogsPage = lazyPage(() => import('./pages/LogsPage').then((m) => ({ default: m.LogsPage })));
 const LevellingPage = lazyPage(() => import('./pages/LevellingPage').then((m) => ({ default: m.LevellingPage })));
 const ControlCenterPage = lazyPage(() =>
   import('./pages/ControlCenterPage').then((m) => ({ default: m.ControlCenterPage })),
@@ -76,9 +77,10 @@ export function App() {
             {/* Now the Library's Full view; redirected for bookmarks and the old nav link. */}
             <Route path="/manage" element={<Navigate to="/?view=full" replace />} />
             <Route element={<RequireAdmin />}>
-              {/* One dashboard with tabs (owner request, 2026-10-11): Overview, Upload, Users. */}
+              {/* One dashboard with tabs (owner request, 2026-10-11): Overview, Logs (A158), Upload, Users, Levelling. */}
               <Route path="/control-center" element={<AdminDashboard />}>
                 <Route index element={<ControlCenterPage />} />
+                <Route path="logs" element={<LogsPage />} />
                 <Route path="upload" element={<UploadPage />} />
                 <Route path="users" element={<UsersPage />} />
                 <Route path="levelling" element={<LevellingPage />} />
