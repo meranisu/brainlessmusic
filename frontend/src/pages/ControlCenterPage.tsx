@@ -435,7 +435,7 @@ export function ControlCenterPage() {
           </Section>
 
           <Section title={`Stream errors (${data.recentErrors.length})`}>
-            {/* Scrolls inside its own box, header pinned, so 50 rows don't push the rest of the page away. */}
+            {/* Scrolls inside its own box too, header pinned, so a burst of errors doesn't push the rest of the page away. */}
             <div className="card max-h-[60vh] overflow-auto">
               <table className="w-full text-left text-sm">
                 <thead className="sticky top-0 border-b border-blue-800 bg-blue-900">
@@ -465,9 +465,10 @@ export function ControlCenterPage() {
             title="Playback failures"
             description="Who hit a track that wouldn't play, and why. A track a listener's device couldn't decode is invisible to the stream errors above, since the server served it fine."
           >
-            <div className="card overflow-hidden">
+            {/* Scrolls inside its own box, header pinned, so 50 rows don't push the rest of the page away. */}
+            <div className="card max-h-[60vh] overflow-auto">
               <table className="w-full text-left text-sm">
-                <thead className="border-b border-blue-800">
+                <thead className="sticky top-0 border-b border-blue-800 bg-blue-900">
                   <tr className="text-xs uppercase tracking-wide text-blue-400">
                     <th className="px-4 py-2.5 font-medium">Time</th>
                     <th className="px-4 py-2.5 font-medium">User</th>
