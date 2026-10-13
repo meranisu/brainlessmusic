@@ -61,6 +61,23 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A170 — Profiles open from any name, and a People list *(was Q170)*
+**Answered:** 2026-10-13, picked A. A name links to its profile wherever it shows (a playlist's "by" line, a room's
+members), and a People page lists everyone.
+
+### A169 — Favourites are worked out and pinned *(was Q169)*
+**Answered:** 2026-10-13, picked A. Top songs, artists and genres from listening, plus an optional favourite song and
+favourite artist the person pins.
+
+### A168 — Others see the whole profile, likes and dislikes included *(was Q168)*
+**Answered:** 2026-10-13. Others see the picture and bio, top songs, artists and genres, listening totals, public
+playlists, liked songs and disliked songs. Private playlists stay the owner's. (The recommendation was to keep liked
+and disliked songs private; the owner chose to show them.)
+
+### A167 — Everyone signed in sees everyone's profile *(was Q167)*
+**Answered:** 2026-10-13, picked A. Built on, as stated when asked: guests get no profile of their own; web and Android
+together; your own profile shows you everything.
+
 ### A166 — "From others" lists the newest public playlists first *(was Q166)*
 **Answered:** 2026-10-13. Ordered by when the owner made it public, newest first, not grouped by person. (Asked in
 the reply without a ledger entry first; recorded here on the answer.)
