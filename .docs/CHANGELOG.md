@@ -4,6 +4,21 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-13: Profile page: web pages (A167-A170)
+
+- `/people` lists everyone, most recently listening first, with picture and bio. `/people/:id` is a profile: picture
+  (or the initial tile), name, bio, pinned favourite song and artist; Week / Month / Year / All time with hours,
+  plays and songs; top songs (tap to play from there), top artists and genres (links); playlists (public ones, or all
+  of yours); liked and disliked songs, the first 12 with "Show all" (A168). Guests can open them.
+- Your own has Edit profile: picture upload or remove (cropped square, up to 5 MB), a bio up to 300 characters, and
+  pins chosen from your top and liked songs and top artists. The dialog renders into `<body>`.
+- `apiClient.upload` takes a method (the picture is a PUT); `buildAvatarUrl()` adds the media token, with the picture
+  id in the URL so a new picture is never a stale cached one. `Avatar` component.
+- No button or menu entry reaches these pages yet: where they go on web and Android is the owner's next decision.
+- Verified: `npm run build`, `npm run lint` (no new warnings); throwaway backend on :3111 with a migrated scratch copy
+  of the local database, a bio, pins, plays, likes and a public playlist; screenshots of People and a profile at
+  1400 px and 390 px, no page errors. Copy deleted. Not run in a browser: the Edit dialog, a picture upload.
+
 ## 2026-10-13: Review fixes: Overview minutes, admin create, stale check rows
 
 - From the review of the six commits pushed earlier today (findings 1 to 3).

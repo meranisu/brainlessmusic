@@ -92,8 +92,8 @@ export const apiClient = {
   put: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PUT', body }),
   patch: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PATCH', body }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
-  upload: <T>(path: string, formData: FormData) =>
-    request<T>(path, { method: 'POST', body: formData, isMultipart: true }),
+  upload: <T>(path: string, formData: FormData, method: 'POST' | 'PUT' = 'POST') =>
+    request<T>(path, { method, body: formData, isMultipart: true }),
 };
 
 // `<audio src>` can't send headers, so the server mints a short-lived media-scoped token for the URL. It is refused
@@ -189,6 +189,12 @@ export async function buildCoverUrl(
   const params = new URLSearchParams({ token: await getMediaToken() });
   if (size === 'thumb') params.set('size', 'thumb');
   return `${API_BASE_URL}/${kind}/${id}/cover?${params.toString()}`;
+}
+
+/** A profile picture. `avatarId` is its content hash, so a new picture is a new URL and never a stale cached one. */
+export async function buildAvatarUrl(userId: number, avatarId: string): Promise<string> {
+  const params = new URLSearchParams({ token: await getMediaToken(), v: avatarId });
+  return `${API_BASE_URL}/users/${userId}/avatar?${params.toString()}`;
 }
 
 export { API_BASE_URL };

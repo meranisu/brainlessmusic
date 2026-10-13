@@ -34,6 +34,8 @@ const OptionsPage = lazyPage(() => import('./pages/OptionsPage').then((m) => ({ 
 const TogetherPage = lazyPage(() => import('./pages/TogetherPage').then((m) => ({ default: m.TogetherPage })));
 const UploadPage = lazyPage(() => import('./pages/UploadPage').then((m) => ({ default: m.UploadPage })));
 const UsersPage = lazyPage(() => import('./pages/UsersPage').then((m) => ({ default: m.UsersPage })));
+const PeoplePage = lazyPage(() => import('./pages/PeoplePage').then((m) => ({ default: m.PeoplePage })));
+const ProfilePage = lazyPage(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
 const LogsPage = lazyPage(() => import('./pages/LogsPage').then((m) => ({ default: m.LogsPage })));
 const LevellingPage = lazyPage(() => import('./pages/LevellingPage').then((m) => ({ default: m.LevellingPage })));
 const ControlCenterPage = lazyPage(() =>
@@ -71,6 +73,9 @@ export function App() {
             {/* Guests too: they see and play public playlists, and have none of their own (A163). */}
             <Route path="/playlists" element={<PlaylistsPage />} />
             <Route path="/playlists/:id" element={<PlaylistDetailPage />} />
+            {/* Everyone signed in sees everyone's profile, guests included (A167). */}
+            <Route path="/people" element={<PeoplePage />} />
+            <Route path="/people/:id" element={<ProfilePage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/options" element={<OptionsPage />} />
             {/* Guests too: they join rooms with full controls (A100). */}

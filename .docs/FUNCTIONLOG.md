@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `PeoplePage()`, `ProfilePage()`, `EditProfileDialog()`, `SongRows()`, `SongListSection()` (new): `frontend/src/pages/PeoplePage.tsx`, `frontend/src/pages/ProfilePage.tsx`; `Avatar()` (new): `frontend/src/components/Avatar.tsx`; `buildAvatarUrl()` (new), `apiClient.upload` (method): `frontend/src/lib/apiClient.ts`
+**Date:** 2026-10-13
+**How added:** new feature (A167-A170)
+**Purpose:** the web side of the profile page.
+**Side effects:** uploads a picture (`PUT /me/avatar`), saves bio and pins (`PUT /me/profile`).
+**Before:** the web had no profile or stats page.
+**After:** `/people` and `/people/:id`, not yet linked from anywhere.
+
 **Function:** `summarizeRecentPlays()`: `backend/src/db/plays.ts`
 **Date:** 2026-10-13
 **How added:** bug fix (review finding 1)

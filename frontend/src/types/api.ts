@@ -512,3 +512,38 @@ export interface LoudnessReport {
   limit: number;
   offset: number;
 }
+
+/** `GET /people` (A170): every account, most recently listening first. */
+export interface Person {
+  id: number;
+  name: string;
+  avatarId: string | null;
+  bio: string | null;
+  lastPlayedAt: string | null;
+}
+
+export type StatsRange = 'week' | 'month' | 'year' | 'all';
+
+/** `GET /users/:id/profile` (A167-A170). Liked and disliked are shown to everyone (A168). */
+export interface Profile {
+  id: number;
+  name: string;
+  username: string;
+  isAdmin: boolean;
+  isSelf: boolean;
+  memberSince: string;
+  bio: string | null;
+  avatarId: string | null;
+  favoriteTrack: TrackSummary | null;
+  favoriteArtist: { id: number; name: string } | null;
+  range: StatsRange;
+  totals: { plays: number; msListened: number; tracks: number; artists: number };
+  topTracks: { track: TrackSummary; plays: number; msListened: number }[];
+  topArtists: { id: number; name: string; plays: number; msListened: number }[];
+  topAlbums: { id: number; title: string; artist: string | null; plays: number }[];
+  topGenres: { id: number; name: string; plays: number }[];
+  /** Public ones, or all of yours. */
+  playlists: PlaylistSummary[];
+  liked: { total: number; tracks: TrackSummary[] };
+  disliked: { total: number; tracks: TrackSummary[] };
+}

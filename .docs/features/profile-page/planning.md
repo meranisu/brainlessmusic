@@ -23,7 +23,7 @@ the per-user stats (`getUserStats`, `backend/src/db/listeningStats.ts:136`), and
 |---|---|---|---|
 | 1. Plan | Decisions above, API shape | Done | [Phase 1](#phase-1-plan) |
 | 2. Structure | Migration, profile and people endpoints, picture upload, top genres, tests | Done | [Phase 2](#phase-2-structure) |
-| 3. Interior (web) | People page, profile page, edit your own, names link to profiles | Not started | [Phase 3](#phase-3-interior-web) |
+| 3. Interior (web) | People page, profile page, edit your own, names link to profiles | In progress (pages built, not linked yet) | [Phase 3](#phase-3-interior-web) |
 | 4. Interior (Android) | Same, in every skin; "You" becomes your profile | Not started | [Phase 4](#phase-4-interior-android) |
 | 5. Walkthrough | Two accounts and a guest, web and phone | Not started | [Phase 5](#phase-5-walkthrough) |
 
@@ -52,7 +52,7 @@ the per-user stats (`getUserStats`, `backend/src/db/listeningStats.ts:136`), and
 
 ## Phase 3: Interior (web)
 
-- [ ] `/people` and `/people/:id`; your own has Edit (picture, bio, pinned favourites).
+- [x] `/people` and `/people/:id`; your own has Edit (picture, bio, pinned favourites).
 - [ ] Names link to profiles: playlist "by" line, Listen together members, Users roster panel.
 - [ ] Pin a favourite from a song's or artist's menu.
 
@@ -74,3 +74,4 @@ the per-user stats (`getUserStats`, `backend/src/db/listeningStats.ts:136`), and
 |---|---|
 | 2026-10-13 | Plan written from A167-A170. |
 | 2026-10-13 | Server done. Pins carry no foreign key, so a scan's deletes are never blocked; a stale pin just isn't shown. |
+| 2026-10-13 | Web pages built. Pins are chosen in Edit from your top and liked songs and top artists, not from song menus. Where the entry points go is open (owner request). |
