@@ -1,5 +1,36 @@
 [
   {
+    "version": "0.4.9",
+    "date": "2026-10-13",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "profiles are here. tap your picture at the top left of home to see yours: your top songs, artists and genres for the week, month, year or all time, your playlists, and your liked and disliked songs",
+              "tap edit profile to add a picture from your gallery, write a bio, and pin a favourite song and artist",
+              "everyone else has one too. tap the person icon on home to see everyone, or search for someone by name",
+              "names open profiles: tap \"by someone\" on a playlist, or someone's name in listen together",
+              "other people only see your public playlists. your login name stays private, they just see your display name",
+              "in a room, playing a song from someone's profile asks first, since it goes into the queue for everyone"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.4.8",
     "date": "2026-10-13",
     "sections": [

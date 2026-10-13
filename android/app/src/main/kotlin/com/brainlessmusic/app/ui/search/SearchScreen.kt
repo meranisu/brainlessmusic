@@ -45,6 +45,7 @@ import com.brainlessmusic.app.ui.common.formatDuration
 import com.brainlessmusic.app.ui.navigation.TabBarSpace
 import com.brainlessmusic.app.ui.navigation.Routes
 import com.brainlessmusic.app.ui.profile.SongMenuSheet
+import com.brainlessmusic.app.ui.people.PersonRow
 import com.brainlessmusic.app.ui.theme.AppIcons
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,7 +78,7 @@ fun SearchScreen(
             TextField(
                 value = query,
                 onValueChange = viewModel::onQueryChange,
-                placeholder = { Text("Search songs, albums, artists, playlists") },
+                placeholder = { Text("Search songs, albums, artists, playlists, people") },
                 singleLine = true,
                 leadingIcon = { Icon(AppIcons.search, contentDescription = null) },
                 trailingIcon = {
@@ -101,7 +102,7 @@ fun SearchScreen(
                 state = state,
                 onRetry = viewModel::retry,
                 modifier = Modifier.fillMaxSize(),
-                isEmpty = { it.artists.isEmpty() && it.albums.isEmpty() && it.tracks.isEmpty() && it.playlists.isNullOrEmpty() },
+                isEmpty = { it.artists.isEmpty() && it.albums.isEmpty() && it.tracks.isEmpty() && it.playlists.isNullOrEmpty() && it.people.isNullOrEmpty() },
                 emptyMessage = if (query.isBlank()) "Search your library." else "No matches for \"$query\".",
                 loadingLabel = "Searching",
                 skeleton = { SkeletonListRows(rows = 8, trailing = true) },
@@ -122,6 +123,13 @@ fun SearchScreen(
                         }
                     }
                     // Yours first, then other people's public ones (A162).
+                    val people = results.people.orEmpty()
+                    if (people.isNotEmpty()) {
+                        item { SectionHeader("People") }
+                        items(people, key = { "person-${it.id}" }) { person ->
+                            PersonRow(person, viewModel.avatarUrl(person)) { navController.navigate(Routes.profile(person.id)) }
+                        }
+                    }
                     val playlists = results.playlists.orEmpty()
                     if (playlists.isNotEmpty()) {
                         item { SectionHeader("Playlists") }

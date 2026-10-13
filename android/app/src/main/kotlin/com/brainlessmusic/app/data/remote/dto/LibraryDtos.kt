@@ -111,6 +111,8 @@ data class SearchResultsDto(
     val tracks: List<TrackSummaryDto>,
     // Your own and other people's public ones (A162). Null from an older server.
     val playlists: List<PlaylistSearchDto>? = null,
+    // People whose name matches, to open their profile (A172). Null from an older server.
+    val people: List<PersonDto>? = null,
 )
 
 /** 128 peaks, 0-255, absolute (A8: scaling per track happens where they are drawn). */

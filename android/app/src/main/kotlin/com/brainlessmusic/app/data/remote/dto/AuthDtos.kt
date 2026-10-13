@@ -73,4 +73,6 @@ data class MeResponse(
     val hasPasscode: Boolean,
     /** The profile's colour theme (A55), a web id like "blue". Null until one is picked, or from an older server. */
     val theme: String? = null,
+    /** Profile picture (A171); null without one, and from a server older than profiles. */
+    val avatarId: String? = null,
 )

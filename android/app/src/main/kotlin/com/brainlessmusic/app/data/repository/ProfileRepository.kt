@@ -17,6 +17,14 @@ import com.brainlessmusic.app.data.remote.dto.PlaylistSummaryDto
 import com.brainlessmusic.app.data.remote.dto.ReorderPlaylistRequest
 import com.brainlessmusic.app.data.remote.dto.TrackStatDto
 import com.brainlessmusic.app.data.remote.dto.UserStatsDto
+import com.brainlessmusic.app.data.remote.dto.PersonDto
+import com.brainlessmusic.app.data.remote.dto.ProfileDto
+import com.brainlessmusic.app.data.remote.dto.TrackSummaryDto
+import com.brainlessmusic.app.data.remote.MediaUrlProvider
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -46,6 +54,7 @@ class ProfileRepository @Inject constructor(
     private val apiServiceFactory: ApiServiceFactory,
     private val serverConfig: ServerConfig,
     private val tokenProvider: TokenProvider,
+    private val mediaUrlProvider: MediaUrlProvider,
 ) {
     val isGuest: Boolean get() = tokenProvider.isGuest
 
@@ -172,6 +181,54 @@ class ProfileRepository @Inject constructor(
     suspend fun reorderPlaylist(playlistId: Int, trackIds: List<Int>): Result<PlaylistDetailDto> =
         callApi { it.reorderPlaylist(playlistId, ReorderPlaylistRequest(trackIds)) }
 
+    // Who you are, for Home's picture button (A171): the id opens your profile. Null until loaded, and for a guest.
+    private val _me = MutableStateFlow<PersonDto?>(null)
+    val me: StateFlow<PersonDto?> = _me.asStateFlow()
+
+    /** Loads [me] from `/auth/me`; a guest has no profile, so it stays null. */
+    suspend fun loadMe() {
+        if (isGuest) return
+        callApi { it.me() }.onSuccess { if (!it.isGuest) _me.value = PersonDto(it.id, it.displayName ?: it.username, it.avatarId) }
+    }
+
+    /** Everyone with a profile, most recently listening first (A170). Guests too. */
+    suspend fun people(): Result<List<PersonDto>> = callApi { it.people().people }
+
+    suspend fun profile(userId: Int, range: StatsRange): Result<ProfileDto> = callApi { it.profile(userId, range.query) }
+
+    /** Someone's liked ([liked] true) or disliked songs, up to the server's cap. */
+    suspend fun profileSongs(userId: Int, liked: Boolean): Result<List<TrackSummaryDto>> =
+        callApi { it.profileSongs(userId, if (liked) "liked" else "disliked", PROFILE_SONGS_LIMIT).tracks }
+
+    /** Saves your bio and pins (A169). Null clears; every field is sent, so this is the whole edit. */
+    suspend fun updateProfile(bio: String?, favoriteTrackId: Int?, favoriteArtistId: Int?): Result<Unit> = callApi { api ->
+        val body = JSONObject()
+            .put("bio", bio ?: JSONObject.NULL)
+            .put("favoriteTrackId", favoriteTrackId ?: JSONObject.NULL)
+            .put("favoriteArtistId", favoriteArtistId ?: JSONObject.NULL)
+        api.updateProfile(body.toString().toRequestBody(JSON))
+    }
+
+    /** A new picture from the phone; the server crops it square (A167). Null removes it. */
+    suspend fun setAvatar(image: ByteArray?, mimeType: String?): Result<Unit> = callApi { api ->
+        val avatarId = if (image == null) {
+            api.removeAvatar()
+            null
+        } else {
+            val part = MultipartBody.Part.createFormData(
+                "file",
+                "picture",
+                image.toRequestBody((mimeType ?: "image/jpeg").toMediaType()),
+            )
+            api.uploadAvatar(part).avatarId
+        }
+        _me.value = _me.value?.copy(avatarId = avatarId)
+    }
+
+    /** The picture's URL, with its id in it so a new picture is never an old cached one. */
+    fun avatarUrl(userId: Int, avatarId: String?): String? =
+        avatarId?.let { id -> mediaUrlProvider.current?.let { "${it}users/$userId/avatar?v=$id" } }
+
     /** Forgets the liked set, for logout, so the next account doesn't see the last one's hearts. */
     fun clear() {
         _likedIds.value = emptySet()
@@ -179,6 +236,7 @@ class ProfileRepository @Inject constructor(
         likedLoaded = false
         _dislikedIds.value = emptySet()
         dislikedLoaded = false
+        _me.value = null
     }
 
     private fun api(): ApiService = apiServiceFactory.get(serverConfig.url)
@@ -198,5 +256,7 @@ class ProfileRepository @Inject constructor(
 
     private companion object {
         const val TOP_LIMIT = 10
+        const val PROFILE_SONGS_LIMIT = 200
+        val JSON = "application/json".toMediaType()
     }
 }

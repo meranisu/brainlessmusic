@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -268,6 +269,7 @@ fun PlaylistDetailScreen(
     onOpenAlbum: (Int) -> Unit,
     onOpenArtist: (Int) -> Unit,
     onOpenPlaylist: (Int) -> Unit,
+    onOpenProfile: (Int) -> Unit,
     viewModel: PlaylistDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -408,7 +410,14 @@ fun PlaylistDetailScreen(
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+                        modifier = Modifier
+                            .padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
+                            // Someone else's: the line opens their profile (A172).
+                            .then(
+                                detail.ownerId?.takeIf { !detail.isMine }?.let { id ->
+                                    Modifier.clickable(onClickLabel = "Open ${detail.ownerName ?: "their"} profile") { onOpenProfile(id) }
+                                } ?: Modifier,
+                            ),
                     )
                 }
                 items(rows, key = { it.id }) { track ->

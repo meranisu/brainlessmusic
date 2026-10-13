@@ -4,6 +4,23 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-13: Profiles on Android (v0.4.9, A167-A174)
+
+- Your picture (or initial) at the left of Home's top bar opens your profile (A171); a person icon beside Listen
+  together opens People, for guests too (A172). A profile: picture, name, bio, pinned song (tap plays it) and artist,
+  Week / Month / Year / All time with time, plays and songs, top songs, artists and genres, playlists (public ones,
+  or all of yours with Public / Only you), liked and disliked songs (first 12, then Show all). Your own has Edit
+  profile (photo picker, up to 5 MB; bio up to 300; pins from your top and liked songs and top artists) and See
+  everyone. Others' carry the display name only (A174).
+- Search shows a People group. Names open profiles: a playlist's "by" line and Listen together's members (accounts
+  only). The "From others" tiles stay one tap target, so the "by" line on the playlist is the way in from there.
+- In a room, tapping a song on a profile asks first (A173); the room keeps playing while you look.
+- Built from Home's own parts (range picker, ranked rows, cards) made `internal`, and a new skin-shaped `Avatar`, so
+  each skin's shapes carry over. `PUT /me/profile` goes as raw JSON, since Gson leaves nulls out and a cleared pin
+  must be sent as null. `/auth/me`'s `avatarId` gives Home its picture without a second call.
+- Verified: `./gradlew compileDebugKotlin` and `testDebugUnitTest` pass. Not run on a phone: the server endpoints
+  aren't deployed until main is pushed. Release notes `android/release-notes/v0.4.9.md`.
+
 ## 2026-10-13: Profile page: ways in, people in search, display names only (A171-A174)
 
 - Your picture (or initial) in the web header, beside Options, opens your profile (A171). Guests get no button.

@@ -23,6 +23,8 @@ object Routes {
     const val PLAYLIST_DETAIL = "playlist/{playlistId}"
     const val SONG_LIST = "you/{list}"
     const val TOGETHER = "together"
+    const val PEOPLE = "people"
+    const val PROFILE = "people/{userId}"
     const val SETUP = "setup"
 
     const val ARG_ARTIST_ID = "artistId"
@@ -32,12 +34,14 @@ object Routes {
     const val ARG_PLAYLIST_ID = "playlistId"
     const val ARG_DOWNLOAD_GROUP = "groupId"
     const val ARG_SONG_LIST = "list"
+    const val ARG_USER_ID = "userId"
 
     fun artistDetail(id: Int) = "artist/$id"
     fun albumDetail(id: Int) = "album/$id"
     fun genreDetail(id: Int) = "genre/$id"
     fun settingsPage(page: String) = "settings/$page"
     fun playlistDetail(id: Int) = "playlist/$id"
+    fun profile(userId: Int) = "people/$userId"
 
     /** Group ids hold a colon (`album:5`); encoded so the route stays one segment. */
     fun downloadGroup(id: String) = "downloads/${android.net.Uri.encode(id)}"

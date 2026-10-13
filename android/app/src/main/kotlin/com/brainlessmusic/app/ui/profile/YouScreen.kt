@@ -75,6 +75,7 @@ import com.brainlessmusic.app.data.remote.dto.TopTrackDto
 import com.brainlessmusic.app.data.remote.dto.UserStatsDto
 import com.brainlessmusic.app.data.repository.StatsRange
 import com.brainlessmusic.app.playback.QueueItem
+import com.brainlessmusic.app.ui.common.Avatar
 import com.brainlessmusic.app.ui.common.CoverImage
 import com.brainlessmusic.app.ui.common.LoadStateContent
 import com.brainlessmusic.app.ui.common.SkeletonLead
@@ -117,13 +118,29 @@ fun YouScreen(
     val together = { navController.navigate(Routes.TOGETHER) { launchSingleTop = true } }
 
     val title = greeting(Calendar.getInstance().get(Calendar.HOUR_OF_DAY), if (viewModel.isGuest) null else username)
+    val me by viewModel.me.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                // Your picture opens your profile (A171). Guests have none, so no button.
+                navigationIcon = {
+                    me?.let { person ->
+                        IconButton(
+                            onClick = { navController.navigate(Routes.profile(person.id)) },
+                            modifier = Modifier.semantics { contentDescription = "Your profile" },
+                        ) {
+                            Avatar(url = viewModel.avatarUrl(person), name = person.name, size = 32.dp)
+                        }
+                    }
+                },
                 // With nothing playing, the player (its other door) can't open, so it sits here for everyone (A136).
+                // People next to it, for guests too (A172).
                 actions = {
+                    IconButton(onClick = { navController.navigate(Routes.PEOPLE) { launchSingleTop = true } }) {
+                        Icon(AppIcons.person, contentDescription = "People")
+                    }
                     IconButton(onClick = together) { Icon(AppIcons.groups, contentDescription = "Listen together") }
                 },
             )
@@ -356,7 +373,7 @@ private fun GuestCard(home: GuestHome) {
 
 /** A bordered card holding a ranked list, like the player card, so a list reads as one block (owner, 2026-10-11). */
 @Composable
-private fun ListCard(content: @Composable ColumnScope.() -> Unit) {
+internal fun ListCard(content: @Composable ColumnScope.() -> Unit) {
     Surface(
         shape = MaterialTheme.cardShape,
         color = MaterialTheme.colorScheme.surfaceContainer,
@@ -418,7 +435,7 @@ internal fun BigStat(value: String, label: String, modifier: Modifier) {
 }
 
 @Composable
-private fun RangePicker(range: StatsRange, onPick: (StatsRange) -> Unit) {
+internal fun RangePicker(range: StatsRange, onPick: (StatsRange) -> Unit) {
     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
         StatsRange.entries.forEachIndexed { index, r ->
             SegmentedButton(
@@ -565,7 +582,7 @@ private fun emptyTopSongs(range: StatsRange): String = when (range) {
 }
 
 @Composable
-private fun SectionTitle(title: String, trailing: (@Composable () -> Unit)? = null) {
+internal fun SectionTitle(title: String, trailing: (@Composable () -> Unit)? = null) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = if (trailing == null) 20.dp else 8.dp),
@@ -584,7 +601,7 @@ private fun SectionTitle(title: String, trailing: (@Composable () -> Unit)? = nu
 }
 
 @Composable
-private fun EmptyLine(text: String) {
+internal fun EmptyLine(text: String) {
     Text(
         text,
         style = MaterialTheme.typography.bodyMedium,
@@ -632,7 +649,7 @@ private fun MovementTag(movement: Movement, modifier: Modifier = Modifier) {
 /** Rank in the display face, like a leaderboard, then optional cover, name, and what it adds up to. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun RankedRow(
+internal fun RankedRow(
     rank: Int,
     coverUrl: String?,
     title: String,

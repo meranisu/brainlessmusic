@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import com.brainlessmusic.app.data.remote.dto.PersonDto
 import javax.inject.Inject
 import kotlin.random.Random
 
@@ -97,12 +98,18 @@ class YouViewModel @Inject constructor(
     private val _guest = MutableStateFlow<LoadState<GuestHome>>(LoadState.Loading)
     val guest: StateFlow<LoadState<GuestHome>> = _guest.asStateFlow()
 
+    /** You, for the top bar's picture button (A171). Null for a guest, who has no profile. */
+    val me: StateFlow<PersonDto?> = profile.me
+
+    fun avatarUrl(person: PersonDto): String? = profile.avatarUrl(person.id, person.avatarId)
+
     init {
         if (isGuest) {
             loadGuest()
         } else {
             load()
             loadRecent()
+            viewModelScope.launch { profile.loadMe() }
         }
     }
 
@@ -197,6 +204,8 @@ class YouViewModel @Inject constructor(
 
     /** Coming back to the tab: counts may have changed elsewhere (a song unliked, a playlist made). No spinner. */
     fun onResume() {
+        // A picture changed on the profile shows here on the way back.
+        if (!isGuest) viewModelScope.launch { profile.loadMe() }
         if (isGuest || _state.value !is LoadState.Content) return
         reload(showSpinner = false)
         loadRecent()

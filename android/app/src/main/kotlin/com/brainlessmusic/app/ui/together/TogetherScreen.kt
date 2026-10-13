@@ -4,6 +4,7 @@ import android.content.Intent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -85,6 +86,7 @@ import com.brainlessmusic.app.ui.theme.tileShape
 fun TogetherScreen(
     onBack: () -> Unit,
     onOpenNowPlaying: () -> Unit,
+    onOpenProfile: (Int) -> Unit,
     viewModel: TogetherViewModel = hiltViewModel(),
 ) {
     val room by viewModel.room.collectAsStateWithLifecycle()
@@ -118,7 +120,7 @@ fun TogetherScreen(
             )
             val current = room.room
             when {
-                current != null -> InsideRoom(room, playback, viewModel, onOpenNowPlaying)
+                current != null -> InsideRoom(room, playback, viewModel, onOpenNowPlaying, onOpenProfile)
                 room.joining -> Joining(onStop = viewModel::leave)
                 else -> OutsideRoom(playback, viewModel)
             }
@@ -311,6 +313,7 @@ private fun InsideRoom(
     playback: PlaybackUiState,
     viewModel: TogetherViewModel,
     onOpenNowPlaying: () -> Unit,
+    onOpenProfile: (Int) -> Unit,
 ) {
     val room = state.room ?: return
     val context = LocalContext.current
@@ -380,6 +383,8 @@ private fun InsideRoom(
                 isHost = member.userId == room.hostUserId,
                 canRemove = state.isHost && member.userId != state.you,
                 onRemove = { viewModel.kick(member.userId) },
+                // An account's profile; the room keeps playing (A172, A173). Guests have none.
+                onOpen = if (member.kind == "account") ({ onOpenProfile(member.userId) }) else null,
             )
         }
         Text(
@@ -467,9 +472,21 @@ private fun NowPlayingCard(state: RoomUiState, viewModel: TogetherViewModel, can
 }
 
 @Composable
-private fun MemberRow(member: RoomMember, isYou: Boolean, isHost: Boolean, canRemove: Boolean, onRemove: () -> Unit) {
+private fun MemberRow(
+    member: RoomMember,
+    isYou: Boolean,
+    isHost: Boolean,
+    canRemove: Boolean,
+    onRemove: () -> Unit,
+    onOpen: (() -> Unit)?,
+) {
     val scheme = MaterialTheme.colorScheme
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.heightIn(min = 48.dp)) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .heightIn(min = 48.dp)
+            .then(if (onOpen != null) Modifier.clickable(onClickLabel = "Open ${member.name}'s profile", onClick = onOpen) else Modifier),
+    ) {
         // An initial in the skin's avatar shape; the host's is edged in the accent, someone away is dimmed.
         val avatar = coverShape(10.dp)
         Box(

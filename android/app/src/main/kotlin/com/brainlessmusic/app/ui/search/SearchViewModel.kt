@@ -6,6 +6,8 @@ import kotlinx.coroutines.FlowPreview
 import com.brainlessmusic.app.data.remote.dto.SearchResultsDto
 import com.brainlessmusic.app.data.repository.ConnectionException
 import com.brainlessmusic.app.data.repository.LibraryRepository
+import com.brainlessmusic.app.data.repository.ProfileRepository
+import com.brainlessmusic.app.data.remote.dto.PersonDto
 import com.brainlessmusic.app.data.repository.toMessage
 import com.brainlessmusic.app.data.remote.dto.TrackSummaryDto
 import com.brainlessmusic.app.playback.PlaybackController
@@ -29,7 +31,10 @@ private val EMPTY_RESULTS = SearchResultsDto(artists = emptyList(), albums = emp
 class SearchViewModel @Inject constructor(
     private val libraryRepository: LibraryRepository,
     private val playbackController: PlaybackController,
+    private val profileRepository: ProfileRepository,
 ) : ViewModel() {
+
+    fun avatarUrl(person: PersonDto): String? = profileRepository.avatarUrl(person.id, person.avatarId)
 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
@@ -77,7 +82,7 @@ class SearchViewModel @Inject constructor(
         state is LoadState.Content &&
             (
                 state.data.artists.isNotEmpty() || state.data.albums.isNotEmpty() || state.data.tracks.isNotEmpty() ||
-                    !state.data.playlists.isNullOrEmpty()
+                    !state.data.playlists.isNullOrEmpty() || !state.data.people.isNullOrEmpty()
                 )
 
     fun albumCoverUrl(albumId: Int): String? = libraryRepository.albumCoverUrl(albumId)

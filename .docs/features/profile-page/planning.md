@@ -24,7 +24,7 @@ the per-user stats (`getUserStats`, `backend/src/db/listeningStats.ts:136`), and
 | 1. Plan | Decisions above, API shape | Done | [Phase 1](#phase-1-plan) |
 | 2. Structure | Migration, profile and people endpoints, picture upload, top genres, tests | Done | [Phase 2](#phase-2-structure) |
 | 3. Interior (web) | People page, profile page, edit your own, names link to profiles | Done (pins from song menus left out) | [Phase 3](#phase-3-interior-web) |
-| 4. Interior (Android) | Same, in every skin; "You" becomes your profile | Not started | [Phase 4](#phase-4-interior-android) |
+| 4. Interior (Android) | Same, in every skin; "You" becomes your profile | Built, not phone-tested | [Phase 4](#phase-4-interior-android) |
 | 5. Walkthrough | Two accounts and a guest, web and phone | Not started | [Phase 5](#phase-5-walkthrough) |
 
 ## Phase 1: Plan
@@ -63,11 +63,11 @@ the per-user stats (`getUserStats`, `backend/src/db/listeningStats.ts:136`), and
 
 ## Phase 4: Interior (Android)
 
-- [ ] Your picture at the left of Home's top bar opens your profile, with Edit (A171).
-- [ ] People on Home, a People group in search, names as links in playlists and rooms (A172); the room keeps
+- [x] Your picture at the left of Home's top bar opens your profile, with Edit (A171).
+- [x] People on Home, a People group in search, names as links in playlists and rooms (A172); the room keeps
       playing and playing from a profile asks first (A173).
-- [ ] Picture from the phone's photo picker.
-- [ ] Every skin's existing styling for headers, avatars and lists.
+- [x] Picture from the phone's photo picker.
+- [x] Every skin's existing styling for headers, avatars and lists (Home's shared parts and a skin-shaped avatar; not checked on a phone).
 
 ## Phase 5: Walkthrough
 
@@ -85,3 +85,4 @@ the per-user stats (`getUserStats`, `backend/src/db/listeningStats.ts:136`), and
 
 | 2026-10-13 | Entry points decided (A171-A173). |
 | 2026-10-13 | Web entry points built. Others' profiles carry the display name only (A174). |
+| 2026-10-13 | Android built (v0.4.9 notes ready). Home stays your stats page with the picture leading to the profile, rather than Home becoming the profile. |

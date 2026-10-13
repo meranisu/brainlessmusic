@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `ProfileScreen()`, `ProfileViewModel`, `EditProfileDialog()`, `PinPicker()` (new): `ui/people/ProfileScreen.kt`; `PeopleScreen()`, `PeopleViewModel`, `PersonRow()` (new): `ui/people/PeopleScreen.kt`; `Avatar()` (new): `ui/common/Avatar.kt`; `ProfileRepository.loadMe/people/profile/profileSongs/updateProfile/setAvatar/avatarUrl` (new) (all under `android/app/src/main/kotlin/com/brainlessmusic/app/`)
+**Date:** 2026-10-13
+**How added:** new feature (A167-A174)
+**Purpose:** profiles and People on Android, with Edit for your own.
+**Side effects:** uploads a picture (`PUT /me/avatar`), saves bio and pins (`PUT /me/profile`); a profile song in a room asks before `playQueue` adds it for everyone.
+**Before:** Android had only its own stats on Home.
+**After:** Home's picture and People buttons, `people` and `people/{userId}` routes, People in search, name links on a playlist's "by" line and in Listen together.
+
 **Function:** `searchPeople()` (new): `backend/src/db/profile.ts`; `GET /search` (adds `people`): `backend/src/routes/search.ts`; `GET /auth/me` (adds `avatarId`): `backend/src/routes/auth.ts`; `GET /users/:id/profile` (A174)
 **Date:** 2026-10-13
 **How added:** new feature (A171, A172, A174)

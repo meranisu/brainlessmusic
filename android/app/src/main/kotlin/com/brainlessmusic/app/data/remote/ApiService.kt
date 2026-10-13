@@ -46,6 +46,14 @@ import com.brainlessmusic.app.data.remote.dto.HistoryPageDto
 import com.brainlessmusic.app.data.remote.dto.CreateRoomRequest
 import com.brainlessmusic.app.data.remote.dto.RoomCodeResponse
 import com.brainlessmusic.app.data.remote.dto.RoomLookupDto
+import com.brainlessmusic.app.data.remote.dto.AvatarDto
+import com.brainlessmusic.app.data.remote.dto.PeopleDto
+import com.brainlessmusic.app.data.remote.dto.ProfileDto
+import com.brainlessmusic.app.data.remote.dto.ProfileSongsDto
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import retrofit2.http.Multipart
+import retrofit2.http.Part
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -237,4 +245,26 @@ interface ApiService {
 
     @GET("rooms/{code}")
     suspend fun lookupRoom(@Path("code") code: String): RoomLookupDto
+
+    // Profiles (A167-A174). Anyone signed in reads them; only an account edits its own.
+    @GET("people")
+    suspend fun people(): PeopleDto
+
+    @GET("users/{id}/profile")
+    suspend fun profile(@Path("id") id: Int, @Query("range") range: String): ProfileDto
+
+    /** `kind` is `liked` or `disliked`. */
+    @GET("users/{id}/{kind}")
+    suspend fun profileSongs(@Path("id") id: Int, @Path("kind") kind: String, @Query("limit") limit: Int): ProfileSongsDto
+
+    // A raw JSON body: a pin cleared is sent as null, which Gson would leave out (and left out means "unchanged").
+    @PUT("me/profile")
+    suspend fun updateProfile(@Body body: RequestBody)
+
+    @Multipart
+    @PUT("me/avatar")
+    suspend fun uploadAvatar(@Part file: MultipartBody.Part): AvatarDto
+
+    @DELETE("me/avatar")
+    suspend fun removeAvatar()
 }

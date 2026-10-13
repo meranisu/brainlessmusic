@@ -53,6 +53,8 @@ import com.brainlessmusic.app.ui.theme.LocalSkin
 import com.brainlessmusic.app.ui.splash.SplashScreen
 import com.brainlessmusic.app.ui.splash.StartViewModel
 import com.brainlessmusic.app.ui.together.TogetherScreen
+import com.brainlessmusic.app.ui.people.PeopleScreen
+import com.brainlessmusic.app.ui.people.ProfileScreen
 import com.brainlessmusic.app.rooms.RoomLinks
 
 @Composable
@@ -224,6 +226,7 @@ fun BrainlessNavGraph(
                     TogetherScreen(
                         onBack = { navController.popFrom(entry) },
                         onOpenNowPlaying = { navController.openNowPlaying() },
+                        onOpenProfile = { navController.navigate(Routes.profile(it)) },
                     )
                 }
                 screen(Routes.HOME) {
@@ -248,12 +251,32 @@ fun BrainlessNavGraph(
                         onOpenNowPlaying = { navController.openNowPlaying() },
                         onOpenAlbum = { navController.navigate(Routes.albumDetail(it)) },
                         onOpenArtist = { navController.navigate(Routes.artistDetail(it)) },
+                        onOpenProfile = { navController.navigate(Routes.profile(it)) },
                         // A saved copy opens in place of the playlist it was copied from.
                         onOpenPlaylist = { id ->
                             navController.navigate(Routes.playlistDetail(id)) {
                                 popUpTo(entry.destination.id) { inclusive = true }
                             }
                         },
+                    )
+                }
+                // Profiles (A167-A173). Opening one in a room leaves the room playing; Back returns to where you were.
+                screen(Routes.PEOPLE) { entry ->
+                    PeopleScreen(
+                        onBack = { navController.popFrom(entry) },
+                        onOpenNowPlaying = { navController.openNowPlaying() },
+                        onOpenProfile = { navController.navigate(Routes.profile(it)) },
+                    )
+                }
+                screen(Routes.PROFILE, arguments = listOf(intArg(Routes.ARG_USER_ID))) { entry ->
+                    ProfileScreen(
+                        onBack = { navController.popFrom(entry) },
+                        onOpenNowPlaying = { navController.openNowPlaying() },
+                        onOpenArtist = { navController.navigate(Routes.artistDetail(it)) },
+                        onOpenAlbum = { navController.navigate(Routes.albumDetail(it)) },
+                        onOpenGenre = { navController.navigate(Routes.genreDetail(it)) },
+                        onOpenPlaylist = { navController.navigate(Routes.playlistDetail(it)) },
+                        onOpenPeople = { navController.navigate(Routes.PEOPLE) { launchSingleTop = true } },
                     )
                 }
                 screen(Routes.SETTINGS) {

@@ -123,6 +123,8 @@ data class PlaylistDetailDto(
     // A162. Null from an older server, which only ever returned your own: read null as yours.
     val isOwner: Boolean? = null,
     val ownerName: String? = null,
+    // Opens their profile from the "by" line (A172). Null from an older server.
+    val ownerId: Int? = null,
     val isPublic: Boolean = false,
 ) {
     val isMine: Boolean get() = isOwner != false
@@ -138,3 +140,53 @@ data class PlaylistPublicRequest(val isPublic: Boolean)
 data class AddPlaylistTrackRequest(val trackId: Int)
 
 data class ReorderPlaylistRequest(val trackIds: List<Int>)
+
+/** Someone on the People list or in search (A170, A172). Accounts only. */
+data class PersonDto(
+    val id: Int,
+    val name: String,
+    /** Null without a picture; changes with the picture, so it goes in the URL to beat a cached old one. */
+    val avatarId: String? = null,
+    val bio: String? = null,
+    /** SQLite UTC ("2026-10-13 09:15:00"); null if they never played anything. */
+    val lastPlayedAt: String? = null,
+)
+
+data class PeopleDto(val people: List<PersonDto>)
+
+data class ProfileArtistDto(val id: Int, val name: String)
+
+data class ProfileGenreDto(val id: Int, val name: String, val plays: Int)
+
+/** Liked or disliked songs on a profile: the first page and how many in all. */
+data class ProfileSongsDto(val total: Int, val tracks: List<TrackSummaryDto>)
+
+/**
+ * `GET /users/:id/profile` (A167-A170): anyone's, guests included. [username] and [isAdmin] come only on your own
+ * (A174). [playlists] are the public ones, or all of yours.
+ */
+data class ProfileDto(
+    val id: Int,
+    val name: String,
+    val username: String? = null,
+    val isAdmin: Boolean? = null,
+    val isSelf: Boolean,
+    val memberSince: String,
+    val bio: String? = null,
+    val avatarId: String? = null,
+    val favoriteTrack: TrackSummaryDto? = null,
+    val favoriteArtist: ProfileArtistDto? = null,
+    val range: String,
+    val totals: StatsTotalsDto,
+    val topTracks: List<TopTrackDto>,
+    val topArtists: List<TopArtistDto>,
+    val topGenres: List<ProfileGenreDto>? = null,
+    val playlists: List<PlaylistSummaryDto>,
+    val liked: ProfileSongsDto,
+    val disliked: ProfileSongsDto,
+)
+
+/** `PUT /me/profile`: a field left null is sent as null, which clears it; Gson drops nothing here (see the call). */
+data class ProfileUpdateRequest(val bio: String?, val favoriteTrackId: Int?, val favoriteArtistId: Int?)
+
+data class AvatarDto(val avatarId: String? = null)
