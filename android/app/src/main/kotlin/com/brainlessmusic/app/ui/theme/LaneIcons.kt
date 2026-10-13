@@ -35,7 +35,8 @@ object LaneIcons {
     val AddToList: ImageVector by lazy { lucide("AddToList", listOf("M11 12H3", "M16 6H3", "M16 18H3", "M18 9v6", "M21 12h-6")) }
     val User: ImageVector by lazy { lucide("User", listOf("M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2", "M8 7a4 4 0 1 0 8 0a4 4 0 1 0 -8 0")) }
     val Music: ImageVector by lazy { lucide("Music", listOf("M9 18V5l12-2v13", "M3 18a3 3 0 1 0 6 0a3 3 0 1 0 -6 0", "M15 16a3 3 0 1 0 6 0a3 3 0 1 0 -6 0")) }
-    val Users: ImageVector by lazy { lucide("Users", listOf("M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", "M5 7a4 4 0 1 0 8 0a4 4 0 1 0 -8 0", "M22 21v-2a4 4 0 0 0-3-3.87", "M16 3.13a4 4 0 0 1 0 7.75")) }
+    val Headphones: ImageVector by lazy { lucide("Headphones", listOf("M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3")) }
+    val Camera: ImageVector by lazy { lucide("Camera", listOf("M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z", "M9 13a3 3 0 1 0 6 0a3 3 0 1 0 -6 0")) }
     val Grip: ImageVector by lazy { lucide("Grip", listOf("M11 9a1 1 0 1 0 2 0a1 1 0 1 0 -2 0", "M18 9a1 1 0 1 0 2 0a1 1 0 1 0 -2 0", "M4 9a1 1 0 1 0 2 0a1 1 0 1 0 -2 0", "M11 15a1 1 0 1 0 2 0a1 1 0 1 0 -2 0", "M18 15a1 1 0 1 0 2 0a1 1 0 1 0 -2 0", "M4 15a1 1 0 1 0 2 0a1 1 0 1 0 -2 0")) }
     val Trash: ImageVector by lazy { lucide("Trash", listOf("M3 6h18", "M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6", "M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2", "M10 11L10 17", "M14 11L14 17")) }
     val CircleClose: ImageVector by lazy { lucide("CircleClose", listOf("M2 12a10 10 0 1 0 20 0a10 10 0 1 0 -20 0", "m15 9-6 6", "m9 9 6 6")) }

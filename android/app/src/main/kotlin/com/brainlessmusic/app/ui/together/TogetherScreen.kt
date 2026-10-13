@@ -87,6 +87,7 @@ fun TogetherScreen(
     onBack: () -> Unit,
     onOpenNowPlaying: () -> Unit,
     onOpenProfile: (Int) -> Unit,
+    onOpenPeople: () -> Unit,
     viewModel: TogetherViewModel = hiltViewModel(),
 ) {
     val room by viewModel.room.collectAsStateWithLifecycle()
@@ -100,6 +101,10 @@ fun TogetherScreen(
                     IconButton(onClick = onBack) {
                         Icon(AppIcons.back, contentDescription = "Back")
                     }
+                },
+                // Everyone on the server, from the one screen that's about other people (owner, 2026-10-13).
+                actions = {
+                    IconButton(onClick = onOpenPeople) { Icon(AppIcons.person, contentDescription = "People") }
                 },
             )
         },

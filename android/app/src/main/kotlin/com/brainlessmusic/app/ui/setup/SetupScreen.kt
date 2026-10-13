@@ -174,7 +174,7 @@ private fun AboutStep() {
     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Feature(AppIcons.library, "Your library", "Every song on the server, by song, album and artist.")
         Feature(AppIcons.downloads, "Downloads", "Keep songs on the phone for when there's no signal.")
-        Feature(AppIcons.groups, "Listen together", "Open a room and friends hear the same song at the same time. Anyone in it can skip.")
+        Feature(AppIcons.headphones, "Listen together", "Open a room and friends hear the same song at the same time. Anyone in it can skip.")
         Feature(AppIcons.palette, "Skins", "Dress the whole app as a rhythm game, or keep it plain. Next step.")
     }
 }

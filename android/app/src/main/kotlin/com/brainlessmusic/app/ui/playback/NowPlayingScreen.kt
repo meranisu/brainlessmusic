@@ -175,7 +175,7 @@ fun NowPlayingScreen(
                             contentColor = if (room.room != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         ),
                     ) {
-                        Icon(AppIcons.groups, contentDescription = if (room.room != null) "Open the room" else "Listen together")
+                        Icon(AppIcons.headphones, contentDescription = if (room.room != null) "Open the room" else "Listen together")
                     }
                     if (state.queueStreams) IconButton(
                         onClick = {

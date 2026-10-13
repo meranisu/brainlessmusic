@@ -4,16 +4,25 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CutCornerShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -22,6 +31,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.brainlessmusic.app.data.local.Skin
 import com.brainlessmusic.app.ui.theme.LocalSkin
+import com.brainlessmusic.app.ui.theme.SlantShape
 
 /**
  * A floating action button in the skin's form (owner, 2026-10-12: the plain Material circle didn't match): Standard's
@@ -75,5 +85,50 @@ fun SkinFab(icon: ImageVector, description: String, onClick: () -> Unit, modifie
             }
         }
         Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(glyph))
+    }
+}
+
+/**
+ * [SkinFab] with its words beside the icon, for an action that should be found without guessing (Listen together on
+ * Home, A183): Standard's extended button, a pill for Hit circle and Ring, Lane's slanted plate, Gear's FX key.
+ */
+@Composable
+fun SkinExtendedFab(icon: ImageVector, text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val skin = LocalSkin.current
+    if (skin == Skin.STANDARD) {
+        ExtendedFloatingActionButton(
+            onClick = onClick,
+            icon = { Icon(icon, contentDescription = null) },
+            text = { Text(text) },
+            modifier = modifier,
+        )
+        return
+    }
+    val scheme = MaterialTheme.colorScheme
+    val shape = when (skin) {
+        Skin.LANE -> SlantShape(14.dp)
+        Skin.GEAR -> CutCornerShape(8.dp)
+        else -> RoundedCornerShape(50)
+    }
+    val face = when (skin) {
+        Skin.LANE -> Modifier.background(scheme.primary).border(1.5.dp, scheme.onSurface, shape)
+        Skin.GEAR -> Modifier.background(GearFx)
+        Skin.HIT_CIRCLE -> Modifier.background(scheme.primary).border(3.dp, scheme.onSurface, shape)
+        else -> Modifier.background(scheme.primary).border(4.dp, scheme.surface, shape)
+    }
+    val ink = if (skin == Skin.GEAR) GearInk else scheme.onPrimary
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .height(56.dp)
+            .clip(shape)
+            .then(face)
+            .clickable(role = Role.Button, onClick = onClick)
+            // The slant eats into Lane's ends, so its words sit further in.
+            .padding(horizontal = if (skin == Skin.LANE) 28.dp else 20.dp),
+    ) {
+        Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(24.dp))
+        Spacer(Modifier.width(12.dp))
+        Text(text, style = MaterialTheme.typography.labelLarge, color = ink)
     }
 }

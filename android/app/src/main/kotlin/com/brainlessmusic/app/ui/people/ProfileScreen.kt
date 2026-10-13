@@ -9,7 +9,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -38,6 +40,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -81,7 +84,6 @@ import com.brainlessmusic.app.ui.profile.RankedRow
 import com.brainlessmusic.app.ui.profile.SectionTitle
 import com.brainlessmusic.app.ui.profile.SongMenuSheet
 import com.brainlessmusic.app.ui.profile.formatDay
-import com.brainlessmusic.app.ui.profile.formatListened
 import com.brainlessmusic.app.ui.profile.loadMessage
 import com.brainlessmusic.app.ui.theme.AppIcons
 import com.brainlessmusic.app.ui.theme.DisplayFontFamily
@@ -96,6 +98,35 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.job
+import com.brainlessmusic.app.data.remote.dto.UserStatsDto
+import com.brainlessmusic.app.data.remote.dto.ProfileCountsDto
+import com.brainlessmusic.app.data.local.Skin
+import com.brainlessmusic.app.ui.theme.LocalSkin
+import com.brainlessmusic.app.ui.profile.ListeningRadar
+import com.brainlessmusic.app.ui.profile.HitCircleListening
+import com.brainlessmusic.app.ui.profile.LaneListening
+import com.brainlessmusic.app.ui.profile.RingListening
+import com.brainlessmusic.app.ui.profile.StandardListening
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.brainlessmusic.app.data.repository.AuthRepository
+import com.brainlessmusic.app.data.remote.dto.SearchResultsDto
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.foundation.text.KeyboardOptions
+import kotlinx.coroutines.delay
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.draw.clip
 
 /** Liked or disliked songs shown before "Show all", as on the web. */
 private const val PREVIEW = 12
@@ -109,6 +140,7 @@ class ProfileViewModel @Inject constructor(
     private val library: LibraryRepository,
     private val playback: PlaybackController,
     private val rooms: RoomSession,
+    private val auth: AuthRepository,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -122,6 +154,10 @@ class ProfileViewModel @Inject constructor(
 
     private val _refreshing = MutableStateFlow(false)
     val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
+
+    /** A range switch is loading: the numbers stay up, faded, as on Home, instead of the pull-to-refresh spinner. */
+    private val _switching = MutableStateFlow(false)
+    val switching: StateFlow<Boolean> = _switching.asStateFlow()
 
     /** "Show all" lists, by liked (true) or disliked (false), once loaded. */
     private val _fullLists = MutableStateFlow<Map<Boolean, List<TrackSummaryDto>>>(emptyMap())
@@ -140,25 +176,40 @@ class ProfileViewModel @Inject constructor(
         load()
     }
 
-    fun load() = fetch(showLoading = true)
+    fun load() = fetch(Fetch.LOAD)
 
-    fun refresh() = fetch(showLoading = false)
+    fun refresh() = fetch(Fetch.REFRESH)
 
     fun setRange(range: StatsRange) {
         if (range == _range.value) return
         _range.value = range
-        fetch(showLoading = false)
+        fetch(Fetch.SWITCH)
     }
 
-    private fun fetch(showLoading: Boolean) {
+    private enum class Fetch { LOAD, REFRESH, SWITCH }
+
+    private fun fetch(how: Fetch) {
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
-            if (showLoading) _state.value = LoadState.Loading else _refreshing.value = true
-            profile.profile(userId, _range.value).fold(
-                onSuccess = { _state.value = LoadState.Content(it) },
-                onFailure = { if (showLoading || _state.value !is LoadState.Content) _state.value = LoadState.Error(it.loadMessage()) },
-            )
-            _refreshing.value = false
+            when (how) {
+                Fetch.LOAD -> _state.value = LoadState.Loading
+                Fetch.REFRESH -> _refreshing.value = true
+                Fetch.SWITCH -> _switching.value = true
+            }
+            try {
+                profile.profile(userId, _range.value).fold(
+                    onSuccess = { _state.value = LoadState.Content(it) },
+                    onFailure = {
+                        if (how == Fetch.LOAD || _state.value !is LoadState.Content) _state.value = LoadState.Error(it.loadMessage())
+                    },
+                )
+            } finally {
+                // A newer fetch cancelled this one: it owns the flags now.
+                if (loadJob === coroutineContext.job) {
+                    _refreshing.value = false
+                    _switching.value = false
+                }
+            }
         }
     }
 
@@ -234,17 +285,29 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    fun save(bio: String, trackId: Int?, artistId: Int?, onDone: () -> Unit) {
+    /** Songs and artists for the pin pickers, from the whole library. */
+    suspend fun searchLibrary(query: String) = library.search(query)
+
+    /**
+     * Saves the edit page: the display name first when [name] isn't null (it changed; empty shows the username again),
+     * then the bio and pins. [onDone] runs only when both went through.
+     */
+    fun save(name: String?, bio: String, trackId: Int?, artistId: Int?, onDone: () -> Unit) {
         viewModelScope.launch {
             _saving.value = true
-            profile.updateProfile(bio.trim().ifEmpty { null }, trackId, artistId).fold(
-                onSuccess = {
-                    Notices.show("Profile saved")
-                    onDone()
-                    refresh()
-                },
-                onFailure = { Notices.show(it.loadMessage()) },
-            )
+            val renamed = name?.let { auth.setDisplayName(it) }
+            if (renamed?.isFailure == true) {
+                Notices.show("Couldn't change your name: ${renamed.exceptionOrNull()?.loadMessage()}")
+            } else {
+                profile.updateProfile(bio.trim().ifEmpty { null }, trackId, artistId).fold(
+                    onSuccess = {
+                        Notices.show("Profile saved")
+                        onDone()
+                    },
+                    onFailure = { Notices.show(it.loadMessage()) },
+                )
+                refresh()
+            }
             _saving.value = false
         }
     }
@@ -252,7 +315,8 @@ class ProfileViewModel @Inject constructor(
 
 /**
  * Someone's profile (A167-A170): picture, bio and pins, what they listen to most over a range, their playlists, and
- * their liked and disliked songs, which everyone sees (A168). Your own has Edit and "See everyone" (A172). Opening one
+ * their liked and disliked songs, which everyone sees (A168). Your own has Edit profile (A186); People is in Listen
+ * together (A182). Opening one
  * during Listen together leaves the room playing; playing a song from here asks first (A173).
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -264,12 +328,13 @@ fun ProfileScreen(
     onOpenAlbum: (Int) -> Unit,
     onOpenGenre: (Int) -> Unit,
     onOpenPlaylist: (Int) -> Unit,
-    onOpenPeople: () -> Unit,
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val range by viewModel.range.collectAsStateWithLifecycle()
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
+    val switching by viewModel.switching.collectAsStateWithLifecycle()
+    val rangeAlpha by animateFloatAsState(if (switching) 0.5f else 1f, label = "rangeAlpha")
     val fullLists by viewModel.fullLists.collectAsStateWithLifecycle()
     val saving by viewModel.saving.collectAsStateWithLifecycle()
     val cropping by viewModel.cropping.collectAsStateWithLifecycle()
@@ -308,10 +373,8 @@ fun ProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    val name = (state as? LoadState.Content)?.data?.name ?: "Profile"
-                    Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                },
+                // The header under it already shows the name in large type, so the bar just says where you are.
+                title = { Text("Profile") },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(AppIcons.back, contentDescription = "Back") } },
             )
         },
@@ -333,13 +396,15 @@ fun ProfileScreen(
                 )
             }
             if (editing && p.isSelf) {
-                EditProfileDialog(
+                EditProfilePage(
                     profile = p,
                     pictureUrl = viewModel.avatarUrl(p),
                     saving = saving,
+                    coverUrl = viewModel::coverUrl,
+                    search = viewModel::searchLibrary,
                     onPicture = viewModel::setPicture,
                     onRemovePicture = viewModel::removePicture,
-                    onSave = { bio, track, artist -> viewModel.save(bio, track, artist) { editing = false } },
+                    onSave = { name, bio, track, artist -> viewModel.save(name, bio, track, artist) { editing = false } },
                     onDismiss = { editing = false },
                 )
             }
@@ -352,21 +417,29 @@ fun ProfileScreen(
                             onPlayFavorite = { p.favoriteTrack?.let { play(listOf(it), 0) } },
                             onOpenArtist = onOpenArtist,
                             onEdit = { editing = true },
-                            onOpenPeople = onOpenPeople,
                         )
                     }
                     item(key = "range") { RangePicker(range, viewModel::setRange) }
-                    item(key = "totals") {
-                        Text(
-                            "${formatListened(p.totals.msListened)} listened · ${p.totals.plays} plays · ${p.totals.tracks} songs",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 20.dp),
-                        )
+                    // What the range picks fades while another range loads.
+                    val ofRange = Modifier.graphicsLayer { alpha = rangeAlpha }
+                    // The same reading of the range as Home's, in the skin's game (owner, 2026-10-13): Gear's radar,
+                    // Hit circle's circles, Lane's potential, Ring's rating plate, Standard's plain numbers.
+                    item(key = "listening") {
+                        val stats = remember(p) { p.asListeningStats() }
+                        val owner = p.name.takeIf { !p.isSelf }
+                        Box(ofRange) {
+                            when (LocalSkin.current) {
+                                Skin.GEAR -> ListeningRadar(stats, range, owner = owner)
+                                Skin.HIT_CIRCLE -> HitCircleListening(stats, range, owner = owner)
+                                Skin.LANE -> LaneListening(stats, range, owner = owner)
+                                Skin.RING -> RingListening(stats, range, owner = owner)
+                                Skin.STANDARD -> StandardListening(stats, range)
+                            }
+                        }
                     }
 
                     item(key = "top-songs-title") { SectionTitle("Top songs") }
-                    item(key = "top-songs") {
+                    item(key = "top-songs") { Box(ofRange) {
                         ListCard {
                             if (p.topTracks.isEmpty()) EmptyLine("Nothing played in this range.")
                             val tracks = p.topTracks.map { it.track }
@@ -384,11 +457,11 @@ fun ProfileScreen(
                                 )
                             }
                         }
-                    }
+                    } }
 
                     if (p.topArtists.isNotEmpty()) {
                         item(key = "top-artists-title") { SectionTitle("Top artists") }
-                        item(key = "top-artists") {
+                        item(key = "top-artists") { Box(ofRange) {
                             ListCard {
                                 p.topArtists.forEachIndexed { index, artist ->
                                     RankedRow(
@@ -403,13 +476,13 @@ fun ProfileScreen(
                                     )
                                 }
                             }
-                        }
+                        } }
                     }
 
                     val genres = p.topGenres.orEmpty()
                     if (genres.isNotEmpty()) {
                         item(key = "genres-title") { SectionTitle("Top genres") }
-                        item(key = "genres") {
+                        item(key = "genres") { Box(ofRange) {
                             ListCard {
                                 genres.forEach { genre ->
                                     PlainRow(
@@ -419,7 +492,7 @@ fun ProfileScreen(
                                     )
                                 }
                             }
-                        }
+                        } }
                     }
 
                     item(key = "playlists-title") { SectionTitle(if (p.isSelf) "Your playlists" else "Public playlists") }
@@ -478,7 +551,6 @@ private fun ProfileHeader(
     onPlayFavorite: () -> Unit,
     onOpenArtist: (Int) -> Unit,
     onEdit: () -> Unit,
-    onOpenPeople: () -> Unit,
 ) {
     Surface(
         shape = MaterialTheme.cardShape,
@@ -519,11 +591,7 @@ private fun ProfileHeader(
                 Favorite(label = "Favourite artist", value = artist.name, onClick = { onOpenArtist(artist.id) })
             }
             if (p.isSelf) {
-                Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = onEdit, modifier = Modifier.weight(1f)) { Text("Edit profile") }
-                    // Your own page is where you'd look for everyone else's (A172).
-                    OutlinedButton(onClick = onOpenPeople, modifier = Modifier.weight(1f)) { Text("See everyone") }
-                }
+                OutlinedButton(onClick = onEdit, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) { Text("Edit profile") }
             }
         }
     }
@@ -564,89 +632,353 @@ private fun SongRow(track: TrackSummaryDto, cover: String?, onClick: () -> Unit)
     )
 }
 
-/** Edit your profile: the picture from the phone's photo picker, a bio, and pins chosen from your top and liked lists. */
+/** Longest display name, in characters. Matches the server's limit for `PUT /me/name`. */
+private const val MAX_NAME = 32
+
+/** A pinned artist: artists have no pictures, so the row shows their initial. */
+private data class PinnedArtist(val id: Int, val name: String)
+
+/**
+ * Edit your profile on a page of its own (A186): your picture (it saves at once, after the cropper), then your name
+ * and bio, then your pins, chosen from a searchable list over the whole library. Save lights only once something
+ * changed, and leaving with changes asks first.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun EditProfileDialog(
+private fun EditProfilePage(
     profile: ProfileDto,
     pictureUrl: String?,
     saving: Boolean,
+    coverUrl: (TrackSummaryDto) -> String?,
+    search: suspend (String) -> Result<SearchResultsDto>,
     onPicture: (Uri) -> Unit,
     onRemovePicture: () -> Unit,
-    onSave: (bio: String, trackId: Int?, artistId: Int?) -> Unit,
+    /** [name] is null when it wasn't changed. */
+    onSave: (name: String?, bio: String, trackId: Int?, artistId: Int?) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    var name by remember { mutableStateOf(profile.name) }
     var bio by remember { mutableStateOf(profile.bio.orEmpty()) }
-    var trackId by remember { mutableStateOf(profile.favoriteTrack?.id) }
-    var artistId by remember { mutableStateOf(profile.favoriteArtist?.id) }
+    var track by remember { mutableStateOf(profile.favoriteTrack) }
+    var artist by remember { mutableStateOf(profile.favoriteArtist?.let { PinnedArtist(it.id, it.name) }) }
+    var pictureMenu by remember { mutableStateOf(false) }
+    var picking by remember { mutableStateOf<PinKind?>(null) }
+    var confirmingDiscard by remember { mutableStateOf(false) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> uri?.let(onPicture) }
 
-    // What can be pinned: the current pin, then your top songs and liked songs (or top artists), each once.
-    val songs = (listOfNotNull(profile.favoriteTrack) + profile.topTracks.map { it.track } + profile.liked.tracks)
-        .distinctBy { it.id }
-        .associate { it.id to listOfNotNull(it.title, it.artist).joinToString(" · ") }
-    val artists = (listOfNotNull(profile.favoriteArtist?.let { it.id to it.name }) + profile.topArtists.map { it.id to it.name })
-        .toMap()
+    val nameChanged = name.trim() != profile.name
+    val changed = nameChanged ||
+        bio.trim() != profile.bio.orEmpty().trim() ||
+        track?.id != profile.favoriteTrack?.id ||
+        artist?.id != profile.favoriteArtist?.id
+    val leave = { if (changed) confirmingDiscard = true else onDismiss() }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Edit profile") },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Avatar(url = pictureUrl, name = profile.name, size = 64.dp)
-                    Column(Modifier.padding(start = 12.dp)) {
+    // Suggestions before anything is typed: the current pin, then your top songs and liked songs (or top artists).
+    val suggestedSongs = remember(profile) {
+        (listOfNotNull(profile.favoriteTrack) + profile.topTracks.map { it.track } + profile.liked.tracks).distinctBy { it.id }
+    }
+    val suggestedArtists = remember(profile) {
+        (listOfNotNull(profile.favoriteArtist?.let { PinnedArtist(it.id, it.name) }) + profile.topArtists.map { PinnedArtist(it.id, it.name) })
+            .distinctBy { it.id }
+    }
+
+    Dialog(onDismissRequest = leave, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Edit profile") },
+                    navigationIcon = { IconButton(onClick = leave) { Icon(AppIcons.close, contentDescription = "Close") } },
+                    actions = {
                         TextButton(
-                            enabled = !saving,
-                            onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                        ) { Text(if (profile.avatarId == null) "Add a picture" else "Change picture") }
-                        if (profile.avatarId != null) {
-                            TextButton(enabled = !saving, onClick = onRemovePicture) { Text("Remove picture") }
+                            enabled = changed && !saving,
+                            onClick = { onSave(if (nameChanged) name.trim() else null, bio, track?.id, artist?.id) },
+                        ) { Text(if (saving) "Saving…" else "Save") }
+                    },
+                )
+            },
+        ) { padding ->
+            Column(
+                Modifier
+                    .padding(padding)
+                    .fillMaxSize()
+                    .imePadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
+            ) {
+                // Picture: big, with a camera badge; a tap offers the picker or removing it.
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    Box {
+                        Box(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .clickable(enabled = !saving, onClickLabel = "Change picture") { pictureMenu = true },
+                        ) {
+                            Avatar(url = pictureUrl, name = name.ifBlank { profile.name }, size = 112.dp)
+                        }
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(36.dp)
+                                .background(MaterialTheme.colorScheme.primary, CircleShape)
+                                .border(3.dp, MaterialTheme.colorScheme.surface, CircleShape),
+                        ) {
+                            Icon(AppIcons.camera, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
+                        }
+                        DropdownMenu(expanded = pictureMenu, onDismissRequest = { pictureMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text(if (profile.avatarId == null) "Choose a photo" else "Choose another photo") },
+                                onClick = {
+                                    pictureMenu = false
+                                    picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                },
+                            )
+                            if (profile.avatarId != null) {
+                                DropdownMenuItem(text = { Text("Remove picture") }, onClick = {
+                                    pictureMenu = false
+                                    onRemovePicture()
+                                })
+                            }
                         }
                     }
+                    Text(
+                        "Tap to change. A new picture saves straight away.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
                 }
-                OutlinedTextField(
-                    value = bio,
-                    onValueChange = { bio = it.take(MAX_BIO) },
-                    label = { Text("Bio") },
-                    supportingText = { Text("${bio.length} / $MAX_BIO") },
-                    minLines = 2,
-                    maxLines = 5,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                PinPicker("Favourite song", songs, trackId) { trackId = it }
-                PinPicker("Favourite artist", artists, artistId) { artistId = it }
+
+                EditSection("About you") {
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it.take(MAX_NAME) },
+                        label = { Text("Name") },
+                        singleLine = true,
+                        supportingText = {
+                            Text(
+                                if (name.isBlank()) "Left empty, people see your username (${profile.username ?: "your login name"})."
+                                else "What everyone sees, in rooms and on your profile. ${name.length}/$MAX_NAME",
+                            )
+                        },
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = bio,
+                        onValueChange = { bio = it.take(MAX_BIO) },
+                        label = { Text("Bio") },
+                        placeholder = { Text("A line about you or what you're into") },
+                        supportingText = { Text("${bio.length}/$MAX_BIO") },
+                        minLines = 3,
+                        maxLines = 6,
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+
+                EditSection("Pinned on your profile") {
+                    PinRow(
+                        label = "Favourite song",
+                        title = track?.title,
+                        subtitle = track?.artist,
+                        lead = { CoverImage(url = track?.let(coverUrl), contentDescription = null, modifier = Modifier.size(48.dp)) },
+                        onPick = { picking = PinKind.SONG },
+                        onClear = { track = null },
+                    )
+                    PinRow(
+                        label = "Favourite artist",
+                        title = artist?.name,
+                        subtitle = null,
+                        lead = { Avatar(url = null, name = artist?.name ?: "?", size = 48.dp) },
+                        onPick = { picking = PinKind.ARTIST },
+                        onClear = { artist = null },
+                    )
+                }
             }
-        },
-        confirmButton = {
-            TextButton(enabled = !saving, onClick = { onSave(bio, trackId, artistId) }) { Text(if (saving) "Saving…" else "Save") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
+        }
+    }
+
+    picking?.let { kind ->
+        PinPickerPage(
+            kind = kind,
+            suggestedSongs = suggestedSongs,
+            suggestedArtists = suggestedArtists,
+            coverUrl = coverUrl,
+            search = search,
+            onSong = { track = it; picking = null },
+            onArtist = { artist = it; picking = null },
+            onDismiss = { picking = null },
+        )
+    }
+
+    if (confirmingDiscard) {
+        AlertDialog(
+            onDismissRequest = { confirmingDiscard = false },
+            title = { Text("Discard changes?") },
+            text = { Text("Your edits to this page won't be saved.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmingDiscard = false
+                    onDismiss()
+                }) { Text("Discard") }
+            },
+            dismissButton = { TextButton(onClick = { confirmingDiscard = false }) { Text("Keep editing") } },
+        )
+    }
 }
 
 @Composable
-private fun PinPicker(label: String, choices: Map<Int, String>, selected: Int?, onPick: (Int?) -> Unit) {
-    var open by remember { mutableStateOf(false) }
-    Column {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        OutlinedButton(onClick = { open = true }, enabled = choices.isNotEmpty(), modifier = Modifier.fillMaxWidth()) {
-            Text(
-                selected?.let(choices::get) ?: if (choices.isEmpty()) "Nothing to pick yet" else "None",
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }, modifier = Modifier.heightIn(max = 360.dp)) {
-            DropdownMenuItem(text = { Text("None") }, onClick = { onPick(null); open = false })
-            choices.forEach { (id, text) ->
-                DropdownMenuItem(
-                    text = { Text(text, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    onClick = { onPick(id); open = false },
-                )
+private fun EditSection(title: String, content: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+        content()
+    }
+}
+
+/** One pin: what's pinned (or "Nothing pinned"), with Change and, when set, Remove. */
+@Composable
+private fun PinRow(
+    label: String,
+    title: String?,
+    subtitle: String?,
+    lead: @Composable () -> Unit,
+    onPick: () -> Unit,
+    onClear: () -> Unit,
+) {
+    Surface(
+        shape = MaterialTheme.cardShape,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        modifier = Modifier.fillMaxWidth().clip(MaterialTheme.cardShape).clickable(onClickLabel = "Change $label", onClick = onPick),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(12.dp)) {
+            lead()
+            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(title ?: "Nothing pinned. Tap to pick.", style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                subtitle?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            if (title != null) {
+                IconButton(onClick = onClear) { Icon(AppIcons.clear, contentDescription = "Remove $label") }
             }
         }
     }
 }
+
+private enum class PinKind { SONG, ARTIST }
+
+/**
+ * Picks a pin: your suggestions first, then as you type, songs or artists from the whole library (the server's
+ * search, a moment after typing stops).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PinPickerPage(
+    kind: PinKind,
+    suggestedSongs: List<TrackSummaryDto>,
+    suggestedArtists: List<PinnedArtist>,
+    coverUrl: (TrackSummaryDto) -> String?,
+    search: suspend (String) -> Result<SearchResultsDto>,
+    onSong: (TrackSummaryDto) -> Unit,
+    onArtist: (PinnedArtist) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var query by remember { mutableStateOf("") }
+    var results by remember { mutableStateOf<SearchResultsDto?>(null) }
+    var failed by remember { mutableStateOf(false) }
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() }
+    LaunchedEffect(query) {
+        failed = false
+        if (query.isBlank()) {
+            results = null
+            return@LaunchedEffect
+        }
+        delay(300)
+        search(query.trim()).fold(onSuccess = { results = it }, onFailure = { failed = true })
+    }
+    val songs = if (query.isBlank()) suggestedSongs else results?.tracks.orEmpty()
+    val artists = if (query.isBlank()) suggestedArtists else results?.artists.orEmpty().map { PinnedArtist(it.id, it.name) }
+    val what = if (kind == PinKind.SONG) "song" else "artist"
+
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        TextField(
+                            value = query,
+                            onValueChange = { query = it },
+                            placeholder = { Text("Search for a $what") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                            ),
+                            modifier = Modifier.fillMaxWidth().focusRequester(focus),
+                        )
+                    },
+                    navigationIcon = { IconButton(onClick = onDismiss) { Icon(AppIcons.back, contentDescription = "Back") } },
+                )
+            },
+        ) { padding ->
+            LazyColumn(Modifier.padding(padding).fillMaxSize().imePadding()) {
+                item {
+                    Text(
+                        when {
+                            failed -> "Couldn't search. Check the connection and try again."
+                            query.isBlank() -> if (kind == PinKind.SONG) "Your top and liked songs. Type to search everything." else "Your top artists. Type to search everything."
+                            results == null -> "Searching…"
+                            (kind == PinKind.SONG && songs.isEmpty()) || (kind == PinKind.ARTIST && artists.isEmpty()) -> "No ${what}s match."
+                            else -> "From your library"
+                        },
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    )
+                }
+                if (kind == PinKind.SONG) {
+                    items(songs, key = { it.id }) { song ->
+                        ListItem(
+                            leadingContent = { CoverImage(url = coverUrl(song), contentDescription = null, modifier = Modifier.size(44.dp)) },
+                            headlineContent = { Text(song.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            supportingContent = { Text(song.artist ?: "Unknown artist", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            modifier = Modifier.clickable(onClickLabel = "Pin this song") { onSong(song) },
+                        )
+                    }
+                } else {
+                    items(artists, key = { it.id }) { a ->
+                        ListItem(
+                            leadingContent = { Avatar(url = null, name = a.name, size = 44.dp) },
+                            headlineContent = { Text(a.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            modifier = Modifier.clickable(onClickLabel = "Pin this artist") { onArtist(a) },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** The profile's numbers in the shape Home's listening cards read. No window before to compare, so no delta line. */
+private fun ProfileDto.asListeningStats() = UserStatsDto(
+    range = range,
+    since = null,
+    memberSince = memberSince,
+    totals = totals,
+    previousTotals = null,
+    topTracks = topTracks,
+    topArtists = topArtists,
+    topAlbums = emptyList(),
+    counts = ProfileCountsDto(liked = liked.total, lessOften = disliked.total, playlists = playlists.size),
+)
 
 /** The upload limits (S7) in words; anything else as usual. */
 private fun Throwable.pictureMessage(): String = when ((this as? ConnectionException)?.error) {

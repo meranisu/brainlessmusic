@@ -4,6 +4,78 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `EditProfilePage()`, `PinPickerPage()`, `PinRow()`, `EditSection()`, `ProfileViewModel.save(name, …)`, `searchLibrary()`: `android/app/src/main/kotlin/com/brainlessmusic/app/ui/people/ProfileScreen.kt`; `AppIcons.camera` and each skin set's `Camera`: `ui/theme/`
+**Date:** 2026-10-13
+**How added:** owner request (A186)
+**Purpose:** a bigger, friendlier Edit profile.
+**Side effects:** `ProfileViewModel` now takes `AuthRepository`; `EditProfileDialog()` and `PinPicker()` removed.
+**Before:** a small dialog; pins from dropdowns of top and liked only; no name.
+**After:** a full-screen page with name, searchable pins and a discard check.
+
+**Function:** `ListeningRadar` (`frontend/src/components/ListeningRadar.tsx`), `radarReadings()`, `rangeDays()` (`frontend/src/lib/listeningRadar.ts`), `ProfilePage()`; Android `ProfileDto.asListeningStats()` (`ui/people/ProfileScreen.kt`), `whose()` and the `owner` parameter on `ListeningRadar`, `HitCircleListening`, `LaneListening`, `RingListening` (`ui/profile/`)
+**Date:** 2026-10-13
+**How added:** owner request
+**Purpose:** a profile's listening read as Home reads yours.
+**Side effects:** none.
+**Before:** profiles showed one line of totals.
+**After:** a radar (web) or the skin's listening card (Android), naming whose it is.
+
+**Function:** `checkPlaylistDescription()`, `PATCH /playlists/:id`: `backend/src/routes/playlists.ts`; `setPlaylistDescription()`, `copyPlaylist()`, `getPlaylistDetail()`, `listPlaylistsForUser()`, `listPublicPlaylists()`: `backend/src/db/playlists.ts`
+**Date:** 2026-10-13
+**How added:** owner request (A185)
+**Purpose:** a description on any playlist, and when each song was added.
+**Side effects:** migration `0036`.
+**Before:** name and public switch only.
+**After:** `description` read and written; `addedAt` on each detail track.
+
+**Function:** `PlaylistDetailScreen()`, `PlaylistHeader()`, `PlaylistSearchField()`, `PlaylistDetailsDialog()`, `sortTracks()`, `matchesQuery()`, `playlistTotals()`, `PlaylistDetailViewModel.play(tracks, …)`, `editDetails()`: `android/app/src/main/kotlin/com/brainlessmusic/app/ui/profile/PlaylistDetailScreen.kt`; `PlaylistTile()`: `ui/profile/PlaylistsScreen.kt`; `ProfileRepository.editPlaylistDetails()`
+**Date:** 2026-10-13
+**How added:** owner request (A185)
+**Purpose:** search, sort, totals, floating Play/Shuffle and descriptions on the playlist page.
+**Side effects:** `rename()` replaced by `editDetails()`.
+**Before:** Play/Shuffle buttons in a header row, playlist order only, no search.
+**After:** as above; reorder uses item keys, so header rows don't shift it.
+
+**Function:** `ProfileViewModel.setRange()`, `fetch()`, `switching`: `android/app/src/main/kotlin/com/brainlessmusic/app/ui/people/ProfileScreen.kt`
+**Date:** 2026-10-13
+**How added:** owner bug report
+**Purpose:** a range switch fades the numbers instead of showing the refresh spinner.
+**Side effects:** none.
+**Before:** `setRange` set `refreshing`, so the pull-to-refresh spinner flashed.
+**After:** it sets `switching`; totals, top songs, artists and genres fade to 50% until the answer lands.
+
+**Function:** `SkinExtendedFab()`: `android/app/src/main/kotlin/com/brainlessmusic/app/ui/common/SkinFab.kt`; `AppIcons.headphones` and each skin set's `Headphones`: `ui/theme/`; `YouScreen()`: `ui/profile/YouScreen.kt`
+**Date:** 2026-10-13
+**How added:** owner request (A183, A184)
+**Purpose:** a Listen together button you can't miss on Home.
+**Side effects:** `AppIcons.groups` and the sets' `Users` removed.
+**Before:** a small group icon in Home's top bar.
+**After:** a labelled floating button with a headphones icon; Home's lists pad 88dp at the bottom.
+
+**Function:** `TogetherScreen(onOpenPeople)`: `android/app/src/main/kotlin/com/brainlessmusic/app/ui/together/TogetherScreen.kt`; `ProfileHeader()`, `ProfileScreen()`: `ui/people/ProfileScreen.kt`; `YouScreen()` top bar: `ui/profile/YouScreen.kt`
+**Date:** 2026-10-13
+**How added:** owner request (A182)
+**Purpose:** People opens from the social screen, not Home or your own profile.
+**Side effects:** none.
+**Before:** People icon on Home; "See everyone" on your profile (`onOpenPeople` on `ProfileScreen`).
+**After:** People icon on Listen together (`onOpenPeople` on `TogetherScreen`); the other two removed.
+
+**Function:** `ProfileScreen()` top bar: `android/app/src/main/kotlin/com/brainlessmusic/app/ui/people/ProfileScreen.kt`
+**Date:** 2026-10-13
+**How added:** owner request
+**Purpose:** the name isn't shown twice at the top of a profile.
+**Side effects:** none.
+**Before:** the bar's title was the profile's name ("Profile" while loading).
+**After:** always "Profile".
+
+**Function:** `LaneWelcome()`: `android/app/src/main/kotlin/com/brainlessmusic/app/ui/splash/ArcadeWelcome.kt`
+**Date:** 2026-10-13
+**How added:** owner bug report
+**Purpose:** the lock diamond no longer touches the name plate.
+**Side effects:** none new.
+**Before:** diamond centred 96dp above the screen's middle, whatever the plate's height.
+**After:** diamond's bottom tip 24dp above the plate's measured top edge.
+
 **Function:** `parseId()`, `PATCH /playlists/:id/tracks/reorder`: `backend/src/routes/playlists.ts`
 **Date:** 2026-10-13
 **How added:** code review fix

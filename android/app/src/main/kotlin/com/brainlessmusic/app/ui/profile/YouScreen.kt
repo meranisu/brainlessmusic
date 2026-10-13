@@ -77,6 +77,7 @@ import com.brainlessmusic.app.data.repository.StatsRange
 import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.ui.common.Avatar
 import com.brainlessmusic.app.ui.common.CoverImage
+import com.brainlessmusic.app.ui.common.SkinExtendedFab
 import com.brainlessmusic.app.ui.common.LoadStateContent
 import com.brainlessmusic.app.ui.common.SkeletonLead
 import com.brainlessmusic.app.ui.common.SkeletonListRows
@@ -124,13 +125,8 @@ fun YouScreen(
         topBar = {
             TopAppBar(
                 title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                // With nothing playing, the player (its other door) can't open, so it sits here for everyone (A136).
-                // People next to it, for guests too (A172).
+                // Listen together is the labelled button at the bottom (A183); People is in its top bar (A182).
                 actions = {
-                    IconButton(onClick = { navController.navigate(Routes.PEOPLE) { launchSingleTop = true } }) {
-                        Icon(AppIcons.person, contentDescription = "People")
-                    }
-                    IconButton(onClick = together) { Icon(AppIcons.groups, contentDescription = "Listen together") }
                     // Your picture last, where Google's apps put your account (A178). Guests have none, so no button.
                     me?.let { person ->
                         IconButton(
@@ -144,6 +140,8 @@ fun YouScreen(
             )
         },
         bottomBar = { TabBarSpace() },
+        // With nothing playing, the player (its other door) can't open, so it's here for everyone, guests too (A136, A183).
+        floatingActionButton = { SkinExtendedFab(AppIcons.headphones, "Listen together", onClick = together) },
     ) { padding ->
         if (viewModel.isGuest) {
             // No stats for guests (A98), so the library and some random picks to start from.
@@ -166,7 +164,7 @@ fun YouScreen(
                 PullToRefreshBox(isRefreshing = refreshing, onRefresh = viewModel::refresh) {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 16.dp),
+                        contentPadding = PaddingValues(bottom = FabClearance),
                     ) {
                         // The range first, then the skin's reading of it, which holds the range's hours, plays and songs
                         // (owner, 2026-10-12). Shuffle is in the Library, Listen together in the top bar and the player,
@@ -288,7 +286,7 @@ private fun GuestHomeList(
         skeleton = { SkeletonListRows(lead = SkeletonLead.COVER) },
     ) { home: GuestHome ->
         PullToRefreshBox(isRefreshing = refreshing, onRefresh = viewModel::refresh) {
-            LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 16.dp)) {
+            LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = FabClearance)) {
                 item { GuestCard(home) }
                 if (home.picks.isEmpty()) {
                     item { EmptyLine("Nothing in the library yet. Songs show up here once the server has some.") }
@@ -406,6 +404,9 @@ private fun CardActions(onPlay: () -> Unit, onShuffle: () -> Unit, what: String)
         }
     }
 }
+
+/** Room under the lists for the Listen together button: its 56dp, the 16dp it floats above, and a gap. */
+private val FabClearance = 88.dp
 
 /** "Good morning" to "Good evening" by the phone's clock, with the name when there is one. */
 internal fun greeting(hour: Int, name: String?): String {

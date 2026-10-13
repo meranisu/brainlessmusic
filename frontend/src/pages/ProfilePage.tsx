@@ -15,6 +15,8 @@ import { useScrollLock } from '../hooks/useScrollLock';
 import { ApiError, apiClient } from '../lib/apiClient';
 import { formatDate, formatDuration, formatTotalLength } from '../lib/format';
 import type { Profile, StatsRange, TrackSummary } from '../types/api';
+import { ListeningRadar } from '../components/ListeningRadar';
+import { radarReadings } from '../lib/listeningRadar';
 
 /**
  * Someone's profile (A167-A170): picture, bio and pins, what they listen to most over a range, their playlists, and
@@ -300,6 +302,13 @@ export function ProfilePage() {
           <span className="font-semibold text-white">{data.totals.tracks.toLocaleString()}</span> songs
         </p>
       </div>
+
+      {/* What the account does over the range, as the Android app's Gear radar reads it (owner, 2026-10-13). */}
+      <ListeningRadar
+        readings={radarReadings(data, range)}
+        title={`${data.isSelf ? 'Your' : `${data.name}'s`} ${range === 'all' ? 'listening so far' : rangeLabel}, read like a chart`}
+        dimmed={isPlaceholderData}
+      />
 
       <div className={`grid gap-8 lg:grid-cols-2 ${isPlaceholderData ? 'opacity-60' : ''}`}>
         <Section title="Top songs">

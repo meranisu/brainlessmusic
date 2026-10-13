@@ -4,6 +4,83 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-13: Android Edit profile is a full-screen page (A186)
+
+- Replaces the small dialog. Close (X) and Save in the top bar; Save lights only once something changed, and closing
+  with changes asks "Discard changes?".
+- Picture: 112 dp with a camera badge; a tap offers Choose a photo / Remove picture. It still saves at once, after the
+  cropper, and the page says so. New camera icon in every skin's set (`AppIcons.camera`).
+- About you: the display name is editable here now (32 characters; empty shows the username), saved with
+  `PUT /me/name` before the bio and pins; the bio gets a hint and a counter.
+- Pins: cards with the song's cover or the artist's initial, Change and Remove. Change opens a search page: your top
+  and liked songs (or top artists) first, then the whole library as you type.
+- A live preview of the profile (idea 4) is parked for later.
+- Verified: `assembleDebug`. Not run on a phone (none connected).
+
+## 2026-10-13: Listening radar on profiles, web and Android
+
+- Owner request: profiles show what the account does over the range, like the app's Home.
+- Web `ProfilePage`: a radar card under the range buttons (new `ListeningRadar.tsx`, `lib/listeningRadar.ts`): six
+  axes (plays, time, variety, reach, devotion, loved) worked out as the Android radar does, drawn flat in the theme's
+  accent, with each reading also written out ("4.2 a day", "38% <top artist>"). Fades with the rest while another
+  range loads.
+- Android profile: the skin's listening card from Home replaces the one-line totals: Gear's radar, Hit circle's
+  circles, Lane's potential, Ring's rating plate, Standard's plain numbers. On someone else's it says "Sam's week"
+  instead of "Your week" (`owner` on the cards, `whose()`).
+- Verified: web `npm run build` and `npm run lint`; Android `assembleDebug`. Not looked at in a browser or on a phone.
+
+## 2026-10-13: Playlist descriptions, and a reworked Android playlist page (A185)
+
+- Backend: migration `0036` adds `playlists.description`. `PATCH /playlists/:id` takes `description` (text or null;
+  trimmed, line breaks kept, other control characters refused, at most 300 characters, blank clears it). The detail,
+  your list and "From others" return it, and a copy keeps it. Each song in the detail now has `addedAt`.
+- Android playlist page: the description at the top (on yours without one, "+ Add a description"), the song count and
+  whole length, Private / Public / "by" line, and download. Search in the top bar (title, artist, album), a sort menu
+  (playlist order, recently added, title, artist, album, length; the icon lights when not in playlist order), covers on
+  the rows, and Play and Shuffle as floating buttons in the skin's shapes that play the list as shown. Dragging works
+  only in playlist order with no search; a note says so. "Rename" became "Edit name and description".
+- Android Playlists grid: each tile shows its description, up to two lines.
+- Web: not changed; it ignores the new fields.
+- Verified: backend `npm test` (602 pass, new `playlistDescriptions.test.ts`), `tsc --noEmit`; Android
+  `compileDebugKotlin`, `PlaylistSortTest` (8) and `PlaylistNameTest`. Not run on a phone (none connected).
+
+## 2026-10-13: Android profile page's range tabs fade the numbers instead of flashing the refresh spinner
+
+- Owner report: tapping Week / Month / All on a profile briefly showed the pull-to-refresh spinner. The range switch
+  went through the refresh path. It now keeps the numbers up, faded, until the new range lands, as Home does; pull to
+  refresh still shows the spinner. A cancelled fetch no longer clears the flags of the one that replaced it.
+- Verified: `compileDebugKotlin`. Not run on a phone (none connected).
+
+## 2026-10-13: Android Listen together is a labelled button on Home, with a headphones icon (A183, A184)
+
+- Home's small Listen together icon in the top bar is replaced by a floating "Listen together" button at the bottom
+  right, for guests too. New `SkinExtendedFab`: Standard's extended button, a pill for Hit circle and Ring, Lane's
+  slanted plate, Gear's FX key. Home's lists leave room under their last row for it.
+- The icon is headphones in every skin's set (`AppIcons.headphones`), also in the player and the setup screen; the
+  unused group icon (`AppIcons.groups`, each set's `Users`) is removed.
+- Verified: `assembleDebug`. Not run on a phone (none connected).
+
+## 2026-10-13: Android People moves to Listen together (A182)
+
+- Owner request: your own profile no longer has "See everyone", and Home's top bar no longer has the People icon.
+  People now opens from an icon in Listen together's top bar. Your profile's Edit profile button spans the card.
+  Search still finds people and names still open profiles. Web unchanged.
+- Verified: `assembleDebug`. Not run on a phone (none connected).
+
+## 2026-10-13: Android profile page's top bar says "Profile"
+
+- Owner request: the top bar of a profile page showed the person's name, which the header right under it already
+  shows in large type. The bar now reads "Profile" (`ProfileScreen`).
+- Verified: `assembleDebug`. Not run on a phone (none connected).
+
+## 2026-10-13: Lane welcome keeps its lock diamond clear of the name plate
+
+- Owner report: in the Lane skin's welcome, the plate with your name touched the bottom of the lock diamond. The
+  diamond sat a fixed 96dp above the middle while the plate grows with the font size, so they met (by about 2dp at
+  the default size, more with bigger system fonts). `LaneWelcome` now measures the plate and puts the diamond's
+  bottom tip 24dp above its top edge.
+- Verified: `assembleDebug`. Not run on a phone (none connected).
+
 ## 2026-10-13: Playlist reorder sorts once, and playlist ids must be above zero
 
 - Code review: `PATCH /playlists/:id/tracks/reorder` sorted the requested list again for every song while comparing,

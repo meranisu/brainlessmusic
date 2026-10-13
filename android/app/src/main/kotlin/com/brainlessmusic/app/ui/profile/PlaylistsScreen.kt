@@ -262,6 +262,7 @@ fun PlaylistsTab(
                 items(home.playlists, key = { it.id }) { playlist ->
                     PlaylistTile(
                         name = playlist.name,
+                        description = playlist.description,
                         detail = songCount(playlist.trackCount) + if (playlist.isPublic) " · Public" else "",
                         covers = viewModel.covers(playlist.coverAlbumIds),
                         onClick = { onOpenPlaylist(playlist.id) },
@@ -277,6 +278,7 @@ fun PlaylistsTab(
             items(home.others, key = { "other-${it.id}" }) { playlist ->
                 PlaylistTile(
                     name = playlist.name,
+                    description = playlist.description,
                     detail = listOfNotNull(playlist.ownerName?.let { "by $it" }, songCount(playlist.trackCount)).joinToString(" · "),
                     covers = viewModel.covers(playlist.coverAlbumIds),
                     onClick = { onOpenPlaylist(playlist.id) },
@@ -468,9 +470,12 @@ private fun GridHint(text: String) {
 
 private fun songCount(count: Int) = if (count == 1) "1 song" else "$count songs"
 
-/** A playlist as a cover mosaic, its name, and [detail] under it: the count, and the owner when it's someone else's. */
+/**
+ * A playlist as a cover mosaic, its name, its description when it has one (A185), and [detail] under it: the count,
+ * and the owner when it's someone else's.
+ */
 @Composable
-private fun PlaylistTile(name: String, detail: String, covers: List<String?>, onClick: () -> Unit) {
+private fun PlaylistTile(name: String, description: String?, detail: String, covers: List<String?>, onClick: () -> Unit) {
     Column(Modifier.clickable(onClickLabel = "Open playlist", onClick = onClick)) {
         if (covers.isEmpty()) {
             Box(
@@ -493,6 +498,14 @@ private fun PlaylistTile(name: String, detail: String, covers: List<String?>, on
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 8.dp),
         )
+        description?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         Text(
             detail,
             style = MaterialTheme.typography.bodySmall,

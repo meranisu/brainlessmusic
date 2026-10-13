@@ -50,6 +50,9 @@ internal val Axes = listOf(
     Axis("LOVED", Color(0xFF3DDC84)),
 )
 
+/** "Your", or "Sam's" on someone else's profile, where the cards also show (owner, 2026-10-13). */
+internal fun whose(owner: String?, capital: Boolean = true): String = owner?.let { "$it's" } ?: if (capital) "Your" else "your"
+
 /** How many days the stats cover: the range's own length, or for all time the days since the account began. */
 internal fun rangeDays(range: StatsRange, memberSince: String, today: LocalDate = LocalDate.now()): Long = when (range) {
     StatsRange.WEEK -> 7
@@ -93,7 +96,7 @@ internal fun listeningOverall(values: List<Float>): Float = if (values.isEmpty()
  * numbers arrive, unless animations are off.
  */
 @Composable
-fun ListeningRadar(stats: UserStatsDto, range: StatsRange, modifier: Modifier = Modifier) {
+fun ListeningRadar(stats: UserStatsDto, range: StatsRange, modifier: Modifier = Modifier, owner: String? = null) {
     val scheme = MaterialTheme.colorScheme
     val dark = LocalDarkTheme.current
     val values = remember(stats, range) { radarValues(stats, rangeDays(range, stats.memberSince)) }
@@ -118,7 +121,7 @@ fun ListeningRadar(stats: UserStatsDto, range: StatsRange, modifier: Modifier = 
         Column(Modifier.padding(16.dp)) {
             Text("LISTENING RADAR", style = MaterialTheme.typography.labelLarge, color = scheme.primary)
             Text(
-                "Your ${range.label.lowercase()}, read like a chart",
+                "${whose(owner)} ${range.label.lowercase()}, read like a chart",
                 style = MaterialTheme.typography.bodySmall,
                 color = scheme.onSurfaceVariant,
             )

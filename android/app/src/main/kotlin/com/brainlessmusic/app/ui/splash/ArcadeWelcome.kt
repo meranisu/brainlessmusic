@@ -27,8 +27,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -39,6 +41,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -311,13 +314,16 @@ private fun LaneWelcome(p: Float, name: String) {
     val lock = easeOut(span(p, 0.06f, 0.2f))
     val synced = span(p, 0.4f, 0.42f) >= 1f
     val plate = easeOut(span(p, 0.2f, 0.4f))
+    // The plate's height follows the font scale, so the diamond sits a fixed gap above its top edge, not the middle.
+    var plateHeight by remember { mutableIntStateOf(0) }
 
     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize().graphicsLayer { alpha = shown }) {
         Canvas(Modifier.fillMaxSize()) {
             drawShutter(closed, scheme.surfaceContainerHigh, scheme.surfaceContainerHighest, scheme.primary)
-            val d = 56.dp.toPx() * lock
+            val full = 56.dp.toPx()
+            val d = full * lock
             if (d > 0f && content > 0f) {
-                val c = Offset(size.width / 2, size.height / 2 - 96.dp.toPx())
+                val c = Offset(size.width / 2, size.height / 2 - plateHeight / 2f - 24.dp.toPx() - full)
                 val outer = Path().apply { moveTo(c.x, c.y - d); lineTo(c.x + d, c.y); lineTo(c.x, c.y + d); lineTo(c.x - d, c.y); close() }
                 drawPath(outer, scheme.background, alpha = content)
                 drawPath(outer, scheme.primary, alpha = content, style = Stroke(2.dp.toPx()))
@@ -333,6 +339,7 @@ private fun LaneWelcome(p: Float, name: String) {
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .padding(horizontal = 32.dp)
+                .onSizeChanged { plateHeight = it.height }
                 .graphicsLayer {
                     alpha = plate * content
                     translationX = -64.dp.toPx() * (1f - plate)

@@ -98,6 +98,32 @@ like you in a room.
 
 ## Answered
 
+### A186 — Android Edit profile becomes a full-screen page *(was Q186)*
+**Answered:** 2026-10-13, in chat: "pick your suggestions but take note of 4, maybe we could add it later". Built: a
+full-screen page with sections (1), a big picture with a camera badge (2), the display name editable there (3), pins
+picked from a searchable library list with covers (5), Save lit only on a change and "Discard changes?" on leaving (6).
+**Parked:** a live preview of the profile as others see it (4), maybe later.
+
+### A185 — Playlists get descriptions, and the Android playlist page a search, sort and floating Play *(owner request)*
+**Answered:** 2026-10-13, in chat: "add descriptions to playlist too, so its easier to know. including the private one
+too", with search, a song count, sort and Play as a floating button. Descriptions on every playlist (up to 300
+characters, migration 0036), edited with the name; shown on the page and the Playlists grid. Android only for now; the
+web neither shows nor edits them yet.
+
+### A184 — Listen together's icon is headphones *(was Q184)*
+**Answered:** 2026-10-13, in chat: "q184: a". Every skin's own headphones glyph (Lucide, Phosphor Bold, Font Awesome,
+MingCute); used on Home's button, the player and the setup screen. The group-of-people icon is gone.
+
+### A183 — Listen together is a labelled floating button on Home *(was Q183)*
+**Answered:** 2026-10-13, in chat: "q183: a". "Listen together" with its icon, bottom right of Home, in the skin's
+button shape, for guests too; replaces A136's small top-bar icon. The player keeps its icon.
+
+### A182 — On Android, People opens from Listen together, not Home or your profile *(owner request)*
+**Answered:** 2026-10-13, in chat: "why would i want to see other people profile in my profile page", and Home needs
+no People icon either. Android only: "See everyone" left your own profile and the People icon left Home's top bar;
+a People icon sits in Listen together's top bar instead. Search's People group and names as links stay. Replaces
+those two parts of A172 on Android; the web is unchanged.
+
 ### A181 — Ship the add-to-playlist redo on Android in v0.4.12 *(was Q181)*
 **Answered:** 2026-10-13, in chat: "yes go out". Straight to a release, no debug build on the phone first.
 

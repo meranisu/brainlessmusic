@@ -14,6 +14,7 @@ import {
   removeTrackFromPlaylist,
   renamePlaylist,
   reorderPlaylistTracks,
+  setPlaylistDescription,
   setPlaylistPublic,
   type PlaylistRow,
 } from '../db/playlists.js';
@@ -22,6 +23,26 @@ import { isAdminRequest } from '../utils/isAdmin.js';
 /** Longest playlist name, in characters (code points, so an emoji counts once). The apps show the same limit. */
 export const MAX_NAME_LENGTH = 100;
 const COPY_SUFFIX = ' (copy)';
+
+/** Longest playlist description, in characters, counted as names are. The apps show the same limit. */
+export const MAX_DESCRIPTION_LENGTH = 300;
+
+/**
+ * Checks a description from a request body: text or null. Trimmed; empty or null clears it. Line breaks are kept
+ * (it can run to a few lines), other control characters are refused, and it is at most MAX_DESCRIPTION_LENGTH.
+ */
+export function checkPlaylistDescription(raw: unknown): { description: string | null } | { error: string } {
+  if (raw === null) return { description: null };
+  if (typeof raw !== 'string') return { error: 'description must be text or null' };
+  const description = raw.replace(/\r\n?/g, '\n').trim();
+  if (/[\u0000-\u0009\u000b-\u001f\u007f]/.test(description)) {
+    return { error: 'description cannot contain control characters' };
+  }
+  if ([...description].length > MAX_DESCRIPTION_LENGTH) {
+    return { error: `description can be at most ${MAX_DESCRIPTION_LENGTH} characters` };
+  }
+  return { description: description || null };
+}
 
 /**
  * Checks a playlist name from a request body (S21): a string, not blank once trimmed, no control characters, at most
@@ -139,8 +160,8 @@ const playlistsRoute: FastifyPluginAsync = async (fastify) => {
     },
   );
 
-  // Rename, and the public switch (A162). Either or both.
-  fastify.patch<{ Params: { id: string }; Body: { name?: unknown; isPublic?: unknown } }>(
+  // Rename, the description, and the public switch (A162). Any of them.
+  fastify.patch<{ Params: { id: string }; Body: { name?: unknown; description?: unknown; isPublic?: unknown } }>(
     '/playlists/:id',
     { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
@@ -149,9 +170,10 @@ const playlistsRoute: FastifyPluginAsync = async (fastify) => {
       if (!playlist) return;
 
       const rawName = request.body?.name;
+      const rawDescription = request.body?.description;
       const isPublic = request.body?.isPublic;
-      if (rawName === undefined && isPublic === undefined) {
-        return reply.code(400).send({ error: 'name or isPublic is required' });
+      if (rawName === undefined && rawDescription === undefined && isPublic === undefined) {
+        return reply.code(400).send({ error: 'name, description or isPublic is required' });
       }
       if (isPublic !== undefined && typeof isPublic !== 'boolean') {
         return reply.code(400).send({ error: 'isPublic must be true or false' });
@@ -164,13 +186,23 @@ const playlistsRoute: FastifyPluginAsync = async (fastify) => {
         }
         name = checked.name;
       }
+      let description: string | null | undefined;
+      if (rawDescription !== undefined) {
+        const checked = checkPlaylistDescription(rawDescription);
+        if ('error' in checked) {
+          return reply.code(400).send({ error: checked.error });
+        }
+        description = checked.description;
+      }
 
       if (name) renamePlaylist(playlist.id, name);
+      if (description !== undefined) setPlaylistDescription(playlist.id, description);
       if (isPublic !== undefined) setPlaylistPublic(playlist.id, isPublic);
       const updated = findPlaylistById(playlist.id)!;
       return reply.send({
         id: updated.id,
         name: updated.name,
+        description: updated.description,
         createdAt: updated.created_at,
         isPublic: updated.is_public === 1,
       });
@@ -191,7 +223,9 @@ const playlistsRoute: FastifyPluginAsync = async (fastify) => {
       // Older names may be longer than the limit; the copy is cut so it fits with its suffix.
       const name = `${[...source.name].slice(0, MAX_NAME_LENGTH - COPY_SUFFIX.length).join('')}${COPY_SUFFIX}`;
       const copy = copyPlaylist(source.id, request.user!.id, name, isOwner || isAdminRequest(request));
-      return reply.code(201).send({ id: copy.id, name: copy.name, createdAt: copy.created_at, isPublic: false });
+      return reply
+        .code(201)
+        .send({ id: copy.id, name: copy.name, description: copy.description, createdAt: copy.created_at, isPublic: false });
     },
   );
 

@@ -76,6 +76,8 @@ data class PlaylistSummaryDto(
     val isPublic: Boolean = false,
     // Holds the song asked about; only set when the list was fetched for one song. Null from an older server.
     val hasTrack: Boolean? = null,
+    // What it is, in the owner's words (A185). Null without one, or from an older server.
+    val description: String? = null,
 )
 
 data class PlaylistsDto(val playlists: List<PlaylistSummaryDto>)
@@ -88,6 +90,7 @@ data class PublicPlaylistDto(
     val ownerId: Int,
     val ownerName: String?,
     val coverAlbumIds: List<Int>? = null,
+    val description: String? = null,
 )
 
 data class PublicPlaylistsDto(val playlists: List<PublicPlaylistDto>)
@@ -115,6 +118,8 @@ data class PlaylistTrackDto(
     val albumId: Int? = null,
     val trackNumber: Int? = null,
     val gainDb: Double? = null,
+    // SQLite UTC, when it went into the playlist, for "Recently added". Null from an older server.
+    val addedAt: String? = null,
 )
 
 data class PlaylistDetailDto(
@@ -128,14 +133,18 @@ data class PlaylistDetailDto(
     // Opens their profile from the "by" line (A172). Null from an older server.
     val ownerId: Int? = null,
     val isPublic: Boolean = false,
+    val description: String? = null,
 ) {
     val isMine: Boolean get() = isOwner != false
 }
 
 /** `POST /playlists` and `PATCH /playlists/:id` both answer with this. */
-data class PlaylistRefDto(val id: Int, val name: String)
+data class PlaylistRefDto(val id: Int, val name: String, val description: String? = null)
 
 data class PlaylistNameRequest(val name: String)
+
+/** The name and description together (A185). Gson leaves out nulls, so an empty description is what clears it. */
+data class PlaylistDetailsRequest(val name: String, val description: String)
 
 data class PlaylistPublicRequest(val isPublic: Boolean)
 

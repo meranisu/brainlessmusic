@@ -89,6 +89,7 @@ erDiagram
         TEXT created_at
         INTEGER is_public
         TEXT public_at
+        TEXT description
     }
     playlist_tracks {
         INTEGER playlist_id PK_FK
@@ -246,6 +247,7 @@ Added `0032`. Which genres a track has, from its genre tag split on `;` and `/` 
 | `created_at` | TEXT | NOT NULL | `datetime('now')` | |
 | `is_public` | INTEGER | NOT NULL | `0` | Added `0034`. 1: everyone signed in on this server can see and play it, and save a copy (A162). Only an account owns playlists, so a guest never has one (A163) |
 | `public_at` | TEXT | nullable | — | Added `0034`. When it last went public; NULL while private. "From others" is newest first by it (A166) |
+| `description` | TEXT | nullable | — | Added `0036`. The owner's words on what it is, up to 300 characters, line breaks kept; NULL without one. Shown on public and private playlists alike, and kept by a copy (A185) |
 
 **FKs:** `owner_id → users.id` (`NO ACTION` / `NO ACTION`).
 **Indexes:** `idx_playlists_owner_id`, `idx_playlists_public_at` (`is_public, public_at`, added `0034`).
@@ -582,6 +584,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | `0033_add_library_root_full_scan.sql` | `library_roots.last_full_scan_at` — scans run when due, not reset by restarts |
 | `0034_add_playlist_public.sql` | `playlists.is_public`, `playlists.public_at`, `idx_playlists_public_at` — public playlists (A162-A166) |
 | `0035_add_user_profile.sql` | `users.bio`, `avatar_id`, `favorite_track_id`, `favorite_artist_id` — the profile page (A167-A170) |
+| `0036_add_playlist_description.sql` | `playlists.description` — playlist descriptions (A185) |
 | `0031_add_track_disc_number.sql` | `tracks.disc_number` — disc order (v0.4 box 26) |
 | `0032_create_genres.sql` | `genres`, `track_genres` + `idx_track_genres_genre_id` (v0.4 box 27) |
 | `0030_album_artist_and_folder.sql` | Rebuilds `albums` with ids kept: `folder`, `artist_from_tracks`, `merged_into_id`; `UNIQUE(title, artist_id)` replaced by `idx_albums_key` and `idx_albums_key_from_tracks`; `albums_fts` triggers recreated (v0.4, A148) |
@@ -591,6 +594,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | Date | Change | Why |
 |---|---|---|
 | 2026-10-13 | Migration `0035_add_user_profile.sql` — four `users` columns and the migration row. From the migration SQL and the test run | The profile page (A167-A170) |
+| 2026-10-13 | Migration `0036_add_playlist_description.sql` — one `playlists` column. From the migration SQL and the test run | Playlist descriptions (A185) |
 | 2026-10-13 | Migration `0034_add_playlist_public.sql` — `playlists.is_public` and `public_at`, the index, the ownership note, migration row. From the migration SQL and the test run | Public playlists (A162-A166) |
 | 2026-10-12 | Migration `0033_add_library_root_full_scan.sql` — new `library_roots` section (it had none since `0013`), migration row. From the migration SQL and the test run | Each auto-deploy restarted the 12-hour scan timer, so on a busy day the scheduled scan never ran |
 | 2026-10-12 | Migrations `0031_add_track_disc_number.sql` and `0032_create_genres.sql` — `tracks.disc_number` row; new `genres` and `track_genres` sections, relationship rows (plus the missing `albums.merged_into_id` row from `0030`), migration rows. From the migration SQL and the test run | v0.4: two-disc albums played disc 1 and 2 interleaved; no way to browse by genre (smol: 83% of tracks have one) |

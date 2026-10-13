@@ -227,6 +227,7 @@ fun BrainlessNavGraph(
                         onBack = { navController.popFrom(entry) },
                         onOpenNowPlaying = { navController.openNowPlaying() },
                         onOpenProfile = { navController.navigate(Routes.profile(it)) },
+                        onOpenPeople = { navController.navigate(Routes.PEOPLE) { launchSingleTop = true } },
                     )
                 }
                 screen(Routes.HOME) {
@@ -276,7 +277,6 @@ fun BrainlessNavGraph(
                         onOpenAlbum = { navController.navigate(Routes.albumDetail(it)) },
                         onOpenGenre = { navController.navigate(Routes.genreDetail(it)) },
                         onOpenPlaylist = { navController.navigate(Routes.playlistDetail(it)) },
-                        onOpenPeople = { navController.navigate(Routes.PEOPLE) { launchSingleTop = true } },
                     )
                 }
                 screen(Routes.SETTINGS) {

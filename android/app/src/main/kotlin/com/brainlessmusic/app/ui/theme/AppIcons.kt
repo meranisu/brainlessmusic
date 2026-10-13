@@ -27,7 +27,8 @@ import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -82,7 +83,8 @@ object AppIcons {
     val playlistAdd: ImageVector @Composable @ReadOnlyComposable get() = pick(Icons.AutoMirrored.Filled.PlaylistAdd, OsuIcons.AddToList, LaneIcons.AddToList, GearIcons.AddToList, RingIcons.AddToList)
     val person: ImageVector @Composable @ReadOnlyComposable get() = pick(Icons.Filled.Person, OsuIcons.User, LaneIcons.User, GearIcons.User, RingIcons.User)
     val library: ImageVector @Composable @ReadOnlyComposable get() = pick(Icons.Filled.LibraryMusic, OsuIcons.Music, LaneIcons.Music, GearIcons.Music, RingIcons.Music)
-    val groups: ImageVector @Composable @ReadOnlyComposable get() = pick(Icons.Filled.Groups, OsuIcons.Users, LaneIcons.Users, GearIcons.Users, RingIcons.Users)
+    val headphones: ImageVector @Composable @ReadOnlyComposable get() = pick(Icons.Filled.Headphones, OsuIcons.Headphones, LaneIcons.Headphones, GearIcons.Headphones, RingIcons.Headphones)
+    val camera: ImageVector @Composable @ReadOnlyComposable get() = pick(Icons.Filled.PhotoCamera, OsuIcons.Camera, LaneIcons.Camera, GearIcons.Camera, RingIcons.Camera)
     val dragHandle: ImageVector @Composable @ReadOnlyComposable get() = pick(Icons.Filled.DragHandle, OsuIcons.Grip, LaneIcons.Grip, GearIcons.Grip, RingIcons.Grip)
     val delete: ImageVector @Composable @ReadOnlyComposable get() = pick(Icons.Filled.Delete, OsuIcons.Trash, LaneIcons.Trash, GearIcons.Trash, RingIcons.Trash)
     val clear: ImageVector @Composable @ReadOnlyComposable get() = pick(Icons.Filled.Clear, OsuIcons.CircleClose, LaneIcons.CircleClose, GearIcons.CircleClose, RingIcons.CircleClose)

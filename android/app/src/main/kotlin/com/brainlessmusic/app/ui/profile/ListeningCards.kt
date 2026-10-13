@@ -143,7 +143,7 @@ private fun ListeningSurface(content: @Composable () -> Unit) {
  * under it six numbered circles, the combo numbers 1 to 6, each ringed to its reading.
  */
 @Composable
-fun HitCircleListening(stats: UserStatsDto, range: StatsRange) {
+fun HitCircleListening(stats: UserStatsDto, range: StatsRange, owner: String? = null) {
     val scheme = MaterialTheme.colorScheme
     val (values, grow) = rememberReadings(stats, range)
     val overall = listeningOverall(values)
@@ -166,7 +166,7 @@ fun HitCircleListening(stats: UserStatsDto, range: StatsRange) {
                 Column(Modifier.padding(start = 16.dp)) {
                     Text("Listening", style = MaterialTheme.typography.titleLarge)
                     Text(
-                        "Your ${range.label.lowercase()}, played like a beatmap",
+                        "${whose(owner)} ${range.label.lowercase()}, played like a beatmap",
                         style = MaterialTheme.typography.bodySmall,
                         color = scheme.onSurfaceVariant,
                     )
@@ -246,7 +246,7 @@ internal fun potential(overall: Float): Float = overall.coerceIn(0f, 1f) * 13f
  * its diamond badge, coloured by band as the game's is, and the six follow as slanted bars like its song rows.
  */
 @Composable
-fun LaneListening(stats: UserStatsDto, range: StatsRange) {
+fun LaneListening(stats: UserStatsDto, range: StatsRange, owner: String? = null) {
     val scheme = MaterialTheme.colorScheme
     val (values, grow) = rememberReadings(stats, range)
     val ptt = potential(listeningOverall(values))
@@ -266,7 +266,7 @@ fun LaneListening(stats: UserStatsDto, range: StatsRange) {
                 Column(Modifier.padding(start = 12.dp)) {
                     Text("Potential", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Light)
                     Text(
-                        "Your ${range.label.lowercase()}, rated like a player",
+                        "${whose(owner)} ${range.label.lowercase()}, rated like a player",
                         style = MaterialTheme.typography.bodySmall,
                         color = scheme.onSurfaceVariant,
                     )
@@ -341,7 +341,7 @@ internal fun listeningRating(overall: Float): Int = (overall.coerceIn(0f, 1f) * 
  * and the six follow as rounded bars in the cabinet's button colours.
  */
 @Composable
-fun RingListening(stats: UserStatsDto, range: StatsRange) {
+fun RingListening(stats: UserStatsDto, range: StatsRange, owner: String? = null) {
     val scheme = MaterialTheme.colorScheme
     val (values, grow) = rememberReadings(stats, range)
     val rating = listeningRating(listeningOverall(values))
@@ -384,7 +384,7 @@ fun RingListening(stats: UserStatsDto, range: StatsRange) {
             }
             Row(Modifier.fillMaxWidth().padding(top = 8.dp, start = 4.dp, end = 4.dp)) {
                 Text(
-                    "${tier.name} · your ${range.label.lowercase()}",
+                    "${tier.name} · ${whose(owner, capital = false)} ${range.label.lowercase()}",
                     style = MaterialTheme.typography.bodySmall,
                     color = scheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),

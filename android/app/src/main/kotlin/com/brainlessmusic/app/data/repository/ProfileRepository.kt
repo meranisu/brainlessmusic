@@ -9,6 +9,7 @@ import com.brainlessmusic.app.data.remote.dto.FavoritesPageDto
 import com.brainlessmusic.app.data.remote.dto.HistoryEntryDto
 import com.brainlessmusic.app.data.remote.dto.LessOftenPageDto
 import com.brainlessmusic.app.data.remote.dto.PlaylistDetailDto
+import com.brainlessmusic.app.data.remote.dto.PlaylistDetailsRequest
 import com.brainlessmusic.app.data.remote.dto.PlaylistNameRequest
 import com.brainlessmusic.app.data.remote.dto.PlaylistPublicRequest
 import com.brainlessmusic.app.data.remote.dto.PublicPlaylistDto
@@ -158,6 +159,10 @@ class ProfileRepository @Inject constructor(
 
     suspend fun renamePlaylist(id: Int, name: String): Result<PlaylistRefDto> =
         callApi { it.renamePlaylist(id, PlaylistNameRequest(name)) }
+
+    /** Name and description in one save (A185); an empty [description] clears it. */
+    suspend fun editPlaylistDetails(id: Int, name: String, description: String): Result<PlaylistRefDto> =
+        callApi { it.editPlaylistDetails(id, PlaylistDetailsRequest(name, description)) }
 
     suspend fun deletePlaylist(id: Int): Result<Unit> = callApi { it.deletePlaylist(id) }
 

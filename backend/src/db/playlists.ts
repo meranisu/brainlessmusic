@@ -10,11 +10,14 @@ export interface PlaylistRow {
   is_public: number;
   /** When it last went public; null while private. */
   public_at: string | null;
+  /** What it is, in the owner's words; null without one. */
+  description: string | null;
 }
 
 export interface PlaylistSummary {
   id: number;
   name: string;
+  description: string | null;
   trackCount: number;
   createdAt: string;
   isPublic: boolean;
@@ -56,11 +59,14 @@ export interface PlaylistTrack {
   gainDb: number | null;
   format: string | null;
   position: number;
+  /** When it went into this playlist, for "Recently added". */
+  addedAt: string;
 }
 
 export interface PlaylistDetail {
   id: number;
   name: string;
+  description: string | null;
   ownerId: number;
   ownerName: string;
   createdAt: string;
@@ -103,6 +109,7 @@ export function listPlaylistsForUser(ownerId: number, trackId?: number): Playlis
       `SELECT
          p.id as id,
          p.name as name,
+         p.description as description,
          p.created_at as createdAt,
          p.is_public as isPublic,
          COUNT(pt.track_id) as trackCount,
@@ -132,6 +139,7 @@ export function listPublicPlaylists(viewerId: number, includeHidden = false): Pu
       `SELECT
          p.id as id,
          p.name as name,
+         p.description as description,
          p.created_at as createdAt,
          p.public_at as publicAt,
          p.owner_id as ownerId,
@@ -201,7 +209,8 @@ export function getPlaylistDetail(id: number, includeHidden = true): PlaylistDet
          t.duration as duration,
          ${trackGainSql()} as gainDb,
          t.format as format,
-         pt.position as position
+         pt.position as position,
+         pt.added_at as addedAt
        FROM playlist_tracks pt
        JOIN tracks t ON t.id = pt.track_id
        LEFT JOIN artists a ON a.id = t.artist_id
@@ -214,6 +223,7 @@ export function getPlaylistDetail(id: number, includeHidden = true): PlaylistDet
   return {
     id: playlist.id,
     name: playlist.name,
+    description: playlist.description,
     ownerId: playlist.owner_id,
     ownerName: owner?.name ?? '',
     createdAt: playlist.created_at,
@@ -233,6 +243,11 @@ export function renamePlaylist(id: number, name: string): void {
   db.prepare('UPDATE playlists SET name = ? WHERE id = ?').run(name, id);
 }
 
+/** Null or an empty string clears it. */
+export function setPlaylistDescription(id: number, description: string | null): void {
+  db.prepare('UPDATE playlists SET description = ? WHERE id = ?').run(description || null, id);
+}
+
 /** Making it public stamps `public_at`, so it rises to the top of "From others"; private clears it. */
 export function setPlaylistPublic(id: number, isPublic: boolean): void {
   db.prepare(
@@ -250,6 +265,10 @@ export function setPlaylistPublic(id: number, isPublic: boolean): void {
 export function copyPlaylist(sourceId: number, ownerId: number, name: string, includeHidden: boolean): PlaylistRow {
   const copy = db.transaction(() => {
     const created = createPlaylist(name, ownerId);
+    db.prepare('UPDATE playlists SET description = (SELECT description FROM playlists WHERE id = ?) WHERE id = ?').run(
+      sourceId,
+      created.id,
+    );
     db.prepare(
       `INSERT INTO playlist_tracks (playlist_id, track_id, position)
        SELECT ?, pt.track_id, ROW_NUMBER() OVER (ORDER BY pt.position) - 1
@@ -257,7 +276,7 @@ export function copyPlaylist(sourceId: number, ownerId: number, name: string, in
        JOIN tracks t ON t.id = pt.track_id
        WHERE pt.playlist_id = ? ${hiddenClause(includeHidden)}`,
     ).run(created.id, sourceId);
-    return created;
+    return findPlaylistById(created.id)!;
   });
   return copy();
 }
