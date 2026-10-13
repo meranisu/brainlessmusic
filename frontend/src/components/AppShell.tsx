@@ -27,12 +27,16 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 function navItemsFor(isGuest: boolean): { primary: NavItem[]; overflow: NavItem[] } {
   return {
     primary: [
-      { to: '/', label: 'Library', end: true },
-      { to: '/albums', label: 'Albums' },
-      { to: '/artists', label: 'Artists' },
+      { to: '/', label: 'Library', end: true, detail: 'Every song on the server' },
+      { to: '/albums', label: 'Albums', detail: 'Browse by cover art' },
+      { to: '/artists', label: 'Artists', detail: 'Everyone with a song here' },
       // Guests are listen-only (A37), but they see and play other people's public playlists (A163).
-      ...(isGuest ? [] : [{ to: '/favorites', label: 'Favorites' }]),
-      { to: '/playlists', label: 'Playlists' },
+      ...(isGuest ? [] : [{ to: '/favorites', label: 'Favorites', detail: 'The songs you liked' }]),
+      {
+        to: '/playlists',
+        label: 'Playlists',
+        detail: isGuest ? "Other people's public ones" : "Yours, and other people's public ones",
+      },
     ],
     // Upload, Users and the Control Center are one dashboard with its own header button now (owner request,
     // 2026-10-11), so More holds only what doesn't fit the bar.
@@ -156,7 +160,7 @@ export function AppShell() {
 
     rememberDirection(index);
     event.preventDefault();
-    leaveThrough({ text: item.label }, item.to);
+    leaveThrough({ text: item.label, detail: item.detail }, item.to);
   }
 
   /**
@@ -280,7 +284,7 @@ export function AppShell() {
             {user?.isAdmin && (
               <button
                 onClick={() =>
-                  leaveThrough({ text: 'Control Center', detail: 'Server, uploads and accounts' }, '/control-center')
+                  leaveThrough({ text: 'Control Center', detail: 'Health, logs, uploads and accounts' }, '/control-center')
                 }
                 aria-label="Control Center"
                 aria-current={pathname.startsWith('/control-center') ? 'page' : undefined}

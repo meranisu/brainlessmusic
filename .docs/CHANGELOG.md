@@ -4,6 +4,15 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-13: Every page-change card has a line under its title
+
+- Owner request: the card shown when changing pages had a line under the title for Listen together, Genres, Options
+  and Control Center, but not for the bar's tabs. Library, Albums, Artists, Favorites and Playlists now have one too
+  (`navItemsFor` in `AppShell.tsx`; `onTabClick` passes `detail`). A guest's Playlists line leaves out "Yours".
+- Control Center's line said "Server, uploads and accounts", from before the Logs tab; it now reads "Health, logs,
+  uploads and accounts".
+- Verified: `npm run build` and `npm run lint` in `frontend/` (no new warnings). Not checked in a browser.
+
 ## 2026-10-13: Public playlists on Android (v0.4.8), and `isOwner` in playlist search
 
 - Android, per A162-A166: the Playlists tab adds "From others" (owner and count on each tile, newest public first);

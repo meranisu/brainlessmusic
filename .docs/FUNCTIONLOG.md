@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `navItemsFor()`, `onTabClick()`: `frontend/src/components/AppShell.tsx`
+**Date:** 2026-10-13
+**How added:** refactor (owner request)
+**Purpose:** the bar's tabs carry a `detail` line, and `onTabClick` passes it to the page-change card.
+**Side effects:** none.
+**Before:** a tab's card showed only its title; More items, Options and Control Center already had a line.
+**After:** every page-change card has a line under its title. A guest's Playlists line has no "Yours".
+
 **Function:** `PlaylistsViewModel.load()`, `PlaylistsTab()`, `PlaylistTile()`: `android/.../ui/profile/PlaylistsScreen.kt`; `PlaylistDetailViewModel.setPublic()`, `saveCopy()` (new), `PlaylistDetailScreen()`, `PlaylistRow()`: `android/.../ui/profile/PlaylistDetailScreen.kt`; `PlaylistResultRow()` (new), `SearchScreen()`: `android/.../ui/search/SearchScreen.kt`; `ProfileRepository.publicPlaylists()`, `setPlaylistPublic()`, `copyPlaylist()` (new); DTOs in `ProfileDtos.kt`, `LibraryDtos.kt`; `searchPlaylists()` (`isOwner`): `backend/src/db/playlists.ts`
 **Date:** 2026-10-13
 **How added:** new feature (A162-A166)
