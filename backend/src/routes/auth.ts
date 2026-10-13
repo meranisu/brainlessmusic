@@ -420,6 +420,8 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       isGuest: user.kind === 'guest',
       hasPasscode: Boolean(user.passcode_hash),
       theme: user.theme,
+      // So the header's picture button needs no second request (A171).
+      avatarId: user.avatar_id,
     });
   });
 

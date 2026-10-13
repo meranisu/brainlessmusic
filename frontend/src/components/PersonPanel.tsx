@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Link } from 'react-router-dom';
 import { useScrollLock } from '../hooks/useScrollLock';
 import { deviceCount, platformLabel, useGuestCodeActions } from '../hooks/useGuestCodes';
 import { ApiError, apiClient } from '../lib/apiClient';
@@ -143,6 +144,11 @@ export function PersonPanel({
               <span className="font-mono">{person.username}</span> · {roleLabel(person)}
               {isSelf && ' · you'}
             </p>
+            {person.kind === 'account' && (
+              <Link to={`/people/${person.id}`} className="mt-1 inline-block text-xs text-accent-ink underline-offset-2 hover:underline">
+                Open profile
+              </Link>
+            )}
           </div>
           <button type="button" onClick={onClose} autoFocus className="btn-secondary btn-sm shrink-0">
             Close

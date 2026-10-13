@@ -24,6 +24,8 @@ interface AuthContextValue {
   clearPasscode: () => Promise<void>;
   /** Renames the signed-in user (A68). Blank: a guest gets a new `Guest 1234`, an account its username back. */
   setDisplayName: (name: string) => Promise<void>;
+  /** Reloads `user`, after something else changed it (a new profile picture). */
+  refreshUser: () => Promise<void>;
   logout: () => void;
 }
 
@@ -140,6 +142,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(await apiClient.get<User>('/auth/me'));
   }
 
+  async function refreshUser() {
+    setUser(await apiClient.get<User>('/auth/me'));
+  }
+
   function logout() {
     setToken(null);
     setUser(null);
@@ -160,6 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setPasscode,
         clearPasscode,
         setDisplayName,
+        refreshUser,
         logout,
       }}
     >

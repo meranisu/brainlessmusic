@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import { AlbumGrid } from '../components/AlbumGrid';
+import { Avatar } from '../components/Avatar';
 import { CoverArt } from '../components/CoverArt';
 import { FavoriteButton, useFavoriteIds } from '../components/FavoriteButton';
 import { PlaylistListItem } from '../components/PlaylistListItem';
@@ -56,7 +57,7 @@ export function SearchPage() {
     format: t.format,
   }));
 
-  const total = data ? data.artists.length + data.albums.length + data.tracks.length + data.playlists.length : 0;
+  const total = data ? data.artists.length + data.albums.length + data.tracks.length + data.playlists.length + data.people.length : 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -71,7 +72,7 @@ export function SearchPage() {
               ? '\u00a0' // the skeleton already says "Searching for …" (A84)
               : isPlaceholderData
                 ? 'Searching…'
-                : `${total} result${total === 1 ? '' : 's'} across artists, albums, tracks and playlists`}
+                : `${total} result${total === 1 ? '' : 's'} across artists, albums, tracks, playlists and people`}
         </p>
       </div>
 
@@ -124,9 +125,30 @@ export function SearchPage() {
                     name={p.name}
                     trackCount={p.trackCount}
                     coverAlbumIds={p.coverAlbumIds}
+                    ownerId={p.ownerId}
                     ownerName={p.isOwner ? undefined : p.ownerName}
                     isPublic={p.isPublic}
                   />
+                </li>
+              ))}
+            </ul>
+          </Section>
+
+          {/* To reach someone's profile (A172). */}
+          <Section title="People" count={data.people.length}>
+            <ul className="card divide-y divide-blue-800/60 overflow-hidden">
+              {data.people.map((p) => (
+                <li key={p.id}>
+                  <Link
+                    to={`/people/${p.id}`}
+                    className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-blue-800/40"
+                  >
+                    <Avatar userId={p.id} name={p.name} avatarId={p.avatarId} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium text-white">{p.name}</span>
+                      {p.bio && <span className="block truncate text-xs text-blue-300">{p.bio}</span>}
+                    </span>
+                  </Link>
                 </li>
               ))}
             </ul>

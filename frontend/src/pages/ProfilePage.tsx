@@ -2,10 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useParams } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
 import { Avatar } from '../components/Avatar';
 import { CoverArt } from '../components/CoverArt';
 import { usePlayer, type QueueTrack } from '../components/PlayerBar';
 import { PlaylistListItem } from '../components/PlaylistListItem';
+import { useRoom } from '../components/RoomProvider';
 import { Skeleton, SkeletonDetailHeader, SkeletonTrackRows } from '../components/Skeleton';
 import { useToast } from '../components/ToastProvider';
 import { useScrollLock } from '../hooks/useScrollLock';
@@ -53,32 +55,97 @@ function Section({ title, count, children }: { title: string; count?: number; ch
   );
 }
 
-/** Songs as rows; a click plays the list from there. `rank` numbers them as a top list. */
+/**
+ * Songs as rows; a click plays the list from there. `rank` numbers them as a top list. In a room, Play adds to the
+ * queue everyone hears, so it asks first (A173).
+ */
 function SongRows({ tracks, rank, detail }: { tracks: TrackSummary[]; rank?: boolean; detail?: (i: number) => string }) {
   const { playQueue } = usePlayer();
+  const { room } = useRoom();
+  const [askingFor, setAskingFor] = useState<number | null>(null);
   const queue = toQueue(tracks);
   return (
-    <ul className="card divide-y divide-blue-800/60 overflow-hidden">
-      {tracks.map((t, i) => (
-        <li key={t.id}>
-          <button
-            type="button"
-            onClick={() => playQueue(queue, i)}
-            className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-blue-800/40 focus-visible:bg-blue-800/40"
-          >
-            {rank && <span className="w-5 shrink-0 text-right font-mono text-xs tabular-nums text-blue-400">{i + 1}</span>}
-            <CoverArt kind="tracks" id={t.id} className="h-9 w-9" />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium text-white">{t.title}</span>
-              <span className="block truncate text-xs text-blue-300">{t.artist ?? 'Unknown artist'}</span>
-            </span>
-            <span className="shrink-0 font-mono text-xs tabular-nums text-blue-300">
-              {detail ? detail(i) : formatDuration(t.duration)}
-            </span>
+    <>
+      <ul className="card divide-y divide-blue-800/60 overflow-hidden">
+        {tracks.map((t, i) => (
+          <li key={t.id}>
+            <button
+              type="button"
+              onClick={() => (room ? setAskingFor(i) : playQueue(queue, i))}
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-blue-800/40 focus-visible:bg-blue-800/40"
+            >
+              {rank && <span className="w-5 shrink-0 text-right font-mono text-xs tabular-nums text-blue-400">{i + 1}</span>}
+              <CoverArt kind="tracks" id={t.id} className="h-9 w-9" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium text-white">{t.title}</span>
+                <span className="block truncate text-xs text-blue-300">{t.artist ?? 'Unknown artist'}</span>
+              </span>
+              <span className="shrink-0 font-mono text-xs tabular-nums text-blue-300">
+                {detail ? detail(i) : formatDuration(t.duration)}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      {askingFor !== null && room && (
+        <RoomPlayDialog
+          roomCode={room.code}
+          title={tracks[askingFor].title}
+          more={tracks.length - askingFor - 1}
+          onConfirm={() => {
+            playQueue(queue, askingFor);
+            setAskingFor(null);
+          }}
+          onCancel={() => setAskingFor(null)}
+        />
+      )}
+    </>
+  );
+}
+
+/** "This goes to everyone": shown before a profile's song is added to the room you're in (A173). */
+function RoomPlayDialog({
+  roomCode,
+  title,
+  more,
+  onConfirm,
+  onCancel,
+}: {
+  roomCode: string;
+  title: string;
+  more: number;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  useScrollLock();
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={onCancel}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="room-play-title"
+        className="card w-full max-w-sm p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id="room-play-title" className="text-sm font-semibold text-white">
+          Play this in room {roomCode}?
+        </h2>
+        <p className="mt-2 text-sm text-blue-200">
+          <span className="text-white">{title}</span>
+          {more > 0 && ` and the ${more === 1 ? 'song' : 'songs'} after it`} will go next in the room's queue, for
+          everyone listening.
+        </p>
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" onClick={onCancel} className="btn-secondary btn-sm">
+            Cancel
           </button>
-        </li>
-      ))}
-    </ul>
+          <button type="button" onClick={onConfirm} className="btn-primary btn-sm" autoFocus>
+            Play in the room
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -166,8 +233,9 @@ export function ProfilePage() {
           <span className="font-mono text-xs uppercase tracking-widest text-blue-400">Profile</span>
           <h1 className="font-display text-3xl font-extrabold text-white sm:text-4xl">{data.name}</h1>
           <p className="text-xs text-blue-300">
-            <span className="font-mono">{data.username}</span>
-            {data.isAdmin && ' · Admin'} · here since {formatDate(data.memberSince)}
+            {/* Only on your own (A174). */}
+            {data.username && <span className="font-mono">{data.username} · </span>}
+            {data.isAdmin && 'Admin · '}here since {formatDate(data.memberSince)}
           </p>
           {data.bio && <p className="mt-3 max-w-2xl whitespace-pre-line text-sm text-blue-100">{data.bio}</p>}
           {(data.favoriteTrack || data.favoriteArtist) && (
@@ -195,9 +263,15 @@ export function ProfilePage() {
           )}
         </div>
         {data.isSelf && (
-          <button type="button" onClick={() => setEditing(true)} className="btn-secondary btn-md self-start">
-            Edit profile
-          </button>
+          <div className="flex shrink-0 flex-wrap gap-2 self-start">
+            <button type="button" onClick={() => setEditing(true)} className="btn-secondary btn-md">
+              Edit profile
+            </button>
+            {/* Your own page is where you'd look for everyone else's (A172). */}
+            <Link to="/people" className="btn-ghost btn-md">
+              See everyone
+            </Link>
+          </div>
         )}
       </header>
 
@@ -362,6 +436,7 @@ function EditProfileDialog({ profile, onClose }: { profile: Profile; onClose: ()
   const fail = (err: unknown, fallback: string) =>
     showToast(err instanceof ApiError ? err.message : fallback, 'error');
 
+  const { refreshUser } = useAuth();
   const pictureMutation = useMutation({
     mutationFn: (file: File | null) => {
       if (!file) return apiClient.delete('/me/avatar');
@@ -372,6 +447,8 @@ function EditProfileDialog({ profile, onClose }: { profile: Profile; onClose: ()
     onSuccess: (_res, file) => {
       void refresh();
       void queryClient.invalidateQueries({ queryKey: ['people'] });
+      // The header's picture button reads it from the signed-in user (A171).
+      void refreshUser().catch(() => {});
       showToast(file ? 'Picture updated' : 'Picture removed');
     },
     onError: (err) => fail(err, 'Could not change the picture'),

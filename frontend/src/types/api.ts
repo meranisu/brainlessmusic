@@ -10,6 +10,8 @@ export interface User {
   hasPasscode: boolean;
   /** Web theme id (A55), or `null` if this profile never chose one. */
   theme: string | null;
+  /** Profile picture (A167), or `null` for the initial tile. Always `null` for a guest. */
+  avatarId: string | null;
 }
 
 export interface TrackSummary {
@@ -415,6 +417,8 @@ export interface SearchResults {
   tracks: TrackSummary[];
   /** The viewer's own and everyone's public ones, own first (A162). */
   playlists: PlaylistSearchResult[];
+  /** Accounts whose name matches, to reach their profile (A172). */
+  people: Person[];
 }
 
 export interface UserSummary {
@@ -528,8 +532,9 @@ export type StatsRange = 'week' | 'month' | 'year' | 'all';
 export interface Profile {
   id: number;
   name: string;
-  username: string;
-  isAdmin: boolean;
+  /** Your own profile only: others see the display name alone (A174). */
+  username?: string;
+  isAdmin?: boolean;
   isSelf: boolean;
   memberSince: string;
   bio: string | null;

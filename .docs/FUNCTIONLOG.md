@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `searchPeople()` (new): `backend/src/db/profile.ts`; `GET /search` (adds `people`): `backend/src/routes/search.ts`; `GET /auth/me` (adds `avatarId`): `backend/src/routes/auth.ts`; `GET /users/:id/profile` (A174)
+**Date:** 2026-10-13
+**How added:** new feature (A171, A172, A174)
+**Purpose:** find people by name in search; give the header its picture; keep login names to their owner.
+**Side effects:** none (read only).
+**Before:** search had no people; `/auth/me` had no picture; others' profiles included `username` and `isAdmin`.
+**After:** search has `people`; `/auth/me` has `avatarId`; others' profiles carry the display name only.
+
+**Function:** `RoomPlayDialog()` (new), `SongRows()` (asks in a room): `frontend/src/pages/ProfilePage.tsx`; `PlaylistListItem()` (owner link): `frontend/src/components/PlaylistListItem.tsx`; `refreshUser()` (new): `frontend/src/auth/AuthContext.tsx`; `navItemsFor()` (People): `frontend/src/components/AppShell.tsx`
+**Date:** 2026-10-13
+**How added:** new feature (A171-A173)
+**Purpose:** the web's ways into profiles, and the room prompt.
+**Side effects:** `RoomPlayDialog` confirms before `playQueue` sends `add` to the room.
+**Before:** profile pages existed but nothing linked to them; a playlist row was one link.
+**After:** header picture button, People in More, name links, People in search; a playlist row is a stretched link with the maker's name as its own link.
+
 **Function:** `saveAvatar()`, `imageDemuxer()` (new), `jpegOrientation()` (new): `backend/src/services/avatars.ts`
 **Date:** 2026-10-13
 **How added:** hardening (review of `abc35a4`)

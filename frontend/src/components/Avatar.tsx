@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { buildAvatarUrl } from '../lib/apiClient';
 
 const SIZES = {
+  xs: 'h-8 w-8 text-sm',
   sm: 'h-9 w-9 text-base',
   md: 'h-12 w-12 text-xl',
   lg: 'h-24 w-24 text-4xl sm:h-28 sm:w-28',

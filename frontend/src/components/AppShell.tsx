@@ -11,6 +11,7 @@ import { HandoffDialog } from './HandoffDialog';
 import { ArcadeInterstitial, ArrivalVeil } from './ArcadeInterstitial';
 import { ShellBackdrop } from './BackdropDepth';
 import { CloseIcon, ExitIcon, FadersIcon, GearIcon, SearchIcon } from './icons';
+import { Avatar } from './Avatar';
 import { NavOverflow, type NavItem } from './NavOverflow';
 import { ScrollTopButton } from './ScrollTopButton';
 
@@ -45,6 +46,8 @@ function navItemsFor(isGuest: boolean): { primary: NavItem[]; overflow: NavItem[
       { to: '/together', label: 'Listen together', detail: 'Same song, same moment' },
       // Behind More with Listen together: the bar is full (v0.4 box 28).
       { to: '/genres', label: 'Genres', detail: 'Albums by genre tag' },
+      // Everyone's profiles (A172), guests included: they can look, they just have none of their own.
+      { to: '/people', label: 'People', detail: 'Who listens to what' },
     ],
   };
 }
@@ -296,6 +299,23 @@ export function AppShell() {
                 }`}
               >
                 <FadersIcon className="h-5 w-5" />
+              </button>
+            )}
+
+            {/* Your picture opens your profile (A171). Guests have no profile, so no button. */}
+            {user && !user.isGuest && (
+              <button
+                onClick={() =>
+                  leaveThrough({ text: user.displayName, detail: 'Your profile' }, `/people/${user.id}`)
+                }
+                aria-label="Your profile"
+                aria-current={pathname === `/people/${user.id}` ? 'page' : undefined}
+                data-tip="Your profile"
+                className={`tip shrink-0 rounded-md p-0.5 transition-opacity hover:opacity-80 ${
+                  pathname === `/people/${user.id}` ? 'ring-2 ring-orange-600' : ''
+                }`}
+              >
+                <Avatar userId={user.id} name={user.displayName} avatarId={user.avatarId} size="xs" />
               </button>
             )}
 

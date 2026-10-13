@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-13: Profile page: ways in, people in search, display names only (A171-A174)
+
+- Your picture (or initial) in the web header, beside Options, opens your profile (A171). Guests get no button.
+  `/auth/me` returns `avatarId`, and a new picture refreshes the signed-in user, so the button updates at once.
+- People in the More menu, for everyone (A172). Your own profile has "See everyone".
+- Search returns `people` (accounts whose username or display name matches, up to 10) and the web shows a People group.
+- Names open profiles: a playlist's "by" line on its page and in "From others" and search rows (a stretched row link,
+  so the name is its own link), Listen together members, the Control Center's On air rows, and "Open profile" in
+  the Users panel. Guests' names stay plain.
+- In a room, tapping a song on a profile asks first, since it goes next in the queue for everyone (A173).
+- Someone else's profile no longer carries the login `username` or `isAdmin`; your own still does (A174).
+- Verified: `npm test` (587 pass), `npm run build`, `npm run lint` (no new warnings). Throwaway backend on :3111 with a
+  migrated scratch copy of the local database: screenshots at 1400 px and 390 px of the header button, More menu,
+  own profile, search for people and a public playlist row; the "by" name opened `/people/13` and the row opened the
+  playlist; no page errors. Copy deleted. Not run in a browser: the room prompt (needs a live room).
+
 ## 2026-10-13: Profile review fixes: picture uploads, sideways photos, hidden songs, display names (A174)
 
 - From the review of `abc35a4`. Not pushed.

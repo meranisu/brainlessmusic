@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { CoverArt } from '../components/CoverArt';
 import { FavoriteButton, useFavoriteIds } from '../components/FavoriteButton';
@@ -204,7 +204,15 @@ export function PlaylistDetailPage() {
         )}
 
         <p className="text-sm text-blue-200">
-          {!isOwner && <>by {data.ownerName} · </>}
+          {!isOwner && (
+            <>
+              by{' '}
+              <Link to={`/people/${data.ownerId}`} className="text-white underline-offset-2 hover:underline">
+                {data.ownerName}
+              </Link>{' '}
+              ·{' '}
+            </>
+          )}
           {data.tracks.length} track{data.tracks.length === 1 ? '' : 's'}
           {isOwner && (data.isPublic ? ' · Public' : ' · Only you')}
         </p>

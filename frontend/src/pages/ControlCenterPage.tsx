@@ -217,7 +217,15 @@ function RoomCard({ room }: { room: AdminRoom }) {
           const state = memberState(m);
           return (
             <li key={m.userId} className="flex flex-wrap items-center gap-x-2 gap-y-1 px-4 py-2 text-sm">
-              <span className="min-w-0 flex-1 truncate text-blue-100">{m.name}</span>
+              <span className="min-w-0 flex-1 truncate text-blue-100">
+                {m.kind === 'account' ? (
+                  <Link to={`/people/${m.userId}`} className="underline-offset-2 hover:text-white hover:underline">
+                    {m.name}
+                  </Link>
+                ) : (
+                  m.name
+                )}
+              </span>
               {m.userId === room.hostUserId && <span className="badge-admin">Host</span>}
               {m.kind === 'guest' && <span className="badge-neutral">Guest</span>}
               <span className={`whitespace-nowrap font-mono text-xs ${state.outOfStep ? 'text-red-300' : 'text-blue-200'}`}>

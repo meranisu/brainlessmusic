@@ -23,7 +23,7 @@ the per-user stats (`getUserStats`, `backend/src/db/listeningStats.ts:136`), and
 |---|---|---|---|
 | 1. Plan | Decisions above, API shape | Done | [Phase 1](#phase-1-plan) |
 | 2. Structure | Migration, profile and people endpoints, picture upload, top genres, tests | Done | [Phase 2](#phase-2-structure) |
-| 3. Interior (web) | People page, profile page, edit your own, names link to profiles | In progress (pages built, not linked yet) | [Phase 3](#phase-3-interior-web) |
+| 3. Interior (web) | People page, profile page, edit your own, names link to profiles | Done (pins from song menus left out) | [Phase 3](#phase-3-interior-web) |
 | 4. Interior (Android) | Same, in every skin; "You" becomes your profile | Not started | [Phase 4](#phase-4-interior-android) |
 | 5. Walkthrough | Two accounts and a guest, web and phone | Not started | [Phase 5](#phase-5-walkthrough) |
 
@@ -53,13 +53,13 @@ the per-user stats (`getUserStats`, `backend/src/db/listeningStats.ts:136`), and
 ## Phase 3: Interior (web)
 
 - [x] `/people` and `/people/:id`; your own has Edit (picture, bio, pinned favourites).
-- [ ] Your picture in the header beside Options opens your profile (A171).
-- [ ] People in the More menu; "See everyone" on your own profile; a People group in search (needs the server's
+- [x] Your picture in the header beside Options opens your profile (A171).
+- [x] People in the More menu; "See everyone" on your own profile; a People group in search (needs the server's
       search to return people) (A172).
-- [ ] Names link to profiles: a playlist's "by" line and "From others", Listen together members, the Control
+- [x] Names link to profiles: a playlist's "by" line and "From others", Listen together members, the Control
       Center's On air rows and Users panel (A172).
-- [ ] In a room, playing from a profile asks first, since it adds to the room for everyone (A173).
-- [ ] Pin a favourite from a song's or artist's menu.
+- [x] In a room, playing from a profile asks first, since it adds to the room for everyone (A173).
+- [ ] Pin a favourite from a song's or artist's menu. (Not built: Edit's picker covers it for now.)
 
 ## Phase 4: Interior (Android)
 
@@ -84,3 +84,4 @@ the per-user stats (`getUserStats`, `backend/src/db/listeningStats.ts:136`), and
 | 2026-10-13 | Web pages built. Pins are chosen in Edit from your top and liked songs and top artists, not from song menus. Where the entry points go is open (owner request). |
 
 | 2026-10-13 | Entry points decided (A171-A173). |
+| 2026-10-13 | Web entry points built. Others' profiles carry the display name only (A174). |

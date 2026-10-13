@@ -20,6 +20,8 @@ export interface UserRow {
   display_name: string | null;
   /** Bumped on every password change; tokens signed with an older one are refused (C8). See `0024`. */
   session_version: number;
+  /** The profile picture's content hash (A167); NULL means none. See `0035`. */
+  avatar_id: string | null;
 }
 
 /** Longest display name, in characters. */

@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { usePlayer } from '../components/PlayerBar';
 import { useRoom } from '../components/RoomProvider';
@@ -290,7 +291,14 @@ function InsideRoom({ room }: { room: RoomState }) {
             {room.members.map((m) => (
               <li key={m.userId} className="flex items-center gap-2 py-2 pl-4 pr-2">
                 <span className="min-w-0 flex-1 truncate text-sm text-white">
-                  {m.name}
+                  {/* An account's name opens its profile; the room keeps playing (A172, A173). Guests have none. */}
+                  {m.kind === 'account' ? (
+                    <Link to={`/people/${m.userId}`} className="underline-offset-2 hover:underline">
+                      {m.name}
+                    </Link>
+                  ) : (
+                    m.name
+                  )}
                   {m.userId === you && <span className="ml-2 text-xs text-blue-300">you</span>}
                 </span>
                 {m.userId === room.hostUserId && <span className="badge-admin">Host</span>}

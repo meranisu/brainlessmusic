@@ -91,6 +91,8 @@ describe('profiles', () => {
       const body = res.json();
       assert.equal(body.name, 'alice');
       assert.equal(body.isSelf, false);
+      assert.equal(body.username, undefined, 'no login name for others (A174)');
+      assert.equal(body.isAdmin, undefined);
       assert.equal(body.topTracks[0].track.id, tracks[0]);
       assert.equal(body.totals.plays, 3);
     }
@@ -125,6 +127,7 @@ describe('profiles', () => {
     );
     const mine = (await call('GET', `/users/${aliceId}/profile`, alice)).json();
     assert.equal(mine.isSelf, true);
+    assert.equal(mine.username, 'alice', 'your own keeps it');
     assert.equal(mine.playlists.length, 2);
   });
 
@@ -134,6 +137,16 @@ describe('profiles', () => {
     db.prepare('UPDATE tracks SET hidden = 1 WHERE id = ?').run(tracks[1]);
     assert.equal((await call('GET', `/users/${aliceId}/profile`, bob)).json().liked.tracks.length, 1);
     assert.equal((await call('GET', `/users/${aliceId}/profile`, alice)).json().liked.tracks.length, 2);
+  });
+
+  it('finds people in search, accounts only, and returns your picture from /auth/me', async () => {
+    const people = (await call('GET', '/search?q=ali', bob)).json().people;
+    assert.deepEqual(
+      people.map((p: { name: string }) => p.name),
+      ['alice'],
+    );
+    assert.equal((await call('GET', '/search?q=guest', bob)).json().people.length, 0);
+    assert.equal((await call('GET', '/auth/me', alice)).json().avatarId, null);
   });
 
   it('refuses an unknown range', async () => {

@@ -141,6 +141,7 @@ export function PlaylistsPage() {
                   name={p.name}
                   trackCount={p.trackCount}
                   coverAlbumIds={p.coverAlbumIds}
+                  ownerId={p.ownerId}
                   ownerName={p.ownerName}
                 />
               </li>
