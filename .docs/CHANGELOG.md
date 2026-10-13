@@ -4,6 +4,17 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-13: Web: a blocked autoplay no longer skips the whole queue
+
+- Owner report: the Control Center's playback failures showed four songs in one second for one user on Edge, all
+  "play() failed because the user didn't interact with the document first." That is the browser's autoplay policy
+  (`NotAllowedError`), not a bad file, but `load()` treated it as one: it reported the song, skipped to the next, hit
+  the same block, and so on through the queue.
+- `load()` now stops on that song, loaded and paused, with a toast to press Play. Nothing is reported or skipped, and
+  there is no compat retry or diagnostic probe for it (`isAutoplayBlocked`).
+- Verified: `npm run build` and `npm run lint` (no new warnings). Not run in a browser; what triggered the block on
+  that Edge tab is not known yet.
+
 ## 2026-10-12: Android: Gear's mini player is the song's gauge
 
 - Owner request: in Gear the mini player itself shows the song's progress, like a health bar. The panel fills left to

@@ -127,6 +127,11 @@ class StreamLoadError extends Error {
   }
 }
 
+/** `play()` refused by the browser's autoplay policy (no user gesture yet), not by the file. */
+function isAutoplayBlocked(err: unknown): boolean {
+  return err instanceof DOMException && err.name === 'NotAllowedError';
+}
+
 /** MediaError codes worth one retry through the compat transcode; network and abort errors would just repeat. */
 function isRetryableMediaError(code: number | undefined): boolean {
   return code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED || code === MediaError.MEDIA_ERR_DECODE;
@@ -698,6 +703,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           await audio!.play();
           if (fadeIn) void rampTo(audio!, 1, SHORT_FADE_MS);
         } catch (err) {
+          // The browser wants a tap first; the file is fine, so no diagnostics and no compat retry.
+          if (isAutoplayBlocked(err)) throw err;
           throw new StreamLoadError(
             err instanceof Error ? err.message : 'Playback failed',
             await describeStreamFailure(audio!, url),
@@ -720,6 +727,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
     } catch (err) {
       if (token !== loadTokenRef.current) return; // a newer load already reports for itself
+
+      // Not a playback failure: skipping would hit the same block on every song (all logged as failures). Stay on
+      // this one, loaded and paused, so the next press of Play starts it.
+      if (isAutoplayBlocked(err)) {
+        consecutiveLoadFailuresRef.current = 0;
+        setIsPlaying(false);
+        showToast(`The browser blocked sound until you interact with the page. Press Play to start "${track.title}".`, 'error');
+        return;
+      }
 
       const info = err instanceof StreamLoadError ? err.info : EMPTY_FAILURE_INFO;
       reportPlaybackFailure(track.id, {

@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `isAutoplayBlocked()` (new), `load()` (failure path): `frontend/src/components/PlayerBar.tsx`
+**Date:** 2026-10-13
+**How added:** bug fix (owner report from the playback failures panel)
+**Purpose:** tell a browser autoplay block apart from a song that can't be played.
+**Side effects:** an autoplay block no longer reaches `playback_failures` and no longer auto-skips.
+**Before:** `NotAllowedError` was reported, toasted as "could not be played", and skipped, repeating down the queue.
+**After:** the player stays on that song, paused, with a "press Play" toast.
+
 **Function:** `drawGauge()` (new), `MiniPlayer()`: `android/.../ui/playback/MiniPlayer.kt`; `MiniCover()` (Gear branch): `android/.../ui/common/SkinParts.kt`; `raisedEdge()` (moved from `laneEdge()` in `skins/Lane.kt`): `android/.../ui/theme/Skin.kt`
 **Date:** 2026-10-12
 **How added:** redesign (owner request)
