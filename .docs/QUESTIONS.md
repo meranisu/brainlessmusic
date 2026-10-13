@@ -34,6 +34,7 @@ is never asked twice.
 | [Q175](#q175--how-strong-must-a-passcode-be) | How strong must a passcode be? | 2026-10-13 | No |
 | [Q176](#q176--protect-main-on-github) | Protect `main` on GitHub? | 2026-10-13 | No |
 | [Q177](#q177--can-someone-take-an-accounts-display-name) | Can someone take an account's display name? | 2026-10-13 | No |
+| [Q194](#q194--push-the-sign-up-work-together-with-the-unpushed-search-commit) | Push the sign-up work together with the unpushed search commit? | 2026-10-13 | Yes, for shipping A187-A192 |
 
 ### Q5 — Tag-editing scope
 **Asked:** 2026-09-09 · **Blocking:** no
@@ -61,6 +62,17 @@ includes friends using a guest code on the web: without their email on the list 
 
 - **A. You and the friends who use the web (recommended).** Each friend's email goes on the list once.
 - **B. Only you.** Friends use the Android app only (with Q77's token), never the web.
+
+### Q194 — Push the sign-up work together with the unpushed search commit?
+**Asked:** 2026-10-13 · **Blocking:** yes, for shipping A187-A192 (commit `1b28034`)
+
+`main` is two commits ahead of GitHub: another session's search rework (`29647d6`, A193, with v0.4.15 release notes,
+never tagged) and the sign-up work on top. Pushing ships both to smol, and the Android app needs the server first.
+
+- **A. Push both, then tag one Android release, v0.4.16, holding both (recommended).** The in-app "What's new" still
+  lists v0.4.15's notes.
+- **B. Push both and tag v0.4.15 and v0.4.16 separately.**
+- **C. Hold: you'll check the search commit first.**
 
 ### Q175 — How strong must a passcode be?
 **Asked:** 2026-10-13 · **Blocking:** no ([security audit](process/security-audit-2026-10-13.md) S3)
