@@ -1,6 +1,9 @@
-/** One character as search compares it: accents dropped, lower case. Keeps a 1:1 index with the original text. */
+/**
+ * One character (a whole code point, so an emoji stays whole) as the server's search compares it (`foldText`): NFKD,
+ * marks dropped, lower case. It can come out longer ("ﬁ" is "fi") or empty; `highlightRuns` maps back either way.
+ */
 function foldChar(c: string): string {
-  return c.normalize('NFD')[0]?.toLowerCase() ?? c;
+  return c.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase();
 }
 
 /**
@@ -10,7 +13,7 @@ function foldChar(c: string): string {
 export function highlightRuns(text: string, query: string): { text: string; match: boolean }[] {
   const chars = [...text];
   const folded = chars.map(foldChar).join('');
-  // Folding keeps one char per char, but code points beyond the BMP are two UTF-16 units; map back by index.
+  // A folded character can be several UTF-16 units (an emoji, a ligature) or none; map each unit back to its character.
   const unitToChar: number[] = [];
   chars.forEach((c, i) => {
     for (let k = 0; k < foldChar(c).length; k++) unitToChar.push(i);
@@ -18,6 +21,7 @@ export function highlightRuns(text: string, query: string): { text: string; matc
   const marked = new Array<boolean>(chars.length).fill(false);
   for (const word of query.trim().split(/\s+/).filter(Boolean)) {
     const w = [...word].map(foldChar).join('');
+    if (!w) continue;
     let from = folded.indexOf(w);
     while (from >= 0) {
       for (let u = from; u < from + w.length; u++) marked[unitToChar[u]] = true;

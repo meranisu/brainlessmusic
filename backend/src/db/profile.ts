@@ -136,7 +136,7 @@ export function searchPeople(query: string, limit = 10, offset = 0): Person[] {
        FROM users u
        WHERE u.kind = 'account'
          AND (fold(u.username) LIKE ? ESCAPE '\\' OR fold(u.display_name) LIKE ? ESCAPE '\\')
-       ORDER BY name COLLATE NOCASE
+       ORDER BY name COLLATE NOCASE, u.id
        LIMIT ? OFFSET ?`,
     )
     .all(pattern, pattern, limit, offset) as Person[];

@@ -175,7 +175,7 @@ export function searchPlaylists(query: string, viewerId: number, limit = 20, off
        FROM playlists p
        JOIN users u ON u.id = p.owner_id
        WHERE fold(p.name) LIKE ? ESCAPE '\\' AND (p.owner_id = ? OR p.is_public = 1)
-       ORDER BY (p.owner_id = ?) DESC, p.name COLLATE NOCASE
+       ORDER BY (p.owner_id = ?) DESC, p.name COLLATE NOCASE, p.id
        LIMIT ? OFFSET ?`,
     )
     .all(viewerId, pattern, viewerId, viewerId, limit, offset) as (Omit<PlaylistSearchResult, 'coverAlbumIds' | 'isPublic' | 'isOwner'> & {

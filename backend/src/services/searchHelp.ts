@@ -57,9 +57,83 @@ function allowedDistance(length: number): number {
   return 3;
 }
 
+/** A name a suggestion can be, or a run of its words, as compared ("folded") and as shown. */
+interface Candidate {
+  text: string;
+  folded: string;
+}
+
+/** Runs of words are kept up to this length; a longer query is compared with whole names only. */
+const MAX_WINDOW = 4;
+/** Rebuilt at least this often, and whenever the library's tracks change. */
+const CACHE_MS = 10 * 60_000;
+
+const cache = new Map<boolean, { at: number; signature: string; byWords: Map<number, Candidate[]> }>();
+
+/** Changes when songs are added, removed, hidden, shown, go missing or come back. */
+function librarySignature(): string {
+  return db
+    .prepare(
+      `SELECT COUNT(*) || ':' || IFNULL(MAX(id), 0) || ':' || IFNULL(SUM(hidden), 0) || ':' ||
+              IFNULL(SUM(missing_since IS NULL), 0) FROM tracks`,
+    )
+    .pluck()
+    .get() as string;
+}
+
 /**
- * "Did you mean …?" for a search that found nothing: the artist, album or song title closest to the query, compared as
- * a whole and by runs of as many words as the query has ("beatels" finds "The Beatles"). Null when nothing is near.
+ * Every name a suggestion may be, grouped by word count: artists and albums with a song the viewer can see (so a
+ * hidden artist's name is never offered, A34), and visible song titles; each whole and as runs of up to
+ * [MAX_WINDOW] words. Built once and cached, since folding tens of thousands of names per search would hold up
+ * every other request.
+ */
+function candidatesByWords(includeHidden: boolean): Map<number, Candidate[]> {
+  const signature = librarySignature();
+  const cached = cache.get(includeHidden);
+  if (cached && cached.signature === signature && Date.now() - cached.at < CACHE_MS) return cached.byWords;
+
+  const visible = `t.missing_since IS NULL ${includeHidden ? '' : 'AND t.hidden = 0'}`;
+  const names = db
+    .prepare(
+      `SELECT a.name FROM artists a
+       WHERE EXISTS (SELECT 1 FROM tracks t LEFT JOIN albums al ON al.id = t.album_id
+                     WHERE (t.artist_id = a.id OR al.artist_id = a.id) AND ${visible})
+       UNION SELECT al.title FROM albums al
+       WHERE EXISTS (SELECT 1 FROM tracks t WHERE t.album_id = al.id AND ${visible})
+       UNION SELECT t.title FROM tracks t WHERE ${visible}`,
+    )
+    .pluck()
+    .all() as string[];
+
+  const byWords = new Map<number, Map<string, string>>();
+  const add = (words: number, text: string, folded: string) => {
+    let bucket = byWords.get(words);
+    if (!bucket) byWords.set(words, (bucket = new Map()));
+    const seen = bucket.get(folded);
+    if (seen === undefined || text.length < seen.length) bucket.set(folded, text);
+  };
+  for (const name of names) {
+    const original = name?.trim().split(/\s+/).filter(Boolean) ?? [];
+    if (original.length === 0) continue;
+    const folded = original.map(foldText);
+    add(original.length, original.join(' '), folded.join(' '));
+    for (let size = 1; size <= Math.min(MAX_WINDOW, original.length - 1); size++) {
+      for (let i = 0; i + size <= original.length; i++) {
+        add(size, original.slice(i, i + size).join(' '), folded.slice(i, i + size).join(' '));
+      }
+    }
+  }
+  const result = new Map<number, Candidate[]>();
+  for (const [words, bucket] of byWords) {
+    result.set(words, [...bucket].map(([folded, text]) => ({ folded, text })));
+  }
+  cache.set(includeHidden, { at: Date.now(), signature, byWords: result });
+  return result;
+}
+
+/**
+ * "Did you mean …?" for a search that found nothing: the visible artist, album or song name closest to the query,
+ * compared whole and by runs of as many words as the query has ("beatels" finds "Beatles"). Null when nothing is near.
  */
 export function suggestSpelling(query: string, includeHidden = false): string | null {
   const q = foldText(query.trim()).replace(/\s+/g, ' ');
@@ -67,32 +141,12 @@ export function suggestSpelling(query: string, includeHidden = false): string | 
   if (max === 0) return null;
   const words = q.split(' ').length;
 
-  const names = db
-    .prepare(
-      `SELECT name FROM artists
-       UNION SELECT title FROM albums
-       UNION SELECT title FROM tracks WHERE missing_since IS NULL ${includeHidden ? '' : 'AND hidden = 0'}`,
-    )
-    .pluck()
-    .all() as string[];
-
   let best: { text: string; distance: number } | null = null;
-  for (const name of names) {
-    if (!name) continue;
-    const original = name.trim().split(/\s+/);
-    const folded = original.map(foldText);
-    const candidates = [{ text: name.trim(), folded: folded.join(' ') }];
-    if (folded.length > words) {
-      for (let i = 0; i + words <= folded.length; i++) {
-        candidates.push({ text: original.slice(i, i + words).join(' '), folded: folded.slice(i, i + words).join(' ') });
-      }
-    }
-    for (const c of candidates) {
-      const d = editDistance(q, c.folded, best ? Math.min(max, best.distance) : max);
-      if (d === 0 || d > max) continue;
-      if (!best || d < best.distance || (d === best.distance && c.text.length < best.text.length)) {
-        best = { text: c.text, distance: d };
-      }
+  for (const c of candidatesByWords(includeHidden).get(words) ?? []) {
+    const d = editDistance(q, c.folded, best ? Math.min(max, best.distance) : max);
+    if (d === 0 || d > max) continue;
+    if (!best || d < best.distance || (d === best.distance && c.text.length < best.text.length)) {
+      best = { text: c.text, distance: d };
     }
   }
   return best?.text ?? null;

@@ -47,8 +47,12 @@ const searchRoute: FastifyPluginAsync = async (fastify) => {
         if (limit === undefined || offset === undefined || limit < 1) {
           return reply.code(400).send({ error: 'limit and offset must be whole numbers' });
         }
-        const page = { limit: Math.min(limit, MAX_PAGE) + 1, offset };
         const kind = type as Kind;
+        const page = {
+          limit: Math.min(limit, MAX_PAGE) + 1,
+          offset,
+          only: kind === 'playlists' || kind === 'people' ? undefined : kind,
+        };
         // One extra row says whether there is more.
         const rows: unknown[] =
           kind === 'playlists'

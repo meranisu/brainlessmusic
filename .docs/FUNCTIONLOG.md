@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `rankBy(column, id)`, `wants()`, `SearchPage.only` (`backend/src/db/browse.ts`); `candidatesByWords()`, `librarySignature()`, `suggestSpelling()` (`services/searchHelp.ts`); `checkPlaylistDescription()`; `SearchViewModel.loadMore()`/`loadPage()`, `KindResults.query`; `PlaylistDetailViewModel.editDetails(name?, …)`; web `foldChar()`, `SearchPage()` recents, `PlaylistDetailPage()` draft reset
+**Date:** 2026-10-13
+**How added:** code review fixes
+**Purpose:** stable paging, no mixed pages, a cheap and leak-free suggestion, friendlier descriptions.
+**Side effects:** an in-memory cache of suggestion names per hidden/visible view.
+**Before:** tie order could repeat rows; loadMore used the live query; every zero-result search scanned all names.
+**After:** id tiebreaks, per-query pages, cached and filtered candidates.
+
 **Function:** `/auth/login`, `/auth/passcode-login`, `PUT /me/email` (`backend/src/routes/auth.ts`); `createInvite()` (`db/invites.ts`); `SignUpStep()` (`frontend/src/pages/InvitePage.tsx`); `EmailSection()` (`pages/OptionsPage.tsx`); `lib/accountRules.ts`; `AuthRepository.login()`, `acceptInvite()`, `needsEmail()`, `EmailPromptViewModel.check()` (Android)
 **Date:** 2026-10-13
 **How added:** bug fix (code review of `1b28034`)

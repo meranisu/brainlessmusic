@@ -4,6 +4,24 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-13: Review fixes for search, playlist descriptions and the web pages
+
+- Code review of 4c64f29..29647d6; all ten findings fixed.
+- Search paging: every search order ends on the row's id, so "See all" pages never repeat or skip a row (a repeat
+  would crash Android's list on its duplicate key). A one-kind page queries only that kind (`SearchPage.only`).
+- Android "See all": the next page asks for the search it belongs to, a new search or kind cancels a page still on
+  its way, and a late page for an old search is dropped, so two searches never mix in one list.
+- "Did you mean": names are folded and grouped once and cached (rebuilt when the tracks change, or after 10 minutes)
+  instead of scanned on every search that finds nothing; artists and albums count only with a song the viewer can
+  see, so a hidden artist's name is never suggested (A34).
+- Playlist descriptions: a tab becomes a space instead of a 400. Android's Edit playlist leaves the name out when it
+  didn't change, so an older name past the 100-character limit no longer blocks a description (and isn't flagged).
+- Web: switching playlists drops an open rename or description draft; recent searches follow whoever is signed in
+  and are saved once the account is known; highlighting folds whole characters as the server does (emoji, "ﬁ").
+- Verified: backend `npm test` (620 pass; new tests for hidden suggestions, tie paging and tabs) and `tsc`; Android
+  `assembleDebug`, `SearchHighlightTest`, `PlaylistSortTest`, `PlaylistNameTest`; web `npm run build`, `npm run lint`,
+  and `highlightRuns` run by hand on accents, emoji and a ligature. Not run on a phone or in a browser.
+
 ## 2026-10-13: Review fixes for sign-up and email (A187-A192)
 
 - Backend: `/auth/login` and `/auth/passcode-login` also answer with the real `username`, so a client signed in by

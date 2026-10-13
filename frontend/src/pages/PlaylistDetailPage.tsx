@@ -52,6 +52,13 @@ export function PlaylistDetailPage() {
   // The description being edited, or null while it's only shown (A185).
   const [describing, setDescribing] = useState<string | null>(null);
   const descriptionFieldId = useId();
+  // Another playlist in the same page (a link from this one): an open rename or description draft stays behind.
+  const [shownId, setShownId] = useState(playlistId);
+  if (shownId !== playlistId) {
+    setShownId(playlistId);
+    setDescribing(null);
+    setRenaming(null);
+  }
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 

@@ -66,6 +66,13 @@ describe('playlist descriptions', () => {
     assert.equal((await call(alice, 'GET', '/playlists')).json().playlists[0].description, 'For the drive home.\nNo skips.');
   });
 
+  it('turns a tab into a space', async () => {
+    const id = await makePlaylist();
+    const res = await call(alice, 'PATCH', `/playlists/${id}`, { description: 'one\ttwo' });
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.json().description, 'one two');
+  });
+
   it('is cleared by null or blank text', async () => {
     const id = await makePlaylist();
     await call(alice, 'PATCH', `/playlists/${id}`, { description: 'Something' });
@@ -77,7 +84,7 @@ describe('playlist descriptions', () => {
   it('turns away non-text, control characters and too long with a 400, leaving the old one', async () => {
     const id = await makePlaylist();
     await call(alice, 'PATCH', `/playlists/${id}`, { description: 'Keep me' });
-    for (const description of [42, 'tab\there', 'x'.repeat(MAX_DESCRIPTION_LENGTH + 1)]) {
+    for (const description of [42, 'bell\u0007here', 'x'.repeat(MAX_DESCRIPTION_LENGTH + 1)]) {
       assert.equal((await call(alice, 'PATCH', `/playlists/${id}`, { description })).statusCode, 400, String(description));
     }
     assert.equal((await call(alice, 'GET', `/playlists/${id}`)).json().description, 'Keep me');

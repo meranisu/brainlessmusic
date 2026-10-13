@@ -200,8 +200,11 @@ class PlaylistDetailViewModel @Inject constructor(
     suspend fun otherPlaylistNames(): List<String> =
         profile.playlists().getOrNull().orEmpty().filter { it.id != playlistId }.map { it.name }
 
-    /** Name and description in one save (A185); an empty [description] clears it. [onFailed] gets a short line to show. */
-    fun editDetails(name: String, description: String, onFailed: (String) -> Unit) {
+    /**
+     * Name and description in one save (A185); an empty [description] clears it. [name] is null when it didn't change,
+     * so an older name past today's limit doesn't block a description edit. [onFailed] gets a short line to show.
+     */
+    fun editDetails(name: String?, description: String, onFailed: (String) -> Unit) {
         edit {
             profile.editPlaylistDetails(playlistId, name, description).fold(
                 onSuccess = { saved ->
@@ -674,7 +677,7 @@ private fun PlaylistDetailsDialog(
     initialName: String,
     initialDescription: String,
     takenNames: List<String>,
-    onConfirm: (name: String, description: String) -> Unit,
+    onConfirm: (name: String?, description: String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var name by remember { mutableStateOf(initialName) }
@@ -682,7 +685,9 @@ private fun PlaylistDetailsDialog(
     val check = checkPlaylistName(name, takenNames, ownName = initialName)
     val descriptionLength = description.trim().let { it.codePointCount(0, it.length) }
     val descriptionTooLong = descriptionLength > PLAYLIST_DESCRIPTION_MAX
-    val canSave = check.canSave && !descriptionTooLong
+    // An unchanged name is fine even if it's longer than today's limit: it isn't sent, so it isn't flagged either.
+    val nameError = check.error?.takeIf { check.trimmed != initialName }
+    val canSave = (check.canSave || check.trimmed == initialName) && !descriptionTooLong
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -694,12 +699,12 @@ private fun PlaylistDetailsDialog(
                     onValueChange = { name = it },
                     label = { Text("Name") },
                     singleLine = true,
-                    isError = check.error != null,
-                    supportingText = (check.error ?: check.warning)?.let { line ->
+                    isError = nameError != null,
+                    supportingText = (nameError ?: check.warning)?.let { line ->
                         {
                             Text(
                                 line,
-                                color = if (check.error != null) MaterialTheme.colorScheme.error else MaterialTheme.accentInk,
+                                color = if (nameError != null) MaterialTheme.colorScheme.error else MaterialTheme.accentInk,
                             )
                         }
                     },
@@ -728,7 +733,8 @@ private fun PlaylistDetailsDialog(
         confirmButton = {
             TextButton(enabled = canSave, onClick = {
                 val newDescription = description.trim()
-                if (check.trimmed != initialName || newDescription != initialDescription) onConfirm(check.trimmed, newDescription)
+                val newName = check.trimmed.takeIf { it != initialName }
+                if (newName != null || newDescription != initialDescription) onConfirm(newName, newDescription)
                 onDismiss()
             }) { Text("Save") }
         },

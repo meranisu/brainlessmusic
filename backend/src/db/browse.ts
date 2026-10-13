@@ -467,9 +467,15 @@ const SEARCH_RESULT_LIMIT = 20;
 export interface SearchPage {
   limit: number;
   offset: number;
+  /** Just this kind ("See all"); the other two come back empty without being queried. */
+  only?: 'artists' | 'albums' | 'tracks';
 }
 
 const FIRST_PAGE: SearchPage = { limit: SEARCH_RESULT_LIMIT, offset: 0 };
+
+function wants(page: SearchPage, kind: 'artists' | 'albums' | 'tracks'): boolean {
+  return page.only === undefined || page.only === kind;
+}
 
 /** `%` and `_` in a query are literal in LIKE, not wildcards. */
 function likeEscape(text: string): string {
@@ -478,13 +484,14 @@ function likeEscape(text: string): string {
 
 /**
  * Best match first for a name column: the whole name, then names starting with the query, then a later word starting
- * with it, then anything containing it; A to Z within each. Takes three parameters (`rankParams`).
+ * with it, then anything containing it; A to Z within each, then by id, so paging with OFFSET never repeats or skips
+ * a row between pages. Takes three parameters (`rankParams`).
  */
-function rankBy(column: string): string {
+function rankBy(column: string, id: string): string {
   return `CASE WHEN ${column} = ? COLLATE NOCASE THEN 0
                WHEN ${column} LIKE ? ESCAPE '\\' THEN 1
                WHEN ${column} LIKE ? ESCAPE '\\' THEN 2
-               ELSE 3 END, ${column} COLLATE NOCASE`;
+               ELSE 3 END, ${column} COLLATE NOCASE, ${id}`;
 }
 
 function rankParams(query: string): string[] {
@@ -510,31 +517,37 @@ function hiddenTrackClause(includeHidden: boolean): string {
 }
 
 function searchWithFts(match: string, query: string, includeHidden: boolean, page: SearchPage): SearchResults {
-  const artists = db
+  const artists: ArtistSummary[] = !wants(page, 'artists')
+    ? []
+    : (db
     .prepare(
       `${ARTIST_SUMMARY_SELECT}
        WHERE a.id IN (SELECT rowid FROM artists_fts WHERE artists_fts MATCH ?) AND ${ARTIST_HAS_MUSIC}
-       ORDER BY ${rankBy('a.name')} LIMIT ? OFFSET ?`,
+       ORDER BY ${rankBy('a.name', 'a.id')} LIMIT ? OFFSET ?`,
     )
-    .all(match, ...rankParams(query), page.limit, page.offset) as ArtistSummary[];
+    .all(match, ...rankParams(query), page.limit, page.offset) as ArtistSummary[]);
 
-  const albums = db
+  const albums: AlbumSummary[] = !wants(page, 'albums')
+    ? []
+    : (db
     .prepare(
       `${ALBUM_SUMMARY_SELECT}
        WHERE al.id IN (SELECT rowid FROM albums_fts WHERE albums_fts MATCH ?)
-       GROUP BY al.id ${HAS_PLAYABLE_TRACKS} ORDER BY ${rankBy('al.title')} LIMIT ? OFFSET ?`,
+       GROUP BY al.id ${HAS_PLAYABLE_TRACKS} ORDER BY ${rankBy('al.title', 'al.id')} LIMIT ? OFFSET ?`,
     )
-    .all(match, ...rankParams(query), page.limit, page.offset) as AlbumSummary[];
+    .all(match, ...rankParams(query), page.limit, page.offset) as AlbumSummary[]);
 
   // Tracks join the index directly rather than using an `IN (...)` subquery,
   // because ranking needs bm25() over the matched rows.
-  const tracks = (
+  const tracks: TrackSummary[] = !wants(page, 'tracks')
+    ? []
+    : (
     db
       .prepare(
         `${TRACK_SUMMARY_SELECT}
          JOIN tracks_fts ON tracks_fts.rowid = t.id
          WHERE tracks_fts MATCH ? AND t.missing_since IS NULL ${hiddenTrackClause(includeHidden)}
-         ORDER BY (t.title = ? COLLATE NOCASE) DESC, bm25(tracks_fts, ${TRACK_BM25_WEIGHTS})
+         ORDER BY (t.title = ? COLLATE NOCASE) DESC, bm25(tracks_fts, ${TRACK_BM25_WEIGHTS}), t.id
          LIMIT ? OFFSET ?`,
       )
       .all(match, query.trim(), page.limit, page.offset) as RawTrackSummary[]
@@ -547,28 +560,34 @@ function searchWithFts(match: string, query: string, includeHidden: boolean, pag
 function searchWithLike(query: string, includeHidden: boolean, page: SearchPage): SearchResults {
   const pattern = `%${likeEscape(query.trim())}%`;
 
-  const artists = db
+  const artists: ArtistSummary[] = !wants(page, 'artists')
+    ? []
+    : (db
     .prepare(
       `${ARTIST_SUMMARY_SELECT} WHERE a.name LIKE ? ESCAPE '\\' AND ${ARTIST_HAS_MUSIC}
-       ORDER BY ${rankBy('a.name')} LIMIT ? OFFSET ?`,
+       ORDER BY ${rankBy('a.name', 'a.id')} LIMIT ? OFFSET ?`,
     )
-    .all(pattern, ...rankParams(query), page.limit, page.offset) as ArtistSummary[];
+    .all(pattern, ...rankParams(query), page.limit, page.offset) as ArtistSummary[]);
 
-  const albums = db
+  const albums: AlbumSummary[] = !wants(page, 'albums')
+    ? []
+    : (db
     .prepare(
       `${ALBUM_SUMMARY_SELECT} WHERE al.title LIKE ? ESCAPE '\\' GROUP BY al.id ${HAS_PLAYABLE_TRACKS}
-       ORDER BY ${rankBy('al.title')} LIMIT ? OFFSET ?`,
+       ORDER BY ${rankBy('al.title', 'al.id')} LIMIT ? OFFSET ?`,
     )
-    .all(pattern, ...rankParams(query), page.limit, page.offset) as AlbumSummary[];
+    .all(pattern, ...rankParams(query), page.limit, page.offset) as AlbumSummary[]);
 
   // Same three fields as the FTS index, so a short query doesn't quietly search fewer.
-  const tracks = (
+  const tracks: TrackSummary[] = !wants(page, 'tracks')
+    ? []
+    : (
     db
       .prepare(
         `${TRACK_SUMMARY_SELECT}
          WHERE (t.title LIKE ? ESCAPE '\\' OR a.name LIKE ? ESCAPE '\\' OR al.title LIKE ? ESCAPE '\\')
            AND t.missing_since IS NULL ${hiddenTrackClause(includeHidden)}
-         ORDER BY ${rankBy('t.title')} LIMIT ? OFFSET ?`,
+         ORDER BY ${rankBy('t.title', 't.id')} LIMIT ? OFFSET ?`,
       )
       .all(pattern, pattern, pattern, ...rankParams(query), page.limit, page.offset) as RawTrackSummary[]
   ).map(toTrackSummary);

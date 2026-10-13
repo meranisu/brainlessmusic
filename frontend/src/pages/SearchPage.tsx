@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { Avatar } from '../components/Avatar';
@@ -106,16 +106,17 @@ export function SearchPage() {
   const query = (params.get('q') ?? '').trim();
   const rawKind = params.get('kind');
   const kind: SearchKind | 'all' = KINDS.some((k) => k.id === rawKind) ? (rawKind as SearchKind) : 'all';
-  const { user } = useAuth();
-  const [recent, setRecent] = useState(() => readRecentSearches(user?.id));
+  const userId = useAuth().user?.id;
+  // Read fresh each render, so it follows whoever is signed in; bumped after a remove or Clear all.
+  const [, setRecentVersion] = useState(0);
+  const recent = readRecentSearches(userId);
+  const refreshRecent = () => setRecentVersion((v) => v + 1);
 
-  // A search arrives as a URL (the header box submits there), so each new one is a search made on purpose: keep it.
-  // Followed during render, as GlobalSearch follows the URL, rather than set from an effect.
-  const [lastQuery, setLastQuery] = useState('');
-  if (query && query !== lastQuery) {
-    setLastQuery(query);
-    setRecent(rememberSearch(user?.id, query));
-  }
+  // A search arrives as a URL (the header box submits there), so each new one is a search made on purpose: keep it,
+  // once the signed-in account is known. Only storage is written here; the list is read when it's next shown.
+  useEffect(() => {
+    if (query && userId !== undefined) rememberSearch(userId, query);
+  }, [query, userId]);
 
   const setKind = (next: SearchKind | 'all') =>
     setParams(next === 'all' ? { q: query } : { q: query, kind: next });
@@ -124,8 +125,14 @@ export function SearchPage() {
     return (
       <BeforeSearching
         recent={recent}
-        onForget={(q) => setRecent(forgetSearch(user?.id, q))}
-        onClear={() => setRecent(clearRecentSearches(user?.id))}
+        onForget={(q) => {
+          forgetSearch(userId, q);
+          refreshRecent();
+        }}
+        onClear={() => {
+          clearRecentSearches(userId);
+          refreshRecent();
+        }}
       />
     );
   }

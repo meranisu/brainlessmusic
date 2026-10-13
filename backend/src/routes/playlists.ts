@@ -34,8 +34,9 @@ export const MAX_DESCRIPTION_LENGTH = 300;
 export function checkPlaylistDescription(raw: unknown): { description: string | null } | { error: string } {
   if (raw === null) return { description: null };
   if (typeof raw !== 'string') return { error: 'description must be text or null' };
-  const description = raw.replace(/\r\n?/g, '\n').trim();
-  if (/[\u0000-\u0009\u000b-\u001f\u007f]/.test(description)) {
+  // Tabs (pasted from a document) become spaces rather than an error.
+  const description = raw.replace(/\r\n?/g, '\n').replace(/\t/g, ' ').trim();
+  if (/[\u0000-\u0008\u000b-\u001f\u007f]/.test(description)) {
     return { error: 'description cannot contain control characters' };
   }
   if ([...description].length > MAX_DESCRIPTION_LENGTH) {

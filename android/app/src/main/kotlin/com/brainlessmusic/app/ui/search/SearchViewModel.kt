@@ -47,6 +47,8 @@ enum class SearchKind(val label: String) {
 /** One kind's results so far, while paging through "See all". */
 data class KindResults(
     val kind: SearchKind,
+    /** The search these pages are for; the next page asks for the same one, not whatever is typed now. */
+    val query: String,
     val items: List<Any>,
     val hasMore: Boolean,
     val loadingMore: Boolean = false,
@@ -162,11 +164,13 @@ class SearchViewModel @Inject constructor(
     fun loadMore() {
         val current = (_page.value as? LoadState.Content)?.data ?: return
         if (!current.hasMore || current.loadingMore || pageJob?.isActive == true) return
-        pageJob = viewModelScope.launch { loadPage(_query.value.trim(), current.kind, reset = false) }
+        pageJob = viewModelScope.launch { loadPage(current.query, current.kind, reset = false) }
     }
 
     private suspend fun loadPage(query: String, kind: SearchKind, reset: Boolean) {
-        val before = (_page.value as? LoadState.Content)?.data?.takeIf { !reset && it.kind == kind }
+        // A new search or kind drops a next page still on its way for the old one.
+        if (reset) pageJob?.cancel()
+        val before = (_page.value as? LoadState.Content)?.data?.takeIf { !reset && it.kind == kind && it.query == query }
         if (before == null) {
             _page.value = LoadState.Loading
         } else {
@@ -183,7 +187,10 @@ class SearchViewModel @Inject constructor(
         }
         result.fold(
             onSuccess = { dto ->
-                _page.value = LoadState.Content(KindResults(kind, before?.items.orEmpty() + dto.items, dto.hasMore))
+                // Only if this is still the search on screen.
+                val now = (_page.value as? LoadState.Content)?.data
+                if (before != null && (now?.query != query || now.kind != kind)) return@fold
+                _page.value = LoadState.Content(KindResults(kind, query, before?.items.orEmpty() + dto.items, dto.hasMore))
             },
             onFailure = {
                 if (before == null) {

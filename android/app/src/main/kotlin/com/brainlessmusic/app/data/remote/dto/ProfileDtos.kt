@@ -144,7 +144,7 @@ data class PlaylistRefDto(val id: Int, val name: String, val description: String
 data class PlaylistNameRequest(val name: String)
 
 /** The name and description together (A185). Gson leaves out nulls, so an empty description is what clears it. */
-data class PlaylistDetailsRequest(val name: String, val description: String)
+data class PlaylistDetailsRequest(val name: String?, val description: String)
 
 data class PlaylistPublicRequest(val isPublic: Boolean)
 

@@ -160,8 +160,8 @@ class ProfileRepository @Inject constructor(
     suspend fun renamePlaylist(id: Int, name: String): Result<PlaylistRefDto> =
         callApi { it.renamePlaylist(id, PlaylistNameRequest(name)) }
 
-    /** Name and description in one save (A185); an empty [description] clears it. */
-    suspend fun editPlaylistDetails(id: Int, name: String, description: String): Result<PlaylistRefDto> =
+    /** Name and description in one save (A185); an empty [description] clears it, a null [name] leaves it. */
+    suspend fun editPlaylistDetails(id: Int, name: String?, description: String): Result<PlaylistRefDto> =
         callApi { it.editPlaylistDetails(id, PlaylistDetailsRequest(name, description)) }
 
     suspend fun deletePlaylist(id: Int): Result<Unit> = callApi { it.deletePlaylist(id) }

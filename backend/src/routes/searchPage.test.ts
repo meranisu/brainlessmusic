@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../app.js';
+import { db } from '../db/connection.js';
 import { upsertTrack } from '../db/library.js';
 import { insertLibraryRoot } from '../db/libraryRoots.js';
 import { insertUser, setDisplayName } from '../db/users.js';
@@ -109,5 +110,23 @@ describe('search page', () => {
     assert.equal(typo.suggestion, 'Beatles');
     assert.equal((await search('q=abey%20road')).json().suggestion, 'Abbey Road');
     assert.equal((await search('q=zzzzzzzz')).json().suggestion, null);
+  });
+
+  it("never suggests a name whose songs are all hidden, and picks it up again when they're shown", async () => {
+    const id = song('Secret Song', 'Hidden Band', 'Hidden Album');
+    db.prepare('UPDATE tracks SET hidden = 1 WHERE id = ?').run(id);
+    assert.equal((await search('q=hiden%20band')).json().suggestion, null);
+    db.prepare('UPDATE tracks SET hidden = 0 WHERE id = ?').run(id);
+    assert.equal((await search('q=hiden%20band')).json().suggestion, 'Hidden Band');
+  });
+
+  it('pages without repeating a row when names tie', async () => {
+    for (let i = 0; i < 7; i++) song('Same', `Artist ${i}`);
+    const seen: number[] = [];
+    for (let offset = 0; offset < 7; offset += 2) {
+      seen.push(...(await search(`q=same&type=tracks&limit=2&offset=${offset}`)).json().items.map((t: { id: number }) => t.id));
+    }
+    assert.equal(new Set(seen).size, 7);
+    assert.equal(seen.length, 7);
   });
 });
