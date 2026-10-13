@@ -61,6 +61,19 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A173 — Opening a profile during Listen together keeps the room playing *(was Q173)*
+**Answered:** 2026-10-13, picked A. The room keeps playing and Back returns to it. Playing a song from the profile asks
+first, since in a room it adds to the queue for everyone.
+
+### A172 — People and other profiles open from everywhere offered *(was Q172)*
+**Answered:** 2026-10-13, all four: a People entry (web More menu, Android Home); a People group in search (web and
+Android); names as links (a playlist's "by" line and "From others", Listen together members, the Control Center's On
+air rows and Users panel); and "See everyone" on your own profile.
+
+### A171 — Your own profile opens from your picture *(was Q171)*
+**Answered:** 2026-10-13, picked A. Your picture is a button in the web header beside Options, and at the left of
+Android Home's top bar.
+
 ### A170 — Profiles open from any name, and a People list *(was Q170)*
 **Answered:** 2026-10-13, picked A. A name links to its profile wherever it shows (a playlist's "by" line, a room's
 members), and a People page lists everyone.

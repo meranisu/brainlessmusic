@@ -53,12 +53,19 @@ the per-user stats (`getUserStats`, `backend/src/db/listeningStats.ts:136`), and
 ## Phase 3: Interior (web)
 
 - [x] `/people` and `/people/:id`; your own has Edit (picture, bio, pinned favourites).
-- [ ] Names link to profiles: playlist "by" line, Listen together members, Users roster panel.
+- [ ] Your picture in the header beside Options opens your profile (A171).
+- [ ] People in the More menu; "See everyone" on your own profile; a People group in search (needs the server's
+      search to return people) (A172).
+- [ ] Names link to profiles: a playlist's "by" line and "From others", Listen together members, the Control
+      Center's On air rows and Users panel (A172).
+- [ ] In a room, playing from a profile asks first, since it adds to the room for everyone (A173).
 - [ ] Pin a favourite from a song's or artist's menu.
 
 ## Phase 4: Interior (Android)
 
-- [ ] "You" tab shows your profile with Edit; People and someone's profile reachable from names.
+- [ ] Your picture at the left of Home's top bar opens your profile, with Edit (A171).
+- [ ] People on Home, a People group in search, names as links in playlists and rooms (A172); the room keeps
+      playing and playing from a profile asks first (A173).
 - [ ] Picture from the phone's photo picker.
 - [ ] Every skin's existing styling for headers, avatars and lists.
 
@@ -75,3 +82,5 @@ the per-user stats (`getUserStats`, `backend/src/db/listeningStats.ts:136`), and
 | 2026-10-13 | Plan written from A167-A170. |
 | 2026-10-13 | Server done. Pins carry no foreign key, so a scan's deletes are never blocked; a stale pin just isn't shown. |
 | 2026-10-13 | Web pages built. Pins are chosen in Edit from your top and liked songs and top artists, not from song menus. Where the entry points go is open (owner request). |
+
+| 2026-10-13 | Entry points decided (A171-A173). |
