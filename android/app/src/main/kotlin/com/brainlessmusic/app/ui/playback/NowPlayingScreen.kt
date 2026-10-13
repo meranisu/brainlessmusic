@@ -444,6 +444,8 @@ fun NowPlayingScreen(
             trackId = current.trackId,
             trackTitle = current.title,
             onDismiss = { addingToPlaylist = false },
+            trackArtist = current.artist,
+            coverUrl = current.coverUrl,
             viewModel = songActions,
         )
     }

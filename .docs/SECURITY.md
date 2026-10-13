@@ -43,7 +43,7 @@ audit's Status column with the commit, and add a CHANGELOG entry as usual.
 | S18 | Low | Usernames confirmable by sign-in timing | open |
 | S19 | Low | No "sign out everywhere" | open |
 | S20 | Low | Anyone can take an account's display name | open, Q177 |
-| S21 | Low | Playlist names not type- or length-checked | open |
+| S21 | Low | Playlist names not type- or length-checked | fixed 2026-10-13: text, no control characters, 100 characters max |
 | S22 | Low | Audio ffmpeg calls lack `-protocol_whitelist file` (admin-added files only) | open |
 | S23 | Low | Three filesystem writers read their root from config | open |
 | S24 | Low | Smaller items: cache key, `.partial` sweep, admin PATCH order, workflow input, handoff link | open |

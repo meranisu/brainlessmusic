@@ -4,6 +4,37 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-13: Add to playlist redone, and playlist names checked everywhere (S21)
+
+- Owner request: the add-to-playlist window felt bare and gave no feedback. Web `AddToPlaylistDialog` now shows the
+  song (cover, title, artist), a filter from six playlists up, each playlist with its cover, song count and Public,
+  and a tick on the ones that already hold the song. Rows are switches: tap to add, tap a ticked one to take it out
+  ("Take out" in red on hover), so a song can go in several at once; Done closes, and the footer says how many of
+  your playlists it's in. New playlist names one inline and adds the song; a filter with no match offers "Make
+  “that name”". Loading, error (with Try again) and no-playlists states. Escape, backdrop and Done close it, Tab
+  stays inside, it opens as a bottom sheet on phones, and it renders on `<body>` so the sticky header no longer sits
+  on top of the dimmed page (the old dialog had that flaw).
+- One name field (`PlaylistNameField`, `checkPlaylistName`) for new playlists on the Playlists page, in the dialog,
+  and for renames: blank, too long (100 characters, counted as the server does so an emoji is one) and tabs or line
+  breaks stop the save with a message under the field; a name you already use is a warning that still lets you save;
+  a counter shows from 80. Server errors show in the same place instead of a toast. Rename shows a toast on success
+  and Escape cancels it.
+- Android, the same: `AddToPlaylistSheet` has the song header, filter, covers, ticks, switch rows, New playlist and
+  "Make it" from the filter, loading/error states, and a Done footer with the count. `PlaylistNameDialog` checks as
+  typed (`checkPlaylistName` in `ui/profile/PlaylistName.kt`, same rules and words as the web), with error, duplicate
+  warning, counter, Done on the keyboard, and the name selected on rename.
+- Backend (S21): `POST /playlists` and `PATCH /playlists/:id` check the name is text, not blank, has no control
+  characters and is at most 100 characters (400 with a message; was a 500 on a non-string and no length cap). A copy
+  of a long older name is cut to fit with " (copy)". `GET /playlists?trackId=` adds `hasTrack` to each playlist
+  (400 on a bad id); without it the response is unchanged, so older apps are unaffected.
+- Verified: backend `npm test` 596/596 (new `playlistNames.test.ts`: trim, 400s, emoji count, rename, copy,
+  `hasTrack`) and `tsc --noEmit`; frontend `npm run build` and oxlint (no new warnings); Android
+  `compileDebugKotlin` and `PlaylistNameTest` 7/7. Web driven in headless Chromium against a throwaway server
+  (scratchpad database, port 3091) at 1280 and 375 px: ticks right on open, filter, no-match and Make, blank / too
+  long / duplicate messages, Escape in the field closes only the form, create adds a ticked row, add and take out
+  flip ticks and the count, Tab stays in, Escape / Done / backdrop close, ticks survive a reopen, no sideways scroll,
+  no console errors; Playlists page create and playlist rename checked the same way. Android not run on a phone.
+
 ## 2026-10-13: Crop your picture before it's saved, and upload limits (profile plan Phase 6, S7)
 
 - Owner request: the uploader had no crop or sizing, so the server always took the middle square. Now picking a

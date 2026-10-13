@@ -567,6 +567,7 @@ export function LibraryFull() {
         <AddToPlaylistDialog
           trackId={playlistTarget.id}
           trackTitle={playlistTarget.title}
+          trackArtist={playlistTarget.artist}
           onClose={() => setPlaylistTarget(null)}
         />
       )}

@@ -1,5 +1,34 @@
 [
   {
+    "version": "0.4.12",
+    "date": "2026-10-13",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "adding a song to a playlist got a proper sheet. it shows the song at the top, each playlist with its cover and song count, and a tick on the ones the song is already in",
+              "tap a playlist to add the song, tap a ticked one to take it out. you can put it in a few at once, then hit Done",
+              "got lots of playlists? there's a search box now, and if nothing matches you can make one with that name right there",
+              "naming or renaming a playlist tells you what's wrong as you type: too long (100 characters max), or a name you already use (still allowed, just a heads up)"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.4.11",
     "date": "2026-10-13",
     "sections": [

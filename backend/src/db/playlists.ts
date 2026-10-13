@@ -20,6 +20,8 @@ export interface PlaylistSummary {
   isPublic: boolean;
   /** Up to four albums, in playlist order, for the cover mosaic the app shows (A147). */
   coverAlbumIds: number[];
+  /** Whether it holds the track asked about; only set when the list was asked for one track. */
+  hasTrack?: boolean;
 }
 
 /** Someone else's public playlist, for "From others" (A162, A166). */
@@ -94,7 +96,8 @@ export function findPlaylistById(id: number): PlaylistRow | undefined {
   return db.prepare('SELECT * FROM playlists WHERE id = ?').get(id) as PlaylistRow | undefined;
 }
 
-export function listPlaylistsForUser(ownerId: number): PlaylistSummary[] {
+/** The owner's playlists, newest first. With [trackId], each also says whether it holds that track (`hasTrack`). */
+export function listPlaylistsForUser(ownerId: number, trackId?: number): PlaylistSummary[] {
   const playlists = db
     .prepare(
       `SELECT
@@ -102,15 +105,24 @@ export function listPlaylistsForUser(ownerId: number): PlaylistSummary[] {
          p.name as name,
          p.created_at as createdAt,
          p.is_public as isPublic,
-         COUNT(pt.track_id) as trackCount
+         COUNT(pt.track_id) as trackCount,
+         MAX(pt.track_id = @trackId) as hasTrack
        FROM playlists p
        LEFT JOIN playlist_tracks pt ON pt.playlist_id = p.id
-       WHERE p.owner_id = ?
+       WHERE p.owner_id = @ownerId
        GROUP BY p.id
        ORDER BY p.created_at DESC`,
     )
-    .all(ownerId) as (Omit<PlaylistSummary, 'coverAlbumIds' | 'isPublic'> & { isPublic: number })[];
-  return playlists.map((p) => ({ ...p, isPublic: p.isPublic === 1, coverAlbumIds: coverAlbumIdsOf(p.id) }));
+    .all({ ownerId, trackId: trackId ?? null }) as (Omit<PlaylistSummary, 'coverAlbumIds' | 'isPublic' | 'hasTrack'> & {
+    isPublic: number;
+    hasTrack: number | null;
+  })[];
+  return playlists.map(({ hasTrack, ...p }) => ({
+    ...p,
+    isPublic: p.isPublic === 1,
+    coverAlbumIds: coverAlbumIdsOf(p.id),
+    ...(trackId === undefined ? {} : { hasTrack: hasTrack === 1 }),
+  }));
 }
 
 /** Other people's public playlists, newest public first (A166). Counts and covers skip hidden tracks unless admin. */

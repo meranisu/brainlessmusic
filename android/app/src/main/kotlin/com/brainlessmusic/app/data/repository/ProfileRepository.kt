@@ -149,7 +149,8 @@ class ProfileRepository @Inject constructor(
     suspend fun clearDisliked(): Result<Unit> =
         callApi { it.clearLessOften() }.onSuccess { _dislikedIds.value = emptySet() }
 
-    suspend fun playlists(): Result<List<PlaylistSummaryDto>> = callApi { it.playlists().playlists }
+    /** Your playlists; with [trackId], each also says whether it holds that song. */
+    suspend fun playlists(trackId: Int? = null): Result<List<PlaylistSummaryDto>> = callApi { it.playlists(trackId).playlists }
 
     suspend fun playlist(id: Int): Result<PlaylistDetailDto> = callApi { it.playlist(id) }
 

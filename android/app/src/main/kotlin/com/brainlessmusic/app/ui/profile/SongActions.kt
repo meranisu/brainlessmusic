@@ -23,7 +23,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -37,8 +36,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -63,6 +60,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import com.brainlessmusic.app.ui.theme.AppIcons
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.text.style.TextOverflow
+import com.brainlessmusic.app.ui.common.CoverImage
+import com.brainlessmusic.app.ui.theme.accentInk
 
 /**
  * Liking a song and adding it to a playlist, from anywhere a song is shown (A65); accounts only. Also the long-press
@@ -89,8 +94,13 @@ class SongActionsViewModel @Inject constructor(
     val likedIds: StateFlow<Set<Int>> = profile.likedIds
     val dislikedIds: StateFlow<Set<Int>> = profile.dislikedIds
 
-    private val _playlists = MutableStateFlow<List<PlaylistSummaryDto>?>(null)
-    val playlists: StateFlow<List<PlaylistSummaryDto>?> = _playlists.asStateFlow()
+    /** Your playlists for the add sheet, each saying whether it holds the song the sheet is for. */
+    private val _playlists = MutableStateFlow<LoadState<List<PlaylistSummaryDto>>>(LoadState.Loading)
+    val playlists: StateFlow<LoadState<List<PlaylistSummaryDto>>> = _playlists.asStateFlow()
+
+    /** Playlists with an add or take-out on its way, so their rows show it and don't take a second tap. */
+    private val _busyPlaylistIds = MutableStateFlow<Set<Int>>(emptySet())
+    val busyPlaylistIds: StateFlow<Set<Int>> = _busyPlaylistIds.asStateFlow()
 
     init {
         if (canEdit) viewModelScope.launch {
@@ -185,28 +195,69 @@ class SongActionsViewModel @Inject constructor(
         }
     }
 
-    fun loadPlaylists() {
-        viewModelScope.launch { _playlists.value = profile.playlists().getOrDefault(emptyList()) }
-    }
-
-    /** [onDone] gets a short line to show: added, already there, or failed. */
-    fun addTo(playlist: PlaylistSummaryDto, trackId: Int, onDone: (String) -> Unit) {
+    fun loadPlaylists(trackId: Int) {
+        _playlists.value = LoadState.Loading
         viewModelScope.launch {
-            onDone(
-                when (profile.addToPlaylist(playlist.id, trackId)) {
-                    AddToPlaylistResult.ADDED -> "Added to ${playlist.name}"
-                    AddToPlaylistResult.ALREADY_THERE -> "Already in ${playlist.name}"
-                    AddToPlaylistResult.FAILED -> "Couldn't add it. Try again."
-                },
+            _playlists.value = profile.playlists(trackId).fold(
+                onSuccess = { LoadState.Content(it) },
+                onFailure = { LoadState.Error("Couldn't load your playlists.") },
             )
         }
     }
 
+    fun albumCoverUrl(albumId: Int): String? = library.albumCoverUrl(albumId)
+
+    /** Moves one row's tick (and its song count) without a reload. */
+    private fun mark(playlistId: Int, hasTrack: Boolean) {
+        val list = (_playlists.value as? LoadState.Content)?.data ?: return
+        _playlists.value = LoadState.Content(
+            list.map {
+                if (it.id != playlistId || it.hasTrack == hasTrack) it
+                else it.copy(hasTrack = hasTrack, trackCount = it.trackCount + if (hasTrack) 1 else -1)
+            },
+        )
+    }
+
+    /**
+     * Adds [trackId] to [playlist], or takes it out if it's already there, as the sheet's rows are switches. [onDone]
+     * gets a short line to show.
+     */
+    fun toggle(playlist: PlaylistSummaryDto, trackId: Int, onDone: (String) -> Unit) {
+        if (playlist.id in _busyPlaylistIds.value) return
+        _busyPlaylistIds.value += playlist.id
+        viewModelScope.launch {
+            if (playlist.hasTrack == true) {
+                profile.removeFromPlaylist(playlist.id, trackId).fold(
+                    onSuccess = {
+                        mark(playlist.id, false)
+                        onDone("Taken out of ${playlist.name}")
+                    },
+                    onFailure = { onDone("Couldn't take it out. Try again.") },
+                )
+            } else {
+                when (profile.addToPlaylist(playlist.id, trackId)) {
+                    AddToPlaylistResult.ADDED -> {
+                        mark(playlist.id, true)
+                        onDone("Added to ${playlist.name}")
+                    }
+                    // Added somewhere else meanwhile: it's where it was meant to go, so just show the tick.
+                    AddToPlaylistResult.ALREADY_THERE -> mark(playlist.id, true)
+                    AddToPlaylistResult.FAILED -> onDone("Couldn't add it. Try again.")
+                }
+            }
+            _busyPlaylistIds.value -= playlist.id
+        }
+    }
+
+    /** Makes a playlist named [name] with [trackId] in it; it goes to the top of the sheet, ticked. */
     fun createAndAdd(name: String, trackId: Int, onDone: (String) -> Unit) {
         viewModelScope.launch {
             profile.createPlaylist(name).fold(
                 onSuccess = { created ->
-                    addTo(PlaylistSummaryDto(created.id, created.name, 0, ""), trackId, onDone)
+                    val added = profile.addToPlaylist(created.id, trackId) != AddToPlaylistResult.FAILED
+                    val row = PlaylistSummaryDto(created.id, created.name, if (added) 1 else 0, "", hasTrack = added)
+                    (_playlists.value as? LoadState.Content)?.let { _playlists.value = LoadState.Content(listOf(row) + it.data) }
+                    onDone(if (added) "Made ${created.name} with this song in it" else "Made ${created.name}, but couldn't add the song. Tap it to try again.")
                 },
                 onFailure = { onDone("Couldn't make the playlist. Try again.") },
             )
@@ -247,74 +298,195 @@ fun LikeButton(trackId: Int, modifier: Modifier = Modifier, viewModel: SongActio
     }
 }
 
-/** Picks one of your playlists for [trackId], or makes a new one with it. */
+/** From this many playlists a filter shows above the list. */
+private const val FILTER_FROM = 6
+
+/**
+ * Puts one song in your playlists. Each row is a switch: a tick means the song is in it, and a tap adds it or takes it
+ * out, so it can go in several at once; Done closes. New playlist names one ([PlaylistNameDialog], checked as typed)
+ * and adds the song to it. The web's Add to playlist dialog works the same way.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddToPlaylistSheet(
     trackId: Int,
     trackTitle: String,
     onDismiss: () -> Unit,
+    trackArtist: String? = null,
+    coverUrl: String? = null,
     viewModel: SongActionsViewModel = hiltViewModel(),
 ) {
-    val context = LocalContext.current
-    val playlists by viewModel.playlists.collectAsStateWithLifecycle()
-    var naming by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { viewModel.loadPlaylists() }
+    val state by viewModel.playlists.collectAsStateWithLifecycle()
+    val busyIds by viewModel.busyPlaylistIds.collectAsStateWithLifecycle()
+    // Null: not naming. A string: naming, starting from it (the filter's text, when "Make it" was tapped).
+    var naming by remember { mutableStateOf<String?>(null) }
+    var filter by remember { mutableStateOf("") }
+    LaunchedEffect(trackId) { viewModel.loadPlaylists(trackId) }
 
-    val done: (String) -> Unit = { message ->
-        Notices.show(message)
-        onDismiss()
-    }
+    val playlists = (state as? LoadState.Content)?.data
+    val show: (String) -> Unit = { Notices.show(it) }
 
-    if (naming) {
+    naming?.let { start ->
         PlaylistNameDialog(
             title = "New playlist",
             confirmLabel = "Create and add",
-            initial = "",
-            onConfirm = { name -> viewModel.createAndAdd(name, trackId, done) },
-            onDismiss = { naming = false },
+            initial = start,
+            hint = "\u201C$trackTitle\u201D goes in it.",
+            takenNames = playlists.orEmpty().map { it.name },
+            onConfirm = { name ->
+                filter = ""
+                viewModel.createAndAdd(name, trackId, show)
+            },
+            onDismiss = { naming = null },
         )
     }
 
     SkinSheet(onDismissRequest = onDismiss) {
         SheetStatusBarFollowsApp()
-        Text(
-            "Add \"$trackTitle\" to",
-            style = MaterialTheme.typography.titleMedium,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
-        )
-        LazyColumn(modifier = Modifier.navigationBarsPadding()) {
-            item {
-                ListItem(
-                    leadingContent = { Icon(AppIcons.add, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                    headlineContent = { Text("New playlist") },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    modifier = Modifier.clickable { naming = true },
-                )
-            }
-            items(playlists.orEmpty(), key = { it.id }) { playlist ->
-                ListItem(
-                    leadingContent = { Icon(AppIcons.queue, contentDescription = null) },
-                    headlineContent = { Text(playlist.name) },
-                    supportingContent = { Text(if (playlist.trackCount == 1) "1 song" else "${playlist.trackCount} songs") },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    modifier = Modifier.clickable { viewModel.addTo(playlist, trackId, done) },
-                )
-            }
-            if (playlists?.isEmpty() == true) {
-                item {
+        // The song, so it's clear what is being added.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 12.dp),
+        ) {
+            CoverImage(url = coverUrl, contentDescription = null, modifier = Modifier.size(48.dp))
+            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                Text("Add to playlist", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(trackTitle, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (trackArtist != null) {
                     Text(
-                        "No playlists yet.",
-                        style = MaterialTheme.typography.bodyMedium,
+                        trackArtist,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
         }
-        Row(Modifier.padding(bottom = 8.dp)) {
-            TextButton(onClick = onDismiss, modifier = Modifier.padding(horizontal = 16.dp)) { Text("Cancel") }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+        if (playlists != null && playlists.size >= FILTER_FROM) {
+            OutlinedTextField(
+                value = filter,
+                onValueChange = { filter = it },
+                placeholder = { Text("Find one of your ${playlists.size} playlists") },
+                leadingIcon = { Icon(AppIcons.search, contentDescription = null) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+        }
+
+        val query = filter.trim()
+        val shown = if (query.isEmpty()) playlists else playlists?.filter { it.name.contains(query, ignoreCase = true) }
+
+        LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
+            if (playlists != null) {
+                item(key = "new") {
+                    ListItem(
+                        leadingContent = {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .border(1.dp, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.small),
+                            ) { Icon(AppIcons.add, contentDescription = null, tint = MaterialTheme.accentInk) }
+                        },
+                        headlineContent = { Text("New playlist") },
+                        supportingContent = if (playlists.isEmpty()) {
+                            { Text("You have no playlists yet. Name one and this song goes in it.") }
+                        } else {
+                            null
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        modifier = Modifier.clickable { naming = "" },
+                    )
+                }
+            }
+            when (val s = state) {
+                LoadState.Loading -> item(key = "loading") {
+                    Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(Modifier.size(28.dp))
+                    }
+                }
+                is LoadState.Error -> item(key = "error") {
+                    Column(Modifier.padding(horizontal = 24.dp, vertical = 12.dp)) {
+                        Text(s.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                        TextButton(onClick = { viewModel.loadPlaylists(trackId) }) { Text("Try again") }
+                    }
+                }
+                is LoadState.Content -> Unit
+            }
+            items(shown.orEmpty(), key = { it.id }) { playlist ->
+                val has = playlist.hasTrack == true
+                val busy = playlist.id in busyIds
+                ListItem(
+                    leadingContent = {
+                        CoverImage(
+                            url = playlist.coverAlbumIds?.firstOrNull()?.let(viewModel::albumCoverUrl),
+                            contentDescription = null,
+                            modifier = Modifier.size(40.dp),
+                        )
+                    },
+                    headlineContent = { Text(playlist.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    supportingContent = {
+                        Text(
+                            (if (playlist.trackCount == 1) "1 song" else "${playlist.trackCount} songs") +
+                                if (playlist.isPublic) " · Public" else "",
+                        )
+                    },
+                    trailingContent = {
+                        when {
+                            busy -> CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                            has -> Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(AppIcons.check, contentDescription = null, tint = MaterialTheme.accentInk, modifier = Modifier.size(18.dp))
+                                Text("Added", color = MaterialTheme.accentInk, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(start = 4.dp))
+                            }
+                            else -> Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(AppIcons.add, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Text("Add", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(start = 4.dp))
+                            }
+                        }
+                    },
+                    colors = ListItemDefaults.colors(
+                        containerColor = if (has) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f) else Color.Transparent,
+                    ),
+                    modifier = Modifier.clickable(
+                        enabled = !busy,
+                        onClickLabel = if (has) "Take out of ${playlist.name}" else "Add to ${playlist.name}",
+                    ) { viewModel.toggle(playlist, trackId, show) },
+                )
+            }
+            if (query.isNotEmpty() && shown?.isEmpty() == true) {
+                item(key = "nomatch") {
+                    Column(Modifier.padding(horizontal = 24.dp, vertical = 12.dp)) {
+                        Text(
+                            "None of your playlists is called anything like \u201C$query\u201D.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        TextButton(onClick = { naming = query }) { Text("Make \u201C$query\u201D") }
+                    }
+                }
+            }
+        }
+
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.navigationBarsPadding().padding(start = 24.dp, end = 16.dp, top = 4.dp, bottom = 8.dp),
+        ) {
+            val inCount = playlists.orEmpty().count { it.hasTrack == true }
+            Text(
+                when {
+                    playlists.isNullOrEmpty() -> ""
+                    inCount == 0 -> "Not in any of your playlists yet"
+                    else -> "In $inCount of your playlists"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onDismiss) { Text("Done") }
         }
     }
 }

@@ -19,8 +19,22 @@ import {
 } from '../db/playlists.js';
 import { isAdminRequest } from '../utils/isAdmin.js';
 
-/** Longest name a copy gets before " (copy)" is added. */
-const MAX_NAME_LENGTH = 200;
+/** Longest playlist name, in characters (code points, so an emoji counts once). The apps show the same limit. */
+export const MAX_NAME_LENGTH = 100;
+const COPY_SUFFIX = ' (copy)';
+
+/**
+ * Checks a playlist name from a request body (S21): a string, not blank once trimmed, no control characters, at most
+ * MAX_NAME_LENGTH. Returns the trimmed name, or the error to send back.
+ */
+export function checkPlaylistName(raw: unknown): { name: string } | { error: string } {
+  if (typeof raw !== 'string') return { error: 'name must be text' };
+  const name = raw.trim();
+  if (!name) return { error: 'name is required' };
+  if (/[\u0000-\u001f\u007f]/.test(name)) return { error: 'name cannot contain line breaks or control characters' };
+  if ([...name].length > MAX_NAME_LENGTH) return { error: `name can be at most ${MAX_NAME_LENGTH} characters` };
+  return { name };
+}
 
 function parseId(raw: string): number | undefined {
   const id = Number(raw);
@@ -70,16 +84,16 @@ function loadReadablePlaylist(
 }
 
 const playlistsRoute: FastifyPluginAsync = async (fastify) => {
-  fastify.post<{ Body: { name?: string } }>(
+  fastify.post<{ Body: { name?: unknown } }>(
     '/playlists',
     { preHandler: [fastify.authenticate, fastify.requireAccount] },
-    async (request: FastifyRequest<{ Body: { name?: string } }>, reply) => {
-      const name = request.body?.name?.trim();
-      if (!name) {
-        return reply.code(400).send({ error: 'name is required' });
+    async (request: FastifyRequest<{ Body: { name?: unknown } }>, reply) => {
+      const checked = checkPlaylistName(request.body?.name);
+      if ('error' in checked) {
+        return reply.code(400).send({ error: checked.error });
       }
 
-      const playlist = createPlaylist(name, request.user!.id);
+      const playlist = createPlaylist(checked.name, request.user!.id);
       return reply.code(201).send({
         id: playlist.id,
         name: playlist.name,
@@ -88,11 +102,17 @@ const playlistsRoute: FastifyPluginAsync = async (fastify) => {
     },
   );
 
-  fastify.get(
+  // `?trackId=` adds `hasTrack` to each, so "Add to playlist" can mark the ones that already hold the song.
+  fastify.get<{ Querystring: { trackId?: string } }>(
     '/playlists',
     { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
-      const playlists = listPlaylistsForUser(request.user!.id);
+      const rawTrackId = request.query.trackId;
+      const trackId = rawTrackId === undefined ? undefined : parseId(rawTrackId);
+      if (rawTrackId !== undefined && trackId === undefined) {
+        return reply.code(400).send({ error: 'trackId must be a whole number' });
+      }
+      const playlists = listPlaylistsForUser(request.user!.id, trackId);
       return reply.send({ playlists });
     },
   );
@@ -120,7 +140,7 @@ const playlistsRoute: FastifyPluginAsync = async (fastify) => {
   );
 
   // Rename, and the public switch (A162). Either or both.
-  fastify.patch<{ Params: { id: string }; Body: { name?: string; isPublic?: unknown } }>(
+  fastify.patch<{ Params: { id: string }; Body: { name?: unknown; isPublic?: unknown } }>(
     '/playlists/:id',
     { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
@@ -136,9 +156,13 @@ const playlistsRoute: FastifyPluginAsync = async (fastify) => {
       if (isPublic !== undefined && typeof isPublic !== 'boolean') {
         return reply.code(400).send({ error: 'isPublic must be true or false' });
       }
-      const name = rawName?.trim();
-      if (rawName !== undefined && !name) {
-        return reply.code(400).send({ error: 'name is required' });
+      let name: string | undefined;
+      if (rawName !== undefined) {
+        const checked = checkPlaylistName(rawName);
+        if ('error' in checked) {
+          return reply.code(400).send({ error: checked.error });
+        }
+        name = checked.name;
       }
 
       if (name) renamePlaylist(playlist.id, name);
@@ -164,7 +188,8 @@ const playlistsRoute: FastifyPluginAsync = async (fastify) => {
       if (!source) return;
 
       const isOwner = source.owner_id === request.user!.id;
-      const name = `${source.name.slice(0, MAX_NAME_LENGTH)} (copy)`;
+      // Older names may be longer than the limit; the copy is cut so it fits with its suffix.
+      const name = `${[...source.name].slice(0, MAX_NAME_LENGTH - COPY_SUFFIX.length).join('')}${COPY_SUFFIX}`;
       const copy = copyPlaylist(source.id, request.user!.id, name, isOwner || isAdminRequest(request));
       return reply.code(201).send({ id: copy.id, name: copy.name, createdAt: copy.created_at, isPublic: false });
     },

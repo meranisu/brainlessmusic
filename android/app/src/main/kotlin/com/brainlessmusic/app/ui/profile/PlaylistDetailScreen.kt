@@ -50,6 +50,7 @@ import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -179,6 +180,10 @@ class PlaylistDetailViewModel @Inject constructor(
         viewModelScope.launch { edits.withLock { block() } }
     }
 
+    /** Your other playlists' names, for the rename dialog's duplicate warning; empty if they don't load. */
+    suspend fun otherPlaylistNames(): List<String> =
+        profile.playlists().getOrNull().orEmpty().filter { it.id != playlistId }.map { it.name }
+
     /** [onFailed] gets a short line to show. */
     fun rename(name: String, onFailed: (String) -> Unit) {
         edit {
@@ -290,9 +295,16 @@ fun PlaylistDetailScreen(
     val showFailure: (String) -> Unit = { Notices.show(it) }
 
     if (renaming && playlist != null) {
-        PlaylistNameDialog("Rename playlist", "Rename", playlist.name, { name -> viewModel.rename(name, showFailure) }) {
-            renaming = false
-        }
+        val otherNames by produceState(emptyList<String>()) { value = viewModel.otherPlaylistNames() }
+        PlaylistNameDialog(
+            title = "Rename playlist",
+            confirmLabel = "Rename",
+            initial = playlist.name,
+            onConfirm = { name -> viewModel.rename(name, showFailure) },
+            onDismiss = { renaming = false },
+            takenNames = otherNames,
+            ownName = playlist.name,
+        )
     }
     if (confirmingDelete && playlist != null) {
         AlertDialog(

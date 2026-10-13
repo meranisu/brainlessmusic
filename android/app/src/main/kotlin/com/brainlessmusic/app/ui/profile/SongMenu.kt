@@ -72,7 +72,14 @@ fun SongMenuSheet(
 
     when (step) {
         MenuStep.PLAYLIST -> {
-            AddToPlaylistSheet(trackId = item.trackId, trackTitle = item.title, onDismiss = onDismiss, viewModel = viewModel)
+            AddToPlaylistSheet(
+                trackId = item.trackId,
+                trackTitle = item.title,
+                onDismiss = onDismiss,
+                trackArtist = item.artist,
+                coverUrl = item.coverUrl,
+                viewModel = viewModel,
+            )
             return
         }
         MenuStep.DETAILS -> {

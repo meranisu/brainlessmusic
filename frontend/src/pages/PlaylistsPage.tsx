@@ -1,15 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { PlaylistListItem } from '../components/PlaylistListItem';
+import { PlaylistNameField } from '../components/PlaylistNameField';
 import { useToast } from '../components/ToastProvider';
 import { apiClient } from '../lib/apiClient';
+import { checkPlaylistName } from '../lib/playlistName';
 import type { PlaylistSummary, PublicPlaylistSummary } from '../types/api';
 import { Skeleton, SkeletonListRows } from '../components/Skeleton';
 
 /** Your playlists, then other people's public ones, newest public first (A162, A166). A guest sees only the second (A163). */
 export function PlaylistsPage() {
   const [name, setName] = useState('');
+  const [triedToSave, setTriedToSave] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const nameFieldId = useId();
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const { user } = useAuth();
@@ -30,11 +36,15 @@ export function PlaylistsPage() {
       apiClient.post<PlaylistSummary>('/playlists', { name: playlistName }),
     onSuccess: (created) => {
       setName('');
+      setTriedToSave(false);
       queryClient.invalidateQueries({ queryKey: ['playlists'] });
-      showToast(`Created “${created.name}”`);
+      showToast(`Created “${created.name}”. Add songs from the ⋮ menu on any track.`);
     },
-    onError: (err) => showToast(err instanceof Error ? err.message : 'Could not create playlist', 'error'),
+    onError: (err) => setServerError(err instanceof Error ? err.message : 'Could not create playlist'),
   });
+
+  const takenNames = mine.data?.playlists.map((p) => p.name) ?? [];
+  const nameCheck = checkPlaylistName(name, takenNames, { reportBlank: triedToSave });
 
   return (
     <div className="flex flex-col gap-6">
@@ -58,24 +68,32 @@ export function PlaylistsPage() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              const trimmed = name.trim();
-              if (trimmed) createMutation.mutate(trimmed);
+              setTriedToSave(true);
+              const check = checkPlaylistName(name, takenNames, { reportBlank: true });
+              if (check.error) {
+                nameInputRef.current?.focus();
+                return;
+              }
+              createMutation.mutate(check.trimmed);
             }}
-            className="card flex gap-2 p-3"
+            noValidate
+            className="card flex items-start gap-2 p-3 pb-1.5"
           >
-            <input
+            <PlaylistNameField
+              id={nameFieldId}
+              inputRef={nameInputRef}
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="New playlist name…"
-              className="input"
-              aria-label="New playlist name"
+              onChange={(v) => {
+                setName(v);
+                setServerError(null);
+              }}
+              check={nameCheck}
+              serverError={serverError}
+              label="New playlist name"
+              placeholder="New playlist name"
             />
-            <button
-              type="submit"
-              disabled={!name.trim() || createMutation.isPending}
-              className="btn-primary btn-md shrink-0"
-            >
-              Create
+            <button type="submit" disabled={createMutation.isPending} className="btn-primary btn-md shrink-0">
+              {createMutation.isPending ? 'Creating…' : 'Create'}
             </button>
           </form>
 

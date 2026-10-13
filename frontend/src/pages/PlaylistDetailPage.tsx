@@ -1,13 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { CoverArt } from '../components/CoverArt';
 import { FavoriteButton, useFavoriteIds } from '../components/FavoriteButton';
+import { PlaylistNameField } from '../components/PlaylistNameField';
 import { usePlayer, type QueueTrack } from '../components/PlayerBar';
 import { useToast } from '../components/ToastProvider';
 import { useScrollLock } from '../hooks/useScrollLock';
 import { apiClient } from '../lib/apiClient';
+import { checkPlaylistName } from '../lib/playlistName';
 import type { PlaylistDetail, PlaylistSummary } from '../types/api';
 import { PlayIcon } from '../components/icons';
 import { Skeleton, SkeletonDetailHeader, SkeletonTrackRows } from '../components/Skeleton';
@@ -40,6 +42,9 @@ export function PlaylistDetailPage() {
   const { user } = useAuth();
 
   const [renaming, setRenaming] = useState<string | null>(null);
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const renameFieldId = useId();
+  const renameInputRef = useRef<HTMLInputElement>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -56,13 +61,23 @@ export function PlaylistDetailPage() {
 
   const renameMutation = useMutation({
     mutationFn: (name: string) => apiClient.patch(`/playlists/${playlistId}`, { name }),
-    onSuccess: () => {
+    onSuccess: (_res, name) => {
       setRenaming(null);
       queryClient.invalidateQueries({ queryKey });
       queryClient.invalidateQueries({ queryKey: ['playlists'] });
+      showToast(`Renamed to “${name}”`);
     },
-    onError: (err) => showToast(err instanceof Error ? err.message : 'Rename failed', 'error'),
+    onError: (err) => setRenameError(err instanceof Error ? err.message : 'Rename failed'),
   });
+
+  // Your other playlists' names, only while renaming, for the duplicate warning.
+  const mine = useQuery({
+    queryKey: ['playlists'],
+    queryFn: () => apiClient.get<{ playlists: PlaylistSummary[] }>('/playlists'),
+    enabled: renaming !== null,
+  });
+  const takenNames = mine.data?.playlists.filter((p) => p.id !== playlistId).map((p) => p.name) ?? [];
+  const renameCheck = checkPlaylistName(renaming ?? '', takenNames, { ownName: data?.name, reportBlank: true });
 
   // The public switch (A162): everyone signed in on this server sees it under "From others" and in search.
   const publicMutation = useMutation({
@@ -182,22 +197,37 @@ export function PlaylistDetailPage() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              const trimmed = renaming.trim();
-              if (trimmed) renameMutation.mutate(trimmed);
+              if (renameCheck.error) {
+                renameInputRef.current?.focus();
+                return;
+              }
+              // Unchanged: nothing to save.
+              if (renameCheck.trimmed === data.name) {
+                setRenaming(null);
+                return;
+              }
+              renameMutation.mutate(renameCheck.trimmed);
             }}
-            className="flex max-w-md gap-2"
+            noValidate
+            className="flex max-w-md items-start gap-2"
           >
-            <input
+            <PlaylistNameField
+              id={renameFieldId}
+              inputRef={renameInputRef}
               value={renaming}
-              onChange={(e) => setRenaming(e.target.value)}
-              className="input"
-              aria-label="Playlist name"
+              onChange={(v) => {
+                setRenaming(v);
+                setRenameError(null);
+              }}
+              check={renameCheck}
+              serverError={renameError}
               autoFocus
+              onEscape={() => setRenaming(null)}
             />
-            <button type="submit" className="btn-primary btn-sm shrink-0">
-              Save
+            <button type="submit" disabled={renameMutation.isPending} className="btn-primary btn-md shrink-0">
+              {renameMutation.isPending ? 'Saving…' : 'Save'}
             </button>
-            <button type="button" onClick={() => setRenaming(null)} className="btn-secondary btn-sm shrink-0">
+            <button type="button" onClick={() => setRenaming(null)} className="btn-secondary btn-md shrink-0">
               Cancel
             </button>
           </form>
@@ -235,7 +265,13 @@ export function PlaylistDetailPage() {
           {isOwner ? (
             <>
               {renaming === null && (
-                <button onClick={() => setRenaming(data.name)} className="btn-secondary btn-md">
+                <button
+                  onClick={() => {
+                    setRenameError(null);
+                    setRenaming(data.name);
+                  }}
+                  className="btn-secondary btn-md"
+                >
                   Rename
                 </button>
               )}

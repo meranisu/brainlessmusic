@@ -98,6 +98,16 @@ like you in a room.
 
 ## Answered
 
+### A181 — Ship the add-to-playlist redo on Android in v0.4.12 *(was Q181)*
+**Answered:** 2026-10-13, in chat: "yes go out". Straight to a release, no debug build on the phone first.
+
+### A180 — The add-to-playlist window stays open after an add *(was Q180)*
+**Answered:** 2026-10-13, in chat: "now stay". Rows are switches (add / take out), Done closes; web and Android.
+
+### A179 — Playlist names are capped at 100 characters *(was Q179)*
+**Answered:** 2026-10-13, in chat: "yes". Counted as characters (an emoji is one), checked by the server (S21) and the
+apps. Asked in chat before it had a ledger number; logged here after.
+
 ### A178 — Your picture goes at the right end of Android Home's top bar *(was Q178)*
 **Answered:** 2026-10-13, picked A. After People and Listen together, where Google's apps put your account picture;
 the greeting keeps the left edge. Replaces A171's left-of-the-bar spot on Android (the web is unchanged).

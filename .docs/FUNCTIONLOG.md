@@ -4,6 +4,30 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `checkPlaylistName()` (new): `backend/src/routes/playlists.ts`; `POST /playlists`, `PATCH /playlists/:id`, `POST /playlists/:id/copy`, `GET /playlists`; `listPlaylistsForUser(ownerId, trackId?)`: `backend/src/db/playlists.ts`
+**Date:** 2026-10-13
+**How added:** hardening (S21) + owner request (add-to-playlist redo)
+**Purpose:** refuse bad playlist names with a clear 400, and tell the apps which playlists already hold a song.
+**Side effects:** none beyond the existing writes.
+**Before:** name only trimmed and checked for blank (500 on a non-string, no length cap); no way to ask which playlists hold a song.
+**After:** text, not blank, no control characters, at most 100 code points; copies cut to fit; `?trackId=` adds `hasTrack`.
+
+**Function:** `checkPlaylistName()` (new): `frontend/src/lib/playlistName.ts`; `PlaylistNameField()` (new): `frontend/src/components/PlaylistNameField.tsx`; `AddToPlaylistDialog()` (rewritten); `PlaylistsPage()` create form, `PlaylistDetailPage()` rename form
+**Date:** 2026-10-13
+**How added:** owner request
+**Purpose:** one checked name field everywhere, and an add dialog that shows where the song already is and adds or takes it out per playlist.
+**Side effects:** `POST`/`DELETE /playlists/:id/tracks`, `POST /playlists`, `PATCH /playlists/:id`; toasts.
+**Before:** bare dialog that closed on the first add; name fields accepted anything non-blank and showed server errors as toasts.
+**After:** see the 2026-10-13 CHANGELOG entry.
+
+**Function:** `checkPlaylistName()`, `PlaylistNameCheck` (new): `ui/profile/PlaylistName.kt`; `PlaylistNameDialog()` (checks as typed, `takenNames`, `hint`, `ownName`): `ui/profile/PlaylistsScreen.kt`; `AddToPlaylistSheet()` (rewritten), `SongActionsViewModel.loadPlaylists(trackId)/toggle()/createAndAdd()/albumCoverUrl()`: `ui/profile/SongActions.kt`; `PlaylistDetailViewModel.otherPlaylistNames()`; `ProfileRepository.playlists(trackId?)` (under `android/app/src/main/kotlin/com/brainlessmusic/app/`)
+**Date:** 2026-10-13
+**How added:** owner request
+**Purpose:** the same add sheet and name checks on Android.
+**Side effects:** same requests as the web.
+**Before:** sheet closed on the first add and gave no sign of where the song already was; name dialog only refused blank.
+**After:** ticks, switch rows, filter, states, Done footer; name errors, duplicate warning and counter.
+
 **Function:** `AvatarCropper()`, `pickProblem()` (new): `frontend/src/components/AvatarCropper.tsx`; `EditProfileDialog()` (crops before upload): `frontend/src/pages/ProfilePage.tsx`
 **Date:** 2026-10-13
 **How added:** new feature (profile plan Phase 6)

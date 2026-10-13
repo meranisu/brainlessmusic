@@ -74,6 +74,8 @@ data class PlaylistSummaryDto(
     val coverAlbumIds: List<Int>? = null,
     // Everyone signed in can see, play and copy it (A162). False from an older server.
     val isPublic: Boolean = false,
+    // Holds the song asked about; only set when the list was fetched for one song. Null from an older server.
+    val hasTrack: Boolean? = null,
 )
 
 data class PlaylistsDto(val playlists: List<PlaylistSummaryDto>)

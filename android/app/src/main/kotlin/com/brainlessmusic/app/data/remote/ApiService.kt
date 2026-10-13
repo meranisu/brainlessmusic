@@ -197,8 +197,9 @@ interface ApiService {
     @GET("me/less-often")
     suspend fun lessOften(@Query("limit") limit: Int, @Query("offset") offset: Int): LessOftenPageDto
 
+    /** With [trackId], each playlist says whether it already holds that song (`hasTrack`). */
     @GET("playlists")
-    suspend fun playlists(): PlaylistsDto
+    suspend fun playlists(@Query("trackId") trackId: Int?): PlaylistsDto
 
     @POST("playlists")
     suspend fun createPlaylist(@Body body: PlaylistNameRequest): PlaylistRefDto

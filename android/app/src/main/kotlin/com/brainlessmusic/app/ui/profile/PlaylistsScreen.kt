@@ -50,6 +50,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.TextFieldValue
+import com.brainlessmusic.app.ui.theme.accentInk
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -211,6 +220,7 @@ fun PlaylistsTab(
             title = "New playlist",
             confirmLabel = "Create",
             initial = "",
+            takenNames = (state as? LoadState.Content)?.data?.playlists.orEmpty().map { it.name },
             onConfirm = { name ->
                 viewModel.create(
                     name,
@@ -523,7 +533,12 @@ private fun GuestPlaylists(modifier: Modifier = Modifier) {
     }
 }
 
-/** Asks for a playlist name; blank can't be confirmed. Used for new playlists and renames. */
+/**
+ * Asks for a playlist name, for new playlists and renames. Checked as typed ([checkPlaylistName]): too long or a tab
+ * is an error that stops the save, a name you already use is a warning that doesn't, and a counter shows near the
+ * limit. Blank can't be confirmed. Done on the keyboard confirms. On a rename ([ownName] set), keeping the name just
+ * closes.
+ */
 @Composable
 fun PlaylistNameDialog(
     title: String,
@@ -531,27 +546,68 @@ fun PlaylistNameDialog(
     initial: String,
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
+    /** Your other playlists' names, for the duplicate warning. */
+    takenNames: List<String> = emptyList(),
+    /** A line under the title saying what the name is for. */
+    hint: String? = null,
+    /** The playlist's current name, on a rename. */
+    ownName: String? = null,
 ) {
-    var name by remember { mutableStateOf(initial) }
+    var field by remember {
+        mutableStateOf(TextFieldValue(initial, selection = TextRange(0, initial.length)))
+    }
+    val check = checkPlaylistName(field.text, takenNames, ownName)
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+
+    val confirm = {
+        if (check.canSave) {
+            if (check.trimmed != ownName) onConfirm(check.trimmed)
+            onDismiss()
+        }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Name") },
-                singleLine = true,
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (hint != null) {
+                    Text(hint, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                OutlinedTextField(
+                    value = field,
+                    onValueChange = { field = it },
+                    label = { Text("Name") },
+                    placeholder = { Text("Like “Late night drives”") },
+                    singleLine = true,
+                    isError = check.error != null,
+                    supportingText = {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                check.error ?: check.warning ?: "",
+                                color = when {
+                                    check.error != null -> MaterialTheme.colorScheme.error
+                                    else -> MaterialTheme.accentInk
+                                },
+                                modifier = Modifier.weight(1f),
+                            )
+                            if (check.showCounter) {
+                                Text(
+                                    "${check.length}/$PLAYLIST_NAME_MAX",
+                                    color = if (check.error != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { confirm() }),
+                    modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                )
+            }
         },
         confirmButton = {
-            TextButton(
-                onClick = {
-                    onConfirm(name.trim())
-                    onDismiss()
-                },
-                enabled = name.isNotBlank(),
-            ) { Text(confirmLabel) }
+            TextButton(onClick = confirm, enabled = check.canSave) { Text(confirmLabel) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
