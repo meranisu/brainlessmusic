@@ -30,13 +30,9 @@ function navItemsFor(isGuest: boolean): { primary: NavItem[]; overflow: NavItem[
       { to: '/', label: 'Library', end: true },
       { to: '/albums', label: 'Albums' },
       { to: '/artists', label: 'Artists' },
-      // Guests are listen-only (A37).
-      ...(isGuest
-        ? []
-        : [
-            { to: '/favorites', label: 'Favorites' },
-            { to: '/playlists', label: 'Playlists' },
-          ]),
+      // Guests are listen-only (A37), but they see and play other people's public playlists (A163).
+      ...(isGuest ? [] : [{ to: '/favorites', label: 'Favorites' }]),
+      { to: '/playlists', label: 'Playlists' },
     ],
     // Upload, Users and the Control Center are one dashboard with its own header button now (owner request,
     // 2026-10-11), so More holds only what doesn't fit the bar.

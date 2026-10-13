@@ -87,6 +87,8 @@ erDiagram
         TEXT name
         INTEGER owner_id FK
         TEXT created_at
+        INTEGER is_public
+        TEXT public_at
     }
     playlist_tracks {
         INTEGER playlist_id PK_FK
@@ -238,11 +240,13 @@ Added `0032`. Which genres a track has, from its genre tag split on `;` and `/` 
 | `name` | TEXT | NOT NULL | — | |
 | `owner_id` | INTEGER | NOT NULL | — | **FK → `users.id`**, `ON DELETE NO ACTION` |
 | `created_at` | TEXT | NOT NULL | `datetime('now')` | |
+| `is_public` | INTEGER | NOT NULL | `0` | Added `0034`. 1: everyone signed in on this server can see and play it, and save a copy (A162). Only an account owns playlists, so a guest never has one (A163) |
+| `public_at` | TEXT | nullable | — | Added `0034`. When it last went public; NULL while private. "From others" is newest first by it (A166) |
 
 **FKs:** `owner_id → users.id` (`NO ACTION` / `NO ACTION`).
-**Indexes:** `idx_playlists_owner_id`.
+**Indexes:** `idx_playlists_owner_id`, `idx_playlists_public_at` (`is_public, public_at`, added `0034`).
 **Referenced by:** `playlist_tracks.playlist_id`.
-**Ownership enforcement is app-layer, not DB-layer** — every route touching a playlist by id goes through `loadOwnedPlaylist()` (`routes/playlists.ts`), returning `403` for a non-owner. The schema itself doesn't prevent a different user's request from being routed here; that's entirely `loadOwnedPlaylist`'s job.
+**Ownership enforcement is app-layer, not DB-layer** — every route that changes a playlist goes through `loadOwnedPlaylist()` (`routes/playlists.ts`), returning `403` for a non-owner. Since `0034`, reading one (`GET /playlists/:id`) and copying it also let anyone signed in through when `is_public = 1`. The schema itself doesn't prevent a different user's request from being routed here; that's entirely `loadOwnedPlaylist`'s job.
 
 ### `playlist_tracks`
 
@@ -572,6 +576,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | `0021_add_play_history_ms_final.sql` | `play_history.ms_final`: marks plays whose `ms_played` is the real total (A62) |
 | `0020_add_user_theme.sql` | `users.theme` — the web theme follows the profile (A55) |
 | `0033_add_library_root_full_scan.sql` | `library_roots.last_full_scan_at` — scans run when due, not reset by restarts |
+| `0034_add_playlist_public.sql` | `playlists.is_public`, `playlists.public_at`, `idx_playlists_public_at` — public playlists (A162-A166) |
 | `0031_add_track_disc_number.sql` | `tracks.disc_number` — disc order (v0.4 box 26) |
 | `0032_create_genres.sql` | `genres`, `track_genres` + `idx_track_genres_genre_id` (v0.4 box 27) |
 | `0030_album_artist_and_folder.sql` | Rebuilds `albums` with ids kept: `folder`, `artist_from_tracks`, `merged_into_id`; `UNIQUE(title, artist_id)` replaced by `idx_albums_key` and `idx_albums_key_from_tracks`; `albums_fts` triggers recreated (v0.4, A148) |
@@ -580,6 +585,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-10-13 | Migration `0034_add_playlist_public.sql` — `playlists.is_public` and `public_at`, the index, the ownership note, migration row. From the migration SQL and the test run | Public playlists (A162-A166) |
 | 2026-10-12 | Migration `0033_add_library_root_full_scan.sql` — new `library_roots` section (it had none since `0013`), migration row. From the migration SQL and the test run | Each auto-deploy restarted the 12-hour scan timer, so on a busy day the scheduled scan never ran |
 | 2026-10-12 | Migrations `0031_add_track_disc_number.sql` and `0032_create_genres.sql` — `tracks.disc_number` row; new `genres` and `track_genres` sections, relationship rows (plus the missing `albums.merged_into_id` row from `0030`), migration rows. From the migration SQL and the test run | v0.4: two-disc albums played disc 1 and 2 interleaved; no way to browse by genre (smol: 83% of tracks have one) |
 | 2026-10-12 | Migration `0030_album_artist_and_folder.sql` — `albums` section rewritten (album artist meaning, `folder`, `artist_from_tracks`, `merged_into_id`, new unique indexes), `artists` referenced-by note, migration row. From the migration SQL, a dry run on a copy of the dev database (ids, FTS and `foreign_key_check` all clean) and the test run | v0.4: albums grouped by track artist split compilations and "feat." albums; smol had 14,123 albums for 32,409 tracks |

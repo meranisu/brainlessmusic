@@ -67,9 +67,10 @@ export function App() {
             <Route path="/genres/:id" element={<GenreDetailPage />} />
             <Route element={<RequireAccount />}>
               <Route path="/favorites" element={<FavoritesPage />} />
-              <Route path="/playlists" element={<PlaylistsPage />} />
-              <Route path="/playlists/:id" element={<PlaylistDetailPage />} />
             </Route>
+            {/* Guests too: they see and play public playlists, and have none of their own (A163). */}
+            <Route path="/playlists" element={<PlaylistsPage />} />
+            <Route path="/playlists/:id" element={<PlaylistDetailPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/options" element={<OptionsPage />} />
             {/* Guests too: they join rooms with full controls (A100). */}

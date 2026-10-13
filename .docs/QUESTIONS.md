@@ -61,6 +61,14 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A166 — "From others" lists the newest public playlists first *(was Q166)*
+**Answered:** 2026-10-13. Ordered by when the owner made it public, newest first, not grouped by person. (Asked in
+the reply without a ledger entry first; recorded here on the answer.)
+
+### A165 — A downloaded public playlist keeps working after it goes private *(was Q165)*
+**Answered:** 2026-10-13. Someone who downloaded another person's public playlist for offline listening keeps it if
+the owner makes it private later. (Asked in the reply without a ledger entry first; recorded here on the answer.)
+
 ### A164 — Public playlists ship on web and Android together *(was Q164)*
 **Answered:** 2026-10-13, picked A. One server change, both clients in the same piece of work.
 

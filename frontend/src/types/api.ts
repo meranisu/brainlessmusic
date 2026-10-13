@@ -357,6 +357,28 @@ export interface PlaylistSummary {
   name: string;
   trackCount: number;
   createdAt: string;
+  /** Everyone signed in on this server can see, play and copy it (A162). */
+  isPublic: boolean;
+  /** Up to four albums, in playlist order, for a cover mosaic (A147). */
+  coverAlbumIds: number[];
+}
+
+/** Someone else's public playlist (`GET /playlists/public`), newest public first (A166). */
+export interface PublicPlaylistSummary extends PlaylistSummary {
+  ownerId: number;
+  ownerName: string;
+  publicAt: string;
+}
+
+/** A playlist in search results: the viewer's own, or someone's public one. */
+export interface PlaylistSearchResult {
+  id: number;
+  name: string;
+  trackCount: number;
+  ownerId: number;
+  ownerName: string;
+  isPublic: boolean;
+  coverAlbumIds: number[];
 }
 
 export interface PlaylistTrack {
@@ -376,7 +398,11 @@ export interface PlaylistDetail {
   id: number;
   name: string;
   ownerId: number;
+  ownerName: string;
   createdAt: string;
+  isPublic: boolean;
+  /** False for someone else's public playlist: read-only, with Save a copy (A162). */
+  isOwner: boolean;
   tracks: PlaylistTrack[];
 }
 
@@ -385,6 +411,8 @@ export interface SearchResults {
   artists: ArtistSummary[];
   albums: AlbumSummary[];
   tracks: TrackSummary[];
+  /** The viewer's own and everyone's public ones, own first (A162). */
+  playlists: PlaylistSearchResult[];
 }
 
 export interface UserSummary {

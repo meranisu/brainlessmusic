@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `listPublicPlaylists()`, `searchPlaylists()`, `setPlaylistPublic()`, `copyPlaylist()`, `coverAlbumIdsOf()` (new), `getPlaylistDetail()`, `listPlaylistsForUser()` (changed): `backend/src/db/playlists.ts`; `loadReadablePlaylist()` (new) and the playlist routes: `backend/src/routes/playlists.ts`; `GET /search`: `backend/src/routes/search.ts`
+**Date:** 2026-10-13
+**How added:** new feature (A162-A166)
+**Purpose:** public playlists: list, read, copy, the switch, and finding them in search.
+**Side effects:** writes `is_public`/`public_at`; a copy inserts a playlist and its tracks in one transaction.
+**Before:** playlists were owner-only to read and write; search returned library results only.
+**After:** public ones are readable by everyone signed in (guests included) and copyable by accounts; writes unchanged.
+
+**Function:** `PlaylistsPage()`, `PlaylistDetailPage()`, `SearchPage()` (changed), `PlaylistListItem()` (new): `frontend/src/pages/`, `frontend/src/components/PlaylistListItem.tsx`; routes in `frontend/src/App.tsx`; nav in `frontend/src/components/AppShell.tsx`
+**Date:** 2026-10-13
+**How added:** new feature (A162-A166)
+**Purpose:** "Mine" and "From others", the Public switch, read-only view with Save a copy, a Playlists search group.
+**Side effects:** guests reach `/playlists` and `/playlists/:id`.
+**Before:** your playlists only; guests had no Playlists page.
+**After:** as above; Shuffle on every playlist page.
+
 **Function:** `listUsers()` (`plays7d`): `backend/src/db/users.ts`
 **Date:** 2026-10-13
 **How added:** new feature (A161)

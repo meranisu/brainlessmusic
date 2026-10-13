@@ -6,6 +6,10 @@ export interface PlaylistRow {
   name: string;
   owner_id: number;
   created_at: string;
+  /** 1: everyone signed in can see, play and copy it (A162). */
+  is_public: number;
+  /** When it last went public; null while private. */
+  public_at: string | null;
 }
 
 export interface PlaylistSummary {
@@ -13,7 +17,26 @@ export interface PlaylistSummary {
   name: string;
   trackCount: number;
   createdAt: string;
+  isPublic: boolean;
   /** Up to four albums, in playlist order, for the cover mosaic the app shows (A147). */
+  coverAlbumIds: number[];
+}
+
+/** Someone else's public playlist, for "From others" (A162, A166). */
+export interface PublicPlaylistSummary extends PlaylistSummary {
+  ownerId: number;
+  ownerName: string;
+  publicAt: string;
+}
+
+/** A playlist found by name: the viewer's own, or someone's public one. */
+export interface PlaylistSearchResult {
+  id: number;
+  name: string;
+  trackCount: number;
+  ownerId: number;
+  ownerName: string;
+  isPublic: boolean;
   coverAlbumIds: number[];
 }
 
@@ -35,8 +58,34 @@ export interface PlaylistDetail {
   id: number;
   name: string;
   ownerId: number;
+  ownerName: string;
   createdAt: string;
+  isPublic: boolean;
   tracks: PlaylistTrack[];
+}
+
+/** Hidden tracks leave someone else's playlist unless an admin asked, as they leave browsing (A34). */
+function hiddenClause(includeHidden: boolean): string {
+  return includeHidden ? '' : 'AND t.hidden = 0';
+}
+
+const OWNER_NAME = 'COALESCE(u.display_name, u.username)';
+
+/** Up to four albums, in playlist order, for the cover mosaic. */
+function coverAlbumIdsOf(playlistId: number, includeHidden = true): number[] {
+  return (
+    db
+      .prepare(
+        `SELECT t.album_id as albumId
+         FROM playlist_tracks pt
+         JOIN tracks t ON t.id = pt.track_id
+         WHERE pt.playlist_id = ? AND t.album_id IS NOT NULL ${hiddenClause(includeHidden)}
+         GROUP BY t.album_id
+         ORDER BY MIN(pt.position) ASC
+         LIMIT 4`,
+      )
+      .all(playlistId) as { albumId: number }[]
+  ).map((r) => r.albumId);
 }
 
 export function findPlaylistById(id: number): PlaylistRow | undefined {
@@ -50,6 +99,7 @@ export function listPlaylistsForUser(ownerId: number): PlaylistSummary[] {
          p.id as id,
          p.name as name,
          p.created_at as createdAt,
+         p.is_public as isPublic,
          COUNT(pt.track_id) as trackCount
        FROM playlists p
        LEFT JOIN playlist_tracks pt ON pt.playlist_id = p.id
@@ -57,25 +107,66 @@ export function listPlaylistsForUser(ownerId: number): PlaylistSummary[] {
        GROUP BY p.id
        ORDER BY p.created_at DESC`,
     )
-    .all(ownerId) as Omit<PlaylistSummary, 'coverAlbumIds'>[];
-  const covers = db.prepare(
-    `SELECT t.album_id as albumId
-     FROM playlist_tracks pt
-     JOIN tracks t ON t.id = pt.track_id
-     WHERE pt.playlist_id = ? AND t.album_id IS NOT NULL
-     GROUP BY t.album_id
-     ORDER BY MIN(pt.position) ASC
-     LIMIT 4`,
-  );
-  return playlists.map((p) => ({
-    ...p,
-    coverAlbumIds: (covers.all(p.id) as { albumId: number }[]).map((r) => r.albumId),
-  }));
+    .all(ownerId) as (Omit<PlaylistSummary, 'coverAlbumIds' | 'isPublic'> & { isPublic: number })[];
+  return playlists.map((p) => ({ ...p, isPublic: p.isPublic === 1, coverAlbumIds: coverAlbumIdsOf(p.id) }));
 }
 
-export function getPlaylistDetail(id: number): PlaylistDetail | undefined {
+/** Other people's public playlists, newest public first (A166). Counts and covers skip hidden tracks unless admin. */
+export function listPublicPlaylists(viewerId: number, includeHidden = false): PublicPlaylistSummary[] {
+  const rows = db
+    .prepare(
+      `SELECT
+         p.id as id,
+         p.name as name,
+         p.created_at as createdAt,
+         p.public_at as publicAt,
+         p.owner_id as ownerId,
+         ${OWNER_NAME} as ownerName,
+         COUNT(t.id) as trackCount
+       FROM playlists p
+       JOIN users u ON u.id = p.owner_id
+       LEFT JOIN playlist_tracks pt ON pt.playlist_id = p.id
+       LEFT JOIN tracks t ON t.id = pt.track_id ${hiddenClause(includeHidden)}
+       WHERE p.is_public = 1 AND p.owner_id != ?
+       GROUP BY p.id
+       ORDER BY p.public_at DESC, p.id DESC`,
+    )
+    .all(viewerId) as Omit<PublicPlaylistSummary, 'coverAlbumIds' | 'isPublic'>[];
+  return rows.map((p) => ({ ...p, isPublic: true, coverAlbumIds: coverAlbumIdsOf(p.id, includeHidden) }));
+}
+
+/** Playlists whose name contains `query`: the viewer's own and everyone's public ones, own first. */
+export function searchPlaylists(query: string, viewerId: number, limit = 20): PlaylistSearchResult[] {
+  // `%` and `_` in a name are literal here, not wildcards.
+  const pattern = `%${query.trim().replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+  const rows = db
+    .prepare(
+      `SELECT
+         p.id as id,
+         p.name as name,
+         p.owner_id as ownerId,
+         ${OWNER_NAME} as ownerName,
+         p.is_public as isPublic,
+         (SELECT COUNT(*) FROM playlist_tracks pt WHERE pt.playlist_id = p.id) as trackCount
+       FROM playlists p
+       JOIN users u ON u.id = p.owner_id
+       WHERE p.name LIKE ? ESCAPE '\\' AND (p.owner_id = ? OR p.is_public = 1)
+       ORDER BY (p.owner_id = ?) DESC, p.name COLLATE NOCASE
+       LIMIT ?`,
+    )
+    .all(pattern, viewerId, viewerId, limit) as (Omit<PlaylistSearchResult, 'coverAlbumIds' | 'isPublic'> & {
+    isPublic: number;
+  })[];
+  return rows.map((p) => ({ ...p, isPublic: p.isPublic === 1, coverAlbumIds: coverAlbumIdsOf(p.id) }));
+}
+
+/** `includeHidden` is false when the viewer is neither the owner nor an admin. */
+export function getPlaylistDetail(id: number, includeHidden = true): PlaylistDetail | undefined {
   const playlist = findPlaylistById(id);
   if (!playlist) return undefined;
+  const owner = db.prepare(`SELECT ${OWNER_NAME} as name FROM users u WHERE u.id = ?`).get(playlist.owner_id) as
+    | { name: string }
+    | undefined;
 
   const tracks = db
     .prepare(
@@ -94,7 +185,7 @@ export function getPlaylistDetail(id: number): PlaylistDetail | undefined {
        JOIN tracks t ON t.id = pt.track_id
        LEFT JOIN artists a ON a.id = t.artist_id
        LEFT JOIN albums al ON al.id = t.album_id
-       WHERE pt.playlist_id = ?
+       WHERE pt.playlist_id = ? ${hiddenClause(includeHidden)}
        ORDER BY pt.position ASC`,
     )
     .all(id) as PlaylistTrack[];
@@ -103,7 +194,9 @@ export function getPlaylistDetail(id: number): PlaylistDetail | undefined {
     id: playlist.id,
     name: playlist.name,
     ownerId: playlist.owner_id,
+    ownerName: owner?.name ?? '',
     createdAt: playlist.created_at,
+    isPublic: playlist.is_public === 1,
     tracks,
   };
 }
@@ -117,6 +210,35 @@ export function createPlaylist(name: string, ownerId: number): PlaylistRow {
 
 export function renamePlaylist(id: number, name: string): void {
   db.prepare('UPDATE playlists SET name = ? WHERE id = ?').run(name, id);
+}
+
+/** Making it public stamps `public_at`, so it rises to the top of "From others"; private clears it. */
+export function setPlaylistPublic(id: number, isPublic: boolean): void {
+  db.prepare(
+    `UPDATE playlists
+     SET public_at = CASE WHEN ? = 0 THEN NULL WHEN is_public = 1 THEN public_at ELSE datetime('now') END,
+         is_public = ?
+     WHERE id = ?`,
+  ).run(isPublic ? 1 : 0, isPublic ? 1 : 0, id);
+}
+
+/**
+ * A private copy for `ownerId`, same tracks in the same order (A162, "Save a copy"). Hidden tracks are left out when
+ * the copier couldn't see them.
+ */
+export function copyPlaylist(sourceId: number, ownerId: number, name: string, includeHidden: boolean): PlaylistRow {
+  const copy = db.transaction(() => {
+    const created = createPlaylist(name, ownerId);
+    db.prepare(
+      `INSERT INTO playlist_tracks (playlist_id, track_id, position)
+       SELECT ?, pt.track_id, ROW_NUMBER() OVER (ORDER BY pt.position) - 1
+       FROM playlist_tracks pt
+       JOIN tracks t ON t.id = pt.track_id
+       WHERE pt.playlist_id = ? ${hiddenClause(includeHidden)}`,
+    ).run(created.id, sourceId);
+    return created;
+  });
+  return copy();
 }
 
 export function deletePlaylist(id: number): void {

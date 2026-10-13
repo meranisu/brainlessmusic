@@ -2,6 +2,7 @@ import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { findTrackById } from '../db/library.js';
 import {
   addTrackToPlaylist,
+  copyPlaylist,
   createPlaylist,
   deletePlaylist,
   findPlaylistById,
@@ -9,11 +10,17 @@ import {
   getPlaylistTrackIdsInOrder,
   isTrackInPlaylist,
   listPlaylistsForUser,
+  listPublicPlaylists,
   removeTrackFromPlaylist,
   renamePlaylist,
   reorderPlaylistTracks,
+  setPlaylistPublic,
   type PlaylistRow,
 } from '../db/playlists.js';
+import { isAdminRequest } from '../utils/isAdmin.js';
+
+/** Longest name a copy gets before " (copy)" is added. */
+const MAX_NAME_LENGTH = 200;
 
 function parseId(raw: string): number | undefined {
   const id = Number(raw);
@@ -45,6 +52,23 @@ function loadOwnedPlaylist(
   return playlist;
 }
 
+/**
+ * Loads a playlist the caller may read: their own, or anyone's public one (A162). A private playlist of someone else's
+ * answers 404, so its existence doesn't show.
+ */
+function loadReadablePlaylist(
+  id: number | undefined,
+  userId: number,
+  reply: FastifyReply,
+): PlaylistRow | undefined {
+  const playlist = id === undefined ? undefined : findPlaylistById(id);
+  if (!playlist || (playlist.owner_id !== userId && playlist.is_public !== 1)) {
+    reply.code(404).send({ error: 'Playlist not found' });
+    return undefined;
+  }
+  return playlist;
+}
+
 const playlistsRoute: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Body: { name?: string } }>(
     '/playlists',
@@ -73,19 +97,30 @@ const playlistsRoute: FastifyPluginAsync = async (fastify) => {
     },
   );
 
+  // Other people's public playlists, newest public first (A166). Guests too: they see and play them (A163).
+  fastify.get('/playlists/public', { preHandler: fastify.authenticate }, async (request, reply) => {
+    return reply.send({ playlists: listPublicPlaylists(request.user!.id, isAdminRequest(request)) });
+  });
+
+  // The owner's, or anyone's public one. Someone else's leaves out hidden tracks unless an admin is looking (A34).
   fastify.get<{ Params: { id: string } }>(
     '/playlists/:id',
-    { preHandler: [fastify.authenticate, fastify.requireAccount] },
+    { preHandler: fastify.authenticate },
     async (request, reply) => {
       const id = parseId(request.params.id);
-      const playlist = loadOwnedPlaylist(id, request.user!.id, reply);
+      const playlist = loadReadablePlaylist(id, request.user!.id, reply);
       if (!playlist) return;
 
-      return reply.send(getPlaylistDetail(playlist.id));
+      const isOwner = playlist.owner_id === request.user!.id;
+      return reply.send({
+        ...getPlaylistDetail(playlist.id, isOwner || isAdminRequest(request)),
+        isOwner,
+      });
     },
   );
 
-  fastify.patch<{ Params: { id: string }; Body: { name?: string } }>(
+  // Rename, and the public switch (A162). Either or both.
+  fastify.patch<{ Params: { id: string }; Body: { name?: string; isPublic?: unknown } }>(
     '/playlists/:id',
     { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
@@ -93,13 +128,45 @@ const playlistsRoute: FastifyPluginAsync = async (fastify) => {
       const playlist = loadOwnedPlaylist(id, request.user!.id, reply);
       if (!playlist) return;
 
-      const name = request.body?.name?.trim();
-      if (!name) {
+      const rawName = request.body?.name;
+      const isPublic = request.body?.isPublic;
+      if (rawName === undefined && isPublic === undefined) {
+        return reply.code(400).send({ error: 'name or isPublic is required' });
+      }
+      if (isPublic !== undefined && typeof isPublic !== 'boolean') {
+        return reply.code(400).send({ error: 'isPublic must be true or false' });
+      }
+      const name = rawName?.trim();
+      if (rawName !== undefined && !name) {
         return reply.code(400).send({ error: 'name is required' });
       }
 
-      renamePlaylist(playlist.id, name);
-      return reply.send({ id: playlist.id, name, createdAt: playlist.created_at });
+      if (name) renamePlaylist(playlist.id, name);
+      if (isPublic !== undefined) setPlaylistPublic(playlist.id, isPublic);
+      const updated = findPlaylistById(playlist.id)!;
+      return reply.send({
+        id: updated.id,
+        name: updated.name,
+        createdAt: updated.created_at,
+        isPublic: updated.is_public === 1,
+      });
+    },
+  );
+
+  // "Save a copy" (A162): a private playlist of the caller's own, same tracks in the same order. Accounts only, since
+  // a guest has no playlists (A163).
+  fastify.post<{ Params: { id: string } }>(
+    '/playlists/:id/copy',
+    { preHandler: [fastify.authenticate, fastify.requireAccount] },
+    async (request, reply) => {
+      const id = parseId(request.params.id);
+      const source = loadReadablePlaylist(id, request.user!.id, reply);
+      if (!source) return;
+
+      const isOwner = source.owner_id === request.user!.id;
+      const name = `${source.name.slice(0, MAX_NAME_LENGTH)} (copy)`;
+      const copy = copyPlaylist(source.id, request.user!.id, name, isOwner || isAdminRequest(request));
+      return reply.code(201).send({ id: copy.id, name: copy.name, createdAt: copy.created_at, isPublic: false });
     },
   );
 

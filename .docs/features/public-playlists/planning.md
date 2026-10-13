@@ -13,14 +13,16 @@ page in `.docs/features/feature-brainstorm.md`.
 - **Guests see and play** public playlists; a guest's own playlists **can't be made public** (A163).
 - **Web and Android together**, one server change (A164).
 - "Public" means signed-in people on this server. No sharing link (out of scope).
+- "From others" is newest first, by when the owner made it public (A166).
+- A downloaded copy of someone else's public playlist keeps working after it goes private (A165).
 
 ## Phase Overview
 
 | Phase | What it covers | Status | Checklist |
 |---|---|---|---|
 | 1. Plan | Decisions above, API shape | Done | [Phase 1](#phase-1-plan) |
-| 2. Structure | Migration, queries, endpoints, access rules, tests | Not started | [Phase 2](#phase-2-structure) |
-| 3. Interior | Web and Android: the switch, "From others", search, Save a copy | Not started | [Phase 3](#phase-3-interior) |
+| 2. Structure | Migration, queries, endpoints, access rules, tests | Done | [Phase 2](#phase-2-structure) |
+| 3. Interior | Web and Android: the switch, "From others", search, Save a copy | In progress (web done) | [Phase 3](#phase-3-interior) |
 | 4. Walkthrough | Two accounts and a guest on a phone and a browser | Not started | [Phase 4](#phase-4-walkthrough) |
 
 ## Phase 1: Plan
@@ -39,23 +41,23 @@ page in `.docs/features/feature-brainstorm.md`.
 
 ## Phase 2: Structure
 
-- [ ] Migration `0034`: `playlists.is_public INTEGER NOT NULL DEFAULT 0`, index for the public list;
+- [x] Migration `0034`: `playlists.is_public INTEGER NOT NULL DEFAULT 0`, index for the public list;
       `database-schema.md` updated in the same change.
-- [ ] Queries: list public (not the caller's), copy in one transaction, search by name.
-- [ ] Access: read allowed for public; writes owner-only; `isPublic` refused for a guest owner.
-- [ ] Hidden tracks: a non-admin viewer doesn't see hidden tracks in someone else's playlist, as elsewhere (A34).
-- [ ] Deleting a user or pruning a guest still clears their playlists (`guestDataCleanup.test.ts` covers it today).
-- [ ] Tests: each rule above, through `npm test`.
+- [x] Queries: list public (not the caller's), copy in one transaction, search by name.
+- [x] Access: read allowed for public; writes owner-only; `isPublic` refused for a guest owner.
+- [x] Hidden tracks: a non-admin viewer doesn't see hidden tracks in someone else's playlist, as elsewhere (A34).
+- [x] Deleting a user or pruning a guest still clears their playlists (`guestDataCleanup.test.ts` covers it today).
+- [x] Tests: each rule above, through `npm test`.
 
 ## Phase 3: Interior
 
-- [ ] Web `PlaylistsPage`: "Mine" and "From others" (owner shown on each); a Public switch on your own playlists
+- [x] Web `PlaylistsPage`: "Mine" and "From others" (owner shown on each); a Public switch on your own playlists
       (not shown to guests).
-- [ ] Web `PlaylistDetailPage`: read-only for others, with owner, Play, Shuffle, Save a copy.
-- [ ] Web `SearchPage`: a Playlists group.
+- [x] Web `PlaylistDetailPage`: read-only for others, with owner, Play, Shuffle, Save a copy.
+- [x] Web `SearchPage`: a Playlists group.
 - [ ] Android `ui/profile/PlaylistsScreen.kt`, `PlaylistDetailScreen.kt`, `ui/search/SearchScreen.kt`: the same, in
       every skin's existing playlist styling.
-- [ ] Offline downloads: a downloaded copy of someone else's playlist, decided when building (see questions).
+- [ ] Offline downloads: someone else's public playlist can be downloaded, and stays after it goes private (A165).
 
 ## Phase 4: Walkthrough
 
@@ -70,3 +72,5 @@ page in `.docs/features/feature-brainstorm.md`.
 | Date | Change |
 |---|---|
 | 2026-10-13 | Plan written from A162-A164. |
+| 2026-10-13 | A165 (downloads stay), A166 (newest first); started building. |
+| 2026-10-13 | Guests never own playlists (every write route is `requireAccount`), so A163's "don't publish" holds by itself. Web has no add-to-queue, so its read-only page has Play and Shuffle. Server and web done. |

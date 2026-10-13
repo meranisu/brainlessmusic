@@ -4,6 +4,27 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-13: Public playlists: server and web (A162-A166)
+
+- Owner request: see other people's public playlists in the Playlists section, and find playlists in search.
+- Migration `0034`: `playlists.is_public` (default 0, so every existing playlist stays private) and `public_at`
+  (when it last went public; "From others" is newest first by it, A166). `database-schema.md` updated.
+- `PATCH /playlists/:id` takes `isPublic`; `GET /playlists/public` lists other people's public playlists with owner
+  name, count and covers; `GET /playlists/:id` lets anyone signed in read a public one (`isOwner`, `ownerName`),
+  and answers 404 for someone else's private one; `POST /playlists/:id/copy` makes a private copy, same songs, same
+  order (A162); `GET /search` adds `playlists` (your own, then public ones; `%` and `_` are literal). Writes stay
+  owner-only. Guests can list and read public playlists but can't copy (they have no playlists, A163). Someone
+  else's playlist, its count and its copy leave out hidden tracks unless an admin is looking (A34).
+- Web: Playlists shows "Mine" and "From others" with each owner; a guest sees Playlists in the nav now, with only
+  "From others" (the routes left `RequireAccount`). A playlist page shows the Public switch to its owner; to everyone
+  else it is read-only with "by <owner>", Play, Shuffle and Save a copy. Search shows a Playlists group. Play and
+  Shuffle on every playlist.
+- Verified: `npm test` (561 pass; new `routes/publicPlaylists.test.ts`, 11 tests; `guestAccess.test.ts` updated),
+  `npm run build` and `npm run lint` (no new warnings). Throwaway backend on :3111 with a migrated scratch copy of
+  the local database and a second account's public and private playlists; screenshotted Playlists, someone else's
+  playlist, your own, and search at 1400 px and 390 px: the private one never showed. Copy deleted. Not run: a
+  guest in the browser (covered by the tests), Save a copy clicked in the browser.
+
 ## 2026-10-13: Control Center: the Users tab is roster first
 
 - Owner request: the tab was disorganised (the list of people came last, under three cards; guests showed twice;

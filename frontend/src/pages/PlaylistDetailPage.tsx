@@ -1,15 +1,26 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
 import { CoverArt } from '../components/CoverArt';
 import { FavoriteButton, useFavoriteIds } from '../components/FavoriteButton';
 import { usePlayer, type QueueTrack } from '../components/PlayerBar';
 import { useToast } from '../components/ToastProvider';
 import { useScrollLock } from '../hooks/useScrollLock';
 import { apiClient } from '../lib/apiClient';
-import type { PlaylistDetail } from '../types/api';
+import type { PlaylistDetail, PlaylistSummary } from '../types/api';
 import { PlayIcon } from '../components/icons';
 import { Skeleton, SkeletonDetailHeader, SkeletonTrackRows } from '../components/Skeleton';
+
+/** A shuffled copy, for the Shuffle button: the queue starts at a random song and runs in random order. */
+function shuffled<T>(items: T[]): T[] {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
 
 function formatDuration(seconds: number | null): string {
   if (seconds === null) return '—';
@@ -26,6 +37,7 @@ export function PlaylistDetailPage() {
   const { showToast } = useToast();
   const { playQueue } = usePlayer();
   const favoriteIds = useFavoriteIds();
+  const { user } = useAuth();
 
   const [renaming, setRenaming] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -50,6 +62,28 @@ export function PlaylistDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['playlists'] });
     },
     onError: (err) => showToast(err instanceof Error ? err.message : 'Rename failed', 'error'),
+  });
+
+  // The public switch (A162): everyone signed in on this server sees it under "From others" and in search.
+  const publicMutation = useMutation({
+    mutationFn: (isPublic: boolean) => apiClient.patch(`/playlists/${playlistId}`, { isPublic }),
+    onSuccess: (_res, isPublic) => {
+      queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ['playlists'] });
+      showToast(isPublic ? 'Public: everyone here can find and play it' : 'Private: only you see it now');
+    },
+    onError: (err) => showToast(err instanceof Error ? err.message : 'Could not change that', 'error'),
+  });
+
+  // Save a copy (A162): someone else's playlist becomes a private one of your own.
+  const copyMutation = useMutation({
+    mutationFn: () => apiClient.post<PlaylistSummary>(`/playlists/${playlistId}/copy`),
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: ['playlists'] });
+      showToast(`Saved as “${created.name}”`);
+      navigate(`/playlists/${created.id}`);
+    },
+    onError: (err) => showToast(err instanceof Error ? err.message : 'Could not save a copy', 'error'),
   });
 
   const deleteMutation = useMutation({
@@ -104,7 +138,15 @@ export function PlaylistDetailPage() {
       </Skeleton>
     );
   }
-  if (isError || !data) return <p className="text-sm text-red-300">Could not load that playlist.</p>;
+  if (isError || !data) {
+    return (
+      <p className="text-sm text-red-300">
+        Could not load that playlist. It may have been deleted, or its owner made it private.
+      </p>
+    );
+  }
+
+  const isOwner = data.isOwner;
 
   const queue: QueueTrack[] = data.tracks.map((t) => ({
     id: t.id,
@@ -162,7 +204,9 @@ export function PlaylistDetailPage() {
         )}
 
         <p className="text-sm text-blue-200">
+          {!isOwner && <>by {data.ownerName} · </>}
           {data.tracks.length} track{data.tracks.length === 1 ? '' : 's'}
+          {isOwner && (data.isPublic ? ' · Public' : ' · Only you')}
         </p>
 
         <div className="mt-2 flex flex-wrap gap-2">
@@ -173,20 +217,59 @@ export function PlaylistDetailPage() {
           >
             <PlayIcon className="h-3.5 w-3.5" /> Play
           </button>
-          {renaming === null && (
-            <button onClick={() => setRenaming(data.name)} className="btn-secondary btn-md">
-              Rename
-            </button>
-          )}
-          <button onClick={() => setConfirmingDelete(true)} className="btn-danger btn-md">
-            Delete playlist
+          <button
+            onClick={() => playQueue(shuffled(queue), 0)}
+            disabled={queue.length === 0}
+            className="btn-secondary btn-md"
+          >
+            Shuffle
           </button>
+          {isOwner ? (
+            <>
+              {renaming === null && (
+                <button onClick={() => setRenaming(data.name)} className="btn-secondary btn-md">
+                  Rename
+                </button>
+              )}
+              <button onClick={() => setConfirmingDelete(true)} className="btn-danger btn-md">
+                Delete playlist
+              </button>
+            </>
+          ) : (
+            !user?.isGuest && (
+              <button
+                onClick={() => copyMutation.mutate()}
+                disabled={copyMutation.isPending}
+                className="btn-secondary btn-md"
+              >
+                {copyMutation.isPending ? 'Saving…' : 'Save a copy'}
+              </button>
+            )
+          )}
         </div>
+
+        {isOwner && (
+          <label className="mt-2 flex max-w-xl items-start gap-2 text-sm text-blue-200">
+            <input
+              type="checkbox"
+              checked={data.isPublic}
+              disabled={publicMutation.isPending}
+              onChange={(e) => publicMutation.mutate(e.target.checked)}
+              className="mt-0.5 accent-orange-600"
+            />
+            <span>
+              Public
+              <span className="block text-xs text-blue-400">
+                Everyone on this server can find it, play it and save a copy. Only you can change it.
+              </span>
+            </span>
+          </label>
+        )}
       </div>
 
       {data.tracks.length === 0 ? (
         <p className="text-sm text-blue-300">
-          Empty. Add tracks from the ⋮ menu on any track in the library.
+          {isOwner ? 'Empty. Add tracks from the ⋮ menu on any track in the library.' : 'This playlist is empty.'}
         </p>
       ) : (
         <div className="card overflow-hidden">
@@ -205,7 +288,7 @@ export function PlaylistDetailPage() {
               {data.tracks.map((track, i) => (
                 <tr
                   key={track.id}
-                  draggable
+                  draggable={isOwner}
                   onDragStart={() => setDragIndex(i)}
                   onDragOver={(e) => {
                     e.preventDefault(); // required, or the drop never fires
@@ -223,9 +306,11 @@ export function PlaylistDetailPage() {
                   } ${dragIndex === i ? 'opacity-50' : ''}`}
                 >
                   <td className="py-2.5 pl-4 tabular-nums text-blue-400 group-hover:text-blue-300">
-                    <span className="cursor-grab select-none pr-1 text-blue-500" title="Drag to reorder">
-                      ⠿
-                    </span>
+                    {isOwner && (
+                      <span className="cursor-grab select-none pr-1 text-blue-500" title="Drag to reorder">
+                        ⠿
+                      </span>
+                    )}
                     {i + 1}
                   </td>
                   <td className="py-2.5 pr-3 font-medium text-white">
@@ -242,6 +327,7 @@ export function PlaylistDetailPage() {
                     <FavoriteButton trackId={track.id} isFavorited={favoriteIds.has(track.id)} />
                   </td>
                   <td className="py-2.5 pr-4" onClick={(e) => e.stopPropagation()}>
+                    {isOwner && (
                     <button
                       onClick={() => removeMutation.mutate(track.id)}
                       className="tap-target text-blue-400 transition-colors hover:text-red-300"
@@ -250,6 +336,7 @@ export function PlaylistDetailPage() {
                     >
                       ✕
                     </button>
+                    )}
                   </td>
                 </tr>
               ))}

@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
 import { AlbumGrid } from '../components/AlbumGrid';
 import { CoverArt } from '../components/CoverArt';
 import { FavoriteButton, useFavoriteIds } from '../components/FavoriteButton';
+import { PlaylistListItem } from '../components/PlaylistListItem';
 import { usePlayer, type QueueTrack } from '../components/PlayerBar';
 import { apiClient } from '../lib/apiClient';
 import type { SearchResults } from '../types/api';
@@ -33,6 +35,7 @@ export function SearchPage() {
   const query = (params.get('q') ?? '').trim();
   const { playQueue } = usePlayer();
   const favoriteIds = useFavoriteIds();
+  const { user } = useAuth();
 
   const { data, isLoading, isError, isPlaceholderData } = useQuery({
     queryKey: ['search', query],
@@ -41,7 +44,9 @@ export function SearchPage() {
     // The last results stay up while a new search loads (A83); an empty one would only hide the skeleton. Not once the
     // box is cleared: the query is off then, and its placeholder would keep the old results under "Search".
     placeholderData: (prev) =>
-      query && prev && prev.artists.length + prev.albums.length + prev.tracks.length > 0 ? prev : undefined,
+      query && prev && prev.artists.length + prev.albums.length + prev.tracks.length + prev.playlists.length > 0
+        ? prev
+        : undefined,
   });
 
   const queue: QueueTrack[] = (data?.tracks ?? []).map((t) => ({
@@ -53,7 +58,7 @@ export function SearchPage() {
     format: t.format,
   }));
 
-  const total = data ? data.artists.length + data.albums.length + data.tracks.length : 0;
+  const total = data ? data.artists.length + data.albums.length + data.tracks.length + data.playlists.length : 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -68,7 +73,7 @@ export function SearchPage() {
               ? '\u00a0' // the skeleton already says "Searching for …" (A84)
               : isPlaceholderData
                 ? 'Searching…'
-                : `${total} result${total === 1 ? '' : 's'} across artists, albums and tracks`}
+                : `${total} result${total === 1 ? '' : 's'} across artists, albums, tracks and playlists`}
         </p>
       </div>
 
@@ -109,6 +114,24 @@ export function SearchPage() {
 
           <Section title="Albums" count={data.albums.length}>
             <AlbumGrid albums={data.albums} />
+          </Section>
+
+          {/* Yours, then other people's public ones (A162). */}
+          <Section title="Playlists" count={data.playlists.length}>
+            <ul className="card divide-y divide-blue-800/60 overflow-hidden">
+              {data.playlists.map((p) => (
+                <li key={p.id}>
+                  <PlaylistListItem
+                    id={p.id}
+                    name={p.name}
+                    trackCount={p.trackCount}
+                    coverAlbumIds={p.coverAlbumIds}
+                    ownerName={p.ownerId === user?.id ? undefined : p.ownerName}
+                    isPublic={p.isPublic}
+                  />
+                </li>
+              ))}
+            </ul>
           </Section>
 
           <Section title="Tracks" count={data.tracks.length}>
