@@ -9,6 +9,7 @@ import { CoverArt } from './CoverArt';
 export function PlaylistListItem({
   id,
   name,
+  description,
   trackCount,
   coverAlbumIds,
   ownerId,
@@ -17,6 +18,8 @@ export function PlaylistListItem({
 }: {
   id: number;
   name: string;
+  /** One line of it under the name (A185); the full text on hover. */
+  description?: string | null;
   trackCount: number;
   coverAlbumIds: number[];
   /** With `ownerName`, makes the name a link to their profile. */
@@ -40,6 +43,11 @@ export function PlaylistListItem({
         >
           {name}
         </Link>
+        {description && (
+          <span className="block truncate text-xs text-blue-200" title={description}>
+            {description}
+          </span>
+        )}
         <span className="block truncate text-xs text-blue-300">
           {ownerName ? (
             <>

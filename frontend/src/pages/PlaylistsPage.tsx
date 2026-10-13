@@ -115,6 +115,7 @@ export function PlaylistsPage() {
                   <PlaylistListItem
                     id={p.id}
                     name={p.name}
+                    description={p.description}
                     trackCount={p.trackCount}
                     coverAlbumIds={p.coverAlbumIds}
                     isPublic={p.isPublic}
@@ -157,6 +158,7 @@ export function PlaylistsPage() {
                 <PlaylistListItem
                   id={p.id}
                   name={p.name}
+                  description={p.description}
                   trackCount={p.trackCount}
                   coverAlbumIds={p.coverAlbumIds}
                   ownerId={p.ownerId}

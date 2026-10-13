@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `PlaylistDetailPage()` (`describeMutation`, description editor), `PlaylistListItem()` (`description`), `ProfilePage()`: `frontend/src/`; `listPublicPlaylistsOf()`: `backend/src/db/playlists.ts`
+**Date:** 2026-10-13
+**How added:** owner request (A185, A182)
+**Purpose:** descriptions on the web; People off the web profile.
+**Side effects:** none.
+**Before:** the web ignored descriptions; a profile's public playlists lacked them; "See everyone" on your profile.
+**After:** shown and editable; returned for profiles; button removed.
+
 **Function:** `EditProfilePage()`, `PinPickerPage()`, `PinRow()`, `EditSection()`, `ProfileViewModel.save(name, …)`, `searchLibrary()`: `android/app/src/main/kotlin/com/brainlessmusic/app/ui/people/ProfileScreen.kt`; `AppIcons.camera` and each skin set's `Camera`: `ui/theme/`
 **Date:** 2026-10-13
 **How added:** owner request (A186)

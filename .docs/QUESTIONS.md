@@ -108,7 +108,7 @@ picked from a searchable library list with covers (5), Save lit only on a change
 **Answered:** 2026-10-13, in chat: "add descriptions to playlist too, so its easier to know. including the private one
 too", with search, a song count, sort and Play as a floating button. Descriptions on every playlist (up to 300
 characters, migration 0036), edited with the name; shown on the page and the Playlists grid. Android only for now; the
-web neither shows nor edits them yet.
+web shows and edits them since the same day (owner: "lets add that").
 
 ### A184 — Listen together's icon is headphones *(was Q184)*
 **Answered:** 2026-10-13, in chat: "q184: a". Every skin's own headphones glyph (Lucide, Phosphor Bold, Font Awesome,
@@ -122,7 +122,8 @@ button shape, for guests too; replaces A136's small top-bar icon. The player kee
 **Answered:** 2026-10-13, in chat: "why would i want to see other people profile in my profile page", and Home needs
 no People icon either. Android only: "See everyone" left your own profile and the People icon left Home's top bar;
 a People icon sits in Listen together's top bar instead. Search's People group and names as links stay. Replaces
-those two parts of A172 on Android; the web is unchanged.
+those two parts of A172 on Android. On the web, "See everyone" left the profile too (2026-10-13); the More menu keeps
+People.
 
 ### A181 — Ship the add-to-playlist redo on Android in v0.4.12 *(was Q181)*
 **Answered:** 2026-10-13, in chat: "yes go out". Straight to a release, no debug build on the phone first.

@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-13: Web shows and edits playlist descriptions; "See everyone" leaves the web profile
+
+- Owner request, to match Android v0.4.13. The playlist page shows the description under the name; the owner gets
+  "Add a description" / "Edit description", a text box with a 300-character counter, Save and Cancel (Escape cancels;
+  blank removes it). Playlist rows (Playlists page, profiles) show its first line, the full text on hover.
+- `listPublicPlaylistsOf` (someone else's profile) now returns `description` too; it was missed in 0036's change.
+- The profile's "See everyone" button is gone, as on Android (A182); People stays in the More menu.
+- Verified: backend `tsc --noEmit` and `npm test` (description test now covers profiles); web `npm run build` and
+  `npm run lint`. Not looked at in a browser.
+
 ## 2026-10-13: Android Edit profile is a full-screen page (A186)
 
 - Replaces the small dialog. Close (X) and Save in the top bar; Save lights only once something changed, and closing

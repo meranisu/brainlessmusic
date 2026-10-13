@@ -94,6 +94,9 @@ describe('playlist descriptions', () => {
 
     const others = (await call(bob, 'GET', '/playlists/public')).json().playlists;
     assert.equal(others[0].description, 'Rainy days');
+    const aliceId = (await call(alice, 'GET', `/playlists/${id}`)).json().ownerId;
+    const onProfile = (await call(bob, 'GET', `/users/${aliceId}/profile`)).json().playlists;
+    assert.equal(onProfile[0].description, 'Rainy days');
 
     const copy = await call(bob, 'POST', `/playlists/${id}/copy`);
     assert.equal(copy.statusCode, 201);

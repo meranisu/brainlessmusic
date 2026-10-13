@@ -348,6 +348,7 @@ export function listPublicPlaylistsOf(ownerId: number, includeHidden = false): P
       `SELECT
          p.id as id,
          p.name as name,
+         p.description as description,
          p.created_at as createdAt,
          COUNT(t.id) as trackCount
        FROM playlists p

@@ -270,10 +270,6 @@ export function ProfilePage() {
             <button type="button" onClick={() => setEditing(true)} className="btn-secondary btn-md">
               Edit profile
             </button>
-            {/* Your own page is where you'd look for everyone else's (A172). */}
-            <Link to="/people" className="btn-ghost btn-md">
-              See everyone
-            </Link>
           </div>
         )}
       </header>
@@ -381,6 +377,7 @@ export function ProfilePage() {
                 <PlaylistListItem
                   id={p.id}
                   name={p.name}
+                  description={p.description}
                   trackCount={p.trackCount}
                   coverAlbumIds={p.coverAlbumIds}
                   isPublic={p.isPublic}

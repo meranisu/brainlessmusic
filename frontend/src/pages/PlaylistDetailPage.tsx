@@ -24,6 +24,9 @@ function shuffled<T>(items: T[]): T[] {
   return copy;
 }
 
+/** Longest description, in characters (an emoji is one). Matches `MAX_DESCRIPTION_LENGTH` on the server. */
+const MAX_DESCRIPTION = 300;
+
 function formatDuration(seconds: number | null): string {
   if (seconds === null) return '—';
   const mins = Math.floor(seconds / 60);
@@ -46,6 +49,9 @@ export function PlaylistDetailPage() {
   const renameFieldId = useId();
   const renameInputRef = useRef<HTMLInputElement>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // The description being edited, or null while it's only shown (A185).
+  const [describing, setDescribing] = useState<string | null>(null);
+  const descriptionFieldId = useId();
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
@@ -78,6 +84,19 @@ export function PlaylistDetailPage() {
   });
   const takenNames = mine.data?.playlists.filter((p) => p.id !== playlistId).map((p) => p.name) ?? [];
   const renameCheck = checkPlaylistName(renaming ?? '', takenNames, { ownName: data?.name, reportBlank: true });
+
+  // Blank clears it on the server.
+  const describeMutation = useMutation({
+    mutationFn: (description: string) =>
+      apiClient.patch<PlaylistSummary>(`/playlists/${playlistId}`, { description }),
+    onSuccess: (_res, description) => {
+      setDescribing(null);
+      queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ['playlists'] });
+      showToast(description.trim() ? 'Description saved' : 'Description removed');
+    },
+    onError: (err) => showToast(err instanceof Error ? err.message : 'Could not save the description', 'error'),
+  });
 
   // The public switch (A162): everyone signed in on this server sees it under "From others" and in search.
   const publicMutation = useMutation({
@@ -162,6 +181,7 @@ export function PlaylistDetailPage() {
   }
 
   const isOwner = data.isOwner;
+  const descriptionLength = [...(describing ?? '').trim()].length;
 
   const queue: QueueTrack[] = data.tracks.map((t) => ({
     id: t.id,
@@ -233,6 +253,63 @@ export function PlaylistDetailPage() {
           </form>
         )}
 
+        {describing === null ? (
+          data.description && (
+            <p className="max-w-2xl whitespace-pre-line text-sm text-blue-100">{data.description}</p>
+          )
+        ) : (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (descriptionLength > MAX_DESCRIPTION) return;
+              if (describing.trim() === (data.description ?? '')) {
+                setDescribing(null);
+                return;
+              }
+              describeMutation.mutate(describing.trim());
+            }}
+            className="flex max-w-xl flex-col gap-2"
+          >
+            <label htmlFor={descriptionFieldId} className="text-xs text-blue-400">
+              Description
+            </label>
+            <textarea
+              id={descriptionFieldId}
+              value={describing}
+              onChange={(e) => setDescribing(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setDescribing(null);
+              }}
+              rows={3}
+              autoFocus
+              placeholder="What it's for, like “slow songs for the drive home”"
+              aria-describedby={`${descriptionFieldId}-count`}
+              aria-invalid={descriptionLength > MAX_DESCRIPTION}
+              className="input w-full resize-y"
+            />
+            <div className="flex items-center gap-2">
+              <span
+                id={`${descriptionFieldId}-count`}
+                className={`mr-auto font-mono text-xs tabular-nums ${
+                  descriptionLength > MAX_DESCRIPTION ? 'text-red-300' : 'text-blue-400'
+                }`}
+              >
+                {descriptionLength}/{MAX_DESCRIPTION}
+              </span>
+              <button type="button" onClick={() => setDescribing(null)} className="btn-secondary btn-sm">
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={describeMutation.isPending || descriptionLength > MAX_DESCRIPTION}
+                className="btn-primary btn-sm"
+              >
+                {describeMutation.isPending ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </form>
+        )}
+
         <p className="text-sm text-blue-200">
           {!isOwner && (
             <>
@@ -273,6 +350,11 @@ export function PlaylistDetailPage() {
                   className="btn-secondary btn-md"
                 >
                   Rename
+                </button>
+              )}
+              {describing === null && (
+                <button onClick={() => setDescribing(data.description ?? '')} className="btn-secondary btn-md">
+                  {data.description ? 'Edit description' : 'Add a description'}
                 </button>
               )}
               <button onClick={() => setConfirmingDelete(true)} className="btn-danger btn-md">

@@ -357,6 +357,8 @@ export interface FavoriteListResponse {
 export interface PlaylistSummary {
   id: number;
   name: string;
+  /** What it is, in the owner's words (A185); null without one. */
+  description: string | null;
   trackCount: number;
   createdAt: string;
   /** Everyone signed in on this server can see, play and copy it (A162). */
@@ -401,6 +403,8 @@ export interface PlaylistTrack {
 export interface PlaylistDetail {
   id: number;
   name: string;
+  /** What it is, in the owner's words (A185); null without one. */
+  description: string | null;
   ownerId: number;
   ownerName: string;
   createdAt: string;
