@@ -10,6 +10,8 @@ import com.brainlessmusic.app.data.remote.dto.HistoryEntryDto
 import com.brainlessmusic.app.data.remote.dto.LessOftenPageDto
 import com.brainlessmusic.app.data.remote.dto.PlaylistDetailDto
 import com.brainlessmusic.app.data.remote.dto.PlaylistNameRequest
+import com.brainlessmusic.app.data.remote.dto.PlaylistPublicRequest
+import com.brainlessmusic.app.data.remote.dto.PublicPlaylistDto
 import com.brainlessmusic.app.data.remote.dto.PlaylistRefDto
 import com.brainlessmusic.app.data.remote.dto.PlaylistSummaryDto
 import com.brainlessmusic.app.data.remote.dto.ReorderPlaylistRequest
@@ -148,6 +150,15 @@ class ProfileRepository @Inject constructor(
         callApi { it.renamePlaylist(id, PlaylistNameRequest(name)) }
 
     suspend fun deletePlaylist(id: Int): Result<Unit> = callApi { it.deletePlaylist(id) }
+
+    /** Other people's public playlists (A162, A166). Guests too: they see and play them (A163). */
+    suspend fun publicPlaylists(): Result<List<PublicPlaylistDto>> = callApi { it.publicPlaylists().playlists }
+
+    suspend fun setPlaylistPublic(id: Int, isPublic: Boolean): Result<PlaylistRefDto> =
+        callApi { it.setPlaylistPublic(id, PlaylistPublicRequest(isPublic)) }
+
+    /** "Save a copy" (A162): a private playlist of your own with the same songs in the same order. */
+    suspend fun copyPlaylist(id: Int): Result<PlaylistRefDto> = callApi { it.copyPlaylist(id) }
 
     suspend fun addToPlaylist(playlistId: Int, trackId: Int): AddToPlaylistResult =
         runCatching { api().addToPlaylist(playlistId, AddPlaylistTrackRequest(trackId)) }.fold(

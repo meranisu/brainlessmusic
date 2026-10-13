@@ -183,6 +183,8 @@ describe('search finds playlists', () => {
       [bobsOwn, shared],
     );
     assert.equal(found[1].ownerName, 'alice');
+    assert.equal(found[0].isOwner, true);
+    assert.equal(found[1].isOwner, false);
   });
 
   it('treats % and _ in the query as plain characters', async () => {

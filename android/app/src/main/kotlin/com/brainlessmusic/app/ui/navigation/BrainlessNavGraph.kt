@@ -248,6 +248,12 @@ fun BrainlessNavGraph(
                         onOpenNowPlaying = { navController.openNowPlaying() },
                         onOpenAlbum = { navController.navigate(Routes.albumDetail(it)) },
                         onOpenArtist = { navController.navigate(Routes.artistDetail(it)) },
+                        // A saved copy opens in place of the playlist it was copied from.
+                        onOpenPlaylist = { id ->
+                            navController.navigate(Routes.playlistDetail(id)) {
+                                popUpTo(entry.destination.id) { inclusive = true }
+                            }
+                        },
                     )
                 }
                 screen(Routes.SETTINGS) {

@@ -1,5 +1,35 @@
 [
   {
+    "version": "0.4.8",
+    "date": "2026-10-13",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "playlists can be public now. open one of yours, tap ⋮ and pick make public, and everyone on the server can find it, play it and download it. make private takes it back",
+              "the playlists tab has a from others section with everyone's public playlists, newest first, with who made them",
+              "open someone else's playlist to play it or shuffle it, or tap ⋮ and save a copy to get your own version you can change. theirs stays as it is",
+              "search finds playlists too: yours, and other people's public ones",
+              "guests can see and play public playlists now (still no likes or playlists of their own)"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.4.7",
     "date": "2026-10-12",
     "sections": [

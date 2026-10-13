@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-13: Public playlists on Android (v0.4.8), and `isOwner` in playlist search
+
+- Android, per A162-A166: the Playlists tab adds "From others" (owner and count on each tile, newest public first);
+  a guest sees it under a card explaining they keep nothing of their own, instead of only that card. On a playlist,
+  the owner's menu adds Make public / Make private and a line says "Public" or "Only you"; someone else's is
+  read-only (no swipe to remove, no drag handle), says who made it, and its menu has Save a copy (not for guests),
+  which opens the copy in its place. Search shows a Playlists group. Downloading someone else's public playlist uses
+  the existing playlist download, kept on the phone after it goes private (A165).
+- `PlaylistDetailDto.isOwner` is nullable and read as "yours" when missing, since Gson ignores Kotlin defaults and an
+  older server only ever returned your own.
+- Server: playlist search results carry `isOwner`, so a client can tell yours apart without knowing its user id (the
+  app doesn't keep it); the web uses it too.
+- Release notes `android/release-notes/v0.4.8.md`.
+- Verified: `npm test` (561 pass, `isOwner` asserted in `publicPlaylists.test.ts`), `npm run build` in `frontend/`,
+  `./gradlew assembleDebug`. Not tested on a phone.
+
 ## 2026-10-13: Public playlists: server and web (A162-A166)
 
 - Owner request: see other people's public playlists in the Playlists section, and find playlists in search.

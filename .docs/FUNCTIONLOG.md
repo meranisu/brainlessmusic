@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `PlaylistsViewModel.load()`, `PlaylistsTab()`, `PlaylistTile()`: `android/.../ui/profile/PlaylistsScreen.kt`; `PlaylistDetailViewModel.setPublic()`, `saveCopy()` (new), `PlaylistDetailScreen()`, `PlaylistRow()`: `android/.../ui/profile/PlaylistDetailScreen.kt`; `PlaylistResultRow()` (new), `SearchScreen()`: `android/.../ui/search/SearchScreen.kt`; `ProfileRepository.publicPlaylists()`, `setPlaylistPublic()`, `copyPlaylist()` (new); DTOs in `ProfileDtos.kt`, `LibraryDtos.kt`; `searchPlaylists()` (`isOwner`): `backend/src/db/playlists.ts`
+**Date:** 2026-10-13
+**How added:** new feature (A162-A166)
+**Purpose:** public playlists on Android: From others, the switch, read-only view with Save a copy, search.
+**Side effects:** guests' Playlists tab now loads `GET /playlists/public`.
+**Before:** your playlists only; a guest saw a card and nothing else.
+**After:** as above.
+
 **Function:** `listPublicPlaylists()`, `searchPlaylists()`, `setPlaylistPublic()`, `copyPlaylist()`, `coverAlbumIdsOf()` (new), `getPlaylistDetail()`, `listPlaylistsForUser()` (changed): `backend/src/db/playlists.ts`; `loadReadablePlaylist()` (new) and the playlist routes: `backend/src/routes/playlists.ts`; `GET /search`: `backend/src/routes/search.ts`
 **Date:** 2026-10-13
 **How added:** new feature (A162-A166)

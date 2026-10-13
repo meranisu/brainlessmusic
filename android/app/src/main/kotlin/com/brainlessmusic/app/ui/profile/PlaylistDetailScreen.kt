@@ -111,6 +111,9 @@ class PlaylistDetailViewModel @Inject constructor(
 
     val playlistId: Int = checkNotNull(savedStateHandle[Routes.ARG_PLAYLIST_ID])
 
+    /** A guest can open someone else's public playlist but not copy it (A163). */
+    val isGuest: Boolean get() = profile.isGuest
+
     private val _state = MutableStateFlow<LoadState<PlaylistDetailDto>>(LoadState.Loading)
     val state: StateFlow<LoadState<PlaylistDetailDto>> = _state.asStateFlow()
 
@@ -185,6 +188,32 @@ class PlaylistDetailViewModel @Inject constructor(
         }
     }
 
+    /** The public switch (A162), for the owner. */
+    fun setPublic(isPublic: Boolean, onFailed: (String) -> Unit) {
+        edit {
+            profile.setPlaylistPublic(playlistId, isPublic).fold(
+                onSuccess = {
+                    current()?.let { _state.value = LoadState.Content(it.copy(isPublic = isPublic)) }
+                    Notices.show(if (isPublic) "Public. Everyone here can find and play it." else "Private. Only you see it now.")
+                },
+                onFailure = { onFailed("Couldn't change that. Try again.") },
+            )
+        }
+    }
+
+    /** "Save a copy" (A162): your own private playlist with the same songs; [onCopied] gets its id. */
+    fun saveCopy(onCopied: (Int) -> Unit, onFailed: (String) -> Unit) {
+        viewModelScope.launch {
+            profile.copyPlaylist(playlistId).fold(
+                onSuccess = {
+                    Notices.show("Saved as \"${it.name}\"")
+                    onCopied(it.id)
+                },
+                onFailure = { onFailed("Couldn't save a copy. Try again.") },
+            )
+        }
+    }
+
     fun delete(onDeleted: () -> Unit, onFailed: (String) -> Unit) {
         edit {
             profile.deletePlaylist(playlistId).fold(
@@ -238,6 +267,7 @@ fun PlaylistDetailScreen(
     onOpenNowPlaying: () -> Unit,
     onOpenAlbum: (Int) -> Unit,
     onOpenArtist: (Int) -> Unit,
+    onOpenPlaylist: (Int) -> Unit,
     viewModel: PlaylistDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -251,6 +281,8 @@ fun PlaylistDetailScreen(
         SongMenuSheet(item = viewModel.queueItem(track), onDismiss = { songMenuFor = null }, onOpenAlbum = onOpenAlbum, onOpenArtist = onOpenArtist)
     }
     val playlist = (state as? LoadState.Content)?.data
+    // Someone else's public playlist is read-only here (A162): no rename, delete, remove or reorder.
+    val isMine = playlist?.isMine ?: true
     val context = LocalContext.current
     val download by viewModel.download.collectAsStateWithLifecycle()
     val showFailure: (String) -> Unit = { Notices.show(it) }
@@ -283,18 +315,32 @@ fun PlaylistDetailScreen(
                     IconButton(onClick = onBack) { Icon(AppIcons.back, contentDescription = "Back") }
                 },
                 actions = {
-                    if (playlist != null) {
+                    if (playlist != null && (isMine || !viewModel.isGuest)) {
                         Box {
                             IconButton(onClick = { menuOpen = true }) { Icon(AppIcons.more, contentDescription = "More") }
                             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                                DropdownMenuItem(text = { Text("Rename") }, onClick = {
-                                    menuOpen = false
-                                    renaming = true
-                                })
-                                DropdownMenuItem(text = { Text("Delete playlist") }, onClick = {
-                                    menuOpen = false
-                                    confirmingDelete = true
-                                })
+                                if (isMine) {
+                                    DropdownMenuItem(text = { Text("Rename") }, onClick = {
+                                        menuOpen = false
+                                        renaming = true
+                                    })
+                                    DropdownMenuItem(
+                                        text = { Text(if (playlist.isPublic) "Make private" else "Make public") },
+                                        onClick = {
+                                            menuOpen = false
+                                            viewModel.setPublic(!playlist.isPublic, showFailure)
+                                        },
+                                    )
+                                    DropdownMenuItem(text = { Text("Delete playlist") }, onClick = {
+                                        menuOpen = false
+                                        confirmingDelete = true
+                                    })
+                                } else {
+                                    DropdownMenuItem(text = { Text("Save a copy") }, onClick = {
+                                        menuOpen = false
+                                        viewModel.saveCopy(onCopied = onOpenPlaylist, onFailed = showFailure)
+                                    })
+                                }
                             }
                         }
                     }
@@ -309,7 +355,7 @@ fun PlaylistDetailScreen(
             onRetry = viewModel::load,
             modifier = Modifier.padding(padding),
             isEmpty = { it.tracks.isEmpty() },
-            emptyMessage = "No songs yet. Add some from Now Playing or an album's song menu.",
+            emptyMessage = if (isMine) "No songs yet. Add some from Now Playing or an album's song menu." else "This playlist is empty.",
             loadingLabel = "Loading playlist",
             skeleton = { SkeletonListRows(trailing = true) },
         ) { detail ->
@@ -353,12 +399,24 @@ fun PlaylistDetailScreen(
                             onRemove = viewModel::removeDownload,
                         )
                     }
+                    // Who made it, or whether yours is public (A162).
+                    Text(
+                        when {
+                            !detail.isMine -> "by ${detail.ownerName ?: "someone"} · Hold a song for its menu, or Save a copy to change it"
+                            detail.isPublic -> "Public · everyone here can find it and play it"
+                            else -> "Only you"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+                    )
                 }
                 items(rows, key = { it.id }) { track ->
                     ReorderableItem(reorderState, key = track.id) { isDragging ->
                         val elevation by animateDpAsState(if (isDragging) 6.dp else 0.dp, label = "drag")
                         PlaylistRow(
                             track = track,
+                            editable = detail.isMine,
                             elevation = elevation,
                             onClick = { viewModel.play(rows.indexOfFirst { it.id == track.id }.coerceAtLeast(0)) },
                             onLongClick = { songMenuFor = track },
@@ -398,6 +456,8 @@ fun PlaylistDetailScreen(
 @Composable
 private fun PlaylistRow(
     track: PlaylistTrackDto,
+    /** False for someone else's public playlist: no swipe to remove, no drag handle. */
+    editable: Boolean,
     elevation: androidx.compose.ui.unit.Dp,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
@@ -415,6 +475,7 @@ private fun PlaylistRow(
     SwipeToDismissBox(
         state = swipe,
         enableDismissFromStartToEnd = false,
+        enableDismissFromEndToStart = editable,
         backgroundContent = {
             if (swipe.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
                 Box(
@@ -443,7 +504,7 @@ private fun PlaylistRow(
                 trailingContent = {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(formatDuration(track.duration), style = MaterialTheme.typography.bodySmall)
-                        handle()
+                        if (editable) handle()
                     }
                 },
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),

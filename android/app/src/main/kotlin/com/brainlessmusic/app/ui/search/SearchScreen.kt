@@ -35,6 +35,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.brainlessmusic.app.data.remote.dto.AlbumSummaryDto
 import com.brainlessmusic.app.data.remote.dto.ArtistSummaryDto
+import com.brainlessmusic.app.data.remote.dto.PlaylistSearchDto
 import com.brainlessmusic.app.data.remote.dto.SearchResultsDto
 import com.brainlessmusic.app.data.remote.dto.TrackSummaryDto
 import com.brainlessmusic.app.ui.common.CoverImage
@@ -76,7 +77,7 @@ fun SearchScreen(
             TextField(
                 value = query,
                 onValueChange = viewModel::onQueryChange,
-                placeholder = { Text("Search artists, albums, tracks") },
+                placeholder = { Text("Search songs, albums, artists, playlists") },
                 singleLine = true,
                 leadingIcon = { Icon(AppIcons.search, contentDescription = null) },
                 trailingIcon = {
@@ -100,7 +101,7 @@ fun SearchScreen(
                 state = state,
                 onRetry = viewModel::retry,
                 modifier = Modifier.fillMaxSize(),
-                isEmpty = { it.artists.isEmpty() && it.albums.isEmpty() && it.tracks.isEmpty() },
+                isEmpty = { it.artists.isEmpty() && it.albums.isEmpty() && it.tracks.isEmpty() && it.playlists.isNullOrEmpty() },
                 emptyMessage = if (query.isBlank()) "Search your library." else "No matches for \"$query\".",
                 loadingLabel = "Searching",
                 skeleton = { SkeletonListRows(rows = 8, trailing = true) },
@@ -117,6 +118,16 @@ fun SearchScreen(
                         items(results.albums, key = { "album-${it.id}" }) { album ->
                             AlbumResultRow(album, coverUrl = viewModel.albumCoverUrl(album.id)) {
                                 navController.navigate(Routes.albumDetail(album.id))
+                            }
+                        }
+                    }
+                    // Yours first, then other people's public ones (A162).
+                    val playlists = results.playlists.orEmpty()
+                    if (playlists.isNotEmpty()) {
+                        item { SectionHeader("Playlists") }
+                        items(playlists, key = { "playlist-${it.id}" }) { playlist ->
+                            PlaylistResultRow(playlist, coverUrl = playlist.coverAlbumIds?.firstOrNull()?.let(viewModel::albumCoverUrl)) {
+                                navController.navigate(Routes.playlistDetail(playlist.id))
                             }
                         }
                     }
@@ -163,6 +174,27 @@ private fun AlbumResultRow(album: AlbumSummaryDto, coverUrl: String?, onClick: (
         leadingContent = { CoverImage(url = coverUrl, contentDescription = album.title, modifier = Modifier.size(40.dp)) },
         headlineContent = { Text(album.title) },
         supportingContent = { Text(album.artistName ?: "Unknown Artist") },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+    )
+}
+
+@Composable
+private fun PlaylistResultRow(playlist: PlaylistSearchDto, coverUrl: String?, onClick: () -> Unit) {
+    val count = if (playlist.trackCount == 1) "1 song" else "${playlist.trackCount} songs"
+    ListItem(
+        leadingContent = { CoverImage(url = coverUrl, contentDescription = null, modifier = Modifier.size(40.dp)) },
+        headlineContent = { Text(playlist.name) },
+        supportingContent = {
+            Text(
+                when {
+                    !playlist.isOwner -> "by ${playlist.ownerName ?: "someone"} · $count"
+                    playlist.isPublic -> "Yours, public · $count"
+                    else -> "Yours · $count"
+                },
+            )
+        },
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),

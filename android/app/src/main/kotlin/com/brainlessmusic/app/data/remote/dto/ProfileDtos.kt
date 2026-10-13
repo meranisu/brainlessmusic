@@ -72,9 +72,34 @@ data class PlaylistSummaryDto(
     val createdAt: String,
     // Up to four albums for the cover mosaic (A152). Null from an older server; Gson leaves a missing field null.
     val coverAlbumIds: List<Int>? = null,
+    // Everyone signed in can see, play and copy it (A162). False from an older server.
+    val isPublic: Boolean = false,
 )
 
 data class PlaylistsDto(val playlists: List<PlaylistSummaryDto>)
+
+/** Someone else's public playlist (`GET /playlists/public`), newest public first (A166). */
+data class PublicPlaylistDto(
+    val id: Int,
+    val name: String,
+    val trackCount: Int,
+    val ownerId: Int,
+    val ownerName: String?,
+    val coverAlbumIds: List<Int>? = null,
+)
+
+data class PublicPlaylistsDto(val playlists: List<PublicPlaylistDto>)
+
+/** A playlist in search results: your own (`isOwner`) or someone's public one (A162). */
+data class PlaylistSearchDto(
+    val id: Int,
+    val name: String,
+    val trackCount: Int,
+    val ownerName: String?,
+    val isPublic: Boolean,
+    val isOwner: Boolean,
+    val coverAlbumIds: List<Int>? = null,
+)
 
 data class PlaylistTrackDto(
     val id: Int,
@@ -90,12 +115,25 @@ data class PlaylistTrackDto(
     val gainDb: Double? = null,
 )
 
-data class PlaylistDetailDto(val id: Int, val name: String, val createdAt: String, val tracks: List<PlaylistTrackDto>)
+data class PlaylistDetailDto(
+    val id: Int,
+    val name: String,
+    val createdAt: String,
+    val tracks: List<PlaylistTrackDto>,
+    // A162. Null from an older server, which only ever returned your own: read null as yours.
+    val isOwner: Boolean? = null,
+    val ownerName: String? = null,
+    val isPublic: Boolean = false,
+) {
+    val isMine: Boolean get() = isOwner != false
+}
 
 /** `POST /playlists` and `PATCH /playlists/:id` both answer with this. */
 data class PlaylistRefDto(val id: Int, val name: String)
 
 data class PlaylistNameRequest(val name: String)
+
+data class PlaylistPublicRequest(val isPublic: Boolean)
 
 data class AddPlaylistTrackRequest(val trackId: Int)
 

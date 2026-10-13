@@ -22,8 +22,8 @@ page in `.docs/features/feature-brainstorm.md`.
 |---|---|---|---|
 | 1. Plan | Decisions above, API shape | Done | [Phase 1](#phase-1-plan) |
 | 2. Structure | Migration, queries, endpoints, access rules, tests | Done | [Phase 2](#phase-2-structure) |
-| 3. Interior | Web and Android: the switch, "From others", search, Save a copy | In progress (web done) | [Phase 3](#phase-3-interior) |
-| 4. Walkthrough | Two accounts and a guest on a phone and a browser | Not started | [Phase 4](#phase-4-walkthrough) |
+| 3. Interior | Web and Android: the switch, "From others", search, Save a copy | Done | [Phase 3](#phase-3-interior) |
+| 4. Walkthrough | Two accounts and a guest on a phone and a browser | Waiting on the owner | [Phase 4](#phase-4-walkthrough) |
 
 ## Phase 1: Plan
 
@@ -55,9 +55,9 @@ page in `.docs/features/feature-brainstorm.md`.
       (not shown to guests).
 - [x] Web `PlaylistDetailPage`: read-only for others, with owner, Play, Shuffle, Save a copy.
 - [x] Web `SearchPage`: a Playlists group.
-- [ ] Android `ui/profile/PlaylistsScreen.kt`, `PlaylistDetailScreen.kt`, `ui/search/SearchScreen.kt`: the same, in
+- [x] Android `ui/profile/PlaylistsScreen.kt`, `PlaylistDetailScreen.kt`, `ui/search/SearchScreen.kt`: the same, in
       every skin's existing playlist styling.
-- [ ] Offline downloads: someone else's public playlist can be downloaded, and stays after it goes private (A165).
+- [x] Offline downloads: someone else's public playlist can be downloaded, and stays after it goes private (A165).
 
 ## Phase 4: Walkthrough
 
@@ -74,3 +74,4 @@ page in `.docs/features/feature-brainstorm.md`.
 | 2026-10-13 | Plan written from A162-A164. |
 | 2026-10-13 | A165 (downloads stay), A166 (newest first); started building. |
 | 2026-10-13 | Guests never own playlists (every write route is `requireAccount`), so A163's "don't publish" holds by itself. Web has no add-to-queue, so its read-only page has Play and Shuffle. Server and web done. |
+| 2026-10-13 | Android done (v0.4.8). Search results carry `isOwner`: the app doesn't keep its own user id. |

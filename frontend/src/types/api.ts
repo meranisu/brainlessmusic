@@ -378,6 +378,8 @@ export interface PlaylistSearchResult {
   ownerId: number;
   ownerName: string;
   isPublic: boolean;
+  /** The viewer's own. */
+  isOwner: boolean;
   coverAlbumIds: number[];
 }
 

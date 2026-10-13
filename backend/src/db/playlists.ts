@@ -37,6 +37,8 @@ export interface PlaylistSearchResult {
   ownerId: number;
   ownerName: string;
   isPublic: boolean;
+  /** The viewer's own, so a client can label the rest "by <owner>" without knowing its own user id. */
+  isOwner: boolean;
   coverAlbumIds: number[];
 }
 
@@ -147,6 +149,7 @@ export function searchPlaylists(query: string, viewerId: number, limit = 20): Pl
          p.owner_id as ownerId,
          ${OWNER_NAME} as ownerName,
          p.is_public as isPublic,
+         (p.owner_id = ?) as isOwner,
          (SELECT COUNT(*) FROM playlist_tracks pt WHERE pt.playlist_id = p.id) as trackCount
        FROM playlists p
        JOIN users u ON u.id = p.owner_id
@@ -154,10 +157,16 @@ export function searchPlaylists(query: string, viewerId: number, limit = 20): Pl
        ORDER BY (p.owner_id = ?) DESC, p.name COLLATE NOCASE
        LIMIT ?`,
     )
-    .all(pattern, viewerId, viewerId, limit) as (Omit<PlaylistSearchResult, 'coverAlbumIds' | 'isPublic'> & {
+    .all(viewerId, pattern, viewerId, viewerId, limit) as (Omit<PlaylistSearchResult, 'coverAlbumIds' | 'isPublic' | 'isOwner'> & {
     isPublic: number;
+    isOwner: number;
   })[];
-  return rows.map((p) => ({ ...p, isPublic: p.isPublic === 1, coverAlbumIds: coverAlbumIdsOf(p.id) }));
+  return rows.map((p) => ({
+    ...p,
+    isPublic: p.isPublic === 1,
+    isOwner: p.isOwner === 1,
+    coverAlbumIds: coverAlbumIdsOf(p.id),
+  }));
 }
 
 /** `includeHidden` is false when the viewer is neither the owner nor an admin. */

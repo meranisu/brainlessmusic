@@ -29,8 +29,10 @@ import com.brainlessmusic.app.data.remote.dto.MeResponse
 import com.brainlessmusic.app.data.remote.dto.PlaybackStateResponse
 import com.brainlessmusic.app.data.remote.dto.PlaylistDetailDto
 import com.brainlessmusic.app.data.remote.dto.PlaylistNameRequest
+import com.brainlessmusic.app.data.remote.dto.PlaylistPublicRequest
 import com.brainlessmusic.app.data.remote.dto.PlaylistRefDto
 import com.brainlessmusic.app.data.remote.dto.PlaylistsDto
+import com.brainlessmusic.app.data.remote.dto.PublicPlaylistsDto
 import com.brainlessmusic.app.data.remote.dto.ReorderPlaylistRequest
 import com.brainlessmusic.app.data.remote.dto.SavePlaybackStateRequest
 import com.brainlessmusic.app.data.remote.dto.ScrobbleRequest
@@ -198,6 +200,16 @@ interface ApiService {
 
     @PATCH("playlists/{id}")
     suspend fun renamePlaylist(@Path("id") id: Int, @Body body: PlaylistNameRequest): PlaylistRefDto
+
+    // Public playlists (A162-A166). Listing and reading them is open to guests too; the switch and copying are not.
+    @GET("playlists/public")
+    suspend fun publicPlaylists(): PublicPlaylistsDto
+
+    @PATCH("playlists/{id}")
+    suspend fun setPlaylistPublic(@Path("id") id: Int, @Body body: PlaylistPublicRequest): PlaylistRefDto
+
+    @POST("playlists/{id}/copy")
+    suspend fun copyPlaylist(@Path("id") id: Int): PlaylistRefDto
 
     @DELETE("playlists/{id}")
     suspend fun deletePlaylist(@Path("id") id: Int)

@@ -75,7 +75,10 @@ class SearchViewModel @Inject constructor(
 
     private fun hasResults(state: LoadState<SearchResultsDto>): Boolean =
         state is LoadState.Content &&
-            (state.data.artists.isNotEmpty() || state.data.albums.isNotEmpty() || state.data.tracks.isNotEmpty())
+            (
+                state.data.artists.isNotEmpty() || state.data.albums.isNotEmpty() || state.data.tracks.isNotEmpty() ||
+                    !state.data.playlists.isNullOrEmpty()
+                )
 
     fun albumCoverUrl(albumId: Int): String? = libraryRepository.albumCoverUrl(albumId)
 

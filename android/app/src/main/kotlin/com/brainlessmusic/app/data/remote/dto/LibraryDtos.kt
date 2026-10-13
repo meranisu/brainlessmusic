@@ -109,6 +109,8 @@ data class SearchResultsDto(
     val artists: List<ArtistSummaryDto>,
     val albums: List<AlbumSummaryDto>,
     val tracks: List<TrackSummaryDto>,
+    // Your own and other people's public ones (A162). Null from an older server.
+    val playlists: List<PlaylistSearchDto>? = null,
 )
 
 /** 128 peaks, 0-255, absolute (A8: scaling per track happens where they are drawn). */

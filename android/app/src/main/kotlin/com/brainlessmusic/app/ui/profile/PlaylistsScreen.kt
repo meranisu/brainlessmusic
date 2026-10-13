@@ -59,6 +59,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.brainlessmusic.app.data.local.Skin
 import com.brainlessmusic.app.data.remote.dto.PlaylistSummaryDto
+import com.brainlessmusic.app.data.remote.dto.PublicPlaylistDto
 import com.brainlessmusic.app.data.remote.dto.TrackSummaryDto
 import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.data.repository.ProfileRepository
@@ -90,11 +91,13 @@ import javax.inject.Inject
 /** A song list's size and the covers for its picture. */
 data class ListSummary(val total: Int, val covers: List<String?>)
 
-/** What the Playlists tab shows: your liked and disliked songs, then your playlists with their covers. */
+/** What the Playlists tab shows: your liked and disliked songs, your playlists, then other people's public ones. */
 data class PlaylistsHome(
     val liked: ListSummary,
     val disliked: ListSummary,
     val playlists: List<PlaylistSummaryDto>,
+    /** Newest public first (A166). Empty if they couldn't be loaded: they never decide whether the tab loaded. */
+    val others: List<PublicPlaylistDto>,
 )
 
 @HiltViewModel
@@ -116,17 +119,27 @@ class PlaylistsViewModel @Inject constructor(
     fun load() {
         viewModelScope.launch {
             if (_state.value !is LoadState.Content) _state.value = LoadState.Loading
+            // A guest has no likes or playlists of their own (A37), only other people's public ones (A163).
+            if (isGuest) {
+                profile.publicPlaylists().fold(
+                    onSuccess = { _state.value = LoadState.Content(PlaylistsHome(EMPTY, EMPTY, emptyList(), it)) },
+                    onFailure = { if (_state.value !is LoadState.Content) _state.value = LoadState.Error(it.loadMessage()) },
+                )
+                return@launch
+            }
             coroutineScope {
                 val liked = async { profile.likedPage(0, SUMMARY_PAGE).map { summary(it.total, it.favorites) } }
                 val disliked = async { profile.lessOftenPage(0, SUMMARY_PAGE).map { summary(it.total, it.tracks) } }
                 val playlists = async { profile.playlists() }
+                val others = async { profile.publicPlaylists() }
                 playlists.await().fold(
                     onSuccess = {
                         _state.value = LoadState.Content(
                             PlaylistsHome(
-                                liked = liked.await().getOrDefault(ListSummary(0, emptyList())),
-                                disliked = disliked.await().getOrDefault(ListSummary(0, emptyList())),
+                                liked = liked.await().getOrDefault(EMPTY),
+                                disliked = disliked.await().getOrDefault(EMPTY),
                                 playlists = it,
+                                others = others.await().getOrDefault(emptyList()),
                             ),
                         )
                     },
@@ -144,7 +157,7 @@ class PlaylistsViewModel @Inject constructor(
         },
     )
 
-    fun covers(playlist: PlaylistSummaryDto): List<String?> = playlist.coverAlbumIds.orEmpty().map(library::albumCoverUrl)
+    fun covers(albumIds: List<Int>?): List<String?> = albumIds.orEmpty().map(library::albumCoverUrl)
 
     /** The Liked card's Play and Shuffle: every liked song (up to the server's page), newest first. */
     fun playLiked(shuffle: Boolean) {
@@ -169,13 +182,15 @@ class PlaylistsViewModel @Inject constructor(
     private companion object {
         const val SUMMARY_PAGE = 24
         const val PLAY_PAGE = 200
+        val EMPTY = ListSummary(0, emptyList())
     }
 }
 
 /**
  * The Library's Playlists tab (A134, A137, A152): Liked songs as a card in the skin's dress, with Play and Shuffle;
- * Disliked songs under it (A153); then your playlists as a grid of cover mosaics, New playlist first. Reloaded each
- * time it shows. Guests keep neither likes nor playlists (A37), so they get a card saying so.
+ * Disliked songs under it (A153); your playlists as a grid of cover mosaics, New playlist first; then other people's
+ * public playlists, newest first (A162, A166). Reloaded each time it shows. Guests keep neither likes nor playlists
+ * (A37), so they get a line saying so over the public ones (A163).
  */
 @Composable
 fun PlaylistsTab(
@@ -185,10 +200,7 @@ fun PlaylistsTab(
     onOpenPlaylist: (Int) -> Unit,
     viewModel: PlaylistsViewModel = hiltViewModel(),
 ) {
-    if (viewModel.isGuest) {
-        GuestPlaylists(Modifier.padding(top = topInset))
-        return
-    }
+    val isGuest = viewModel.isGuest
     val state by viewModel.state.collectAsStateWithLifecycle()
     var naming by remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -226,31 +238,48 @@ fun PlaylistsTab(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxSize(),
         ) {
-            item(key = "liked", span = { GridItemSpan(maxLineSpan) }) {
-                LikedCard(home.liked, onOpen = onOpenLiked, onPlay = { viewModel.playLiked(shuffle = false) }, onShuffle = { viewModel.playLiked(shuffle = true) })
+            if (isGuest) {
+                item(key = "guest", span = { GridItemSpan(maxLineSpan) }) { GuestPlaylists() }
+            } else {
+                item(key = "liked", span = { GridItemSpan(maxLineSpan) }) {
+                    LikedCard(home.liked, onOpen = onOpenLiked, onPlay = { viewModel.playLiked(shuffle = false) }, onShuffle = { viewModel.playLiked(shuffle = true) })
+                }
+                item(key = "disliked", span = { GridItemSpan(maxLineSpan) }) {
+                    DislikedRow(home.disliked, onOpen = onOpenDisliked)
+                }
+                item(key = "heading", span = { GridItemSpan(maxLineSpan) }) { GridHeading("Your playlists") }
+                item(key = "new") { NewPlaylistTile(onClick = { naming = true }) }
+                items(home.playlists, key = { it.id }) { playlist ->
+                    PlaylistTile(
+                        name = playlist.name,
+                        detail = songCount(playlist.trackCount) + if (playlist.isPublic) " · Public" else "",
+                        covers = viewModel.covers(playlist.coverAlbumIds),
+                        onClick = { onOpenPlaylist(playlist.id) },
+                    )
+                }
+                if (home.playlists.isEmpty()) {
+                    item(key = "hint", span = { GridItemSpan(maxLineSpan) }) {
+                        GridHint("No playlists yet. Make one with New playlist, or hold any song and pick Add to playlist.")
+                    }
+                }
             }
-            item(key = "disliked", span = { GridItemSpan(maxLineSpan) }) {
-                DislikedRow(home.disliked, onOpen = onOpenDisliked)
-            }
-            item(key = "heading", span = { GridItemSpan(maxLineSpan) }) {
-                Text(
-                    "Your playlists",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = 8.dp, start = 4.dp).semantics { heading() },
+            item(key = "others-heading", span = { GridItemSpan(maxLineSpan) }) { GridHeading("From others") }
+            items(home.others, key = { "other-${it.id}" }) { playlist ->
+                PlaylistTile(
+                    name = playlist.name,
+                    detail = listOfNotNull(playlist.ownerName?.let { "by $it" }, songCount(playlist.trackCount)).joinToString(" · "),
+                    covers = viewModel.covers(playlist.coverAlbumIds),
+                    onClick = { onOpenPlaylist(playlist.id) },
                 )
             }
-            item(key = "new") { NewPlaylistTile(onClick = { naming = true }) }
-            items(home.playlists, key = { it.id }) { playlist ->
-                PlaylistTile(playlist, viewModel.covers(playlist), onClick = { onOpenPlaylist(playlist.id) })
-            }
-            if (home.playlists.isEmpty()) {
-                item(key = "hint", span = { GridItemSpan(maxLineSpan) }) {
-                    Text(
-                        "No playlists yet. Make one with New playlist, or hold any song and pick Add to playlist.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 4.dp),
+            if (home.others.isEmpty()) {
+                item(key = "others-hint", span = { GridItemSpan(maxLineSpan) }) {
+                    GridHint(
+                        if (isGuest) {
+                            "Nobody has made a playlist public yet."
+                        } else {
+                            "Nobody else has made a playlist public yet. Open one of yours and pick Make public to share it here."
+                        },
                     )
                 }
             }
@@ -408,7 +437,30 @@ private fun NewPlaylistTile(onClick: () -> Unit) {
 }
 
 @Composable
-private fun PlaylistTile(playlist: PlaylistSummaryDto, covers: List<String?>, onClick: () -> Unit) {
+private fun GridHeading(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(top = 8.dp, start = 4.dp).semantics { heading() },
+    )
+}
+
+@Composable
+private fun GridHint(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 4.dp),
+    )
+}
+
+private fun songCount(count: Int) = if (count == 1) "1 song" else "$count songs"
+
+/** A playlist as a cover mosaic, its name, and [detail] under it: the count, and the owner when it's someone else's. */
+@Composable
+private fun PlaylistTile(name: String, detail: String, covers: List<String?>, onClick: () -> Unit) {
     Column(Modifier.clickable(onClickLabel = "Open playlist", onClick = onClick)) {
         if (covers.isEmpty()) {
             Box(
@@ -425,24 +477,26 @@ private fun PlaylistTile(playlist: PlaylistSummaryDto, covers: List<String?>, on
             CoverMosaic(covers, Modifier.fillMaxWidth().aspectRatio(1f))
         }
         Text(
-            playlist.name,
+            name,
             style = MaterialTheme.typography.titleSmall,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 8.dp),
         )
         Text(
-            if (playlist.trackCount == 1) "1 song" else "${playlist.trackCount} songs",
+            detail,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
 
-/** A guest's tab: why there's nothing here, in a card rather than a bare line. */
+/** A guest's tab, over other people's public playlists: why there are no likes or playlists of their own. */
 @Composable
 private fun GuestPlaylists(modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.TopCenter) {
+    Box(modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
         Surface(
             shape = MaterialTheme.cardShape,
             color = MaterialTheme.colorScheme.surfaceContainer,
@@ -458,7 +512,7 @@ private fun GuestPlaylists(modifier: Modifier = Modifier) {
                     modifier = Modifier.padding(top = 12.dp),
                 )
                 Text(
-                    "As a guest you can play everything, but nothing is kept. Ask whoever runs the server for an account.",
+                    "As a guest you can play everything, including the playlists below, but nothing is kept. Ask whoever runs the server for an account.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,

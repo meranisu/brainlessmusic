@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
 import { AlbumGrid } from '../components/AlbumGrid';
 import { CoverArt } from '../components/CoverArt';
 import { FavoriteButton, useFavoriteIds } from '../components/FavoriteButton';
@@ -35,7 +34,6 @@ export function SearchPage() {
   const query = (params.get('q') ?? '').trim();
   const { playQueue } = usePlayer();
   const favoriteIds = useFavoriteIds();
-  const { user } = useAuth();
 
   const { data, isLoading, isError, isPlaceholderData } = useQuery({
     queryKey: ['search', query],
@@ -126,7 +124,7 @@ export function SearchPage() {
                     name={p.name}
                     trackCount={p.trackCount}
                     coverAlbumIds={p.coverAlbumIds}
-                    ownerName={p.ownerId === user?.id ? undefined : p.ownerName}
+                    ownerName={p.isOwner ? undefined : p.ownerName}
                     isPublic={p.isPublic}
                   />
                 </li>
