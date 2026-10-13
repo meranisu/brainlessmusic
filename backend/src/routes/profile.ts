@@ -16,7 +16,15 @@ import {
   type ProfileUpdate,
 } from '../db/profile.js';
 import { db } from '../db/connection.js';
-import { MAX_AVATAR_BYTES, removeAvatar, saveAvatar, sendAvatar } from '../services/avatars.js';
+import {
+  MAX_AVATAR_BYTES,
+  releaseAvatarSlot,
+  removeAvatar,
+  saveAvatar,
+  sendAvatar,
+  takeAvatarSlot,
+} from '../services/avatars.js';
+import { createRateLimiter } from '../services/rateLimit.js';
 import { isAdminRequest } from '../utils/isAdmin.js';
 import { parsePagination } from '../utils/pagination.js';
 
@@ -30,6 +38,9 @@ const RANGES: StatsRange[] = ['week', 'month', 'year', 'all'];
 const TOP_LIMIT = 10;
 /** Liked and disliked songs shown on the profile before "See all". */
 const PREVIEW_LIMIT = 12;
+/** Picture uploads per account (S7): plenty for trying a few crops, too few to keep two crop slots busy. */
+const AVATAR_UPLOAD_LIMIT = { limit: 10, windowMs: 10 * 60 * 1000 };
+const avatarLimiter = createRateLimiter();
 
 function parseId(raw: string): number | undefined {
   const id = Number(raw);
@@ -151,20 +162,36 @@ const profileRoute: FastifyPluginAsync = async (fastify) => {
   );
 
   // A new picture: cropped square and stored by hash. The one it replaces is deleted unless someone else has it too.
+  // Apps crop on the device first; this still checks and re-encodes everything, since a request can come from anywhere.
   fastify.put('/me/avatar', { preHandler: [fastify.authenticate, fastify.requireAccount] }, async (request, reply) => {
-    const file = await request.file({ limits: { fileSize: MAX_AVATAR_BYTES, files: 1 } });
-    if (!file) return reply.code(400).send({ error: 'No picture sent' });
-    let image: Buffer;
-    try {
-      image = await file.toBuffer();
-    } catch {
-      return reply.code(413).send({ error: `The picture can be at most ${MAX_AVATAR_BYTES / 1024 / 1024} MB` });
+    // S7: every try counts, refused ones too, so a loop of bad files is stopped as well.
+    const limit = avatarLimiter.check(String(request.user!.id), AVATAR_UPLOAD_LIMIT);
+    if (!limit.allowed) {
+      return reply
+        .code(429)
+        .header('Retry-After', String(limit.retryAfterSeconds))
+        .send({ error: 'Too many picture changes. Try again in a few minutes.' });
+    }
+    if (!takeAvatarSlot()) {
+      return reply.code(503).header('Retry-After', '5').send({ error: 'Busy with other pictures. Try again in a moment.' });
     }
     let avatarId: string;
     try {
-      avatarId = await saveAvatar(config.avatarPath, image);
-    } catch {
-      return reply.code(400).send({ error: "That file couldn't be read as a picture" });
+      const file = await request.file({ limits: { fileSize: MAX_AVATAR_BYTES, files: 1 } });
+      if (!file) return reply.code(400).send({ error: 'No picture sent' });
+      let image: Buffer;
+      try {
+        image = await file.toBuffer();
+      } catch {
+        return reply.code(413).send({ error: `The picture can be at most ${MAX_AVATAR_BYTES / 1024 / 1024} MB` });
+      }
+      try {
+        avatarId = await saveAvatar(config.avatarPath, image);
+      } catch {
+        return reply.code(400).send({ error: "That file couldn't be read as a picture" });
+      }
+    } finally {
+      releaseAvatarSlot();
     }
     const previous = setAvatarId(request.user!.id, avatarId);
     if (previous && previous !== avatarId && !isAvatarInUse(previous)) await removeAvatar(config.avatarPath, previous);

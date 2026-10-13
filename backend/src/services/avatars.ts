@@ -18,6 +18,20 @@ export const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 const MAX_AVATAR_PIXELS = 50_000_000;
 /** An upload that takes longer than this is killed rather than left holding the request. */
 const CROP_TIMEOUT_SECONDS = 20;
+/** Pictures cropped at once (S7). Each can hold a 50 MP frame, about 200 MB, so ten at once could take 2 GB. */
+export const MAX_CONCURRENT_AVATAR_CROPS = 2;
+let activeCrops = 0;
+
+/** Claims a crop slot; false when all are taken, for a 503. Pair every true with [releaseAvatarSlot]. */
+export function takeAvatarSlot(): boolean {
+  if (activeCrops >= MAX_CONCURRENT_AVATAR_CROPS) return false;
+  activeCrops += 1;
+  return true;
+}
+
+export function releaseAvatarSlot(): void {
+  activeCrops = Math.max(0, activeCrops - 1);
+}
 
 /**
  * The ffmpeg demuxer for [image], from its first bytes; undefined for anything else. Pinning it stops ffmpeg probing

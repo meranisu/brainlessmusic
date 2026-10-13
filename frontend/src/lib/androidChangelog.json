@@ -1,5 +1,33 @@
 [
   {
+    "version": "0.4.11",
+    "date": "2026-10-13",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "you can crop your profile picture now. after picking a photo, drag it around and pinch or use the slider to zoom, and the frame shows exactly how it'll look",
+              "photos straight from the camera work, even big ones and HEIC, since the phone shrinks it before sending",
+              "your photo's location and other details stay on your phone, only the cropped picture goes up"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.4.10",
     "date": "2026-10-13",
     "sections": [

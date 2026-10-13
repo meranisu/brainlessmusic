@@ -4,6 +4,30 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `AvatarCropper()`, `pickProblem()` (new): `frontend/src/components/AvatarCropper.tsx`; `EditProfileDialog()` (crops before upload): `frontend/src/pages/ProfilePage.tsx`
+**Date:** 2026-10-13
+**How added:** new feature (profile plan Phase 6)
+**Purpose:** move and zoom a picked picture in a square, then upload that square as a 512 px JPEG.
+**Side effects:** uploads the cropped JPEG (`PUT /me/avatar`).
+**Before:** the picked file was uploaded as is; the server took the middle square.
+**After:** pick, check (type, 20 MB, 128 px, 50 MP), crop, upload.
+
+**Function:** `openForCrop()`, `upright()`, `cropToJpeg()`, `AvatarCropDialog()` (new): `ui/people/AvatarCropper.kt`; `ProfileViewModel.setPicture/cancelCrop/usePicture`, `pictureMessage()`: `ui/people/ProfileScreen.kt` (under `android/app/src/main/kotlin/com/brainlessmusic/app/`)
+**Date:** 2026-10-13
+**How added:** new feature (profile plan Phase 6)
+**Purpose:** the same crop on Android, in the skin's avatar shape.
+**Side effects:** reads the picked photo; uploads the cropped JPEG.
+**Before:** the photo's bytes were uploaded as is, up to 5 MB.
+**After:** checked (50 MB, 128 px, 250 MP), decoded shrunk and upright, cropped, sent as a 512 px JPEG; 429 and 503 in words.
+
+**Function:** `takeAvatarSlot()`, `releaseAvatarSlot()` (new): `backend/src/services/avatars.ts`; `PUT /me/avatar`: `backend/src/routes/profile.ts`
+**Date:** 2026-10-13
+**How added:** hardening (S7)
+**Purpose:** cap picture processing at two at once and ten tries per account per ten minutes.
+**Side effects:** in-memory counters.
+**Before:** any number of uploads, all processed at once.
+**After:** 429 past ten tries; 503 while both slots are busy.
+
 **Function:** `ProfileScreen()`, `ProfileViewModel`, `EditProfileDialog()`, `PinPicker()` (new): `ui/people/ProfileScreen.kt`; `PeopleScreen()`, `PeopleViewModel`, `PersonRow()` (new): `ui/people/PeopleScreen.kt`; `Avatar()` (new): `ui/common/Avatar.kt`; `ProfileRepository.loadMe/people/profile/profileSongs/updateProfile/setAvatar/avatarUrl` (new) (all under `android/app/src/main/kotlin/com/brainlessmusic/app/`)
 **Date:** 2026-10-13
 **How added:** new feature (A167-A174)

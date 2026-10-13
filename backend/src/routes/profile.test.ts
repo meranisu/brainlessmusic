@@ -9,6 +9,8 @@ import { upsertTrack } from '../db/library.js';
 import { insertLibraryRoot } from '../db/libraryRoots.js';
 import { recordScrobble } from '../db/plays.js';
 import { insertGuest, insertUser } from '../db/users.js';
+import { releaseAvatarSlot, takeAvatarSlot } from '../services/avatars.js';
+import { resetAllRateLimiters } from '../services/rateLimit.js';
 import { signToken } from '../services/token.js';
 import { resetDatabase } from '../testing/harness.js';
 
@@ -39,6 +41,7 @@ after(async () => {
 
 beforeEach(() => {
   resetDatabase();
+  resetAllRateLimiters();
   const tokenFor = (u: { id: number; username: string }) => signToken({ id: u.id, username: u.username });
   const a = insertUser('alice', 'hash');
   aliceId = a.id;
@@ -216,5 +219,36 @@ describe('profile picture', () => {
       payload,
     });
     assert.equal(res.statusCode, 400);
+  });
+
+  it('allows ten uploads per account in ten minutes, counting refused ones (S7)', async () => {
+    const upload = (auth: string) => {
+      const { payload, headers } = multipart(Buffer.from('not an image at all'));
+      return app.inject({ method: 'PUT', url: '/api/me/avatar', headers: { ...headers, authorization: `Bearer ${auth}` }, payload });
+    };
+    for (let i = 0; i < 10; i++) assert.equal((await upload(alice)).statusCode, 400);
+    const refused = await upload(alice);
+    assert.equal(refused.statusCode, 429);
+    assert.ok(Number(refused.headers['retry-after']) > 0);
+    // Someone else's budget is their own.
+    assert.equal((await upload(bob)).statusCode, 400);
+  });
+
+  it('answers 503 while every crop slot is taken (S7)', async () => {
+    assert.ok(takeAvatarSlot());
+    assert.ok(takeAvatarSlot());
+    assert.equal(takeAvatarSlot(), false);
+    try {
+      const { payload, headers } = multipart(TINY_PNG);
+      const res = await app.inject({ method: 'PUT', url: '/api/me/avatar', headers: { ...headers, authorization: `Bearer ${alice}` }, payload });
+      assert.equal(res.statusCode, 503);
+      assert.equal(res.headers['retry-after'], '5');
+    } finally {
+      releaseAvatarSlot();
+      releaseAvatarSlot();
+    }
+    const { payload, headers } = multipart(TINY_PNG);
+    const res = await app.inject({ method: 'PUT', url: '/api/me/avatar', headers: { ...headers, authorization: `Bearer ${alice}` }, payload });
+    assert.equal(res.statusCode, 200, res.body);
   });
 });

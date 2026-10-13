@@ -29,7 +29,7 @@ audit's Status column with the commit, and add a CHANGELOG entry as usual.
 | S4 | Medium | A passcode survives a password reset; setting one needs no current password | open |
 | S5 | Medium | `backend/.env.example` reportedly holds a real-looking `JWT_SECRET` the boot check accepts | open, unverified |
 | S6 | Medium | Cover thumbnails run unbounded ffmpeg (guest can overload smol) | open |
-| S7 | Medium | Picture uploads have no rate limit or concurrency cap | open |
+| S7 | Medium | Picture uploads have no rate limit or concurrency cap | fixed 2026-10-13: 10 per account per 10 min, 2 at once |
 | S8 | Medium | Room WebSocket has no command rate limit | open |
 | S9 | Medium | Android release action pinned by tag next to the signing key | open |
 | S10 | Low | Hidden songs leak through `/shuffle` (guests too), cover, waveform, `/prepare` | open |

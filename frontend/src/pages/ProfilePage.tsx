@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { Avatar } from '../components/Avatar';
+import { AvatarCropper, pickProblem } from '../components/AvatarCropper';
 import { CoverArt } from '../components/CoverArt';
 import { usePlayer, type QueueTrack } from '../components/PlayerBar';
 import { PlaylistListItem } from '../components/PlaylistListItem';
@@ -413,15 +414,19 @@ function EditProfileDialog({ profile, onClose }: { profile: Profile; onClose: ()
   const [bio, setBio] = useState(profile.bio ?? '');
   const [trackId, setTrackId] = useState<number | ''>(profile.favoriteTrack?.id ?? '');
   const [artistId, setArtistId] = useState<number | ''>(profile.favoriteArtist?.id ?? '');
+  // A picked picture waiting to be cropped; while it is, the dialog shows the cropper instead of the form.
+  const [picked, setPicked] = useState<File | null>(null);
 
   useScrollLock();
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key !== 'Escape') return;
+      if (picked) setPicked(null);
+      else onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, picked]);
 
   // Every song and artist this profile shows, so a pin is something you actually play or like.
   const songChoices = new Map<number, TrackSummary>();
@@ -449,6 +454,7 @@ function EditProfileDialog({ profile, onClose }: { profile: Profile; onClose: ()
       void queryClient.invalidateQueries({ queryKey: ['people'] });
       // The header's picture button reads it from the signed-in user (A171).
       void refreshUser().catch(() => {});
+      setPicked(null);
       showToast(file ? 'Picture updated' : 'Picture removed');
     },
     onError: (err) => fail(err, 'Could not change the picture'),
@@ -484,95 +490,109 @@ function EditProfileDialog({ profile, onClose }: { profile: Profile; onClose: ()
         }}
       >
         <h2 id="edit-profile-heading" className="text-sm font-semibold text-white">
-          Edit profile
+          {picked ? 'Crop your picture' : 'Edit profile'}
         </h2>
 
-        <div className="flex items-center gap-4">
-          <Avatar userId={profile.id} name={profile.name} avatarId={profile.avatarId} size="md" />
-          <div className="flex flex-wrap gap-2">
-            <input
-              ref={fileInput}
-              type="file"
-              accept="image/*"
-              className="sr-only"
-              aria-label="Choose a picture"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) pictureMutation.mutate(file);
-                e.target.value = '';
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => fileInput.current?.click()}
-              disabled={pictureMutation.isPending}
-              className="btn-secondary btn-sm"
-            >
-              {pictureMutation.isPending ? 'Uploading…' : profile.avatarId ? 'Change picture' : 'Add a picture'}
-            </button>
-            {profile.avatarId && (
-              <button
-                type="button"
-                onClick={() => pictureMutation.mutate(null)}
-                disabled={pictureMutation.isPending}
-                className="btn-ghost btn-sm"
-              >
-                Remove
-              </button>
-            )}
-          </div>
-        </div>
-        <p className="-mt-2 text-xs text-blue-400">Cropped to a square from the middle. Up to 5 MB.</p>
-
-        <label className="flex flex-col gap-1 text-sm text-blue-200">
-          Bio
-          <textarea
-            value={bio}
-            onChange={(e) => setBio(e.target.value.slice(0, MAX_BIO_LENGTH))}
-            rows={3}
-            className="input resize-y"
-            placeholder="A line or two about you and your music"
+        {picked ? (
+          <AvatarCropper
+            file={picked}
+            busy={pictureMutation.isPending}
+            onCancel={() => setPicked(null)}
+            onSave={(picture) => pictureMutation.mutate(new File([picture], 'avatar.jpg', { type: 'image/jpeg' }))}
           />
-          <span className="self-end font-mono text-xs tabular-nums text-blue-400">
-            {bio.length}/{MAX_BIO_LENGTH}
-          </span>
-        </label>
+        ) : (
+          <>
+            <div className="flex items-center gap-4">
+              <Avatar userId={profile.id} name={profile.name} avatarId={profile.avatarId} size="md" />
+              <div className="flex flex-wrap gap-2">
+                <input
+                  ref={fileInput}
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  aria-label="Choose a picture"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (!file) return;
+                    const problem = pickProblem(file);
+                    if (problem) showToast(problem, 'error');
+                    else setPicked(file);
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInput.current?.click()}
+                  disabled={pictureMutation.isPending}
+                  className="btn-secondary btn-sm"
+                >
+                  {pictureMutation.isPending ? 'Uploading…' : profile.avatarId ? 'Change picture' : 'Add a picture'}
+                </button>
+                {profile.avatarId && (
+                  <button
+                    type="button"
+                    onClick={() => pictureMutation.mutate(null)}
+                    disabled={pictureMutation.isPending}
+                    className="btn-ghost btn-sm"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+            <p className="-mt-2 text-xs text-blue-400">You can move and zoom it before it's saved. Up to 20 MB.</p>
 
-        <label className="flex flex-col gap-1 text-sm text-blue-200">
-          Favourite song
-          <select value={trackId} onChange={(e) => setTrackId(e.target.value === '' ? '' : Number(e.target.value))} className="input">
-            <option value="">None</option>
-            {[...songChoices.values()].map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.title}
-                {t.artist ? ` by ${t.artist}` : ''}
-              </option>
-            ))}
-          </select>
-          <span className="text-xs text-blue-400">From your top songs and liked songs.</span>
-        </label>
+            <label className="flex flex-col gap-1 text-sm text-blue-200">
+              Bio
+              <textarea
+                value={bio}
+                onChange={(e) => setBio(e.target.value.slice(0, MAX_BIO_LENGTH))}
+                rows={3}
+                className="input resize-y"
+                placeholder="A line or two about you and your music"
+              />
+              <span className="self-end font-mono text-xs tabular-nums text-blue-400">
+                {bio.length}/{MAX_BIO_LENGTH}
+              </span>
+            </label>
 
-        <label className="flex flex-col gap-1 text-sm text-blue-200">
-          Favourite artist
-          <select value={artistId} onChange={(e) => setArtistId(e.target.value === '' ? '' : Number(e.target.value))} className="input">
-            <option value="">None</option>
-            {[...artistChoices.entries()].map(([id, name]) => (
-              <option key={id} value={id}>
-                {name}
-              </option>
-            ))}
-          </select>
-          <span className="text-xs text-blue-400">From your top artists. Switch the range to see more.</span>
-        </label>
+            <label className="flex flex-col gap-1 text-sm text-blue-200">
+              Favourite song
+              <select value={trackId} onChange={(e) => setTrackId(e.target.value === '' ? '' : Number(e.target.value))} className="input">
+                <option value="">None</option>
+                {[...songChoices.values()].map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.title}
+                    {t.artist ? ` by ${t.artist}` : ''}
+                  </option>
+                ))}
+              </select>
+              <span className="text-xs text-blue-400">From your top songs and liked songs.</span>
+            </label>
 
-        <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="btn-secondary btn-sm">
-            Cancel
-          </button>
-          <button type="submit" disabled={saveMutation.isPending} className="btn-primary btn-sm">
-            {saveMutation.isPending ? 'Saving…' : 'Save'}
-          </button>
-        </div>
+            <label className="flex flex-col gap-1 text-sm text-blue-200">
+              Favourite artist
+              <select value={artistId} onChange={(e) => setArtistId(e.target.value === '' ? '' : Number(e.target.value))} className="input">
+                <option value="">None</option>
+                {[...artistChoices.entries()].map(([id, name]) => (
+                  <option key={id} value={id}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+              <span className="text-xs text-blue-400">From your top artists. Switch the range to see more.</span>
+            </label>
+
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={onClose} className="btn-secondary btn-sm">
+                Cancel
+              </button>
+              <button type="submit" disabled={saveMutation.isPending} className="btn-primary btn-sm">
+                {saveMutation.isPending ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </>
+        )}
       </form>
     </div>,
     document.body,

@@ -1,6 +1,7 @@
 package com.brainlessmusic.app.ui.people
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -54,6 +55,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.brainlessmusic.app.data.remote.dto.ProfileDto
 import com.brainlessmusic.app.data.remote.dto.TrackSummaryDto
+import com.brainlessmusic.app.data.repository.ConnectionError
+import com.brainlessmusic.app.data.repository.ConnectionException
 import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.data.repository.ProfileRepository
 import com.brainlessmusic.app.data.repository.StatsRange
@@ -97,9 +100,6 @@ import javax.inject.Inject
 /** Liked or disliked songs shown before "Show all", as on the web. */
 private const val PREVIEW = 12
 
-/** The server's own cap on a picture (`PUT /me/avatar`). */
-private const val MAX_PICTURE_BYTES = 5 * 1024 * 1024
-
 private const val MAX_BIO = 300
 
 @HiltViewModel
@@ -129,6 +129,10 @@ class ProfileViewModel @Inject constructor(
 
     private val _saving = MutableStateFlow(false)
     val saving: StateFlow<Boolean> = _saving.asStateFlow()
+
+    /** A picked photo, opened and waiting in the cropper (Phase 6). */
+    private val _cropping = MutableStateFlow<Bitmap?>(null)
+    val cropping: StateFlow<Bitmap?> = _cropping.asStateFlow()
 
     private var loadJob: Job? = null
 
@@ -181,20 +185,38 @@ class ProfileViewModel @Inject constructor(
 
     fun avatarUrl(p: ProfileDto): String? = profile.avatarUrl(p.id, p.avatarId)
 
-    /** Reads the picked image and uploads it; the server crops and scales it. */
+    /** Opens the picked photo for the cropper, or says why it can't be used. */
     fun setPicture(uri: Uri) {
         viewModelScope.launch {
             _saving.value = true
-            val resolver = context.contentResolver
-            val bytes = withContext(Dispatchers.IO) {
-                runCatching { resolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
+            when (val picked = withContext(Dispatchers.IO) { openForCrop(context.contentResolver, uri) }) {
+                is PickedPicture.Ready -> _cropping.value = picked.bitmap
+                is PickedPicture.Problem -> Notices.show(picked.message)
             }
-            when {
-                bytes == null -> Notices.show("Couldn't read that picture.")
-                bytes.size > MAX_PICTURE_BYTES -> Notices.show("That picture is over 5 MB. Pick a smaller one.")
-                else -> profile.setAvatar(bytes, resolver.getType(uri)).fold(
-                    onSuccess = { Notices.show("Picture updated"); refresh() },
-                    onFailure = { Notices.show(it.loadMessage()) },
+            _saving.value = false
+        }
+    }
+
+    fun cancelCrop() {
+        _cropping.value = null
+    }
+
+    /** Crops the open photo to the square chosen in the cropper, as a 512 px JPEG, and uploads it. */
+    fun usePicture(left: Float, top: Float, side: Float) {
+        val bitmap = _cropping.value ?: return
+        viewModelScope.launch {
+            _saving.value = true
+            val jpeg = withContext(Dispatchers.Default) { runCatching { cropToJpeg(bitmap, left, top, side) }.getOrNull() }
+            if (jpeg == null) {
+                Notices.show("That picture couldn't be cropped.")
+            } else {
+                profile.setAvatar(jpeg, "image/jpeg").fold(
+                    onSuccess = {
+                        _cropping.value = null
+                        Notices.show("Picture updated")
+                        refresh()
+                    },
+                    onFailure = { Notices.show(it.pictureMessage()) },
                 )
             }
             _saving.value = false
@@ -250,6 +272,7 @@ fun ProfileScreen(
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
     val fullLists by viewModel.fullLists.collectAsStateWithLifecycle()
     val saving by viewModel.saving.collectAsStateWithLifecycle()
+    val cropping by viewModel.cropping.collectAsStateWithLifecycle()
 
     var menuFor by remember { mutableStateOf<QueueItem?>(null) }
     var askRoom by remember { mutableStateOf<Triple<String, List<TrackSummaryDto>, Int>?>(null) }
@@ -301,6 +324,14 @@ fun ProfileScreen(
             loadingLabel = "Loading profile",
             skeleton = { SkeletonListRows(lead = SkeletonLead.COVER, trailing = true) },
         ) { p ->
+            cropping?.let { bitmap ->
+                AvatarCropDialog(
+                    bitmap = bitmap,
+                    saving = saving,
+                    onCancel = viewModel::cancelCrop,
+                    onUse = viewModel::usePicture,
+                )
+            }
             if (editing && p.isSelf) {
                 EditProfileDialog(
                     profile = p,
@@ -615,4 +646,12 @@ private fun PinPicker(label: String, choices: Map<Int, String>, selected: Int?, 
             }
         }
     }
+}
+
+/** The upload limits (S7) in words; anything else as usual. */
+private fun Throwable.pictureMessage(): String = when ((this as? ConnectionException)?.error) {
+    ConnectionError.Unknown("HTTP 429") -> "Too many picture changes. Try again in a few minutes."
+    ConnectionError.Unknown("HTTP 503") -> "The server is busy with other pictures. Try again in a moment."
+    ConnectionError.Unknown("HTTP 400") -> "The server couldn't read that picture."
+    else -> loadMessage()
 }

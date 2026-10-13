@@ -4,6 +4,27 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-13: Crop your picture before it's saved, and upload limits (profile plan Phase 6, S7)
+
+- Owner request: the uploader had no crop or sizing, so the server always took the middle square. Now picking a
+  picture opens a cropper in the avatar's shape: drag (or arrow keys) to move; pinch, the wheel, a slider or +/- to
+  zoom (up to 4x, always filling the frame). Web: `AvatarCropper` inside Edit profile, Escape backs out to the form.
+  Android: a full-screen `AvatarCropDialog` in the skin's cover shape.
+- The device crops and sends a 512 px square JPEG. So a photo's EXIF (location) never leaves the device, a phone's HEIC
+  photo works, and a 20 MB (web) or 50 MB (Android, decoded shrunk) photo is fine where 5 MB was the cap before. The
+  device checks first, for a clear message: a picture it can open, at least 128 px a side, at most 50 MP (web) or
+  250 MP (Android, since phone cameras reach 200 MP). Android turns photos upright from EXIF itself.
+- The server is unchanged in what it accepts (magic bytes, pinned demuxer, file-only protocol, pixel cap, timeout,
+  5 MB, re-encode by hash), so it stays the real check and v0.4.10 and older still work.
+- S7: `PUT /me/avatar` allows ten tries per account per ten minutes, refused ones included (429 with `Retry-After`),
+  and at most two pictures processed at once (503, `Retry-After: 5`). Android says these in words.
+- Verified: backend `tsc --noEmit`; `npm run build` and oxlint in frontend; `./gradlew :app:compileDebugKotlin`. Web
+  driven in headless Chromium at 1280 and 375 px against a throwaway server (scratchpad database): a 100 px picture
+  and a text file renamed `.png` show their messages, slider plus drag plus arrow key move it as computed, Escape
+  leaves only the cropper, upload saves a 512x512 JPEG and the header picture updates, no console errors, no
+  sideways scroll. The 11th upload in ten minutes got 429 live. Backend tests written (429 per account, 503 when both
+  slots are taken) but **not run**: the run was blocked by a permission check. Android not run on a phone.
+
 ## 2026-10-13: Android: your picture moves to the right of Home's top bar (A178, v0.4.10)
 
 - The owner found the left edge wrong. It now sits after People and Listen together, where Google's apps put your

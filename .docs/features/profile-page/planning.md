@@ -26,6 +26,7 @@ the per-user stats (`getUserStats`, `backend/src/db/listeningStats.ts:136`), and
 | 3. Interior (web) | People page, profile page, edit your own, names link to profiles | Done (pins from song menus left out) | [Phase 3](#phase-3-interior-web) |
 | 4. Interior (Android) | Same, in every skin; "You" becomes your profile | Built, not phone-tested | [Phase 4](#phase-4-interior-android) |
 | 5. Walkthrough | Two accounts and a guest, web and phone | Not started | [Phase 5](#phase-5-walkthrough) |
+| 6. Crop and checks | Move and zoom the picture before upload, on web and Android; upload limits (S7) | Built; tests not run, not on a phone | [Phase 6](#phase-6-crop-and-checks) |
 
 ## Phase 1: Plan
 
@@ -75,6 +76,23 @@ the per-user stats (`getUserStats`, `backend/src/db/listeningStats.ts:136`), and
 - [ ] A guest opens A's profile; has no profile of its own.
 - [ ] Web and phone.
 
+## Phase 6: Crop and checks
+
+Owner request: the uploader had no crop or sizing, so the server always took the centre square.
+
+- [x] The device crops: the picture opens in a square frame in the avatar's shape, drag to move, pinch, wheel or a
+  slider to zoom (it always fills the frame), and the device sends a 512 px square JPEG. Location and other EXIF data
+  never leave the device, and a phone's HEIC photo works because it's re-encoded first.
+- [x] Checks on the device, for a clear message before anything is sent: a picture type the device can open, at most
+  20 MB as picked on the web (50 MB on Android, which decodes it shrunk), at least 128 px on the short side, at most
+  50 megapixels on the web (250 on Android, as phone cameras reach 200).
+- [x] The server stays the real check and is unchanged in what it accepts (magic bytes, pinned demuxer, file-only
+  protocol, pixel cap, timeout, 5 MB, re-encode by hash), so older app versions keep working.
+- [x] S7: at most two pictures processed at once (503 with `Retry-After` when busy), and ten uploads per account per
+  ten minutes (429).
+- [x] Web and Android built. Web tried in a browser; Android compile-checked only.
+- [ ] Tests through `npm test` (written, not run yet).
+
 ## Change log
 
 | Date | Change |
@@ -87,3 +105,4 @@ the per-user stats (`getUserStats`, `backend/src/db/listeningStats.ts:136`), and
 | 2026-10-13 | Web entry points built. Others' profiles carry the display name only (A174). |
 | 2026-10-13 | Android built (v0.4.9 notes ready). Home stays your stats page with the picture leading to the profile, rather than Home becoming the profile. |
 | 2026-10-13 | Android picture moved to the right end of Home's top bar (A178). |
+| 2026-10-13 | Phase 6 added: crop before upload, upload limits (S7). Cropping happens on the device, not the server, so the server's checks don't change and older apps still work. |
