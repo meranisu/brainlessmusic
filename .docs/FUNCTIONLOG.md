@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `countPlaybackFailures()` (new), `listRecentPlaybackFailures()` (`offset`): `backend/src/db/playbackFailures.ts`; `GET /admin/playback-failures`: `backend/src/routes/health.ts`; `ControlCenterPage()` (failures panel): `frontend/src/pages/ControlCenterPage.tsx`
+**Date:** 2026-10-13
+**How added:** owner request
+**Purpose:** page through every stored playback failure without the table taking over the Control Center.
+**Side effects:** the response gains `total`; the panel polls only the page shown.
+**Before:** the newest 100 rows, unpaged, laid out down the whole page.
+**After:** 50 rows per page in a scrolling box with a pinned header and Prev / Next.
+
 **Function:** `isAutoplayBlocked()` (new), `load()` (failure path): `frontend/src/components/PlayerBar.tsx`
 **Date:** 2026-10-13
 **How added:** bug fix (owner report from the playback failures panel)

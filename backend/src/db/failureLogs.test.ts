@@ -2,7 +2,12 @@ import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
 import { deleteTrackRow, upsertTrack } from './library.js';
 import { deleteLibraryRoot, insertLibraryRoot } from './libraryRoots.js';
-import { PLAYBACK_FAILURES_KEPT, listRecentPlaybackFailures, recordPlaybackFailure } from './playbackFailures.js';
+import {
+  PLAYBACK_FAILURES_KEPT,
+  countPlaybackFailures,
+  listRecentPlaybackFailures,
+  recordPlaybackFailure,
+} from './playbackFailures.js';
 import { countScanFailures, listScanFailures, replaceScanFailures } from './scanFailures.js';
 import { db } from './connection.js';
 import { deleteUser, insertGuest, insertUser, pruneIdleGuests } from './users.js';
@@ -79,6 +84,19 @@ describe('playback_failures', () => {
     assert.ok((newest.userAgent ?? '').length <= 200);
     const oldest = db.prepare('SELECT message FROM playback_failures ORDER BY id ASC LIMIT 1').get() as { message: string };
     assert.equal(oldest.message, 'failure 6', 'the oldest rows went first');
+  });
+
+  it('pages newest first with an offset, and counts every row', () => {
+    const user = insertUser('imran', 'hash');
+    const track = addTrack('Broken');
+    for (let i = 1; i <= 5; i++) {
+      recordPlaybackFailure({ userId: user.id, trackId: track.id, source: 'client', message: `failure ${i}` });
+    }
+
+    assert.equal(countPlaybackFailures(), 5);
+    assert.deepEqual(listRecentPlaybackFailures(2, 0).map((f) => f.message), ['failure 5', 'failure 4']);
+    assert.deepEqual(listRecentPlaybackFailures(2, 2).map((f) => f.message), ['failure 3', 'failure 2']);
+    assert.deepEqual(listRecentPlaybackFailures(2, 4).map((f) => f.message), ['failure 1']);
   });
 
   it('does not stop a track with failures from being deleted', () => {

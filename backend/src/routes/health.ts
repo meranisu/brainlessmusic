@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { countMissingTracks } from '../db/library.js';
-import { listRecentPlaybackFailures } from '../db/playbackFailures.js';
+import { countPlaybackFailures, listRecentPlaybackFailures } from '../db/playbackFailures.js';
 import { countScanFailures, listScanFailures } from '../db/scanFailures.js';
 import { isAnyLibrarySyncRunning } from '../services/librarySync.js';
 import { getTrackSummaryById } from '../db/browse.js';
@@ -22,12 +22,19 @@ const healthRoute: FastifyPluginAsync = async (fastify) => {
   }));
 
   // Admin-only: it names who failed and on which client. Stored in `playback_failures`, so it survives restarts.
-  fastify.get<{ Querystring: { limit?: string } }>(
+  fastify.get<{ Querystring: { limit?: string; offset?: string } }>(
     '/admin/playback-failures',
     { preHandler: [fastify.authenticate, fastify.requireAdmin] },
     async (request) => {
       const limit = Number(request.query.limit);
-      return { failures: listRecentPlaybackFailures(Number.isInteger(limit) && limit > 0 ? limit : undefined) };
+      const offset = Number(request.query.offset);
+      return {
+        failures: listRecentPlaybackFailures(
+          Number.isInteger(limit) && limit > 0 ? limit : undefined,
+          Number.isInteger(offset) && offset > 0 ? offset : 0,
+        ),
+        total: countPlaybackFailures(),
+      };
     },
   );
 

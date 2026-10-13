@@ -4,6 +4,15 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-13: Control Center: playback failures scroll in a box and page
+
+- Owner request: the panel listed the newest 100 rows straight down the page. It now scrolls inside its own box
+  (`max-h-[60vh]`, header pinned) and pages 50 at a time with Prev / Next, reaching all the rows the server keeps
+  (up to 1000), with the total shown.
+- `GET /admin/playback-failures` takes `offset` and returns `total` beside `failures`; `limit` alone works as before.
+- Verified: `npm test` (backend, new paging test in `failureLogs.test.ts`), `npm run build` and `npm run lint` in
+  `frontend/`. Not checked in a browser.
+
 ## 2026-10-13: Web: a blocked autoplay no longer skips the whole queue
 
 - Owner report: the Control Center's playback failures showed four songs in one second for one user on Edge, all

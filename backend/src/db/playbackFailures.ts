@@ -61,8 +61,13 @@ export function recordPlaybackFailure(input: PlaybackFailureInput): void {
 
 const DEFAULT_LIMIT = 100;
 
-/** Newest first. */
-export function listRecentPlaybackFailures(limit = DEFAULT_LIMIT): PlaybackFailureEntry[] {
+/** Rows stored, for paging (at most `PLAYBACK_FAILURES_KEPT`). */
+export function countPlaybackFailures(): number {
+  return (db.prepare('SELECT COUNT(*) AS n FROM playback_failures').get() as { n: number }).n;
+}
+
+/** Newest first; `offset` skips that many of the newest. */
+export function listRecentPlaybackFailures(limit = DEFAULT_LIMIT, offset = 0): PlaybackFailureEntry[] {
   return db
     .prepare(
       `SELECT
@@ -81,7 +86,7 @@ export function listRecentPlaybackFailures(limit = DEFAULT_LIMIT): PlaybackFailu
        JOIN users u ON u.id = pf.user_id
        LEFT JOIN tracks t ON t.id = pf.track_id
        ORDER BY pf.id DESC
-       LIMIT ?`,
+       LIMIT ? OFFSET ?`,
     )
-    .all(limit) as PlaybackFailureEntry[];
+    .all(limit, offset) as PlaybackFailureEntry[];
 }

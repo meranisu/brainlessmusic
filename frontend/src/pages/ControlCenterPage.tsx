@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useUploads } from '../components/UploadProvider';
 import { UploadQueueList } from '../components/UploadQueueList';
@@ -22,6 +22,8 @@ const ROOMS_POLL_INTERVAL_MS = 5_000;
 const ROOM_DRIFT_LIMIT_MS = 300;
 /** A scan moves fast enough that a 10s poll makes the bar jump instead of crawl. */
 const SCANNING_POLL_INTERVAL_MS = 2_000;
+/** Playback failures per page; the server keeps up to 1000. */
+const FAILURES_PAGE_SIZE = 50;
 
 /** MediaError codes, for a reader who doesn't have the spec memorized. */
 const MEDIA_ERROR_LABELS: Record<number, string> = {
@@ -210,11 +212,17 @@ export function ControlCenterPage() {
     refetchInterval: ROOMS_POLL_INTERVAL_MS,
   });
 
+  const [failuresPage, setFailuresPage] = useState(0);
   const { data: failures, isLoading: isLoadingFailures } = useQuery({
-    queryKey: ['playback-failures'],
-    queryFn: () => apiClient.get<{ failures: PlaybackFailureEntry[] }>('/admin/playback-failures'),
+    queryKey: ['playback-failures', failuresPage],
+    queryFn: () =>
+      apiClient.get<{ failures: PlaybackFailureEntry[]; total: number }>(
+        `/admin/playback-failures?limit=${FAILURES_PAGE_SIZE}&offset=${failuresPage * FAILURES_PAGE_SIZE}`,
+      ),
     refetchInterval: POLL_INTERVAL_MS,
+    placeholderData: (prev) => prev,
   });
+  const failurePages = failures ? Math.max(1, Math.ceil(failures.total / FAILURES_PAGE_SIZE)) : 1;
 
   const { data: roots } = useQuery({
     queryKey: ['library-roots'],
@@ -427,9 +435,10 @@ export function ControlCenterPage() {
           </Section>
 
           <Section title={`Stream errors (${data.recentErrors.length})`}>
-            <div className="card overflow-hidden">
+            {/* Scrolls inside its own box, header pinned, so 50 rows don't push the rest of the page away. */}
+            <div className="card max-h-[60vh] overflow-auto">
               <table className="w-full text-left text-sm">
-                <thead className="border-b border-blue-800">
+                <thead className="sticky top-0 border-b border-blue-800 bg-blue-900">
                   <tr className="text-xs uppercase tracking-wide text-blue-400">
                     <th className="px-4 py-2.5 font-medium">Time</th>
                     <th className="px-4 py-2.5 font-medium">Track</th>
@@ -494,6 +503,27 @@ export function ControlCenterPage() {
                 </tbody>
               </table>
             </div>
+            {failurePages > 1 && (
+              <div className="mt-3 flex items-center gap-3 text-sm text-blue-200">
+                <button
+                  disabled={failuresPage === 0}
+                  onClick={() => setFailuresPage((p) => p - 1)}
+                  className="btn-secondary btn-sm"
+                >
+                  Prev
+                </button>
+                <span>
+                  Page {failuresPage + 1} of {failurePages} · {failures?.total} failures
+                </span>
+                <button
+                  disabled={failuresPage + 1 >= failurePages}
+                  onClick={() => setFailuresPage((p) => p + 1)}
+                  className="btn-secondary btn-sm"
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </Section>
         </div>
       )}
