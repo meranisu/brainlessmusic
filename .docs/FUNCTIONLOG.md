@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `SongCache` (new: `isCached()`, `record()`, `cachedTracks`, `remove()`, `clear()`), `AdjustableLruEvictor` (new) (`android/.../downloads/SongCache.kt`); `CachedTrack`/`CachedTrackDao`, `MIGRATION_5_6`; `PlaybackController.streamUrlFor()`, `onPhone()`, `skipToDownloaded()`, `dataSourceFactory`; `DownloadModule.provideDownloadManager()`; `DownloadsViewModel.playCached()`/`playCachedSong()`/`downloadCached()`/`removeCached()`, `DownloadsUi.cachedFor()`; `SongCacheSettings()`; `PlaybackSettings.songCacheLimitMb`
+**Date:** 2026-10-14
+**How added:** new feature
+**Purpose:** keep streamed songs on the phone for offline play and less data (A198, A199).
+**Side effects:** writes audio under the app's cache folder; a new Room table; a new DataStore key.
+**Before:** streaming kept nothing; offline, only downloads played.
+**After:** played songs are cached up to the chosen size and play offline; Downloads lists them under Cached.
+
 **Function:** `EqualizerSession.open()`/`close()`/`panelIntent()` (new, `android/.../playback/EqualizerSession.kt`); `PlaybackController.equalizerIntent()`, listener `onAudioSessionIdChanged`; `SettingsViewModel.equalizerIntent()`
 **Date:** 2026-10-14
 **How added:** new feature

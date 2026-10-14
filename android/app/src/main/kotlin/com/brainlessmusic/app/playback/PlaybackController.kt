@@ -30,6 +30,7 @@ import com.brainlessmusic.app.data.local.TransitionPrefs
 import com.brainlessmusic.app.data.local.isNextOnAlbum
 import com.brainlessmusic.app.data.remote.NetworkMonitor
 import com.brainlessmusic.app.data.repository.LibraryRepository
+import com.brainlessmusic.app.downloads.SongCache
 import com.brainlessmusic.app.downloads.DownloadRepository
 import com.brainlessmusic.app.downloads.TrackCacheKey
 import com.brainlessmusic.app.rooms.RoomCommand
@@ -79,6 +80,7 @@ class PlaybackController @Inject constructor(
     private val downloads: DownloadRepository,
     private val networkMonitor: NetworkMonitor,
     private val pendingPlays: PendingPlays,
+    private val songCache: SongCache,
     // Lazy: opening the download folder is disk work, and waits until the player is first built.
     private val downloadCache: dagger.Lazy<Cache>,
 ) {
@@ -984,13 +986,19 @@ class PlaybackController @Inject constructor(
             .also { it.addListener(listener) }
 
     /**
-     * A downloaded song is read from the phone, with or without signal; anything else comes from the server. Read-only:
-     * streaming never writes into the download folder, which nothing ever evicts.
+     * Downloads first, then the song cache, then the server. Downloads are read-only: streaming never writes into that
+     * folder, which nothing ever evicts. What streams is kept in the song cache (A198), so a downloaded song never
+     * lands there twice.
      */
     private val dataSourceFactory by lazy {
+        val cached = CacheDataSource.Factory()
+            .setCache(songCache.cache)
+            .setUpstreamDataSourceFactory(OkHttpDataSource.Factory(okHttpClient))
+            .setCacheKeyFactory(TrackCacheKey)
+            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
         CacheDataSource.Factory()
             .setCache(downloadCache.get())
-            .setUpstreamDataSourceFactory(OkHttpDataSource.Factory(okHttpClient))
+            .setUpstreamDataSourceFactory(cached)
             .setCacheWriteDataSinkFactory(null)
             .setCacheKeyFactory(TrackCacheKey)
             .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
@@ -1122,7 +1130,7 @@ class PlaybackController @Inject constructor(
         if (networkMonitor.online.value || queue.isEmpty() || !downloads.isLoaded || inRoom) return false
         val from = player.currentMediaItemIndex
         val current = queue.getOrNull(from) ?: return false
-        if (!skipCurrent && downloads.isDownloaded(current.trackId)) return false
+        if (!skipCurrent && onPhone(current.trackId)) return false
         val timeline = player.currentTimeline
         // Repeat-all wraps round to downloaded songs at the start; repeat-one walks the queue the same way.
         val repeat = if (player.repeatMode == Player.REPEAT_MODE_OFF) Player.REPEAT_MODE_OFF else Player.REPEAT_MODE_ALL
@@ -1132,29 +1140,37 @@ class PlaybackController @Inject constructor(
             index = timeline.getNextWindowIndex(index, repeat, player.shuffleModeEnabled)
             if (index == C.INDEX_UNSET || index == from) {
                 player.pause()
-                errorMessage = "You're offline, and no downloaded songs are left in the queue."
+                errorMessage = "You're offline, and no downloaded or cached songs are left in the queue."
                 skipNotice = false
                 publish()
                 return true
             }
-            if (downloads.isDownloaded(queue[index].trackId)) break
+            if (onPhone(queue[index].trackId)) break
             skipped++
         }
         resetFades()
         player.seekTo(index, 0)
         player.prepare()
         if (!skipCurrent || skipped > 1) {
-            errorMessage = if (skipped == 1) "Skipped a song that isn't downloaded." else "Skipped $skipped songs that aren't downloaded."
+            errorMessage = if (skipped == 1) {
+                "Skipped a song that isn't downloaded or cached."
+            } else {
+                "Skipped $skipped songs that aren't downloaded or cached."
+            }
             skipNotice = true
         }
         publish()
         return true
     }
 
+    /** Downloaded, or whole in the song cache: plays with no signal (A199). */
+    private fun onPhone(trackId: Int) = downloads.isDownloaded(trackId) || songCache.isCached(trackId)
+
     private fun beginTrack() {
         recordSkip()
         reportListened(final = true)
         val item = queue.getOrNull(player.currentMediaItemIndex)
+        item?.let(songCache::record)
         trackerItem = item
         tracker = item?.let { ListenTracker(it.durationSec) }
         lastTickAt = SystemClock.elapsedRealtime()
@@ -1286,7 +1302,7 @@ class PlaybackController @Inject constructor(
                 else -> Repeat.OFF
             },
             stream = if (queue.isEmpty()) null else streamInfo(),
-            queueStreams = queue.any { !downloads.isDownloaded(it.trackId) },
+            queueStreams = queue.any { !onPhone(it.trackId) },
             inRoom = inRoom,
             chain = chain,
         )
@@ -1307,7 +1323,9 @@ class PlaybackController @Inject constructor(
             bufferedAheadMs = (player.bufferedPosition - player.currentPosition).coerceAtLeast(0),
             networkKbps = estimate.takeIf { it > 0 }?.let { it / 1000 },
             dataSaver = saver,
-            onPhone = !saver && queue.getOrNull(player.currentMediaItemIndex)?.let { downloads.isDownloaded(it.trackId) } == true,
+            onPhone = queue.getOrNull(player.currentMediaItemIndex)?.let {
+                (!saver && downloads.isDownloaded(it.trackId)) || songCache.isCached(it.trackId, low = saver)
+            } == true,
         )
     }
 
@@ -1337,8 +1355,19 @@ class PlaybackController @Inject constructor(
     }
 
     /** A downloaded song plays its original from the phone: the smaller copy would only cost data. */
-    private fun streamUrlFor(item: QueueItem): String? =
-        libraryRepository.streamUrl(item.trackId, dataSaver && !downloads.isDownloaded(item.trackId))
+    /**
+     * The original when it's on the phone, downloaded or cached, even with data saver on: it costs no data. Otherwise
+     * the data-saver copy with data saver on, or offline when only that copy is cached.
+     */
+    private fun streamUrlFor(item: QueueItem): String? {
+        val id = item.trackId
+        val low = when {
+            downloads.isDownloaded(id) || songCache.isCached(id, low = false) -> false
+            dataSaver -> true
+            else -> !networkMonitor.online.value && songCache.isCached(id, low = true)
+        }
+        return libraryRepository.streamUrl(id, low)
+    }
 
     private fun toMediaItem(item: QueueItem): MediaItem? {
         val url = streamUrlFor(item) ?: return null

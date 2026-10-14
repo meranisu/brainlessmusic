@@ -1,5 +1,34 @@
 [
   {
+    "version": "0.4.19",
+    "date": "2026-10-14",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "songs you play now get saved on your phone (a cache), so playing them again uses no data and they work offline too",
+              "offline? check the new \"Cached\" filter in Downloads, everything you've played fully is there. songs in your queue that are cached won't get skipped anymore when you lose signal",
+              "pick how big the cache can get in Settings > Downloads: 500 MB, 1 GB (default), 2 GB, 5 GB or unlimited. when it's full the stuff you played longest ago goes first. there's a clear cache button too",
+              "downloading a song you already played is instant now, it copies from the cache"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.4.18",
     "date": "2026-10-14",
     "sections": [

@@ -4,6 +4,21 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-14: Android: cache of played songs (A198, A199)
+
+- Songs that stream are kept in a second Media3 cache (`cacheDir/songs`), apart from downloads. The player reads
+  downloads first, then this cache, then the server, so a downloaded song is never stored twice. Least recently used
+  songs go first once it passes the size set in Settings (500 MB, 1 GB default, 2 GB, 5 GB, Unlimited); the limit
+  changes without rebuilding the cache (`AdjustableLruEvictor`).
+- Offline, a fully cached song counts as on the phone: the queue no longer skips it. A cached original plays even with
+  data saver on; offline, a cached data-saver copy plays when the original isn't there.
+- Downloading a cached song copies it from the cache instead of fetching it again.
+- Downloads gets a "Cached" filter (shown when there are cached songs) with search, sort, play, Download and Remove from
+  cache. Settings, Downloads: size chips, space used, Clear cache. A `cached_track` table (downloads database v6)
+  keeps the songs' names for offline listing.
+- Plan: `.docs/features/song-cache/planning.md`.
+- Verified: Android `assembleDebug`. Not run on a phone.
+
 ## 2026-10-14: Android: equalizer support (A196)
 
 - Equalizer apps (the phone's own, Wavelet, Poweramp Equalizer) can attach to the music: the app sends Android's

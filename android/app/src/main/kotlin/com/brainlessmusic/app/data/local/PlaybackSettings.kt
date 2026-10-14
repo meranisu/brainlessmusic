@@ -90,6 +90,13 @@ class PlaybackSettings @Inject constructor(
         dataStore.edit { it[DOWNLOAD_LIMIT_GB_KEY] = gb }
     }
 
+    /** The most the cache of played songs may take, in MB; 0 is unlimited. 1 GB by default (A198). */
+    val songCacheLimitMb: Flow<Int> = dataStore.data.map { it[SONG_CACHE_LIMIT_MB_KEY] ?: SONG_CACHE_DEFAULT_MB }
+
+    suspend fun setSongCacheLimitMb(mb: Int) {
+        dataStore.edit { it[SONG_CACHE_LIMIT_MB_KEY] = mb }
+    }
+
     /** Gapless, crossfade or fade out then in, the pause fade and the album rule (A71, A72). */
     val transitions: Flow<TransitionPrefs> = dataStore.data.map { prefs ->
         val defaults = TransitionPrefs()
@@ -138,5 +145,11 @@ class PlaybackSettings @Inject constructor(
         val LEVEL_VOLUME_KEY = booleanPreferencesKey("level_volume")
         val DATA_SAVER_KEY = booleanPreferencesKey("data_saver")
         val DOWNLOAD_LIMIT_GB_KEY = intPreferencesKey("download_limit_gb")
+        val SONG_CACHE_LIMIT_MB_KEY = intPreferencesKey("song_cache_limit_mb")
     }
 }
+
+const val SONG_CACHE_DEFAULT_MB = 1024
+
+/** The cache sizes Settings offers, in MB; 0 is unlimited (A198). */
+val SONG_CACHE_LIMITS_MB = listOf(500, 1024, 2048, 5120, 0)

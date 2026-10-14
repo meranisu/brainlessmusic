@@ -47,6 +47,69 @@ fun DownloadedTrack.toQueueItem(coverUrl: String?) = QueueItem(
     gainDb = gainDb,
 )
 
+/**
+ * A song that played and so sits in the song cache (A199): its details, so the Downloads "Cached" list works with no
+ * signal. The audio is Media3's; a row whose song was evicted is ignored by the list and dropped by [SongCache].
+ */
+@Entity(tableName = "cached_track")
+data class CachedTrack(
+    @PrimaryKey val trackId: Int,
+    val title: String,
+    val artist: String?,
+    val album: String?,
+    val albumId: Int?,
+    val trackNumber: Int?,
+    val durationSec: Double?,
+    val format: String?,
+    val gainDb: Double?,
+    val playedAt: Long,
+)
+
+fun QueueItem.toCachedTrack(playedAt: Long) = CachedTrack(
+    trackId = trackId,
+    title = title,
+    artist = artist,
+    album = album,
+    albumId = albumId,
+    trackNumber = trackNumber,
+    durationSec = durationSec,
+    format = format,
+    gainDb = gainDb,
+    playedAt = playedAt,
+)
+
+fun CachedTrack.toQueueItem(coverUrl: String?) = QueueItem(
+    trackId = trackId,
+    title = title,
+    artist = artist,
+    album = album,
+    durationSec = durationSec,
+    coverUrl = coverUrl,
+    format = format,
+    albumId = albumId,
+    trackNumber = trackNumber,
+    gainDb = gainDb,
+)
+
+@Dao
+interface CachedTrackDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun put(track: CachedTrack)
+
+    /** Played most recently first. */
+    @Query("SELECT * FROM cached_track ORDER BY playedAt DESC")
+    fun all(): Flow<List<CachedTrack>>
+
+    @Query("SELECT * FROM cached_track")
+    suspend fun allOnce(): List<CachedTrack>
+
+    @Query("DELETE FROM cached_track WHERE trackId IN (:ids)")
+    suspend fun delete(ids: List<Int>)
+
+    @Query("DELETE FROM cached_track")
+    suspend fun clear()
+}
+
 /** An album or playlist someone tapped download on. [id] is `album:<id>` or `playlist:<id>`. */
 @Entity(tableName = "download_group")
 data class DownloadGroup(
@@ -276,14 +339,16 @@ interface PendingPlayDao {
 
 /** Downloads and, since version 2, plays waiting for signal: both are what the phone keeps for offline use. */
 @Database(
-    entities = [DownloadedTrack::class, DownloadGroup::class, DownloadGroupTrack::class, PendingPlay::class],
-    version = 5,
+    entities = [DownloadedTrack::class, DownloadGroup::class, DownloadGroupTrack::class, PendingPlay::class, CachedTrack::class],
+    version = 6,
     exportSchema = false,
 )
 abstract class DownloadDatabase : RoomDatabase() {
     abstract fun dao(): DownloadDao
 
     abstract fun pendingPlays(): PendingPlayDao
+
+    abstract fun cachedTracks(): CachedTrackDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -310,6 +375,16 @@ abstract class DownloadDatabase : RoomDatabase() {
         val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `downloaded_track` ADD COLUMN `gainDb` REAL")
+            }
+        }
+
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `cached_track` (`trackId` INTEGER NOT NULL, `title` TEXT NOT NULL, " +
+                        "`artist` TEXT, `album` TEXT, `albumId` INTEGER, `trackNumber` INTEGER, `durationSec` REAL, " +
+                        "`format` TEXT, `gainDb` REAL, `playedAt` INTEGER NOT NULL, PRIMARY KEY(`trackId`))",
+                )
             }
         }
     }

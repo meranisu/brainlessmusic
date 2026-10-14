@@ -23,7 +23,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.util.UnstableApi
 import com.brainlessmusic.app.data.local.PlaybackSettings
+import com.brainlessmusic.app.data.local.SONG_CACHE_DEFAULT_MB
+import com.brainlessmusic.app.data.local.SONG_CACHE_LIMITS_MB
 import com.brainlessmusic.app.downloads.DownloadRepository
+import com.brainlessmusic.app.downloads.SongCache
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -39,6 +42,7 @@ private val LIMITS_GB = listOf(0, 2, 4, 8, 16, 32)
 class DownloadSettingsViewModel @Inject constructor(
     private val settings: PlaybackSettings,
     private val downloads: DownloadRepository,
+    private val songCache: SongCache,
 ) : ViewModel() {
     val spaceUsed: StateFlow<Long> = downloads.spaceUsed
 
@@ -50,6 +54,19 @@ class DownloadSettingsViewModel @Inject constructor(
     }
 
     fun deleteAll() = downloads.deleteAll()
+
+    val cacheUsed: StateFlow<Long> = songCache.spaceUsed
+
+    val cacheLimitMb: StateFlow<Int> =
+        settings.songCacheLimitMb.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SONG_CACHE_DEFAULT_MB)
+
+    fun setCacheLimitMb(mb: Int) {
+        viewModelScope.launch { settings.setSongCacheLimitMb(mb) }
+    }
+
+    fun clearCache() {
+        viewModelScope.launch { songCache.clear() }
+    }
 }
 
 /** The Settings list's line for the Downloads page. */
@@ -112,4 +129,64 @@ internal fun DownloadSettings(
     block("Delete all downloads", "Takes every downloaded song off this phone.") {
         OutlinedButton(onClick = { confirmDelete = true }, enabled = used > 0) { Text("Delete all") }
     }
+    divider()
+    SongCacheSettings(block, divider, viewModel)
+}
+
+/** The played-songs cache (A198): its size, the space it uses, and emptying it. */
+@kotlin.OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SongCacheSettings(
+    block: @Composable (title: String, detail: String?, content: @Composable () -> Unit) -> Unit,
+    divider: @Composable () -> Unit,
+    viewModel: DownloadSettingsViewModel,
+) {
+    val used by viewModel.cacheUsed.collectAsStateWithLifecycle()
+    val limit by viewModel.cacheLimitMb.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val usedText = Formatter.formatShortFileSize(context, used)
+    var confirmClear by remember { mutableStateOf(false) }
+
+    if (confirmClear) {
+        AlertDialog(
+            onDismissRequest = { confirmClear = false },
+            title = { Text("Clear the cache?") },
+            text = { Text("Frees $usedText. Songs you've played will stream again next time. Downloads stay.") },
+            confirmButton = {
+                TextButton(onClick = { confirmClear = false; viewModel.clearCache() }) { Text("Clear") }
+            },
+            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Cancel") } },
+        )
+    }
+
+    block(
+        "Cache of played songs",
+        if (limit > 0) {
+            "Songs you play are kept here, so they play again without data or signal. Using $usedText of " +
+                "${cacheSizeLabel(limit)}; when it's full, the songs played longest ago go first."
+        } else {
+            "Songs you play are kept here, so they play again without data or signal. Using $usedText, no limit. " +
+                "Android may still empty it if the phone runs short of space."
+        },
+    ) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SONG_CACHE_LIMITS_MB.forEach { mb ->
+                FilterChip(
+                    selected = mb == limit,
+                    onClick = { viewModel.setCacheLimitMb(mb) },
+                    label = { Text(cacheSizeLabel(mb)) },
+                )
+            }
+        }
+    }
+    divider()
+    block("Clear the cache", "Takes every cached song off this phone. Downloads stay.") {
+        OutlinedButton(onClick = { confirmClear = true }, enabled = used > 0) { Text("Clear cache") }
+    }
+}
+
+private fun cacheSizeLabel(mb: Int): String = when {
+    mb <= 0 -> "Unlimited"
+    mb % 1024 == 0 -> "${mb / 1024} GB"
+    else -> "$mb MB"
 }

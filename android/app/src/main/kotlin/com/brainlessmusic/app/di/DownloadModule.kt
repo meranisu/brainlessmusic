@@ -13,9 +13,11 @@ import androidx.media3.exoplayer.offline.DefaultDownloaderFactory
 import androidx.media3.exoplayer.offline.DownloadManager
 import androidx.media3.exoplayer.scheduler.Requirements
 import androidx.room.Room
+import com.brainlessmusic.app.downloads.CachedTrackDao
 import com.brainlessmusic.app.downloads.DownloadDao
 import com.brainlessmusic.app.downloads.DownloadDatabase
 import com.brainlessmusic.app.downloads.PendingPlayDao
+import com.brainlessmusic.app.downloads.SongCache
 import com.brainlessmusic.app.downloads.TrackCacheKey
 import dagger.Module
 import dagger.Provides
@@ -50,11 +52,14 @@ object DownloadModule {
     @Singleton
     fun provideDownloadDatabase(@ApplicationContext context: Context): DownloadDatabase =
         Room.databaseBuilder(context, DownloadDatabase::class.java, "downloads.db")
-            .addMigrations(DownloadDatabase.MIGRATION_1_2, DownloadDatabase.MIGRATION_2_3, DownloadDatabase.MIGRATION_3_4, DownloadDatabase.MIGRATION_4_5)
+            .addMigrations(DownloadDatabase.MIGRATION_1_2, DownloadDatabase.MIGRATION_2_3, DownloadDatabase.MIGRATION_3_4, DownloadDatabase.MIGRATION_4_5, DownloadDatabase.MIGRATION_5_6)
             .build()
 
     @Provides
     fun provideDownloadDao(db: DownloadDatabase): DownloadDao = db.dao()
+
+    @Provides
+    fun provideCachedTrackDao(db: DownloadDatabase): CachedTrackDao = db.cachedTracks()
 
     @Provides
     fun providePendingPlayDao(db: DownloadDatabase): PendingPlayDao = db.pendingPlays()
@@ -65,12 +70,20 @@ object DownloadModule {
         @ApplicationContext context: Context,
         databaseProvider: StandaloneDatabaseProvider,
         cache: Cache,
+        songCache: SongCache,
         okHttpClient: OkHttpClient,
     ): DownloadManager {
-        // The shared client, so downloads carry the same bearer header and user-agent as playback.
+        // The shared client, so downloads carry the same bearer header and user-agent as playback. A song already in
+        // the song cache is copied from it rather than fetched again; the download doesn't write back into it.
+        val fromSongCache = CacheDataSource.Factory()
+            .setCache(songCache.cache)
+            .setUpstreamDataSourceFactory(OkHttpDataSource.Factory(okHttpClient))
+            .setCacheWriteDataSinkFactory(null)
+            .setCacheKeyFactory(TrackCacheKey)
+            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
         val cacheFactory = CacheDataSource.Factory()
             .setCache(cache)
-            .setUpstreamDataSourceFactory(OkHttpDataSource.Factory(okHttpClient))
+            .setUpstreamDataSourceFactory(fromSongCache)
             .setCacheKeyFactory(TrackCacheKey)
         return DownloadManager(
             context,

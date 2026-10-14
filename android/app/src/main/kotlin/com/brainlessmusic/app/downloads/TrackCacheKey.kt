@@ -23,6 +23,9 @@ internal fun trackCacheKey(path: String?, quality: String?): String? {
     return "track:$id:" + if (quality == "low") "low" else "orig"
 }
 
+/** The cache key of [trackId]'s stream: the data-saver copy with [low], else the original. As [trackCacheKey] makes. */
+fun songCacheKey(trackId: Int, low: Boolean): String = "track:$trackId:" + if (low) "low" else "orig"
+
 /** The download's id: one download per track, whichever album or playlist asked for it. */
 fun downloadId(trackId: Int): String = "track:$trackId"
 

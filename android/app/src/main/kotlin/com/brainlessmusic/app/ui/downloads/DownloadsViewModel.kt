@@ -7,7 +7,10 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.util.UnstableApi
 import com.brainlessmusic.app.data.local.PlaybackSettings
 import com.brainlessmusic.app.data.remote.NetworkMonitor
+import com.brainlessmusic.app.data.repository.LibraryRepository
+import com.brainlessmusic.app.downloads.CachedTrack
 import com.brainlessmusic.app.downloads.DownloadDao
+import com.brainlessmusic.app.downloads.SongCache
 import com.brainlessmusic.app.downloads.DownloadGroup
 import com.brainlessmusic.app.downloads.DownloadRepository
 import com.brainlessmusic.app.downloads.DownloadedTrackWithCover
@@ -32,6 +35,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.io.File
 import java.text.Normalizer
 import java.util.Locale
@@ -50,7 +54,15 @@ data class DownloadRow(
 /** One downloaded song, for the Songs filter and the in-progress list. */
 data class DownloadSongRow(val song: DownloadedTrackWithCover, val download: TrackDownload?, val coverUri: String?)
 
-enum class DownloadFilter(val label: String) { ALL("All"), ALBUMS("Albums"), PLAYLISTS("Playlists"), SONGS("Songs") }
+enum class DownloadFilter(val label: String) {
+    ALL("All"), ALBUMS("Albums"), PLAYLISTS("Playlists"), SONGS("Songs"),
+
+    /** Songs kept from streaming (A199); the chip shows only when there are some. */
+    CACHED("Cached"),
+}
+
+/** One whole song in the cache of played songs. Its cover is the server's, which Coil may have kept for offline. */
+data class CachedSongRow(val track: CachedTrack, val coverUri: String?)
 
 enum class DownloadSort(val label: String) { RECENT("Recently added"), NAME("Name"), ARTIST("Artist") }
 
@@ -67,8 +79,10 @@ data class DownloadsUi(
     val limitGb: Int,
     val paused: Boolean,
     val needsSignIn: Boolean,
+    /** Played and kept whole, played most recently first; downloaded songs are left out. */
+    val cached: List<CachedSongRow> = emptyList(),
 ) {
-    val isEmpty: Boolean get() = groups.isEmpty()
+    val isEmpty: Boolean get() = groups.isEmpty() && cached.isEmpty()
 }
 
 private data class Stored(
@@ -113,6 +127,8 @@ class DownloadsViewModel @Inject constructor(
     private val playbackController: PlaybackController,
     settings: PlaybackSettings,
     networkMonitor: NetworkMonitor,
+    private val songCache: SongCache,
+    libraryRepository: LibraryRepository,
 ) : ViewModel() {
 
     private val reload = MutableStateFlow(0)
@@ -143,7 +159,7 @@ class DownloadsViewModel @Inject constructor(
 
     @kotlin.OptIn(ExperimentalCoroutinesApi::class)
     val ui: StateFlow<LoadState<DownloadsUi>> = reload.flatMapLatest {
-        combine(stored, live) { s, l ->
+        combine(stored, live, songCache.cachedTracks) { s, l, cachedTracks ->
             val rows = s.groups.map { g ->
                 val ids = s.links[g.id].orEmpty()
                 val row = DownloadRow(g, ids, ids.count { l.downloads[it]?.isDone == true }, groupDownload(ids, l.downloads))
@@ -166,6 +182,9 @@ class DownloadsViewModel @Inject constructor(
                     limitGb = l.limitGb,
                     paused = l.paused,
                     needsSignIn = l.needsSignIn,
+                    cached = cachedTracks
+                        .filter { l.downloads[it.trackId]?.isDone != true }
+                        .map { CachedSongRow(it, libraryRepository.trackCoverUrl(it.trackId)) },
                 ),
             )
         }.catch<LoadState<DownloadsUi>> { emit(LoadState.Error("Couldn't read your downloads.")) }
@@ -208,6 +227,27 @@ class DownloadsViewModel @Inject constructor(
         playbackController.playQueue(ready.map { it.toQueueItem() }, index)
     }
 
+    /** Every cached song, in the order shown. */
+    fun playCached(shown: List<CachedSongRow>, shuffle: Boolean, onNothingToPlay: (String) -> Unit) {
+        if (shown.isEmpty()) {
+            onNothingToPlay("Nothing is cached yet.")
+            return
+        }
+        playbackController.playQueue(shown.map { it.toQueueItem() }, if (shuffle) shown.indices.random() else 0, shuffle = shuffle)
+    }
+
+    /** A cached song tapped: plays the cached list from that one on. */
+    fun playCachedSong(shown: List<CachedSongRow>, row: CachedSongRow) {
+        val index = shown.indexOf(row)
+        if (index >= 0) playbackController.playQueue(shown.map { it.toQueueItem() }, index)
+    }
+
+    fun downloadCached(row: CachedSongRow, onDone: (String) -> Unit) = downloads.downloadSong(row.toQueueItem(), onDone)
+
+    fun removeCached(row: CachedSongRow) {
+        viewModelScope.launch { songCache.remove(row.track.trackId) }
+    }
+
     fun pauseAll() = downloads.pauseAll()
 
     fun resumeAll() = downloads.resumeAll()
@@ -216,6 +256,8 @@ class DownloadsViewModel @Inject constructor(
 }
 
 internal fun DownloadSongRow.toQueueItem() = song.track.toQueueItem(coverUri)
+
+internal fun CachedSongRow.toQueueItem() = track.toQueueItem(coverUri)
 
 /** "12 songs", or "8 of 12 songs" while some aren't on the phone. */
 internal fun songCount(done: Int, total: Int): String {
@@ -246,7 +288,7 @@ internal fun DownloadsUi.tilesFor(
         DownloadFilter.ALL -> null
         DownloadFilter.ALBUMS -> KIND_ALBUM
         DownloadFilter.PLAYLISTS -> KIND_PLAYLIST
-        DownloadFilter.SONGS -> return emptyList()
+        DownloadFilter.SONGS, DownloadFilter.CACHED -> return emptyList()
     }
     val words = searchWords(query)
     val shown = groups.filter { row ->
@@ -290,6 +332,25 @@ internal fun DownloadsUi.songsFor(query: String = "", sort: DownloadSort = Downl
 }
 
 /** [query] split into words, folded so "beyonce" finds "Beyoncé" and case doesn't matter. */
+/** The cached songs that match [query], in [sort] order; "Recently added" is played most recently. */
+internal fun DownloadsUi.cachedFor(query: String = "", sort: DownloadSort = DownloadSort.RECENT): List<CachedSongRow> {
+    val words = searchWords(query)
+    val shown = if (words.isEmpty()) cached else cached.filter { matches(words, it.track.title, it.track.artist, it.track.album) }
+    return when (sort) {
+        DownloadSort.RECENT -> shown
+        DownloadSort.NAME -> shown.sortedBy { it.track.title.lowercase() }
+        DownloadSort.ARTIST -> shown.sortedWith(
+            compareBy<CachedSongRow>(
+                { it.track.artist == null },
+                { it.track.artist?.lowercase() },
+                { it.track.album?.lowercase() },
+                { it.track.trackNumber ?: Int.MAX_VALUE },
+                { it.track.title.lowercase() },
+            ),
+        )
+    }
+}
+
 internal fun searchWords(query: String): List<String> = fold(query).split(' ').filter { it.isNotEmpty() }
 
 /** Every word appears somewhere in [fields]. */

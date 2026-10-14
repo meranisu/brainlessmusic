@@ -152,9 +152,12 @@ fun DownloadsScreen(navController: NavHostController, viewModel: DownloadsViewMo
                     fullWidth("search") {
                         SearchRow(query, onQuery = viewModel::setQuery, sort = sort, onSort = viewModel::setSort)
                     }
-                    fullWidth("filters") { FilterRow(filter, onSelect = viewModel::setFilter) }
+                    fullWidth("filters") {
+                        FilterRow(filter, showCached = ui.cached.isNotEmpty(), onSelect = viewModel::setFilter)
+                    }
 
                     val searching = searchWords(query).isNotEmpty()
+                    val cached = if (filter == DownloadFilter.CACHED) ui.cachedFor(query, sort) else emptyList()
                     val tiles = ui.tilesFor(filter, query, sort)
                     // On All, a search also lists the songs it finds, so a song title turns something up.
                     val songs = if (filter == DownloadFilter.SONGS || (filter == DownloadFilter.ALL && searching)) {
@@ -162,13 +165,18 @@ fun DownloadsScreen(navController: NavHostController, viewModel: DownloadsViewMo
                     } else {
                         emptyList()
                     }
-                    if (tiles.isEmpty() && songs.isEmpty()) {
+                    if (tiles.isEmpty() && songs.isEmpty() && cached.isEmpty()) {
                         fullWidth("none") {
                             if (searching) {
                                 NoMatches(query, onClear = { viewModel.setQuery("") })
                             } else {
                                 Text(
-                                    "No ${filter.label.lowercase()} downloaded.",
+                                    when (filter) {
+                                        DownloadFilter.CACHED -> "Nothing cached. Songs you play are kept here."
+                                        // Only reached with cached songs and no downloads.
+                                        DownloadFilter.ALL -> "Nothing downloaded yet. Songs you've played are under Cached."
+                                        else -> "No ${filter.label.lowercase()} downloaded."
+                                    },
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -188,11 +196,25 @@ fun DownloadsScreen(navController: NavHostController, viewModel: DownloadsViewMo
                         }
                     }
                     songRows(songs, onPlay = { viewModel.playSong(songs, it, toast) }, onRemove = viewModel::removeSong)
+                    cachedRows(
+                        cached,
+                        onPlay = { viewModel.playCachedSong(cached, it) },
+                        onDownload = { viewModel.downloadCached(it, toast) },
+                        onRemove = viewModel::removeCached,
+                    )
                 }
                 // Like the library's Shuffle: in the corner, out of the panel. Both play every finished download.
+                // On Cached they play the cached songs instead.
+                val cachedShown = ui.cachedFor(query, sort)
                 PlayButtons(
-                    onPlayAll = { viewModel.playAll(ui, shuffle = false, toast) },
-                    onShuffleAll = { viewModel.playAll(ui, shuffle = true, toast) },
+                    onPlayAll = {
+                        if (filter == DownloadFilter.CACHED) viewModel.playCached(cachedShown, shuffle = false, toast)
+                        else viewModel.playAll(ui, shuffle = false, toast)
+                    },
+                    onShuffleAll = {
+                        if (filter == DownloadFilter.CACHED) viewModel.playCached(cachedShown, shuffle = true, toast)
+                        else viewModel.playAll(ui, shuffle = true, toast)
+                    },
                     modifier = Modifier.align(Alignment.BottomEnd).padding(end = 16.dp, bottom = 16.dp),
                 )
             }
@@ -439,9 +461,9 @@ private fun NoMatches(query: String, onClear: () -> Unit) {
 }
 
 @Composable
-private fun FilterRow(selected: DownloadFilter, onSelect: (DownloadFilter) -> Unit) {
+private fun FilterRow(selected: DownloadFilter, showCached: Boolean, onSelect: (DownloadFilter) -> Unit) {
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        DownloadFilter.entries.forEach {
+        DownloadFilter.entries.filter { it != DownloadFilter.CACHED || showCached || it == selected }.forEach {
             FilterChip(selected = it == selected, onClick = { onSelect(it) }, label = { Text(it.label) })
         }
     }
@@ -540,6 +562,28 @@ private fun LazyGridScope.songRows(songs: List<DownloadSongRow>, onPlay: (Downlo
     }
 }
 
+private fun LazyGridScope.cachedRows(
+    rows: List<CachedSongRow>,
+    onPlay: (CachedSongRow) -> Unit,
+    onDownload: (CachedSongRow) -> Unit,
+    onRemove: (CachedSongRow) -> Unit,
+) {
+    items(rows, key = { "cached-${it.track.trackId}" }, span = { GridItemSpan(maxLineSpan) }) { row ->
+        SongRow(
+            title = row.track.title,
+            supporting = listOfNotNull(row.track.artist ?: "Unknown artist", row.track.album).joinToString(" · "),
+            coverUri = row.coverUri,
+            download = null,
+            showState = false,
+            onClick = { onPlay(row) },
+            menu = { close ->
+                DropdownMenuItem(text = { Text("Download") }, onClick = { close(); onDownload(row) })
+                DropdownMenuItem(text = { Text("Remove from cache") }, onClick = { close(); onRemove(row) })
+            },
+        )
+    }
+}
+
 /** One song in a list, its download state at the end and a menu; shared with the album and playlist pages. */
 @Composable
 internal fun SongRow(
@@ -549,6 +593,8 @@ internal fun SongRow(
     download: TrackDownload?,
     onClick: () -> Unit,
     leading: (@Composable () -> Unit)? = null,
+    /** False on the Cached list, where "not downloaded" would only be noise. */
+    showState: Boolean = true,
     menu: @Composable (close: () -> Unit) -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
@@ -565,7 +611,7 @@ internal fun SongRow(
         },
         trailingContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                TrackStateIcon(download)
+                if (showState) TrackStateIcon(download)
                 Box {
                     IconButton(onClick = { menuOpen = true }) {
                         Icon(AppIcons.more, contentDescription = "Options for $title")
