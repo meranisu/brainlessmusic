@@ -1,5 +1,33 @@
 [
   {
+    "version": "0.4.18",
+    "date": "2026-10-14",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "the mini player shows up on Home again after you fully close and reopen the app, no more going to Library first to get it back",
+              "music should stop cutting out a couple of minutes after you leave the app. it was letting the phone put wifi and the cpu to sleep mid song",
+              "equalizer support: equalizer apps like Wavelet or Poweramp Equalizer can now work with the app, and Settings > Playback has an Equalizer button that opens your phone's (or your eq app's) equalizer"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.4.17",
     "date": "2026-10-13",
     "sections": [
