@@ -5,6 +5,8 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Playback keeps going with the screen off (PlaybackService), shown as a media notification. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- ExoPlayer's network wake mode keeps CPU and Wi-Fi up while a stream plays in the background. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <!-- Downloads run in the foreground too (MusicDownloadService). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />

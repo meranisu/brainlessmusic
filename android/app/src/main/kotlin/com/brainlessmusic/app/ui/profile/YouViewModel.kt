@@ -10,6 +10,7 @@ import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.data.repository.ProfileRepository
 import com.brainlessmusic.app.data.repository.StatsRange
 import com.brainlessmusic.app.playback.PlaybackController
+import com.brainlessmusic.app.playback.PlaybackResume
 import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.playback.queueItem
 import com.brainlessmusic.app.ui.common.LoadState
@@ -69,6 +70,7 @@ class YouViewModel @Inject constructor(
     private val profile: ProfileRepository,
     private val libraryRepository: LibraryRepository,
     private val playbackController: PlaybackController,
+    playbackResume: PlaybackResume,
     authRepository: AuthRepository,
 ) : ViewModel() {
 
@@ -104,6 +106,9 @@ class YouViewModel @Inject constructor(
     fun avatarUrl(person: PersonDto): String? = profile.avatarUrl(person.id, person.avatarId)
 
     init {
+        // Home is the first screen after a cold start, so the mini player's saved song is fetched here too, not only
+        // when Library opens.
+        viewModelScope.launch { playbackResume.restore() }
         if (isGuest) {
             loadGuest()
         } else {

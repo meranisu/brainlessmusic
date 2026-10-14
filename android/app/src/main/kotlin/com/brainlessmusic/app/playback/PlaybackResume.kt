@@ -33,6 +33,9 @@ class PlaybackResume @Inject constructor(
     // Saves run in the order they were decided; otherwise a slow older one could land last and win.
     private val saveLock = Mutex()
 
+    // Home and Library both ask on launch; one fetch is enough.
+    private val restoreLock = Mutex()
+
     init {
         scope.launch {
             controller.state.collect { state ->
@@ -44,6 +47,10 @@ class PlaybackResume @Inject constructor(
 
     /** Fetches and queues the saved state once a session exists. Failure is silent. */
     suspend fun restore() {
+        restoreLock.withLock { restoreOnce() }
+    }
+
+    private suspend fun restoreOnce() {
         if (controller.state.value.hasQueue) return
         val saved = libraryRepository.loadPlaybackState().getOrNull() ?: return
         val items = saved.queue.map(::toQueueItem)

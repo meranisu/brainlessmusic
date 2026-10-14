@@ -1004,6 +1004,8 @@ class PlaybackController @Inject constructor(
                 handleAudioFocus,
             )
             .setHandleAudioBecomingNoisy(handleAudioFocus)
+            // Holds CPU and Wi-Fi awake while playing; without it a phone in the background can starve the stream.
+            .setWakeMode(C.WAKE_MODE_NETWORK)
             .build()
 
     private val listener = object : Player.Listener {

@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-14: Android: mini player after a cold start, and music stopping in the background
+
+- Reported by a friend. After the app was killed, Home showed no mini player until Library was opened: only
+  `LibraryViewModel` restored the saved queue, from before Home became the first tab. `YouViewModel` now restores it
+  too; `PlaybackResume.restore()` holds a lock so the two screens fetch it once.
+- Music stopped 1-3 minutes after the app was minimized. The player had no wake mode, so the phone could let the CPU
+  and Wi-Fi sleep under a stream. ExoPlayer now uses `WAKE_MODE_NETWORK` (needs the new `WAKE_LOCK` permission).
+  Likely cause, not confirmed on the reporter's phone.
+- Verified: Android `assembleDebug`. Not run on a phone.
+
 ## 2026-10-13: Review fixes for search, playlist descriptions and the web pages
 
 - Code review of 4c64f29..29647d6; all ten findings fixed.

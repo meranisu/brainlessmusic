@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `PlaybackResume.restore()`/`restoreOnce()`, `YouViewModel` init, `PlaybackController.newExoPlayer()` (Android)
+**Date:** 2026-10-14
+**How added:** bug fix (friend's report)
+**Purpose:** the mini player shows on Home after a cold start; streams survive the app in the background.
+**Side effects:** a `WAKE_LOCK` permission; the player holds a wake lock and Wi-Fi lock while playing.
+**Before:** only Library restored the queue; no wake mode.
+**After:** Home restores it too, once; `WAKE_MODE_NETWORK`.
+
 **Function:** `rankBy(column, id)`, `wants()`, `SearchPage.only` (`backend/src/db/browse.ts`); `candidatesByWords()`, `librarySignature()`, `suggestSpelling()` (`services/searchHelp.ts`); `checkPlaylistDescription()`; `SearchViewModel.loadMore()`/`loadPage()`, `KindResults.query`; `PlaylistDetailViewModel.editDetails(name?, …)`; web `foldChar()`, `SearchPage()` recents, `PlaylistDetailPage()` draft reset
 **Date:** 2026-10-13
 **How added:** code review fixes
