@@ -1,5 +1,6 @@
 package com.brainlessmusic.app.ui.settings
 
+import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.brainlessmusic.app.data.local.AppearanceSettings
@@ -32,6 +33,9 @@ class SettingsViewModel @Inject constructor(
     private val libraryRepository: LibraryRepository,
     private val profileRepository: ProfileRepository,
 ) : ViewModel() {
+
+    /** The equalizer screen for the music, or null when the phone has none. */
+    fun equalizerIntent(): Intent? = playbackController.equalizerIntent()
 
     /** `null` until the reset is tried, then whether it worked. */
     private val _lessOftenReset = kotlinx.coroutines.flow.MutableStateFlow<Boolean?>(null)

@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `EqualizerSession.open()`/`close()`/`panelIntent()` (new, `android/.../playback/EqualizerSession.kt`); `PlaybackController.equalizerIntent()`, listener `onAudioSessionIdChanged`; `SettingsViewModel.equalizerIntent()`
+**Date:** 2026-10-14
+**How added:** new feature
+**Purpose:** let equalizer apps attach to the music, and open an equalizer from Settings.
+**Side effects:** system broadcasts on first play and on stop; starts another app's activity from Settings.
+**Before:** nothing; equalizer apps couldn't find the music's session.
+**After:** the main player's session is announced; Settings, Playback has an Equalizer button when one exists.
+
 **Function:** `PlaybackResume.restore()`/`restoreOnce()`, `YouViewModel` init, `PlaybackController.newExoPlayer()` (Android)
 **Date:** 2026-10-14
 **How added:** bug fix (friend's report)

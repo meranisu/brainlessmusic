@@ -2,6 +2,7 @@ package com.brainlessmusic.app.playback
 
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.OptIn
@@ -170,6 +171,8 @@ class PlaybackController @Inject constructor(
     // and Media3 moves the bound service to the foreground while audio is playing.
     private var sessionController: ListenableFuture<MediaController>? = null
 
+    private val equalizer = EqualizerSession(context)
+
     private val queue = mutableListOf<QueueItem>()
 
     // One key per queue entry, kept in step with [queue], so the same song queued twice is still two rows to the UI.
@@ -319,6 +322,9 @@ class PlaybackController @Inject constructor(
         }
         loadQueue(items, startIndex, 0L, play = true, source)
     }
+
+    /** Opens the phone's equalizer, or an equalizer app's, on the music. Null when the phone has none. */
+    fun equalizerIntent(): Intent? = EqualizerSession.panelIntent(context, player.audioSessionId)
 
     /** Restores a saved queue, paused unless [autoPlay]. A no-op if something is already queued. */
     fun restoreQueue(items: List<QueueItem>, startIndex: Int, positionMs: Long, autoPlay: Boolean) {
@@ -768,6 +774,7 @@ class PlaybackController @Inject constructor(
         resetFades()
         player.stop()
         player.clearMediaItems()
+        equalizer.close()
         queue.clear()
         keys.clear()
         source = null
@@ -1011,6 +1018,7 @@ class PlaybackController @Inject constructor(
     private val listener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             if (isPlaying) {
+                equalizer.open(player.audioSessionId)
                 failedInARow = 0
                 lastTickAt = SystemClock.elapsedRealtime()
                 startTicker()
@@ -1026,6 +1034,10 @@ class PlaybackController @Inject constructor(
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) = publish()
+
+        override fun onAudioSessionIdChanged(audioSessionId: Int) {
+            if (player.isPlaying) equalizer.open(audioSessionId) else equalizer.close()
+        }
 
         // Unplugged headphones, a call or another app's audio. `onIsPlayingChanged` alone misses these right after a
         // crossfade's hand-off, while the main player buffers. Ramps run on wall-clock time, so a song-end fade-out

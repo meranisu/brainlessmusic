@@ -17,6 +17,13 @@
     <!-- In-app updates (update/UpdateRepository): hands a downloaded release APK to Android's installer, which still asks. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <!-- Android 11+ hides other apps unless declared: lets Settings find the phone's or an app's equalizer screen. -->
+    <queries>
+        <intent>
+            <action android:name="android.media.action.DISPLAY_AUDIO_EFFECT_CONTROL_PANEL" />
+        </intent>
+    </queries>
+
     <application
         android:name=".BrainlessMusicApp"
         android:allowBackup="true"

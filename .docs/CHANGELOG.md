@@ -4,6 +4,17 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-14: Android: equalizer support (A196)
+
+- Equalizer apps (the phone's own, Wavelet, Poweramp Equalizer) can attach to the music: the app sends Android's
+  open-session broadcast with the main player's audio session when music first plays, keeps it through pauses, and
+  closes it when the queue is stopped (`EqualizerSession`).
+- Settings, Playback: an "Equalizer" button opens the phone's or an installed app's equalizer screen; hidden when there
+  is none. The manifest declares the intent under `<queries>` so Android 11+ can find it.
+- The crossfade's tail player keeps its own audio session: sharing one would apply the new song's loudness boost to
+  the old song. An equalizer app therefore doesn't shape the outgoing song during a fade.
+- Verified: Android `assembleDebug`. Not run on a phone; no equalizer app tested.
+
 ## 2026-10-14: Android: mini player after a cold start, and music stopping in the background
 
 - Reported by a friend. After the app was killed, Home showed no mini player until Library was opened: only

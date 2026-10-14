@@ -1,5 +1,7 @@
 package com.brainlessmusic.app.ui.settings
 
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
 import com.brainlessmusic.app.ui.splash.Goodbye
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -475,6 +477,22 @@ fun SettingsPageScreen(
                             checked = transitions.levelVolume,
                             onCheckedChange = viewModel::setLevelVolume,
                         )
+                        // Hidden when the phone has no equalizer screen and no equalizer app is installed.
+                        val equalizer = remember { viewModel.equalizerIntent() }
+                        val openEqualizer = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {}
+                        if (equalizer != null) {
+                            Divider()
+                            Block(
+                                title = "Equalizer",
+                                detail = "Your phone's equalizer, or an equalizer app you have installed. Saved there, not here.",
+                            ) {
+                                FilledTonalButton(
+                                    // The equalizer screen expects to be started for a result, so it knows which app called.
+                                    onClick = { openEqualizer.launch(equalizer) },
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                                ) { Text("Open equalizer") }
+                            }
+                        }
                         // Guests can't mark songs, so there is nothing to reset.
                         if (!viewModel.isGuest) {
                             Divider()
