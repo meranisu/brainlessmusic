@@ -98,6 +98,27 @@ like you in a room.
 
 ## Answered
 
+### A199 — Cached songs play offline, with a "Cached" list under Downloads *(was Q199)*
+**Answered:** 2026-10-14, picked A. A fully cached song plays offline wherever it already appears, and Downloads gets a
+"Cached" list.
+
+### A198 — Cache sizes: 500 MB, 1 GB (default), 2 GB, 5 GB, Unlimited, with Clear cache *(was Q198)*
+**Answered:** 2026-10-14, picked A. Settings shows the space used and a "Clear cache" button. Unlimited still empties
+if Android runs short of space or the user clears the app's cache. Downloads stay separate and are never evicted.
+
+### A197 — Commit the background fixes, then release them with the equalizer *(asked in chat, logged late)*
+**Answered:** 2026-10-14, in chat: "commit first and add this new equalizer too". Fixes committed as `852db6f`; the
+equalizer goes into the same Android release.
+
+### A196 — Equalizer: external equalizers and a Settings button only *(asked in chat, logged late)*
+**Answered:** 2026-10-14, in chat: "just 1 and 2". The app announces its audio session to equalizer apps and Settings
+opens the phone's or an app's equalizer screen. No built-in equalizer.
+
+### A195 — The first security-audit run is the quick profile *(was Q195)*
+**Answered:** 2026-10-13, picked A. Cloudflare's security-audit skill, `quick` profile over the whole repo: one
+hunting pass over coarse areas, one coverage critic, one verifier per candidate; source-only (no full sandbox here);
+reported as partial coverage. Output under `~/security-audit-skill/brainlessmusic/run-1`.
+
 ### A194 — Push the sign-up and search work together as one release *(was Q194)*
 **Answered:** 2026-10-13, in chat: "proceed as one". Both commits pushed; one Android release, v0.4.16, with both sets
 of notes (v0.4.15's notes folded into it, never tagged). The session that made the search commit was told.
