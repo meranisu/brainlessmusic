@@ -109,6 +109,11 @@ git config core.hooksPath .githooks
 
 When starting a non-trivial new feature, create `.docs/features/<feature-name>/planning.md` using the phase-plan template at `.docs/phase-plan-example.md` — a phase table (Plan → Structure → Interior → Walkthrough) plus a change log for anything that shifts mid-build. Keep `.docs/STATUS.md` in sync whenever a feature's phase or status changes — it's the one file to check for an at-a-glance project state.
 
+A feature planned in plan mode does not stay in chat: once the owner approves the plan, write it to
+`.docs/features/<feature-name>/planning.md` in the template's shape (Goal, phase table, per-phase checklists, change
+log), with the plan's unresolved questions logged in `QUESTIONS.md` and linked by ID. A plan-mode plan for a
+non-feature task (a tricky bug, a refactor) stays in chat only.
+
 ## Open questions (QUESTIONS.md)
 
 `.docs/QUESTIONS.md` is the single ledger for anything waiting on an owner

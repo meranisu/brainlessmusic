@@ -1,21 +1,36 @@
 # Phase Plan — Template & Worked Example
 
-> This is a **template**, not a real feature. Copy this structure into `.docs/features/<feature-name>/planning.md` when starting a non-trivial new feature (see CLAUDE.md's Planning Workflow). The example below uses a fictional "Statistic Menu" to show how the parts fit together — house-building analogy: Plan = blueprint, Structure = foundation, Interior = finishing, Walkthrough = final inspection before moving in.
+> This is a **template**, not a real feature. Copy this structure into `.docs/features/<feature-name>/planning.md` when starting a non-trivial new feature (see `.docs/CLAUDE.md`, "Planning workflow"). The example below uses a fictional "Statistic Menu" to show how the parts fit together — house-building analogy: Plan = blueprint, Structure = foundation, Interior = finishing, Walkthrough = final inspection before moving in.
 
 ## Goal
 
-One sentence: what are we building and why. *(Example: "Add room sync so multiple listeners can share a synced playback session with skip capability.")*
+One sentence: what are we building and why. *(Example: "Add a stats page so the owner can see how many trips each unit made, by unit and by month.")*
+
+**Done when:** one sentence you check by *using the app*, not by reading code. *(Example: "On the phone, the owner opens Stats and sees this month's trip count per unit without a reload.")*
+
+## Not doing
+
+What this feature deliberately leaves out, so it doesn't creep in mid-build. Ideas that come up go to `feature-brainstorm.md`, not here.
+
+- Exporting stats to CSV
+- Stats for other users' accounts
+
+## Decisions
+
+Owner decisions this plan rests on, by ID only — the content lives in `.docs/QUESTIONS.md`. Open ones get a `Q<n>` there first.
+
+- A123 (stats visible to the owner only), Q124 (open: include guest plays?)
 
 ## Phase Overview
 
-| Phase | What it covers | Status | Est. Duration | Checklist |
-|---|---|---|---|---|
-| 1. Plan (blueprint) | Decide what data to show, where it comes from, rough API shape | Done | 1 day | [Phase 1](#phase-1-plan) |
-| 2. Structure (foundation) | Backend: DB queries, endpoint, access control | In progress | 2 days | [Phase 2](#phase-2-structure) |
-| 3. Interior (finishing) | Frontend: UI components, charts, styling | Not started | 2 days | [Phase 3](#phase-3-interior) |
-| 4. Walkthrough (handover) | Testing, performance check, done-checklist, review | Not started | 1 day | [Phase 4](#phase-4-walkthrough) |
+| Phase | What it covers | Status | Checklist |
+|---|---|---|---|
+| 1. Plan (blueprint) | Decide what data to show, where it comes from, rough API shape | Done | [Phase 1](#phase-1-plan) |
+| 2. Structure (foundation) | Backend: DB queries, endpoint, access control | In progress | [Phase 2](#phase-2-structure) |
+| 3. Interior (finishing) | Clients: web and/or Android UI | Not started | [Phase 3](#phase-3-interior-web) |
+| 4. Walkthrough (handover) | Testing, done-checklist, docs, release | Not started | [Phase 4](#phase-4-walkthrough) |
 
-**Status values:** `Not started` → `In progress` → `Blocked` → `Done`. Keep this table current — it's the one thing to glance at to know where things stand, without reading the rest of the doc.
+**Status values:** `Not started` → `In progress` → `Blocked` → `Done`. Keep this table current — it's the one thing to glance at to know where things stand, without reading the rest of the doc. Mirror a status change in `.docs/STATUS.md`.
 
 ---
 
@@ -30,24 +45,35 @@ One sentence: what are we building and why. *(Example: "Add room sync so multipl
 - [x] DB query for `group_by=unit`
 - [ ] DB query for `group_by=month`
 - [ ] Access control (who can see whose stats)
-- [ ] Wire up route + controller method
+- [ ] Wire up route + handler
+- [ ] Tests added and passing (`cd backend && npm test`)
 
-## Phase 3: Interior
+## Phase 3: Interior (web)
+
+*Split per client. Delete the client this feature doesn't touch.*
 
 - [ ] Stats page layout
 - [ ] Chart component for unit breakdown
-- [ ] Chart component for month trend
 - [ ] Loading/empty states
+
+## Phase 3: Interior (Android)
+
+- [ ] Stats screen in the You tab
+- [ ] Loading/empty/offline states
 
 ## Phase 4: Walkthrough
 
-- [ ] Bad-input / empty-data handling checked
-- [ ] Query performance checked (no slow scans)
-- [ ] Lint passes
-- [ ] Tested manually end-to-end
-- [ ] Security/access checked
+This phase is the "is this really done" checklist. It mirrors the Definition of Done in the root `CLAUDE.md`.
 
-*(This phase doubles as the "is this really done" checklist — see [[feedback_done_checklist]] in memory.)*
+- [ ] **Done when** above checked by using the app
+- [ ] **Tested on the phone** (not just the emulator or the browser) — or written down as "not phone-tested yet"
+- [ ] Bad-input / empty-data handling checked
+- [ ] Security/access checked
+- [ ] Type check + lint pass (`cd frontend && npm run build`, `npm run lint`; `./gradlew assembleDebug`)
+- [ ] `.docs/CHANGELOG.md` and `.docs/FUNCTIONLOG.md` entries added
+- [ ] Migration added? → `.docs/reference/database-schema.md` updated in the same change
+- [ ] Android release? → `android/release-notes/vX.Y.Z.md` written; web version bump? → `frontend/src/lib/webChangelog.ts` entry
+- [ ] Open `Q<n>`s from this plan answered or still listed under Decisions
 
 ---
 
