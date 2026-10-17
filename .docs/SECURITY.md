@@ -34,7 +34,7 @@ audit's Status column with the commit, and add a CHANGELOG entry as usual.
 | S9 | Medium | Android release action pinned by tag next to the signing key | open |
 | S10 | Low | Hidden songs leak through `/shuffle` (guests too), cover, waveform, `/prepare` | open |
 | S11 | Low | Song play history shows login names, against A174 | open |
-| S12 | Low | `main` unprotected; auto-deploy CI lookup unfiltered | open, Q176 |
+| S12 | Low | `main` unprotected; auto-deploy CI lookup unfiltered | mitigation chosen (A200); GitHub setting and CI filter pending |
 | S13 | Low | Port 3000 reachable directly; `cf-connecting-ip` trusted from anyone | open |
 | S14 | Low | `docker-compose.yml` defaults open registration to `true` | open |
 | S15 | Low | Error messages (paths, SQL, ffmpeg stderr) reach clients | open |
@@ -42,7 +42,7 @@ audit's Status column with the commit, and add a CHANGELOG entry as usual.
 | S17 | Low | Invite tokens appear in logs | open |
 | S18 | Low | Usernames confirmable by sign-in timing | open |
 | S19 | Low | No "sign out everywhere" | open |
-| S20 | Low | Anyone can take an account's display name | open, Q177 |
+| S20 | Low | Anyone can take an account's display name | mitigation chosen (A201); validation pending |
 | S21 | Low | Playlist names not type- or length-checked | fixed 2026-10-13: text, no control characters, 100 characters max |
 | S22 | Low | Audio ffmpeg calls lack `-protocol_whitelist file` (admin-added files only) | open |
 | S23 | Low | Three filesystem writers read their root from config | open |
@@ -53,8 +53,8 @@ audit's Status column with the commit, and add a CHANGELOG entry as usual.
 Asked in [QUESTIONS.md](QUESTIONS.md); answer there, not here.
 
 - **Q175:** how strong a passcode must be (S3).
-- **Q176:** protect `main` on GitHub (S12).
-- **Q177:** whether someone can take an account's display name (S20).
+- **A200:** protect `main` while keeping direct pushes; GitHub setting and CI filter remain pending (S12).
+- **A201:** reserve account display names and usernames; validation remains pending (S20).
 
 ## Rules for anyone changing the code
 
