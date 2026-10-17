@@ -4,6 +4,23 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-18: Headset buttons, Android and web (A202, A203)
+
+- Choose what a headset does: one, two or three presses, plus the Next and Previous buttons. Each takes play or pause,
+  next, previous, skip forward 10 s, skip back 10 s, or do nothing. Defaults: play or pause, next, previous, next,
+  previous. Presses within 400 ms count together; with two and three presses unmapped, one press acts at once.
+- Android: `PlaybackService` handles the media button itself (`onMediaButtonEvent`) and logs each key as
+  `Media button key=...`. Actions run on the session player, so fades and Listening Together rooms still apply.
+  Settings, Playback, "Headset buttons". Stored in DataStore as `headset_<slot>`.
+- Web: the browser's play, pause, next and previous actions go through the same rules; settings are in Options,
+  "Headset buttons", per device in `localStorage` (`brainlessmusic.headsetButtons`). The lock screen's play and pause
+  buttons follow the One press row.
+- Open: Android ignored headset presses before this change and the cause was not found on a device. This change takes
+  over the media button, which may fix it; not confirmed. Plan: `.docs/features/headset-buttons/planning.md`.
+- Verified: `HeadsetPressesTest` and Android `assembleDebug`; frontend `npm run build`, `npm run lint` (warnings that were
+  already there). Not run on a phone or in a browser.
+
+
 ## 2026-10-14: Android: cache of played songs (A198, A199)
 
 - Songs that stream are kept in a second Media3 cache (`cacheDir/songs`), apart from downloads. The player reads

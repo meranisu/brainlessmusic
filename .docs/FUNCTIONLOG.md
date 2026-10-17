@@ -4,6 +4,15 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `HeadsetPresses`, `HeadsetAction`, `HeadsetSlot`, `HeadsetButtonPrefs` (new, `android/.../playback/`); `PlaybackService.onMediaButtonEvent`/`runHeadsetAction`; `PlaybackSettings.headsetButtons`/`setHeadsetAction`; `SettingsViewModel.headsetButtons`; `HeadsetRow` in `SettingsScreen.kt`; `createPressCounter`, `loadHeadsetPrefs`, `saveHeadsetPrefs` (new, `frontend/src/lib/headsetButtons.ts`); `HeadsetSettings` in `OptionsPage.tsx`; the `play`, `pause`, `nexttrack`, `previoustrack` handlers in `PlayerBar.tsx`.
+**Date:** 2026-10-18
+**How added:** new feature
+**Purpose:** let the owner choose what each headset press or button does, and take over the media button on Android (A202, A203).
+**Side effects:** a 400 ms timer after a headset press; writes one DataStore key per slot, or one `localStorage` key on web.
+**Before:** Media3's default media button handling on Android (a press did nothing on the owner's phone); on web play, pause, next and previous each did their one thing.
+**After:** presses are counted and mapped to the chosen action; Next and Previous buttons map separately.
+
+
 **Function:** `SongCache` (new: `isCached()`, `record()`, `cachedTracks`, `remove()`, `clear()`), `AdjustableLruEvictor` (new) (`android/.../downloads/SongCache.kt`); `CachedTrack`/`CachedTrackDao`, `MIGRATION_5_6`; `PlaybackController.streamUrlFor()`, `onPhone()`, `skipToDownloaded()`, `dataSourceFactory`; `DownloadModule.provideDownloadManager()`; `DownloadsViewModel.playCached()`/`playCachedSong()`/`downloadCached()`/`removeCached()`, `DownloadsUi.cachedFor()`; `SongCacheSettings()`; `PlaybackSettings.songCacheLimitMb`
 **Date:** 2026-10-14
 **How added:** new feature

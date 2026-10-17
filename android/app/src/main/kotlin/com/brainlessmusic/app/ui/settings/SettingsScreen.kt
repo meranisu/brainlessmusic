@@ -69,6 +69,8 @@ import com.brainlessmusic.app.data.local.PlayerButtons
 import com.brainlessmusic.app.data.local.Skin
 import com.brainlessmusic.app.data.local.SeekStyle
 import com.brainlessmusic.app.data.local.ThemeMode
+import com.brainlessmusic.app.playback.HeadsetAction
+import com.brainlessmusic.app.playback.HeadsetSlot
 import com.brainlessmusic.app.ui.downloads.DownloadSettings
 import com.brainlessmusic.app.ui.downloads.downloadSummary
 import com.brainlessmusic.app.ui.navigation.TabBarSpace
@@ -256,6 +258,8 @@ fun SettingsPageScreen(
     val keepShuffle by viewModel.keepShuffle.collectAsStateWithLifecycle()
     val dataSaver by viewModel.dataSaver.collectAsStateWithLifecycle()
     val transitions by viewModel.transitions.collectAsStateWithLifecycle()
+    val headsetButtons by viewModel.headsetButtons.collectAsStateWithLifecycle()
+    var editingHeadsetSlot by remember { mutableStateOf<HeadsetSlot?>(null) }
     val lessOftenReset by viewModel.lessOftenReset.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val colorTheme by viewModel.colorTheme.collectAsStateWithLifecycle()
@@ -288,6 +292,31 @@ fun SettingsPageScreen(
             },
             dismissButton = {
                 TextButton(onClick = { confirmingGuestLogout = false }) { Text("Stay") }
+            },
+        )
+    }
+
+    editingHeadsetSlot?.let { slot ->
+        AlertDialog(
+            onDismissRequest = { editingHeadsetSlot = null },
+            title = { Text(slot.title) },
+            text = {
+                Column {
+                    HeadsetAction.entries.forEach { action ->
+                        ChoiceOption(
+                            label = action.label,
+                            detail = "",
+                            selected = headsetButtons[slot] == action,
+                            onClick = {
+                                viewModel.setHeadsetAction(slot, action)
+                                editingHeadsetSlot = null
+                            },
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { editingHeadsetSlot = null }) { Text("Cancel") }
             },
         )
     }
@@ -477,6 +506,22 @@ fun SettingsPageScreen(
                             checked = transitions.levelVolume,
                             onCheckedChange = viewModel::setLevelVolume,
                         )
+                        Divider()
+                        Block(
+                            title = "Headset buttons",
+                            detail = "Wired or Bluetooth, saved on this phone. Earbuds often send Next or Previous for a " +
+                                "double or triple tap, so those two rows decide what that does.",
+                        ) {
+                            Column {
+                                HeadsetSlot.entries.forEach { slot ->
+                                    HeadsetRow(
+                                        title = slot.title,
+                                        value = headsetButtons[slot].label,
+                                        onClick = { editingHeadsetSlot = slot },
+                                    )
+                                }
+                            }
+                        }
                         // Hidden when the phone has no equalizer screen and no equalizer app is installed.
                         val equalizer = remember { viewModel.equalizerIntent() }
                         val openEqualizer = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {}
@@ -623,6 +668,18 @@ private fun Block(title: String, detail: String? = null, content: @Composable ()
     }
 }
 
+/** One headset slot and what it does now; tapping it opens the choices. */
+@Composable
+private fun HeadsetRow(title: String, value: String, onClick: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(onClick = onClick),
+    ) {
+        Text(title, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        Text(value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
 /** The whole row toggles, for a 48 dp target. */
 @Composable
 private fun SwitchRow(title: String, detail: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
@@ -735,7 +792,9 @@ private fun ChoiceOption(label: String, detail: String, selected: Boolean, onCli
         RadioButton(selected = selected, onClick = null)
         Column(modifier = Modifier.padding(start = 12.dp)) {
             Text(label, style = MaterialTheme.typography.bodyMedium)
-            Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (detail.isNotEmpty()) {
+                Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 }

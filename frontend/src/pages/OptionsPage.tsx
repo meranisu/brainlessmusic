@@ -13,6 +13,14 @@ import { ApiError, apiClient } from '../lib/apiClient';
 import { formatScanStatus } from '../lib/format';
 import { applyTheme, isTheme, loadTheme, THEMES, type ThemeId } from '../lib/theme';
 import { FADE_LENGTHS, type BetweenSongs, type TransitionPrefs } from '../lib/transitions';
+import {
+  HEADSET_ACTIONS,
+  HEADSET_SLOTS,
+  loadHeadsetPrefs,
+  saveHeadsetPrefs,
+  type HeadsetAction,
+  type HeadsetSlot,
+} from '../lib/headsetButtons';
 import type { AddLibraryRootResponse, LibraryRoot, LibraryRootListResponse, LibraryRootScanResult } from '../types/api';
 
 const BETWEEN_SONGS: { id: BetweenSongs; name: string; detail: string }[] = [
@@ -350,6 +358,48 @@ function LibrarySection() {
   );
 }
 
+/** One choice per headset press or button. Saved on this device and read at each press, so no reload is needed. */
+function HeadsetSettings() {
+  const [prefs, setPrefs] = useState(loadHeadsetPrefs);
+
+  function choose(slot: HeadsetSlot, action: HeadsetAction) {
+    const next = { ...prefs, [slot]: action };
+    setPrefs(next);
+    saveHeadsetPrefs(next);
+  }
+
+  return (
+    <div className="rounded-lg border border-blue-800 bg-blue-900/60 px-4 py-3.5">
+      <ul className="divide-y divide-blue-800">
+        {HEADSET_SLOTS.map((slot) => (
+          <li key={slot.id} className="flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0">
+            <label htmlFor={`headset-${slot.id}`} className="text-sm text-white">
+              {slot.name}
+            </label>
+            <select
+              id={`headset-${slot.id}`}
+              value={prefs[slot.id]}
+              onChange={(e) => choose(slot.id, e.target.value as HeadsetAction)}
+              className="min-h-11 rounded-md border border-blue-700 bg-blue-950 px-2 py-1.5 text-sm text-white focus-visible:outline-2 focus-visible:outline-orange-500"
+            >
+              {HEADSET_ACTIONS.map((action) => (
+                <option key={action.id} value={action.id}>
+                  {action.name}
+                </option>
+              ))}
+            </select>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-xs text-blue-300">
+        Earbuds often send Next or Previous for a double or triple tap, so those two rows decide what that does. Your
+        browser decides which presses reach this page, so two and three presses may not work everywhere. The play and
+        pause buttons on a lock screen follow the One press row.
+      </p>
+    </div>
+  );
+}
+
 /**
  * The options screen, a page announced by the interstitial. Holds data saver (the player bar only renders while
  * playing) and themes.
@@ -439,6 +489,13 @@ export function OptionsPage() {
           </div>
         )}
         <TransitionSettings prefs={transitions} onChange={setTransitions} canFade={canFade} />
+      </section>
+
+      <section className="mt-7">
+        <h2 className="mb-3 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-blue-400">
+          Headset buttons
+        </h2>
+        <HeadsetSettings />
       </section>
 
       {user?.isAdmin && <LibrarySection />}

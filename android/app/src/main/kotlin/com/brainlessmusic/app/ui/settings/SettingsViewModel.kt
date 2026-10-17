@@ -15,6 +15,9 @@ import com.brainlessmusic.app.data.local.TransitionPrefs
 import com.brainlessmusic.app.data.repository.AuthRepository
 import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.data.repository.ProfileRepository
+import com.brainlessmusic.app.playback.HeadsetAction
+import com.brainlessmusic.app.playback.HeadsetButtonPrefs
+import com.brainlessmusic.app.playback.HeadsetSlot
 import com.brainlessmusic.app.playback.PlaybackController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -54,6 +57,13 @@ class SettingsViewModel @Inject constructor(
 
     fun setKeepPlayingWhenSwipedAway(enabled: Boolean) {
         viewModelScope.launch { settings.setKeepPlayingWhenSwipedAway(enabled) }
+    }
+
+    val headsetButtons: StateFlow<HeadsetButtonPrefs> = settings.headsetButtons
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HeadsetButtonPrefs())
+
+    fun setHeadsetAction(slot: HeadsetSlot, action: HeadsetAction) {
+        viewModelScope.launch { settings.setHeadsetAction(slot, action) }
     }
 
     val dataSaver: StateFlow<Boolean> = settings.dataSaver

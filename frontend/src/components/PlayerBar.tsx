@@ -48,6 +48,12 @@ import { NowPlaying } from './NowPlaying';
 import { useRoom } from './RoomProvider';
 import { expectedPositionMs, type RoomState } from '../lib/roomClient';
 import { applyLevel, levelFactor, resumeLevelling } from '../lib/levelling';
+import {
+  createPressCounter,
+  HEADSET_SEEK_SECONDS,
+  loadHeadsetPrefs,
+  type HeadsetAction,
+} from '../lib/headsetButtons';
 import type { PlaybackState, TrackSummary } from '../types/api';
 import { useToast } from './ToastProvider';
 
@@ -1658,6 +1664,30 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, [current]);
 
+  // Latest-render closure, so the press counter (created once) always acts on the current queue and position.
+  const headsetRunRef = useRef<(action: HeadsetAction) => void>(() => {});
+  headsetRunRef.current = (action) => {
+    switch (action) {
+      case 'playPause':
+        return toggle();
+      case 'next':
+        return next();
+      case 'previous':
+        return previous();
+      case 'seekForward':
+        return seek(currentTime + HEADSET_SEEK_SECONDS);
+      case 'seekBack':
+        return seek(currentTime - HEADSET_SEEK_SECONDS);
+      case 'none':
+        return;
+    }
+  };
+  const pressesRef = useRef<ReturnType<typeof createPressCounter> | null>(null);
+  if (!pressesRef.current) {
+    pressesRef.current = createPressCounter(loadHeadsetPrefs, (action) => headsetRunRef.current(action));
+  }
+  useEffect(() => () => pressesRef.current?.cancel(), []);
+
   // Separate from the metadata: these handlers re-bind on queue position and repeat changes.
   useEffect(() => {
     if (!('mediaSession' in navigator) || !current) return;
@@ -1674,10 +1704,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     // Driven off the element rather than `toggle()`, so an OS button always
     // means what it says even if our own state has drifted out of sync.
-    set('play', () => resumePlayback());
-    set('pause', () => pausePlayback());
-    set('previoustrack', () => previous());
-    set('nexttrack', () => next());
+    // A headset sends play or pause for its main button, whichever the browser thinks is next, so both count as one
+    // press. What a press does is the user's choice (Options > Headset buttons).
+    set('play', () => pressesRef.current?.press());
+    set('pause', () => pressesRef.current?.press());
+    set('previoustrack', () => headsetRunRef.current(loadHeadsetPrefs().previousButton));
+    set('nexttrack', () => headsetRunRef.current(loadHeadsetPrefs().nextButton));
     set('seekbackward', (d) => seek(currentTime - (d.seekOffset ?? SEEK_STEP_SECONDS)));
     set('seekforward', (d) => seek(currentTime + (d.seekOffset ?? SEEK_STEP_SECONDS)));
     set('seekto', (d) => {

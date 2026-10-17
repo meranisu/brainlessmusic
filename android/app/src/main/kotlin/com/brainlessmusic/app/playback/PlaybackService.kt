@@ -2,8 +2,13 @@ package com.brainlessmusic.app.playback
 
 import android.app.PendingIntent
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
+import android.view.KeyEvent
 import androidx.annotation.OptIn
+import androidx.core.content.IntentCompat
+import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSourceBitmapLoader
@@ -45,6 +50,21 @@ class PlaybackService : MediaSessionService() {
     @Volatile
     private var keepPlayingWhenSwipedAway: Boolean? = null
 
+    // Mirrored from the setting so a press never waits on a read. The defaults stand until the first read lands.
+    @Volatile
+    private var headsetPrefs = HeadsetButtonPrefs()
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val headsetPresses = HeadsetPresses(
+        prefs = { headsetPrefs },
+        schedule = { delayMs, task ->
+            val run = Runnable(task)
+            mainHandler.postDelayed(run, delayMs)
+            val cancel: () -> Unit = { mainHandler.removeCallbacks(run) }
+            cancel
+        },
+        fire = ::runHeadsetAction,
+    )
+
     /** The cover loader's thread, shut down with the service so each recreation doesn't leave one behind (C31). */
     private val bitmapExecutor = Executors.newSingleThreadExecutor()
 
@@ -79,10 +99,58 @@ class PlaybackService : MediaSessionService() {
                         .build()
                     return MediaSession.ConnectionResult.accept(result.availableSessionCommands, commands)
                 }
+
+                // Play/pause and the headset hook go through the press counter; next and previous run their own
+                // action. Every other key (play, pause, stop, fast-forward) keeps Media3's handling.
+                override fun onMediaButtonEvent(
+                    session: MediaSession,
+                    controllerInfo: MediaSession.ControllerInfo,
+                    intent: Intent,
+                ): Boolean {
+                    val event = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_KEY_EVENT, KeyEvent::class.java)
+                        ?: return false
+                    val handled = when (event.keyCode) {
+                        KeyEvent.KEYCODE_HEADSETHOOK, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+                        KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_MEDIA_PREVIOUS -> true
+                        else -> false
+                    }
+                    if (!handled) return false
+                    Log.i(TAG, "Media button key=${event.keyCode} action=${event.action} repeat=${event.repeatCount}")
+                    // One press is a down and an up; a held key repeats the down. Count only the first down.
+                    if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                        when (event.keyCode) {
+                            KeyEvent.KEYCODE_MEDIA_NEXT -> runHeadsetAction(headsetPrefs.nextButton)
+                            KeyEvent.KEYCODE_MEDIA_PREVIOUS -> runHeadsetAction(headsetPrefs.previousButton)
+                            else -> headsetPresses.press()
+                        }
+                    }
+                    return true
+                }
             })
             .build()
         // Not read with runBlocking here: onCreate is on the main thread (C31). A swipe-away before this lands waits for it.
         scope.launch { settings.keepPlayingWhenSwipedAway.collect { keepPlayingWhenSwipedAway = it } }
+        scope.launch { settings.headsetButtons.collect { headsetPrefs = it } }
+    }
+
+    /** Through the session player, so fades and Listening Together rooms apply as they do for the notification. */
+    private fun runHeadsetAction(action: HeadsetAction) {
+        val player = controller.sessionPlayer
+        if (player.mediaItemCount == 0) return
+        when (action) {
+            HeadsetAction.PLAY_PAUSE -> if (player.playWhenReady) player.pause() else player.play()
+            HeadsetAction.NEXT -> player.seekToNext()
+            HeadsetAction.PREVIOUS -> player.seekToPrevious()
+            HeadsetAction.SEEK_FORWARD -> seekBy(player, SEEK_STEP_MS)
+            HeadsetAction.SEEK_BACK -> seekBy(player, -SEEK_STEP_MS)
+            HeadsetAction.NONE -> Unit
+        }
+    }
+
+    private fun seekBy(player: Player, deltaMs: Long) {
+        val target = player.currentPosition + deltaMs
+        val end = player.duration
+        player.seekTo(if (end == C.TIME_UNSET) target.coerceAtLeast(0) else target.coerceIn(0, end))
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = session
@@ -104,6 +172,7 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        headsetPresses.cancel()
         scope.cancel()
         // Release the session but never the player: it belongs to PlaybackController.
         session?.release()
@@ -114,3 +183,4 @@ class PlaybackService : MediaSessionService() {
 }
 
 private const val TAG = "PlaybackService"
+private const val SEEK_STEP_MS = 10_000L

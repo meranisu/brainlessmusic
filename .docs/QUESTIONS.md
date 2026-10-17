@@ -76,6 +76,13 @@ Assumption until answered: S1 and S2 get fixed anyway; the passcode rules stay a
 
 ## Answered
 
+### A203 — Which actions a headset press can trigger *(was Q201)*
+**Answered:** 2026-10-18. Play/pause, next, previous, seek forward 10 s, seek back 10 s, plus "Do nothing". No favorite and
+no shuffle toggle. Built in [features/headset-buttons](features/headset-buttons/planning.md).
+
+### A202 — Does a single headset press work on Android today? *(was Q200)*
+**Answered:** 2026-10-18. No, nothing happens, so the plan starts by finding why before adding the options.
+
 ### A201 — Reserve account display names and usernames *(was Q177)*
 **Answered:** 2026-10-15, picked A. Refuse a display name that matches another account's display name or username,
 ignoring case. Guests may still share display names with other guests. The validation is not yet implemented.

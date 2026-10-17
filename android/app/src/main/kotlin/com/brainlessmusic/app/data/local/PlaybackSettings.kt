@@ -6,6 +6,9 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.brainlessmusic.app.playback.HeadsetAction
+import com.brainlessmusic.app.playback.HeadsetButtonPrefs
+import com.brainlessmusic.app.playback.HeadsetSlot
 import com.brainlessmusic.app.playback.ShuffleMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -130,7 +133,27 @@ class PlaybackSettings @Inject constructor(
         dataStore.edit { it[LEVEL_VOLUME_KEY] = enabled }
     }
 
+    /** What each headset press or button does (A203). Per phone, so a wired headset and earbuds share one choice. */
+    val headsetButtons: Flow<HeadsetButtonPrefs> = dataStore.data.map { prefs ->
+        val defaults = HeadsetButtonPrefs()
+        fun pick(slot: HeadsetSlot): HeadsetAction =
+            prefs[headsetKey(slot)]?.let { name -> HeadsetAction.entries.firstOrNull { it.name == name } } ?: defaults[slot]
+        HeadsetButtonPrefs(
+            single = pick(HeadsetSlot.SINGLE),
+            double = pick(HeadsetSlot.DOUBLE),
+            triple = pick(HeadsetSlot.TRIPLE),
+            nextButton = pick(HeadsetSlot.NEXT_BUTTON),
+            previousButton = pick(HeadsetSlot.PREVIOUS_BUTTON),
+        )
+    }
+
+    suspend fun setHeadsetAction(slot: HeadsetSlot, action: HeadsetAction) {
+        dataStore.edit { it[headsetKey(slot)] = action.name }
+    }
+
     private companion object {
+        fun headsetKey(slot: HeadsetSlot) = stringPreferencesKey("headset_${slot.name.lowercase()}")
+
         val SHUFFLE_KEY = booleanPreferencesKey("shuffle")
         val SHUFFLE_MODE_KEY = stringPreferencesKey("shuffle_mode")
         val KEEP_SHUFFLE_KEY = booleanPreferencesKey("keep_shuffle")
