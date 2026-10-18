@@ -9,6 +9,8 @@
           {
             "type": "ul",
             "items": [
+              "sleep timer: tap the moon at the top of Now playing and pick 15, 30, 45, 60 or 90 minutes, or \"end of current song\". when it runs out the music fades out over about 10 seconds and pauses, and your queue stays so you can carry on tomorrow. in a Listen together room the timer takes only your phone out of the room, everyone else keeps listening",
+              "Settings, Account has a new \"Log out everywhere\" for accounts. it logs out every device signed in as you, and any link made to move your account",
               "smart playlists: on the Playlists tab, tap \"New smart playlist\" and describe what you want in rules, like \"I last played it more than 60 days ago\" or \"I liked it, and I played it fewer than 3 times\". it fills itself every time you open it, using only your own plays and likes, and nobody else can see it",
               "while you edit the rules a box under them shows how many songs they pick right now, so you can tune them before saving",
               "on a smart playlist, the ⋮ menu has Edit rules and Save as playlist (turns what it picks today into a normal playlist you can edit by hand)",
@@ -24,33 +26,6 @@
           {
             "type": "p",
             "text": "the update sheet will offer it. smart playlists need the matching server update, which goes out with it"
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "version": "0.4.21",
-    "date": "2026-10-18",
-    "sections": [
-      {
-        "title": "what changed",
-        "blocks": [
-          {
-            "type": "ul",
-            "items": [
-              "sleep timer: tap the moon at the top of Now playing and pick 15, 30, 45, 60 or 90 minutes, or \"end of current song\". when it runs out the music fades out over about 10 seconds and pauses, and your queue stays so you can carry on tomorrow",
-              "in a Listen together room the timer takes only your phone out of the room, everyone else keeps listening"
-            ]
-          }
-        ]
-      },
-      {
-        "title": "upgrading",
-        "blocks": [
-          {
-            "type": "p",
-            "text": "the update sheet will offer it"
           }
         ]
       }
