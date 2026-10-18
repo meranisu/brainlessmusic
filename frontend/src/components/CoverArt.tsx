@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useMediaUrl } from '../hooks/useMediaUrl';
 import { buildCoverUrl } from '../lib/apiClient';
 
 interface CoverArtProps {
@@ -13,12 +13,6 @@ interface CoverArtProps {
 }
 
 /** Cover with a same-size placeholder, so rows don't reflow. A 404 means no embedded art, not an error. */
-interface Loaded {
-  key: string;
-  url: string | null;
-  failed: boolean;
-}
-
 export function CoverArt({
   kind,
   id,
@@ -27,33 +21,12 @@ export function CoverArt({
   alt = '',
   bare = false,
 }: CoverArtProps) {
-  const [loaded, setLoaded] = useState<Loaded | null>(null);
-
-  // Ties the loaded state to one cover, so a stale result just shows the placeholder without a reset effect.
-  const key = `${kind}:${id}:${size}`;
-
-  useEffect(() => {
-    let cancelled = false;
-
-    buildCoverUrl(kind, id, size)
-      .then((url) => {
-        if (!cancelled) setLoaded({ key: `${kind}:${id}:${size}`, url, failed: false });
-      })
-      .catch(() => {
-        if (!cancelled) setLoaded({ key: `${kind}:${id}:${size}`, url: null, failed: true });
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [kind, id, size]);
-
-  const current = loaded?.key === key ? loaded : null;
+  const { url, fail } = useMediaUrl(`${kind}:${id}:${size}`, () => buildCoverUrl(kind, id, size));
   const shared = bare
     ? `${className} shrink-0 object-cover`
     : `${className} shrink-0 rounded-md border border-blue-800 object-cover`;
 
-  if (!current || current.failed || !current.url) {
+  if (!url) {
     return (
       <div
         className={`${shared} flex items-center justify-center bg-blue-950 text-blue-700`}
@@ -71,12 +44,12 @@ export function CoverArt({
 
   return (
     <img
-      src={current.url}
+      src={url}
       alt={alt}
       loading="lazy"
       decoding="async"
       className={`${shared} bg-blue-950`}
-      onError={() => setLoaded({ key, url: null, failed: true })}
+      onError={fail}
     />
   );
 }

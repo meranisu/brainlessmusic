@@ -1,25 +1,16 @@
 /** The data-saver preference, and what the server actually sent, which differs when it declines a pointless downgrade. */
+import { getItem, setItem } from './safeStorage';
 
 const DATA_SAVER_KEY = 'brainlessmusic.dataSaver';
 
 /** Per device, in `localStorage`: the phone on mobile data and the desktop on the LAN share a login. */
 export function loadDataSaverPreference(): boolean {
-  try {
-    return localStorage.getItem(DATA_SAVER_KEY) === 'true';
-  } catch {
-    // Storage can be blocked outright. Defaulting to off keeps playback at
-    // full quality, which is the safer thing to guess wrong about.
-    return false;
-  }
+  // Storage can be blocked outright. Defaulting to off keeps playback at full quality, which is the safer thing to guess wrong about.
+  return getItem(DATA_SAVER_KEY) === 'true';
 }
 
 export function saveDataSaverPreference(enabled: boolean): void {
-  try {
-    localStorage.setItem(DATA_SAVER_KEY, String(enabled));
-  } catch {
-    // The preference still applies for this session; it just won't survive a
-    // reload. Not worth interrupting the listener over.
-  }
+  setItem(DATA_SAVER_KEY, String(enabled));
 }
 
 export interface ServedStream {

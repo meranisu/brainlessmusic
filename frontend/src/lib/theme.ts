@@ -3,6 +3,8 @@
  * are positional, not hues. Danger keeps its meaning: the red theme moves `--color-red-*` off its own hue.
  */
 
+import { getItem, removeItem, setItem } from './safeStorage';
+
 export const THEMES = [
   { id: 'blue', name: 'Deep blue', detail: 'The original' },
   { id: 'red', name: 'Crimson', detail: 'After IIDX RED' },
@@ -27,13 +29,9 @@ export function isTheme(value: string | null | undefined): value is ThemeId {
  * paints first, so the page doesn't flash the default while the profile loads.
  */
 export function loadTheme(): ThemeId {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return isTheme(stored) ? stored : DEFAULT_THEME;
-  } catch {
-    // Blocked site data throws on access. The default is a working app.
-    return DEFAULT_THEME;
-  }
+  // Blocked site data reads as null. The default is a working app.
+  const stored = getItem(STORAGE_KEY);
+  return isTheme(stored) ? stored : DEFAULT_THEME;
 }
 
 /**
@@ -41,21 +39,13 @@ export function loadTheme(): ThemeId {
  * so a choice made before A55 isn't lost.
  */
 export function hasLocalTheme(): boolean {
-  try {
-    return isTheme(localStorage.getItem(STORAGE_KEY));
-  } catch {
-    return false;
-  }
+  return isTheme(getItem(STORAGE_KEY));
 }
 
 /** Sets `data-theme` and saves the browser's copy. The default sets "blue" explicitly, so the attribute is never absent. */
 export function applyTheme(theme: ThemeId): void {
   document.documentElement.dataset.theme = theme;
-  try {
-    localStorage.setItem(STORAGE_KEY, theme);
-  } catch {
-    // The theme still applies for this page; it just will not be remembered.
-  }
+  setItem(STORAGE_KEY, theme);
 }
 
 /**
@@ -64,9 +54,5 @@ export function applyTheme(theme: ThemeId): void {
  */
 export function clearTheme(): void {
   document.documentElement.dataset.theme = DEFAULT_THEME;
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // Nothing was stored, then.
-  }
+  removeItem(STORAGE_KEY);
 }

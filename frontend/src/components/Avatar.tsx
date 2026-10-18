@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useMediaUrl } from '../hooks/useMediaUrl';
 import { buildAvatarUrl } from '../lib/apiClient';
 
 const SIZES = {
@@ -20,25 +20,11 @@ export function Avatar({
   avatarId: string | null;
   size?: keyof typeof SIZES;
 }) {
-  const [url, setUrl] = useState<{ key: string; src: string } | null>(null);
-  const key = avatarId ? `${userId}:${avatarId}` : null;
-
-  useEffect(() => {
-    if (!avatarId) return;
-    let cancelled = false;
-    buildAvatarUrl(userId, avatarId)
-      .then((src) => {
-        if (!cancelled) setUrl({ key: `${userId}:${avatarId}`, src });
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [userId, avatarId]);
+  const { url } = useMediaUrl(avatarId ? `${userId}:${avatarId}` : null, () => buildAvatarUrl(userId, avatarId ?? ''));
 
   const box = `inline-flex shrink-0 items-center justify-center overflow-hidden rounded-md border-2 border-blue-700 ${SIZES[size]}`;
-  if (key && url?.key === key) {
-    return <img src={url.src} alt="" className={`${box} object-cover`} />;
+  if (url) {
+    return <img src={url} alt="" className={`${box} object-cover`} />;
   }
   return (
     <span aria-hidden="true" className={`${box} bg-blue-800 font-display font-extrabold text-white`}>

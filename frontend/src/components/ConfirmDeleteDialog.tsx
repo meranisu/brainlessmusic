@@ -1,3 +1,4 @@
+import { useDialogA11y } from '../hooks/useDialogA11y';
 import { useScrollLock } from '../hooks/useScrollLock';
 
 interface ConfirmDeleteDialogProps {
@@ -9,15 +10,24 @@ interface ConfirmDeleteDialogProps {
 
 export function ConfirmDeleteDialog({ titles, isDeleting, onConfirm, onCancel }: ConfirmDeleteDialogProps) {
   useScrollLock();
+  const dialogRef = useDialogA11y<HTMLDivElement>(onCancel);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onCancel}>
-      <div className="card w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+        aria-labelledby="confirm-delete-heading"
+        className="card w-full max-w-sm p-5 outline-none"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="mb-3 flex items-center gap-2.5">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-700 text-white">
             !
           </span>
-          <h2 className="text-sm font-semibold text-white">
+          <h2 id="confirm-delete-heading" className="text-sm font-semibold text-white">
             Delete {titles.length === 1 ? 'this track' : `${titles.length} tracks`}?
           </h2>
         </div>

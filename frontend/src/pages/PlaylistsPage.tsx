@@ -3,6 +3,7 @@ import { useId, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { PlaylistListItem } from '../components/PlaylistListItem';
 import { PlaylistNameField } from '../components/PlaylistNameField';
+import { SmartPlaylistEditor } from '../components/SmartPlaylistEditor';
 import { useToast } from '../components/ToastProvider';
 import { apiClient } from '../lib/apiClient';
 import { checkPlaylistName } from '../lib/playlistName';
@@ -14,6 +15,7 @@ export function PlaylistsPage() {
   const [name, setName] = useState('');
   const [triedToSave, setTriedToSave] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [makingSmart, setMakingSmart] = useState(false);
   const nameFieldId = useId();
   const nameInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -59,12 +61,17 @@ export function PlaylistsPage() {
 
       {!isGuest && (
         <section aria-labelledby="mine-heading" className="flex flex-col gap-3">
-          <h2 id="mine-heading" className="flex items-baseline gap-2 text-sm font-semibold text-white">
-            Mine
-            {mine.data && (
-              <span className="font-mono text-xs font-normal tabular-nums text-blue-400">{mine.data.playlists.length}</span>
-            )}
-          </h2>
+          <div className="flex items-center justify-between gap-2">
+            <h2 id="mine-heading" className="flex items-baseline gap-2 text-sm font-semibold text-white">
+              Mine
+              {mine.data && (
+                <span className="font-mono text-xs font-normal tabular-nums text-blue-400">{mine.data.playlists.length}</span>
+              )}
+            </h2>
+            <button onClick={() => setMakingSmart(true)} className="btn-secondary btn-sm">
+              New smart playlist
+            </button>
+          </div>
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -119,6 +126,7 @@ export function PlaylistsPage() {
                     trackCount={p.trackCount}
                     coverAlbumIds={p.coverAlbumIds}
                     isPublic={p.isPublic}
+                    isSmart={p.isSmart}
                   />
                 </li>
               ))}
@@ -126,6 +134,8 @@ export function PlaylistsPage() {
           )}
         </section>
       )}
+
+      {makingSmart && <SmartPlaylistEditor mode={{ kind: 'create' }} onClose={() => setMakingSmart(false)} />}
 
       <section aria-labelledby="others-heading" className="flex flex-col gap-3">
         <div>

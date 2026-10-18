@@ -2,6 +2,8 @@
  * Recent searches, newest first, in this browser only and per account, so someone else signing in here doesn't see
  * them. A convenience: storage can be off or full, and then the list is simply empty.
  */
+import { getJSON, removeItem, setJSON } from './safeStorage';
+
 const MAX = 10;
 
 function key(userId: number | undefined): string | null {
@@ -11,23 +13,16 @@ function key(userId: number | undefined): string | null {
 export function readRecentSearches(userId: number | undefined): string[] {
   const k = key(userId);
   if (!k) return [];
-  try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(k) ?? '[]');
-    return Array.isArray(parsed) ? parsed.filter((q): q is string => typeof q === 'string').slice(0, MAX) : [];
-  } catch {
-    return [];
-  }
+  const parsed = getJSON(k);
+  return Array.isArray(parsed) ? parsed.filter((q): q is string => typeof q === 'string').slice(0, MAX) : [];
 }
 
 function write(userId: number | undefined, list: string[]): string[] {
   const k = key(userId);
   if (!k) return list;
-  try {
-    if (list.length === 0) localStorage.removeItem(k);
-    else localStorage.setItem(k, JSON.stringify(list));
-  } catch {
-    // Storage off or full: the list just isn't kept.
-  }
+  // Storage off or full: the list just isn't kept.
+  if (list.length === 0) removeItem(k);
+  else setJSON(k, list);
   return list;
 }
 

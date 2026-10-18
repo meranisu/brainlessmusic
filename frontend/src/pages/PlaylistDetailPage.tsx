@@ -5,11 +5,13 @@ import { useAuth } from '../auth/AuthContext';
 import { CoverArt } from '../components/CoverArt';
 import { FavoriteButton, useFavoriteIds } from '../components/FavoriteButton';
 import { PlaylistNameField } from '../components/PlaylistNameField';
+import { SmartPlaylistEditor } from '../components/SmartPlaylistEditor';
 import { usePlayer, type QueueTrack } from '../components/PlayerBar';
 import { useToast } from '../components/ToastProvider';
 import { useScrollLock } from '../hooks/useScrollLock';
 import { apiClient } from '../lib/apiClient';
 import { checkPlaylistName } from '../lib/playlistName';
+import { describeRules } from '../lib/smartRules';
 import type { PlaylistDetail, PlaylistSummary } from '../types/api';
 import { PlayIcon } from '../components/icons';
 import { Skeleton, SkeletonDetailHeader, SkeletonTrackRows } from '../components/Skeleton';
@@ -49,6 +51,7 @@ export function PlaylistDetailPage() {
   const renameFieldId = useId();
   const renameInputRef = useRef<HTMLInputElement>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [editingRules, setEditingRules] = useState(false);
   // The description being edited, or null while it's only shown (A185).
   const [describing, setDescribing] = useState<string | null>(null);
   const descriptionFieldId = useId();
@@ -58,6 +61,7 @@ export function PlaylistDetailPage() {
     setShownId(playlistId);
     setDescribing(null);
     setRenaming(null);
+    setEditingRules(false);
   }
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -188,6 +192,9 @@ export function PlaylistDetailPage() {
   }
 
   const isOwner = data.isOwner;
+  // Filled by rules each time it opens (A207): no hand edits to its tracks, and never public.
+  const isSmart = data.isSmart;
+  const canEditTracks = isOwner && !isSmart;
   const descriptionLength = [...(describing ?? '').trim()].length;
 
   const queue: QueueTrack[] = data.tracks.map((t) => ({
@@ -216,7 +223,9 @@ export function PlaylistDetailPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <span className="font-mono text-xs uppercase tracking-widest text-blue-400">Playlist</span>
+        <span className="font-mono text-xs uppercase tracking-widest text-blue-400">
+          {isSmart ? 'Smart playlist' : 'Playlist'}
+        </span>
 
         {renaming === null ? (
           <h1 className="text-2xl font-semibold text-white">{data.name}</h1>
@@ -317,6 +326,10 @@ export function PlaylistDetailPage() {
           </form>
         )}
 
+        {data.rules && (
+          <p className="max-w-2xl text-xs text-blue-300">Picks songs where {describeRules(data.rules)}.</p>
+        )}
+
         <p className="text-sm text-blue-200">
           {!isOwner && (
             <>
@@ -364,6 +377,21 @@ export function PlaylistDetailPage() {
                   {data.description ? 'Edit description' : 'Add a description'}
                 </button>
               )}
+              {isSmart && (
+                <>
+                  <button onClick={() => setEditingRules(true)} className="btn-secondary btn-md">
+                    Edit rules
+                  </button>
+                  <button
+                    onClick={() => copyMutation.mutate()}
+                    disabled={copyMutation.isPending}
+                    title="Makes an ordinary playlist of the songs it picks right now"
+                    className="btn-secondary btn-md"
+                  >
+                    {copyMutation.isPending ? 'Saving…' : 'Save as playlist'}
+                  </button>
+                </>
+              )}
               <button onClick={() => setConfirmingDelete(true)} className="btn-danger btn-md">
                 Delete playlist
               </button>
@@ -381,7 +409,7 @@ export function PlaylistDetailPage() {
           )}
         </div>
 
-        {isOwner && (
+        {canEditTracks && (
           <label className="mt-2 flex max-w-xl items-start gap-2 text-sm text-blue-200">
             <input
               type="checkbox"
@@ -402,7 +430,11 @@ export function PlaylistDetailPage() {
 
       {data.tracks.length === 0 ? (
         <p className="text-sm text-blue-300">
-          {isOwner ? 'Empty. Add tracks from the ⋮ menu on any track in the library.' : 'This playlist is empty.'}
+          {isSmart
+            ? 'Nothing matches the rules right now. Edit the rules, or check back after you have listened to more.'
+            : isOwner
+              ? 'Empty. Add tracks from the ⋮ menu on any track in the library.'
+              : 'This playlist is empty.'}
         </p>
       ) : (
         <div className="card overflow-hidden">
@@ -421,7 +453,7 @@ export function PlaylistDetailPage() {
               {data.tracks.map((track, i) => (
                 <tr
                   key={track.id}
-                  draggable={isOwner}
+                  draggable={canEditTracks}
                   onDragStart={() => setDragIndex(i)}
                   onDragOver={(e) => {
                     e.preventDefault(); // required, or the drop never fires
@@ -439,7 +471,7 @@ export function PlaylistDetailPage() {
                   } ${dragIndex === i ? 'opacity-50' : ''}`}
                 >
                   <td className="py-2.5 pl-4 tabular-nums text-blue-400 group-hover:text-blue-300">
-                    {isOwner && (
+                    {canEditTracks && (
                       <span className="cursor-grab select-none pr-1 text-blue-500" title="Drag to reorder">
                         ⠿
                       </span>
@@ -460,7 +492,7 @@ export function PlaylistDetailPage() {
                     <FavoriteButton trackId={track.id} isFavorited={favoriteIds.has(track.id)} />
                   </td>
                   <td className="py-2.5 pr-4" onClick={(e) => e.stopPropagation()}>
-                    {isOwner && (
+                    {canEditTracks && (
                     <button
                       onClick={() => removeMutation.mutate(track.id)}
                       className="tap-target text-blue-400 transition-colors hover:text-red-300"
@@ -476,6 +508,13 @@ export function PlaylistDetailPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {editingRules && data.rules && (
+        <SmartPlaylistEditor
+          mode={{ kind: 'edit', playlistId, saved: data.rules }}
+          onClose={() => setEditingRules(false)}
+        />
       )}
 
       {confirmingDelete && (

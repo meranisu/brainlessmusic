@@ -1,3 +1,8 @@
+/** SQLite `datetime('now')` has no `T` or zone, which `Date.parse` reads as local; normalised to UTC first. */
+export function parseSqliteDate(iso: string): Date {
+  return new Date(iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z');
+}
+
 /** The one duration format. Floors seconds, like a player's elapsed time; rounding once printed `0:60` for 59.7 s. */
 export function formatDuration(seconds: number | null): string {
   if (seconds == null) return '—';
@@ -6,15 +11,19 @@ export function formatDuration(seconds: number | null): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-/** SQLite `datetime('now')` has no `T` or zone, which `Date.parse` reads as local; normalised to UTC first. */
 export function formatDate(iso: string): string {
-  const date = new Date(iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z');
+  const date = parseSqliteDate(iso);
   return Number.isNaN(date.getTime()) ? iso : date.toLocaleDateString();
+}
+
+/** Like `formatDuration`, but a negative or non-finite value reads `0:00` (a player's elapsed time can be NaN). */
+export function formatClock(seconds: number): string {
+  return !Number.isFinite(seconds) || seconds < 0 ? '0:00' : formatDuration(seconds);
 }
 
 /** Date and time, for logs where the hour matters. SQLite's `YYYY-MM-DD HH:MM:SS` is UTC. */
 export function formatDateTime(iso: string): string {
-  const date = new Date(iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z');
+  const date = parseSqliteDate(iso);
   return Number.isNaN(date.getTime())
     ? iso
     : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -22,7 +31,7 @@ export function formatDateTime(iso: string): string {
 
 /** How long ago, roughly: "just now", "5 min ago", "3 h ago", "2 days ago", then the date. `now` is passed in, so a render stays pure. */
 export function formatSince(iso: string, now: number): string {
-  const at = Date.parse(iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z');
+  const at = parseSqliteDate(iso).getTime();
   if (Number.isNaN(at)) return iso;
   const minutes = Math.floor((now - at) / 60_000);
   if (minutes < 2) return 'just now';

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useDialogA11y } from '../hooks/useDialogA11y';
 import { useScrollLock } from '../hooks/useScrollLock';
 import { platformLabel, useGuestCodeActions, useGuestCodes } from '../hooks/useGuestCodes';
 import { formatDate, formatDateTime } from '../lib/format';
@@ -159,27 +159,19 @@ export function ExpiredCodes() {
   );
 }
 
-function useEscape(onClose: () => void) {
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-}
-
 /** A code just made from "Add someone", with the ways to hand it over. It also stays under "Ways in" until used. */
 export function GuestCodeCreatedDialog({ code, onClose }: { code: GuestCode; onClose: () => void }) {
   const { copy, download } = useGuestCodeActions();
   useScrollLock();
-  useEscape(onClose);
+  const dialogRef = useDialogA11y<HTMLDivElement>(onClose);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={onClose}>
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
+        tabIndex={-1}
         aria-labelledby="code-made-heading"
         className="card w-full max-w-md p-5"
         onClick={(e) => e.stopPropagation()}
@@ -226,15 +218,17 @@ export function RevokeGuestDialog({
   onCancel: () => void;
 }) {
   useScrollLock();
-  useEscape(onCancel);
+  const dialogRef = useDialogA11y<HTMLDivElement>(onCancel);
 
   const name = code.usedByName ?? code.usedBy ?? 'this guest';
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4" onClick={onCancel}>
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
+        tabIndex={-1}
         aria-labelledby="revoke-guest-heading"
         className="card w-full max-w-sm p-5"
         onClick={(e) => e.stopPropagation()}

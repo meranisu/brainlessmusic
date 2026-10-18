@@ -356,6 +356,21 @@ export interface FavoriteListResponse {
   favorites: FavoriteTrack[];
 }
 
+/** One run of the title-sorted song list (`GET /browse/letters`): where a rail letter starts and how many rows it holds. */
+export interface LetterEntry {
+  /** `#` (digits, punctuation), `A` to `Z`, then a bucket per other script (`…`, `À`, `Ω`, `Я`, `あ`, `ア`, `漢`, `한`). */
+  letter: string;
+  /** Index of the run's first row; where it would be when empty (the next row that exists). */
+  offset: number;
+  count: number;
+}
+
+export interface LetterIndex {
+  scope: string;
+  total: number;
+  letters: LetterEntry[];
+}
+
 export interface PlaylistSummary {
   id: number;
   name: string;
@@ -365,6 +380,8 @@ export interface PlaylistSummary {
   createdAt: string;
   /** Everyone signed in on this server can see, play and copy it (A162). */
   isPublic: boolean;
+  /** Filled by rules each time it opens, not by hand (A207). Always private. */
+  isSmart: boolean;
   /** Up to four albums, in playlist order, for a cover mosaic (A147). */
   coverAlbumIds: number[];
 }
@@ -384,6 +401,7 @@ export interface PlaylistSearchResult {
   ownerId: number;
   ownerName: string;
   isPublic: boolean;
+  isSmart: boolean;
   /** The viewer's own. */
   isOwner: boolean;
   coverAlbumIds: number[];
@@ -413,6 +431,35 @@ export interface PlaylistDetail {
   isPublic: boolean;
   /** False for someone else's public playlist: read-only, with Save a copy (A162). */
   isOwner: boolean;
+  /** Its tracks come from `rules` each time it opens (A207). */
+  isSmart: boolean;
+  rules: SmartRules | null;
+  tracks: PlaylistTrack[];
+}
+
+/** One smart playlist rule (A207). The server checks these against a fixed list of fields and ops. */
+export type SmartRule =
+  | { field: 'myPlays' | 'year'; op: 'lt' | 'gt' | 'eq'; value: number }
+  | { field: 'lastPlayed' | 'dateAdded'; op: 'olderThanDays' | 'withinDays'; value: number }
+  | { field: 'lastPlayed'; op: 'never' }
+  | { field: 'liked' | 'disliked'; op: 'is'; value: boolean }
+  | { field: 'genre'; op: 'is' | 'isNot'; value: string }
+  | { field: 'artist'; op: 'is' | 'contains'; value: string }
+  | { field: 'duration'; op: 'lt' | 'gt'; value: number };
+
+export type SmartSort = 'random' | 'lastPlayedAsc' | 'myPlaysDesc' | 'myPlaysAsc' | 'dateAddedDesc' | 'title';
+
+export interface SmartRules {
+  v: 1;
+  match: 'all' | 'any';
+  rules: SmartRule[];
+  sort: SmartSort;
+  limit: number;
+}
+
+/** `POST /playlists/smart/preview`: what the rules would pick right now, the first 50 of them. */
+export interface SmartPreview {
+  trackCount: number;
   tracks: PlaylistTrack[];
 }
 

@@ -6,6 +6,7 @@ import { useRoom } from '../components/RoomProvider';
 import { useToast } from '../components/ToastProvider';
 import { ArrowUpIcon, CloseIcon, PlayIcon } from '../components/icons';
 import { ApiError, apiClient } from '../lib/apiClient';
+import { copyText } from '../lib/copyText';
 import type { RoomState } from '../lib/roomClient';
 import { ROOM_CODE_CHARS, ROOM_CODE_LENGTH, clearRoomLink, pendingRoomLink, roomLinkFor } from '../lib/roomLink';
 import { Avatar } from '../components/Avatar';
@@ -160,10 +161,9 @@ function InsideRoom({ room }: { room: RoomState }) {
 
   // The link, not the bare code: it opens the Android app where it's installed, and this page everywhere else.
   async function copyLink() {
-    try {
-      await navigator.clipboard.writeText(roomLinkFor(room.code));
+    if (await copyText(roomLinkFor(room.code))) {
       showToast('Room link copied.');
-    } catch {
+    } else {
       showToast(`Couldn't copy. The code is ${room.code}.`, 'error');
     }
   }

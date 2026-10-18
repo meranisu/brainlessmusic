@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '../components/ToastProvider';
 import { ApiError, apiClient } from '../lib/apiClient';
+import { copyText } from '../lib/copyText';
 import { formatDate } from '../lib/format';
 import { downloadGuestCodeCard } from '../lib/guestCodeCard';
 import type { GuestCode, GuestCodeSignin, GuestCodesSnapshot } from '../types/api';
@@ -81,11 +82,10 @@ export function useGuestCodeActions() {
   });
 
   async function copy(text: string, what: string) {
-    try {
-      await navigator.clipboard.writeText(text);
+    if (await copyText(text)) {
       showToast(`${what} copied`);
-    } catch {
-      // Clipboard access needs HTTPS; on the plain-HTTP LAN it is refused. The text stays on screen to select.
+    } else {
+      // The text stays on screen to select.
       showToast('Copying is blocked here. Select it and copy it by hand.', 'error');
     }
   }

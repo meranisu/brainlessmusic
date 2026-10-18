@@ -11,8 +11,10 @@ import { RegisterForm } from '../components/RegisterForm';
 import { useThemeCycle } from '../hooks/useThemeCycle';
 import { apiClient, ApiError } from '../lib/apiClient';
 import { clearAtTitle, markAtTitle, markJustEntered } from '../lib/boot';
+import { copyText } from '../lib/copyText';
 import { prettyGuestCode } from '../lib/guestCodeCard';
 import { arrivalDuration, interstitialDuration, prefersReducedMotion } from '../lib/interstitial';
+import { getItem, getJSON, removeItem, setItem, setJSON } from '../lib/safeStorage';
 import type { User } from '../types/api';
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -46,24 +48,16 @@ const GUEST_REQUEST_KEY = 'brainlessmusic.guestRequest';
 const REQUEST_POLL_MS = 3000;
 
 function loadPendingRequest(): PendingRequest | null {
-  try {
-    const raw = localStorage.getItem(GUEST_REQUEST_KEY);
-    const parsed = raw ? (JSON.parse(raw) as Partial<PendingRequest>) : null;
-    return parsed && typeof parsed.id === 'number' && typeof parsed.secret === 'string'
-      ? { id: parsed.id, secret: parsed.secret }
-      : null;
-  } catch {
-    return null;
-  }
+  const parsed = getJSON(GUEST_REQUEST_KEY) as Partial<PendingRequest> | null;
+  return parsed && typeof parsed.id === 'number' && typeof parsed.secret === 'string'
+    ? { id: parsed.id, secret: parsed.secret }
+    : null;
 }
 
 function savePendingRequest(request: PendingRequest | null): void {
-  try {
-    if (request) localStorage.setItem(GUEST_REQUEST_KEY, JSON.stringify(request));
-    else localStorage.removeItem(GUEST_REQUEST_KEY);
-  } catch {
-    // Private mode or blocked site data: a reload forgets the request, and the guest asks again.
-  }
+  // Private mode or blocked site data: a reload forgets the request, and the guest asks again.
+  if (request) setJSON(GUEST_REQUEST_KEY, request);
+  else removeItem(GUEST_REQUEST_KEY);
 }
 
 /** Where a request stands, as the guest card shows it. `gone`: unknown, already collected, or the server lost it. */
@@ -73,19 +67,12 @@ type RequestState = 'waiting' | 'denied' | 'expired' | 'gone';
 const PASSCODE_PROMPT_DISMISSED_PREFIX = 'brainlessmusic.passcodePromptDismissed.';
 
 function passcodePromptDismissed(userId: number): boolean {
-  try {
-    return localStorage.getItem(`${PASSCODE_PROMPT_DISMISSED_PREFIX}${userId}`) !== null;
-  } catch {
-    return false;
-  }
+  return getItem(`${PASSCODE_PROMPT_DISMISSED_PREFIX}${userId}`) !== null;
 }
 
 function dismissPasscodePrompt(userId: number): void {
-  try {
-    localStorage.setItem(`${PASSCODE_PROMPT_DISMISSED_PREFIX}${userId}`, '1');
-  } catch {
-    // Private mode or blocked site data. Worst case, asked again next time.
-  }
+  // Private mode or blocked site data. Worst case, asked again next time.
+  setItem(`${PASSCODE_PROMPT_DISMISSED_PREFIX}${userId}`, '1');
 }
 
 /**
@@ -459,11 +446,9 @@ export function AccountSelectPage() {
 
   async function copyHandedCode() {
     if (!handedCode) return;
-    try {
-      await navigator.clipboard.writeText(prettyGuestCode(handedCode.code));
+    if (await copyText(prettyGuestCode(handedCode.code))) {
       setGuestError('Copied.');
-    } catch {
-      // Clipboard access needs HTTPS; on the plain-HTTP LAN it is refused.
+    } else {
       setGuestError('Copying is blocked here. Select the code and copy it by hand.');
     }
   }

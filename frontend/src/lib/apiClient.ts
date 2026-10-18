@@ -14,7 +14,12 @@ export class ApiError extends Error {
 }
 
 export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_STORAGE_KEY);
+  try {
+    return localStorage.getItem(TOKEN_STORAGE_KEY);
+  } catch {
+    // Blocked site data: signed out, rather than a crash before the app can show a sign-in.
+    return null;
+  }
 }
 
 export function setToken(token: string | null): void {
@@ -45,10 +50,25 @@ interface RequestOptions {
   isMultipart?: boolean;
 }
 
+/**
+ * The server refused [token] (a 401). Signs out only if it is still the session in use: a 401 on a wrong password, or
+ * one that lands after another sign-in, must not sign anyone out. For callers that bypass `request`, like uploads.
+ */
+export function refuseSession(token: string | null): void {
+  if (token && getToken() === token) {
+    setToken(null);
+    for (const listener of sessionRefusedListeners) listener();
+  }
+}
+
+/** The `Authorization` header for [token] (the stored session by default), or none when signed out. */
+export function authHeaders(token: string | null = getToken()): Record<string, string> {
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const token = getToken();
-  const headers: Record<string, string> = {};
-  if (token) headers.Authorization = `Bearer ${token}`;
+  const headers: Record<string, string> = authHeaders(token);
 
   let body: BodyInit | undefined;
   if (options.body !== undefined) {
@@ -68,10 +88,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   // Only the session this request carried: a 401 on a wrong password, or one that lands after another sign-in, must not
   // sign anyone out.
-  if (res.status === 401 && token && getToken() === token) {
-    setToken(null);
-    for (const listener of sessionRefusedListeners) listener();
-  }
+  if (res.status === 401) refuseSession(token);
 
   if (res.status === 204) {
     return undefined as T;
@@ -80,7 +97,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const payload = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    throw new ApiError(res.status, payload.error ?? `Request failed with status ${res.status}`);
+    throw new ApiError(res.status, payload?.error ?? `Request failed with status ${res.status}`);
   }
 
   return payload as T;

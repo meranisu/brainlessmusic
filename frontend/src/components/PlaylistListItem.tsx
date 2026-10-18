@@ -15,6 +15,7 @@ export function PlaylistListItem({
   ownerId,
   ownerName,
   isPublic,
+  isSmart,
 }: {
   id: number;
   name: string;
@@ -28,6 +29,8 @@ export function PlaylistListItem({
   ownerName?: string;
   /** Marks your own public playlist. */
   isPublic?: boolean;
+  /** Fills itself from rules (A207); said in place of "Only you", since a smart playlist is always private. */
+  isSmart?: boolean;
 }) {
   return (
     <div className="relative flex items-center gap-3 px-4 py-3 transition-colors focus-within:bg-blue-800/40 hover:bg-blue-800/40">
@@ -63,6 +66,8 @@ export function PlaylistListItem({
                 ownerName
               )}
             </>
+          ) : isSmart ? (
+            'Smart playlist, only you'
           ) : isPublic ? (
             'Public'
           ) : (

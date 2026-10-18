@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useDialogA11y } from '../hooks/useDialogA11y';
 import { useScrollLock } from '../hooks/useScrollLock';
 import androidReleases from '../lib/androidChangelog.json';
 import { WEB_CHANGELOG } from '../lib/webChangelog';
@@ -165,19 +166,9 @@ function AndroidNotes() {
 export function ChangelogDialog({ onClose }: { onClose: () => void }) {
   useScrollLock();
   const [tab, setTab] = useState<Tab>('web');
-  const closeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useDialogA11y<HTMLDivElement>(onClose);
   const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ web: null, android: null });
   const panelRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    // Focus lands inside, so Escape and Tab work at once; it goes back to the version button on close (caller).
-    closeRef.current?.focus();
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
 
   function choose(next: Tab) {
     setTab(next);
@@ -195,8 +186,10 @@ export function ChangelogDialog({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
+        tabIndex={-1}
         aria-labelledby="changelog-title"
         className="card flex max-h-[85vh] w-full max-w-lg flex-col"
         onClick={(e) => e.stopPropagation()}
@@ -205,7 +198,7 @@ export function ChangelogDialog({ onClose }: { onClose: () => void }) {
           <h2 id="changelog-title" className="text-base font-semibold text-white">
             What's new
           </h2>
-          <button ref={closeRef} onClick={onClose} className="btn-ghost btn-sm h-9 w-9 px-0!" aria-label="Close">
+          <button onClick={onClose} autoFocus className="btn-ghost btn-sm h-9 w-9 px-0!" aria-label="Close">
             <CloseIcon className="h-4 w-4" />
           </button>
         </div>

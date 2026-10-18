@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { apiClient } from '../lib/apiClient';
+import { formatClock } from '../lib/format';
 import type { TrackDetail } from '../types/api';
 import { CoverArt } from './CoverArt';
 import { FavoriteButton, useFavoriteIds } from './FavoriteButton';
@@ -24,13 +25,6 @@ import { Link } from 'react-router-dom';
 import { useRoom } from './RoomProvider';
 
 const WAVE_BARS = 44;
-
-function formatTime(seconds: number): string {
-  if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-}
 
 /** A placeholder waveform while peaks load or when there are none, seeded by track id so it doesn't reshuffle. */
 function placeholderHeights(trackId: number): number[] {
@@ -264,9 +258,9 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
       </div>
 
       <div className="flex justify-between px-5 pt-2 font-mono text-xs tabular-nums text-blue-400">
-        <span>{formatTime(displayTime)}</span>
+        <span>{formatClock(displayTime)}</span>
         {isBuffering && <span className="animate-pulse">Buffering…</span>}
-        <span>{formatTime(duration)}</span>
+        <span>{formatClock(duration)}</span>
       </div>
 
       <div className="flex items-center justify-center gap-8 px-5 pt-4">
@@ -338,7 +332,7 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
           <span className="font-display text-sm font-extrabold uppercase tracking-[0.1em] text-blue-400">
             {upNext.length === 0
               ? 'End of queue'
-              : `${upNext.length} ${upNext.length === 1 ? 'track' : 'tracks'} · ${formatTime(
+              : `${upNext.length} ${upNext.length === 1 ? 'track' : 'tracks'} · ${formatClock(
                   totalQueueSeconds(upNext.map((t) => t.duration)),
                 )}`}
           </span>

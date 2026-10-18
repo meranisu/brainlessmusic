@@ -1,53 +1,32 @@
 import { useCallback, useMemo, useRef, type PointerEvent } from 'react';
-import type { TrackSummary } from '../types/api';
-
-const LETTERS = ['#', ...Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i))];
-
-/** The rail letter for a title; anything outside A-Z goes under `#`. */
-export function bucketOf(title: string): string {
-  const ch = title.trim().charAt(0).toUpperCase();
-  return ch >= 'A' && ch <= 'Z' ? ch : '#';
-}
-
-/** `#` first, then A..Z, matching `COLLATE NOCASE` order. */
-function rankOf(letter: string): number {
-  return letter === '#' ? 0 : letter.charCodeAt(0) - 64;
-}
+import { RAIL_LETTERS, letterAtIndex } from '../lib/letterIndex';
+import type { LetterEntry } from '../types/api';
 
 interface AlphabetIndexProps {
-  tracks: TrackSummary[];
-  currentBucket: string | null;
+  /** Where each letter starts in the whole list, from the server: a jump needs no song to be loaded. */
+  letters: LetterEntry[];
+  /** The selected row, to light the letter that holds it. */
+  selected: number;
   onJump: (index: number) => void;
 }
 
 /**
- * A letter rail on the strip's edge; tap or drag to jump. Relies on the strip being sorted by title. One surface
+ * A letter rail on the strip's edge; tap or drag to jump. Each letter jumps to its first row in the whole list, loaded
+ * or not. A letter with no songs is dimmed and jumps to where it would start: the next song that exists. One surface
  * captures the pointer and reads the letter under it, so a single drag can sweep A to Z.
  */
-export function AlphabetIndex({ tracks, currentBucket, onJump }: AlphabetIndexProps) {
+export function AlphabetIndex({ letters, selected, onJump }: AlphabetIndexProps) {
   const railRef = useRef<HTMLDivElement>(null);
 
-  // Letters some loaded track starts with. The rest are dimmed but still jump to the next one that exists.
-  const present = useMemo(() => {
-    const set = new Set<string>();
-    for (const track of tracks) set.add(bucketOf(track.title));
-    return set;
-  }, [tracks]);
+  const byLetter = useMemo(() => new Map(letters.map((entry) => [entry.letter, entry])), [letters]);
+  const currentBucket = letterAtIndex(letters, selected);
 
   const jumpToLetter = useCallback(
     (letter: string) => {
-      if (tracks.length === 0) return;
-      const targetRank = rankOf(letter);
-      for (let i = 0; i < tracks.length; i++) {
-        if (rankOf(bucketOf(tracks[i].title)) >= targetRank) {
-          onJump(i);
-          return;
-        }
-      }
-      // Not loaded that far: land on the last row, which also triggers the near-end prefetch.
-      onJump(tracks.length - 1);
+      const entry = byLetter.get(letter);
+      if (entry) onJump(entry.offset);
     },
-    [tracks, onJump],
+    [byLetter, onJump],
   );
 
   const letterAt = useCallback((clientY: number): string | null => {
@@ -56,7 +35,7 @@ export function AlphabetIndex({ tracks, currentBucket, onJump }: AlphabetIndexPr
     const rect = rail.getBoundingClientRect();
     if (rect.height === 0) return null;
     const ratio = Math.min(Math.max((clientY - rect.top) / rect.height, 0), 0.999);
-    return LETTERS[Math.floor(ratio * LETTERS.length)] ?? null;
+    return RAIL_LETTERS[Math.floor(ratio * RAIL_LETTERS.length)] ?? null;
   }, []);
 
   const onPointerDown = useCallback(
@@ -90,10 +69,10 @@ export function AlphabetIndex({ tracks, currentBucket, onJump }: AlphabetIndexPr
       role="toolbar"
       aria-label="Jump to letter"
     >
-      {LETTERS.map((letter) => (
+      {RAIL_LETTERS.map((letter) => (
         <span
           key={letter}
-          className={`arcade-alpha-index-letter ${present.has(letter) ? '' : 'is-sparse'} ${
+          className={`arcade-alpha-index-letter ${(byLetter.get(letter)?.count ?? 0) > 0 ? '' : 'is-sparse'} ${
             currentBucket === letter ? 'is-current' : ''
           }`}
           aria-hidden

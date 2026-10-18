@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { API_BASE_URL, getToken } from '../lib/apiClient';
+import { API_BASE_URL, authHeaders, getToken, refuseSession } from '../lib/apiClient';
 import type { TrackSummary } from '../types/api';
 
 // Must match AUDIO_EXTENSIONS in backend/src/services/trackTags.ts; a type missing here can't be picked at all.
@@ -54,19 +54,20 @@ function uploadWithProgress(file: File, onProgress: (pct: number) => void): Prom
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `${API_BASE_URL}/tracks/upload`);
     const token = getToken();
-    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    for (const [name, value] of Object.entries(authHeaders(token))) xhr.setRequestHeader(name, value);
 
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
     };
 
     xhr.onload = () => {
+      if (xhr.status === 401) refuseSession(token);
       try {
         const payload = JSON.parse(xhr.responseText);
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve(payload.track as TrackSummary);
         } else {
-          reject(new UploadError(payload.error ?? `Upload failed (${xhr.status})`, xhr.status));
+          reject(new UploadError(payload?.error ?? `Upload failed (${xhr.status})`, xhr.status));
         }
       } catch {
         // Not JSON: a proxy in front answered instead of the server. Cloudflare refuses bodies over 100 MB this way.
@@ -79,6 +80,8 @@ function uploadWithProgress(file: File, onProgress: (pct: number) => void): Prom
       }
     };
     xhr.onerror = () => reject(new UploadError('Network error during upload'));
+    xhr.onabort = () => reject(new UploadError('Upload cancelled'));
+    xhr.ontimeout = () => reject(new UploadError('Upload timed out'));
 
     const formData = new FormData();
     formData.append('file', file);

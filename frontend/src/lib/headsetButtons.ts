@@ -3,6 +3,8 @@
  * arrives as `play` or `pause`, and its next and previous buttons as `nexttrack` and `previoustrack`.
  */
 
+import { getJSON, setJSON } from './safeStorage';
+
 export type HeadsetAction = 'playPause' | 'next' | 'previous' | 'seekForward' | 'seekBack' | 'none';
 export type HeadsetSlot = 'single' | 'double' | 'triple' | 'nextButton' | 'previousButton';
 
@@ -41,26 +43,18 @@ export const PRESS_WINDOW_MS = 400;
 const HEADSET_KEY = 'brainlessmusic.headsetButtons';
 
 export function loadHeadsetPrefs(): HeadsetPrefs {
-  try {
-    const stored = JSON.parse(localStorage.getItem(HEADSET_KEY) ?? '{}') as Record<string, unknown>;
-    const prefs = { ...DEFAULT_HEADSET_PREFS };
-    for (const { id } of HEADSET_SLOTS) {
-      const value = stored[id];
-      if (HEADSET_ACTIONS.some((action) => action.id === value)) prefs[id] = value as HeadsetAction;
-    }
-    return prefs;
-  } catch {
-    // Blocked or malformed storage: the defaults are the safe thing to guess.
-    return { ...DEFAULT_HEADSET_PREFS };
+  // Blocked or malformed storage: the defaults are the safe thing to guess.
+  const stored = (getJSON(HEADSET_KEY) ?? {}) as Record<string, unknown>;
+  const prefs = { ...DEFAULT_HEADSET_PREFS };
+  for (const { id } of HEADSET_SLOTS) {
+    const value = stored[id];
+    if (HEADSET_ACTIONS.some((action) => action.id === value)) prefs[id] = value as HeadsetAction;
   }
+  return prefs;
 }
 
 export function saveHeadsetPrefs(prefs: HeadsetPrefs): void {
-  try {
-    localStorage.setItem(HEADSET_KEY, JSON.stringify(prefs));
-  } catch {
-    // Still applies for this session; it just won't survive a reload.
-  }
+  setJSON(HEADSET_KEY, prefs);
 }
 
 /**

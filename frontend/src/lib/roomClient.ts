@@ -229,6 +229,15 @@ export class RoomClient {
       case 'closed': {
         this.stopped = true;
         this.clearTimers();
+        // Detach first so the close below can't reach the reconnect path.
+        const socket = this.socket;
+        this.socket = null;
+        this.joined = false;
+        if (socket) {
+          socket.onmessage = null;
+          socket.onclose = null;
+          socket.close();
+        }
         this.events.onClosed(message.reason as ClosedReason);
         return;
       }

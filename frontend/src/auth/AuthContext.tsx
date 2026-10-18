@@ -27,6 +27,13 @@ interface AuthContextValue {
   /** Reloads `user`, after something else changed it (a new profile picture). */
   refreshUser: () => Promise<void>;
   logout: () => void;
+  /**
+   * Ends every other session of this user (other devices, old handoff links) and keeps this one on a fresh token,
+   * which it returns (Q202).
+   */
+  rotateSession: () => Promise<string>;
+  /** `rotateSession`, then signs this device out too. */
+  signOutEverywhere: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -74,13 +81,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    let cancelled = false;
     apiClient
       .get<User>('/auth/me')
-      .then(setUser)
+      .then((who) => {
+        if (!cancelled) setUser(who);
+      })
       // A 401 has already cleared the token. Anything else (no signal, the server down) keeps it for the next load:
       // clearing it lost a guest's identity for good.
       .catch(() => {})
       .finally(() => setIsLoading(false));
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   /** Store a token and find out who it belongs to. Shared by all three ways in. */
@@ -88,7 +101,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(token);
     // Nothing cached for the last person in this tab may show for the next.
     queryClient.clear();
-    const who = await apiClient.get<User>('/auth/me');
+    let who: User;
+    try {
+      who = await apiClient.get<User>('/auth/me');
+    } catch (err) {
+      // No identity came back, so don't leave a token that would sign in silently on the next load.
+      setToken(null);
+      throw err;
+    }
     setUser(who);
     return who;
   }
@@ -146,6 +166,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(await apiClient.get<User>('/auth/me'));
   }
 
+  async function rotateSession(): Promise<string> {
+    const { token } = await apiClient.post<{ token: string }>('/auth/sessions/revoke');
+    setToken(token);
+    return token;
+  }
+
+  async function signOutEverywhere() {
+    await apiClient.post('/auth/sessions/revoke');
+    logout();
+  }
+
   function logout() {
     setToken(null);
     setUser(null);
@@ -168,6 +199,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setDisplayName,
         refreshUser,
         logout,
+        rotateSession,
+        signOutEverywhere,
       }}
     >
       {children}

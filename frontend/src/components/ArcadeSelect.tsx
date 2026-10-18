@@ -8,18 +8,25 @@ import {
   type PointerEvent,
   type WheelEvent,
 } from 'react';
-import { AlphabetIndex, bucketOf } from './AlphabetIndex';
+import { AlphabetIndex } from './AlphabetIndex';
 import { CoverArt } from './CoverArt';
 import { FavoriteButton } from './FavoriteButton';
 import { PlayIcon } from './icons';
 import { formatDate, formatDuration } from '../lib/format';
-import type { TrackSummary } from '../types/api';
+import { letterEntry } from '../lib/letterIndex';
+import type { LetterEntry, TrackSummary } from '../types/api';
 
 /** One entry's height. Fixed, because the strip's geometry is arithmetic on it; measuring would drift the cursor. */
 export const ROW_HEIGHT = 68;
 
 /** Movement before a press becomes a drag; an unsteady tap still selects. */
 const DRAG_THRESHOLD_PX = 6;
+
+/** Rows drawn past each edge of what is on screen, so a flick doesn't show a gap before the next render. */
+const OVERSCAN_ROWS = 6;
+
+/** A jump this many rows or more snaps instead of sliding: sliding past thousands of rows draws nothing but blank. */
+const SNAP_ROWS = 8;
 
 /** Below this many tracks the letter rail isn't shown. */
 const ALPHABET_INDEX_MIN_TRACKS = 8;
@@ -30,16 +37,19 @@ const TYPEAHEAD_RESET_MS = 700;
 const rowId = (trackId: number) => `arcade-row-${trackId}`;
 
 interface ArcadeSelectProps {
-  tracks: TrackSummary[];
+  /** How many songs the whole list holds, loaded or not. The strip is that long; only the rows near it are drawn. */
+  total: number;
+  /** The song at an index, or undefined while its page is on its way (a placeholder row shows meanwhile). */
+  getTrack: (index: number) => TrackSummary | undefined;
+  /** The songs loaded now with their indexes, in order, for "More from artist" and letter typing. */
+  loaded: { index: number; track: TrackSummary }[];
+  /** Where each letter starts in the whole list (`useLetterIndex`); the rail waits for it. */
+  letters?: LetterEntry[];
   /** Favourited ids, fetched once by the page rather than per row. */
   favoriteIds: Set<number>;
   selected: number;
   onSelect: (index: number) => void;
   onPlay: (index: number) => void;
-  /** True while another page is on its way, for the strip's tail. */
-  isLoadingMore?: boolean;
-  /** Called when the selection nears the end of what has been loaded. */
-  onNearEnd?: () => void;
   /** A formatted scan status (`"Scanning… 43/210"`), worded by the page. Empty shows nothing. */
   scanStatus?: string;
 }
@@ -49,13 +59,14 @@ interface ArcadeSelectProps {
  * A cursor walking down a static list is a file browser; a list travelling under a fixed cursor is a machine offering you things.
  */
 export function ArcadeSelect({
-  tracks,
+  total,
+  getTrack,
+  loaded,
+  letters,
   favoriteIds,
   selected,
   onSelect,
   onPlay,
-  isLoadingMore = false,
-  onNearEnd,
   scanStatus,
 }: ArcadeSelectProps) {
   const stripRef = useRef<HTMLDivElement>(null);
@@ -71,18 +82,22 @@ export function ArcadeSelect({
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
-    if (!onNearEnd) return;
-    if (tracks.length > 0 && selected >= tracks.length - 8) onNearEnd();
-  }, [selected, tracks.length, onNearEnd]);
+  const current = getTrack(selected);
 
-  const current = tracks[selected];
-
-  // Other tracks by the artist from the loaded page, for the detail panel; nothing is fetched.
+  // Other tracks by the artist from what is loaded, for the detail panel; nothing is fetched.
   const moreFromArtist = useMemo(() => {
     if (!current?.artist) return [];
-    return tracks.filter((t) => t.artist === current.artist && t.id !== current.id).slice(0, 5);
-  }, [tracks, current]);
+    return loaded.filter(({ track }) => track.artist === current.artist && track.id !== current.id).slice(0, 5);
+  }, [loaded, current]);
+
+  // Whether the last change of selection was a jump (see SNAP_ROWS). Worked out as the selection changes, from the one
+  // before it, so no ref is read while rendering.
+  const [lastSelected, setLastSelected] = useState(selected);
+  const [snaps, setSnaps] = useState(false);
+  if (lastSelected !== selected) {
+    setLastSelected(selected);
+    setSnaps(Math.abs(selected - lastSelected) >= SNAP_ROWS);
+  }
 
   // Flash on play, not on select (Q23). A counter, so two plays in a row each remount via `key`; `null` skips mount.
   const [launchToken, setLaunchToken] = useState<number | null>(null);
@@ -107,25 +122,37 @@ export function ArcadeSelect({
         typeahead.current.buffer = '';
       }, TYPEAHEAD_RESET_MS);
 
-      // Start after the selection and wrap, so repeating a letter cycles through matches.
-      for (let step = 1; step <= tracks.length; step++) {
-        const i = (selected + step) % tracks.length;
-        if (tracks[i].title.toLowerCase().startsWith(buffer)) {
-          onSelect(i);
+      // One letter, from outside that letter: straight to where it starts, loaded or not.
+      if (buffer.length === 1 && letters && /[a-z]/.test(buffer)) {
+        const entry = letterEntry(letters, buffer.toUpperCase());
+        if (entry && entry.count > 0 && (selected < entry.offset || selected >= entry.offset + entry.count)) {
+          onSelect(entry.offset);
+          return;
+        }
+      }
+
+      // Otherwise the loaded songs: start after the selection and wrap, so repeating a letter cycles through matches.
+      if (loaded.length === 0) return;
+      const after = loaded.findIndex(({ index }) => index > selected);
+      const from = after === -1 ? 0 : after;
+      for (let step = 0; step < loaded.length; step++) {
+        const entry = loaded[(from + step) % loaded.length];
+        if (entry.track.title.toLowerCase().startsWith(buffer)) {
+          onSelect(entry.index);
           return;
         }
       }
     },
-    [tracks, selected, onSelect],
+    [loaded, letters, selected, onSelect],
   );
 
   const onKeyDown = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
-      if (tracks.length === 0) return;
+      if (total === 0) return;
       switch (event.key) {
         case 'ArrowDown':
           event.preventDefault();
-          onSelect(Math.min(selected + 1, tracks.length - 1));
+          onSelect(Math.min(selected + 1, total - 1));
           return;
         case 'ArrowUp':
           event.preventDefault();
@@ -137,7 +164,7 @@ export function ArcadeSelect({
           return;
         case 'End':
           event.preventDefault();
-          onSelect(tracks.length - 1);
+          onSelect(total - 1);
           return;
         case 'Enter':
           event.preventDefault();
@@ -152,17 +179,17 @@ export function ArcadeSelect({
           }
       }
     },
-    [tracks, selected, onSelect, play, jumpToLetters],
+    [total, selected, onSelect, play, jumpToLetters],
   );
 
   /** The wheel moves the selection one row per notch, like a turntable; free scrolling would disagree with the cursor. */
   const onWheel = useCallback(
     (event: WheelEvent<HTMLDivElement>) => {
       const step = event.deltaY > 0 ? 1 : -1;
-      const next = Math.min(Math.max(selected + step, 0), tracks.length - 1);
+      const next = Math.min(Math.max(selected + step, 0), total - 1);
       if (next !== selected) onSelect(next);
     },
-    [selected, tracks.length, onSelect],
+    [selected, total, onSelect],
   );
 
   /**
@@ -183,7 +210,7 @@ export function ArcadeSelect({
 
   const onPointerDown = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
-      if (!event.isPrimary || tracks.length === 0) return;
+      if (!event.isPrimary || total === 0) return;
       dragRef.current = {
         pointerId: event.pointerId,
         startY: event.clientY,
@@ -191,17 +218,17 @@ export function ArcadeSelect({
         dragging: false,
       };
     },
-    [selected, tracks.length],
+    [selected, total],
   );
 
   // Keeps a drag inside the list. Dragging up (negative) reveals later rows, so the rows ahead bound the upward drag.
   const clampDelta = useCallback(
     (startSelected: number, delta: number) => {
-      const minDelta = -(tracks.length - 1 - startSelected) * ROW_HEIGHT;
+      const minDelta = -(total - 1 - startSelected) * ROW_HEIGHT;
       const maxDelta = startSelected * ROW_HEIGHT;
       return Math.min(Math.max(delta, minDelta), maxDelta);
     },
-    [tracks.length],
+    [total],
   );
 
   const onPointerMove = useCallback(
@@ -231,7 +258,7 @@ export function ArcadeSelect({
         const delta = clampDelta(drag.startSelected, event.clientY - drag.startY);
         // Dragging down reveals earlier rows, so the sign flips.
         const rows = Math.round(-delta / ROW_HEIGHT);
-        const next = Math.min(Math.max(drag.startSelected + rows, 0), tracks.length - 1);
+        const next = Math.min(Math.max(drag.startSelected + rows, 0), total - 1);
         if (next !== selected) onSelect(next);
         requestAnimationFrame(() => {
           wasDragging.current = false;
@@ -241,15 +268,14 @@ export function ArcadeSelect({
       setDragDeltaPx(0);
       setIsDragging(false);
     },
-    [clampDelta, selected, tracks.length, onSelect],
+    [clampDelta, selected, total, onSelect],
   );
 
   // The offset that puts the selected row dead centre.
   const centeredOffset = stripHeight / 2 - ROW_HEIGHT / 2 - selected * ROW_HEIGHT;
 
   // Clamped so no empty space shows past either end; near the ends this wins over centring.
-  const railRows = tracks.length + (isLoadingMore ? 1 : 0);
-  const railHeight = railRows * ROW_HEIGHT;
+  const railHeight = total * ROW_HEIGHT;
   const minOffset = Math.min(0, stripHeight - railHeight);
   const restingOffset = Math.min(0, Math.max(minOffset, centeredOffset));
 
@@ -258,6 +284,14 @@ export function ArcadeSelect({
 
   // A drag in progress pulls the rail away from its resting position.
   const offset = restingOffset + dragDeltaPx;
+
+  // Only the rows on screen, and a few past each edge, are drawn. Row i sits at i * ROW_HEIGHT whatever the window,
+  // since the padding above stands in for the rows before it.
+  const firstRow = Math.max(0, Math.floor(-offset / ROW_HEIGHT) - OVERSCAN_ROWS);
+  const lastRow = Math.min(total - 1, Math.ceil((stripHeight - offset) / ROW_HEIGHT) + OVERSCAN_ROWS);
+  const rows: number[] = [];
+  for (let i = firstRow; i <= lastRow; i++) rows.push(i);
+  const selectedDrawn = selected >= firstRow && selected <= lastRow;
 
   return (
     <div className="arcade-select">
@@ -319,16 +353,9 @@ export function ArcadeSelect({
                 <div className="arcade-detail-more">
                   <h3 className="arcade-detail-more-heading">More from {current.artist}</h3>
                   <ul className="arcade-detail-more-list">
-                    {moreFromArtist.map((track) => (
+                    {moreFromArtist.map(({ index, track }) => (
                       <li key={track.id}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const index = tracks.findIndex((t) => t.id === track.id);
-                            if (index !== -1) onSelect(index);
-                          }}
-                          className="arcade-detail-more-item"
-                        >
+                        <button type="button" onClick={() => onSelect(index)} className="arcade-detail-more-item">
                           <span className="truncate">{track.title}</span>
                           <span className="arcade-detail-more-item-meta">
                             {formatDuration(track.duration)}
@@ -342,7 +369,7 @@ export function ArcadeSelect({
             </div>
           </>
         ) : (
-          <p className="text-sm text-blue-300">Nothing here yet.</p>
+          <p className="text-sm text-blue-300">{total === 0 ? 'Nothing here yet.' : 'Loading…'}</p>
         )}
       </div>
 
@@ -361,7 +388,7 @@ export function ArcadeSelect({
             tabIndex={0}
             role="listbox"
             aria-label="Tracks"
-            aria-activedescendant={current ? rowId(current.id) : undefined}
+            aria-activedescendant={current && selectedDrawn ? rowId(current.id) : undefined}
           >
             {/* The cursor: a fixed band the list travels under, positioned so it can step off centre at the ends. */}
             <div
@@ -372,57 +399,74 @@ export function ArcadeSelect({
               {launchToken !== null && <span key={launchToken} className="arcade-launch-flash" />}
             </div>
 
-            {tracks.length >= ALPHABET_INDEX_MIN_TRACKS && (
+            {total >= ALPHABET_INDEX_MIN_TRACKS && letters && (
               <AlphabetIndex
-                tracks={tracks}
-                currentBucket={current ? bucketOf(current.title) : null}
-                onJump={onSelect}
+                letters={letters}
+                selected={selected}
+                // An empty letter at the very end starts one past the last row.
+                onJump={(index) => onSelect(Math.min(Math.max(index, 0), total - 1))}
               />
             )}
 
             <div
               className={`arcade-rail ${isDragging ? 'is-dragging' : ''} ${
-                tracks.length >= ALPHABET_INDEX_MIN_TRACKS ? 'has-alpha-index' : ''
+                total >= ALPHABET_INDEX_MIN_TRACKS && letters ? 'has-alpha-index' : ''
               }`}
-              style={{ transform: `translateY(${offset}px)` }}
+              style={{
+                transform: `translateY(${offset}px)`,
+                paddingTop: firstRow * ROW_HEIGHT,
+                ...(snaps ? { transition: 'none' } : {}),
+              }}
             >
-              {tracks.map((track, i) => (
-                <div
-                  key={track.id}
-                  id={rowId(track.id)}
-                  role="option"
-                  aria-selected={i === selected}
-                  // Click selects; click on the selection plays. Rows aren't focusable: the listbox uses aria-activedescendant.
-                  onClick={() => {
-                    if (wasDragging.current) return;
-                    if (i === selected) play(i);
-                    else onSelect(i);
-                  }}
-                  style={{ height: ROW_HEIGHT }}
-                  className={`arcade-row ${i === selected ? 'is-selected' : ''} ${
-                    track.missing ? 'is-missing' : ''
-                  } ${track.hasStreamError ? 'has-stream-error' : ''}`}
-                  title={
-                    track.hasStreamError && !track.missing
-                      ? 'Failed to play last time. It might work now.'
-                      : undefined
-                  }
-                >
-                  <span className="arcade-row-title">{track.title}</span>
-                  <span className="arcade-row-meta">
-                    <span className="truncate">{track.artist ?? 'Unknown artist'}</span>
-                    {track.format && <span className="arcade-row-format">{track.format}</span>}
-                  </span>
-                </div>
-              ))}
-              {isLoadingMore && (
-                <p
-                  style={{ height: ROW_HEIGHT }}
-                  className="flex items-center px-4 text-xs uppercase tracking-[0.2em] text-blue-400"
-                >
-                  Loading…
-                </p>
-              )}
+              {rows.map((i) => {
+                const track = getTrack(i);
+                // Its page hasn't arrived: a quiet row of the same height, so the strip keeps its length and place.
+                if (!track) {
+                  return (
+                    <div
+                      key={`pending-${i}`}
+                      aria-hidden
+                      onClick={() => {
+                        if (!wasDragging.current) onSelect(i);
+                      }}
+                      style={{ height: ROW_HEIGHT }}
+                      className={`arcade-row ${i === selected ? 'is-selected' : ''}`}
+                    >
+                      <span className="skeleton h-3.5 w-2/3 rounded" />
+                      <span className="skeleton h-3 w-1/3 rounded" />
+                    </div>
+                  );
+                }
+                return (
+                  <div
+                    key={track.id}
+                    id={rowId(track.id)}
+                    role="option"
+                    aria-selected={i === selected}
+                    // Click selects; click on the selection plays. Rows aren't focusable: the listbox uses aria-activedescendant.
+                    onClick={() => {
+                      if (wasDragging.current) return;
+                      if (i === selected) play(i);
+                      else onSelect(i);
+                    }}
+                    style={{ height: ROW_HEIGHT }}
+                    className={`arcade-row ${i === selected ? 'is-selected' : ''} ${
+                      track.missing ? 'is-missing' : ''
+                    } ${track.hasStreamError ? 'has-stream-error' : ''}`}
+                    title={
+                      track.hasStreamError && !track.missing
+                        ? 'Failed to play last time. It might work now.'
+                        : undefined
+                    }
+                  >
+                    <span className="arcade-row-title">{track.title}</span>
+                    <span className="arcade-row-meta">
+                      <span className="truncate">{track.artist ?? 'Unknown artist'}</span>
+                      {track.format && <span className="arcade-row-format">{track.format}</span>}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -430,7 +474,7 @@ export function ArcadeSelect({
           <p className="arcade-strip-footer">
             {scanStatus && <span className="arcade-strip-footer-scan">{scanStatus}</span>}
             <span className="arcade-strip-footer-count">
-              {tracks.length > 0 ? `${selected + 1} of ${tracks.length} loaded` : ''}
+              {total > 0 ? `${selected + 1} of ${total}` : ''}
             </span>
           </p>
         </div>

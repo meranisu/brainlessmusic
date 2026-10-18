@@ -1,5 +1,89 @@
 [
   {
+    "version": "0.4.22",
+    "date": "2026-10-18",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "smart playlists: on the Playlists tab, tap \"New smart playlist\" and describe what you want in rules, like \"I last played it more than 60 days ago\" or \"I liked it, and I played it fewer than 3 times\". it fills itself every time you open it, using only your own plays and likes, and nobody else can see it",
+              "while you edit the rules a box under them shows how many songs they pick right now, so you can tune them before saving",
+              "on a smart playlist, the ⋮ menu has Edit rules and Save as playlist (turns what it picks today into a normal playlist you can edit by hand)",
+              "\"Random\" order keeps the same order all day, so reopening or downloading it doesn't reshuffle, and gives you a new mix tomorrow",
+              "you can't add songs to a smart playlist by hand, and it doesn't show up in Add to playlist"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it. smart playlists need the matching server update, which goes out with it"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.4.21",
+    "date": "2026-10-18",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "sleep timer: tap the moon at the top of Now playing and pick 15, 30, 45, 60 or 90 minutes, or \"end of current song\". when it runs out the music fades out over about 10 seconds and pauses, and your queue stays so you can carry on tomorrow",
+              "in a Listen together room the timer takes only your phone out of the room, everyone else keeps listening"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.4.20",
+    "date": "2026-10-18",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "headset buttons: Settings > Playback > Headset buttons lets you pick what one, two or three presses do, plus what the Next and Previous buttons do. options are play or pause, next, previous, skip 10 seconds forward or back, or nothing",
+              "the app now handles the headset button itself. i couldn't find why presses did nothing before, so if yours still do nothing, tell me and i'll look at the log"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.4.19",
     "date": "2026-10-14",
     "sections": [

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useDialogA11y } from '../hooks/useDialogA11y';
 import { useScrollLock } from '../hooks/useScrollLock';
 import { ApiError, apiClient } from '../lib/apiClient';
 import type { BrowseDirResponse } from '../types/api';
@@ -18,13 +19,7 @@ export function LibraryBrowseDialog({ initialPath, onSelect, onCancel }: Library
 
   useScrollLock();
 
-  useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      if (event.key === 'Escape') onCancel();
-    }
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onCancel]);
+  const dialogRef = useDialogA11y<HTMLDivElement>(onCancel);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['library-browse', currentPath],
@@ -33,8 +28,16 @@ export function LibraryBrowseDialog({ initialPath, onSelect, onCancel }: Library
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onCancel}>
-      <div className="card flex w-full max-w-sm flex-col p-5" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-sm font-semibold text-white">Choose a folder</h2>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="library-browse-title"
+        tabIndex={-1}
+        className="card flex w-full max-w-sm flex-col p-5 outline-none"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id="library-browse-title" className="text-sm font-semibold text-white">Choose a folder</h2>
         <p className="mt-1 truncate rounded-md border border-blue-800 bg-blue-950/60 px-2.5 py-1.5 font-mono text-xs text-blue-300">
           {currentPath}
         </p>

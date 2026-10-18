@@ -28,7 +28,12 @@ const TITLE_SIZE = 'clamp(1.9rem, min(11.5vw, 16vh), 8rem)';
 /** A token handed over from another device, if this is a handoff link. */
 function tokenFromHash(): string | null {
   const match = /(?:^|[#&])t=([^&]+)/.exec(window.location.hash);
-  return match ? decodeURIComponent(match[1]) : null;
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
 }
 
 /** Corner readouts, like the reference's `FREE PLAY`, but saying true things. */

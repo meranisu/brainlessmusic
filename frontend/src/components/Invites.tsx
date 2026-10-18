@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from './ToastProvider';
 import { ApiError, apiClient } from '../lib/apiClient';
+import { copyText } from '../lib/copyText';
 import { INVITES_KEY } from '../lib/invites';
 import { formatDate } from '../lib/format';
 import type { AccountInvite } from '../types/api';
@@ -67,11 +68,10 @@ export function InviteLinkDialog({ invite, onClose }: { invite: CreatedInvite; o
   const { showToast } = useToast();
 
   async function copy() {
-    try {
-      await navigator.clipboard.writeText(invite.url);
+    if (await copyText(invite.url)) {
       showToast('Link copied');
-    } catch {
-      // Clipboard access needs HTTPS; the link stays on screen to select by hand.
+    } else {
+      // The link stays on screen to select by hand.
       showToast('Copying is blocked here. Select the link and copy it by hand.', 'error');
     }
   }

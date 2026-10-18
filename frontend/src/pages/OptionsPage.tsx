@@ -405,11 +405,12 @@ function HeadsetSettings() {
  * playing) and themes.
  */
 export function OptionsPage() {
-  const { user, logout, setPasscode, clearPasscode, setDisplayName } = useAuth();
+  const { user, logout, signOutEverywhere, setPasscode, clearPasscode, setDisplayName } = useAuth();
   const { dataSaver, setDataSaver, transitions, setTransitions, canFade } = usePlayer();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [showHandoff, setShowHandoff] = useState(false);
+  const [confirmingEverywhere, setConfirmingEverywhere] = useState(false);
   const [showPasscodeNumpad, setShowPasscodeNumpad] = useState(false);
   const [isClearingPasscode, setIsClearingPasscode] = useState(false);
   /* The pick made here, else the profile's (which may load after this page first paints), else the browser's copy. */
@@ -528,9 +529,29 @@ export function OptionsPage() {
               )}
               {user?.isAdmin && <span className="badge-admin ml-2">Admin</span>}
             </p>
-            <button onClick={logout} className="btn-secondary btn-md mt-3">
-              Log out
-            </button>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button onClick={logout} className="btn-secondary btn-md">
+                Log out
+              </button>
+              {confirmingEverywhere ? (
+                <>
+                  <span className="text-xs text-blue-300">Ends every session, this one too, and any handoff link.</span>
+                  <button
+                    onClick={() => void signOutEverywhere().catch(() => setConfirmingEverywhere(false))}
+                    className="btn-danger btn-md"
+                  >
+                    Log out everywhere
+                  </button>
+                  <button onClick={() => setConfirmingEverywhere(false)} className="btn-secondary btn-md">
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button onClick={() => setConfirmingEverywhere(true)} className="btn-secondary btn-md">
+                  Log out everywhere
+                </button>
+              )}
+            </div>
           </div>
         )}
       </section>

@@ -50,7 +50,8 @@ export function AddToPlaylistDialog({ trackId, trackTitle, trackArtist, onClose 
     queryKey,
     queryFn: () => apiClient.get<{ playlists: ListedPlaylist[] }>(`/playlists?trackId=${trackId}`),
   });
-  const playlists = data?.playlists;
+  // A smart playlist fills itself from rules (A207), so a song can't be put in one by hand.
+  const playlists = data?.playlists.filter((p) => !p.isSmart);
   const hasNone = playlists?.length === 0;
   // With nothing to pick, naming one is the only thing to do here.
   const showForm = creating || hasNone;

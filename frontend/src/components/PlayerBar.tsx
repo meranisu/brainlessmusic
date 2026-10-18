@@ -370,6 +370,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // Which room load is the newest: an older one settling must not clear `roomLoadingRef` while a newer one runs.
   const roomLoadSeqRef = useRef(0);
   const roomStartTimerRef = useRef<number | undefined>(undefined);
+  const retireTimerRef = useRef<number | undefined>(undefined);
   const driftStrikesRef = useRef(0);
   const lastDriftRef = useRef<number | null>(null);
   // Starting or jumping takes this device a moment, so aiming at the exact position lands behind it (measured ~0.7 s
@@ -711,6 +712,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         } catch (err) {
           // The browser wants a tap first; the file is fine, so no diagnostics and no compat retry.
           if (isAutoplayBlocked(err)) throw err;
+          // A newer load interrupted this play; the user has moved on, so skip the probe and the failure report.
+          if (token !== loadTokenRef.current || (err instanceof DOMException && err.name === 'AbortError')) throw err;
           throw new StreamLoadError(
             err instanceof Error ? err.message : 'Playback failed',
             await describeStreamFailure(audio!, url),
@@ -1200,6 +1203,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const audio = audioRef.current;
     const { queue: tracks, index: at, isPlaying: playing } = stateRef.current;
     if (!audio || !tracks[at]) return;
+    // In a room the queue is the room's, not the user's saved personal one.
+    if (roomRef.current.room) return;
 
     void apiClient
       .put('/me/playback-state', {
@@ -1368,7 +1373,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (spareRef.current === outgoing && preloadRef.current === null) retireSpare();
     };
     if (kind === 'crossfade') void rampTo(outgoing, 0, fadeSeconds * 1000).then(retireOutgoing);
-    else if (kind === 'gapless') window.setTimeout(retireOutgoing, 1000);
+    else if (kind === 'gapless') {
+      window.clearTimeout(retireTimerRef.current);
+      retireTimerRef.current = window.setTimeout(retireOutgoing, 1000);
+    }
     else retireOutgoing();
   }
 
@@ -1614,6 +1622,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     syncRef.current();
   }, [roomVersion, roomConnection]);
 
+  useEffect(() => () => window.clearTimeout(retireTimerRef.current), []);
+
   useEffect(() => {
     if (!inRoom) {
       // Left: forget the room's song so the next room starts clean. The music plays on here, on its own.
@@ -1682,15 +1692,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return;
     }
   };
+  // Same idea for the OS media keys and the keyboard: their effects bind once per track, not on every `timeupdate`.
+  // Re-binding on each tick cleared every media-session handler for an instant, so a lock-screen press could land nowhere.
+  const transportRef = useRef({ currentTime, seek, stop, toggle, next, previous });
+  transportRef.current = { currentTime, seek, stop, toggle, next, previous };
   const pressesRef = useRef<ReturnType<typeof createPressCounter> | null>(null);
   if (!pressesRef.current) {
     pressesRef.current = createPressCounter(loadHeadsetPrefs, (action) => headsetRunRef.current(action));
   }
   useEffect(() => () => pressesRef.current?.cancel(), []);
 
-  // Separate from the metadata: these handlers re-bind on queue position and repeat changes.
+  // Separate from the metadata: these handlers bind while a track is loaded and read the latest state through refs.
+  const hasCurrent = current !== null;
   useEffect(() => {
-    if (!('mediaSession' in navigator) || !current) return;
+    if (!('mediaSession' in navigator) || !hasCurrent) return;
     const session = navigator.mediaSession;
 
     // Browsers throw on unsupported actions; one must not break the rest.
@@ -1710,12 +1725,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     set('pause', () => pressesRef.current?.press());
     set('previoustrack', () => headsetRunRef.current(loadHeadsetPrefs().previousButton));
     set('nexttrack', () => headsetRunRef.current(loadHeadsetPrefs().nextButton));
-    set('seekbackward', (d) => seek(currentTime - (d.seekOffset ?? SEEK_STEP_SECONDS)));
-    set('seekforward', (d) => seek(currentTime + (d.seekOffset ?? SEEK_STEP_SECONDS)));
-    set('seekto', (d) => {
-      if (typeof d.seekTime === 'number') seek(d.seekTime);
+    set('seekbackward', (d) => {
+      const t = transportRef.current;
+      t.seek(t.currentTime - (d.seekOffset ?? SEEK_STEP_SECONDS));
     });
-    set('stop', () => stop());
+    set('seekforward', (d) => {
+      const t = transportRef.current;
+      t.seek(t.currentTime + (d.seekOffset ?? SEEK_STEP_SECONDS));
+    });
+    set('seekto', (d) => {
+      if (typeof d.seekTime === 'number') transportRef.current.seek(d.seekTime);
+    });
+    set('stop', () => transportRef.current.stop());
 
     return () => {
       const actions: MediaSessionAction[] = [
@@ -1730,8 +1751,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       ];
       for (const action of actions) set(action, null);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current, currentTime, queue, index, repeat, duration]);
+  }, [hasCurrent]);
 
   // Drives the lock screen's play/pause icon and its scrubber position.
   useEffect(() => {
@@ -1796,38 +1816,43 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // Keyboard transport. Ignored while typing, so the library search box and
   // the tag editor keep working normally.
   useEffect(() => {
+    if (!hasCurrent) return;
     function onKeyDown(ev: KeyboardEvent) {
-      if (!current) return;
 
       const target = ev.target as HTMLElement | null;
       if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      // Browser and OS shortcuts (Ctrl+P prints), and keys a focused control already uses: Space presses a button,
+      // arrows move a slider.
+      if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+      if (target?.closest('button, a[href], [role="slider"], [role="button"]')) return;
+
+      const t = transportRef.current;
 
       switch (ev.key) {
         case ' ':
           ev.preventDefault();
-          toggle();
+          t.toggle();
           break;
         case 'ArrowLeft':
           ev.preventDefault();
-          seek(currentTime - SEEK_STEP_SECONDS);
+          t.seek(t.currentTime - SEEK_STEP_SECONDS);
           break;
         case 'ArrowRight':
           ev.preventDefault();
-          seek(currentTime + SEEK_STEP_SECONDS);
+          t.seek(t.currentTime + SEEK_STEP_SECONDS);
           break;
         case 'n':
-          next();
+          t.next();
           break;
         case 'p':
-          previous();
+          t.previous();
           break;
       }
     }
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current, currentTime, queue, index, repeat, duration]);
+  }, [hasCurrent]);
 
   const effectiveDuration = duration || current?.duration || 0;
   const servedLabel = served ? describeServed(served, effectiveDuration) : null;

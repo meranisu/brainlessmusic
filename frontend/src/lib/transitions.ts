@@ -3,6 +3,8 @@
  * bike and a desktop at home can reasonably want different things.
  */
 
+import { getJSON, setJSON } from './safeStorage';
+
 export type BetweenSongs = 'gapless' | 'crossfade' | 'fadeOutIn';
 
 export const FADE_LENGTHS = [3, 6, 9, 12] as const;
@@ -32,34 +34,25 @@ export const DEFAULT_TRANSITIONS: TransitionPrefs = {
 const STORAGE_KEY = 'brainlessmusic.transitions';
 
 export function loadTransitionPrefs(): TransitionPrefs {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_TRANSITIONS;
-    const parsed = JSON.parse(raw) as Partial<TransitionPrefs>;
-    return {
-      betweenSongs: (['gapless', 'crossfade', 'fadeOutIn'] as const).includes(parsed.betweenSongs as BetweenSongs)
-        ? (parsed.betweenSongs as BetweenSongs)
-        : DEFAULT_TRANSITIONS.betweenSongs,
-      fadeSeconds: FADE_LENGTHS.includes(parsed.fadeSeconds as FadeLength)
-        ? (parsed.fadeSeconds as FadeLength)
-        : DEFAULT_TRANSITIONS.fadeSeconds,
-      fadeOnPause: typeof parsed.fadeOnPause === 'boolean' ? parsed.fadeOnPause : DEFAULT_TRANSITIONS.fadeOnPause,
-      keepAlbumsGapless:
-        typeof parsed.keepAlbumsGapless === 'boolean' ? parsed.keepAlbumsGapless : DEFAULT_TRANSITIONS.keepAlbumsGapless,
-      levelVolume: typeof parsed.levelVolume === 'boolean' ? parsed.levelVolume : DEFAULT_TRANSITIONS.levelVolume,
-    };
-  } catch {
-    // Blocked or corrupt storage: the defaults are a working player.
-    return DEFAULT_TRANSITIONS;
-  }
+  // Blocked or corrupt storage: the defaults are a working player.
+  const parsed = getJSON(STORAGE_KEY) as Partial<TransitionPrefs> | null;
+  if (!parsed) return DEFAULT_TRANSITIONS;
+  return {
+    betweenSongs: (['gapless', 'crossfade', 'fadeOutIn'] as const).includes(parsed.betweenSongs as BetweenSongs)
+      ? (parsed.betweenSongs as BetweenSongs)
+      : DEFAULT_TRANSITIONS.betweenSongs,
+    fadeSeconds: FADE_LENGTHS.includes(parsed.fadeSeconds as FadeLength)
+      ? (parsed.fadeSeconds as FadeLength)
+      : DEFAULT_TRANSITIONS.fadeSeconds,
+    fadeOnPause: typeof parsed.fadeOnPause === 'boolean' ? parsed.fadeOnPause : DEFAULT_TRANSITIONS.fadeOnPause,
+    keepAlbumsGapless:
+      typeof parsed.keepAlbumsGapless === 'boolean' ? parsed.keepAlbumsGapless : DEFAULT_TRANSITIONS.keepAlbumsGapless,
+    levelVolume: typeof parsed.levelVolume === 'boolean' ? parsed.levelVolume : DEFAULT_TRANSITIONS.levelVolume,
+  };
 }
 
 export function saveTransitionPrefs(prefs: TransitionPrefs): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
-  } catch {
-    // Applies for this session; just won't survive a reload.
-  }
+  setJSON(STORAGE_KEY, prefs);
 }
 
 /**
