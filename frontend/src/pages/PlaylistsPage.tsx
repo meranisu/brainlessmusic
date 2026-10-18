@@ -9,6 +9,7 @@ import { apiClient } from '../lib/apiClient';
 import { checkPlaylistName } from '../lib/playlistName';
 import type { PlaylistSummary, PublicPlaylistSummary } from '../types/api';
 import { Skeleton, SkeletonListRows } from '../components/Skeleton';
+import { Presence } from '../components/Presence';
 
 /** Your playlists, then other people's public ones, newest public first (A162, A166). A guest sees only the second (A163). */
 export function PlaylistsPage() {
@@ -135,7 +136,9 @@ export function PlaylistsPage() {
         </section>
       )}
 
-      {makingSmart && <SmartPlaylistEditor mode={{ kind: 'create' }} onClose={() => setMakingSmart(false)} />}
+      <Presence value={makingSmart || null}>
+        {() => <SmartPlaylistEditor mode={{ kind: 'create' }} onClose={() => setMakingSmart(false)} />}
+      </Presence>
 
       <section aria-labelledby="others-heading" className="flex flex-col gap-3">
         <div>

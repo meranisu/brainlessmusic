@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { TrackSummary } from '../types/api';
+import { usePresence } from '../hooks/usePresence';
 
 interface TrackRowMenuProps {
   track: TrackSummary;
@@ -24,6 +25,7 @@ export function TrackRowMenu({
   onDelete,
 }: TrackRowMenuProps) {
   const [open, setOpen] = useState(false);
+  const menu = usePresence(open || null, 120);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -55,8 +57,8 @@ export function TrackRowMenu({
       >
         ⋮
       </button>
-      {open && (
-        <div className="absolute right-0 z-20 mt-1 w-48 rounded-lg border border-blue-700 bg-blue-800 py-1 text-sm">
+      {menu.item && (
+        <div data-state={menu.state} className="motion-menu absolute right-0 z-20 mt-1 w-48 rounded-lg border border-blue-700 bg-blue-800 py-1 text-sm">
           {onAddToPlaylist && <MenuItem onClick={runAndClose(onAddToPlaylist)}>Add to playlist</MenuItem>}
           <MenuItem onClick={runAndClose(onEdit)}>Edit tags</MenuItem>
           <MenuItem onClick={runAndClose(onDiagnostics)}>Diagnostics</MenuItem>

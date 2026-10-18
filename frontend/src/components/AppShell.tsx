@@ -15,6 +15,7 @@ import { CloseIcon, ExitIcon, FadersIcon, GearIcon, SearchIcon } from './icons';
 import { Avatar } from './Avatar';
 import { NavOverflow, type NavItem } from './NavOverflow';
 import { ScrollTopButton } from './ScrollTopButton';
+import { Presence } from './Presence';
 
 /** Must match `.options-panel.is-closing` in `index.css`; the search panel reuses the More menu's chrome. */
 const SEARCH_CLOSE_MS = 160;
@@ -393,14 +394,18 @@ export function AppShell() {
           arriving ? 'page-enter' : ''
         }`}
       >
-        <Outlet />
+        {/* Keyed on the path so a move inside the app (into an album, back to a list) fades in too. Not while the
+            veil lifts, which already animates the page. */}
+        <div key={pathname} className={arriving || leaving ? undefined : 'route-in'}>
+          <Outlet />
+        </div>
       </main>
 
       <ScrollTopButton />
 
       {isBooting && <BootFrame />}
 
-      {showHandoff && <HandoffDialog onClose={() => setShowHandoff(false)} />}
+      <Presence value={showHandoff || null}>{() => <HandoffDialog onClose={() => setShowHandoff(false)} />}</Presence>
 
       {!isBooting && <EmailPrompt />}
 

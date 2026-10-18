@@ -122,12 +122,12 @@ function RoomPlayDialog({
 }) {
   useScrollLock();
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={onCancel}>
+    <div className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={onCancel}>
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="room-play-title"
-        className="card w-full max-w-sm p-5"
+        className="motion-pop card w-full max-w-sm p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="room-play-title" className="text-sm font-semibold text-white">
@@ -483,12 +483,12 @@ function EditProfileDialog({ profile, onClose }: { profile: Profile; onClose: ()
   });
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={onClose}>
+    <div className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={onClose}>
       <form
         role="dialog"
         aria-modal="true"
         aria-labelledby="edit-profile-heading"
-        className="card flex max-h-[90vh] w-full max-w-lg flex-col gap-4 overflow-y-auto p-5"
+        className="motion-pop card flex max-h-[90vh] w-full max-w-lg flex-col gap-4 overflow-y-auto p-5"
         onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
           e.preventDefault();

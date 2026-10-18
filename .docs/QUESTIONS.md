@@ -61,6 +61,16 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A222 — Desktop Now Playing view: tabs, background, queue editing (was Q211) *(asked in chat)*
+**Answered:** 2026-10-18, in chat. Tabs: Up next and Related (more from the album, other albums by the artist, from data the
+app already has). Lyrics later, as its own feature. Background: a flat wash of the cover's colour mixed into the theme ground,
+no blur. Queue: jump to a song and remove one; no drag to reorder. Plan: [desktop-now-playing](features/desktop-now-playing/planning.md).
+Built, browser-checked on a copy of the dev DB, not on a real library.
+
+### A221 — Motion pass follow-ups (was Q210) *(asked in chat)*
+**Answered:** 2026-10-18, in chat. Phone Now Playing also closes on swipe down. Desktop gets its own Now Playing view (A222).
+The login button reads "Back". The album card hover lift is fine. The phone sheet gets remove and Related too (YouTube Music's phone app has both: Up next, Lyrics and Related tabs, and Remove from queue in a song's menu).
+
 ### A220 — Now Playing top bar: where sleep, data saver, like and add go (was Q209) *(asked in chat)*
 **Answered:** 2026-10-18, in chat. The top bar was crowded (5 buttons). Decided: like and add to playlist sit on the song's
 header (most used); sleep timer and data saver become buttons in the info readout under the controls, each showing its state

@@ -11,6 +11,7 @@ import { arrivalDuration } from '../lib/interstitial';
 import { THEMES, type ThemeId } from '../lib/theme';
 import { ArrivalVeil } from '../components/ArcadeInterstitial';
 import { ChangelogDialog } from '../components/ChangelogDialog';
+import { Presence } from '../components/Presence';
 
 /** The shut-off length. Must match `--exit` in `index.css`. */
 const EXIT_MS = 820;
@@ -160,7 +161,7 @@ export function TitleScreenPage() {
       >
         VER {__APP_VERSION__}
       </button>
-      {showChangelog && <ChangelogDialog onClose={closeChangelog} />}
+      <Presence value={showChangelog || null}>{() => <ChangelogDialog onClose={closeChangelog} />}</Presence>
 
       {/* The content band: white under the type, dissolving to the right into the mosaic. */}
       <div

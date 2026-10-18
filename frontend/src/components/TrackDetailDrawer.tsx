@@ -81,9 +81,9 @@ export function TrackDetailDrawer({ trackId, initialTab, onClose }: TrackDetailD
   const isAdmin = Boolean(user?.isAdmin);
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/60" onClick={onClose}>
+    <div className="motion-scrim fixed inset-0 z-50 flex justify-end bg-black/60" onClick={onClose}>
       <div
-        className="flex h-full w-full max-w-md flex-col border-l border-blue-800 bg-blue-900"
+        className="motion-drawer flex h-full w-full max-w-md flex-col border-l border-blue-800 bg-blue-900"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 border-b border-blue-800 px-4 py-3.5">

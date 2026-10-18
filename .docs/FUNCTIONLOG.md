@@ -4,6 +4,42 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `removeAt()` — `frontend/src/components/PlayerBar.tsx`
+**Date:** 2026-10-18
+**How added:** new feature
+**Purpose:** drop one song from the queue (the desktop Now Playing X button).
+**Side effects:** in a room, sends `{ op: 'remove', entryId }`. Otherwise changes `queue`, `originalQueueRef` and possibly `index`, and may silence the spare element.
+**Before:** nothing — new function. The queue could only be jumped within.
+**After:** refuses the playing song. Removing the next song clears the pending gapless boundary and the preloaded spare so the next skip loads the right song.
+
+**Function:** `DesktopNowPlaying()` — `frontend/src/components/DesktopNowPlaying.tsx`; `useCoverTint()`, `averageColor()` — `frontend/src/hooks/useCoverTint.ts`
+**Date:** 2026-10-18
+**How added:** new feature
+**Purpose:** the wide-screen full player, and the colour that washes it.
+**Side effects:** two cached GETs, `/albums/:id` and `/artists/:id`; reads the cover thumb into a canvas.
+**Before:** nothing — new functions. Desktop had only the bottom bar.
+**After:** see the CHANGELOG entry for the view. `averageColor` returns null when the canvas is tainted, and the theme ground is used.
+
+---
+
+**Function:** `usePresence()` — `frontend/src/hooks/usePresence.ts`; `Presence` — `frontend/src/components/Presence.tsx`; `useSwapClass()` — `frontend/src/hooks/useSwapClass.ts`
+**Date:** 2026-10-18
+**How added:** new feature
+**Purpose:** let a closing overlay animate out before it unmounts (`usePresence`, `Presence`), and pick the slide direction for a new song (`useSwapClass`).
+**Side effects:** none; a timer for the exit, skipped under reduced motion.
+**Before:** nothing — new functions. Overlays were `{open && <Dialog/>}` and vanished at once.
+**After:** `Presence` holds the last value for `exitMs` and marks it `data-presence="closing"`; the CSS in `index.css` plays the exit. `useSwapClass` returns `track-swap-back` when the queue index drops, else `track-swap-fwd`.
+
+**Function:** `backToTitle()` — `frontend/src/pages/AccountSelectPage.tsx`
+**Date:** 2026-10-18
+**How added:** new feature
+**Purpose:** the way back from sign-in to the title screen, from the "Back" button and Escape.
+**Side effects:** sets the at-title mark in `sessionStorage` through `markAtTitle()`, then navigates to `/`.
+**Before:** only the idle timeout went back to the title screen.
+**After:** slides the cards off for `LOGIN_EXIT_MS`, then does what the idle timeout does. Ignored while committing, registering or already leaving.
+
+---
+
 **Function:** `StreamReadout()`, `ReadoutChip()`, `sleepChipLabel()`, `SongHeaderActions()` in `android/app/src/main/kotlin/com/brainlessmusic/app/ui/playback/NowPlayingScreen.kt`; `actions` slot on `LaneDeck`, `HitCircleDeck`; `NowPlaying.tsx` add to playlist pill and Saver chip
 **Date:** 2026-10-18
 **How added:** refactor

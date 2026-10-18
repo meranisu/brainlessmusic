@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useRef, useState, type TouchEvent } from 'react';
 import { apiClient } from '../lib/apiClient';
 import { formatClock } from '../lib/format';
 import type { TrackDetail } from '../types/api';
@@ -25,6 +25,10 @@ import { useScrollLock } from '../hooks/useScrollLock';
 import type { PlayerContextValue } from './PlayerBar';
 import { Link } from 'react-router-dom';
 import { useRoom } from './RoomProvider';
+import { Presence } from './Presence';
+import { useSwapClass } from '../hooks/useSwapClass';
+import { useFoldRemove } from '../hooks/useFoldRemove';
+import { RelatedTab } from './RelatedTab';
 
 const WAVE_BARS = 44;
 
@@ -100,6 +104,11 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
     inRoom,
   } = player;
 
+  const swapClass = useSwapClass(index);
+  const [tab, setTab] = useState<'queue' | 'related'>('queue');
+  const { folding, fold } = useFoldRemove(player);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ x: number; y: number; t: number; active: boolean; dy: number } | null>(null);
   const favoriteIds = useFavoriteIds();
   const { room, connection } = useRoom();
   // Set only mid-drag. Seeking on every tick would fire a range request each time; seek once on release.
@@ -144,8 +153,58 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
   const sourceFormat = (current.format ?? detail?.format ?? '').toUpperCase();
   const showServed = servedLabel != null && (dataSaver || servedFormat !== sourceFormat);
 
+  // Swipe down from the top of the sheet to close it. The sheet follows the finger, then either leaves or springs back.
+  function dragStart(e: TouchEvent<HTMLDivElement>) {
+    const el = sheetRef.current;
+    if (!el || el.scrollTop > 0 || (e.target as HTMLElement).closest('input[type="range"]')) return;
+    drag.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), active: false, dy: 0 };
+  }
+  function dragMove(e: TouchEvent<HTMLDivElement>) {
+    const d = drag.current;
+    const el = sheetRef.current;
+    if (!d || !el) return;
+    const dx = e.touches[0].clientX - d.x;
+    const dy = e.touches[0].clientY - d.y;
+    if (!d.active) {
+      if (Math.abs(dy) < 8 && Math.abs(dx) < 8) return;
+      if (dy <= 0 || Math.abs(dx) > Math.abs(dy)) {
+        drag.current = null;
+        return;
+      }
+      d.active = true;
+    }
+    d.dy = dy;
+    el.style.transition = 'none';
+    el.style.transform = `translateY(${dy}px)`;
+  }
+  function dragEnd() {
+    const d = drag.current;
+    const el = sheetRef.current;
+    drag.current = null;
+    if (!d?.active || !el) return;
+    const fast = d.dy / Math.max(Date.now() - d.t, 1) > 0.6;
+    if (d.dy > 140 || fast) {
+      // The exit keyframes start from this offset, so the sheet carries on from where the finger left it.
+      el.style.setProperty('--drag', `${d.dy}px`);
+      onCollapse();
+      return;
+    }
+    el.style.transition = 'transform 320ms var(--ease-spring)';
+    el.style.transform = '';
+    window.setTimeout(() => {
+      el.style.transition = '';
+    }, 340);
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-blue-950 text-white md:hidden">
+    <div
+      ref={sheetRef}
+      onTouchStart={dragStart}
+      onTouchMove={dragMove}
+      onTouchEnd={dragEnd}
+      onTouchCancel={dragEnd}
+      className="motion-slideup overscroll-contain fixed inset-0 z-50 flex flex-col overflow-y-auto bg-blue-950 text-white md:hidden"
+    >
       <div className="flex items-center justify-between px-5 pt-4 pb-2">
         <button onClick={onCollapse} className="btn-ghost btn-sm h-9 w-9 !px-0" aria-label="Close now playing">
           <ChevronDownIcon className="h-5 w-5" />
@@ -166,12 +225,12 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
           </span>
         )}
         <span className="w-9 text-right font-mono text-xs tabular-nums text-blue-400">
-          {index + 1}/{queue.length}
+          <span key={index} className="motion-bump">{index + 1}</span>/{queue.length}
         </span>
       </div>
 
       <div className="px-5 pt-2">
-        <div className="relative aspect-square w-full overflow-hidden rounded-2xl border-2 border-orange-600">
+        <div key={current.id} className="np-art relative aspect-square w-full overflow-hidden rounded-2xl border-2 border-orange-600">
           <CoverArt kind="tracks" id={current.id} className="h-full w-full" alt="" />
           {current.format && (
             <span className="font-display absolute left-3 top-3 rounded-full bg-blue-950/70 px-3 py-1 text-xs font-extrabold uppercase tracking-[0.16em] text-white">
@@ -182,7 +241,7 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
       </div>
 
       {/* Not uppercased: `text-transform` capitalises only the Latin half of mixed-script titles. */}
-      <div className="px-5 pt-5 text-center">
+      <div key={current.id} className={`${swapClass} px-5 pt-5 text-center`}>
         <h2 className="font-display truncate text-2xl font-extrabold tracking-[0.01em] text-white">
           {current.title}
         </h2>
@@ -268,15 +327,15 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
         <button
           onClick={toggle}
           disabled={isLoading}
-          className={`pulse-ring relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-[3px] border-orange-600 bg-blue-950 text-white transition-colors hover:bg-blue-900 disabled:opacity-60 ${isPlaying ? 'is-playing' : ''}`}
+          className={`pulse-ring relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-[3px] border-orange-600 bg-blue-950 text-white transition-[background-color,transform] duration-200 ease-[var(--ease-spring)] hover:bg-blue-900 active:scale-90 disabled:opacity-60 ${isPlaying ? 'is-playing' : ''}`}
           aria-label={isPlaying ? 'Pause' : 'Play'}
         >
           {isLoading ? (
             <span className="text-sm leading-none">…</span>
-          ) : isPlaying ? (
-            <PauseIcon className="h-6 w-6" />
           ) : (
-            <PlayIcon className="h-6 w-6" />
+            <span key={isPlaying ? 'pause' : 'play'} className="icon-swap">
+              {isPlaying ? <PauseIcon className="h-6 w-6" /> : <PlayIcon className="h-6 w-6" />}
+            </span>
           )}
         </button>
         <button onClick={next} className="btn-ghost btn-sm h-11 w-11 !px-0" aria-label="Next track">
@@ -333,52 +392,99 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
           </button>
         </div>
 
-      {addingToPlaylist && (
-        <AddToPlaylistDialog
-          trackId={current.id}
-          trackTitle={current.title}
-          trackArtist={current.artist}
-          onClose={() => setAddingToPlaylist(false)}
-        />
-      )}
+      <Presence value={addingToPlaylist ? current : null}>
+        {(t) => (
+          <AddToPlaylistDialog
+            trackId={t.id}
+            trackTitle={t.title}
+            trackArtist={t.artist}
+            onClose={() => setAddingToPlaylist(false)}
+          />
+        )}
+      </Presence>
 
-      <div className="mt-6 border-t-2 border-blue-900 px-5 pt-5">
-        <div className="flex items-baseline justify-between">
-          <h3 className="font-display text-base font-extrabold uppercase tracking-[0.14em] text-white">Up next</h3>
-          <span className="font-display text-sm font-extrabold uppercase tracking-[0.1em] text-blue-400">
-            {upNext.length === 0
-              ? 'End of queue'
-              : `${upNext.length} ${upNext.length === 1 ? 'track' : 'tracks'} · ${formatClock(
-                  totalQueueSeconds(upNext.map((t) => t.duration)),
-                )}`}
-          </span>
+      <div className="mt-6 border-t-2 border-blue-900">
+        <div role="tablist" className="relative mx-5 grid grid-cols-2 border-b border-blue-800">
+          {(['queue', 'related'] as const).map((id) => (
+            <button
+              key={id}
+              role="tab"
+              aria-selected={tab === id}
+              onClick={() => setTab(id)}
+              className={`font-display py-3 text-sm font-extrabold uppercase tracking-[0.16em] transition-colors ${
+                tab === id ? 'text-white' : 'text-blue-400'
+              }`}
+            >
+              {id === 'queue' ? 'Up next' : 'Related'}
+            </button>
+          ))}
+          <span aria-hidden className="np-tab-underline" style={{ transform: `translateX(${tab === 'queue' ? 0 : 100}%)` }} />
         </div>
       </div>
 
-      <ul className="px-2 pb-8">
-        {upNext.map((track, i) => (
-          <li key={`${track.id}-${i}`}>
-            <button
-              onClick={() => goTo(index + 1 + i)}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-blue-900"
-            >
-              <span className="w-5 shrink-0 text-center font-mono text-xs tabular-nums text-blue-400">
-                {index + 2 + i}
+      <div key={tab} role="tabpanel" className="route-in">
+        {tab === 'queue' ? (
+          <>
+            <div className="flex items-baseline justify-between px-5 pt-4">
+              <span className="font-display text-sm font-extrabold uppercase tracking-[0.1em] text-blue-400">
+                {upNext.length === 0
+                  ? 'End of queue'
+                  : `${upNext.length} ${upNext.length === 1 ? 'track' : 'tracks'} · ${formatClock(
+                      totalQueueSeconds(upNext.map((t) => t.duration)),
+                    )}`}
               </span>
-              <CoverArt kind="tracks" id={track.id} className="h-10 w-10 shrink-0 rounded-md" alt="" />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold text-white">{track.title}</span>
-                <span className="block truncate text-xs text-blue-400">{track.artist ?? 'Unknown Artist'}</span>
-              </span>
-              {i === 0 && (
-                <span className="font-display shrink-0 border border-orange-600 px-1.5 py-0.5 text-[0.65rem] font-extrabold uppercase tracking-[0.14em] text-accent-ink">
-                  Next
-                </span>
-              )}
-            </button>
-          </li>
-        ))}
-      </ul>
+            </div>
+
+            <ul className="px-2 pb-8 pt-2">
+              {upNext.map((track, i) => {
+                const at = index + 1 + i;
+                const isFolding = folding?.at === at && folding.id === track.id;
+                return (
+                  <li
+                    key={`${track.id}-${at}`}
+                    className={`np-row-wrap motion-rise ${isFolding ? 'np-row-collapse' : ''}`}
+                    style={{ '--i': i } as React.CSSProperties}
+                  >
+                    <div className="np-row-inner">
+                      <div className="flex items-center rounded-xl transition-colors hover:bg-blue-900">
+                        <button
+                          onClick={() => goTo(at)}
+                          className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-3 py-2.5 text-left"
+                        >
+                          <span className="w-5 shrink-0 text-center font-mono text-xs tabular-nums text-blue-400">
+                            {at + 1}
+                          </span>
+                          <CoverArt kind="tracks" id={track.id} className="h-10 w-10 shrink-0 rounded-md" alt="" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-semibold text-white">{track.title}</span>
+                            <span className="block truncate text-xs text-blue-400">{track.artist ?? 'Unknown Artist'}</span>
+                          </span>
+                          {i === 0 && (
+                            <span className="font-display shrink-0 border border-orange-600 px-1.5 py-0.5 text-[0.65rem] font-extrabold uppercase tracking-[0.14em] text-accent-ink">
+                              Next
+                            </span>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => fold(at)}
+                          className="mr-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-blue-400 transition-[background-color,transform] duration-200 ease-[var(--ease-spring)] active:scale-90 active:bg-blue-800"
+                          aria-label={`Remove ${track.title} from the queue`}
+                        >
+                          <CloseIcon className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        ) : (
+          <div className="px-4 pb-8 pt-4">
+            <RelatedTab current={current} playQueue={player.playQueue} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

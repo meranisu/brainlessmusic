@@ -12,6 +12,8 @@ import {
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { useIsPhone } from '../hooks/useIsPhone';
+import { useSwapClass } from '../hooks/useSwapClass';
+import { Presence } from './Presence';
 import { apiClient, buildCoverUrl, buildStreamUrl, prepareTrack, reportPlaybackFailure } from '../lib/apiClient';
 import {
   describeMediaError,
@@ -32,6 +34,7 @@ import {
 import { CoverArt } from './CoverArt';
 import { FavoriteButton, useFavoriteIds } from './FavoriteButton';
 import {
+  ChevronDownIcon,
   CloseIcon,
   DataSaverIcon,
   PauseIcon,
@@ -44,6 +47,7 @@ import {
   VolumeIcon,
   VolumeMutedIcon,
 } from './icons';
+import { DesktopNowPlaying } from './DesktopNowPlaying';
 import { NowPlaying } from './NowPlaying';
 import { useRoom } from './RoomProvider';
 import { expectedPositionMs, type RoomState } from '../lib/roomClient';
@@ -256,6 +260,8 @@ export interface PlayerContextValue {
   next: () => void;
   previous: () => void;
   goTo: (index: number) => void;
+  /** Drops a song from the queue. Not the one playing; in a room it asks the room to. */
+  removeAt: (index: number) => void;
   seek: (seconds: number) => void;
   cycleRepeat: () => void;
   toggleShuffle: () => void;
@@ -310,6 +316,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const onAttractScreen = !user || pathname.startsWith('/login');
   // Derived, not stored: widening past `md` with the sheet open would otherwise strand the user with no controls.
   const isSheetOpen = isExpanded && isPhone;
+  // Wide screens get the full view instead of the sheet, with the bar still showing under it.
+  const isDesktopViewOpen = isExpanded && !isPhone;
+
+  // Any route change closes the desktop view, so a link inside it, or the browser's back, lands on a visible page.
+  useEffect(() => {
+    setIsExpanded(false);
+  }, [pathname]);
 
   // Two elements that trade places at each song boundary (A56): `audioRef` is the one playing, everything else reads
   // it; `spareRef` loads the next song ahead of time, and during a crossfade it is the song fading out.
@@ -398,6 +411,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   isBufferingRef.current = isBuffering;
 
   const current = queue[index] ?? null;
+  const swapClass = useSwapClass(index);
 
   useEffect(() => {
     scrubbingRef.current = isScrubbing;
@@ -982,6 +996,29 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       pendingSkipRef.current = null;
       void load(tracks, at);
     });
+  }
+
+  function removeAt(at: number) {
+    if (at < 0 || at >= queue.length || at === index) return;
+    const room = roomRef.current.room;
+    if (room) {
+      const entry = room.queue[at];
+      if (entry) roomRef.current.send({ op: 'remove', entryId: entry.entryId });
+      return;
+    }
+    const removed = queue[at];
+    // The spare may already hold the song that is leaving; the boundary then loads whatever is next instead.
+    if (at === index + 1) {
+      clearTransition();
+      retireSpare();
+    }
+    const original = originalQueueRef.current;
+    if (original) {
+      const at0 = original.findIndex((t) => t.id === removed.id);
+      if (at0 >= 0) originalQueueRef.current = original.filter((_, i) => i !== at0);
+    }
+    setQueue((q) => q.filter((_, i) => i !== at));
+    if (at < index) setIndex((i) => i - 1);
   }
 
   function next() {
@@ -1924,6 +1961,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     previous,
     // Picking a queue row is a user's skip, so it gets the short fade.
     goTo: jumpTo,
+    removeAt,
     seek,
     cycleRepeat,
     toggleShuffle,
@@ -1944,11 +1982,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       {/* Phone: a strip that opens the full view. The bar below is the same
           player at a size that only works with a mouse and a wide window. */}
       {user && current && !onAttractScreen && !isSheetOpen && (
-        <div className="player-deck no-sweep fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 px-4 py-2.5 md:hidden">
+        <div className="player-deck deck-rise no-sweep fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 px-4 py-2.5 md:hidden">
           <span
             aria-hidden
             className="absolute inset-x-0 top-0 h-0.5 origin-left bg-orange-600"
-            style={{ transform: `scaleX(${effectiveDuration ? currentTime / effectiveDuration : 0})` }}
+            style={{
+              transform: `scaleX(${effectiveDuration ? currentTime / effectiveDuration : 0})`,
+              transition: 'transform 300ms linear',
+            }}
           />
           {/* Sibling buttons: a control inside a control is invalid. */}
           <button
@@ -1956,6 +1997,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             className="flex min-w-0 flex-1 items-center gap-3 text-left"
             aria-label={`Now playing: ${current.title}. Open the player.`}
           >
+            <span key={current.id} className={`${swapClass} flex min-w-0 flex-1 items-center gap-3`}>
             <CoverArt kind="tracks" id={current.id} className="h-10 w-10 shrink-0 rounded-md" alt="" />
             <span className="min-w-0 flex-1">
               <span className="player-title block truncate text-sm text-white">{current.title}</span>
@@ -1968,6 +2010,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 {current.artist ?? 'Unknown Artist'}
               </span>
             </span>
+            </span>
           </button>
           <button
             onClick={toggle}
@@ -1975,17 +2018,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             className={`player-play-btn pulse-ring h-10 w-10 shrink-0 ${isPlaying ? 'is-playing' : ''}`}
             aria-label={isPlaying ? 'Pause' : 'Play'}
           >
-            {isPlaying ? <PauseIcon className="h-4 w-4" /> : <PlayIcon className="h-4 w-4" />}
+            <span key={isPlaying ? 'pause' : 'play'} className="icon-swap">
+              {isPlaying ? <PauseIcon className="h-4 w-4" /> : <PlayIcon className="h-4 w-4" />}
+            </span>
           </button>
         </div>
       )}
 
-      {user && current && !onAttractScreen && isSheetOpen && (
-        <NowPlaying player={value} onCollapse={() => setIsExpanded(false)} />
-      )}
+      <Presence value={user && current && !onAttractScreen && isSheetOpen ? value : null} exitMs={240}>
+        {(player) => <NowPlaying player={player} onCollapse={() => setIsExpanded(false)} />}
+      </Presence>
+
+      <Presence value={user && current && !onAttractScreen && isDesktopViewOpen ? value : null} exitMs={240}>
+        {(player) => <DesktopNowPlaying player={player} onClose={() => setIsExpanded(false)} />}
+      </Presence>
 
       {user && current && !onAttractScreen && (
-        <div className="player-deck fixed inset-x-0 bottom-0 z-40 hidden md:block">
+        <div className="player-deck deck-rise fixed inset-x-0 bottom-0 z-40 hidden md:block">
           <div className="page-shell flex items-center gap-4 px-6 py-3">
             <div className="flex shrink-0 items-center gap-2.5">
               <button
@@ -2005,10 +2054,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               >
                 {isLoading ? (
                   <span className="text-sm leading-none">…</span>
-                ) : isPlaying ? (
-                  <PauseIcon className="h-4.5 w-4.5" />
                 ) : (
-                  <PlayIcon className="h-4.5 w-4.5" />
+                  <span key={isPlaying ? 'pause' : 'play'} className="icon-swap">
+                    {isPlaying ? <PauseIcon className="h-4.5 w-4.5" /> : <PlayIcon className="h-4.5 w-4.5" />}
+                  </span>
                 )}
               </button>
               <button
@@ -2021,12 +2070,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               </button>
             </div>
 
-            <CoverArt kind="tracks" id={current.id} className="h-11 w-11" alt="" />
+            <button
+              onClick={() => setIsExpanded((open) => !open)}
+              className="shrink-0 rounded-md transition-transform duration-200 ease-[var(--ease-spring)] hover:scale-105 active:scale-95"
+              aria-label={isDesktopViewOpen ? 'Close the full player' : 'Open the full player'}
+              title={isDesktopViewOpen ? 'Close the full player' : 'Open the full player'}
+            >
+              <CoverArt key={current.id} kind="tracks" id={current.id} className={`h-11 w-11 ${swapClass}`} alt="" />
+            </button>
 
             <div className="flex min-w-0 flex-1 flex-col gap-1.5">
               <div className="flex items-baseline gap-2">
-                <span className="player-title truncate text-base text-white">{current.title}</span>
-                <span className="truncate text-xs text-blue-300">{current.artist ?? 'Unknown Artist'}</span>
+                <span key={current.id} className={`${swapClass} flex min-w-0 items-baseline gap-2`}>
+                  <span className="player-title truncate text-base text-white">{current.title}</span>
+                  <span className="truncate text-xs text-blue-300">{current.artist ?? 'Unknown Artist'}</span>
+                </span>
                 <span className="ml-auto flex shrink-0 items-center gap-2 font-mono text-xs">
                   {/* The one accent in this row while in a room: it explains why shuffle and repeat are off. */}
                   {roomCtx.room && (
@@ -2049,7 +2107,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                   )}
                   {queue.length > 1 && (
                     <span className="text-blue-400">
-                      {index + 1}/{queue.length}
+                      <span key={index} className="motion-bump">
+                        {index + 1}
+                      </span>
+                      /{queue.length}
                     </span>
                   )}
                 </span>
@@ -2160,6 +2221,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                   />
                 </div>
               </div>
+              <button
+                onClick={() => setIsExpanded((open) => !open)}
+                className="player-pill h-9 w-9 ml-1"
+                aria-pressed={isDesktopViewOpen}
+                aria-label={isDesktopViewOpen ? 'Close the full player' : 'Open the full player'}
+                title={isDesktopViewOpen ? 'Close the full player' : 'Open the full player'}
+              >
+                <ChevronDownIcon
+                  className={`h-4 w-4 transition-transform duration-300 ease-[var(--ease-spring)] ${isDesktopViewOpen ? '' : 'rotate-180'}`}
+                />
+              </button>
               <button onClick={stopAndForget} className="player-pill h-9 w-9 ml-1" aria-label="Close player">
                 <CloseIcon className="h-4 w-4" />
               </button>

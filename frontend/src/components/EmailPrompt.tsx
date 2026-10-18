@@ -56,12 +56,12 @@ function EmailDialog({ onLater }: { onLater: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+    <div className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <form
         role="dialog"
         aria-labelledby="email-prompt-heading"
         onSubmit={onSubmit}
-        className="card w-full max-w-sm p-5"
+        className="motion-pop card w-full max-w-sm p-5"
       >
         <h2 id="email-prompt-heading" className="text-sm font-semibold text-white">
           Add your email

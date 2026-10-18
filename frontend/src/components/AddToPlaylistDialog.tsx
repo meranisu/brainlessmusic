@@ -205,7 +205,7 @@ export function AddToPlaylistDialog({ trackId, trackTitle, trackArtist, onClose 
   // On <body>, so the sticky site header (its own stacking context) can't sit on top of the dimmed page.
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center sm:p-4"
+      className="motion-scrim fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
@@ -216,7 +216,7 @@ export function AddToPlaylistDialog({ trackId, trackTitle, trackArtist, onClose 
         tabIndex={-1}
         onKeyDown={onKeyDown}
         onClick={(e) => e.stopPropagation()}
-        className="card flex max-h-[88dvh] w-full flex-col rounded-b-none outline-none sm:max-w-md sm:rounded-b-xl"
+        className="motion-sheet card flex max-h-[88dvh] w-full flex-col rounded-b-none outline-none sm:max-w-md sm:rounded-b-xl"
       >
         {/* The song, so it's clear what is being added. */}
         <div className="flex items-center gap-3 border-b border-blue-800 p-4">

@@ -126,7 +126,7 @@ export function SmartPlaylistEditor({ mode, onClose }: { mode: EditorMode; onClo
   const stale = askedKey !== builtKey || preview.isPlaceholderData;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center sm:p-4" onClick={onClose}>
+    <div className="motion-scrim fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center sm:p-4" onClick={onClose}>
       <div
         ref={dialogRef}
         role="dialog"
@@ -134,7 +134,7 @@ export function SmartPlaylistEditor({ mode, onClose }: { mode: EditorMode; onClo
         aria-labelledby={titleId}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className="card flex max-h-[92dvh] w-full flex-col rounded-b-none outline-none sm:max-w-2xl sm:rounded-b-xl"
+        className="motion-sheet card flex max-h-[92dvh] w-full flex-col rounded-b-none outline-none sm:max-w-2xl sm:rounded-b-xl"
       >
         <form onSubmit={submit} noValidate className="flex min-h-0 flex-1 flex-col">
           <div className="flex items-start gap-3 border-b border-blue-800 p-4">

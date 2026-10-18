@@ -18,6 +18,8 @@ import { arrivalDuration, interstitialDuration, prefersReducedMotion } from '../
 import { getItem, getJSON, removeItem, setItem, setJSON } from '../lib/safeStorage';
 import type { User } from '../types/api';
 
+/** One beat. Keep in step with `--beat` and the `login-leave-*` keyframes in index.css. */
+const LOGIN_EXIT_MS = 400;
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Resets the screen after two idle minutes, so a shared device isn't left showing a username. Input events reset it. */
@@ -144,6 +146,8 @@ export function AccountSelectPage() {
   const [welcomeName, setWelcomeName] = useState<string | null>(null);
   /** Five minutes with nobody touching this screen. */
   const [idleTimedOut, setIdleTimedOut] = useState(false);
+  /** The cards are sliding off on the way back to the title screen. */
+  const [leavingToTitle, setLeavingToTitle] = useState(false);
 
   const [arriving, setArriving] = useState(() => arrivalDuration() > 0);
 
@@ -251,9 +255,33 @@ export function AccountSelectPage() {
     return () => clearTimeout(done);
   }, [idleTimedOut, navigate]);
 
+  // Escape goes back to the title screen from the plain sign-in view, unless a field, dialog or keypad has the keyboard.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      const tag = (document.activeElement?.tagName ?? '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea') return;
+      if (document.querySelector('[role="dialog"], .numpad-scrim')) return;
+      if (showRegister || pendingPasscodeSetup || handedCode || passcodeKeypadOpen) return;
+      void backToTitle();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showRegister, pendingPasscodeSetup, handedCode, passcodeKeypadOpen, committing, leavingToTitle, startingRegister]);
+
   // Signed in already. Exempt while committing, prompting for a passcode or registering: `user` is set the moment
   // those requests resolve, before this page decides its next step.
   if (user && !committing && !pendingPasscodeSetup && !showRegister && !handedCode) return <Navigate to="/" replace />;
+
+  /** Slides the cards off, then returns to the title screen the way the idle timeout does (its veil plays). */
+  async function backToTitle() {
+    if (committing || leavingToTitle || startingRegister) return;
+    setLeavingToTitle(true);
+    if (!prefersReducedMotion()) await delay(LOGIN_EXIT_MS);
+    markAtTitle();
+    navigate('/', { replace: true });
+  }
 
   /** Shared tail for both cards: hold on the welcome text, then land in the app. */
   async function finishEntry(name: string) {
@@ -482,13 +510,35 @@ export function AccountSelectPage() {
   const recede = (mine: Committing) => (committing && committing !== mine ? 'profile-card-recede' : '');
   // Cards fade for `startingRegister` while the header stays, so this is separate from `recede`.
   const gridFade = (mine: Committing) => (startingRegister ? 'profile-card-recede' : recede(mine));
+  // Cards slide in from their own sides, and back out the same way on the way to the title screen.
+  const edge = (side: 'left' | 'right') =>
+    leavingToTitle ? `login-leave-${side}` : committing || startingRegister ? '' : `login-from-${side}`;
+  const inPlainView = !pendingPasscodeSetup && !showRegister && !startingRegister && !committing && !leavingToTitle;
 
   return (
     <div className="app-ground relative min-h-screen overflow-hidden text-white">
       <ShellBackdrop vivid />
 
+      {inPlainView && (
+        <button
+          type="button"
+          onClick={() => void backToTitle()}
+          aria-label="Back to the title screen"
+          className="login-back btn-ghost btn-sm group absolute left-3 top-3 z-20 gap-1.5 sm:left-5 sm:top-5"
+        >
+          <span aria-hidden className="inline-block transition-transform duration-200 ease-[var(--ease-spring)] group-hover:-translate-x-1">
+            ←
+          </span>
+          Back
+        </button>
+      )}
+
       <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-4 py-6 sm:px-6">
-        <div className={`profile-stage-1 mb-4 flex flex-col items-center gap-4 text-center ${recede(null)}`}>
+        <div
+          className={`profile-stage-1 mb-4 flex flex-col items-center gap-4 text-center ${
+            leavingToTitle ? 'login-leave-up' : recede(null)
+          }`}
+        >
           <span className="flex items-center gap-3">
             <BrandMark className="h-10 w-10 border-2 border-blue-300 sm:h-12 sm:w-12" />
             <Wordmark className="text-2xl text-white sm:text-3xl" />
@@ -542,7 +592,7 @@ export function AccountSelectPage() {
             <div
               className={`profile-stage-2 profile-card-glow card p-6 sm:p-7 ${
                 committing === 'login' ? 'profile-card-commit' : gridFade('login')
-              }`}
+              } ${edge('left')}`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -583,7 +633,7 @@ export function AccountSelectPage() {
               </div>
 
               {authMode === 'password' ? (
-                <form onSubmit={handleLogin} className="mt-5">
+                <form key="password" onSubmit={handleLogin} className="login-swap mt-5">
                   <label className="mb-1 block text-sm text-blue-200" htmlFor="username">
                     Username or email
                   </label>
@@ -611,7 +661,7 @@ export function AccountSelectPage() {
                   />
 
                   {loginError && (
-                    <p className="mb-4 rounded-md border border-red-700 bg-red-700 px-3 py-2 text-sm text-white">
+                    <p key={loginError} className="login-error mb-4 rounded-md border border-red-700 bg-red-700 px-3 py-2 text-sm text-white">
                       {loginError}
                     </p>
                   )}
@@ -625,7 +675,7 @@ export function AccountSelectPage() {
                   </button>
                 </form>
               ) : (
-                <form onSubmit={submitPasscodeLogin} className="mt-5">
+                <form key="passcode" onSubmit={submitPasscodeLogin} className="login-swap mt-5">
                   <label className="mb-1 block text-sm text-blue-200" htmlFor="passcode-username">
                     Username or email
                   </label>
@@ -697,7 +747,7 @@ export function AccountSelectPage() {
               <div
                 className={`profile-stage-3 profile-card-glow card p-6 sm:p-7 ${
                   committing === 'guest' ? 'profile-card-commit' : gridFade('guest')
-                }`}
+                } ${edge('right')}`}
               >
                 {handedCode ? (
                   <>

@@ -15,6 +15,7 @@ import { describeRules } from '../lib/smartRules';
 import type { PlaylistDetail, PlaylistSummary } from '../types/api';
 import { PlayIcon } from '../components/icons';
 import { Skeleton, SkeletonDetailHeader, SkeletonTrackRows } from '../components/Skeleton';
+import { Presence } from '../components/Presence';
 
 /** A shuffled copy, for the Shuffle button: the queue starts at a random song and runs in random order. */
 function shuffled<T>(items: T[]): T[] {
@@ -510,16 +511,18 @@ export function PlaylistDetailPage() {
         </div>
       )}
 
-      {editingRules && data.rules && (
-        <SmartPlaylistEditor
-          mode={{ kind: 'edit', playlistId, saved: data.rules }}
-          onClose={() => setEditingRules(false)}
-        />
-      )}
+      <Presence value={editingRules && data.rules ? data.rules : null}>
+        {(rules) => (
+          <SmartPlaylistEditor
+            mode={{ kind: 'edit', playlistId, saved: rules }}
+            onClose={() => setEditingRules(false)}
+          />
+        )}
+      </Presence>
 
       {confirmingDelete && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+          className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/60"
           onClick={() => setConfirmingDelete(false)}
         >
           <div className="card w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>

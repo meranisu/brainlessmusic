@@ -69,6 +69,11 @@ theme (Q45, `frontend/src/index.css:3-6`). Accent-coloured text on a card uses `
 - The mosaic's wavefront burns orange on the downbeat (`TitleScreenPanel.tsx:37-38`).
 - On the title screen and login page, themes cycle with a 4 s cross-fade. A manual pick in Options switches instantly
   (`index.css:239-241`). The cycle is skipped under reduced motion (`useThemeCycle.ts:18`).
+- Desktop Now Playing (2026-10-18) is the one place a colour comes from the cover: a flat wash of its main colour, capped so white
+  text stays readable, fading into the theme ground. No blur of the artwork, no glow.
+- App motion (2026-10-18): overlays pair an enter with an exit, on `--ease-spring` for pops and `--ease-out-expo` for slides
+  (`index.css`, "Motion kit"). Durations: press 160 ms, overlay 240 ms, sheet 400 ms. It fires on a user action or a state change and
+  never loops. Every new animation needs a line in the reduced-motion blocks at the end of `index.css`.
 
 ## Android
 

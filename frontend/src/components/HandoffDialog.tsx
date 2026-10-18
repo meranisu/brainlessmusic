@@ -65,14 +65,14 @@ export function HandoffDialog({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+    <div className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="handoff-title"
         tabIndex={-1}
-        className="card w-full max-w-sm p-5 outline-none"
+        className="motion-pop card w-full max-w-sm p-5 outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="handoff-title" className="text-sm font-semibold text-white">Use this account on another device</h2>

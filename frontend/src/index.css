@@ -2191,7 +2191,7 @@
   border: 1px solid var(--color-blue-700);
   background: color-mix(in oklab, var(--color-blue-800) 55%, transparent);
   color: var(--color-blue-200);
-  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease, transform 90ms ease;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease, transform 260ms var(--ease-spring);
 }
 
 .player-transport-btn:hover:not(:disabled) {
@@ -2215,7 +2215,7 @@
   background: linear-gradient(180deg, var(--color-orange-500), var(--color-orange-600));
   color: var(--color-on-accent);
   box-shadow: 0 3px 0 color-mix(in oklab, black 40%, var(--color-orange-600));
-  transition: transform 90ms ease, box-shadow 90ms ease;
+  transition: transform 260ms var(--ease-spring), box-shadow 260ms var(--ease-spring), filter 120ms ease;
 }
 
 .player-play-btn:hover:not(:disabled) {
@@ -2223,7 +2223,8 @@
 }
 
 .player-play-btn:active:not(:disabled) {
-  transform: translateY(2px);
+  transition-duration: 70ms;
+  transform: translateY(2px) scale(0.92);
   box-shadow: 0 1px 0 color-mix(in oklab, black 40%, var(--color-orange-600));
 }
 
@@ -2303,6 +2304,8 @@
   position: absolute;
   inset: 0;
   width: var(--fill, 0%);
+  /* Linear and a touch longer than the ~250ms timeupdate, so the bar glides instead of ticking. */
+  transition: width 300ms linear;
   background: linear-gradient(
     90deg,
     color-mix(in oklab, var(--color-orange-600) 65%, var(--color-blue-500)),
@@ -2359,6 +2362,12 @@
   border: none;
   background: var(--color-orange-500);
   box-shadow: 0 0 0 2px var(--color-blue-950);
+  transition: transform 200ms var(--ease-spring);
+}
+
+.player-meter-range:hover::-webkit-slider-thumb,
+.player-meter-range:active::-webkit-slider-thumb {
+  transform: scale(1.25);
 }
 
 .player-meter-range::-moz-range-thumb {
@@ -2368,6 +2377,12 @@
   border-radius: 999px;
   background: var(--color-orange-500);
   box-shadow: 0 0 0 2px var(--color-blue-950);
+  transition: transform 200ms var(--ease-spring);
+}
+
+.player-meter-range:hover::-moz-range-thumb,
+.player-meter-range:active::-moz-range-thumb {
+  transform: scale(1.25);
 }
 
 /* Unlayered rules beat Tailwind utilities, so the disabled cursor has to be set here. */
@@ -2707,4 +2722,217 @@
     border-top: 1px solid var(--color-blue-800);
     background-color: color-mix(in oklab, var(--color-blue-900) 75%, transparent);
   }
+}
+
+/* ---- Motion kit ----------------------------------------------------------------------------------------------
+   Overlays pair an enter animation (`data-state="open"`) with an exit (`data-state="closing"`). `usePresence`
+   holds the element mounted for the exit. Durations sit on the beat: press 160ms, overlay 240ms, sheet 400ms. */
+:root {
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-press: 160ms;
+  --dur-overlay: 240ms;
+  --dur-sheet: 400ms;
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-danger,
+.btn-ghost {
+  transition-property: color, background-color, border-color, transform;
+  transition-duration: var(--dur-press);
+  transition-timing-function: var(--ease-spring);
+}
+.btn-primary:active:not(:disabled),
+.btn-secondary:active:not(:disabled),
+.btn-danger:active:not(:disabled),
+.btn-ghost:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.motion-scrim { animation: motion-fade-in var(--dur-overlay) ease-out both; }
+.motion-scrim[data-state='closing'], [data-presence='closing'] .motion-scrim { animation: motion-fade-out var(--dur-overlay) ease-in both; }
+
+.motion-pop { animation: motion-pop-in var(--dur-overlay) var(--ease-spring) both; }
+.motion-pop[data-state='closing'], [data-presence='closing'] .motion-pop { animation: motion-pop-out 180ms ease-in both; }
+
+.motion-sheet { animation: motion-sheet-in var(--dur-sheet) var(--ease-out-expo) both; }
+.motion-sheet[data-state='closing'], [data-presence='closing'] .motion-sheet { animation: motion-sheet-out var(--dur-overlay) ease-in both; }
+
+.motion-drawer { animation: motion-drawer-in var(--dur-sheet) var(--ease-out-expo) both; }
+.motion-drawer[data-state='closing'], [data-presence='closing'] .motion-drawer { animation: motion-drawer-out var(--dur-overlay) ease-in both; }
+
+@media (min-width: 640px) {
+  .motion-sheet { animation-name: motion-pop-in; animation-timing-function: var(--ease-spring); animation-duration: var(--dur-overlay); }
+  .motion-sheet[data-state='closing'], [data-presence='closing'] .motion-sheet { animation-name: motion-pop-out; animation-timing-function: ease-in; animation-duration: 180ms; }
+}
+
+[data-presence='closing'], .motion-menu[data-state='closing'] { pointer-events: none; }
+
+.motion-menu { transform-origin: top right; }
+.motion-menu { animation: motion-menu-in 180ms var(--ease-spring) both; }
+.motion-menu[data-state='closing'] { animation: motion-fade-out 120ms ease-in both; }
+
+/* Staggered rise. `--i` is the item index, capped at 12 so a long list never waits. */
+.motion-rise {
+  animation: motion-rise-in 360ms var(--ease-out-expo) both;
+  animation-delay: calc(min(var(--i, 0), 12) * 40ms);
+}
+
+.motion-toast { animation: motion-toast-in 320ms var(--ease-spring) both; }
+.motion-toast[data-state='closing'] { animation: motion-toast-out var(--dur-overlay) ease-in both; }
+
+.route-in { animation: route-in 280ms var(--ease-out-expo) both; }
+
+@keyframes motion-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes motion-fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes motion-pop-in { from { opacity: 0; transform: scale(0.92) translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes motion-pop-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(0.96) translateY(4px); } }
+@keyframes motion-sheet-in { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes motion-sheet-out { from { transform: none; } to { transform: translateY(100%); } }
+@keyframes motion-drawer-in { from { transform: translateX(100%); } to { transform: none; } }
+@keyframes motion-drawer-out { from { transform: none; } to { transform: translateX(100%); } }
+@keyframes motion-menu-in { from { opacity: 0; transform: scale(0.9) translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes motion-rise-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes motion-toast-in { from { opacity: 0; transform: translateY(16px) scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes motion-toast-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(8px); } }
+@keyframes route-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-scrim, .motion-pop, .motion-sheet, .motion-drawer, .motion-menu, .motion-rise, .motion-toast, .route-in,
+  .motion-scrim[data-state], .motion-pop[data-state], .motion-sheet[data-state], .motion-drawer[data-state],
+  .motion-menu[data-state], .motion-toast[data-state], [data-presence='closing'] [class*='motion-'] {
+    animation: none !important;
+  }
+  .btn-primary:active:not(:disabled),
+  .btn-secondary:active:not(:disabled),
+  .btn-danger:active:not(:disabled),
+  .btn-ghost:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* ---- Player motion ---- */
+/* The bars rise when a song starts, and the phone strip again when the full view closes. */
+.deck-rise { animation: deck-rise var(--dur-sheet) var(--ease-out-expo) both; }
+@keyframes deck-rise { from { transform: translateY(100%); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* Full-screen Now Playing: slides up like a sheet, whatever the width. */
+.motion-slideup { animation: motion-sheet-in var(--dur-sheet) var(--ease-out-expo) backwards; }
+.motion-slideup[data-state='closing'], [data-presence='closing'] .motion-slideup { animation: motion-slideup-out var(--dur-overlay) ease-in both; }
+@keyframes motion-slideup-out { from { transform: translateY(var(--drag, 0px)); } to { transform: translateY(100%); } }
+/* The cover lands a beat after the sheet starts to move. */
+.np-art { animation: np-art-in 520ms var(--ease-spring) 120ms both; }
+@keyframes np-art-in { from { opacity: 0; transform: scale(0.88); } to { opacity: 1; transform: none; } }
+
+/* New song: the title block and cover slide in from the side the skip came from. */
+.track-swap-fwd { animation: track-swap-fwd 360ms var(--ease-out-expo) both; }
+.track-swap-back { animation: track-swap-back 360ms var(--ease-out-expo) both; }
+@keyframes track-swap-fwd { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+@keyframes track-swap-back { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
+
+/* Play and pause icons swap with a quarter turn and a pop. */
+.icon-swap { display: inline-flex; animation: icon-swap 260ms var(--ease-spring) both; }
+@keyframes icon-swap { from { opacity: 0; transform: rotate(-70deg) scale(0.5); } to { opacity: 1; transform: none; } }
+
+/* Counter bump when the queue position changes. */
+.motion-bump { display: inline-block; animation: motion-bump 320ms var(--ease-spring) both; }
+@keyframes motion-bump { 0% { transform: scale(1); } 40% { transform: scale(1.35); } 100% { transform: scale(1); } }
+
+/* Heart: pops once on favouriting, with six dots flying out. */
+.heart-pop { animation: heart-pop 420ms var(--ease-spring) both; }
+@keyframes heart-pop { 0% { transform: scale(0.6); } 55% { transform: scale(1.35); } 100% { transform: scale(1); } }
+.heart-burst { position: absolute; inset: 0; pointer-events: none; }
+.heart-burst i {
+  position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px;
+  border-radius: 999px; background: var(--color-orange-400);
+  animation: heart-dot 480ms ease-out both;
+}
+@keyframes heart-dot {
+  from { opacity: 1; transform: rotate(var(--a)) translateY(0) scale(1); }
+  to { opacity: 0; transform: rotate(var(--a)) translateY(-16px) scale(0.3); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-rise, .motion-slideup, .np-art, .track-swap-fwd, .track-swap-back, .icon-swap, .motion-bump, .heart-pop,
+  .heart-burst i, [data-presence='closing'] .motion-slideup {
+    animation: none !important;
+  }
+  .player-meter-fill { transition: none; }
+  .player-play-btn:active:not(:disabled) { transform: translateY(2px); }
+}
+
+/* ---- Login: sides, exit, back button ---- */
+.login-from-left { animation: login-from-left 420ms var(--ease-out-expo) 120ms both; }
+.login-from-right { animation: login-from-right 420ms var(--ease-out-expo) 240ms both; }
+@keyframes login-from-left { from { opacity: 0; transform: translateX(-36px); } to { opacity: 1; transform: none; } }
+@keyframes login-from-right { from { opacity: 0; transform: translateX(36px); } to { opacity: 1; transform: none; } }
+
+/* One beat out toward the title screen. `forwards`, so the cards stay gone until the route changes. */
+.login-leave-left { animation: login-leave-left var(--beat) cubic-bezier(0.4, 0, 1, 1) forwards; }
+.login-leave-right { animation: login-leave-right var(--beat) cubic-bezier(0.4, 0, 1, 1) forwards; }
+.login-leave-up { animation: login-leave-up var(--beat) cubic-bezier(0.4, 0, 1, 1) forwards; }
+@keyframes login-leave-left { to { opacity: 0; transform: translateX(-48px); } }
+@keyframes login-leave-right { to { opacity: 0; transform: translateX(48px); } }
+@keyframes login-leave-up { to { opacity: 0; transform: translateY(-16px); } }
+
+.login-back { animation: motion-fade-in 400ms ease-out 500ms both; }
+
+/* Password and passcode forms swap with a short rise instead of a jump. */
+.login-swap { animation: motion-rise-in 280ms var(--ease-out-expo) both; }
+
+/* A refused sign-in: the message drops in with one shake. */
+.login-error { animation: login-shake 420ms ease-out both; }
+@keyframes login-shake {
+  0% { opacity: 0; transform: translateX(0); }
+  15% { opacity: 1; transform: translateX(-8px); }
+  35% { transform: translateX(7px); }
+  55% { transform: translateX(-4px); }
+  75% { transform: translateX(2px); }
+  100% { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-from-left, .login-from-right, .login-back, .login-swap, .login-error { animation: none; }
+  .login-leave-left, .login-leave-right, .login-leave-up { animation-duration: 1ms; }
+}
+
+/* ---- Desktop Now Playing ---- */
+/* Registered, so the wash flows from one cover's colour to the next instead of snapping. */
+@property --np-tint { syntax: '<color>'; inherits: true; initial-value: #080e28; }
+/* A flat field of the cover's colour fading into the theme ground. No blur, no glow. */
+.np-desktop {
+  background: linear-gradient(180deg, color-mix(in oklab, var(--np-tint) 45%, var(--app-ground)) 0%, var(--app-ground) 85%);
+  transition: --np-tint 600ms ease;
+}
+
+.motion-view { animation: motion-view-in var(--dur-sheet) var(--ease-out-expo) backwards; }
+[data-presence='closing'] .motion-view { animation: motion-view-out var(--dur-overlay) ease-in both; }
+@keyframes motion-view-in { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+@keyframes motion-view-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(24px); } }
+
+/* The tabs' underline slides between the two halves. */
+.np-tab-underline {
+  position: absolute; left: 0; bottom: -1px; width: 50%; height: 2px;
+  background: var(--color-orange-500);
+  transition: transform 320ms var(--ease-spring);
+}
+
+/* A removed row folds away: the grid row shrinks to nothing while its content fades. */
+.np-row-wrap { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 220ms ease; }
+.np-row-inner { min-height: 0; overflow: hidden; transition: opacity 180ms ease; }
+.np-row-collapse { grid-template-rows: 0fr; }
+.np-row-collapse .np-row-inner { opacity: 0; }
+
+/* Level meter on the current row. Moves only while the song plays. */
+.np-eq { display: inline-flex; align-items: flex-end; gap: 2px; width: 1.25rem; height: 1rem; flex-shrink: 0; }
+.np-eq i { flex: 1; height: 35%; border-radius: 1px; background: var(--color-orange-500); transform-origin: bottom; }
+.np-eq.is-playing i { animation: np-eq 640ms ease-in-out infinite alternate; }
+.np-eq.is-playing i:nth-child(2) { animation-duration: 480ms; animation-delay: -160ms; }
+.np-eq.is-playing i:nth-child(3) { animation-duration: 560ms; animation-delay: -320ms; }
+@keyframes np-eq { from { height: 25%; } to { height: 100%; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-view, [data-presence='closing'] .motion-view, .np-eq.is-playing i { animation: none !important; }
+  .np-desktop, .np-tab-underline, .np-row-wrap, .np-row-inner { transition: none; }
 }

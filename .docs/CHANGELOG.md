@@ -4,6 +4,60 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-18: Desktop Now Playing view (A222)
+
+- New `DesktopNowPlaying.tsx`, md and up: cover, title, artist and album links, like and add to playlist on the left; tabs Up next
+  and Related on the right. Opens from the bar's cover or a new chevron at its right end, closes with the chevron, Escape (unless a
+  dialog is open) or any route change. The bar stays under it. Phones keep the sheet.
+- Up next: current song with a level meter that moves only while playing, then the upcoming songs; click to jump, X to remove.
+  The row folds away over 220 ms, then the queue drops it. Related: album songs (play from there through `playQueue`) and the
+  artist's other albums, using the existing `['album', id]` and `['artist', id]` queries; empty cases say why.
+- `PlayerBar`: `removeAt(index)` on the context. Refuses the playing song. In a room it sends `{ op: 'remove', entryId }`. Otherwise it
+  edits `queue` and `originalQueueRef`, adjusts `index` for an earlier removal, and clears the spare and the pending gapless
+  boundary when the next song is the one removed.
+- `useCoverTint`: 16x16 canvas average of the cover thumb, weighted by saturation, brightest channel capped at 150; null on a
+  tainted canvas. `--np-tint` is a registered `<color>`, so the wash fades between songs over 600 ms. Flat gradient into
+  `--app-ground`, no blur.
+- Phone sheet (`NowPlaying.tsx`) gets the same: Up next and Related tabs with the sliding underline, an always-visible X on each
+  upcoming row (44 px target, same fold), and Related. `RelatedTab.tsx` and `useFoldRemove.ts` are shared with the desktop view.
+  Any route change now closes the sheet too, so a Related link lands on its page.
+- Verified: `npx tsc -b`, `npm run build`, no lint warnings in the new files. In Chromium at 1280x800 against an isolated backend
+  on a scratch copy of the dev DB (19 songs, one artist, a second album added in the copy only): open from the bar, close by
+  chevron, Escape and route change; tabs; remove the next song then Next plays the song after it; click a row jumps; Related lists
+  the album and links to the artist. At 390 px (touch, via CDP): the sheet opens, no desktop view or open button exists, the queue tab removes a row (18 to 17 tracks), Related lists the album, a real swipe down closes the sheet, a short drag springs back, and a Related link navigates and closes it. Reduced motion: opens
+  and closes with no animation. Not run: a real library, Firefox and Safari, a room (the room remove path), the add to playlist
+  dialog inside the view, `npm test` (no backend change).
+
+---
+
+## 2026-10-18: Web motion pass: overlays, route fades, player, login back button
+
+- `index.css` motion kit: tokens (`--ease-spring`, `--ease-out-expo`, `--dur-press/overlay/sheet`), classes `motion-scrim`,
+  `motion-pop`, `motion-sheet` (slides up on phones, pops from 640px), `motion-drawer`, `motion-menu`, `motion-rise` (stagger,
+  `--i` capped at 12), `motion-toast`, `route-in`. Buttons squish on press. One reduced-motion block turns all of it off.
+- New `usePresence` hook and `Presence` component keep a closing overlay mounted for its exit; `Presence` sets
+  `data-presence="closing"` on a `display: contents` wrapper and the CSS plays the exit from that, so dialogs need no new props.
+  Wrapped: changelog, handoff, confirm delete, track drawer, add to playlist, smart playlist editor, person panel.
+  Scrims and panels of the other dialogs (email, invites, guest access, profile, library browse, options) got the enter only.
+- Toasts rise in and fade out (`leaving` flag, 240 ms before removal). Track row menu pops from its corner and fades out.
+- `AppShell` wraps the outlet in a div keyed on the path with `route-in`, skipped while the interstitial or veil is showing.
+  `CoverArt` fades in per URL. `AlbumGrid` cards rise in a stagger and lift on hover.
+- Player: phone Now Playing slides up and down (`Presence` plus `motion-slideup`), bars rise when a song starts, title and
+  cover slide in from the side the skip came from (`useSwapClass`), play and pause icons swap with a turn, play button springs,
+  progress fill and thumb glide, queue counter bumps, heart pops with six dots when favouriting, up-next rows rise.
+- Login (`AccountSelectPage`): "Back" button (top left, plain sign-in view only) and Escape slide the cards off for one
+  beat (`LOGIN_EXIT_MS` 400) and then `markAtTitle(); navigate('/')` like the idle timeout. Sign-in and guest cards enter from their
+  own sides, password and passcode forms are keyed so they swap with a rise, a refused password shakes.
+- Follow-up: swipe down from the top of the phone Now Playing sheet to close it (`NowPlaying.tsx`: the sheet follows the finger,
+  closes past 140 px or a fast flick, else springs back; the exit keyframes start from `--drag`). The login button reads "Back".
+  Not run on a phone, touch handlers untested.
+- Verified: `npx tsc -b` and `npm run build` pass; `npm run lint` shows no new warnings in the changed files. In Chromium
+  against the dev server (signed out): `/login` shows the button, clicking it plays the exit and lands on the title screen,
+  Escape does the same, reduced motion goes back in 1 ms, no page errors. Not run: anything signed in (dialogs, drawers,
+  toasts, route fade, player, heart), phone width, Firefox and Safari, and `npm test` (no backend change).
+
+---
+
 ## 2026-10-18: Now Playing top bar slimmed: like and add on the header, sleep and data saver in the readout (A220)
 
 - Android `NowPlayingScreen`: the top bar keeps only Listen together. `SongHeaderActions` (like, add to playlist, hidden for

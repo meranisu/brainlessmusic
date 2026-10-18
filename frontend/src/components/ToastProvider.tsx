@@ -4,6 +4,7 @@ interface Toast {
   id: number;
   message: string;
   variant: 'success' | 'error';
+  leaving?: boolean;
 }
 
 interface ToastContextValue {
@@ -13,6 +14,7 @@ interface ToastContextValue {
 const ToastContext = createContext<ToastContextValue | undefined>(undefined);
 
 const AUTO_DISMISS_MS = 4000;
+const EXIT_MS = 240;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -21,6 +23,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const showToast = useCallback((message: string, variant: Toast['variant'] = 'success') => {
     const id = nextId.current++;
     setToasts((prev) => [...prev, { id, message, variant }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.map((t) => (t.id === id ? { ...t, leaving: true } : t)));
+    }, AUTO_DISMISS_MS - EXIT_MS);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, AUTO_DISMISS_MS);
@@ -33,7 +38,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={`rounded-lg border px-4 py-2 text-sm ${
+            data-state={t.leaving ? 'closing' : 'open'}
+            className={`motion-toast rounded-lg border px-4 py-2 text-sm ${
               t.variant === 'error' ? 'border-red-700 bg-red-800 text-white' : 'border-blue-700 bg-blue-800 text-white'
             }`}
           >

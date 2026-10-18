@@ -10,11 +10,11 @@ export function AlbumGrid({ albums, showArtist = true }: { albums: AlbumSummary[
 
   return (
     <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-      {albums.map((album) => (
-        <li key={album.id}>
+      {albums.map((album, i) => (
+        <li key={album.id} className="motion-rise" style={{ '--i': i } as React.CSSProperties}>
           <Link
             to={`/albums/${album.id}`}
-            className="group flex flex-col gap-2 rounded-lg p-2 transition-colors hover:bg-blue-900"
+            className="group flex flex-col gap-2 rounded-lg p-2 transition-[transform,background-color] duration-200 ease-[var(--ease-spring)] hover:-translate-y-0.5 hover:bg-blue-900 active:scale-[0.98]"
           >
             <CoverArt
               kind="albums"

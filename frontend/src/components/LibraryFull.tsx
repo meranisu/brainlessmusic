@@ -22,6 +22,7 @@ import { TrackDetailDrawer } from './TrackDetailDrawer';
 import { TrackRowMenu } from './TrackRowMenu';
 import { LibraryStatsLine } from './LibraryStatsLine';
 import { Skeleton, SkeletonTrackRows } from './Skeleton';
+import { Presence } from './Presence';
 
 /** The server allows up to 200; the panel scrolls, so a smaller page keeps the
  *  first paint quick and the next one arrives before the bottom does. */
@@ -559,27 +560,31 @@ export function LibraryFull() {
         </span>
       </div>
 
-      {activeTrack && (
-        <TrackDetailDrawer trackId={activeTrack.id} initialTab={activeTrack.tab} onClose={() => setActiveTrack(null)} />
-      )}
+      <Presence value={activeTrack}>
+        {(t) => <TrackDetailDrawer trackId={t.id} initialTab={t.tab} onClose={() => setActiveTrack(null)} />}
+      </Presence>
 
-      {playlistTarget && (
-        <AddToPlaylistDialog
-          trackId={playlistTarget.id}
-          trackTitle={playlistTarget.title}
-          trackArtist={playlistTarget.artist}
-          onClose={() => setPlaylistTarget(null)}
-        />
-      )}
+      <Presence value={playlistTarget}>
+        {(t) => (
+          <AddToPlaylistDialog
+            trackId={t.id}
+            trackTitle={t.title}
+            trackArtist={t.artist}
+            onClose={() => setPlaylistTarget(null)}
+          />
+        )}
+      </Presence>
 
-      {deleteTargets && (
-        <ConfirmDeleteDialog
-          titles={deleteTargets.map((t) => t.title)}
-          isDeleting={deleteMutation.isPending}
-          onCancel={() => setDeleteTargets(null)}
-          onConfirm={() => deleteMutation.mutate(deleteTargets.map((t) => t.id))}
-        />
-      )}
+      <Presence value={deleteTargets}>
+        {(targets) => (
+          <ConfirmDeleteDialog
+            titles={targets.map((t) => t.title)}
+            isDeleting={deleteMutation.isPending}
+            onCancel={() => setDeleteTargets(null)}
+            onConfirm={() => deleteMutation.mutate(targets.map((t) => t.id))}
+          />
+        )}
+      </Presence>
     </div>
   );
 }

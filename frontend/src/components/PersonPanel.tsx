@@ -125,12 +125,12 @@ export function PersonPanel({
 
   // Into <body>: inside the page it would sit under the sticky header, which is drawn above the page.
   return createPortal(
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/60" onClick={onClose}>
+    <div className="motion-scrim fixed inset-0 z-50 flex justify-end bg-black/60" onClick={onClose}>
       <aside
         role="dialog"
         aria-modal="true"
         aria-labelledby="person-heading"
-        className="flex h-full w-full max-w-md flex-col overflow-y-auto border-l border-blue-700 bg-blue-900"
+        className="motion-drawer flex h-full w-full max-w-md flex-col overflow-y-auto border-l border-blue-700 bg-blue-900"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-start gap-3 border-b border-blue-800 p-5">
@@ -304,7 +304,7 @@ export function PersonPanel({
 
       {confirmingDelete && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4"
+          className="motion-scrim fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4"
           onClick={(e) => {
             e.stopPropagation();
             setConfirmingDelete(false);

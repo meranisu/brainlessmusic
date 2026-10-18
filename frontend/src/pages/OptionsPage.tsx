@@ -22,6 +22,7 @@ import {
   type HeadsetSlot,
 } from '../lib/headsetButtons';
 import type { AddLibraryRootResponse, LibraryRoot, LibraryRootListResponse, LibraryRootScanResult } from '../types/api';
+import { Presence } from '../components/Presence';
 
 const BETWEEN_SONGS: { id: BetweenSongs; name: string; detail: string }[] = [
   { id: 'gapless', name: 'Gapless', detail: 'One song straight into the next' },
@@ -326,7 +327,7 @@ function LibrarySection() {
 
       {removeTarget && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+          className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/60"
           onClick={() => setRemoveTarget(null)}
         >
           <div className="card w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
@@ -603,7 +604,7 @@ export function OptionsPage() {
         ← Back
       </button>
 
-      {showHandoff && <HandoffDialog onClose={() => setShowHandoff(false)} />}
+      <Presence value={showHandoff || null}>{() => <HandoffDialog onClose={() => setShowHandoff(false)} />}</Presence>
 
       {showPasscodeNumpad && (
         <Numpad

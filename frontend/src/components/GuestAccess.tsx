@@ -166,14 +166,14 @@ export function GuestCodeCreatedDialog({ code, onClose }: { code: GuestCode; onC
   const dialogRef = useDialogA11y<HTMLDivElement>(onClose);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={onClose}>
+    <div className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={onClose}>
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         tabIndex={-1}
         aria-labelledby="code-made-heading"
-        className="card w-full max-w-md p-5"
+        className="motion-pop card w-full max-w-md p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="code-made-heading" className="text-sm font-semibold text-white">
@@ -223,14 +223,14 @@ export function RevokeGuestDialog({
   const name = code.usedByName ?? code.usedBy ?? 'this guest';
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4" onClick={onCancel}>
+    <div className="motion-scrim fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4" onClick={onCancel}>
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         tabIndex={-1}
         aria-labelledby="revoke-guest-heading"
-        className="card w-full max-w-sm p-5"
+        className="motion-pop card w-full max-w-sm p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="revoke-guest-heading" className="text-sm font-semibold text-white">

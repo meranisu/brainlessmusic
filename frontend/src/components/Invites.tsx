@@ -77,11 +77,11 @@ export function InviteLinkDialog({ invite, onClose }: { invite: CreatedInvite; o
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={onClose}>
+    <div className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={onClose}>
       <div
         role="dialog"
         aria-labelledby="invite-link-heading"
-        className="card w-full max-w-md p-5"
+        className="motion-pop card w-full max-w-md p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="invite-link-heading" className="mb-2 text-sm font-semibold text-white">

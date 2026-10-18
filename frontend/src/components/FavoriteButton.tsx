@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../auth/AuthContext';
 import { apiClient, getToken } from '../lib/apiClient';
@@ -30,6 +31,8 @@ export function FavoriteButton({ trackId, isFavorited, className = '' }: Favorit
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  // Counts favouriting clicks, so the pop plays on the click and not for every heart already lit on page load.
+  const [popKey, setPopKey] = useState(0);
 
   const mutation = useMutation({
     mutationFn: (next: boolean) =>
@@ -71,6 +74,7 @@ export function FavoriteButton({ trackId, isFavorited, className = '' }: Favorit
     <button
       onClick={(e) => {
         e.stopPropagation();
+        if (!isFavorited) setPopKey((k) => k + 1);
         mutation.mutate(!isFavorited);
       }}
       aria-pressed={isFavorited}
@@ -78,9 +82,16 @@ export function FavoriteButton({ trackId, isFavorited, className = '' }: Favorit
       title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
       className={`transition-colors ${
         isFavorited ? 'text-orange-500 hover:text-orange-400' : 'text-blue-400 hover:text-orange-500'
-      } ${className}`}
+      } relative ${className}`}
     >
-      <svg viewBox="0 0 24 24" className="h-4 w-4" fill={isFavorited ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8">
+      {isFavorited && popKey > 0 && (
+        <span key={popKey} aria-hidden className="heart-burst">
+          {[0, 1, 2, 3, 4, 5].map((n) => (
+            <i key={n} style={{ '--a': `${n * 60}deg` } as React.CSSProperties} />
+          ))}
+        </span>
+      )}
+      <svg key={isFavorited ? popKey : 'off'} viewBox="0 0 24 24" className={`h-4 w-4 ${isFavorited && popKey > 0 ? 'heart-pop' : ''}`} fill={isFavorited ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8">
         <path d="M12 20.3 4.6 12.9a4.6 4.6 0 0 1 6.5-6.5l.9.9.9-.9a4.6 4.6 0 0 1 6.5 6.5z" strokeLinejoin="round" />
       </svg>
     </button>

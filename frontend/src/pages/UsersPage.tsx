@@ -20,6 +20,7 @@ import { prettyGuestCode } from '../lib/guestCodeCard';
 import { createInvite, INVITES_KEY } from '../lib/invites';
 import { roleLabel } from '../lib/people';
 import type { GuestCode, UserSummary } from '../types/api';
+import { Presence } from '../components/Presence';
 
 /**
  * The Users tab, roster first (A159): requests waiting at the top, everyone in one list, and the ways in at the
@@ -174,16 +175,18 @@ export function UsersPage() {
         <ExpiredCodes />
       </section>
 
-      {open && (
-        <PersonPanel
-          person={open}
-          code={codeOf(open)}
-          isSelf={open.id === currentUser?.id}
-          now={now}
-          onClose={() => setOpenId(null)}
-          onInvite={setCreatedInvite}
-        />
-      )}
+      <Presence value={open}>
+        {(person) => (
+          <PersonPanel
+            person={person}
+            code={codeOf(person)}
+            isSelf={person.id === currentUser?.id}
+            now={now}
+            onClose={() => setOpenId(null)}
+            onInvite={setCreatedInvite}
+          />
+        )}
+      </Presence>
 
       {adding && (
         <AddSomeoneDialog
@@ -359,7 +362,7 @@ function AddSomeoneDialog({
 
   // Into <body>: inside the page it would sit under the sticky header, which is drawn above the page.
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={onClose}>
+    <div className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useMediaUrl } from '../hooks/useMediaUrl';
 import { buildCoverUrl } from '../lib/apiClient';
 
@@ -22,6 +23,7 @@ export function CoverArt({
   bare = false,
 }: CoverArtProps) {
   const { url, fail } = useMediaUrl(`${kind}:${id}:${size}`, () => buildCoverUrl(kind, id, size));
+  const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
   const shared = bare
     ? `${className} shrink-0 object-cover`
     : `${className} shrink-0 rounded-md border border-blue-800 object-cover`;
@@ -48,7 +50,8 @@ export function CoverArt({
       alt={alt}
       loading="lazy"
       decoding="async"
-      className={`${shared} bg-blue-950`}
+      className={`${shared} bg-blue-950 transition-opacity duration-300 ${loadedUrl === url ? 'opacity-100' : 'opacity-0'}`}
+      onLoad={() => setLoadedUrl(url)}
       onError={fail}
     />
   );

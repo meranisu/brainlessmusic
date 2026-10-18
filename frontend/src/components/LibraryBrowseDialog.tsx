@@ -27,14 +27,14 @@ export function LibraryBrowseDialog({ initialPath, onSelect, onCancel }: Library
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onCancel}>
+    <div className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onCancel}>
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="library-browse-title"
         tabIndex={-1}
-        className="card flex w-full max-w-sm flex-col p-5 outline-none"
+        className="motion-pop card flex w-full max-w-sm flex-col p-5 outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="library-browse-title" className="text-sm font-semibold text-white">Choose a folder</h2>

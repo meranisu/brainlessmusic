@@ -13,14 +13,14 @@ export function ConfirmDeleteDialog({ titles, isDeleting, onConfirm, onCancel }:
   const dialogRef = useDialogA11y<HTMLDivElement>(onCancel);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onCancel}>
+    <div className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onCancel}>
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         tabIndex={-1}
         aria-labelledby="confirm-delete-heading"
-        className="card w-full max-w-sm p-5 outline-none"
+        className="motion-pop card w-full max-w-sm p-5 outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center gap-2.5">
