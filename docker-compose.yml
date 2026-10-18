@@ -32,6 +32,8 @@ services:
       ALLOW_OPEN_REGISTRATION: ${ALLOW_OPEN_REGISTRATION:-true}
       ENTRY_CODE: ${ENTRY_CODE:-}
       TRANSCODE_PATH: /data/transcodes
+      # Folders Browse and Add folder may reach, `:`-separated. Empty means the default, /library:/mnt.
+      BROWSE_ROOTS: ${BROWSE_ROOTS:-}
       # Visitors arrive via cloudflared, so rate limits use Cloudflare's real-IP header.
       CLIENT_IP_HEADER: ${CLIENT_IP_HEADER:-cf-connecting-ip}
 
@@ -47,6 +49,7 @@ services:
 
       # Every Windows drive, read-only, so any can be added from Options → Library folders → Browse.
       # Writes only ever go to the default root. Swap for a narrower line (e.g. /mnt/d/music:/library-2) to expose one drive.
+      # Browse and Add folder only reach /library and /mnt. A mount anywhere else also needs it in BROWSE_ROOTS (`:`-separated).
       - /mnt:/mnt:ro
 
       # Database, cover-art cache and upload staging. Back this one up: playlists, favorites and history live here.

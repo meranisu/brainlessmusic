@@ -61,6 +61,13 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A217 — Browsing and adding library folders is confined to an allowlist (was Q206) *(asked in chat)*
+**Answered:** 2026-10-18. Option C: confine `GET /library/browse` and `POST /library/roots` to `BROWSE_ROOTS`
+(default: `LIBRARY_PATH` and `/mnt`, the two mounts in `docker-compose.yml`); a path outside it gets 403, symlinks are
+followed before the check. `PlaybackService.onConnect` stays open: an allowlist could silently break Bluetooth, lock
+screen, Android Auto and watch controls for little gain. Built in `backend/src/utils/paths.ts` (`isAllowedBrowsePath`),
+`backend/src/routes/library.ts`, `backend/src/config.ts`. Uncommitted.
+
 ### A216 — Passcodes lock after 10 wrong tries and must be 6+ digits (was Q175) *(asked in chat)*
 **Answered:** 2026-10-18. Option C, both: lock passcode sign-in after 10 wrong passcodes until the next password
 sign-in, and require 6 or more digits. Every existing passcode is cleared by migration `0040` (the owner chose that over

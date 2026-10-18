@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict';
 import { config } from '../config.js';
-import { access, mkdir, writeFile } from 'node:fs/promises';
+import { access, mkdir, symlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../app.js';
 import { listFavoriteTrackIdsForUser, starTrack } from '../db/favorites.js';
 import { findTrackById, markTracksMissing, setTrackFlags, upsertTrack } from '../db/library.js';
-import { findLibraryRootById, insertLibraryRoot } from '../db/libraryRoots.js';
+import { findLibraryRootById, insertLibraryRoot, listLibraryRoots } from '../db/libraryRoots.js';
 import { insertUser, setAdmin } from '../db/users.js';
 import { hashPassword } from '../services/password.js';
 import { signToken } from '../services/token.js';
@@ -22,8 +23,11 @@ let root: string;
 let adminToken: string;
 let adminId: number;
 let listenerToken: string;
+const originalBrowseRoots = config.browseRoots;
 
 before(async () => {
+  // Temp dirs live under tmpdir(), so that is the allowlist here; the default (library + /mnt) would refuse them.
+  config.browseRoots = [tmpdir()];
   app = buildApp();
   await app.ready();
 
@@ -39,6 +43,7 @@ before(async () => {
 });
 
 after(async () => {
+  config.browseRoots = originalBrowseRoots;
   await app.close();
   await cleanup();
 });
@@ -117,6 +122,47 @@ describe('GET /library/browse', () => {
     assert.equal(res.statusCode, 400);
   });
 
+  it('lists only the allowed roots at /, and makes a root\'s parent /', async () => {
+    const atRoot = await app.inject({
+      method: 'GET',
+      url: '/api/library/browse?path=/',
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    assert.deepEqual(
+      atRoot.json().entries.map((e: { path: string }) => e.path),
+      [tmpdir()],
+    );
+
+    const inRoot = await app.inject({
+      method: 'GET',
+      url: `/api/library/browse?path=${encodeURIComponent(tmpdir())}`,
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    assert.equal(inRoot.statusCode, 200);
+    assert.equal(inRoot.json().parent, '/');
+  });
+
+  it('403s outside the allowed roots, including via .. and via a symlink out', async () => {
+    const outside = await makeTempDir('browse-outside');
+    const allowed = await makeTempDir('browse-allowed');
+    config.browseRoots = [allowed.path];
+    try {
+      await symlink(outside.path, join(allowed.path, 'escape'));
+      for (const path of ['/etc', join(allowed.path, '..'), join(allowed.path, 'escape')]) {
+        const res = await app.inject({
+          method: 'GET',
+          url: `/api/library/browse?path=${encodeURIComponent(path)}`,
+          headers: { authorization: `Bearer ${adminToken}` },
+        });
+        assert.equal(res.statusCode, 403, path);
+      }
+    } finally {
+      config.browseRoots = [tmpdir()];
+      await outside.cleanup();
+      await allowed.cleanup();
+    }
+  });
+
   it('refuses a signed-in non-admin', async () => {
     const res = await app.inject({
       method: 'GET',
@@ -128,6 +174,17 @@ describe('GET /library/browse', () => {
 });
 
 describe('POST /library/roots', () => {
+  it('403s a folder outside the allowed roots, and registers nothing', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/library/roots',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { path: '/etc' },
+    });
+    assert.equal(res.statusCode, 403);
+    assert.equal(listLibraryRoots().length, 0);
+  });
+
   it('rejects a folder with no music files, and leaves nothing registered', async () => {
     const temp = await makeTempDir('root-empty');
     try {

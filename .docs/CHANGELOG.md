@@ -19,6 +19,23 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-18: Library browsing and root registration confined to an allowlist (A217, Q206)
+
+- `config.browseRoots` from `BROWSE_ROOTS` (`:`-separated), default `LIBRARY_PATH` plus `/mnt`, matching the compose mounts.
+- `GET /library/browse`: `/` is now a synthetic listing of the allowed roots (the dialog still opens at `/`); a path outside
+  them is 403; an allowed root's `parent` is `/`. `POST /library/roots`: a path outside them is 403 before anything is stat-ed
+  or registered. Existing roots still scan and delete as before.
+- `isAllowedBrowsePath()` follows symlinks on both sides, so a link inside an allowed folder cannot lead out of it.
+- `docker-compose.yml` passes `BROWSE_ROOTS` through (compose drops variables not listed under `environment:`); an empty value
+  falls back to the default. smol needs nothing set: the image has `LIBRARY_PATH=/library`, so its default is `/library:/mnt`.
+- Android `PlaybackService.onConnect` left open on purpose (see A217).
+- Verified: `npm test` 695 pass, 0 fail (new: roots at `/`, root parent, 403 for `/etc`, `..` and a symlink out, 403 on
+  `POST /library/roots`). Backend `tsc --noEmit` clean. Options "Browse…" driven in headless Chromium on a throwaway backend: `/` shows only the
+  allowed folder, its subfolders list and "Up a level" returns to `/`, a typed `/etc` shows "Outside the allowed library
+  folders" in Browse and on Add folder.
+
+---
+
 ## 2026-10-18: Passcodes lock after 10 wrong tries and need 6+ digits (A216, S3)
 
 - Migration `0040_add_passcode_failures.sql`: `users.passcode_failures`, and every existing `passcode_hash` is cleared (a hash

@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 export const config = {
   port: Number(process.env.PORT ?? 3000),
@@ -39,6 +39,14 @@ export const config = {
     .map((origin) => origin.trim())
     .filter((origin) => origin !== ''),
   libraryPath: process.env.LIBRARY_PATH ?? './library',
+  // Folders Options' "Browse…" may list and "Add folder" may register, `:`-separated. Defaults to the two mounts in
+  // docker-compose.yml, so an admin login that leaks cannot browse or register `/etc` or `$HOME`.
+  // `||`, not `??`: docker-compose passes an unset BROWSE_ROOTS as an empty string.
+  browseRoots: (process.env.BROWSE_ROOTS || `${process.env.LIBRARY_PATH ?? './library'}:/mnt`)
+    .split(':')
+    .map((root) => root.trim())
+    .filter((root) => root !== '')
+    .map((root) => resolve(root)),
   uploadStagingPath: process.env.UPLOAD_STAGING_PATH ?? './data/upload-staging',
   // Extracted cover art, content-addressed. Safe to delete; a re-scan rebuilds it.
   artworkPath: process.env.ARTWORK_PATH ?? './data/artwork',

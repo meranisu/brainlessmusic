@@ -13,7 +13,7 @@ import {
 } from '../db/libraryRoots.js';
 import { getScanProgress, isLibrarySyncRunning, syncLibrary } from '../services/librarySync.js';
 import { isAdminRequest } from '../utils/isAdmin.js';
-import { isInside } from '../utils/paths.js';
+import { isAllowedBrowsePath, isInside } from '../utils/paths.js';
 import { parseId } from '../utils/parseId.js';
 
 interface AddRootBody {
@@ -51,10 +51,23 @@ const libraryRoute: FastifyPluginAsync = async (fastify) => {
     return reply.send({ roots });
   });
 
-  // Read-only folder listing for "Browse…". No new exposure: `POST /library/roots` already accepts any readable path.
+  // Read-only folder listing for "Browse…", confined to `config.browseRoots` (Q206). `/` is a synthetic listing of
+  // those roots, so the dialog still opens at `/` and never shows the real filesystem root.
   fastify.get<{ Querystring: { path?: string } }>('/library/browse', adminOnly, async (request, reply) => {
-    // Canonicalized to an absolute path; not a sandbox.
+    const roots = config.browseRoots;
     const path = resolve('/', request.query.path ?? '/');
+
+    if (path === '/') {
+      const found = await Promise.all(
+        roots.map(async (root) => ((await stat(root).catch(() => null))?.isDirectory() ? root : null)),
+      );
+      const entries = found.filter((root): root is string => root !== null).map((root) => ({ name: root, path: root }));
+      return reply.send({ path, parent: null, entries });
+    }
+
+    if (!(await isAllowedBrowsePath(path, roots))) {
+      return reply.code(403).send({ error: 'Outside the allowed library folders' });
+    }
 
     let dirents;
     try {
@@ -83,7 +96,8 @@ const libraryRoute: FastifyPluginAsync = async (fastify) => {
 
     return reply.send({
       path,
-      parent: path === '/' ? null : dirname(path),
+      // An allowed root's parent is the synthetic `/`, so Back never leads outside the allowlist.
+      parent: roots.includes(path) ? '/' : dirname(path),
       entries,
       ...(truncated ? { truncated: true } : {}),
     });
@@ -99,6 +113,9 @@ const libraryRoute: FastifyPluginAsync = async (fastify) => {
     // Resolved, so `/music/` can't pass as a second `/music`: the scan would move every track onto the new root, and
     // removing either one would then delete them all with everyone's favorites and history (A51).
     const path = resolve(rawPath);
+    if (!(await isAllowedBrowsePath(path, config.browseRoots))) {
+      return reply.code(403).send({ error: 'Outside the allowed library folders' });
+    }
     const clash = listLibraryRoots().find((root) => overlaps(resolve(root.path), path));
     if (clash) {
       return reply.code(409).send({

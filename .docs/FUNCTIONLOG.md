@@ -14,6 +14,16 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `isAllowedBrowsePath()` — `backend/src/utils/paths.ts`; `GET /library/browse` and `POST /library/roots` handlers — `backend/src/routes/library.ts`
+**Date:** 2026-10-18
+**How added:** hardening
+**Purpose:** keep a leaked admin login from browsing or registering `/etc` or `$HOME` (A217, Q206).
+**Side effects:** none (reads symlink targets with `realpath`).
+**Before:** both routes accepted any directory the process could read.
+**After:** only `config.browseRoots` and what is under them; `/` lists those roots; anything else is 403.
+
+---
+
 **Function:** `/auth/passcode-login` handler, `recordPasscodeFailure()`, `resetPasscodeFailures()`, `setPasscodeHashById()`, `clearPasscodeById()` — `backend/src/routes/auth.ts`, `backend/src/db/users.ts`
 **Date:** 2026-10-18
 **How added:** hardening
