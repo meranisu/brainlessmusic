@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { config } from '../config.js';
 import { access, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { after, before, beforeEach, describe, it } from 'node:test';
@@ -247,7 +248,7 @@ describe('DELETE /library/roots/:id', () => {
     try {
       await writeFile(join(temp.path, 'track.mp3'), 'not real audio bytes');
       const busy = insertLibraryRoot(temp.path, null);
-      const scan = syncLibrary(busy.path, busy.id, { scan: true });
+      const scan = syncLibrary(busy.path, busy.id, config.artworkPath, { scan: true });
 
       const res = await app.inject({
         method: 'DELETE',

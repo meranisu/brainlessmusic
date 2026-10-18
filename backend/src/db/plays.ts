@@ -1,6 +1,7 @@
 import { db } from './connection.js';
 import { LISTENED_MS } from './listeningStats.js';
 import { trackGainSql } from './loudness.js';
+import { clearSmartSummaries } from './smartPlaylists.js';
 
 export interface PlayHistoryEntry {
   id: number;
@@ -106,6 +107,8 @@ function buildScrobbleTransaction() {
           )
           .run(userId, trackId, msPlayed, playedAt, clientPlayId, skipped ? 1 : 0, skipped ? 1 : 0).lastInsertRowid,
       );
+      // A smart playlist's count follows the user's own plays (A208); a skip counts for nothing, so it changes none.
+      if (!skipped) clearSmartSummaries(userId);
 
       // A skip's length is already final (it's sent at its end), so it needs no `finishPlay`.
       if (skipped) return playId;

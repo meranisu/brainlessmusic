@@ -30,7 +30,7 @@ function timestampFor(date: Date): string {
 
 /** Copies the live database to a timestamped file and verifies it. Safe while serving. */
 export async function backupDatabase(
-  destinationDir = config.backupPath,
+  destinationDir: string,
   now = new Date(),
 ): Promise<BackupResult> {
   mkdirSync(destinationDir, { recursive: true });
@@ -48,9 +48,13 @@ export async function backupDatabase(
     if (result !== 'ok') {
       throw new Error(`backup failed its integrity check: ${String(result)}`);
     }
-  } finally {
+  } catch (err) {
+    // A bad file still matches FILE_PATTERN, so it would count toward `backupKeep` and push out a good backup.
     copy.close();
+    await unlink(path).catch(() => {});
+    throw err;
   }
+  copy.close();
 
   const { size } = await stat(path);
   const pruned = await pruneBackups(destinationDir, config.backupKeep);
@@ -72,7 +76,7 @@ export async function pruneBackups(directory: string, keep: number): Promise<num
 }
 
 /** Backups this module can see, oldest first. */
-export async function listBackups(directory = config.backupPath): Promise<string[]> {
+export async function listBackups(directory: string): Promise<string[]> {
   try {
     const entries = await readdir(directory);
     return entries.filter((name) => FILE_PATTERN.test(name)).sort();
@@ -92,7 +96,7 @@ export function startBackupSchedule(log: Logger): NodeJS.Timeout | null {
   }
 
   const run = () => {
-    backupDatabase().then(
+    backupDatabase(config.backupPath).then(
       ({ path, bytes, pruned }) =>
         log.info(
           `Database backed up to ${path} (${Math.round(bytes / 1024)} KB)` +

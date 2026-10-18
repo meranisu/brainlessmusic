@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import { config } from '../config.js';
 import { countFavoritesForUser, listFavoritesForUser } from '../db/favorites.js';
-import { findTrackById } from '../db/library.js';
+import { findVisibleTrack } from '../utils/visibleTrack.js';
 import { countLessOften } from '../db/lessOften.js';
 import { getTopGenres, getUserStats, listLessOftenTracks, type StatsRange } from '../db/listeningStats.js';
 import { listPlaylistsForUser, listPublicPlaylistsOf } from '../db/playlists.js';
@@ -21,12 +21,15 @@ import {
   releaseAvatarSlot,
   removeAvatar,
   saveAvatar,
+  withAvatarLock,
   sendAvatar,
   takeAvatarSlot,
 } from '../services/avatars.js';
 import { createRateLimiter } from '../services/rateLimit.js';
 import { isAdminRequest } from '../utils/isAdmin.js';
 import { parsePagination } from '../utils/pagination.js';
+import { parseId } from '../utils/parseId.js';
+import { replyRateLimited } from '../utils/replyRateLimited.js';
 
 /**
  * The profile page (A167-A170): anyone signed in, guests included, can see any account's profile, its liked and
@@ -41,11 +44,6 @@ const PREVIEW_LIMIT = 12;
 /** Picture uploads per account (S7): plenty for trying a few crops, too few to keep two crop slots busy. */
 const AVATAR_UPLOAD_LIMIT = { limit: 10, windowMs: 10 * 60 * 1000 };
 const avatarLimiter = createRateLimiter();
-
-function parseId(raw: string): number | undefined {
-  const id = Number(raw);
-  return Number.isInteger(id) && id > 0 ? id : undefined;
-}
 
 /**
  * Hidden songs leave someone else's lists unless an admin is looking, as they leave browsing (A34). Filtered in the
@@ -143,7 +141,7 @@ const profileRoute: FastifyPluginAsync = async (fastify) => {
       }
       if (body.favoriteTrackId !== undefined) {
         const trackId = body.favoriteTrackId;
-        if (trackId !== null && (!Number.isInteger(trackId) || !findTrackById(trackId as number))) {
+        if (trackId !== null && (!Number.isInteger(trackId) || !findVisibleTrack(trackId as number, request))) {
           return reply.code(400).send({ error: 'favoriteTrackId must be a song in the library, or null' });
         }
         update.favoriteTrackId = trackId as number | null;
@@ -167,10 +165,7 @@ const profileRoute: FastifyPluginAsync = async (fastify) => {
     // S7: every try counts, refused ones too, so a loop of bad files is stopped as well.
     const limit = avatarLimiter.check(String(request.user!.id), AVATAR_UPLOAD_LIMIT);
     if (!limit.allowed) {
-      return reply
-        .code(429)
-        .header('Retry-After', String(limit.retryAfterSeconds))
-        .send({ error: 'Too many picture changes. Try again in a few minutes.' });
+      return replyRateLimited(reply, limit, 'Too many picture changes. Try again in a few minutes.');
     }
     const file = await request.file({ limits: { fileSize: MAX_AVATAR_BYTES, files: 1 } });
     if (!file) return reply.code(400).send({ error: 'No picture sent' });
@@ -184,22 +179,29 @@ const profileRoute: FastifyPluginAsync = async (fastify) => {
     if (!takeAvatarSlot()) {
       return reply.code(503).header('Retry-After', '5').send({ error: 'Busy with other pictures. Try again in a moment.' });
     }
-    let avatarId: string;
-    try {
-      avatarId = await saveAvatar(config.avatarPath, image);
-    } catch {
-      return reply.code(400).send({ error: "That file couldn't be read as a picture" });
-    } finally {
-      releaseAvatarSlot();
-    }
-    const previous = setAvatarId(request.user!.id, avatarId);
-    if (previous && previous !== avatarId && !isAvatarInUse(previous)) await removeAvatar(config.avatarPath, previous);
+    // One at a time: see `withAvatarLock` for the shared-file race this closes.
+    const saved = await withAvatarLock(async () => {
+      let avatarId: string;
+      try {
+        avatarId = await saveAvatar(config.avatarPath, image);
+      } catch {
+        return false;
+      } finally {
+        releaseAvatarSlot();
+      }
+      const previous = setAvatarId(request.user!.id, avatarId);
+      if (previous && previous !== avatarId && !isAvatarInUse(previous)) await removeAvatar(config.avatarPath, previous);
+      return true;
+    });
+    if (!saved) return reply.code(400).send({ error: "That file couldn't be read as a picture" });
     return reply.send(getProfileHeader(request.user!.id));
   });
 
   fastify.delete('/me/avatar', { preHandler: [fastify.authenticate, fastify.requireAccount] }, async (request, reply) => {
-    const previous = setAvatarId(request.user!.id, null);
-    if (previous && !isAvatarInUse(previous)) await removeAvatar(config.avatarPath, previous);
+    await withAvatarLock(async () => {
+      const previous = setAvatarId(request.user!.id, null);
+      if (previous && !isAvatarInUse(previous)) await removeAvatar(config.avatarPath, previous);
+    });
     return reply.code(204).send();
   });
 

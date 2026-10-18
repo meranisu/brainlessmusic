@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { config } from '../config.js';
 import { getAvatarId, isAvatarInUse } from '../db/profile.js';
-import { removeAvatar } from '../services/avatars.js';
+import { removeAvatar, withAvatarLock } from '../services/avatars.js';
 import {
   countAdmins,
   deleteUser,
@@ -11,6 +11,7 @@ import {
   setPasswordHashById,
 } from '../db/users.js';
 import { hashPassword } from '../services/password.js';
+import { parseId } from '../utils/parseId.js';
 
 interface UserPatchBody {
   isAdmin?: boolean;
@@ -27,8 +28,8 @@ const usersRoute: FastifyPluginAsync = async (fastify) => {
     '/users/:id',
     { preHandler: [fastify.authenticate, fastify.requireAdmin] },
     async (request, reply) => {
-      const id = Number(request.params.id);
-      if (!Number.isInteger(id)) return reply.code(404).send({ error: 'User not found' });
+      const id = parseId(request.params.id);
+      if (id === undefined) return reply.code(404).send({ error: 'User not found' });
 
       const user = findUserById(id);
       if (!user) return reply.code(404).send({ error: 'User not found' });
@@ -63,8 +64,8 @@ const usersRoute: FastifyPluginAsync = async (fastify) => {
     '/users/:id',
     { preHandler: [fastify.authenticate, fastify.requireAdmin] },
     async (request, reply) => {
-      const id = Number(request.params.id);
-      if (!Number.isInteger(id)) return reply.code(404).send({ error: 'User not found' });
+      const id = parseId(request.params.id);
+      if (id === undefined) return reply.code(404).send({ error: 'User not found' });
 
       const user = findUserById(id);
       if (!user) return reply.code(404).send({ error: 'User not found' });
@@ -77,10 +78,12 @@ const usersRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(409).send({ error: 'Cannot delete the last admin' });
       }
 
-      const avatarId = getAvatarId(id);
-      deleteUser(id);
-      // Their profile picture goes too, unless someone else uploaded the same one.
-      if (avatarId && !isAvatarInUse(avatarId)) await removeAvatar(config.avatarPath, avatarId);
+      await withAvatarLock(async () => {
+        const avatarId = getAvatarId(id);
+        deleteUser(id);
+        // Their profile picture goes too, unless someone else uploaded the same one.
+        if (avatarId && !isAvatarInUse(avatarId)) await removeAvatar(config.avatarPath, avatarId);
+      });
       return reply.code(204).send();
     },
   );

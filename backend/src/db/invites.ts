@@ -1,4 +1,5 @@
-import { createHash, randomInt } from 'node:crypto';
+import { createHash } from 'node:crypto';
+import { randomCode } from '../utils/randomCode.js';
 import { db } from './connection.js';
 import { findUserByEmail, findUserById, findUserByUsername, insertUser, nameOf, type UserRow } from './users.js';
 
@@ -80,8 +81,7 @@ export const createInvite = db.transaction(
     // A clash with an existing code is about one in a trillion, but would be a 500 from the UNIQUE index.
     let token = '';
     do {
-      token = '';
-      for (let i = 0; i < CODE_LENGTH; i += 1) token += CODE_ALPHABET[randomInt(CODE_ALPHABET.length)];
+      token = randomCode(CODE_ALPHABET, CODE_LENGTH);
     } while (findByToken(token));
     const result = db
       .prepare(

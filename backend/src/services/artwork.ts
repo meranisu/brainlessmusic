@@ -1,10 +1,10 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { access, mkdir, rename, writeFile } from 'node:fs/promises';
+import { mkdir, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import ffmpeg from 'fluent-ffmpeg';
-import { config } from '../config.js';
+import { exists } from '../utils/fs.js';
 
 export interface EmbeddedPicture {
   data: Uint8Array;
@@ -41,46 +41,37 @@ export function mimeTypeForArtwork(id: string): string {
   return MIME_BY_EXTENSION[ext] ?? 'application/octet-stream';
 }
 
-async function exists(path: string): Promise<boolean> {
-  try {
-    await access(path);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /** Stores a picture content-addressed and returns its id; null for image types browsers can't render. */
-export async function storeArtwork(picture: EmbeddedPicture): Promise<string | null> {
+export async function storeArtwork(root: string, picture: EmbeddedPicture): Promise<string | null> {
   const ext = EXTENSION_BY_MIME[picture.format.toLowerCase()];
   if (!ext) return null;
 
   const hash = createHash('sha256').update(picture.data).digest('hex');
   const id = `${hash}.${ext}`;
-  const finalPath = join(config.artworkPath, id);
+  const finalPath = join(root, id);
 
   if (await exists(finalPath)) return id;
 
-  await mkdir(config.artworkPath, { recursive: true });
+  await mkdir(root, { recursive: true });
   // Write-then-rename so a concurrent reader never sees a half-written file.
-  const tempPath = `${finalPath}.${process.pid}.tmp`;
+  const tempPath = `${finalPath}.${randomUUID()}.tmp`;
   await writeFile(tempPath, picture.data);
   await rename(tempPath, finalPath);
 
   return id;
 }
 
-export function artworkPathFor(id: string): string | null {
+export function artworkPathFor(root: string, id: string): string | null {
   if (!isValidArtworkId(id)) return null;
-  return join(config.artworkPath, id);
+  return join(root, id);
 }
 
 /** A downscaled copy made with ffmpeg on first request and cached. Falls back to the full image if ffmpeg fails. */
-export async function thumbnailPathFor(id: string): Promise<string | null> {
-  const source = artworkPathFor(id);
+export async function thumbnailPathFor(root: string, id: string): Promise<string | null> {
+  const source = artworkPathFor(root, id);
   if (!source) return null;
 
-  const thumbPath = join(config.artworkPath, `${id}.thumb.jpg`);
+  const thumbPath = join(root, `${id}.thumb.jpg`);
   if (await exists(thumbPath)) return thumbPath;
   if (!(await exists(source))) return null;
 
@@ -109,6 +100,7 @@ export async function thumbnailPathFor(id: string): Promise<string | null> {
 export async function sendCover(
   request: FastifyRequest,
   reply: FastifyReply,
+  root: string,
   artworkId: string | undefined,
   size: string | undefined,
 ): Promise<FastifyReply> {
@@ -126,7 +118,7 @@ export async function sendCover(
     return reply.code(304).send();
   }
 
-  const path = wantsThumb ? await thumbnailPathFor(artworkId) : artworkPathFor(artworkId);
+  const path = wantsThumb ? await thumbnailPathFor(root, artworkId) : artworkPathFor(root, artworkId);
   if (!path || !(await exists(path))) {
     return reply.code(404).send({ error: 'No cover art' });
   }

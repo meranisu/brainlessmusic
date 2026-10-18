@@ -1,6 +1,8 @@
 import { db } from './connection.js';
 import { trackGainSql } from './loudness.js';
 import { foldText } from '../utils/foldText.js';
+import { evaluateRules, parseStoredRules, smartSeed, summarizeRules, type SmartRules } from './smartPlaylists.js';
+import { likePattern } from '../utils/like.js';
 
 export interface PlaylistRow {
   id: number;
@@ -13,6 +15,8 @@ export interface PlaylistRow {
   public_at: string | null;
   /** What it is, in the owner's words; null without one. */
   description: string | null;
+  /** Smart playlist rules as JSON (A207); null for an ordinary playlist. */
+  rules: string | null;
 }
 
 export interface PlaylistSummary {
@@ -22,6 +26,8 @@ export interface PlaylistSummary {
   trackCount: number;
   createdAt: string;
   isPublic: boolean;
+  /** Filled by rules each time it opens (A207) instead of by hand; always private (A210). */
+  isSmart: boolean;
   /** Up to four albums, in playlist order, for the cover mosaic the app shows (A147). */
   coverAlbumIds: number[];
   /** Whether it holds the track asked about; only set when the list was asked for one track. */
@@ -43,6 +49,7 @@ export interface PlaylistSearchResult {
   ownerId: number;
   ownerName: string;
   isPublic: boolean;
+  isSmart: boolean;
   /** The viewer's own, so a client can label the rest "by <owner>" without knowing its own user id. */
   isOwner: boolean;
   coverAlbumIds: number[];
@@ -72,6 +79,9 @@ export interface PlaylistDetail {
   ownerName: string;
   createdAt: string;
   isPublic: boolean;
+  isSmart: boolean;
+  /** The rules a smart playlist runs; null for an ordinary one. */
+  rules: SmartRules | null;
   tracks: PlaylistTrack[];
 }
 
@@ -81,6 +91,12 @@ function hiddenClause(includeHidden: boolean): string {
 }
 
 const OWNER_NAME = 'COALESCE(u.display_name, u.username)';
+
+/** Count and cover for a smart playlist, which holds no rows to count; kept between calls (see `summarizeRules`). */
+function smartCountAndCover(stored: string | null, ownerId: number): { trackCount: number; coverAlbumIds: number[] } {
+  const rules = parseStoredRules(stored);
+  return rules ? summarizeRules(rules, ownerId) : { trackCount: 0, coverAlbumIds: [] };
+}
 
 /** Up to four albums, in playlist order, for the cover mosaic. */
 function coverAlbumIdsOf(playlistId: number, includeHidden = true): number[] {
@@ -113,6 +129,7 @@ export function listPlaylistsForUser(ownerId: number, trackId?: number): Playlis
          p.description as description,
          p.created_at as createdAt,
          p.is_public as isPublic,
+         p.rules as rules,
          COUNT(pt.track_id) as trackCount,
          MAX(pt.track_id = @trackId) as hasTrack
        FROM playlists p
@@ -121,16 +138,26 @@ export function listPlaylistsForUser(ownerId: number, trackId?: number): Playlis
        GROUP BY p.id
        ORDER BY p.created_at DESC`,
     )
-    .all({ ownerId, trackId: trackId ?? null }) as (Omit<PlaylistSummary, 'coverAlbumIds' | 'isPublic' | 'hasTrack'> & {
+    .all({ ownerId, trackId: trackId ?? null }) as (Omit<
+    PlaylistSummary,
+    'coverAlbumIds' | 'isPublic' | 'isSmart' | 'hasTrack'
+  > & {
     isPublic: number;
+    rules: string | null;
     hasTrack: number | null;
   })[];
-  return playlists.map(({ hasTrack, ...p }) => ({
-    ...p,
-    isPublic: p.isPublic === 1,
-    coverAlbumIds: coverAlbumIdsOf(p.id),
-    ...(trackId === undefined ? {} : { hasTrack: hasTrack === 1 }),
-  }));
+  return playlists.map(({ hasTrack, rules, ...p }) => {
+    const smart = rules === null ? undefined : smartCountAndCover(rules, ownerId);
+    return {
+      ...p,
+      isPublic: p.isPublic === 1,
+      isSmart: rules !== null,
+      trackCount: smart?.trackCount ?? p.trackCount,
+      coverAlbumIds: smart?.coverAlbumIds ?? coverAlbumIdsOf(p.id),
+      // A smart playlist can't take a hand-added song, so "Add to playlist" never marks it as holding one.
+      ...(trackId === undefined ? {} : { hasTrack: rules === null && hasTrack === 1 }),
+    };
+  });
 }
 
 /** Other people's public playlists, newest public first (A166). Counts and covers skip hidden tracks unless admin. */
@@ -154,14 +181,19 @@ export function listPublicPlaylists(viewerId: number, includeHidden = false): Pu
        GROUP BY p.id
        ORDER BY p.public_at DESC, p.id DESC`,
     )
-    .all(viewerId) as Omit<PublicPlaylistSummary, 'coverAlbumIds' | 'isPublic'>[];
-  return rows.map((p) => ({ ...p, isPublic: true, coverAlbumIds: coverAlbumIdsOf(p.id, includeHidden) }));
+    .all(viewerId) as Omit<PublicPlaylistSummary, 'coverAlbumIds' | 'isPublic' | 'isSmart'>[];
+  return rows.map((p) => ({
+    ...p,
+    isPublic: true,
+    isSmart: false,
+    coverAlbumIds: coverAlbumIdsOf(p.id, includeHidden),
+  }));
 }
 
 /** Playlists whose name contains `query`: the viewer's own and everyone's public ones, own first. */
 export function searchPlaylists(query: string, viewerId: number, limit = 20, offset = 0): PlaylistSearchResult[] {
   // `%` and `_` in a name are literal here, not wildcards. Folded, so accents don't matter.
-  const pattern = `%${foldText(query.trim()).replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+  const pattern = likePattern(foldText(query.trim()));
   const rows = db
     .prepare(
       `SELECT
@@ -170,6 +202,7 @@ export function searchPlaylists(query: string, viewerId: number, limit = 20, off
          p.owner_id as ownerId,
          ${OWNER_NAME} as ownerName,
          p.is_public as isPublic,
+         p.rules as rules,
          (p.owner_id = ?) as isOwner,
          (SELECT COUNT(*) FROM playlist_tracks pt WHERE pt.playlist_id = p.id) as trackCount
        FROM playlists p
@@ -178,16 +211,26 @@ export function searchPlaylists(query: string, viewerId: number, limit = 20, off
        ORDER BY (p.owner_id = ?) DESC, p.name COLLATE NOCASE, p.id
        LIMIT ? OFFSET ?`,
     )
-    .all(viewerId, pattern, viewerId, viewerId, limit, offset) as (Omit<PlaylistSearchResult, 'coverAlbumIds' | 'isPublic' | 'isOwner'> & {
+    .all(viewerId, pattern, viewerId, viewerId, limit, offset) as (Omit<
+    PlaylistSearchResult,
+    'coverAlbumIds' | 'isPublic' | 'isSmart' | 'isOwner'
+  > & {
     isPublic: number;
+    rules: string | null;
     isOwner: number;
   })[];
-  return rows.map((p) => ({
-    ...p,
-    isPublic: p.isPublic === 1,
-    isOwner: p.isOwner === 1,
-    coverAlbumIds: coverAlbumIdsOf(p.id),
-  }));
+  return rows.map(({ rules, ...p }) => {
+    // Only the viewer's own can be smart (A210), so its owner is the viewer.
+    const smart = rules === null ? undefined : smartCountAndCover(rules, viewerId);
+    return {
+      ...p,
+      isPublic: p.isPublic === 1,
+      isSmart: rules !== null,
+      isOwner: p.isOwner === 1,
+      trackCount: smart?.trackCount ?? p.trackCount,
+      coverAlbumIds: smart?.coverAlbumIds ?? coverAlbumIdsOf(p.id),
+    };
+  });
 }
 
 /** `includeHidden` is false when the viewer is neither the owner nor an admin. */
@@ -198,9 +241,13 @@ export function getPlaylistDetail(id: number, includeHidden = true): PlaylistDet
     | { name: string }
     | undefined;
 
-  const tracks = db
-    .prepare(
-      `SELECT
+  // A smart playlist runs its rules for its owner; nobody else can open one (A210), so the viewer is the owner.
+  const rules = parseStoredRules(playlist.rules);
+  const tracks = rules
+    ? evaluateRules(rules, playlist.owner_id, smartSeed(playlist.id))
+    : (db
+        .prepare(
+          `SELECT
          t.id as id,
          t.title as title,
          a.name as artist,
@@ -218,8 +265,8 @@ export function getPlaylistDetail(id: number, includeHidden = true): PlaylistDet
        LEFT JOIN albums al ON al.id = t.album_id
        WHERE pt.playlist_id = ? ${hiddenClause(includeHidden)}
        ORDER BY pt.position ASC`,
-    )
-    .all(id) as PlaylistTrack[];
+        )
+        .all(id) as PlaylistTrack[]);
 
   return {
     id: playlist.id,
@@ -229,15 +276,23 @@ export function getPlaylistDetail(id: number, includeHidden = true): PlaylistDet
     ownerName: owner?.name ?? '',
     createdAt: playlist.created_at,
     isPublic: playlist.is_public === 1,
+    isSmart: playlist.rules !== null,
+    rules,
     tracks,
   };
 }
 
-export function createPlaylist(name: string, ownerId: number): PlaylistRow {
+/** With `rules` it is a smart playlist (A207); without, an ordinary one. */
+export function createPlaylist(name: string, ownerId: number, rules?: SmartRules): PlaylistRow {
   const result = db
-    .prepare('INSERT INTO playlists (name, owner_id) VALUES (?, ?)')
-    .run(name, ownerId);
+    .prepare('INSERT INTO playlists (name, owner_id, rules) VALUES (?, ?, ?)')
+    .run(name, ownerId, rules ? JSON.stringify(rules) : null);
   return findPlaylistById(Number(result.lastInsertRowid))!;
+}
+
+/** Replaces a smart playlist's rules. The caller checks it is smart: an ordinary playlist never becomes one. */
+export function setPlaylistRules(id: number, rules: SmartRules): void {
+  db.prepare('UPDATE playlists SET rules = ? WHERE id = ?').run(JSON.stringify(rules), id);
 }
 
 export function renamePlaylist(id: number, name: string): void {
@@ -270,13 +325,20 @@ export function copyPlaylist(sourceId: number, ownerId: number, name: string, in
       sourceId,
       created.id,
     );
-    db.prepare(
-      `INSERT INTO playlist_tracks (playlist_id, track_id, position)
+    const smartRules = parseStoredRules(findPlaylistById(sourceId)?.rules ?? null);
+    if (smartRules) {
+      // "Save as playlist" (A207): freeze what the rules pick right now into an ordinary playlist.
+      const insert = db.prepare('INSERT INTO playlist_tracks (playlist_id, track_id, position) VALUES (?, ?, ?)');
+      evaluateRules(smartRules, ownerId, smartSeed(sourceId)).forEach((track, position) => insert.run(created.id, track.id, position));
+    } else {
+      db.prepare(
+        `INSERT INTO playlist_tracks (playlist_id, track_id, position)
        SELECT ?, pt.track_id, ROW_NUMBER() OVER (ORDER BY pt.position) - 1
        FROM playlist_tracks pt
        JOIN tracks t ON t.id = pt.track_id
        WHERE pt.playlist_id = ? ${hiddenClause(includeHidden)}`,
-    ).run(created.id, sourceId);
+      ).run(created.id, sourceId);
+    }
     return findPlaylistById(created.id)!;
   });
   return copy();
@@ -359,6 +421,11 @@ export function listPublicPlaylistsOf(ownerId: number, includeHidden = false): P
        GROUP BY p.id
        ORDER BY p.public_at DESC, p.id DESC`,
     )
-    .all(ownerId) as Omit<PlaylistSummary, 'coverAlbumIds' | 'isPublic'>[];
-  return rows.map((p) => ({ ...p, isPublic: true, coverAlbumIds: coverAlbumIdsOf(p.id, includeHidden) }));
+    .all(ownerId) as Omit<PlaylistSummary, 'coverAlbumIds' | 'isPublic' | 'isSmart'>[];
+  return rows.map((p) => ({
+    ...p,
+    isPublic: true,
+    isSmart: false,
+    coverAlbumIds: coverAlbumIdsOf(p.id, includeHidden),
+  }));
 }

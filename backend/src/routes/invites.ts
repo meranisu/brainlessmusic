@@ -6,6 +6,8 @@ import { createRateLimiter } from '../services/rateLimit.js';
 import { signToken } from '../services/token.js';
 import { clientIp } from '../utils/clientIp.js';
 import { MIN_PASSWORD_LENGTH, PASSCODE_PATTERN, usernameProblem } from './auth.js';
+import { parseId } from '../utils/parseId.js';
+import { replyRateLimited } from '../utils/replyRateLimited.js';
 
 const HOUR_MS = 60 * 60 * 1000;
 /** Accept attempts per address per hour; mostly about bcrypt cost. */
@@ -44,8 +46,8 @@ const invitesRoute: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.delete<{ Params: { id: string } }>('/admin/invites/:id', adminOnly, async (request, reply) => {
-    const id = Number(request.params.id);
-    if (!Number.isInteger(id) || !revokeInvite(id)) {
+    const id = parseId(request.params.id);
+    if (id === undefined || !revokeInvite(id)) {
       return reply.code(404).send({ error: 'Invite not found or already closed' });
     }
     return reply.code(204).send();
@@ -55,10 +57,7 @@ const invitesRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Params: { token: string } }>('/invites/:token', async (request, reply) => {
     const rate = peekLimiter.check(clientIp(request), { limit: PEEKS_PER_HOUR, windowMs: HOUR_MS });
     if (!rate.allowed) {
-      return reply
-        .code(429)
-        .header('retry-after', String(rate.retryAfterSeconds))
-        .send({ error: 'Too many tries. Wait a moment.' });
+      return replyRateLimited(reply, rate, 'Too many tries. Wait a moment.');
     }
     const peek = peekInvite(request.params.token);
     if (!peek) return reply.code(404).send({ error: 'Invite not found' });
@@ -73,10 +72,7 @@ const invitesRoute: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       const rate = acceptLimiter.check(clientIp(request), { limit: ACCEPTS_PER_HOUR, windowMs: HOUR_MS });
       if (!rate.allowed) {
-        return reply
-          .code(429)
-          .header('retry-after', String(rate.retryAfterSeconds))
-          .send({ error: 'Too many tries. Wait a moment.' });
+        return replyRateLimited(reply, rate, 'Too many tries. Wait a moment.');
       }
 
       const { username, password, passcode } = request.body ?? {};

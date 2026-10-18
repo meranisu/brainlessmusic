@@ -59,9 +59,19 @@ async function findAudioFiles(root: string): Promise<{ files: string[]; unreadab
   return { files, unreadableDirs };
 }
 
+/** Where scan problems are reported; defaults to the console. */
+export type ScanLogger = { warn: (msg: string) => void; info: (msg: string) => void };
+
+const consoleLogger: ScanLogger = { warn: (msg) => console.error(msg), info: (msg) => console.log(msg) };
+
 type ScanFileResult = { status: 'added' | 'updated' } | { status: 'failed'; error: string };
 
-async function scanFile(filePath: string, rootId: number): Promise<ScanFileResult> {
+async function scanFile(
+  filePath: string,
+  rootId: number,
+  artworkRoot: string,
+  log: ScanLogger,
+): Promise<ScanFileResult> {
   try {
     const [stats, tags] = await Promise.all([stat(filePath), extractTrackTags(filePath)]);
 
@@ -74,12 +84,12 @@ async function scanFile(filePath: string, rootId: number): Promise<ScanFileResul
       ...tags,
     });
 
-    await persistArtwork(track.id, track.album_id, tags.picture);
+    await persistArtwork(artworkRoot, track.id, track.album_id, tags.picture);
 
     return { status: existed ? 'updated' : 'added' };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error(`Failed to scan ${filePath}: ${message}`);
+    log.warn(`Failed to scan ${filePath}: ${message}`);
     return { status: 'failed', error: message };
   }
 }
@@ -97,7 +107,9 @@ const SCAN_CONCURRENCY = 6;
 export async function scanLibrary(
   libraryRoot: string,
   rootId: number,
+  artworkRoot: string,
   onProgress?: ScanProgressCallback,
+  log: ScanLogger = consoleLogger,
 ): Promise<ScanSummary> {
   const start = Date.now();
 
@@ -112,7 +124,7 @@ export async function scanLibrary(
 
   for (let i = 0; i < files.length; i += SCAN_CONCURRENCY) {
     const batch = files.slice(i, i + SCAN_CONCURRENCY);
-    const results = await Promise.all(batch.map((filePath) => scanFile(filePath, rootId)));
+    const results = await Promise.all(batch.map((filePath) => scanFile(filePath, rootId, artworkRoot, log)));
 
     batch.forEach((filePath, index) => {
       const result = results[index];
@@ -129,7 +141,7 @@ export async function scanLibrary(
 
   const settled = settleAlbums(albumsBefore);
   if (settled.artistsSet > 0 || settled.merged > 0) {
-    console.log(`Albums settled: ${settled.artistsSet} artist(s) worked out from tracks, ${settled.merged} merged`);
+    log.info(`Albums settled: ${settled.artistsSet} artist(s) worked out from tracks, ${settled.merged} merged`);
   }
 
   return {

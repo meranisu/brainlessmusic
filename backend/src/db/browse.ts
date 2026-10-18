@@ -1,6 +1,7 @@
 import { db } from './connection.js';
 import { trackGainSql } from './loudness.js';
 import { buildMatchQuery } from '../utils/ftsQuery.js';
+import { likeEscape, likePattern } from '../utils/like.js';
 
 export interface ArtistSummary {
   id: number;
@@ -230,8 +231,8 @@ function buildTrackFilter(options: ListTracksOptions): { where: string; params: 
       params.push(match);
     } else {
       // Under the trigram floor no index can help, so scan.
-      clauses.push('(t.title LIKE ? OR a.name LIKE ? OR al.title LIKE ?)');
-      const pattern = `%${options.search.trim()}%`;
+      clauses.push("(t.title LIKE ? ESCAPE '\\' OR a.name LIKE ? ESCAPE '\\' OR al.title LIKE ? ESCAPE '\\')");
+      const pattern = likePattern(options.search.trim());
       params.push(pattern, pattern, pattern);
     }
   }
@@ -477,11 +478,6 @@ function wants(page: SearchPage, kind: 'artists' | 'albums' | 'tracks'): boolean
   return page.only === undefined || page.only === kind;
 }
 
-/** `%` and `_` in a query are literal in LIKE, not wildcards. */
-function likeEscape(text: string): string {
-  return text.replace(/[\\%_]/g, (c) => `\\${c}`);
-}
-
 /**
  * Best match first for a name column: the whole name, then names starting with the query, then a later word starting
  * with it, then anything containing it; A to Z within each, then by id, so paging with OFFSET never repeats or skips
@@ -558,7 +554,7 @@ function searchWithFts(match: string, query: string, includeHidden: boolean, pag
 
 /** The pre-FTS path, still reached by queries shorter than a trigram. */
 function searchWithLike(query: string, includeHidden: boolean, page: SearchPage): SearchResults {
-  const pattern = `%${likeEscape(query.trim())}%`;
+  const pattern = likePattern(query.trim());
 
   const artists: ArtistSummary[] = !wants(page, 'artists')
     ? []

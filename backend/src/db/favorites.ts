@@ -1,5 +1,6 @@
 import { db } from './connection.js';
 import { getTrackSummariesByIds, type TrackSummary } from './browse.js';
+import { clearSmartSummaries } from './smartPlaylists.js';
 
 export interface FavoriteTrack extends TrackSummary {
   favoritedAt: string;
@@ -11,11 +12,13 @@ export function starTrack(userId: number, trackId: number): void {
     userId,
     trackId,
   );
+  clearSmartSummaries(userId);
 }
 
 /** Idempotent. */
 export function unstarTrack(userId: number, trackId: number): void {
   db.prepare('DELETE FROM favorites WHERE user_id = ? AND track_id = ?').run(userId, trackId);
+  clearSmartSummaries(userId);
 }
 
 /** Favorite ids only: the client keeps them as one set for every view, instead of each browse query joining favorites. */

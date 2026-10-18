@@ -1,18 +1,23 @@
 import { db } from './connection.js';
+import { clearSmartSummaries } from './smartPlaylists.js';
 
 /** Idempotent. */
 export function markLessOften(userId: number, trackId: number): void {
   db.prepare('INSERT OR IGNORE INTO less_often (user_id, track_id) VALUES (?, ?)').run(userId, trackId);
+  clearSmartSummaries(userId);
 }
 
 /** Idempotent. */
 export function unmarkLessOften(userId: number, trackId: number): void {
   db.prepare('DELETE FROM less_often WHERE user_id = ? AND track_id = ?').run(userId, trackId);
+  clearSmartSummaries(userId);
 }
 
 /** Returns how many were cleared. */
 export function clearLessOften(userId: number): number {
-  return db.prepare('DELETE FROM less_often WHERE user_id = ?').run(userId).changes;
+  const cleared = db.prepare('DELETE FROM less_often WHERE user_id = ?').run(userId).changes;
+  clearSmartSummaries(userId);
+  return cleared;
 }
 
 /** How many songs [userId] marked less often; hidden ones left out unless [includeHidden] (A34). */

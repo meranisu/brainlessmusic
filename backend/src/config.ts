@@ -19,6 +19,8 @@ export const config = {
   guestMintsPerHour: Number(process.env.GUEST_MINTS_PER_HOUR ?? 10),
   // "Request a code" presses one IP may make per hour (A67), and how many may wait for the admin at once.
   guestRequestsPerHour: Number(process.env.GUEST_REQUESTS_PER_HOUR ?? 5),
+  // Polls (collect) and cancels one IP may make per minute on a code request. A waiting device polls every few seconds.
+  guestRequestPollsPerMinute: Number(process.env.GUEST_REQUEST_POLLS_PER_MINUTE ?? 120),
   maxPendingGuestRequests: Number(process.env.MAX_PENDING_GUEST_REQUESTS ?? 20),
   // Tight on purpose: a 4-8 digit passcode's small keyspace leaves the rate limit as the real guard.
   passcodeAttemptsPerMinute: Number(process.env.PASSCODE_ATTEMPTS_PER_MINUTE ?? 8),

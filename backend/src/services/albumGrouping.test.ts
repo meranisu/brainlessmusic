@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { config } from '../config.js';
 import { execFile } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -105,7 +106,7 @@ describe('album grouping (v0.4, 0030)', async () => {
     await makeAudio(join(dir, '1.mp3'), { title: 'One', artist: 'A', album: 'Hits', compilation: '1' });
     await makeAudio(join(dir, '2.mp3'), { title: 'Two', artist: 'B', album: 'Hits', compilation: '1' });
 
-    await scanLibrary(library, rootId);
+    await scanLibrary(library, rootId, config.artworkPath);
     const placed = placement();
 
     assert.equal(placed.get('One')!.albumId, placed.get('Two')!.albumId);
@@ -130,7 +131,7 @@ describe('album grouping (v0.4, 0030)', async () => {
       album_artist: 'Main',
     });
 
-    await scanLibrary(library, rootId);
+    await scanLibrary(library, rootId, config.artworkPath);
     const placed = placement();
 
     assert.equal(placed.get('Alone')!.albumId, placed.get('Together')!.albumId);
@@ -146,7 +147,7 @@ describe('album grouping (v0.4, 0030)', async () => {
     await makeAudio(join(mixed, '1.mp3'), { title: 'X1', artist: 'P', album: 'Mixed' });
     await makeAudio(join(mixed, '2.mp3'), { title: 'X2', artist: 'Q', album: 'Mixed' });
 
-    await scanLibrary(library, rootId);
+    await scanLibrary(library, rootId, config.artworkPath);
     const placed = placement();
 
     assert.equal(placed.get('M1')!.albumId, placed.get('M3')!.albumId);
@@ -162,7 +163,7 @@ describe('album grouping (v0.4, 0030)', async () => {
     await makeAudio(join(library, 'Big', 'CD1', '1.mp3'), { ...tags, album: 'Big', title: 'B1' });
     await makeAudio(join(library, 'Big', 'CD2', '1.mp3'), { ...tags, album: 'Big', title: 'B2' });
 
-    await scanLibrary(library, rootId);
+    await scanLibrary(library, rootId, config.artworkPath);
     const placed = placement();
 
     assert.notEqual(placed.get('G1')!.albumId, placed.get('G2')!.albumId);
@@ -174,10 +175,10 @@ describe('album grouping (v0.4, 0030)', async () => {
     await makeAudio(join(dir, '1.mp3'), { title: 'X1', artist: 'P', album: 'Mixed' });
     await makeAudio(join(dir, '2.mp3'), { title: 'X2', artist: 'Q', album: 'Mixed' });
 
-    await scanLibrary(library, rootId);
+    await scanLibrary(library, rootId, config.artworkPath);
     const first = placement();
     const albumRows = (db.prepare('SELECT COUNT(*) as n FROM albums').get() as { n: number }).n;
-    await scanLibrary(library, rootId);
+    await scanLibrary(library, rootId, config.artworkPath);
 
     assert.deepEqual(placement(), first);
     assert.equal((db.prepare('SELECT COUNT(*) as n FROM albums').get() as { n: number }).n, albumRows);
@@ -220,7 +221,7 @@ describe('album grouping (v0.4, 0030)', async () => {
       addTrackToPlaylist(playlist.id, p3.trackId);
       addTrackToPlaylist(playlist.id, p1.trackId);
 
-      await scanLibrary(library, rootId);
+      await scanLibrary(library, rootId, config.artworkPath);
       const placed = placement();
       const albumId = placed.get('P1')!.albumId;
 
@@ -252,12 +253,12 @@ describe('album grouping (v0.4, 0030)', async () => {
       const dir = join(library, 'Edited');
       await makeAudio(join(dir, '1.mp3'), { title: 'E1', artist: 'Someone', album: 'Edited', album_artist: 'Label' });
 
-      await scanLibrary(library, rootId);
+      await scanLibrary(library, rootId, config.artworkPath);
       const trackId = (db.prepare("SELECT id FROM tracks WHERE title = 'E1'").get() as { id: number }).id;
       updateTrackFields(trackId, { albumTitle: 'Renamed' });
       const before = placement().get('E1')!;
 
-      await scanLibrary(library, rootId);
+      await scanLibrary(library, rootId, config.artworkPath);
 
       assert.deepEqual(placement().get('E1'), before);
       assert.equal(before.album, 'Renamed');
@@ -271,7 +272,7 @@ describe('album grouping (v0.4, 0030)', async () => {
     await makeAudio(join(library, 'Double', 'CD1', '01.mp3'), { ...tags, title: 'D1T1', disc: '1', track: '1' });
     await makeAudio(join(library, 'Double', 'CD2', '02.mp3'), { ...tags, title: 'D2T2', disc: '2', track: '2' });
 
-    await scanLibrary(library, rootId);
+    await scanLibrary(library, rootId, config.artworkPath);
     const detail = getAlbumDetail(placement().get('D1T1')!.albumId)!;
 
     assert.deepEqual(
@@ -311,7 +312,7 @@ describe('album grouping (v0.4, 0030)', async () => {
     await makeAudio(join(library, 'Two', '1.mp3'), { title: 'T1', artist: 'Y', album: 'Two', genre: 'trance' });
     await makeAudio(join(library, 'Three', '1.mp3'), { title: 'H1', artist: 'Z', album: 'Three', genre: 'Metal' });
 
-    await scanLibrary(library, rootId);
+    await scanLibrary(library, rootId, config.artworkPath);
     const byName = () => new Map(listGenres().map((g) => [g.name, g]));
 
     assert.deepEqual([...byName().keys()], ['Eurobeat', 'Metal', 'Trance']);
@@ -331,7 +332,7 @@ describe('album grouping (v0.4, 0030)', async () => {
     assert.ok(!byName().has('Eurobeat'), 'deleting a track clears its genres');
 
     // A rescan replaces genres rather than adding to them.
-    await scanLibrary(library, rootId);
+    await scanLibrary(library, rootId, config.artworkPath);
     assert.equal(byName().get('Trance')!.trackCount, 2, 'O1 came back, nothing doubled');
   });
 
@@ -348,7 +349,7 @@ describe('album grouping (v0.4, 0030)', async () => {
     for (const n of ['1', '2', '3']) await makeAudio(join(library, 'Game', `${n}.mp3`), { ...va, title: `G${n}` });
     await makeAudio(join(library, 'Other Game', '1.mp3'), { ...va, title: 'O1' });
 
-    await scanLibrary(library, rootId);
+    await scanLibrary(library, rootId, config.artworkPath);
     const placed = placement();
 
     assert.equal(placed.get('K5')!.albumId, placed.get('K1')!.albumId, 'the stray joined');
@@ -360,7 +361,7 @@ describe('album grouping (v0.4, 0030)', async () => {
       .prepare("SELECT id FROM albums WHERE folder LIKE '%/Pianist/Keys'")
       .get() as { id: number };
     assert.equal(resolveAlbumId(strayRow.id), placed.get('K1')!.albumId);
-    await scanLibrary(library, rootId);
+    await scanLibrary(library, rootId, config.artworkPath);
     assert.deepEqual(placement(), placed);
   });
 });

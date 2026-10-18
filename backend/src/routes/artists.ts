@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { countArtists, getArtistDetail, listArtists } from '../db/browse.js';
 import { parsePagination } from '../utils/pagination.js';
+import { parseId } from '../utils/parseId.js';
 
 const artistsRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Querystring: { limit?: string; offset?: string } }>(
@@ -17,8 +18,8 @@ const artistsRoute: FastifyPluginAsync = async (fastify) => {
     '/artists/:id',
     { preHandler: fastify.authenticate },
     async (request, reply) => {
-      const id = Number(request.params.id);
-      if (!Number.isInteger(id)) {
+      const id = parseId(request.params.id);
+      if (id === undefined) {
         return reply.code(404).send({ error: 'Artist not found' });
       }
 

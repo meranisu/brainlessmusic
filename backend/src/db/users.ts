@@ -1,5 +1,6 @@
 import { randomBytes, randomInt } from 'node:crypto';
 import { db } from './connection.js';
+import { clearSmartSummaries } from './smartPlaylists.js';
 
 /** `'account'` logs in with a password. `'guest'` can't: its one JWT is the only way in, so losing it loses the row. */
 export type UserKind = 'account' | 'guest';
@@ -106,6 +107,15 @@ export function setPasswordHash(username: string, passwordHash: string): UserRow
   return findUserByUsername(username);
 }
 
+/**
+ * Ends every session signed before now, this caller's included (Q202). The caller signs a fresh token from the row
+ * this returns.
+ */
+export function bumpSessionVersion(userId: number): UserRow | undefined {
+  db.prepare('UPDATE users SET session_version = session_version + 1 WHERE id = ?').run(userId);
+  return findUserById(userId);
+}
+
 /** Every row, guests included. Kept for callers that mean "rows in this table". */
 export function countUsers(): number {
   return (db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number }).count;
@@ -175,6 +185,7 @@ export function pruneIdleGuests(idleDays: number): number {
       db.prepare('DELETE FROM favorites WHERE user_id = ?').run(id);
       db.prepare('DELETE FROM less_often WHERE user_id = ?').run(id);
       db.prepare('DELETE FROM play_history WHERE user_id = ?').run(id);
+    clearSmartSummaries(id);
       db.prepare('DELETE FROM playback_state WHERE user_id = ?').run(id);
       db.prepare('DELETE FROM playback_failures WHERE user_id = ?').run(id);
       db.prepare('UPDATE guest_codes SET used_by = NULL WHERE used_by = ?').run(id);
@@ -280,6 +291,7 @@ export function deleteUser(id: number): boolean {
     db.prepare('DELETE FROM favorites WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM less_often WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM play_history WHERE user_id = ?').run(userId);
+    clearSmartSummaries(userId);
     db.prepare('DELETE FROM playback_state WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM playback_failures WHERE user_id = ?').run(userId);
     db.prepare('UPDATE guest_codes SET used_by = NULL WHERE used_by = ?').run(userId);

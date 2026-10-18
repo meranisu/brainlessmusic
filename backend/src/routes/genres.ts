@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { getGenreDetail, listGenres } from '../db/genres.js';
+import { parseId } from '../utils/parseId.js';
 
 const genresRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get('/genres', { preHandler: fastify.authenticate }, async (_request, reply) => {
@@ -10,8 +11,8 @@ const genresRoute: FastifyPluginAsync = async (fastify) => {
     '/genres/:id',
     { preHandler: fastify.authenticate },
     async (request, reply) => {
-      const id = Number(request.params.id);
-      const genre = Number.isInteger(id) ? getGenreDetail(id) : undefined;
+      const id = parseId(request.params.id);
+      const genre = id !== undefined ? getGenreDetail(id) : undefined;
       if (!genre) {
         return reply.code(404).send({ error: 'Genre not found' });
       }

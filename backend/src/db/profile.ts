@@ -1,6 +1,7 @@
 import { db } from './connection.js';
 import { getTrackSummariesByIds, type TrackSummary } from './browse.js';
 import { foldText } from '../utils/foldText.js';
+import { likePattern } from '../utils/like.js';
 
 /** Longest bio kept. */
 export const MAX_BIO_LENGTH = 300;
@@ -128,7 +129,7 @@ export function listPeople(): Person[] {
 /** People whose name or username contains `query`, for search (A172). Accounts only, as on the People page. */
 export function searchPeople(query: string, limit = 10, offset = 0): Person[] {
   // `%` and `_` in a name are literal here, not wildcards. Folded, so accents don't matter.
-  const pattern = `%${foldText(query.trim()).replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+  const pattern = likePattern(foldText(query.trim()));
   return db
     .prepare(
       `SELECT u.id AS id, COALESCE(u.display_name, u.username) AS name, u.avatar_id AS avatarId, u.bio AS bio,

@@ -39,6 +39,8 @@ const EXPECTED: Record<string, Gate> = {
   'GET /artists/:id': 'guest',
   'GET /auth/me': 'guest',
   'POST /auth/media-token': 'guest',
+  // Guests too: making a handoff link rotates the session (Q202).
+  'POST /auth/sessions/revoke': 'guest',
   'GET /browse/letters': 'guest',
   'GET /browse/shuffled': 'guest',
   'DELETE /me/playback-state': 'guest',
@@ -88,6 +90,7 @@ const EXPECTED: Record<string, Gate> = {
   'DELETE /playlists/:id': 'account',
   'PATCH /playlists/:id': 'account',
   'POST /playlists/:id/copy': 'account',
+  'POST /playlists/smart/preview': 'account',
   'PUT /me/profile': 'account',
   'PUT /me/avatar': 'account',
   'DELETE /me/avatar': 'account',
@@ -184,11 +187,25 @@ describe('guest token against the running app', () => {
   function routesWith(gate: Gate) {
     return Object.entries(EXPECTED)
       .filter(([, g]) => g === gate)
+      // Ends the very token this suite reuses for every route, so it has its own test below.
+      .filter(([key]) => key !== 'POST /auth/sessions/revoke')
       .map(([key]) => {
         const [method, url] = key.split(' ');
         return { method: method as 'GET', url: API_PREFIX + url.replace(/:[a-zA-Z]+/g, '1') };
       });
   }
+
+  it('lets a guest end other sessions and keep a working one', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: API_PREFIX + '/auth/sessions/revoke',
+      headers: { authorization: `Bearer ${guestToken}` },
+    });
+    assert.equal(res.statusCode, 200);
+    const { token } = res.json() as { token: string };
+    const me = await app.inject({ method: 'GET', url: API_PREFIX + '/auth/me', headers: { authorization: `Bearer ${token}` } });
+    assert.equal(me.statusCode, 200);
+  });
 
   it('refuses a guest on every account-only route', async () => {
     const routes = routesWith('account');

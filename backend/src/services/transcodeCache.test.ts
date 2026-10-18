@@ -97,12 +97,12 @@ describe('the transcode cache', async () => {
     it('converts on a miss and reuses it on a hit', { skip: !ffmpegAvailable }, async () => {
       const stats = await stat(source);
 
-      const first = await getOrCreate(source, stats, LOW_QUALITY_VARIANT);
+      const first = await getOrCreate(config.transcodePath, source, stats, LOW_QUALITY_VARIANT);
       assert.equal(first.hit, false, 'a cold request has to produce the file');
       const produced = await stat(first.path);
       assert.ok(produced.size > 0);
 
-      const second = await getOrCreate(source, stats, LOW_QUALITY_VARIANT);
+      const second = await getOrCreate(config.transcodePath, source, stats, LOW_QUALITY_VARIANT);
       assert.equal(second.hit, true, 'the second request must not convert again');
       assert.equal(second.path, first.path);
     });
@@ -111,7 +111,7 @@ describe('the transcode cache', async () => {
       // The entire justification for the feature. If this ever inverts, the
       // data-saver path is costing bytes instead of saving them.
       const stats = await stat(source);
-      const { path } = await getOrCreate(source, stats, LOW_QUALITY_VARIANT);
+      const { path } = await getOrCreate(config.transcodePath, source, stats, LOW_QUALITY_VARIANT);
       const converted = await stat(path);
       assert.ok(
         converted.size < stats.size,
@@ -124,8 +124,8 @@ describe('the transcode cache', async () => {
       // the same path.
       const stats = await stat(source);
       const [a, b] = await Promise.all([
-        getOrCreate(source, stats, LOW_QUALITY_VARIANT),
-        getOrCreate(source, stats, LOW_QUALITY_VARIANT),
+        getOrCreate(config.transcodePath, source, stats, LOW_QUALITY_VARIANT),
+        getOrCreate(config.transcodePath, source, stats, LOW_QUALITY_VARIANT),
       ]);
 
       assert.equal(a.path, b.path);
@@ -140,7 +140,7 @@ describe('the transcode cache', async () => {
       await writeFile(broken, 'definitely not a FLAC');
       const stats = await stat(broken);
 
-      await assert.rejects(() => getOrCreate(broken, stats, LOW_QUALITY_VARIANT));
+      await assert.rejects(() => getOrCreate(config.transcodePath, broken, stats, LOW_QUALITY_VARIANT));
 
       const names = await readdir(config.transcodePath).catch(() => []);
       assert.deepEqual(
@@ -159,15 +159,15 @@ describe('the transcode cache', async () => {
   describe('eviction', () => {
     it('does nothing while under the cap', { skip: !ffmpegAvailable }, async () => {
       const stats = await stat(source);
-      await getOrCreate(source, stats, LOW_QUALITY_VARIANT);
-      assert.equal(await evictIfOversized(), 0);
+      await getOrCreate(config.transcodePath, source, stats, LOW_QUALITY_VARIANT);
+      assert.equal(await evictIfOversized(config.transcodePath), 0);
       assert.equal((await readdir(config.transcodePath)).length, 1);
     });
 
     it('drops the least recently used entry first', { skip: !ffmpegAvailable }, async () => {
       const stats = await stat(source);
-      const keep = await getOrCreate(source, stats, LOW_QUALITY_VARIANT);
-      const drop = await getOrCreate(source, { size: 1, mtimeMs: 5 }, LOW_QUALITY_VARIANT);
+      const keep = await getOrCreate(config.transcodePath, source, stats, LOW_QUALITY_VARIANT);
+      const drop = await getOrCreate(config.transcodePath, source, { size: 1, mtimeMs: 5 }, LOW_QUALITY_VARIANT);
 
       // Age the one that should go. Eviction reads mtime, which `getOrCreate`
       // touches on every hit, so it means "last used" rather than "created".
@@ -175,7 +175,7 @@ describe('the transcode cache', async () => {
       await utimes(drop.path, old, old);
 
       config.transcodeCacheMaxMb = 0.0001; // forces all but nothing out
-      const removed = await evictIfOversized();
+      const removed = await evictIfOversized(config.transcodePath);
 
       assert.ok(removed >= 1);
       const left = await readdir(config.transcodePath);
@@ -186,23 +186,23 @@ describe('the transcode cache', async () => {
     it('never deletes a file it did not create', { skip: !ffmpegAvailable }, async () => {
       // A shared TRANSCODE_PATH must not cost anyone else their files.
       const stats = await stat(source);
-      await getOrCreate(source, stats, LOW_QUALITY_VARIANT);
+      await getOrCreate(config.transcodePath, source, stats, LOW_QUALITY_VARIANT);
       const bystander = join(config.transcodePath, 'someone-elses-notes.txt');
       await writeFile(bystander, 'not mine');
 
       config.transcodeCacheMaxMb = 0.0001;
-      await evictIfOversized();
+      await evictIfOversized(config.transcodePath);
 
       assert.equal(await readFile(bystander, 'utf8'), 'not mine');
     });
 
     it('counts only its own files toward the total', { skip: !ffmpegAvailable }, async () => {
       const stats = await stat(source);
-      const { path } = await getOrCreate(source, stats, LOW_QUALITY_VARIANT);
+      const { path } = await getOrCreate(config.transcodePath, source, stats, LOW_QUALITY_VARIANT);
       const mine = (await stat(path)).size;
       await writeFile(join(config.transcodePath, 'stranger.bin'), Buffer.alloc(50_000));
 
-      assert.equal(await cacheSizeBytes(), mine);
+      assert.equal(await cacheSizeBytes(config.transcodePath), mine);
     });
   });
 });

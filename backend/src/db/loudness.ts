@@ -1,5 +1,6 @@
 import { db } from './connection.js';
 import { buildMatchQuery } from '../utils/ftsQuery.js';
+import { likePattern } from '../utils/like.js';
 
 /** Where levelling aims every track: the ReplayGain 2.0 reference level. */
 export const TARGET_LUFS = -18;
@@ -101,8 +102,8 @@ export function listTrackLoudness(options: ListTrackLoudnessOptions): { total: n
       clauses.push('t.id IN (SELECT rowid FROM tracks_fts WHERE tracks_fts MATCH @match)');
       params.match = match;
     } else {
-      clauses.push('(t.title LIKE @like OR a.name LIKE @like OR al.title LIKE @like)');
-      params.like = `%${search}%`;
+      clauses.push("(t.title LIKE @like ESCAPE '\\' OR a.name LIKE @like ESCAPE '\\' OR al.title LIKE @like ESCAPE '\\')");
+      params.like = likePattern(search);
     }
   }
 

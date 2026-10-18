@@ -6,6 +6,7 @@ import { storeArtwork, type EmbeddedPicture } from './artwork.js';
  * Kept out of `artwork.ts` so that module's tests don't pull in the database. Failures never fail the import.
  */
 export async function persistArtwork(
+  artworkRoot: string,
   trackId: number,
   albumId: number | null,
   picture: EmbeddedPicture | null,
@@ -13,7 +14,7 @@ export async function persistArtwork(
   if (!picture) return null;
 
   try {
-    const artworkId = await storeArtwork(picture);
+    const artworkId = await storeArtwork(artworkRoot, picture);
     if (!artworkId) return null;
 
     setTrackArtwork(trackId, artworkId);

@@ -38,6 +38,7 @@ let adminAuth: { authorization: string };
 let originalEntryCode: string;
 let originalRequestsPerHour: number;
 let originalMaxPending: number;
+let originalPolls: number;
 
 before(async () => {
   app = buildApp();
@@ -54,6 +55,7 @@ beforeEach(async () => {
   originalEntryCode = config.entryCode;
   originalRequestsPerHour = config.guestRequestsPerHour;
   originalMaxPending = config.maxPendingGuestRequests;
+  originalPolls = config.guestRequestPollsPerMinute;
   config.entryCode = '';
 
   const admin = insertUser('boss', await hashPassword('correct horse battery staple'));
@@ -65,6 +67,7 @@ afterEach(() => {
   config.entryCode = originalEntryCode;
   config.guestRequestsPerHour = originalRequestsPerHour;
   config.maxPendingGuestRequests = originalMaxPending;
+  config.guestRequestPollsPerMinute = originalPolls;
 });
 
 async function newCode(): Promise<Listing> {
@@ -307,6 +310,21 @@ describe('requesting a code (A67)', () => {
     config.guestRequestsPerHour = 100;
     config.maxPendingGuestRequests = 2;
     assert.equal((await request({})).statusCode, 503);
+  });
+
+  it('rate limits collect and cancel per address', async () => {
+    config.guestRequestPollsPerMinute = 3;
+    const cancel = () =>
+      app.inject({ method: 'POST', url: '/api/auth/guest/requests/999/cancel', payload: { secret: 'x' } });
+
+    assert.equal((await collect(999, 'x')).statusCode, 404);
+    assert.equal((await cancel()).statusCode, 404);
+    assert.equal((await collect(999, 'x')).statusCode, 404);
+
+    const refusedCollect = await collect(999, 'x');
+    assert.equal(refusedCollect.statusCode, 429);
+    assert.ok(Number(refusedCollect.headers['retry-after']) > 0);
+    assert.equal((await cancel()).statusCode, 429);
   });
 
   it('approve and deny are admin-only', async () => {

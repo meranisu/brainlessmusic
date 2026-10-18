@@ -1,9 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { access, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import ffmpeg from 'fluent-ffmpeg';
+import { exists } from '../utils/fs.js';
 
 /**
  * Profile pictures (profile page plan). An upload is cropped to a centred square and scaled to [AVATAR_SIZE] px JPEG
@@ -102,15 +103,6 @@ export function avatarFile(root: string, id: string): string {
   return join(root, `${id}.jpg`);
 }
 
-async function exists(path: string): Promise<boolean> {
-  try {
-    await access(path);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Crops and stores [image]; returns its id. Throws for anything but a PNG, JPEG, WebP or GIF, and when ffmpeg can't read it,
  * which is also how a file that only claims to be one is refused.
@@ -161,6 +153,20 @@ export async function saveAvatar(root: string, image: Buffer): Promise<string> {
     await rm(input, { force: true });
     await rm(output, { force: true });
   }
+}
+
+let avatarChain: Promise<unknown> = Promise.resolve();
+
+/**
+ * Runs [work] after every earlier locked call finished. Pictures are stored by content hash, so two users can share
+ * one file. Without this, user A could delete the old file after "is it in use?" said no while user B's save had just
+ * found that same file already there and was about to point at it. Save-then-point and point-then-delete both run
+ * inside it, so a delete always sees the final set of owners. One process holds the database, so memory is enough.
+ */
+export function withAvatarLock<T>(work: () => Promise<T>): Promise<T> {
+  const run = avatarChain.then(work, work);
+  avatarChain = run.catch(() => {});
+  return run;
 }
 
 /** Deletes a picture nobody uses any more. A missing file is fine. */

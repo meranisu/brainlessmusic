@@ -13,6 +13,7 @@ import {
   listGuestCodes,
   setGuestCodesRequired,
 } from '../db/guestCodes.js';
+import { parseId } from '../utils/parseId.js';
 
 /** The admin "Guest access" panel (A42/A43, A67-A69). `ENTRY_CODE` is reported as set or not, never returned. */
 const guestCodesRoute: FastifyPluginAsync = async (fastify) => {
@@ -49,8 +50,8 @@ const guestCodesRoute: FastifyPluginAsync = async (fastify) => {
 
   // Approving mints the guest, so it counts against the cap like the guest door does.
   fastify.post<{ Params: { id: string } }>('/guest-codes/requests/:id/approve', adminOnly, async (request, reply) => {
-    const id = Number(request.params.id);
-    if (!Number.isInteger(id)) return reply.code(404).send({ error: 'Request not found' });
+    const id = parseId(request.params.id);
+    if (id === undefined) return reply.code(404).send({ error: 'Request not found' });
 
     if (countGuests() >= config.maxGuests) pruneIdleGuests(config.guestIdleDays);
     if (countGuests() >= config.maxGuests) {
@@ -64,8 +65,8 @@ const guestCodesRoute: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.post<{ Params: { id: string } }>('/guest-codes/requests/:id/deny', adminOnly, async (request, reply) => {
-    const id = Number(request.params.id);
-    if (!Number.isInteger(id) || !denyGuestCodeRequest(id)) {
+    const id = parseId(request.params.id);
+    if (id === undefined || !denyGuestCodeRequest(id)) {
       return reply.code(404).send({ error: 'Request not found' });
     }
     return reply.send(snapshot());
@@ -73,8 +74,8 @@ const guestCodesRoute: FastifyPluginAsync = async (fastify) => {
 
   // On a used code this revokes it: the guest and its data go, and every device using it is signed out (A69).
   fastify.delete<{ Params: { id: string } }>('/guest-codes/:id', adminOnly, async (request, reply) => {
-    const id = Number(request.params.id);
-    if (!Number.isInteger(id) || !deleteGuestCode(id)) {
+    const id = parseId(request.params.id);
+    if (id === undefined || !deleteGuestCode(id)) {
       return reply.code(404).send({ error: 'Code not found' });
     }
     return reply.code(204).send();

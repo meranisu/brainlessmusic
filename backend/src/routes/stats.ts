@@ -3,6 +3,7 @@ import { getTrackStat, getUserStats, type StatsRange } from '../db/listeningStat
 import { findTrackById } from '../db/library.js';
 import { countTopTracks, listTopTracks } from '../db/plays.js';
 import { parsePagination } from '../utils/pagination.js';
+import { parseId } from '../utils/parseId.js';
 
 const statsRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Querystring: { limit?: string; offset?: string } }>(
@@ -35,8 +36,8 @@ const statsRoute: FastifyPluginAsync = async (fastify) => {
     '/me/stats/tracks/:id',
     { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
-      const id = Number(request.params.id);
-      if (!Number.isInteger(id) || !findTrackById(id)) {
+      const id = parseId(request.params.id);
+      if (id === undefined || !findTrackById(id)) {
         return reply.code(404).send({ error: 'Track not found' });
       }
       return reply.send(getTrackStat(request.user!.id, id));

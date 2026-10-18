@@ -57,7 +57,7 @@ export async function getSystemStats(): Promise<SystemStats> {
   const [data, library, cacheBytes] = await Promise.all([
     diskUsage('Data', dirname(config.dbPath)),
     diskUsage('Library', config.libraryPath),
-    cacheSizeBytes(),
+    cacheSizeBytes(config.transcodePath),
   ]);
 
   return {

@@ -10,6 +10,7 @@ import {
 } from '../db/guestCodeRequests.js';
 import { claimGuestCode, guestCodesRequired, peekGuestCode, recordGuestCodeSignin } from '../db/guestCodes.js';
 import {
+  bumpSessionVersion,
   cleanDisplayName,
   clearPasscodeById,
   countAccounts,
@@ -36,6 +37,8 @@ import { hashPasscode, hashPassword, verifyPasscode, verifyPassword } from '../s
 import { createRateLimiter, type RateLimiter, type RateLimitResult } from '../services/rateLimit.js';
 import { signMediaToken, signToken, tokenExpiresAt, type TokenUser } from '../services/token.js';
 import { clientIp } from '../utils/clientIp.js';
+import { parseId } from '../utils/parseId.js';
+import { replyRateLimited } from '../utils/replyRateLimited.js';
 
 interface Credentials {
   username: string;
@@ -72,6 +75,8 @@ const MINUTE_MS = 60 * 1000;
 
 const guestMintLimiter = createRateLimiter();
 const guestRequestLimiter = createRateLimiter();
+/** Collect and cancel share one budget per IP: the secret is long, but nothing should be free to hammer. */
+const guestRequestPollLimiter = createRateLimiter();
 
 /** Which client signed in, for the admin's sign-in log (A69). Anything else is stored as unknown. */
 function platformOf(input: unknown): string | null {
@@ -114,10 +119,7 @@ function countLoginFailure(byIp: RateLimiter, ip: string, perMinute: number, use
 }
 
 function tooManyTries(reply: FastifyReply, rate: RateLimitResult) {
-  return reply
-    .code(429)
-    .header('retry-after', String(rate.retryAfterSeconds))
-    .send({ error: 'Too many tries. Wait a moment.' });
+  return replyRateLimited(reply, rate, 'Too many tries. Wait a moment.');
 }
 
 /** Constant-time compare. Unequal lengths short-circuit, leaking only the code's length. */
@@ -168,10 +170,7 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       });
 
       if (!rate.allowed) {
-        return reply
-          .code(429)
-          .header('retry-after', String(rate.retryAfterSeconds))
-          .send({ error: 'Too many guest sessions from this address. Try again shortly.' });
+        return replyRateLimited(reply, rate, 'Too many guest sessions from this address. Try again shortly.');
       }
 
       const name = cleanDisplayName(request.body?.name);
@@ -225,10 +224,7 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
     });
 
     if (!rate.allowed) {
-      return reply
-        .code(429)
-        .header('retry-after', String(rate.retryAfterSeconds))
-        .send({ error: 'Too many requests from this address. Try again later.' });
+      return replyRateLimited(reply, rate, 'Too many requests from this address. Try again later.');
     }
 
     const name = cleanDisplayName(request.body?.name);
@@ -253,8 +249,14 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Params: { id: string }; Body: { secret?: unknown } }>(
     '/auth/guest/requests/:id/cancel',
     async (request, reply) => {
-      const id = Number(request.params.id);
-      if (!Number.isInteger(id) || !cancelGuestCodeRequest(id, request.body?.secret)) {
+      const rate = guestRequestPollLimiter.check(clientIp(request), {
+        limit: config.guestRequestPollsPerMinute,
+        windowMs: MINUTE_MS,
+      });
+      if (!rate.allowed) return tooManyTries(reply, rate);
+
+      const id = parseId(request.params.id);
+      if (id === undefined || !cancelGuestCodeRequest(id, request.body?.secret)) {
         return reply.code(404).send({ error: 'Request not found' });
       }
       return reply.code(204).send();
@@ -264,8 +266,14 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Params: { id: string }; Body: { secret?: unknown } }>(
     '/auth/guest/requests/:id/collect',
     async (request, reply) => {
-      const id = Number(request.params.id);
-      const result = Number.isInteger(id) ? collectGuestCodeRequest(id, request.body?.secret) : undefined;
+      const rate = guestRequestPollLimiter.check(clientIp(request), {
+        limit: config.guestRequestPollsPerMinute,
+        windowMs: MINUTE_MS,
+      });
+      if (!rate.allowed) return tooManyTries(reply, rate);
+
+      const id = parseId(request.params.id);
+      const result = id !== undefined ? collectGuestCodeRequest(id, request.body?.secret) : undefined;
       if (!result) return reply.code(404).send({ error: 'Request not found' });
 
       if (result.status !== 'approved') return reply.send({ status: result.status });
@@ -509,6 +517,15 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       return reply.send({ email });
     },
   );
+
+  // Sign out everywhere (Q202): every token signed before this call stops working, handoff links and other devices
+  // included. The caller gets a fresh token so this device stays in. Also used when a handoff link is made, so an older
+  // link can't outlive the one just handed out.
+  fastify.post('/auth/sessions/revoke', { preHandler: fastify.authenticate }, async (request, reply) => {
+    const user = bumpSessionVersion(request.user!.id);
+    if (!user) return reply.code(401).send({ error: 'Invalid or expired token' });
+    return reply.send({ token: signToken(tokenUserOf(user)) });
+  });
 
   // Swaps a session token for a short-lived media token for `<audio src>` / `<img src>`. Clients cache it until `expiresAt`.
   fastify.post('/auth/media-token', { preHandler: fastify.authenticate }, async (request, reply) => {

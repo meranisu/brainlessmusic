@@ -3,7 +3,7 @@ import { mkdir, stat, unlink } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { extname, join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { config } from '../config.js';
 import {
   countTracks,
@@ -51,9 +51,12 @@ import { persistArtwork } from '../services/artworkIngest.js';
 import { fileIntoLibrary } from '../services/trackFiling.js';
 import { AUDIO_EXTENSIONS, extractTrackTags } from '../services/trackTags.js';
 import { parsePagination } from '../utils/pagination.js';
+import { findVisibleTrack } from '../utils/visibleTrack.js';
 import { createRateLimiter } from '../services/rateLimit.js';
 import { isAdminRequest } from '../utils/isAdmin.js';
 import { isInside } from '../utils/paths.js';
+import { parseId } from '../utils/parseId.js';
+import { replyRateLimited } from '../utils/replyRateLimited.js';
 
 /** A day, then revalidate: covers an evening of seeks, and a replaced file stops serving within a day. */
 const CACHE_CONTROL = 'private, max-age=86400';
@@ -157,6 +160,35 @@ const CLIENT_PLAY_ID = /^[A-Za-z0-9-]{8,64}$/;
 const PLAYBACK_FAILURES_PER_MINUTE = 30;
 const playbackFailureLimiter = createRateLimiter();
 
+interface StreamLogContext {
+  trackId: number;
+  userId: number;
+  username: string;
+  userAgent: string | undefined;
+}
+
+/** Logs a server-side stream failure, records it against the track and the playback-failure log, and replies 500. */
+function reportStreamFailure(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  ctx: StreamLogContext,
+  message: string,
+  err: unknown,
+  extraLog: Record<string, unknown>,
+) {
+  request.log.error({ ...ctx, err, ...extraLog }, message);
+  setLastStreamError(ctx.trackId, message);
+  recordStreamError(ctx.trackId, message);
+  recordPlaybackFailure({
+    userId: ctx.userId,
+    trackId: ctx.trackId,
+    source: 'server',
+    message,
+    userAgent: ctx.userAgent,
+  });
+  return reply.code(500).send({ error: message, trackId: ctx.trackId });
+}
+
 const tracksRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Querystring: TracksQuery }>(
     '/tracks',
@@ -234,9 +266,25 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
         const stats = await stat(stagingPath);
         const destPath = await fileIntoLibrary(config.libraryPath, stagingPath, data.filename, tags);
 
-        const track = upsertTrack({ path: destPath, fileSize: stats.size, rootId: defaultRoot.id, ...tags });
-        if (track.album_id !== null) settleAlbums(new Map(), [track.album_id]);
-        await persistArtwork(track.id, track.album_id, tags.picture);
+        // The file now sits in the library under a name nobody else has. With no row it would be an orphan until the
+        // next scan, and the client would think the upload failed, so a failed insert takes the file back out.
+        let track: ReturnType<typeof upsertTrack>;
+        try {
+          track = upsertTrack({ path: destPath, fileSize: stats.size, rootId: defaultRoot.id, ...tags });
+        } catch (err) {
+          request.log.error({ err, destPath }, 'Upload filed but could not be saved to the database');
+          await unlink(destPath).catch(() => {});
+          return reply.code(500).send({ error: 'Could not save the track. Nothing was added. Try the upload again.' });
+        }
+
+        // The track exists from here. Album settling and artwork are tidying that the next scan repeats, so a failure
+        // is logged, not turned into an error for a track that is in the library.
+        try {
+          if (track.album_id !== null) settleAlbums(new Map(), [track.album_id]);
+          await persistArtwork(config.artworkPath, track.id, track.album_id, tags.picture);
+        } catch (err) {
+          request.log.warn({ err, trackId: track.id }, 'Upload saved but album or artwork tidy-up failed; a scan will redo it');
+        }
         requestLoudnessBackfill();
 
         return reply.code(201).send({ track: getTrackSummaryById(track.id) });
@@ -252,8 +300,8 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
     '/tracks/:id',
     { preHandler: fastify.authenticate },
     async (request, reply) => {
-      const id = Number(request.params.id);
-      if (!Number.isInteger(id)) {
+      const id = parseId(request.params.id);
+      if (id === undefined) {
         return reply.code(404).send({ error: 'Track not found' });
       }
 
@@ -322,8 +370,8 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
     '/tracks/:id',
     { preHandler: [fastify.authenticate, fastify.requireAdmin] },
     async (request, reply) => {
-      const id = Number(request.params.id);
-      if (!Number.isInteger(id) || !findTrackById(id)) {
+      const id = parseId(request.params.id);
+      if (id === undefined || !findTrackById(id)) {
         return reply.code(404).send({ error: 'Track not found' });
       }
 
@@ -349,8 +397,8 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
     '/tracks/:id',
     { preHandler: [fastify.authenticate, fastify.requireAdmin] },
     async (request, reply) => {
-      const id = Number(request.params.id);
-      if (!Number.isInteger(id)) {
+      const id = parseId(request.params.id);
+      if (id === undefined) {
         return reply.code(404).send({ error: 'Track not found' });
       }
 
@@ -376,8 +424,8 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
     '/tracks/:id/stream',
     { preHandler: fastify.authenticateMedia },
     async (request, reply) => {
-      const id = Number(request.params.id);
-      if (!Number.isInteger(id)) {
+      const id = parseId(request.params.id);
+      if (id === undefined) {
         return reply.code(404).send({ error: 'Track not found' });
       }
 
@@ -400,20 +448,8 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
       try {
         stats = await stat(track.path);
       } catch (err) {
-        const message = 'Track file is missing from disk';
-        request.log.error({ ...logContext, err, path: track.path }, message);
-        setLastStreamError(id, message);
-        recordStreamError(id, message);
-        recordPlaybackFailure({
-          userId: logContext.userId,
-          trackId: id,
-          source: 'server',
-          message,
-          userAgent: logContext.userAgent,
-        });
-        return reply.code(500).send({
-          error: message,
-          trackId: id,
+        return reportStreamFailure(request, reply, logContext, 'Track file is missing from disk', err, {
+          path: track.path,
         });
       }
 
@@ -431,7 +467,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
 
       if (variant) {
         try {
-          const entry = await getOrCreate(track.path, stats, variant);
+          const entry = await getOrCreate(config.transcodePath, track.path, stats, variant);
           servePath = entry.path;
           serveStats = await stat(entry.path);
           contentType = variant.mimeType;
@@ -446,17 +482,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
           }
 
           const message = `Transcode failed: ${err instanceof Error ? err.message : String(err)}`;
-          request.log.error({ ...logContext, err, variant: variant.id }, message);
-          setLastStreamError(id, message);
-          recordStreamError(id, message);
-          recordPlaybackFailure({
-            userId: logContext.userId,
-            trackId: id,
-            source: 'server',
-            message,
-            userAgent: logContext.userAgent,
-          });
-          return reply.code(500).send({ error: message, trackId: id });
+          return reportStreamFailure(request, reply, logContext, message, err, { variant: variant.id });
         }
       }
 
@@ -530,8 +556,8 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
     '/tracks/:id/prepare',
     { preHandler: fastify.authenticate },
     async (request, reply) => {
-      const id = Number(request.params.id);
-      const track = Number.isInteger(id) ? findTrackById(id) : undefined;
+      const id = parseId(request.params.id);
+      const track = id !== undefined ? findVisibleTrack(id, request) : undefined;
       if (!track) {
         return reply.code(404).send({ error: 'Track not found' });
       }
@@ -547,7 +573,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(404).send({ error: 'Track file is missing from disk' });
       }
 
-      const status = warm(track.path, stats, variant, (err) => {
+      const status = warm(config.transcodePath, track.path, stats, variant, (err) => {
         request.log.warn({ err, trackId: id, variant: variant.id }, 'Ahead-of-time transcode failed');
       });
       return { status };
@@ -565,12 +591,12 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
     '/tracks/:id/playback-failure',
     { preHandler: fastify.authenticate },
     async (request, reply) => {
-      const id = Number(request.params.id);
-      if (!Number.isInteger(id)) {
+      const id = parseId(request.params.id);
+      if (id === undefined) {
         return reply.code(404).send({ error: 'Track not found' });
       }
 
-      if (!findTrackById(id)) {
+      if (!findVisibleTrack(id, request)) {
         return reply.code(404).send({ error: 'Track not found' });
       }
 
@@ -580,7 +606,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
         windowMs: 60 * 1000,
       });
       if (!rate.allowed) {
-        return reply.code(429).header('retry-after', String(rate.retryAfterSeconds)).send({ error: 'Too many reports' });
+        return replyRateLimited(reply, rate, 'Too many reports');
       }
 
       const { mediaErrorCode, detail, contentType } = request.body ?? {};
@@ -618,12 +644,12 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
     '/tracks/:id/cover',
     { preHandler: fastify.authenticateMedia },
     async (request, reply) => {
-      const id = Number(request.params.id);
-      if (!Number.isInteger(id)) {
+      const id = parseId(request.params.id);
+      if (id === undefined) {
         return reply.code(404).send({ error: 'Track not found' });
       }
 
-      return sendCover(request, reply, findTrackArtworkId(id), request.query.size);
+      return sendCover(request, reply, config.artworkPath, findTrackArtworkId(id), request.query.size);
     },
   );
 
@@ -632,8 +658,8 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
     '/tracks/:id/waveform',
     { preHandler: fastify.authenticate },
     async (request, reply) => {
-      const id = Number(request.params.id);
-      if (!Number.isInteger(id)) {
+      const id = parseId(request.params.id);
+      if (id === undefined) {
         return reply.code(404).send({ error: 'Track not found' });
       }
 
@@ -658,8 +684,8 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
     '/tracks/:id/scrobble',
     { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
-      const id = Number(request.params.id);
-      if (!Number.isInteger(id)) {
+      const id = parseId(request.params.id);
+      if (id === undefined) {
         return reply.code(404).send({ error: 'Track not found' });
       }
 
@@ -716,8 +742,8 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
     '/tracks/:id/history',
     { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
-      const id = Number(request.params.id);
-      if (!Number.isInteger(id)) {
+      const id = parseId(request.params.id);
+      if (id === undefined) {
         return reply.code(404).send({ error: 'Track not found' });
       }
 

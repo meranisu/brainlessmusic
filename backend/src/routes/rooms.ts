@@ -9,7 +9,10 @@ import {
   type RoomTrack,
   createRoomRegistry,
 } from '../services/rooms.js';
+import { createRateLimiter } from '../services/rateLimit.js';
 import { verifySessionToken } from '../services/token.js';
+import { clientIp } from '../utils/clientIp.js';
+import { replyRateLimited } from '../utils/replyRateLimited.js';
 
 /**
  * Room sync (spec: `.docs/specs/room-sync.md`). REST for things that happen once, one WebSocket for the live part.
@@ -18,6 +21,15 @@ import { verifySessionToken } from '../services/token.js';
 
 /** A browser can't put headers on a WebSocket and a URL token ends up in logs, so the first message carries it. */
 const HELLO_TIMEOUT_MS = 5000;
+
+// Room codes are 6 letters and any guest can mint an account, so guessing is throttled: lookups per user, failed hellos
+// per address, and messages per socket.
+const MINUTE_MS = 60_000;
+const LOOKUPS_PER_MINUTE = 30;
+const FAILED_HELLOS_PER_MINUTE = 20;
+const SOCKET_MESSAGES_PER_SECOND = 30;
+const lookupLimiter = createRateLimiter();
+const failedHelloLimiter = createRateLimiter();
 /** Protocol pings catch a phone that vanished without closing its socket, well inside Cloudflare's ~100 s limit. */
 const HEARTBEAT_MS = 30_000;
 
@@ -120,6 +132,10 @@ const roomsRoute: FastifyPluginAsync = async (fastify) => {
     '/rooms/:code',
     { preHandler: fastify.authenticate },
     async (request, reply) => {
+      const rate = lookupLimiter.check(String(request.user!.id), { limit: LOOKUPS_PER_MINUTE, windowMs: MINUTE_MS });
+      if (!rate.allowed) {
+        return replyRateLimited(reply, rate, 'Too many tries. Wait a little.');
+      }
       const room = rooms.snapshot(request.params.code);
       if (!room) return reply.code(404).send({ error: 'No room with that code' });
       const playing = room.queue[room.current];
@@ -136,7 +152,10 @@ const roomsRoute: FastifyPluginAsync = async (fastify) => {
     rooms: rooms.overview(),
   }));
 
-  fastify.get('/rooms/ws', { websocket: true }, (socket: WebSocket) => {
+  fastify.get('/rooms/ws', { websocket: true }, (socket: WebSocket, request) => {
+    const ip = clientIp(request);
+    let windowStart = 0;
+    let windowCount = 0;
     let joined: { code: string; userId: number; sessionVersion: number; connection: Connection } | null = null;
 
     const send = (message: object) => {
@@ -178,13 +197,31 @@ const roomsRoute: FastifyPluginAsync = async (fastify) => {
         return;
       }
 
+      if (joined) {
+        const now = Date.now();
+        if (now - windowStart >= 1000) {
+          windowStart = now;
+          windowCount = 0;
+        }
+        if (++windowCount > SOCKET_MESSAGES_PER_SECOND) {
+          send({ type: 'error', reason: 'rate-limited' });
+          return;
+        }
+      }
+
       if (!joined) {
+        const hello = { limit: FAILED_HELLOS_PER_MINUTE, windowMs: MINUTE_MS };
+        if (!failedHelloLimiter.peek(ip, hello).allowed) {
+          closeWith('rate-limited');
+          return;
+        }
         if (message.type !== 'hello' || typeof message.code !== 'string') {
           closeWith('no-hello');
           return;
         }
         const member = memberFromToken(message.token);
         if (!member) {
+          failedHelloLimiter.check(ip, hello);
           closeWith('unauthorized');
           return;
         }
@@ -198,6 +235,7 @@ const roomsRoute: FastifyPluginAsync = async (fastify) => {
         };
         const result = rooms.connect(message.code, member, connection);
         if (!result.ok) {
+          failedHelloLimiter.check(ip, hello);
           closeWith(result.reason);
           return;
         }

@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
-import { findTrackById } from '../db/library.js';
+import { findVisibleTrack } from '../utils/visibleTrack.js';
 import {
   addTrackToPlaylist,
   copyPlaylist,
@@ -16,9 +16,12 @@ import {
   reorderPlaylistTracks,
   setPlaylistDescription,
   setPlaylistPublic,
+  setPlaylistRules,
   type PlaylistRow,
 } from '../db/playlists.js';
+import { checkRules, evaluateRules } from '../db/smartPlaylists.js';
 import { isAdminRequest } from '../utils/isAdmin.js';
+import { parseId } from '../utils/parseId.js';
 
 /** Longest playlist name, in characters (code points, so an emoji counts once). The apps show the same limit. */
 export const MAX_NAME_LENGTH = 100;
@@ -56,11 +59,6 @@ export function checkPlaylistName(raw: unknown): { name: string } | { error: str
   if (/[\u0000-\u001f\u007f]/.test(name)) return { error: 'name cannot contain line breaks or control characters' };
   if ([...name].length > MAX_NAME_LENGTH) return { error: `name can be at most ${MAX_NAME_LENGTH} characters` };
   return { name };
-}
-
-function parseId(raw: string): number | undefined {
-  const id = Number(raw);
-  return Number.isInteger(id) && id > 0 ? id : undefined;
 }
 
 /** Loads the playlist and checks ownership; on 404/403 it replies itself and returns undefined. */
@@ -105,22 +103,52 @@ function loadReadablePlaylist(
   return playlist;
 }
 
+/** A smart playlist fills itself from its rules (A207), so hand edits to its tracks are refused. */
+function refuseIfSmart(playlist: PlaylistRow, reply: FastifyReply): boolean {
+  if (playlist.rules === null) return false;
+  reply.code(409).send({ error: 'Smart playlists fill themselves. Change the rules instead.' });
+  return true;
+}
+
 const playlistsRoute: FastifyPluginAsync = async (fastify) => {
-  fastify.post<{ Body: { name?: unknown } }>(
+  // With `rules` it makes a smart playlist (A207); without, an ordinary one.
+  fastify.post<{ Body: { name?: unknown; rules?: unknown } }>(
     '/playlists',
     { preHandler: [fastify.authenticate, fastify.requireAccount] },
-    async (request: FastifyRequest<{ Body: { name?: unknown } }>, reply) => {
+    async (request: FastifyRequest<{ Body: { name?: unknown; rules?: unknown } }>, reply) => {
       const checked = checkPlaylistName(request.body?.name);
       if ('error' in checked) {
         return reply.code(400).send({ error: checked.error });
       }
 
-      const playlist = createPlaylist(checked.name, request.user!.id);
+      const rawRules = request.body?.rules;
+      const rules = rawRules === undefined ? undefined : checkRules(rawRules);
+      if (rules && 'error' in rules) {
+        return reply.code(400).send({ error: rules.error });
+      }
+
+      const playlist = createPlaylist(checked.name, request.user!.id, rules?.rules);
       return reply.code(201).send({
         id: playlist.id,
         name: playlist.name,
         createdAt: playlist.created_at,
+        isSmart: playlist.rules !== null,
       });
+    },
+  );
+
+  // What the rules would pick right now, for the editor's live preview. Saves nothing. Run for the caller, whose plays
+  // and likes the rules use (A208).
+  fastify.post<{ Body: { rules?: unknown } }>(
+    '/playlists/smart/preview',
+    { preHandler: [fastify.authenticate, fastify.requireAccount] },
+    async (request, reply) => {
+      const checked = checkRules(request.body?.rules);
+      if ('error' in checked) {
+        return reply.code(400).send({ error: checked.error });
+      }
+      const tracks = evaluateRules(checked.rules, request.user!.id);
+      return reply.send({ trackCount: tracks.length, tracks: tracks.slice(0, 50) });
     },
   );
 
@@ -161,8 +189,11 @@ const playlistsRoute: FastifyPluginAsync = async (fastify) => {
     },
   );
 
-  // Rename, the description, and the public switch (A162). Any of them.
-  fastify.patch<{ Params: { id: string }; Body: { name?: unknown; description?: unknown; isPublic?: unknown } }>(
+  // Rename, the description, the public switch (A162), and a smart playlist's rules (A207). Any of them.
+  fastify.patch<{
+    Params: { id: string };
+    Body: { name?: unknown; description?: unknown; isPublic?: unknown; rules?: unknown };
+  }>(
     '/playlists/:id',
     { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
@@ -173,11 +204,26 @@ const playlistsRoute: FastifyPluginAsync = async (fastify) => {
       const rawName = request.body?.name;
       const rawDescription = request.body?.description;
       const isPublic = request.body?.isPublic;
-      if (rawName === undefined && rawDescription === undefined && isPublic === undefined) {
-        return reply.code(400).send({ error: 'name, description or isPublic is required' });
+      const rawRules = request.body?.rules;
+      if (rawName === undefined && rawDescription === undefined && isPublic === undefined && rawRules === undefined) {
+        return reply.code(400).send({ error: 'name, description, isPublic or rules is required' });
       }
       if (isPublic !== undefined && typeof isPublic !== 'boolean') {
         return reply.code(400).send({ error: 'isPublic must be true or false' });
+      }
+      // Rules use the owner's own plays and likes, so a public one would show them to everyone (A210).
+      if (isPublic === true && playlist.rules !== null) {
+        return reply.code(400).send({ error: 'Smart playlists are private. Save it as a playlist to share it.' });
+      }
+      let rules: ReturnType<typeof checkRules> | undefined;
+      if (rawRules !== undefined) {
+        if (playlist.rules === null) {
+          return reply.code(400).send({ error: 'Only a smart playlist has rules' });
+        }
+        rules = checkRules(rawRules);
+        if ('error' in rules) {
+          return reply.code(400).send({ error: rules.error });
+        }
       }
       let name: string | undefined;
       if (rawName !== undefined) {
@@ -199,6 +245,7 @@ const playlistsRoute: FastifyPluginAsync = async (fastify) => {
       if (name) renamePlaylist(playlist.id, name);
       if (description !== undefined) setPlaylistDescription(playlist.id, description);
       if (isPublic !== undefined) setPlaylistPublic(playlist.id, isPublic);
+      if (rules && 'rules' in rules) setPlaylistRules(playlist.id, rules.rules);
       const updated = findPlaylistById(playlist.id)!;
       return reply.send({
         id: updated.id,
@@ -251,12 +298,14 @@ const playlistsRoute: FastifyPluginAsync = async (fastify) => {
       const playlist = loadOwnedPlaylist(id, request.user!.id, reply);
       if (!playlist) return;
 
+      if (refuseIfSmart(playlist, reply)) return;
+
       const trackId = Number(request.body?.trackId);
       if (!Number.isInteger(trackId)) {
         return reply.code(400).send({ error: 'trackId is required' });
       }
 
-      const track = findTrackById(trackId);
+      const track = findVisibleTrack(trackId, request);
       if (!track) {
         return reply.code(404).send({ error: 'Track not found' });
       }
@@ -277,6 +326,8 @@ const playlistsRoute: FastifyPluginAsync = async (fastify) => {
       const id = parseId(request.params.id);
       const playlist = loadOwnedPlaylist(id, request.user!.id, reply);
       if (!playlist) return;
+
+      if (refuseIfSmart(playlist, reply)) return;
 
       const trackId = parseId(request.params.trackId);
       if (trackId === undefined) {
@@ -299,6 +350,8 @@ const playlistsRoute: FastifyPluginAsync = async (fastify) => {
       const id = parseId(request.params.id);
       const playlist = loadOwnedPlaylist(id, request.user!.id, reply);
       if (!playlist) return;
+
+      if (refuseIfSmart(playlist, reply)) return;
 
       const trackIds = request.body?.trackIds;
       if (!Array.isArray(trackIds) || trackIds.some((t) => !Number.isInteger(t))) {

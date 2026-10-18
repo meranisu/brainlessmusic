@@ -1,9 +1,11 @@
 import type { FastifyPluginAsync } from 'fastify';
+import { config } from '../config.js';
 import { findAlbumArtworkId } from '../db/artwork.js';
 import { countAlbums, getAlbumDetail, listAlbums, resolveAlbumId } from '../db/browse.js';
 import { sendCover } from '../services/artwork.js';
 import { isAdminRequest } from '../utils/isAdmin.js';
 import { parsePagination } from '../utils/pagination.js';
+import { parseId } from '../utils/parseId.js';
 
 const albumsRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Querystring: { limit?: string; offset?: string } }>(
@@ -20,8 +22,8 @@ const albumsRoute: FastifyPluginAsync = async (fastify) => {
     '/albums/:id',
     { preHandler: fastify.authenticate },
     async (request, reply) => {
-      const id = Number(request.params.id);
-      if (!Number.isInteger(id)) {
+      const id = parseId(request.params.id);
+      if (id === undefined) {
         return reply.code(404).send({ error: 'Album not found' });
       }
 
@@ -41,12 +43,12 @@ const albumsRoute: FastifyPluginAsync = async (fastify) => {
     '/albums/:id/cover',
     { preHandler: fastify.authenticateMedia },
     async (request, reply) => {
-      const id = Number(request.params.id);
-      if (!Number.isInteger(id)) {
+      const id = parseId(request.params.id);
+      if (id === undefined) {
         return reply.code(404).send({ error: 'Album not found' });
       }
 
-      return sendCover(request, reply, findAlbumArtworkId(resolveAlbumId(id)), request.query.size);
+      return sendCover(request, reply, config.artworkPath, findAlbumArtworkId(resolveAlbumId(id)), request.query.size);
     },
   );
 };

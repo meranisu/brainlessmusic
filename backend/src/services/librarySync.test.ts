@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { config } from '../config.js';
 import { mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { beforeEach, describe, it } from 'node:test';
@@ -35,7 +36,7 @@ describe('syncLibrary', () => {
     // The whole drive, not just the one file.
     await rm(rootPath, { recursive: true, force: true });
 
-    const result = await syncLibrary(rootPath, root.id, { scan: true });
+    const result = await syncLibrary(rootPath, root.id, config.artworkPath, { scan: true });
 
     assert.ok(result, 'a fresh call must not be turned away as already-running');
     assert.equal(result!.scan, undefined, 'no scan summary is attempted when the root cannot be read');
@@ -73,11 +74,11 @@ describe('last_full_scan_at', () => {
     try {
       const root = insertLibraryRoot(temp.path, null);
 
-      await syncLibrary(temp.path, root.id);
+      await syncLibrary(temp.path, root.id, config.artworkPath);
       assert.equal(findLibraryRootById(root.id)!.last_full_scan_at, null, 'reconcile only');
       assert.ok(findLibraryRootById(root.id)!.last_scanned_at, 'reconcile still stamps last_scanned_at');
 
-      await syncLibrary(temp.path, root.id, { scan: true });
+      await syncLibrary(temp.path, root.id, config.artworkPath, { scan: true });
       assert.ok(findLibraryRootById(root.id)!.last_full_scan_at);
     } finally {
       await temp.cleanup();

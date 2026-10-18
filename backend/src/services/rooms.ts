@@ -1,4 +1,4 @@
-import { randomInt } from 'node:crypto';
+import { randomCode } from '../utils/randomCode.js';
 
 /**
  * Room sync ("Listen together", A102): an in-memory registry of shared listening rooms. The server holds the truth
@@ -125,8 +125,7 @@ export function createRoomRegistry(deps: RegistryDeps) {
 
   function newCode(): string {
     for (;;) {
-      let code = '';
-      for (let i = 0; i < CODE_LENGTH; i++) code += CODE_ALPHABET[randomInt(CODE_ALPHABET.length)];
+      const code = randomCode(CODE_ALPHABET, CODE_LENGTH);
       if (!rooms.has(code)) return code;
     }
   }

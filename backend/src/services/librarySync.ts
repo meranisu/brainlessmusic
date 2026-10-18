@@ -49,6 +49,7 @@ export function getScanProgress(rootId: number): ScanProgress | null {
 export async function syncLibrary(
   libraryRoot: string,
   rootId: number,
+  artworkRoot: string,
   options: { scan?: boolean } = {},
 ): Promise<LibrarySyncResult | null> {
   if (running.has(rootId)) return null;
@@ -62,7 +63,7 @@ export async function syncLibrary(
     );
     const scan =
       options.scan && rootIsReadable
-        ? await scanLibrary(libraryRoot, rootId, (processed, total) => {
+        ? await scanLibrary(libraryRoot, rootId, artworkRoot, (processed, total) => {
             scanProgress.set(rootId, { processed, total });
           })
         : undefined;
@@ -128,7 +129,7 @@ export function isScanDue(lastFullScanAt: string | null, now: Date, intervalHour
 export function startLibrarySyncSchedule(log: Logger): NodeJS.Timeout | null {
   const runRoot = async (rootId: number, rootPath: string, label: string, withScan: boolean) => {
     try {
-      const result = await syncLibrary(rootPath, rootId, { scan: withScan });
+      const result = await syncLibrary(rootPath, rootId, config.artworkPath, { scan: withScan });
 
       if (!result) {
         log.info(`Library sync skipped for "${label}": one is already running.`);

@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { db } from '../db/connection.js';
 import { runMigrations } from '../db/migrator.js';
+import { clearAllSmartSummaries } from '../db/smartPlaylists.js';
 
 /**
  * Shared setup for database tests. `npm test` points every path at `backend/.test-tmp/`, so no import can reach the
@@ -43,6 +44,8 @@ export function resetDatabase(): void {
   }
 
   db.exec(TABLES_IN_DELETION_ORDER.map((table) => `DELETE FROM ${table};`).join('\n'));
+  // Kept smart playlist counts belong to the rows just deleted; ids start again at 1.
+  clearAllSmartSummaries();
 }
 
 /** A scratch directory outside the repository, removed by the returned cleanup. */

@@ -42,10 +42,13 @@ export function parseEbur128Summary(stderr: string): LoudnessMeasurement | null 
   return { lufs: Number(integrated[1]), peak: peakValue };
 }
 
+/** A measurement running longer than this is killed, so one hung file can't hold the backfill (`running`) forever. */
+const MEASURE_TIMEOUT_SECONDS = 10 * 60;
+
 /** Decodes the whole file through `ebur128` at low CPU priority. About 1-9 s for a few minutes of Opus. */
 export function measureLoudness(path: string): Promise<LoudnessMeasurement> {
   return new Promise((resolve, reject) => {
-    ffmpeg(path)
+    ffmpeg(path, { timeout: MEASURE_TIMEOUT_SECONDS })
       .renice(10)
       .noVideo()
       .audioFilters('ebur128=peak=true')

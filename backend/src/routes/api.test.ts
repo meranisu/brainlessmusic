@@ -175,6 +175,29 @@ describe('authentication', () => {
   });
 });
 
+describe('sign out everywhere', () => {
+  it('ends older tokens and hands back one that works', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/sessions/revoke',
+      headers: { authorization: `Bearer ${listenerToken}` },
+    });
+    assert.equal(res.statusCode, 200);
+    const { token } = res.json() as { token: string };
+
+    const old = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { authorization: `Bearer ${listenerToken}` } });
+    assert.equal(old.statusCode, 401);
+
+    const fresh = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { authorization: `Bearer ${token}` } });
+    assert.equal(fresh.statusCode, 200);
+  });
+
+  it('needs a session', async () => {
+    const res = await app.inject({ method: 'POST', url: '/api/auth/sessions/revoke' });
+    assert.equal(res.statusCode, 401);
+  });
+});
+
 describe('token scope separation', () => {
   it('refuses a media token used as a bearer credential', async () => {
     // Media tokens end up in logs; one must never work as a session credential.

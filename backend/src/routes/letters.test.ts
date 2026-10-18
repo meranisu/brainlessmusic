@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../app.js';
+import { db } from '../db/connection.js';
 import { upsertTrack } from '../db/library.js';
 import { insertLibraryRoot } from '../db/libraryRoots.js';
 import { insertUser } from '../db/users.js';
@@ -51,10 +52,10 @@ beforeEach(() => {
   });
 });
 
-function letters(scope: string, auth = token) {
+function letters(scope: string, auth = token, extra = '') {
   return app.inject({
     method: 'GET',
-    url: `/api/browse/letters?scope=${scope}`,
+    url: `/api/browse/letters?scope=${scope}${extra}`,
     headers: { authorization: `Bearer ${auth}` },
   });
 }
@@ -116,6 +117,35 @@ describe('GET /api/browse/letters', () => {
       else if (/^[A-Z]$/.test(entry.letter)) assert.equal(first.toUpperCase(), entry.letter, `${entry.letter} landed on ${landed}`);
       else assert.ok(first > 'z', `${entry.letter} landed on ${landed}`);
     }
+  });
+
+  it('missing=all counts songs whose files are missing and matches the list that shows them (A213)', async () => {
+    db.prepare(`UPDATE tracks SET missing_since = datetime('now') WHERE title IN ('Apple', 'Zed', 'Москва')`).run();
+
+    const kept = (await letters('tracks')).json() as { total: number; letters: Entry[] };
+    const all = (await letters('tracks', token, '&missing=all')).json() as { total: number; letters: Entry[] };
+    assert.equal(kept.total, 12, 'the default leaves missing songs out, as Android does');
+    assert.equal(all.total, 15);
+
+    const listing = (
+      await app.inject({
+        method: 'GET',
+        url: '/api/tracks?sort=title&order=asc&hidden=exclude&missing=all&limit=200',
+        headers: { authorization: `Bearer ${token}` },
+      })
+    ).json() as { total: number; tracks: { title: string }[] };
+    assert.equal(listing.total, all.total);
+    for (const entry of all.letters.filter((e) => e.count > 0)) {
+      const first = listing.tracks[entry.offset].title.charAt(0);
+      if (entry.letter === '#') assert.ok(first.toLowerCase() < 'a');
+      else if (/^[A-Z]$/.test(entry.letter)) assert.equal(first.toUpperCase(), entry.letter);
+      else assert.ok(first > 'z');
+    }
+    // The default still matches the default listing, which hides them.
+    const hidden = (
+      await app.inject({ method: 'GET', url: '/api/tracks?sort=title&order=asc&limit=200', headers: { authorization: `Bearer ${token}` } })
+    ).json() as { total: number };
+    assert.equal(hidden.total, kept.total);
   });
 
   it('indexes albums and artists over what their own lists show', async () => {

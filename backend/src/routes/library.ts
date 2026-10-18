@@ -1,6 +1,7 @@
 import { readdir, stat } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import type { FastifyPluginAsync } from 'fastify';
+import { config } from '../config.js';
 import { listMissingTracks } from '../db/library.js';
 import { getLibraryStats } from '../db/libraryStats.js';
 import {
@@ -10,9 +11,10 @@ import {
   insertLibraryRoot,
   listLibraryRoots,
 } from '../db/libraryRoots.js';
-import { findUserById } from '../db/users.js';
 import { getScanProgress, isLibrarySyncRunning, syncLibrary } from '../services/librarySync.js';
+import { isAdminRequest } from '../utils/isAdmin.js';
 import { isInside } from '../utils/paths.js';
+import { parseId } from '../utils/parseId.js';
 
 interface AddRootBody {
   path: string;
@@ -122,7 +124,7 @@ const libraryRoute: FastifyPluginAsync = async (fastify) => {
     }
 
     const root = insertLibraryRoot(path, label);
-    const result = await syncLibrary(root.path, root.id, { scan: true });
+    const result = await syncLibrary(root.path, root.id, config.artworkPath, { scan: true });
 
     // A readable folder with no music (a whole drive, an empty dir) is refused, judged from the scan that just ran.
     if (result?.scan && result.scan.filesFound === 0) {
@@ -140,13 +142,13 @@ const libraryRoute: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.post<{ Params: { id: string } }>('/library/roots/:id/scan', adminOnly, async (request, reply) => {
-    const id = Number(request.params.id);
-    const root = findLibraryRootById(id);
-    if (!Number.isInteger(id) || !root) {
+    const id = parseId(request.params.id);
+    const root = id === undefined ? undefined : findLibraryRootById(id);
+    if (id === undefined || !root) {
       return reply.code(404).send({ error: 'Library root not found' });
     }
 
-    const result = await syncLibrary(root.path, root.id, { scan: true });
+    const result = await syncLibrary(root.path, root.id, config.artworkPath, { scan: true });
     if (!result) {
       return reply.code(409).send({ error: 'A scan of this root is already in progress' });
     }
@@ -154,9 +156,9 @@ const libraryRoute: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.delete<{ Params: { id: string } }>('/library/roots/:id', adminOnly, async (request, reply) => {
-    const id = Number(request.params.id);
-    const root = findLibraryRootById(id);
-    if (!Number.isInteger(id) || !root) {
+    const id = parseId(request.params.id);
+    const root = id === undefined ? undefined : findLibraryRootById(id);
+    if (id === undefined || !root) {
       return reply.code(404).send({ error: 'Library root not found' });
     }
 
@@ -177,7 +179,7 @@ const libraryRoute: FastifyPluginAsync = async (fastify) => {
       const roots = listLibraryRoots();
       const results = [];
       for (const root of roots) {
-        const result = await syncLibrary(root.path, root.id, { scan: true });
+        const result = await syncLibrary(root.path, root.id, config.artworkPath, { scan: true });
         results.push({ rootId: root.id, label: root.label, scan: result?.scan, reconcile: result?.reconcile });
       }
       return reply.send({ roots: results });
@@ -190,8 +192,7 @@ const libraryRoute: FastifyPluginAsync = async (fastify) => {
 
   // Any signed-in user, guests too: the Full view shows it to everyone (A34). Hidden tracks count only for an admin.
   fastify.get('/library/stats', { preHandler: fastify.authenticate }, async (request, reply) => {
-    const isAdmin = Boolean(findUserById(request.user!.id)?.is_admin);
-    return reply.send(getLibraryStats({ includeHidden: isAdmin }));
+    return reply.send(getLibraryStats({ includeHidden: isAdminRequest(request) }));
   });
 
   fastify.get('/library/missing', adminOnly, async (_request, reply) => {

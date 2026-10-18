@@ -24,9 +24,34 @@ const MAX_WAITING_DECODES = 16;
 /** How long a failed decode is remembered, so asking again doesn't decode the same bad file again. */
 const FAILURE_TTL_MS = 10 * 60 * 1000;
 
+/** A decode running longer than this is killed, so a hung file can't hold a decode slot forever. */
+const DECODE_TIMEOUT_SECONDS = 5 * 60;
+/** Failed entries past their TTL are swept at most this often, so ids never asked for again don't pile up. */
+const SWEEP_EVERY_MS = 60 * 1000;
+let lastSweep = 0;
+
 let activeDecodes = 0;
 const waitingForSlot: Array<() => void> = [];
 const failedAt = new Map<number, number>();
+
+/** Drops expired failures. Exported for tests. */
+export function pruneFailures(now = Date.now()): void {
+  for (const [id, at] of failedAt) {
+    if (now - at >= FAILURE_TTL_MS) failedAt.delete(id);
+  }
+  lastSweep = now;
+}
+
+/** Number of remembered failures, for tests. */
+export function failureCount(): number {
+  return failedAt.size;
+}
+
+/** Records a failure, sweeping expired ones now and then. Exported for tests. */
+export function rememberFailure(trackId: number, now = Date.now()): void {
+  if (now - lastSweep >= SWEEP_EVERY_MS) pruneFailures(now);
+  failedAt.set(trackId, now);
+}
 
 async function withDecodeSlot<T>(work: () => Promise<T>): Promise<T> {
   if (activeDecodes < MAX_ACTIVE_DECODES) {
@@ -69,7 +94,7 @@ export function computePeaks(path: string, durationSeconds: number): Promise<num
     // A 16-bit sample can straddle two chunks; hold the odd byte for the next.
     let carry: number | null = null;
 
-    const command = ffmpeg(path)
+    const command = ffmpeg(path, { timeout: DECODE_TIMEOUT_SECONDS })
       .noVideo()
       .audioChannels(1)
       .audioFrequency(DECODE_RATE)
@@ -128,7 +153,10 @@ export async function peaksForTrack(trackId: number): Promise<number[] | null | 
   if (pending) return pending;
 
   const failed = failedAt.get(trackId);
-  if (failed !== undefined && Date.now() - failed < FAILURE_TTL_MS) return null;
+  if (failed !== undefined) {
+    if (Date.now() - failed < FAILURE_TTL_MS) return null;
+    failedAt.delete(trackId);
+  }
 
   if (activeDecodes >= MAX_ACTIVE_DECODES && waitingForSlot.length >= MAX_WAITING_DECODES) return 'busy';
 
@@ -146,7 +174,7 @@ export async function peaksForTrack(trackId: number): Promise<number[] | null | 
     } catch {
       // Decoding is a nicety. A track that won't analyse still plays, and the
       // client falls back to a placeholder shape.
-      failedAt.set(trackId, Date.now());
+      rememberFailure(trackId);
       return null;
     }
   })().finally(() => {

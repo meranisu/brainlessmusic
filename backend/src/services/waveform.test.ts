@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { after, before, describe, it } from 'node:test';
 import { makeTempDir } from '../testing/harness.js';
-import { WAVEFORM_BUCKETS, computePeaks, decodePeaks } from './waveform.js';
+import { WAVEFORM_BUCKETS, computePeaks, decodePeaks, failureCount, pruneFailures, rememberFailure } from './waveform.js';
 
 const run = promisify(execFile);
 
@@ -93,5 +93,18 @@ describe('waveform', async () => {
     const peaks = await computePeaks(path, 4);
     assert.equal(peaks.length, WAVEFORM_BUCKETS);
     assert.ok(peaks.every((p) => p >= 0 && p <= 255));
+  });
+});
+
+describe('waveform failure memory', () => {
+  it('prunes expired failures and keeps fresh ones', () => {
+    const now = Date.now();
+    rememberFailure(9001, now - 11 * 60 * 1000);
+    rememberFailure(9002, now);
+    pruneFailures(now);
+    // 9001 is past the 10 minute TTL; 9002 is fresh.
+    assert.equal(failureCount(), 1);
+    pruneFailures(now + 11 * 60 * 1000);
+    assert.equal(failureCount(), 0);
   });
 });

@@ -1,4 +1,4 @@
-import { randomInt } from 'node:crypto';
+import { randomCode } from '../utils/randomCode.js';
 import { db } from './connection.js';
 import { deleteUser, findUserById, insertGuest, type UserRow } from './users.js';
 
@@ -47,8 +47,7 @@ export function normalizeGuestCode(input: unknown): string {
 
 export function createGuestCode(createdBy: number): GuestCodeRow {
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    let code = '';
-    for (let i = 0; i < CODE_LENGTH; i += 1) code += ALPHABET[randomInt(ALPHABET.length)];
+    const code = randomCode(ALPHABET, CODE_LENGTH);
 
     const result = db
       .prepare(

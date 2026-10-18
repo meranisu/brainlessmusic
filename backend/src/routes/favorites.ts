@@ -8,14 +8,15 @@ import {
 } from '../db/favorites.js';
 import { findTrackById } from '../db/library.js';
 import { parsePagination } from '../utils/pagination.js';
+import { parseId } from '../utils/parseId.js';
 
 const favoritesRoute: FastifyPluginAsync = async (fastify) => {
   fastify.put<{ Params: { id: string } }>(
     '/tracks/:id/favorite',
     { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
-      const id = Number(request.params.id);
-      if (!Number.isInteger(id) || !findTrackById(id)) {
+      const id = parseId(request.params.id);
+      if (id === undefined || !findTrackById(id)) {
         return reply.code(404).send({ error: 'Track not found' });
       }
 
@@ -28,8 +29,8 @@ const favoritesRoute: FastifyPluginAsync = async (fastify) => {
     '/tracks/:id/favorite',
     { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
-      const id = Number(request.params.id);
-      if (!Number.isInteger(id) || !findTrackById(id)) {
+      const id = parseId(request.params.id);
+      if (id === undefined || !findTrackById(id)) {
         return reply.code(404).send({ error: 'Track not found' });
       }
 

@@ -62,8 +62,17 @@ const BUCKETS: { letter: string; from: string }[] = [
 /** The first bucket that is dropped when empty: everything after Z. */
 const FIRST_OPTIONAL = 27;
 
-export function getLetterIndex(scope: LetterScope): LetterIndex {
-  const { from, where, column } = SOURCES[scope];
+export interface LetterOptions {
+  /**
+   * Tracks only. `all` keeps songs whose files are missing, which is what the web library list shows (A213), so its
+   * letters land on the right row. The default leaves them out, as Android's list does.
+   */
+  missing?: 'exclude' | 'all';
+}
+
+export function getLetterIndex(scope: LetterScope, options: LetterOptions = {}): LetterIndex {
+  const { from, column } = SOURCES[scope];
+  const where = scope === 'tracks' && options.missing === 'all' ? 't.hidden = 0' : SOURCES[scope].where;
   // One scan: how many rows sort below each bucket's start. NOCASE then a byte compare keeps code point order.
   const sums = BUCKETS.map((_, i) => `COALESCE(SUM(${column} COLLATE NOCASE < ?), 0) AS b${i}`).join(', ');
   const row = db

@@ -3,6 +3,7 @@ import { clearLessOften, listLessOftenTrackIds, markLessOften, unmarkLessOften }
 import { findTrackById } from '../db/library.js';
 import { listLessOftenTracks } from '../db/listeningStats.js';
 import { parsePagination } from '../utils/pagination.js';
+import { parseId } from '../utils/parseId.js';
 
 /** Songs an account wants to hear less (A60). Accounts only: guests are listen-only (A37). */
 const lessOftenRoute: FastifyPluginAsync = async (fastify) => {
@@ -10,8 +11,8 @@ const lessOftenRoute: FastifyPluginAsync = async (fastify) => {
     '/tracks/:id/less-often',
     { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
-      const id = Number(request.params.id);
-      if (!Number.isInteger(id) || !findTrackById(id)) {
+      const id = parseId(request.params.id);
+      if (id === undefined || !findTrackById(id)) {
         return reply.code(404).send({ error: 'Track not found' });
       }
       markLessOften(request.user!.id, id);
@@ -23,8 +24,8 @@ const lessOftenRoute: FastifyPluginAsync = async (fastify) => {
     '/tracks/:id/less-often',
     { preHandler: [fastify.authenticate, fastify.requireAccount] },
     async (request, reply) => {
-      const id = Number(request.params.id);
-      if (!Number.isInteger(id) || !findTrackById(id)) {
+      const id = parseId(request.params.id);
+      if (id === undefined || !findTrackById(id)) {
         return reply.code(404).send({ error: 'Track not found' });
       }
       unmarkLessOften(request.user!.id, id);
