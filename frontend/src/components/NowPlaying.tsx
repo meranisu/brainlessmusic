@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { apiClient } from '../lib/apiClient';
 import { formatClock } from '../lib/format';
 import type { TrackDetail } from '../types/api';
+import { AddToPlaylistDialog } from './AddToPlaylistDialog';
 import { CoverArt } from './CoverArt';
 import { FavoriteButton, useFavoriteIds } from './FavoriteButton';
 import {
@@ -11,6 +12,7 @@ import {
   DataSaverIcon,
   PauseIcon,
   PlayIcon,
+  PlusIcon,
   RepeatIcon,
   RepeatOneIcon,
   ShuffleIcon,
@@ -102,6 +104,7 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
   const { room, connection } = useRoom();
   // Set only mid-drag. Seeking on every tick would fire a range request each time; seek once on release.
   const [scrubTime, setScrubTime] = useState<number | null>(null);
+  const [addingToPlaylist, setAddingToPlaylist] = useState(false);
 
   // The queue only carries what it needs to play; sample rate and bitrate live
   // on the full record. Same query key the bar invalidates after a scrobble.
@@ -190,6 +193,9 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
         <div className={pill(favoriteIds.has(current.id))}>
           <FavoriteButton trackId={current.id} isFavorited={favoriteIds.has(current.id)} className="p-1" />
         </div>
+        <button onClick={() => setAddingToPlaylist(true)} className={pill(false)} aria-label="Add to playlist">
+          <PlusIcon className="h-4.5 w-4.5" />
+        </button>
         <button
           onClick={toggleShuffle}
           disabled={queue.length < 2 || inRoom}
@@ -206,14 +212,6 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
           aria-label={inRoom ? 'Repeat (off in a room)' : `Repeat: ${repeat}`}
         >
           {repeat === 'one' ? <RepeatOneIcon className="h-4.5 w-4.5" /> : <RepeatIcon className="h-4.5 w-4.5" />}
-        </button>
-        <button
-          onClick={() => void setDataSaver(!dataSaver)}
-          className={pill(dataSaver)}
-          aria-pressed={dataSaver}
-          aria-label="Data saver"
-        >
-          <DataSaverIcon className="h-4.5 w-4.5" />
         </button>
         <button onClick={stop} className={pill(false)} aria-label="Stop and clear the queue">
           <CloseIcon className="h-4.5 w-4.5" />
@@ -307,8 +305,7 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
         />
       </div>
 
-      {(specs.length > 0 || showServed) && (
-        <div className="flex flex-wrap items-center justify-center gap-2 px-5 pt-4 text-center">
+      <div className="flex flex-wrap items-center justify-center gap-2 px-5 pt-4 text-center">
           {specs.length > 0 && (
             <span className="font-display rounded-full bg-blue-900 px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-[0.16em] text-blue-400">
               {specs.join(' · ')}
@@ -323,7 +320,26 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
               {dataSaver ? `Streaming ${servedLabel}` : servedLabel}
             </span>
           )}
+          <button
+            onClick={() => void setDataSaver(!dataSaver)}
+            className={`font-display flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-[0.16em] ${
+              dataSaver ? 'bg-orange-600 text-on-accent' : 'bg-blue-900 text-blue-400'
+            }`}
+            aria-pressed={dataSaver}
+            aria-label="Data saver"
+          >
+            <DataSaverIcon className="h-4 w-4" />
+            Saver
+          </button>
         </div>
+
+      {addingToPlaylist && (
+        <AddToPlaylistDialog
+          trackId={current.id}
+          trackTitle={current.title}
+          trackArtist={current.artist}
+          onClose={() => setAddingToPlaylist(false)}
+        />
       )}
 
       <div className="mt-6 border-t-2 border-blue-900 px-5 pt-5">

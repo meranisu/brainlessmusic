@@ -61,6 +61,13 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A220 — Now Playing top bar: where sleep, data saver, like and add go (was Q209) *(asked in chat)*
+**Answered:** 2026-10-18, in chat. The top bar was crowded (5 buttons). Decided: like and add to playlist sit on the song's
+header (most used); sleep timer and data saver become buttons in the info readout under the controls, each showing its state
+(sleep shows "12m" or "End", data saver lights up); only Listen together stays in the top bar. Web follows: add to playlist
+pill next to like, data saver chip beside the format chips. Web has no sleep timer and gets none (confirmed: sleep is
+Android only). The sleep chip shows as a plain moon when the timer is off (confirmed). Built, not phone-tested.
+
 ### A219 — Download queue management: per-song pause, space per group, Wi-Fi only (was Q208) *(asked in chat)*
 **Answered:** 2026-10-18, in chat: "a b and d" (not c, priority). Cancel asks first. A song in two groups counts in both
 groups' sizes. (d) is an opt-in switch, off by default, so A85 (any network) still holds unless it is turned on. Android

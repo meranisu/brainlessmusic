@@ -11,6 +11,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -102,6 +103,7 @@ fun ColumnScope.HitCircleDeck(
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
     onRepeat: () -> Unit,
+    actions: @Composable () -> Unit = {},
 ) {
     val scheme = MaterialTheme.colorScheme
 
@@ -126,25 +128,31 @@ fun ColumnScope.HitCircleDeck(
         if (state.chain > 0) ComboCounter(state.chain, Modifier.align(Alignment.BottomStart))
     }
 
-    Text(
-        item.title,
-        style = MaterialTheme.typography.headlineSmall,
-        fontFamily = BrandFontFamily,
-        fontWeight = FontWeight.SemiBold,
-        textAlign = TextAlign.Center,
-        maxLines = 2,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-    )
-    Text(
-        item.artist ?: "Unknown artist",
-        style = MaterialTheme.typography.bodyMedium,
-        color = scheme.onSurfaceVariant,
-        textAlign = TextAlign.Center,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.fillMaxWidth(),
-    )
+    // Like and add to a playlist (A220) sit beside the title.
+    Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                item.title,
+                style = MaterialTheme.typography.headlineSmall,
+                fontFamily = BrandFontFamily,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                item.artist ?: "Unknown artist",
+                style = MaterialTheme.typography.bodyMedium,
+                color = scheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        actions()
+    }
 
     if (record != null) {
         val clear = clearFor(record.plays, record.skips)

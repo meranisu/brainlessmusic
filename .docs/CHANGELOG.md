@@ -4,6 +4,21 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-18: Now Playing top bar slimmed: like and add on the header, sleep and data saver in the readout (A220)
+
+- Android `NowPlayingScreen`: the top bar keeps only Listen together. `SongHeaderActions` (like, add to playlist, hidden for
+  guests) sits beside the title on Standard (when not in Pills mode, which has its own row), Hit circle and Lane (new
+  `actions` slot on `HitCircleDeck` and `LaneDeck`). Gear and Ring are unchanged, they already had their own keys.
+- `StreamReadout` is now a row: the format and network text, then `ReadoutChip` buttons. Sleep is always there (moon, plus
+  "12m" or "End" while on; `sleepChipLabel` ticks every 30 s). Data saver shows only while a queued song would stream (A95).
+  The readout now renders even with no stream info, since the chips live in it. "Data saver" is gone from the format text.
+- Web `NowPlaying.tsx`: add to playlist pill (opens `AddToPlaylistDialog`) next to like; the data saver pill moved out of the
+  action row into the format chips as "Saver".
+- Verified: `./gradlew :app:compileDebugKotlin` succeeded; `npm run build` in `frontend` succeeded. Not run: `assembleDebug`,
+  Android unit tests, `npm run lint` after the final web edit, and nothing on a phone or in a browser.
+
+---
+
 ## 2026-10-18: Download queue management on Android: per-song pause, space per group, Wi-Fi only (A219)
 
 - `DownloadRepository`: `pause(trackId)` and `resume(trackId)` set or clear a Media3 stop reason on one download; the rest of the

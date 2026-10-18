@@ -120,6 +120,7 @@ fun ColumnScope.LaneDeck(
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
     onRepeat: () -> Unit,
+    actions: @Composable () -> Unit = {},
 ) {
     val scheme = MaterialTheme.colorScheme
 
@@ -166,6 +167,8 @@ fun ColumnScope.LaneDeck(
                 modifier = Modifier.padding(top = 4.dp),
             )
         }
+        // Like and add to a playlist (A220), stacked so the title keeps its width.
+        Column { actions() }
     }
 
     if (record != null) ScoreStrip(record)

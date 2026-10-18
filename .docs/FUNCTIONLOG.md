@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `StreamReadout()`, `ReadoutChip()`, `sleepChipLabel()`, `SongHeaderActions()` in `android/app/src/main/kotlin/com/brainlessmusic/app/ui/playback/NowPlayingScreen.kt`; `actions` slot on `LaneDeck`, `HitCircleDeck`; `NowPlaying.tsx` add to playlist pill and Saver chip
+**Date:** 2026-10-18
+**How added:** refactor
+**Purpose:** free the Now Playing top bar of five crowded buttons (A220).
+**Side effects:** none new; the data saver toggle still calls `setDataSaver` and shows its notice.
+**Before:** sleep, Listen together, data saver, like and add were all top bar icons.
+**After:** only Listen together is up top; like and add beside the title; sleep and data saver as stateful chips in the readout.
+
+---
+
 **Function:** `pause()`, `resume()`, `downloadRequirements()`, `waitingForWifi` — `android/app/src/main/kotlin/com/brainlessmusic/app/downloads/DownloadRepository.kt`; `DownloadsViewModel` `pauseSong()`, `resumeSong()`, `cancelSong()`, `retrySong()`, `DownloadRow.detail()`, `queueTitle()`
 **Date:** 2026-10-18
 **How added:** new feature

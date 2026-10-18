@@ -1,6 +1,12 @@
 package com.brainlessmusic.app.ui.playback
 
 import androidx.compose.ui.semantics.Role
+import android.os.SystemClock
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.combinedClickable
 import com.brainlessmusic.app.ui.profile.tapLabel
@@ -169,17 +175,9 @@ fun NowPlayingScreen(
                         Icon(AppIcons.arrowDown, contentDescription = "Close")
                     }
                 },
-                // Data saver, lit while on, for everyone, and only while some queued song would stream (A95); like and
-                // add to a playlist (A65) hide themselves for guests.
+                // Only the way into the room lives up here (A220). Like and add sit on the song's header, sleep and
+                // data saver in the readout under the controls.
                 actions = {
-                    IconButton(
-                        onClick = { showSleep = true },
-                        colors = IconButtonDefaults.iconButtonColors(
-                            contentColor = if (sleep != SleepTimerState.Off) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        ),
-                    ) {
-                        Icon(AppIcons.sleep, contentDescription = if (sleep != SleepTimerState.Off) "Sleep timer is on" else "Sleep timer")
-                    }
                     IconButton(
                         onClick = onOpenTogether,
                         colors = IconButtonDefaults.iconButtonColors(
@@ -187,24 +185,6 @@ fun NowPlayingScreen(
                         ),
                     ) {
                         Icon(AppIcons.headphones, contentDescription = if (room.room != null) "Open the room" else "Listen together")
-                    }
-                    if (state.queueStreams) IconButton(
-                        onClick = {
-                            viewModel.setDataSaver(!dataSaver)
-                            Notices.show(if (dataSaver) "Data saver off. Next songs stream as the originals." else "Data saver on. Next songs stream smaller.")
-                        },
-                        colors = IconButtonDefaults.iconButtonColors(
-                            contentColor = if (dataSaver) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        ),
-                    ) {
-                        DataSaverIcon(on = dataSaver)
-                    }
-                    // Gear likes and adds from its FX keys instead, Ring from its rim buttons.
-                    if (current != null && songActions.canEdit && !pills && skin != Skin.GEAR && skin != Skin.RING) {
-                        LikeButton(current.trackId, viewModel = songActions)
-                        IconButton(onClick = { addingToPlaylist = true }) {
-                            Icon(AppIcons.playlistAdd, contentDescription = "Add to playlist")
-                        }
                     }
                 },
             )
@@ -293,6 +273,7 @@ fun NowPlayingScreen(
                     onPlayPause = viewModel::togglePlayPause,
                     onNext = viewModel::next,
                     onRepeat = viewModel::cycleRepeat,
+                    actions = { SongHeaderActions(current.trackId, songActions) { addingToPlaylist = true } },
                 )
                 Skin.LANE -> LaneDeck(
                     state = state,
@@ -309,6 +290,7 @@ fun NowPlayingScreen(
                     onPlayPause = viewModel::togglePlayPause,
                     onNext = viewModel::next,
                     onRepeat = viewModel::cycleRepeat,
+                    actions = { SongHeaderActions(current.trackId, songActions) { addingToPlaylist = true } },
                 )
                 Skin.GEAR -> {
                     val liked by songActions.likedIds.collectAsStateWithLifecycle()
@@ -381,26 +363,30 @@ fun NowPlayingScreen(
                     }
 
                     // Three lines, left-aligned: what it is, who made it, what it came from.
-                    Column(modifier = Modifier.fillMaxWidth().padding(top = 20.dp)) {
-                        Text(
-                            current.title,
-                            style = MaterialTheme.typography.headlineMedium,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            current.artist ?: "Unknown artist",
-                            style = MaterialTheme.typography.bodyLarge,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            current.album ?: "Unknown album",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                    Row(modifier = Modifier.fillMaxWidth().padding(top = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                current.title,
+                                style = MaterialTheme.typography.headlineMedium,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                current.artist ?: "Unknown artist",
+                                style = MaterialTheme.typography.bodyLarge,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                current.album ?: "Unknown album",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        // The pills row below carries these already.
+                        if (!pills) SongHeaderActions(current.trackId, songActions) { addingToPlaylist = true }
                     }
 
                     if (pills) {
@@ -438,7 +424,18 @@ fun NowPlayingScreen(
             }
 
             // Clear air under the transport, so a thumb reaching for play/pause doesn't land on the readout.
-            StreamReadout(state.stream, modifier = Modifier.fillMaxWidth().padding(top = 16.dp))
+            StreamReadout(
+                stream = state.stream,
+                sleep = sleep,
+                dataSaver = dataSaver,
+                showDataSaver = state.queueStreams,
+                onSleep = { showSleep = true },
+                onDataSaver = {
+                    viewModel.setDataSaver(!dataSaver)
+                    Notices.show(if (dataSaver) "Data saver off. Next songs stream as the originals." else "Data saver on. Next songs stream smaller.")
+                },
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+            )
 
             // The way into the queue: the card says what is next and how much follows.
             UpNextCard(
@@ -770,10 +767,17 @@ private fun UpNextCard(next: QueueItem?, remaining: Int, onClick: () -> Unit, mo
 
 /** What is playing, in two short lines: the format, then the stream or "On this phone". Hidden until the player knows anything. */
 @Composable
-private fun StreamReadout(stream: StreamInfo?, modifier: Modifier = Modifier) {
+private fun StreamReadout(
+    stream: StreamInfo?,
+    sleep: SleepTimerState,
+    dataSaver: Boolean,
+    showDataSaver: Boolean,
+    onSleep: () -> Unit,
+    onDataSaver: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val format = stream?.let { info ->
         listOfNotNull(
-            if (info.dataSaver) "Data saver" else null,
             info.codec,
             info.sampleRateHz?.let { "%.1f kHz".format(it / 1000.0) },
             info.channels?.let { if (it == 2) "stereo" else if (it == 1) "mono" else "$it ch" },
@@ -787,7 +791,6 @@ private fun StreamReadout(stream: StreamInfo?, modifier: Modifier = Modifier) {
         ).joinToString(" · ")
     }
     val onPhone = stream?.onPhone == true
-    if (format == null && network == null && !onPhone) return
 
     // Lane's controls panel is this card's shade too, so it steps up like the Up next card.
     val lane = LocalSkin.current == Skin.LANE && LocalDarkTheme.current
@@ -797,7 +800,11 @@ private fun StreamReadout(stream: StreamInfo?, modifier: Modifier = Modifier) {
         border = if (lane) BorderStroke(1.dp, raisedEdge()) else null,
         modifier = modifier,
     ) {
-        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+        Row(
+            modifier = Modifier.padding(start = 12.dp, end = 4.dp, top = 2.dp, bottom = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+        Column(modifier = Modifier.weight(1f).padding(vertical = 6.dp)) {
             format?.let { Text(it, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis) }
             // Buffering and the network say nothing about a song played from its download (A95).
             if (onPhone) {
@@ -821,5 +828,74 @@ private fun StreamReadout(stream: StreamInfo?, modifier: Modifier = Modifier) {
                 )
             }
         }
+        // Sleep is always here, it has no other way in. Data saver only while some queued song would stream (A95).
+        if (showDataSaver) ReadoutChip(
+            on = dataSaver,
+            label = null,
+            description = if (dataSaver) "Data saver on" else "Data saver off",
+            onClick = onDataSaver,
+        ) { DataSaverIcon(on = dataSaver) }
+        val sleepLabel = sleepChipLabel(sleep)
+        ReadoutChip(
+            on = sleep != SleepTimerState.Off,
+            label = sleepLabel,
+            description = if (sleep != SleepTimerState.Off) "Sleep timer is on" else "Sleep timer",
+            onClick = onSleep,
+        ) { Icon(AppIcons.sleep, contentDescription = null) }
+        }
+    }
+}
+
+/** "12m" while counting down, "End" until the song ends, nothing when off. Ticks every 30 s, which is enough for minutes. */
+@Composable
+private fun sleepChipLabel(sleep: SleepTimerState): String? {
+    var now by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
+    LaunchedEffect(sleep) {
+        while (sleep is SleepTimerState.Countdown) {
+            now = SystemClock.elapsedRealtime()
+            delay(30_000)
+        }
+    }
+    return when (sleep) {
+        SleepTimerState.Off -> null
+        SleepTimerState.EndOfSong -> "End"
+        is SleepTimerState.Countdown -> "${sleepMinutesLeft(sleep.endsAtMs, now)}m"
+    }
+}
+
+/** A readout button: icon, plus a short label while it is on. Lit in the accent colour when on, with a 48 dp target. */
+@Composable
+private fun ReadoutChip(
+    on: Boolean,
+    label: String?,
+    description: String,
+    onClick: () -> Unit,
+    icon: @Composable () -> Unit,
+) {
+    val tint = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    Row(
+        modifier = Modifier
+            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .clickable(role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = description }
+            .padding(horizontal = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
+    ) {
+        CompositionLocalProvider(LocalContentColor provides tint) {
+            icon()
+            label?.let { Text(it, style = MaterialTheme.typography.labelMedium, color = tint) }
+        }
+    }
+}
+
+/** Like and add to a playlist, beside the song's title (A65, A220). Both hide themselves for guests. */
+@Composable
+private fun SongHeaderActions(trackId: Int, songActions: SongActionsViewModel, onAddToPlaylist: () -> Unit) {
+    if (!songActions.canEdit) return
+    LikeButton(trackId, viewModel = songActions)
+    IconButton(onClick = onAddToPlaylist) {
+        Icon(AppIcons.playlistAdd, contentDescription = "Add to playlist")
     }
 }
