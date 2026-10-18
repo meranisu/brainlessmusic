@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useRef, useState, type TouchEvent } from 'react';
+import { useEffect, useRef, useState, type TouchEvent } from 'react';
 import { apiClient } from '../lib/apiClient';
 import { formatClock } from '../lib/format';
 import type { TrackDetail } from '../types/api';
@@ -104,7 +104,7 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
     inRoom,
   } = player;
 
-  const swapClass = useSwapClass(index);
+  const swapClass = useSwapClass(current?.id ?? 0, index);
   const [tab, setTab] = useState<'queue' | 'related'>('queue');
   const { folding, fold } = useFoldRemove(player);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -114,6 +114,20 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
   // Set only mid-drag. Seeking on every tick would fire a range request each time; seek once on release.
   const [scrubTime, setScrubTime] = useState<number | null>(null);
   const [addingToPlaylist, setAddingToPlaylist] = useState(false);
+  const scrubRef = useRef<number | null>(null);
+  scrubRef.current = scrubTime;
+  const scrubbing = scrubTime !== null;
+  // A drag can end outside the thin range input, so the release is caught on the window.
+  useEffect(() => {
+    if (!scrubbing) return;
+    function commit() {
+      if (scrubRef.current !== null) seek(scrubRef.current);
+      setScrubTime(null);
+    }
+    window.addEventListener('pointerup', commit, { once: true });
+    return () => window.removeEventListener('pointerup', commit);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrubbing]);
 
   // The queue only carries what it needs to play; sample rate and bitrate live
   // on the full record. Same query key the bar invalidates after a scrobble.
@@ -277,7 +291,7 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
         </button>
       </div>
 
-      <div className="relative px-5 pt-6">
+      <div className="relative px-5 pt-6 has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-orange-500">
         <div className="flex h-14 items-center gap-[2px]" aria-hidden>
           {bars.map((h, i) => (
             <span
@@ -296,14 +310,6 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
           step={0.1}
           value={Math.min(displayTime, duration || 1)}
           onChange={(e) => setScrubTime(Number(e.target.value))}
-          onMouseUp={(e) => {
-            seek(Number((e.target as HTMLInputElement).value));
-            setScrubTime(null);
-          }}
-          onTouchEnd={(e) => {
-            seek(Number((e.target as HTMLInputElement).value));
-            setScrubTime(null);
-          }}
           onKeyUp={(e) => {
             seek(Number((e.target as HTMLInputElement).value));
             setScrubTime(null);
@@ -347,7 +353,7 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
         <button
           onClick={toggleMute}
           className="btn-ghost btn-sm h-9 w-9 shrink-0 !px-0"
-          aria-label={volume === 0 ? 'Unmute' : 'Mute'}
+          aria-label="Mute"
           aria-pressed={volume === 0}
         >
           {volume === 0 ? <VolumeMutedIcon className="h-5 w-5" /> : <VolumeIcon className="h-5 w-5" />}
@@ -404,12 +410,25 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
       </Presence>
 
       <div className="mt-6 border-t-2 border-blue-900">
-        <div role="tablist" className="relative mx-5 grid grid-cols-2 border-b border-blue-800">
+        <div
+          role="tablist"
+          className="relative mx-5 grid grid-cols-2 border-b border-blue-800"
+          onKeyDown={(e) => {
+            if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+            e.preventDefault();
+            const next = tab === 'queue' ? 'related' : 'queue';
+            setTab(next);
+            document.getElementById(`np-tab-${next}`)?.focus();
+          }}
+        >
           {(['queue', 'related'] as const).map((id) => (
             <button
               key={id}
+              id={`np-tab-${id}`}
               role="tab"
               aria-selected={tab === id}
+              aria-controls="np-panel"
+              tabIndex={tab === id ? 0 : -1}
               onClick={() => setTab(id)}
               className={`font-display py-3 text-sm font-extrabold uppercase tracking-[0.16em] transition-colors ${
                 tab === id ? 'text-white' : 'text-blue-400'
@@ -422,7 +441,7 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
         </div>
       </div>
 
-      <div key={tab} role="tabpanel" className="route-in">
+      <div key={tab} id="np-panel" role="tabpanel" aria-labelledby={`np-tab-${tab}`} className="route-in">
         {tab === 'queue' ? (
           <>
             <div className="flex items-baseline justify-between px-5 pt-4">

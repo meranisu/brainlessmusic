@@ -7,6 +7,17 @@ import type { AlbumDetail, ArtistDetail } from "../types/api";
 import { CoverArt } from "./CoverArt";
 import type { PlayerContextValue, QueueTrack } from "./PlayerBar";
 
+function RetryNote({ what, onRetry }: { what: string; onRetry: () => void }) {
+  return (
+    <p className="px-1 text-sm text-blue-300">
+      Could not load {what}.{" "}
+      <button onClick={onRetry} className="font-semibold text-orange-400 hover:underline">
+        Retry
+      </button>
+    </p>
+  );
+}
+
 /**
  * More from the playing song's album, then the artist's other albums. Shared by the desktop view and the phone sheet.
  * The queries use the album and artist pages' keys, so a visit to either is already cached.
@@ -19,14 +30,14 @@ export function RelatedTab({
   playQueue: PlayerContextValue["playQueue"];
 }) {
   const albumId = current.albumId ?? null;
-  const { data: album } = useQuery({
+  const { data: album, isError: albumFailed, refetch: refetchAlbum } = useQuery({
     queryKey: ["album", albumId],
     queryFn: () => apiClient.get<AlbumDetail>(`/albums/${albumId}`),
     enabled: albumId !== null,
     staleTime: 60_000,
   });
   const artistId = album?.artistId ?? null;
-  const { data: artist } = useQuery({
+  const { data: artist, isError: artistFailed, refetch: refetchArtist } = useQuery({
     queryKey: ["artist", artistId],
     queryFn: () => apiClient.get<ArtistDetail>(`/artists/${artistId}`),
     enabled: artistId !== null,
@@ -58,6 +69,8 @@ export function RelatedTab({
           <p className="px-1 text-sm text-blue-300">
             This song has no album information.
           </p>
+        ) : albumFailed ? (
+          <RetryNote what="the album" onRetry={() => void refetchAlbum()} />
         ) : !album ? (
           <p className="px-1 text-sm text-blue-300">Loading the album…</p>
         ) : moreFromAlbum.length === 0 ? (
@@ -107,6 +120,8 @@ export function RelatedTab({
           <p className="px-1 text-sm text-blue-300">
             The artist is not known for this song.
           </p>
+        ) : artistFailed ? (
+          <RetryNote what="the artist" onRetry={() => void refetchArtist()} />
         ) : !artist ? (
           <p className="px-1 text-sm text-blue-300">Loading the artist…</p>
         ) : otherAlbums.length === 0 ? (

@@ -4,6 +4,13 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `useFoldRemove()` — `frontend/src/hooks/useFoldRemove.ts`
+**Date:** 2026-10-18
+**How added:** modified (review fix)
+**Purpose:** remove a queue row after its fold animation.
+**Side effects:** the 220 ms timer id is now kept in a ref and cleared on unmount.
+**Before:** the timer was never cleared, so a closed view still called `removeAt` on its last rendered closures.
+
 **Function:** `removeAt()` — `frontend/src/components/PlayerBar.tsx`
 **Date:** 2026-10-18
 **How added:** new feature

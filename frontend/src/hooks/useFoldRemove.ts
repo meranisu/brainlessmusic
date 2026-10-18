@@ -13,15 +13,18 @@ export function useFoldRemove(player: PlayerContextValue) {
     null,
   );
   const latest = useRef(player);
+  const timer = useRef<number | undefined>(undefined);
   useEffect(() => {
     latest.current = player;
   });
+  // A view that closes mid-fold must not fire the removal against its last rendered queue.
+  useEffect(() => () => window.clearTimeout(timer.current), []);
 
   function fold(at: number) {
     const track = player.queue[at];
     if (!track || folding) return;
     setFolding({ at, id: track.id });
-    window.setTimeout(() => {
+    timer.current = window.setTimeout(() => {
       if (latest.current.queue[at]?.id === track.id)
         latest.current.removeAt(at);
       setFolding(null);

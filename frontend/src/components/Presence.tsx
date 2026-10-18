@@ -13,7 +13,7 @@ export function Presence<T>({ value, exitMs = 240, children }: PresenceProps<T>)
   const { item, state } = usePresence(value, exitMs);
   if (item === null) return null;
   return (
-    <div data-presence={state} style={{ display: 'contents' }}>
+    <div data-presence={state} inert={state === 'closing'} style={{ display: 'contents' }}>
       {children(item)}
     </div>
   );

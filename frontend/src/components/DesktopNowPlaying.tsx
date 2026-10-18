@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { useCoverTint } from '../hooks/useCoverTint';
 import { useFoldRemove } from '../hooks/useFoldRemove';
@@ -45,9 +45,19 @@ export function DesktopNowPlaying({ player, onClose }: { player: PlayerContextVa
   const [tab, setTab] = useState<Tab>('queue');
   const [addingToPlaylist, setAddingToPlaylist] = useState(false);
   const { folding, fold } = useFoldRemove(player);
-  const swapClass = useSwapClass(index);
+  const swapClass = useSwapClass(current?.id ?? 0, index);
   const favoriteIds = useFavoriteIds();
   const tint = useCoverTint(current?.id ?? 0);
+
+  // Focus moves in on open and back to whatever opened the view on close.
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeRef.current?.focus();
+    return () => {
+      if (opener?.isConnected) opener.focus();
+    };
+  }, []);
 
   // Escape closes, unless a dialog on top of the view (add to playlist) is the thing to dismiss.
   useEffect(() => {
@@ -82,7 +92,7 @@ export function DesktopNowPlaying({ player, onClose }: { player: PlayerContextVa
       className="np-desktop motion-view fixed inset-x-0 top-0 bottom-[4.5rem] z-[35] hidden flex-col text-white md:flex"
     >
       <div className="flex items-center gap-3 px-6 pt-4">
-        <button onClick={onClose} className="btn-ghost btn-sm h-9 w-9 !px-0" aria-label="Close the full player" title="Close (Esc)">
+        <button ref={closeRef} onClick={onClose} className="btn-ghost btn-sm h-9 w-9 !px-0" aria-label="Close the full player" title="Close (Esc)">
           <ChevronDownIcon className="h-5 w-5" />
         </button>
         <span className="font-display text-xs font-extrabold uppercase tracking-[0.22em] text-blue-300">Now playing</span>
@@ -134,12 +144,25 @@ export function DesktopNowPlaying({ player, onClose }: { player: PlayerContextVa
         </section>
 
         <section className="flex min-h-0 flex-col">
-          <div role="tablist" className="relative grid grid-cols-2 border-b border-blue-800">
+          <div
+            role="tablist"
+            className="relative grid grid-cols-2 border-b border-blue-800"
+            onKeyDown={(e) => {
+              if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+              e.preventDefault();
+              const next = tab === 'queue' ? 'related' : 'queue';
+              setTab(next);
+              document.getElementById(`np-d-tab-${next}`)?.focus();
+            }}
+          >
             {TABS.map((t) => (
               <button
                 key={t.id}
+                id={`np-d-tab-${t.id}`}
                 role="tab"
                 aria-selected={tab === t.id}
+                aria-controls="np-d-panel"
+                tabIndex={tab === t.id ? 0 : -1}
                 onClick={() => setTab(t.id)}
                 className={`font-display py-3 text-sm font-extrabold uppercase tracking-[0.16em] transition-colors ${
                   tab === t.id ? 'text-white' : 'text-blue-400 hover:text-blue-200'
@@ -151,7 +174,7 @@ export function DesktopNowPlaying({ player, onClose }: { player: PlayerContextVa
             <span aria-hidden className="np-tab-underline" style={{ transform: `translateX(${tab === 'queue' ? 0 : 100}%)` }} />
           </div>
 
-          <div key={tab} role="tabpanel" className="route-in min-h-0 flex-1 overflow-y-auto pt-3">
+          <div key={tab} id="np-d-panel" role="tabpanel" aria-labelledby={`np-d-tab-${tab}`} className="route-in min-h-0 flex-1 overflow-y-auto pt-3">
             {tab === 'queue' ? (
               <>
                 <div className="np-row flex items-center gap-3 rounded-xl bg-blue-900/70 px-3 py-2.5">

@@ -34,10 +34,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <div className="fixed bottom-20 left-1/2 z-50 flex -translate-x-1/2 flex-col gap-2">
+      <div role="status" aria-live="polite" className="fixed bottom-20 left-1/2 z-50 flex -translate-x-1/2 flex-col gap-2">
         {toasts.map((t) => (
           <div
             key={t.id}
+            role={t.variant === 'error' ? 'alert' : undefined}
             data-state={t.leaving ? 'closing' : 'open'}
             className={`motion-toast rounded-lg border px-4 py-2 text-sm ${
               t.variant === 'error' ? 'border-red-700 bg-red-800 text-white' : 'border-blue-700 bg-blue-800 text-white'

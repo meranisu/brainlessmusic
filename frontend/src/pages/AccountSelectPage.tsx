@@ -276,7 +276,7 @@ export function AccountSelectPage() {
 
   /** Slides the cards off, then returns to the title screen the way the idle timeout does (its veil plays). */
   async function backToTitle() {
-    if (committing || leavingToTitle || startingRegister) return;
+    if (committing || leavingToTitle || startingRegister || isLoggingIn || isPasscodeLoggingIn) return;
     setLeavingToTitle(true);
     if (!prefersReducedMotion()) await delay(LOGIN_EXIT_MS);
     markAtTitle();
@@ -302,7 +302,7 @@ export function AccountSelectPage() {
 
   async function handleLogin(event: FormEvent) {
     event.preventDefault();
-    if (committing || pendingPasscodeSetup) return;
+    if (committing || leavingToTitle || pendingPasscodeSetup) return;
     setLoginError(null);
     setIsLoggingIn(true);
 
@@ -343,7 +343,7 @@ export function AccountSelectPage() {
 
   async function submitPasscodeLogin(event: FormEvent) {
     event.preventDefault();
-    if (committing || pendingPasscodeSetup || isPasscodeLoggingIn) return;
+    if (committing || leavingToTitle || pendingPasscodeSetup || isPasscodeLoggingIn) return;
     if (passcode.length < 6) {
       showToast('A passcode is 6 to 8 digits.', 'error');
       setPasscodeRefusals((n) => n + 1);

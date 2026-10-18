@@ -411,7 +411,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   isBufferingRef.current = isBuffering;
 
   const current = queue[index] ?? null;
-  const swapClass = useSwapClass(index);
+  const swapClass = useSwapClass(current?.id ?? 0, index);
 
   useEffect(() => {
     scrubbingRef.current = isScrubbing;
@@ -2073,7 +2073,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             <button
               onClick={() => setIsExpanded((open) => !open)}
               className="shrink-0 rounded-md transition-transform duration-200 ease-[var(--ease-spring)] hover:scale-105 active:scale-95"
-              aria-label={isDesktopViewOpen ? 'Close the full player' : 'Open the full player'}
+              aria-label="Full player"
+                aria-expanded={isDesktopViewOpen}
               title={isDesktopViewOpen ? 'Close the full player' : 'Open the full player'}
             >
               <CoverArt key={current.id} kind="tracks" id={current.id} className={`h-11 w-11 ${swapClass}`} alt="" />
@@ -2224,8 +2225,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               <button
                 onClick={() => setIsExpanded((open) => !open)}
                 className="player-pill h-9 w-9 ml-1"
-                aria-pressed={isDesktopViewOpen}
-                aria-label={isDesktopViewOpen ? 'Close the full player' : 'Open the full player'}
+                aria-label="Full player"
+                aria-expanded={isDesktopViewOpen}
                 title={isDesktopViewOpen ? 'Close the full player' : 'Open the full player'}
               >
                 <ChevronDownIcon

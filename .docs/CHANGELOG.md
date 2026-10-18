@@ -4,6 +4,25 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-18: Review fixes for the web motion pass
+
+- `useFoldRemove.ts`: the fold timer is cleared on unmount, so a view closed mid-fold no longer removes a row from a stale queue.
+- `Presence.tsx`: the closing wrapper is `inert`, so a keyboard user can't press Enter on a dialog that is animating out
+  (the delete confirm could fire twice).
+- `AccountSelectPage.tsx`: password and passcode submits are refused while leaving to the title screen, and Back/Escape is
+  refused mid-login, so a login result can't race `navigate('/')`.
+- `RelatedTab.tsx`: a failed album or artist query shows "Could not load" with Retry instead of loading forever.
+- `DesktopNowPlaying.tsx`: focus moves to the close button on open and back to the opener on close. Both Now Playing tab lists
+  get ids, `aria-controls`/`aria-labelledby`, roving `tabIndex` and Left/Right keys.
+- `NowPlaying.tsx`: a seek drag released outside the range input now commits on a window `pointerup`; the bar shows a focus
+  outline for keyboard users; the mute button keeps one label with `aria-pressed`.
+- `ToastProvider.tsx`: `role="status"` with `aria-live`, `role="alert"` on error toasts.
+- `PlayerBar.tsx`: both full-player buttons use the label "Full player" with `aria-expanded`.
+- `useSwapClass.ts`: keyed on the song id, so removing a row ahead of the current one no longer animates as a skip back.
+- `useCoverTint.ts`: `crossOrigin = 'anonymous'` so a cross-origin API base doesn't taint the canvas.
+- Verified: `npm run build` (tsc -b + vite) passes, `npm run lint` has no errors. Not run in a browser. Left alone: queue removal still matches by song id
+  (the pre-shuffle order has no position to map to), a duplicate of the same song inside the 220 ms window is the only miss.
+
 ## 2026-10-18: Desktop Now Playing view (A222)
 
 - New `DesktopNowPlaying.tsx`, md and up: cover, title, artist and album links, like and add to playlist on the left; tabs Up next

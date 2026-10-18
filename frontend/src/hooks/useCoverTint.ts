@@ -54,6 +54,7 @@ export function useCoverTint(trackId: number): string | null {
     if (!url) return;
     let cancelled = false;
     const img = new Image();
+    img.crossOrigin = 'anonymous';
     img.onload = () => {
       if (!cancelled) setColor(averageColor(img));
     };
