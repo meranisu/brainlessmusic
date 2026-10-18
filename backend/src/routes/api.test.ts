@@ -796,4 +796,17 @@ describe('login', () => {
     // Identical responses, so the endpoint doesn't reveal which usernames exist.
     assert.deepEqual(wrongPassword.json(), unknownUser.json());
   });
+
+  it('lets only one password check per account run at a time, so a parallel burst cannot dodge the limit', async () => {
+    const attempt = () =>
+      app.inject({ method: 'POST', url: '/api/auth/login', payload: { username: listener, password: 'wrong' } });
+
+    const results = await Promise.all([attempt(), attempt(), attempt(), attempt()]);
+    const codes = results.map((r) => r.statusCode);
+    assert.equal(codes.filter((c) => c === 401).length, 1);
+    assert.equal(codes.filter((c) => c === 429).length, 3);
+
+    // The slot is released afterwards, so a later attempt is checked again.
+    assert.equal((await attempt()).statusCode, 401);
+  });
 });

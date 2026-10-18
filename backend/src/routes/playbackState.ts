@@ -7,6 +7,7 @@ import {
 } from '../db/playbackState.js';
 import { findTrackById } from '../db/library.js';
 import { playerCheckedIn, playerClosed } from '../services/streamMonitor.js';
+import { isAdminRequest } from '../utils/isAdmin.js';
 
 interface SaveBody {
   queue?: unknown;
@@ -46,7 +47,7 @@ function validate(body: SaveBody): { queue: number[]; queueIndex: number; positi
 const playbackStateRoute: FastifyPluginAsync = async (fastify) => {
   // Nothing saved is `state: null`, not a 404, so a fresh client logs no error.
   fastify.get('/me/playback-state', { preHandler: fastify.authenticate }, async (request, reply) => {
-    return reply.send({ state: loadPlaybackState(request.user!.id) });
+    return reply.send({ state: loadPlaybackState(request.user!.id, isAdminRequest(request)) });
   });
 
   fastify.put<{ Body: SaveBody }>(

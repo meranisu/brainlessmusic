@@ -124,6 +124,23 @@ function countLoginFailure(byIp: RateLimiter, ip: string, perMinute: number, use
   accountLoginLimiter.check(username, { limit: config.accountLoginFailuresPerHour, windowMs: HOUR_MS });
 }
 
+/*
+ * The limits above are peeked before the slow hash check and counted after it, so a burst sent in parallel would all
+ * pass the peek. One check at a time per address and per account closes that: each one finishes and counts before
+ * the next starts. The refused ones get the usual "wait a moment" answer.
+ */
+const checksInFlight = new Set<string>();
+
+/** Takes the address's and the account's slot, or returns undefined when either is busy. Call `release` in a finally. */
+function claimLoginSlot(ip: string, accountKey: string): (() => void) | undefined {
+  const keys = [`ip:${ip}`, `account:${accountKey}`];
+  if (keys.some((key) => checksInFlight.has(key))) return undefined;
+  for (const key of keys) checksInFlight.add(key);
+  return () => {
+    for (const key of keys) checksInFlight.delete(key);
+  };
+}
+
 function tooManyTries(reply: FastifyReply, rate: RateLimitResult) {
   return replyRateLimited(reply, rate, 'Too many tries. Wait a moment.');
 }
@@ -374,10 +391,16 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
     const rate = loginLimitFor(passwordLoginLimiter, ip, limit, accountKey);
     if (!rate.allowed) return tooManyTries(reply, rate);
 
-    // Guests are refused before bcrypt, as a stated rule rather than a lost comparison.
-    if (!user || user.kind === 'guest' || !(await verifyPassword(password, user.password_hash))) {
-      countLoginFailure(passwordLoginLimiter, ip, limit, accountKey);
-      return reply.code(401).send({ error: 'invalid username or password' });
+    const release = claimLoginSlot(ip, accountKey);
+    if (!release) return tooManyTries(reply, { allowed: false, retryAfterSeconds: 1 });
+    try {
+      // Guests are refused before bcrypt, as a stated rule rather than a lost comparison.
+      if (!user || user.kind === 'guest' || !(await verifyPassword(password, user.password_hash))) {
+        countLoginFailure(passwordLoginLimiter, ip, limit, accountKey);
+        return reply.code(401).send({ error: 'invalid username or password' });
+      }
+    } finally {
+      release();
     }
 
     resetPasscodeFailures(user.id);
@@ -404,19 +427,25 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
     // Same refusal shape as `/auth/login`: no user, a guest, no passcode ever
     // set, or a wrong one, all look identical from the outside. A locked passcode is the one exception (A216): it
     // says so, so the owner knows to use the password.
-    if (!user || user.kind === 'guest' || !user.passcode_hash) {
-      countLoginFailure(passcodeLoginLimiter, ip, limit, accountKey);
-      return reply.code(401).send({ error: 'invalid username or passcode' });
-    }
-    if (user.passcode_failures >= PASSCODE_MAX_FAILURES) {
-      return reply.code(401).send({ error: PASSCODE_LOCKED_MESSAGE });
-    }
-    if (!(await verifyPasscode(passcode, user.passcode_hash))) {
-      countLoginFailure(passcodeLoginLimiter, ip, limit, accountKey);
-      recordPasscodeFailure(user.id);
-      return reply.code(401).send({
-        error: user.passcode_failures + 1 >= PASSCODE_MAX_FAILURES ? PASSCODE_LOCKED_MESSAGE : 'invalid username or passcode',
-      });
+    const release = claimLoginSlot(ip, accountKey);
+    if (!release) return tooManyTries(reply, { allowed: false, retryAfterSeconds: 1 });
+    try {
+      if (!user || user.kind === 'guest' || !user.passcode_hash) {
+        countLoginFailure(passcodeLoginLimiter, ip, limit, accountKey);
+        return reply.code(401).send({ error: 'invalid username or passcode' });
+      }
+      if (user.passcode_failures >= PASSCODE_MAX_FAILURES) {
+        return reply.code(401).send({ error: PASSCODE_LOCKED_MESSAGE });
+      }
+      if (!(await verifyPasscode(passcode, user.passcode_hash))) {
+        countLoginFailure(passcodeLoginLimiter, ip, limit, accountKey);
+        recordPasscodeFailure(user.id);
+        return reply.code(401).send({
+          error: user.passcode_failures + 1 >= PASSCODE_MAX_FAILURES ? PASSCODE_LOCKED_MESSAGE : 'invalid username or passcode',
+        });
+      }
+    } finally {
+      release();
     }
 
     const token = signToken(tokenUserOf(user));

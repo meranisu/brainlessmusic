@@ -267,6 +267,21 @@ describe('WebKit compatibility for Ogg/Opus sources', async () => {
     assert.equal(res.headers['content-type'], 'audio/mp4');
   });
 
+  it('keeps the same ETag across cache hits, so a seek with If-Range still gets a 206', { skip: !ffmpegAvailable }, async () => {
+    const first = await app.inject({ method: 'GET', url: oggStreamUrl(), headers: { 'user-agent': IPHONE_UA } });
+    // The second request is a cache hit, which touches the entry's mtime.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const second = await app.inject({ method: 'GET', url: oggStreamUrl(), headers: { 'user-agent': IPHONE_UA } });
+    assert.equal(second.headers.etag, first.headers.etag);
+
+    const seek = await app.inject({
+      method: 'GET',
+      url: oggStreamUrl(),
+      headers: { 'user-agent': IPHONE_UA, range: 'bytes=10-19', 'if-range': String(first.headers.etag) },
+    });
+    assert.equal(seek.statusCode, 206);
+  });
+
   it('re-encodes to M4A for desktop Safari too', { skip: !ffmpegAvailable }, async () => {
     const res = await app.inject({
       method: 'GET',

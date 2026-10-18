@@ -489,10 +489,12 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
       // It resolved, so clear a stale flag from an earlier, possibly transient, failure.
       if (track.last_stream_error) setLastStreamError(id, null);
 
-      // Validators make a replay a 304. Touching a cache entry on read moves its mtime, which only invalidates early.
-      const etag = buildETag(serveStats.size, serveStats.mtimeMs);
+      // Validators make a replay a 304. Their time is the source file's, not the served file's: a cache entry's mtime
+      // moves on every hit, which made `If-Range` fail and turned seeks into full 200s. The size still tells variants apart.
+      const validatorMtimeMs = stats.mtimeMs;
+      const etag = buildETag(serveStats.size, validatorMtimeMs);
       reply.header('ETag', etag);
-      reply.header('Last-Modified', serveStats.mtime.toUTCString());
+      reply.header('Last-Modified', stats.mtime.toUTCString());
       reply.header('Cache-Control', CACHE_CONTROL);
       reply.header('Accept-Ranges', 'bytes');
 
@@ -503,7 +505,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
             ifModifiedSince: request.headers['if-modified-since'],
           },
           etag,
-          serveStats.mtimeMs,
+          validatorMtimeMs,
         )
       ) {
         return reply.code(304).send();
@@ -515,7 +517,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
       const range = ifRangeAllowsRange(
         typeof ifRange === 'string' ? ifRange : undefined,
         etag,
-        serveStats.mtimeMs,
+        validatorMtimeMs,
       )
         ? parseRange(request.headers.range, serveStats.size)
         : 'none';
@@ -649,6 +651,10 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(404).send({ error: 'Track not found' });
       }
 
+      if (!findVisibleTrack(id, request)) {
+        return reply.code(404).send({ error: 'Track not found' });
+      }
+
       return sendCover(request, reply, config.artworkPath, findTrackArtworkId(id), request.query.size);
     },
   );
@@ -660,6 +666,10 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       const id = parseId(request.params.id);
       if (id === undefined) {
+        return reply.code(404).send({ error: 'Track not found' });
+      }
+
+      if (!findVisibleTrack(id, request)) {
         return reply.code(404).send({ error: 'Track not found' });
       }
 
@@ -689,7 +699,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(404).send({ error: 'Track not found' });
       }
 
-      const track = findTrackById(id);
+      const track = findVisibleTrack(id, request);
       if (!track) {
         return reply.code(404).send({ error: 'Track not found' });
       }

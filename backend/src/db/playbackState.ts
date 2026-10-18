@@ -47,7 +47,7 @@ export function clearPlaybackState(userId: number): void {
 }
 
 /** The saved state with deleted and missing tracks dropped and the index re-derived. `null` if nothing playable is left. */
-export function loadPlaybackState(userId: number): PlaybackState | null {
+export function loadPlaybackState(userId: number, includeHidden = false): PlaybackState | null {
   const row = db
     .prepare(
       `SELECT queue, queue_index, position_seconds, updated_at
@@ -59,7 +59,7 @@ export function loadPlaybackState(userId: number): PlaybackState | null {
   const savedIds = parseQueue(row.queue);
   if (savedIds.length === 0) return null;
 
-  const playable = fetchPlayable(savedIds);
+  const playable = fetchPlayable(savedIds, includeHidden);
   const queue = savedIds.map((id) => playable.get(id)).filter((t): t is TrackSummary => t != null);
   if (queue.length === 0) return null;
 
@@ -105,8 +105,8 @@ function clampIndex(index: number, length: number): number {
   return Math.min(index, length - 1);
 }
 
-/** The playable subset, in one query. `missing_since IS NULL` matches browse, so hidden tracks can't return via resume. */
-function fetchPlayable(ids: number[]): Map<number, TrackSummary> {
+/** The playable subset, in one query. Missing tracks are dropped, and hidden ones unless the caller is an admin (A34), as in browse. */
+function fetchPlayable(ids: number[], includeHidden: boolean): Map<number, TrackSummary> {
   const placeholders = ids.map(() => '?').join(',');
   const rows = db
     .prepare(
@@ -126,7 +126,7 @@ function fetchPlayable(ids: number[]): Map<number, TrackSummary> {
        FROM tracks t
        LEFT JOIN artists a ON a.id = t.artist_id
        LEFT JOIN albums al ON al.id = t.album_id
-       WHERE t.id IN (${placeholders}) AND t.missing_since IS NULL`,
+       WHERE t.id IN (${placeholders}) AND t.missing_since IS NULL${includeHidden ? '' : ' AND t.hidden = 0'}`,
     )
     .all(...ids) as (Omit<TrackSummary, 'hidden' | 'notRecommended' | 'missing'> & {
     hidden: number;

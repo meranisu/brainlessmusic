@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../app.js';
-import { upsertTrack } from '../db/library.js';
+import { setTrackFlags, upsertTrack } from '../db/library.js';
 import { insertLibraryRoot } from '../db/libraryRoots.js';
 import { insertUser } from '../db/users.js';
 import { listListeners, resetStreamMonitor } from '../services/streamMonitor.js';
@@ -67,6 +67,14 @@ function get(token: string) {
 }
 
 describe('playback state route', () => {
+  it('drops a hidden track from the resumed queue for a non-admin', async () => {
+    await put(aliceToken, { queue: [trackId], queueIndex: 0, positionSeconds: 3 });
+    setTrackFlags([trackId], { hidden: true });
+    const res = await get(aliceToken);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.json().state, null);
+  });
+
   it('counts a save as a listening check-in, and a pause as leaving', async () => {
     await put(aliceToken, { queue: [trackId], queueIndex: 0, positionSeconds: 3 });
     assert.deepEqual(
