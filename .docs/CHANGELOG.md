@@ -4,6 +4,19 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-18: Web library Play keeps the queue going (A215)
+
+- `playQueue` takes an optional `loadMore`. A queue with one asks it for the next batch whenever 20 songs or fewer
+  remain after the current one (`TOP_UP_AT`), appends the result (and to the pre-shuffle copy, so turning shuffle off
+  keeps it), and stops asking when it returns nothing. Never in a room; any other way of replacing the queue (new Play,
+  stop, resume, room) drops it, and a batch that arrives after that is discarded.
+- `LibraryPage` Play passes a `loadMore` that walks the following 200-song pages, skipping missing songs, until the last
+  page. So a Play anywhere ends only at the end of the library (was: stopped after 400 to 600 songs).
+- The saved resume queue (`PUT /me/playback-state`, cap 5000) is sent as the 5000 songs around the current one once the
+  queue is longer, with `queueIndex` shifted to match, so a long session no longer fails the save.
+- Verified: `cd frontend && npx tsc -b` clean; `npm run lint` shows only warnings already there. Not run in a browser,
+  so the top-up, shuffle toggling after a top-up, and the resume window are untested by use.
+
 ## 2026-10-18: Library letter jump and on-screen-only loading, web (A212, A213)
 
 - The web library no longer loads songs in order and keeps every one on the page. `LibraryPage` knows the list's length

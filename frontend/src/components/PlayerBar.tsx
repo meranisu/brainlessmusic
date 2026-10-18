@@ -61,6 +61,8 @@ export type QueueTrack = Pick<TrackSummary, 'id' | 'title' | 'artist' | 'duratio
   Partial<Pick<TrackSummary, 'format' | 'albumId' | 'trackNumber' | 'gainDb'>>;
 
 export type RepeatMode = 'off' | 'all' | 'one';
+/** Fetches the next batch of songs for a running queue; an empty list means the source is used up. */
+export type LoadMore = () => Promise<QueueTrack[]>;
 
 /** "Previous" within this many seconds restarts the track. */
 const RESTART_THRESHOLD_SECONDS = 3;
@@ -85,6 +87,10 @@ const MAX_PLAYBACK_DELTA_SECONDS = 2;
 
 /** How often the position is pushed while playing. */
 const SAVE_INTERVAL_MS = 10_000;
+/** Songs left in the queue at which a queue with a `loadMore` source asks it for the next batch (Q205). */
+const TOP_UP_AT = 20;
+/** The server keeps at most this many queue entries (`MAX_QUEUE_LENGTH`); a longer queue is saved as a window. */
+const MAX_SAVED_QUEUE = 5000;
 
 /** How long a track has to stay current before the next one is converted ahead of time, and preloaded. */
 const PREPARE_NEXT_DELAY_MS = 15_000;
@@ -240,7 +246,11 @@ export interface PlayerContextValue {
   volume: number;
   /** What the server actually sent, e.g. `OPUS · 64k`. Null until probed. */
   servedLabel: string | null;
-  playQueue: (tracks: QueueTrack[], startIndex: number) => void;
+  /**
+   * `loadMore` keeps the queue going: when few songs remain it is called for the next batch, and an empty answer
+   * means there is no more. Left out, the queue is exactly `tracks`.
+   */
+  playQueue: (tracks: QueueTrack[], startIndex: number, loadMore?: LoadMore) => void;
   playTrack: (track: QueueTrack) => void;
   toggle: () => void;
   next: () => void;
@@ -334,6 +344,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // The pre-shuffle order, so turning shuffle off restores it rather than
   // leaving the queue permanently scrambled.
   const originalQueueRef = useRef<QueueTrack[] | null>(null);
+  // The current queue's source of more songs, if it has one. Replaced or cleared whenever the queue is.
+  const moreRef = useRef<{ fetch: LoadMore; busy: boolean; done: boolean } | null>(null);
   // In a ref so the long-lived audio listeners see live values.
   const progressRef = useRef<PlayProgress | null>(null);
   // True while a quality swap resets `src`, so the scrubber doesn't flick to 0 before the seek lands.
@@ -914,7 +926,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return room ? room.queue[room.current] : undefined;
   }
 
-  function playQueue(tracks: QueueTrack[], startIndex: number) {
+  function playQueue(tracks: QueueTrack[], startIndex: number, loadMore?: LoadMore) {
     if (tracks.length === 0) return;
     const at = Math.min(Math.max(startIndex, 0), tracks.length - 1);
     if (roomRef.current.room) {
@@ -929,6 +941,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
     originalQueueRef.current = tracks;
+    moreRef.current = loadMore ? { fetch: loadMore, busy: false, done: false } : null;
     setIsShuffled(false);
     setQueue(tracks);
     setIndex(at);
@@ -1169,6 +1182,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       audio.load(); // drop the in-flight range request rather than buffering on
     }
     originalQueueRef.current = null;
+    moreRef.current = null;
     progressRef.current = null;
     setQueue([]);
     setIndex(0);
@@ -1206,10 +1220,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     // In a room the queue is the room's, not the user's saved personal one.
     if (roomRef.current.room) return;
 
+    // A topped-up queue can outgrow what the server keeps, so a long one is saved as the stretch around the song.
+    const start = tracks.length > MAX_SAVED_QUEUE ? Math.min(Math.max(at - 100, 0), tracks.length - MAX_SAVED_QUEUE) : 0;
+    const saved = tracks.length > MAX_SAVED_QUEUE ? tracks.slice(start, start + MAX_SAVED_QUEUE) : tracks;
+
     void apiClient
       .put('/me/playback-state', {
-        queue: tracks.map((t) => t.id),
-        queueIndex: at,
+        queue: saved.map((t) => t.id),
+        queueIndex: at - start,
         positionSeconds: audio.currentTime,
         playing,
       })
@@ -1217,6 +1235,32 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         // Losing a position costs the resume, not the music.
       });
   }, []);
+
+  // Tops the queue up from its source when few songs remain (Q205). Not in a room: the room owns its queue.
+  useEffect(() => {
+    const more = moreRef.current;
+    if (!more || more.busy || more.done || roomRef.current.room) return;
+    if (queue.length - index > TOP_UP_AT) return;
+    more.busy = true;
+    void more
+      .fetch()
+      .then((tracks) => {
+        // Another queue replaced this one while the batch was on its way.
+        if (moreRef.current !== more) return;
+        if (tracks.length === 0) {
+          more.done = true;
+          return;
+        }
+        originalQueueRef.current = [...(originalQueueRef.current ?? stateRef.current.queue), ...tracks];
+        setQueue((current) => [...current, ...tracks]);
+      })
+      .catch(() => {
+        // Tried again at the next song change; the queue as it stands still plays.
+      })
+      .finally(() => {
+        more.busy = false;
+      });
+  }, [queue, index]);
 
   // Saved on a tick while playing, on stop or track change, and when the page is hidden.
   useEffect(() => {
@@ -1262,6 +1306,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (roomRef.current.room || roomLoadingRef.current || roomEntryRef.current !== null) return;
 
         originalQueueRef.current = state.queue;
+        moreRef.current = null;
         setQueue(state.queue);
         setIndex(state.queueIndex);
         // Restored paused: browsers block autoplay without a gesture.
@@ -1518,6 +1563,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       roomQueueKeyRef.current = key;
       roomTracksRef.current = roomQueueTracks(room);
       originalQueueRef.current = roomTracksRef.current;
+      moreRef.current = null;
       setIsShuffled(false);
       setQueue(roomTracksRef.current);
     }

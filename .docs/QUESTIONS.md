@@ -32,7 +32,6 @@ is never asked twice.
 | [Q77](#q77--how-does-the-android-app-get-past-cloudflare-access) | How does the Android app get past Cloudflare Access? | 2026-10-11 | Yes, before Access goes on |
 | [Q78](#q78--who-goes-on-the-access-email-list) | Who goes on the Access email list? | 2026-10-11 | Yes, before Access goes on |
 | [Q175](#q175--how-strong-must-a-passcode-be) | How strong must a passcode be? | 2026-10-13 | No |
-| [Q205](#q205--how-much-queues-when-you-press-play-far-down-the-web-library) | How much queues when you press Play far down the web library? | 2026-10-18 | No |
 
 ### Q5 — Tag-editing scope
 **Asked:** 2026-09-09 · **Blocking:** no
@@ -76,6 +75,13 @@ owner out of password sign-in.
 Assumption until answered: S1 and S2 get fixed anyway; the passcode rules stay as they are.
 
 ## Answered
+
+### A215 — Play on the web library keeps the queue going to the end of the library (was Q205) *(asked in chat)*
+**Answered:** 2026-10-18. Option D: Play queues the pages around the song (200 songs a page, one before, two after),
+then adds the next page whenever 20 songs or fewer remain, until the library ends. Not built: wrapping back to the start
+at the very end, and a "Still listening?" prompt (the owner said yes to D without asking for either). Built as the
+`loadMore` argument of `playQueue` (`frontend/src/components/PlayerBar.tsx`) and its use in `LibraryPage.tsx`; the saved
+resume queue is sent as a window once it passes the server's 5000-song cap.
 
 ### A214 — Sign out ends sessions on the server (was Q202) *(asked in chat)*
 **Answered:** 2026-10-18. Option B: "log out everywhere" bumps the user's `session_version`, which ends every token signed

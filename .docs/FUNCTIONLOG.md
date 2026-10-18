@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** top-up effect, `playQueue(tracks, startIndex, loadMore?)`, `persistState()` window, `play(index)` `loadMore` — `frontend/src/components/PlayerBar.tsx`, `frontend/src/pages/LibraryPage.tsx`
+**Date:** 2026-10-18
+**How added:** new feature
+**Purpose:** let a Play on the web library run to the end of the library instead of stopping after the 400 to 600 songs queued up front (A215).
+**Side effects:** `GET /tracks` for one 200-song page each time 20 or fewer songs remain; `PUT /me/playback-state` now sends at most 5000 songs.
+**Before:** the queue was fixed at Play; with repeat off it stopped at its end.
+**After:** the queue grows from its `loadMore` source and ends only when that is used up; the saved queue is a window around the song once past the server cap.
+
 **Function:** `ArcadeSelect` (windowed rows, `total`, `getTrack`, `loaded`, `letters`), `AlphabetIndex`, `useLetterIndex()`, `letterAtIndex()`, `letterEntry()`, `SimpleLibrary` page loading and `play()` — `frontend/src/components/ArcadeSelect.tsx`, `AlphabetIndex.tsx`, `frontend/src/lib/letterIndex.ts`, `frontend/src/pages/LibraryPage.tsx`
 **Date:** 2026-10-18
 **How added:** refactor

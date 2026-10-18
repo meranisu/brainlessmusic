@@ -111,9 +111,9 @@ function SimpleLibrary() {
   const letterIndex = useLetterIndex();
 
   /**
-   * Plays from the song at `index`. The queue is the pages around it (one before, two after, about 800 songs), not
-   * the whole library, so Play works as well far down the list as at the top. Missing files are left out, since one
-   * stalls the queue on a 500.
+   * Plays from the song at `index`. The queue starts as the pages around it (one before, two after, about 800 songs)
+   * and tops itself up a page at a time, so Play works as well far down the list as at the top. Missing files are left
+   * out, since one stalls the queue on a 500.
    */
   const play = useCallback(
     async (index: number) => {
@@ -128,7 +128,17 @@ function SimpleLibrary() {
         const track = run[index - from * PAGE_SIZE];
         if (!track || track.missing) return;
         const playable = run.filter((candidate) => !candidate.missing);
-        playQueue(playable, Math.max(0, playable.findIndex((candidate) => candidate.id === track.id)));
+        // Past the last queued page, the queue tops itself up a page at a time until the library ends (Q205).
+        let nextPage = to + 1;
+        const loadMore = async () => {
+          while (nextPage <= lastPage) {
+            const { tracks } = await queryClient.fetchQuery(pageQuery(nextPage++));
+            const more = tracks.filter((candidate) => !candidate.missing);
+            if (more.length > 0) return more;
+          }
+          return [];
+        };
+        playQueue(playable, Math.max(0, playable.findIndex((candidate) => candidate.id === track.id)), loadMore);
       } catch {
         showToast("Couldn't load those songs to play. Try again.", 'error');
       }

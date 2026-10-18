@@ -36,7 +36,7 @@ Work the first unticked box there.
 | Headset buttons (Android, web) | Built and pushed 2026-10-18 (A202, A203), Android v0.4.20. Not tried on a phone: Android ignored presses before and the cause was never found. Next: owner tries a wired and a Bluetooth headset, screen off; if still silent, read `adb logcat -s PlaybackService` | [features/headset-buttons/planning.md](features/headset-buttons/planning.md) |
 | Sleep timer (Android) | Built 2026-10-18 (A204 to A206), 11 unit tests pass, not phone-tested. Next: release v0.4.21, owner tries it with the screen off | [features/sleep-timer/planning.md](features/sleep-timer/planning.md) |
 | Smart playlists | Built on backend (migrations 0038, 0039), web and Android; steady daily Random, kept list summaries and a covering index added. Backend 684 tests pass, Android `assembleDebug` and 175 unit tests pass, web walked through in a browser (12 of 12) on a throwaway library. Phone never seen running. Not committed. A207 to A211 decided. Next: phone walkthrough, then version bump, web "What's new", v0.4.22 tag (its notes assume v0.4.21, the untagged sleep timer, ships too) | [features/smart-playlists/planning.md](features/smart-playlists/planning.md) |
-| Library letter jump (web) | Built (A212, A213; Q205 open, assumed): the letter rail jumps anywhere and only nearby pages load. Checked in a browser on a throwaway library (10 of 10) and on a copy of the real local database, 12,759 songs (jumps 26 to 300 ms; 22 pending migrations applied cleanly to the copy). Not committed, not tried by hand yet. Next: release with smart playlists | [features/library-letter-jump/planning.md](features/library-letter-jump/planning.md) |
+| Library letter jump (web) | Built (A212, A213; Q205 answered, A215): the letter rail jumps anywhere and only nearby pages load. Checked in a browser on a throwaway library (10 of 10) and on a copy of the real local database, 12,759 songs (jumps 26 to 300 ms; 22 pending migrations applied cleanly to the copy). Not committed, not tried by hand yet. Next: release with smart playlists | [features/library-letter-jump/planning.md](features/library-letter-jump/planning.md) |
 | In-app updates (Android) | Built 2026-10-11 (A104–A106), first shipped in v0.3.29; untested on a phone until a v0.3.29 install sees the next release | [features/app-self-update/planning.md](features/app-self-update/planning.md) |
 | Account invites | Built 2026-10-12 (A107–A112). 2026-10-13: sign-up page with typed 8-character codes, email (required) and optional passcode, sign-in by email, invite links open the Android app (A187–A192); committed locally, not pushed. Next: push, then a walkthrough on smol and the phone (a real invite, a guest upgrade, email sign-in) | [features/account-invites/planning.md](features/account-invites/planning.md) |
 
@@ -52,7 +52,7 @@ Work the first unticked box there.
 ## Open questions
 
 The list is [QUESTIONS.md](QUESTIONS.md) — check it before asking anything. Blocking now: **Q77** and **Q78**
-(how the Android app and guests get past Cloudflare Access, before it is switched on; A74). Open, non-blocking: **Q5**, **Q175**, **Q202**, **Q205** (how much queues on web Play after a far jump).
+(how the Android app and guests get past Cloudflare Access, before it is switched on; A74). Open, non-blocking: **Q5**, **Q175**.
 
 ## Next
 
