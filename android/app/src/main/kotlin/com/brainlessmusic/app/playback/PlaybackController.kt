@@ -168,6 +168,10 @@ class PlaybackController @Inject constructor(
     private var pendingJump: (() -> Unit)? = null
     // A pause fading out: the player still plays until the fade ends, and a PLAY then must bring it back.
     private var pausing = false
+    // The sleep timer's "end of current song": no song-end fade or crossfade is planned, and the player pauses at the end.
+    private var sleepAtSongEnd = false
+    /** Called once when playback paused itself at the end of a song because of [pauseAtEndOfSong]. */
+    var onSleepSongEnd: (() -> Unit)? = null
 
     // Held for the life of the process: a connected controller is what keeps PlaybackService bound,
     // and Media3 moves the bound service to the foreground while audio is playing.
@@ -829,6 +833,36 @@ class PlaybackController @Inject constructor(
         }
     }
 
+    /**
+     * The sleep timer's end: fade out over [fadeMs], then pause. Same shape as [pauseWithFade], and a play, pause or skip
+     * during the fade wins the same way. Ignores the fade-on-pause setting, the long fade is the point.
+     */
+    fun fadeOutAndPause(fadeMs: Long) {
+        if (inRoom || !player.isPlaying) return
+        val action = ++fadeAction
+        runPendingJump()
+        resetFades(keepVolume = true)
+        pausing = true
+        ramps.rampTo(player, 0f, fadeMs) {
+            if (action != fadeAction) return@rampTo
+            pausing = false
+            player.pause()
+            // Back to full, so the next play doesn't start silent.
+            ramps.set(player, 1f)
+        }
+    }
+
+    /**
+     * The sleep timer's "end of current song": pauses when the song that plays now ends, without a fade or crossfade into
+     * the next one. Not for rooms, where the server drives songs. Cleared again by passing false.
+     */
+    fun pauseAtEndOfSong(on: Boolean) {
+        if (on && inRoom) return
+        sleepAtSongEnd = on
+        if (on) resetFades(keepVolume = true)
+        if (queue.isNotEmpty() && !inRoom) player.pauseAtEndOfMediaItems = on
+    }
+
     /** A skip the user asked for: fade out, [jump], fade back in. Auto-advance never comes through here. */
     private fun skipWithFade(jump: () -> Unit) {
         val action = ++fadeAction
@@ -906,7 +940,8 @@ class PlaybackController @Inject constructor(
     /** Every tick while playing: starts the song end once, the way the settings ask. */
     private fun checkBoundary() {
         // No fades in a room: the server ends songs, and a fade behind a moving target is where the drift maths gets hard.
-        if (boundary != null || !player.isPlaying || inRoom) return
+        // A sleep fade is a pause under way: a planned song end would take the ramp over.
+        if (boundary != null || !player.isPlaying || inRoom || pausing || sleepAtSongEnd) return
         val duration = player.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: return
         val nextIndex = player.nextMediaItemIndex.takeIf { it != C.INDEX_UNSET } ?: return
         val current = queue.getOrNull(player.currentMediaItemIndex) ?: return
@@ -1052,6 +1087,11 @@ class PlaybackController @Inject constructor(
         // would also finish during the call and leave the rest silent; the ticker plans it again after.
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
             if (!playWhenReady && !pausing) resetFades()
+            if (sleepAtSongEnd && !playWhenReady && reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM) {
+                sleepAtSongEnd = false
+                player.pauseAtEndOfMediaItems = false
+                onSleepSongEnd?.invoke()
+            }
             if (inRoom) onRoomPlayWhenReady(playWhenReady, reason)
         }
 

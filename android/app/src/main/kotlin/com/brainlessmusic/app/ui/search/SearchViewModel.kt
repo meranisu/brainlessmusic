@@ -7,16 +7,15 @@ import com.brainlessmusic.app.data.local.RecentSearches
 import com.brainlessmusic.app.data.remote.dto.GenreSummaryDto
 import com.brainlessmusic.app.data.remote.dto.SearchPageDto
 import com.brainlessmusic.app.data.remote.dto.SearchResultsDto
-import com.brainlessmusic.app.data.repository.ConnectionException
 import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.data.repository.ProfileRepository
 import com.brainlessmusic.app.data.remote.dto.PersonDto
-import com.brainlessmusic.app.data.repository.toMessage
 import com.brainlessmusic.app.data.remote.dto.TrackSummaryDto
 import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.playback.queueItem
 import com.brainlessmusic.app.ui.common.LoadState
+import com.brainlessmusic.app.ui.profile.loadMessage
 import com.brainlessmusic.app.ui.common.Notices
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -156,7 +155,7 @@ class SearchViewModel @Inject constructor(
         if (!hasResults(_state.value)) _state.value = LoadState.Loading
         libraryRepository.search(query).fold(
             onSuccess = { _state.value = LoadState.Content(it) },
-            onFailure = { _state.value = LoadState.Error(it.searchMessage()) },
+            onFailure = { _state.value = LoadState.Error(it.loadMessage()) },
         )
     }
 
@@ -194,16 +193,14 @@ class SearchViewModel @Inject constructor(
             },
             onFailure = {
                 if (before == null) {
-                    _page.value = LoadState.Error(it.searchMessage())
+                    _page.value = LoadState.Error(it.loadMessage())
                 } else {
                     _page.value = LoadState.Content(before)
-                    Notices.show(it.searchMessage())
+                    Notices.show(it.loadMessage())
                 }
             },
         )
     }
-
-    private fun Throwable.searchMessage() = (this as? ConnectionException)?.error?.toMessage() ?: "Something went wrong."
 
     private fun hasResults(state: LoadState<SearchResultsDto>): Boolean =
         state is LoadState.Content &&
@@ -235,7 +232,7 @@ class SearchViewModel @Inject constructor(
                     if (album.tracks.isEmpty()) return@fold Notices.show("That album has no songs to play.")
                     playbackController.playQueue(album.tracks.map { libraryRepository.queueItem(album, it) }, 0)
                 },
-                onFailure = { Notices.show(it.searchMessage()) },
+                onFailure = { Notices.show(it.loadMessage()) },
             )
         }
     }

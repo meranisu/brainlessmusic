@@ -6,9 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.util.UnstableApi
 import com.brainlessmusic.app.data.remote.dto.AlbumDetailDto
-import com.brainlessmusic.app.data.repository.ConnectionException
 import com.brainlessmusic.app.data.repository.LibraryRepository
-import com.brainlessmusic.app.data.repository.toMessage
 import com.brainlessmusic.app.downloads.DownloadRepository
 import com.brainlessmusic.app.downloads.GroupDownload
 import com.brainlessmusic.app.downloads.groupDownload
@@ -18,6 +16,7 @@ import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.playback.queueItem
 import com.brainlessmusic.app.data.remote.dto.AlbumTrackDto
 import com.brainlessmusic.app.ui.common.LoadState
+import com.brainlessmusic.app.ui.profile.loadMessage
 import com.brainlessmusic.app.ui.navigation.Routes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +25,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -46,6 +46,8 @@ class AlbumDetailViewModel @Inject constructor(
     private val _refreshing = MutableStateFlow(false)
     val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
 
+    private var loadJob: Job? = null
+
     init {
         load()
     }
@@ -64,14 +66,13 @@ class AlbumDetailViewModel @Inject constructor(
     }
 
     fun load() {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _state.value = LoadState.Loading
             libraryRepository.getAlbumDetail(albumId).fold(
                 onSuccess = { show(it) },
                 onFailure = {
-                    _state.value = LoadState.Error(
-                        (it as? ConnectionException)?.error?.toMessage() ?: "Something went wrong.",
-                    )
+                    _state.value = LoadState.Error(it.loadMessage())
                 },
             )
         }

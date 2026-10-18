@@ -4,12 +4,11 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.brainlessmusic.app.data.remote.dto.ArtistDetailDto
-import com.brainlessmusic.app.data.repository.ConnectionException
 import com.brainlessmusic.app.data.repository.LibraryRepository
-import com.brainlessmusic.app.data.repository.toMessage
 import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.queueItem
 import com.brainlessmusic.app.ui.common.LoadState
+import com.brainlessmusic.app.ui.profile.loadMessage
 import com.brainlessmusic.app.ui.navigation.Routes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
@@ -17,6 +16,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -34,6 +34,8 @@ class ArtistDetailViewModel @Inject constructor(
 
     private val _refreshing = MutableStateFlow(false)
     val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
+
+    private var loadJob: Job? = null
 
     init {
         load()
@@ -53,14 +55,13 @@ class ArtistDetailViewModel @Inject constructor(
     }
 
     fun load() {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _state.value = LoadState.Loading
             libraryRepository.getArtistDetail(artistId).fold(
                 onSuccess = { _state.value = LoadState.Content(it) },
                 onFailure = {
-                    _state.value = LoadState.Error(
-                        (it as? ConnectionException)?.error?.toMessage() ?: "Something went wrong.",
-                    )
+                    _state.value = LoadState.Error(it.loadMessage())
                 },
             )
         }

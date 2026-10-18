@@ -28,7 +28,10 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.brainlessmusic.app.data.local.AppearanceSettings
+import com.brainlessmusic.app.data.local.ColorTheme
 import com.brainlessmusic.app.data.local.PlaybackSettings
+import com.brainlessmusic.app.data.local.Skin
+import com.brainlessmusic.app.data.local.ThemeMode
 import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.PlaybackResume
 import com.brainlessmusic.app.invites.InviteLinks
@@ -47,7 +50,6 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -73,6 +75,9 @@ class MainActivity : ComponentActivity() {
     private var splashGone by mutableStateOf(false)
     private var focusGains by mutableIntStateOf(0)
 
+    // Theme mode, colours and skin as saved; null until the first read lands.
+    private var initialAppearance by mutableStateOf<Triple<ThemeMode, ColorTheme, Skin>?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         val splash = installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -81,7 +86,8 @@ class MainActivity : ComponentActivity() {
         // a slow network, and past that the in-app splash (with a progress bar) takes over in the same place.
         val launchedAt = SystemClock.uptimeMillis()
         splash.setKeepOnScreenCondition {
-            startViewModel.resolvedRoute.value == null && SystemClock.uptimeMillis() - launchedAt < SPLASH_HOLD_MAX_MS
+            (startViewModel.resolvedRoute.value == null || initialAppearance == null) &&
+                SystemClock.uptimeMillis() - launchedAt < SPLASH_HOLD_MAX_MS
         }
         splash.setOnExitAnimationListener { provider ->
             // The splash view sits over the whole app and takes every touch, so it must go however the fade ends.
@@ -115,41 +121,45 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             roomSession.messages.collect { Notices.show(it, long = true) }
         }
-        // Read once, synchronously (two tiny preferences): otherwise every cold start would paint one frame in the
-        // default colours before the saved choice arrived.
-        val (initialMode, initialColors, initialSkin) = runBlocking {
-            Triple(appearance.themeMode.first(), appearance.colorTheme.first(), appearance.skin.first())
+        // The saved look is read off the main thread and the splash waits for it, so a cold start still never paints a
+        // frame in the default colours, without blocking `onCreate` on disk.
+        lifecycleScope.launch {
+            initialAppearance = Triple(appearance.themeMode.first(), appearance.colorTheme.first(), appearance.skin.first())
         }
         setContent {
-            val mode by appearance.themeMode.collectAsStateWithLifecycle(initialValue = initialMode)
-            val colorTheme by appearance.colorTheme.collectAsStateWithLifecycle(initialValue = initialColors)
-            val skin by appearance.skin.collectAsStateWithLifecycle(initialValue = initialSkin)
-            val darkTheme = mode.isDark()
-            // The system bars' icon colors have to follow the app's choice, not the phone's.
-            DisposableEffect(darkTheme, splashGone, focusGains) {
-                enableEdgeToEdge(
-                    statusBarStyle = SystemBarStyle.auto(
-                        android.graphics.Color.TRANSPARENT,
-                        android.graphics.Color.TRANSPARENT,
-                    ) { darkTheme },
-                    navigationBarStyle = SystemBarStyle.auto(
-                        android.graphics.Color.TRANSPARENT,
-                        android.graphics.Color.TRANSPARENT,
-                    ) { darkTheme },
-                )
-                // `auto` leaves the system's contrast scrim on, which washed the gesture bar's strip whiter than the
-                // tab bar and the page in light mode. The app draws its own colour under the bar.
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) window.isNavigationBarContrastEnforced = false
-                onDispose { }
-            }
-            BrainlessMusicTheme(colorTheme = colorTheme, darkTheme = darkTheme, skin = skin) {
-                Surface(modifier = Modifier.fillMaxSize()) {
-                    BrainlessNavGraph(startViewModel = startViewModel, roomLinks = roomLinks, inviteLinks = inviteLinks)
-                    UpdateSheetHost()
-                    NoticeHost()
-                    ArcadeWelcome(startViewModel)
-                    ArcadeGoodbye()
-                    SkinTransition(skin)
+            val initial = initialAppearance
+            if (initial != null) {
+                val (initialMode, initialColors, initialSkin) = initial
+                val mode by appearance.themeMode.collectAsStateWithLifecycle(initialValue = initialMode)
+                val colorTheme by appearance.colorTheme.collectAsStateWithLifecycle(initialValue = initialColors)
+                val skin by appearance.skin.collectAsStateWithLifecycle(initialValue = initialSkin)
+                val darkTheme = mode.isDark()
+                // The system bars' icon colors have to follow the app's choice, not the phone's.
+                DisposableEffect(darkTheme, splashGone, focusGains) {
+                    enableEdgeToEdge(
+                        statusBarStyle = SystemBarStyle.auto(
+                            android.graphics.Color.TRANSPARENT,
+                            android.graphics.Color.TRANSPARENT,
+                        ) { darkTheme },
+                        navigationBarStyle = SystemBarStyle.auto(
+                            android.graphics.Color.TRANSPARENT,
+                            android.graphics.Color.TRANSPARENT,
+                        ) { darkTheme },
+                    )
+                    // `auto` leaves the system's contrast scrim on, which washed the gesture bar's strip whiter than the
+                    // tab bar and the page in light mode. The app draws its own colour under the bar.
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) window.isNavigationBarContrastEnforced = false
+                    onDispose { }
+                }
+                BrainlessMusicTheme(colorTheme = colorTheme, darkTheme = darkTheme, skin = skin) {
+                    Surface(modifier = Modifier.fillMaxSize()) {
+                        BrainlessNavGraph(startViewModel = startViewModel, roomLinks = roomLinks, inviteLinks = inviteLinks)
+                        UpdateSheetHost()
+                        NoticeHost()
+                        ArcadeWelcome(startViewModel)
+                        ArcadeGoodbye()
+                        SkinTransition(skin)
+                    }
                 }
             }
         }

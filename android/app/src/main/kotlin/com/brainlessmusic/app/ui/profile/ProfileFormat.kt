@@ -36,16 +36,20 @@ fun formatMonthYear(sqlite: String): String {
     return "${names[month - 1]} ${parts[0]}"
 }
 
+/** Parses SQLite's `yyyy-MM-dd HH:mm:ss` (UTC) as a [LocalDateTime]; null when it doesn't fit. */
+fun parseSqliteTime(text: String): LocalDateTime? =
+    runCatching { LocalDateTime.parse(text.take(19).replace(' ', 'T')) }.getOrNull()
+
 /**
  * `2026-09-03 10:12:44` (SQLite `datetime('now')`, so UTC) to `3 Sep 2026` on this phone's calendar: a play at 7 am in
  * Malaysia is still 23:00 the day before in UTC. Anything unexpected is shown as it came.
  */
-fun formatDay(sqlite: String): String = runCatching {
-    LocalDateTime.parse(sqlite.take(19).replace(' ', 'T'))
-        .atZone(ZoneOffset.UTC)
+fun formatDay(sqlite: String): String {
+    val time = parseSqliteTime(sqlite) ?: return sqlite
+    return time.atZone(ZoneOffset.UTC)
         .withZoneSameInstant(ZoneId.systemDefault())
         .format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH))
-}.getOrDefault(sqlite)
+}
 
 fun Throwable.loadMessage(): String = (this as? ConnectionException)?.error?.toMessage() ?: "Something went wrong."
 

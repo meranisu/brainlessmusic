@@ -39,6 +39,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
+import com.brainlessmusic.app.ui.common.Notices
 import com.brainlessmusic.app.ui.common.segmentShape
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
@@ -271,7 +272,33 @@ fun SettingsPageScreen(
     val renameResult by viewModel.renameResult.collectAsStateWithLifecycle()
     val isRenaming by viewModel.isRenaming.collectAsStateWithLifecycle()
     var confirmingGuestLogout by remember { mutableStateOf(false) }
+    var confirmingLogoutEverywhere by remember { mutableStateOf(false) }
     val darkTheme = themeMode.isDark()
+
+    if (confirmingLogoutEverywhere) {
+        AlertDialog(
+            onDismissRequest = { confirmingLogoutEverywhere = false },
+            title = { Text("Log out everywhere?") },
+            text = {
+                Text(
+                    "Every device signed in as you is logged out, this phone included, and so is any link made to move " +
+                        "your account. You can log back in with your password.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmingLogoutEverywhere = false
+                    viewModel.logoutEverywhere(
+                        onLoggedOut = onLoggedOut,
+                        onFailed = { Notices.show("Couldn't reach the server. Nothing was logged out.", long = true) },
+                    )
+                }) { Text("Log out everywhere") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmingLogoutEverywhere = false }) { Text("Cancel") }
+            },
+        )
+    }
 
     if (confirmingGuestLogout) {
         AlertDialog(
@@ -589,6 +616,13 @@ fun SettingsPageScreen(
                             ) {
                                 Icon(AppIcons.logout, contentDescription = null)
                                 Text("Log out", modifier = Modifier.padding(start = 8.dp))
+                            }
+                            // A guest has no password to get back in with, so only an account can end every session.
+                            if (!viewModel.isGuest) {
+                                TextButton(
+                                    onClick = { confirmingLogoutEverywhere = true },
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                                ) { Text("Log out everywhere") }
                             }
                         }
                         Divider()

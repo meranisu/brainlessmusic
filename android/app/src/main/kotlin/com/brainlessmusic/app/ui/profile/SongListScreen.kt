@@ -83,7 +83,6 @@ import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.LocalDateTime
 import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 /** The two song lists: what you liked, and what you disliked (A60, A153). */
@@ -433,7 +432,7 @@ private fun sizeLine(tracks: List<TrackSummaryDto>): String {
 
 /** "Last liked today", from the newest like; null when the server didn't say. */
 private fun newestLine(tracks: List<TrackSummaryDto>): String? {
-    val newest = tracks.firstOrNull()?.favoritedAt?.let(::likedAt) ?: return null
+    val newest = tracks.firstOrNull()?.favoritedAt?.let(::parseSqliteTime) ?: return null
     val days = Duration.between(newest, LocalDateTime.now(ZoneOffset.UTC)).toDays()
     return when {
         days < 1 -> "Last liked today"
@@ -443,10 +442,6 @@ private fun newestLine(tracks: List<TrackSummaryDto>): String? {
     }
 }
 
-private val SqliteTime = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-
-private fun likedAt(text: String): LocalDateTime? = runCatching { LocalDateTime.parse(text, SqliteTime) }.getOrNull()
-
 /**
  * Liked songs by when they were liked, newest first: This week, This month, Earlier. One group, or no dates from an
  * older server, means no headings.
@@ -454,7 +449,7 @@ private fun likedAt(text: String): LocalDateTime? = runCatching { LocalDateTime.
 private fun likedGroups(tracks: List<TrackSummaryDto>): List<Pair<String?, List<Int>>> {
     val now = LocalDateTime.now(ZoneOffset.UTC)
     val labelled = tracks.indices.groupBy { i ->
-        val at = tracks[i].favoritedAt?.let(::likedAt) ?: return listOf(null to tracks.indices.toList())
+        val at = tracks[i].favoritedAt?.let(::parseSqliteTime) ?: return listOf(null to tracks.indices.toList())
         val days = Duration.between(at, now).toDays()
         when {
             days < 7 -> "This week"

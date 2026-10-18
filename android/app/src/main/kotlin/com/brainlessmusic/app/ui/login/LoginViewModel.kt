@@ -4,11 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.brainlessmusic.app.data.remote.ServerConfig
 import com.brainlessmusic.app.data.repository.AuthRepository
-import com.brainlessmusic.app.data.repository.ConnectionException
 import com.brainlessmusic.app.data.repository.GuestEntryResult
 import com.brainlessmusic.app.data.repository.GuestRequestPoll
 import com.brainlessmusic.app.data.repository.GuestRequestResult
-import com.brainlessmusic.app.data.repository.toMessage
+import com.brainlessmusic.app.ui.profile.loadMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -236,8 +235,7 @@ class LoginViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             connectionCheck = ConnectionCheck.FAILED,
-                            connectionError = (error as? ConnectionException)?.error?.toMessage()
-                                ?: "Something went wrong.",
+                            connectionError = error.loadMessage(),
                         )
                     }
                 },
@@ -258,8 +256,7 @@ class LoginViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoggingIn = false,
-                            loginError = (error as? ConnectionException)?.error?.toMessage()
-                                ?: "Something went wrong.",
+                            loginError = error.loadMessage(),
                         )
                     }
                     // A failed login may really be an unreachable server; let the light say which.

@@ -19,6 +19,7 @@ import com.brainlessmusic.app.data.remote.dto.MeResponse
 import com.brainlessmusic.app.data.remote.dto.ThemeRequest
 import com.brainlessmusic.app.data.remote.NetworkMonitor
 import com.brainlessmusic.app.playback.PendingPlays
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -122,6 +123,8 @@ class AuthRepository @Inject constructor(
             val api = apiServiceFactory.get(serverUrl)
             val response = api.guest(GuestRequest(code?.trim()?.takeIf { it.isNotEmpty() }, name.trim()))
             GuestEntryResult.Entered(adopt(serverUrl, response.token))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             tokenProvider.current = null
             tokenProvider.isGuest = false
@@ -140,6 +143,8 @@ class AuthRepository @Inject constructor(
         try {
             val peek = apiServiceFactory.get(serverConfig.url).peekInvite(code)
             if (peek.status == "open") InviteCheck.Open(peek) else InviteCheck.Closed(peek.status)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             when ((e as? HttpException)?.code()) {
                 404 -> InviteCheck.Closed("unknown")
@@ -156,6 +161,8 @@ class AuthRepository @Inject constructor(
         val serverUrl = serverConfig.url
         val response = try {
             apiServiceFactory.get(serverUrl).acceptInvite(code, body)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             val message = when ((e as? HttpException)?.code()) {
                 400, 409 -> serverError(e) ?: "Check what you typed and try again."
@@ -169,6 +176,8 @@ class AuthRepository @Inject constructor(
         // away: trying again would only get "already used".
         return try {
             Result.success(adopt(serverUrl, response.token))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             tokenProvider.current = response.token
             tokenProvider.isGuest = false
@@ -190,6 +199,8 @@ class AuthRepository @Inject constructor(
     suspend fun setEmail(email: String): Result<String> =
         try {
             Result.success(apiServiceFactory.get(serverConfig.url).setEmail(EmailRequest(email.trim())).email)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             val message = when ((e as? HttpException)?.code()) {
                 400, 409 -> serverError(e) ?: "Check the email and try again."
@@ -392,6 +403,21 @@ class AuthRepository @Inject constructor(
 
     /** True when the signed-in session is a guest's, whose identity lives only in this device's stored token. */
     val isGuest: Boolean get() = tokenProvider.isGuest
+
+    /**
+     * Ends every session of this account on the server (Q202): other devices, and any handoff link. False when the
+     * server couldn't be reached, in which case nothing changed. The caller then signs this phone out with [logout];
+     * plays still waiting to be sent can't go once the token is revoked, so they are forgotten.
+     */
+    suspend fun revokeAllSessions(): Boolean =
+        try {
+            apiServiceFactory.get(serverConfig.url).revokeSessions()
+            true
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            false
+        }
 
     suspend fun logout() {
         // Before the token goes: offline plays are sent as this account, or forgotten, never left for the next one.

@@ -65,9 +65,17 @@ class PendingPlays @Inject constructor(
         skipped: Boolean = false,
     ): PlayRef? {
         if (tokenProvider.isGuest) return null
-        val id = dao.add(
-            PendingPlay(trackId = trackId, msPlayed = msPlayed, playedAt = playedAt, clientPlayId = clientPlayId, skipped = skipped),
-        )
+        // Marked before the insert: a send reading the table between the insert and `openRow = id` would otherwise
+        // send this play with a partial length.
+        if (!skipped) openRow = ADDING
+        val id = try {
+            dao.add(
+                PendingPlay(trackId = trackId, msPlayed = msPlayed, playedAt = playedAt, clientPlayId = clientPlayId, skipped = skipped),
+            )
+        } catch (e: Throwable) {
+            if (!skipped) openRow = null
+            throw e
+        }
         if (skipped) flush() else openRow = id
         return PlayRef.Local(id)
     }
@@ -115,7 +123,8 @@ class PendingPlays @Inject constructor(
         val token = tokenProvider.current
         if (tokenProvider.isGuest || token == null) return@withLock
         for (play in dao.all()) {
-            if (play.id == openRow) break
+            val open = openRow
+            if (open == ADDING || play.id == open) break
             // Signed out, or signed in as someone else, mid-loop: the rest of this snapshot isn't theirs to send.
             if (tokenProvider.current != token) return@withLock
             val result = libraryRepository.scrobble(play.trackId, play.msPlayed, play.playedAt, play.clientPlayId, play.skipped)
@@ -145,6 +154,9 @@ class PendingPlays @Inject constructor(
     private companion object {
         const val RETRY_MS = 5 * 60 * 1000L
         const val SEND_BEFORE_LOGOUT_MS = 3_000L
+
+        /** `openRow` while a play is being inserted: its id isn't known yet, so nothing is sent. */
+        const val ADDING = -1L
     }
 }
 

@@ -3,6 +3,11 @@ package com.brainlessmusic.app.data.remote
 import com.brainlessmusic.app.data.remote.dto.AcceptInviteRequest
 import com.brainlessmusic.app.data.remote.dto.AcceptInviteResponse
 import com.brainlessmusic.app.data.remote.dto.AddPlaylistTrackRequest
+import com.brainlessmusic.app.data.remote.dto.CreateSmartPlaylistRequest
+import com.brainlessmusic.app.data.remote.dto.EditSmartRulesRequest
+import com.brainlessmusic.app.data.remote.dto.SmartPreviewDto
+import com.brainlessmusic.app.data.remote.dto.SmartPreviewRequest
+import com.brainlessmusic.app.data.remote.dto.SmartRulesDto
 import com.brainlessmusic.app.data.remote.dto.EmailRequest
 import com.brainlessmusic.app.data.remote.dto.InvitePeek
 import com.brainlessmusic.app.data.remote.dto.AlbumDetailDto
@@ -84,6 +89,10 @@ interface ApiService {
 
     @POST("auth/guest")
     suspend fun guest(@Body body: GuestRequest): LoginResponse
+
+    // Ends every session of this user, this one included (Q202). The fresh token it returns is not used: the phone signs out.
+    @POST("auth/sessions/revoke")
+    suspend fun revokeSessions(): LoginResponse
 
     @GET("auth/me")
     suspend fun me(): MeResponse
@@ -241,6 +250,17 @@ interface ApiService {
 
     @POST("playlists")
     suspend fun createPlaylist(@Body body: PlaylistNameRequest): PlaylistRefDto
+
+    // Smart playlists (A207): rules instead of songs.
+    @POST("playlists")
+    suspend fun createSmartPlaylist(@Body body: CreateSmartPlaylistRequest): PlaylistRefDto
+
+    @PATCH("playlists/{id}")
+    suspend fun editSmartRules(@Path("id") id: Int, @Body body: EditSmartRulesRequest): PlaylistRefDto
+
+    // What the rules pick now for the caller; saves nothing.
+    @POST("playlists/smart/preview")
+    suspend fun previewSmartPlaylist(@Body body: SmartPreviewRequest): SmartPreviewDto
 
     @GET("playlists/{id}")
     suspend fun playlist(@Path("id") id: Int): PlaylistDetailDto

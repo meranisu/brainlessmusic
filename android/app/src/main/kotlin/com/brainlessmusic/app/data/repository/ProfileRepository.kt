@@ -5,6 +5,11 @@ import com.brainlessmusic.app.data.remote.ApiServiceFactory
 import com.brainlessmusic.app.data.remote.ServerConfig
 import com.brainlessmusic.app.data.remote.TokenProvider
 import com.brainlessmusic.app.data.remote.dto.AddPlaylistTrackRequest
+import com.brainlessmusic.app.data.remote.dto.CreateSmartPlaylistRequest
+import com.brainlessmusic.app.data.remote.dto.EditSmartRulesRequest
+import com.brainlessmusic.app.data.remote.dto.SmartPreviewDto
+import com.brainlessmusic.app.data.remote.dto.SmartPreviewRequest
+import com.brainlessmusic.app.data.remote.dto.SmartRulesDto
 import com.brainlessmusic.app.data.remote.dto.FavoritesPageDto
 import com.brainlessmusic.app.data.remote.dto.HistoryEntryDto
 import com.brainlessmusic.app.data.remote.dto.LessOftenPageDto
@@ -35,7 +40,6 @@ import kotlinx.coroutines.sync.withLock
 import retrofit2.HttpException
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.coroutines.cancellation.CancellationException
 
 enum class StatsRange(val query: String, val label: String) {
     WEEK("week", "Week"),
@@ -157,6 +161,16 @@ class ProfileRepository @Inject constructor(
 
     suspend fun createPlaylist(name: String): Result<PlaylistRefDto> = callApi { it.createPlaylist(PlaylistNameRequest(name)) }
 
+    /** A smart playlist (A207): [rules] fill it each time it opens. */
+    suspend fun createSmartPlaylist(name: String, rules: SmartRulesDto): Result<PlaylistRefDto> =
+        callApi { it.createSmartPlaylist(CreateSmartPlaylistRequest(name, rules)) }
+
+    suspend fun editSmartRules(id: Int, rules: SmartRulesDto): Result<PlaylistRefDto> =
+        callApi { it.editSmartRules(id, EditSmartRulesRequest(rules)) }
+
+    suspend fun previewSmartPlaylist(rules: SmartRulesDto): Result<SmartPreviewDto> =
+        callApi { it.previewSmartPlaylist(SmartPreviewRequest(rules)) }
+
     suspend fun renamePlaylist(id: Int, name: String): Result<PlaylistRefDto> =
         callApi { it.renamePlaylist(id, PlaylistNameRequest(name)) }
 
@@ -252,13 +266,7 @@ class ProfileRepository @Inject constructor(
      * was otherwise reported as an error, and Home flashed its error and then its skeleton (as C21 in LibraryRepository).
      */
     private suspend fun <T> callApi(block: suspend (ApiService) -> T): Result<T> =
-        try {
-            Result.success(block(api()))
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Result.failure(ConnectionException(classifyError(e)))
-        }
+        apiResult { block(api()) }
 
     private companion object {
         const val TOP_LIMIT = 10

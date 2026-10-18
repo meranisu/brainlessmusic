@@ -42,7 +42,7 @@ class RoomSocket(
 
     private val gson = Gson()
     private val clock = ClockEstimator()
-    private var socket: WebSocket? = null
+    @Volatile private var socket: WebSocket? = null
     private var stopped = false
     private var attempt = 0
     private var lastHeard = 0L
@@ -57,7 +57,7 @@ class RoomSocket(
      * anything sent while connecting ahead of it (the hello goes out after a hop to the main thread): the server would
      * close the socket as `no-hello` and drop us from the room. So every other message waits for this.
      */
-    private var joined = false
+    @Volatile private var joined = false
 
     /** The socket to talk on, or null before `welcome`. */
     private val live: WebSocket? get() = socket?.takeIf { joined }
@@ -202,6 +202,11 @@ class RoomSocket(
             "closed" -> {
                 stopped = true
                 clearTimers()
+                // Detach first, as stop() does, so the close callback finds no current socket and doesn't reconnect.
+                val ws = socket
+                socket = null
+                joined = false
+                ws?.close(1000, null)
                 events.onClosed(RoomClosedReason.from(message.get("reason")?.asString))
             }
         }

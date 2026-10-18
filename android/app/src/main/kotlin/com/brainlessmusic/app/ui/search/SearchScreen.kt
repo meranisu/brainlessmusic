@@ -1,10 +1,10 @@
 package com.brainlessmusic.app.ui.search
 
-import androidx.compose.foundation.ExperimentalFoundationApi
+import com.brainlessmusic.app.ui.common.SongListItem
+import com.brainlessmusic.app.ui.common.SectionHeading
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,9 +53,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -80,7 +78,6 @@ import com.brainlessmusic.app.ui.common.CoverImage
 import com.brainlessmusic.app.ui.common.LoadState
 import com.brainlessmusic.app.ui.common.LoadStateContent
 import com.brainlessmusic.app.ui.common.SkeletonListRows
-import com.brainlessmusic.app.ui.common.formatDuration
 import com.brainlessmusic.app.ui.navigation.Routes
 import com.brainlessmusic.app.ui.navigation.TabBarSpace
 import com.brainlessmusic.app.ui.people.PersonRow
@@ -278,7 +275,7 @@ private fun BeforeSearching(
         if (recent.isNotEmpty()) {
             item {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp)) {
-                    SectionTitle("Recent searches", Modifier.weight(1f))
+                    SectionHeading("Recent searches", Modifier.weight(1f))
                     TextButton(onClick = onClearRecent) { Text("Clear all") }
                 }
             }
@@ -304,7 +301,7 @@ private fun BeforeSearching(
             }
         }
         if (genres.isNotEmpty()) {
-            item { SectionTitle("Browse by genre", Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)) }
+            item { SectionHeading("Browse by genre", Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)) }
             item {
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -449,16 +446,11 @@ private fun <T> LazyListScope.section(
     val more = hasMore || items.size > shown
     item(key = "$key-title") {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 12.dp)) {
-            SectionTitle(title, Modifier.weight(1f))
+            SectionHeading(title, Modifier.weight(1f))
             if (more) TextButton(onClick = onSeeAll) { Text("See all") }
         }
     }
     itemsIndexed(items.take(shown), key = { i, _ -> "$key-$i" }) { i, item -> row(i, item) }
-}
-
-@Composable
-private fun SectionTitle(text: String, modifier: Modifier = Modifier) {
-    Text(text, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = modifier)
 }
 
 /** The best match, big, with Play for a song or album and Open for an artist. */
@@ -595,32 +587,17 @@ private fun KindList(
 
 private fun songs(count: Int) = if (count == 1) "1 song" else "$count songs"
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TrackRow(track: TrackSummaryDto, actions: ResultActions, onClick: () -> Unit) {
-    val haptics = LocalHapticFeedback.current
-    ListItem(
-        leadingContent = { CoverImage(actions.trackCover(track), contentDescription = null, modifier = Modifier.size(44.dp)) },
-        headlineContent = { Text(highlighted(track.title, actions.query), maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        supportingContent = {
-            Text(
-                highlighted(listOfNotNull(track.artist, track.album).joinToString(" · ").ifEmpty { "Unknown artist" }, actions.query),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        },
-        trailingContent = { Text(formatDuration(track.duration), style = MaterialTheme.typography.bodySmall) },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        modifier = Modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = onClick,
-                onLongClickLabel = "Song options",
-                onLongClick = {
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    actions.onSongMenu(track)
-                },
-            ),
+    SongListItem(
+        title = highlighted(track.title, actions.query),
+        subtitle = highlighted(listOfNotNull(track.artist, track.album).joinToString(" · ").ifEmpty { "Unknown artist" }, actions.query),
+        durationSeconds = track.duration,
+        onClick = onClick,
+        onLongClick = { actions.onSongMenu(track) },
+        showCover = true,
+        coverUrl = actions.trackCover(track),
+        transparent = true,
     )
 }
 

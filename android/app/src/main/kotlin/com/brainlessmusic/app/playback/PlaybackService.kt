@@ -24,9 +24,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import java.util.concurrent.Executors
 import javax.inject.Inject
@@ -128,7 +126,7 @@ class PlaybackService : MediaSessionService() {
                 }
             })
             .build()
-        // Not read with runBlocking here: onCreate is on the main thread (C31). A swipe-away before this lands waits for it.
+        // Not read with runBlocking here: onCreate is on the main thread (C31). A swipe-away before this lands assumes the default.
         scope.launch { settings.keepPlayingWhenSwipedAway.collect { keepPlayingWhenSwipedAway = it } }
         scope.launch { settings.headsetButtons.collect { headsetPrefs = it } }
     }
@@ -162,8 +160,8 @@ class PlaybackService : MediaSessionService() {
      */
     override fun onTaskRemoved(rootIntent: Intent?) {
         val player = controller.sessionPlayer
-        // Only in the service's first moments is the setting not loaded yet; then it's worth the short wait.
-        val keepPlaying = keepPlayingWhenSwipedAway ?: runBlocking { settings.keepPlayingWhenSwipedAway.first() }
+        // Only in the service's first moments is the setting not loaded yet; then the setting's default (keep playing) stands, no blocking read on the main thread.
+        val keepPlaying = keepPlayingWhenSwipedAway ?: true
         Log.i(TAG, "Task removed; keep playing = $keepPlaying, playWhenReady = ${player.playWhenReady}")
         if (!keepPlaying || !player.playWhenReady || player.mediaItemCount == 0) {
             controller.stop(countAsSkip = false)

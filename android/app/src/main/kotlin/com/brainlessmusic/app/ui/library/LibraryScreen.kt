@@ -1,5 +1,7 @@
 package com.brainlessmusic.app.ui.library
 
+import com.brainlessmusic.app.ui.common.AlbumCard
+import com.brainlessmusic.app.ui.common.SongListItem
 import com.brainlessmusic.app.ui.common.Notices
 import com.brainlessmusic.app.ui.common.SkinFab
 import com.brainlessmusic.app.ui.profile.SongListKind
@@ -16,9 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -72,8 +72,6 @@ import kotlinx.coroutines.flow.filter
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -87,6 +85,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -100,11 +99,9 @@ import androidx.paging.compose.itemKey
 import com.brainlessmusic.app.data.remote.dto.AlbumSummaryDto
 import com.brainlessmusic.app.data.remote.dto.ArtistSummaryDto
 import com.brainlessmusic.app.data.remote.dto.TrackSummaryDto
-import com.brainlessmusic.app.ui.common.CoverImage
 import com.brainlessmusic.app.ui.common.Skeleton
 import com.brainlessmusic.app.ui.common.SkeletonAlbumGrid
 import com.brainlessmusic.app.ui.common.SkeletonListRows
-import com.brainlessmusic.app.ui.common.formatDuration
 import com.brainlessmusic.app.ui.navigation.TabBarSpace
 import com.brainlessmusic.app.ui.navigation.TabReselect
 import com.brainlessmusic.app.ui.navigation.Routes
@@ -618,29 +615,14 @@ private fun SongFilterField(text: String, onChange: (String) -> Unit, modifier: 
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SongRow(song: TrackSummaryDto, onClick: () -> Unit, onLongClick: () -> Unit) {
-    val haptics = LocalHapticFeedback.current
-    ListItem(
-        headlineContent = { Text(song.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        supportingContent = {
-            Text(
-                listOfNotNull(song.artist, song.album).joinToString(" · ").ifEmpty { "Unknown artist" },
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodySmall,
-            )
-        },
-        trailingContent = { Text(formatDuration(song.duration), style = MaterialTheme.typography.bodySmall) },
-        modifier = Modifier.fillMaxWidth().combinedClickable(
-            onClick = onClick,
-            onLongClickLabel = "Song options",
-            onLongClick = {
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                onLongClick()
-            },
-        ),
+    SongListItem(
+        title = AnnotatedString(song.title),
+        subtitle = AnnotatedString(listOfNotNull(song.artist, song.album).joinToString(" · ").ifEmpty { "Unknown artist" }),
+        durationSeconds = song.duration,
+        onClick = onClick,
+        onLongClick = onLongClick,
     )
 }
 
@@ -684,6 +666,7 @@ private fun AlbumsTab(viewModel: LibraryViewModel, navController: NavHostControl
                         AlbumCard(
                             album = album,
                             coverUrl = viewModel.albumCoverUrl(album.id),
+                            subtitle = album.artistName ?: "Unknown artist",
                             onClick = { navController.navigate(Routes.albumDetail(album.id)) },
                         )
                     } else {
@@ -704,31 +687,6 @@ private fun AlbumsTab(viewModel: LibraryViewModel, navController: NavHostControl
 
 /** Shared by the grid and its skeleton, so the placeholder covers sit where the real ones will. */
 private val AlbumGridPadding = PaddingValues(start = 12.dp, end = 4.dp + ListEndPadding, top = TabBarClearance + 4.dp, bottom = 12.dp)
-
-@Composable
-private fun AlbumCard(album: AlbumSummaryDto, coverUrl: String?, onClick: () -> Unit) {
-    Column(modifier = Modifier.clickable(onClick = onClick)) {
-        CoverImage(
-            url = coverUrl,
-            contentDescription = album.title,
-            modifier = Modifier.fillMaxWidth().aspectRatio(1f),
-        )
-        Text(
-            text = album.title,
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 6.dp),
-        )
-        Text(
-            text = album.artistName ?: "Unknown artist",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
 
 @Composable
 private fun ArtistsTab(viewModel: LibraryViewModel, navController: NavHostController, listState: LazyListState) {

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.consumeWindowInsets
+import com.brainlessmusic.app.ui.common.SongListItem
 import com.brainlessmusic.app.ui.common.FullScreenDialog
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -51,6 +52,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -76,7 +78,6 @@ import com.brainlessmusic.app.ui.common.LoadStateContent
 import com.brainlessmusic.app.ui.common.Notices
 import com.brainlessmusic.app.ui.common.SkeletonLead
 import com.brainlessmusic.app.ui.common.SkeletonListRows
-import com.brainlessmusic.app.ui.common.formatDuration
 import com.brainlessmusic.app.ui.navigation.Routes
 import com.brainlessmusic.app.ui.playback.MiniPlayer
 import com.brainlessmusic.app.ui.profile.EmptyLine
@@ -622,13 +623,14 @@ private fun PlainRow(title: String, detail: String, onClick: () -> Unit) {
 
 @Composable
 private fun SongRow(track: TrackSummaryDto, cover: String?, onClick: () -> Unit) {
-    ListItem(
-        leadingContent = { CoverImage(url = cover, contentDescription = null, modifier = Modifier.size(44.dp)) },
-        headlineContent = { Text(track.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        supportingContent = { Text(track.artist ?: "Unknown artist", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        trailingContent = { Text(formatDuration(track.duration), style = MaterialTheme.typography.bodySmall) },
-        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        modifier = Modifier.clickable(onClick = onClick),
+    SongListItem(
+        title = AnnotatedString(track.title),
+        subtitle = AnnotatedString(track.artist ?: "Unknown artist"),
+        durationSeconds = track.duration,
+        onClick = onClick,
+        showCover = true,
+        coverUrl = cover,
+        transparent = true,
     )
 }
 

@@ -4,7 +4,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -35,7 +34,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.brainlessmusic.app.data.remote.dto.AlbumSummaryDto
 import com.brainlessmusic.app.data.remote.dto.GenreDetailDto
 import com.brainlessmusic.app.data.remote.dto.GenreSummaryDto
-import com.brainlessmusic.app.ui.common.CoverImage
+import com.brainlessmusic.app.ui.common.AlbumCard
 import com.brainlessmusic.app.ui.common.LoadState
 import com.brainlessmusic.app.ui.common.LoadStateContent
 import com.brainlessmusic.app.ui.common.SkeletonAlbumGrid
@@ -150,31 +149,10 @@ fun GenreDetailScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 items(genre.albums, key = { it.id }) { album ->
-                    GenreAlbumCard(album, viewModel.albumCoverUrl(album.id)) { onAlbumClick(album.id) }
+                    AlbumCard(album, viewModel.albumCoverUrl(album.id), album.artistName ?: "Unknown artist") { onAlbumClick(album.id) }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun GenreAlbumCard(album: AlbumSummaryDto, coverUrl: String?, onClick: () -> Unit) {
-    Column(modifier = Modifier.clickable(onClick = onClick)) {
-        CoverImage(url = coverUrl, contentDescription = album.title, modifier = Modifier.fillMaxWidth().aspectRatio(1f))
-        Text(
-            album.title,
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 6.dp),
-        )
-        Text(
-            album.artistName ?: "Unknown artist",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
     }
 }
 

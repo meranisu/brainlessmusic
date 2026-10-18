@@ -12,6 +12,7 @@ import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
@@ -84,6 +85,7 @@ object AppIcons {
     val person: ImageVector @Composable @ReadOnlyComposable get() = pick(Icons.Filled.Person, OsuIcons.User, LaneIcons.User, GearIcons.User, RingIcons.User)
     val library: ImageVector @Composable @ReadOnlyComposable get() = pick(Icons.Filled.LibraryMusic, OsuIcons.Music, LaneIcons.Music, GearIcons.Music, RingIcons.Music)
     val headphones: ImageVector @Composable @ReadOnlyComposable get() = pick(Icons.Filled.Headphones, OsuIcons.Headphones, LaneIcons.Headphones, GearIcons.Headphones, RingIcons.Headphones)
+    val sleep: ImageVector @Composable @ReadOnlyComposable get() = pick(Icons.Filled.Bedtime, OsuIcons.Moon, LaneIcons.Moon, GearIcons.Moon, RingIcons.Moon)
     val camera: ImageVector @Composable @ReadOnlyComposable get() = pick(Icons.Filled.PhotoCamera, OsuIcons.Camera, LaneIcons.Camera, GearIcons.Camera, RingIcons.Camera)
     val dragHandle: ImageVector @Composable @ReadOnlyComposable get() = pick(Icons.Filled.DragHandle, OsuIcons.Grip, LaneIcons.Grip, GearIcons.Grip, RingIcons.Grip)
     val delete: ImageVector @Composable @ReadOnlyComposable get() = pick(Icons.Filled.Delete, OsuIcons.Trash, LaneIcons.Trash, GearIcons.Trash, RingIcons.Trash)

@@ -6,10 +6,9 @@ import com.brainlessmusic.app.data.remote.TokenProvider
 import com.brainlessmusic.app.data.remote.dto.CreateRoomRequest
 import com.brainlessmusic.app.data.remote.dto.RoomLookupDto
 import com.brainlessmusic.app.data.repository.ConnectionException
-import com.brainlessmusic.app.data.repository.classifyError
+import com.brainlessmusic.app.data.repository.apiResult
 import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.RoomLink
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -116,28 +115,20 @@ class RoomSession @Inject constructor(
             positionMs = playing.positionMs,
             playing = playing.isPlaying,
         )
-        return try {
+        return apiResult {
             val code = apiServiceFactory.get(serverConfig.url).createRoom(request).code ?: error("No room code came back")
             connect(code, quietIfGone = false)
-            Result.success(Unit)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Result.failure(ConnectionException(classifyError(e)))
         }
     }
 
     /** Who's in the room with this code, for the join screen. Success(null): no such room. */
-    suspend fun lookup(code: String): Result<RoomLookupDto?> =
+    suspend fun lookup(code: String): Result<RoomLookupDto?> = apiResult {
         try {
-            Result.success(apiServiceFactory.get(serverConfig.url).lookupRoom(code))
-        } catch (e: CancellationException) {
-            throw e
+            apiServiceFactory.get(serverConfig.url).lookupRoom(code)
         } catch (e: HttpException) {
-            if (e.code() == 404) Result.success(null) else Result.failure(ConnectionException(classifyError(e)))
-        } catch (e: Exception) {
-            Result.failure(ConnectionException(classifyError(e)))
+            if (e.code() == 404) null else throw e
         }
+    }
 
     fun join(code: String) = connect(code.trim().uppercase(), quietIfGone = false)
 

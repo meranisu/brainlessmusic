@@ -78,6 +78,8 @@ data class PlaylistSummaryDto(
     val hasTrack: Boolean? = null,
     // What it is, in the owner's words (A185). Null without one, or from an older server.
     val description: String? = null,
+    // Filled by rules each time it opens (A207). False from an older server.
+    val isSmart: Boolean = false,
 )
 
 data class PlaylistsDto(val playlists: List<PlaylistSummaryDto>)
@@ -104,6 +106,7 @@ data class PlaylistSearchDto(
     val isPublic: Boolean,
     val isOwner: Boolean,
     val coverAlbumIds: List<Int>? = null,
+    val isSmart: Boolean = false,
 )
 
 data class PlaylistTrackDto(
@@ -134,9 +137,37 @@ data class PlaylistDetailDto(
     val ownerId: Int? = null,
     val isPublic: Boolean = false,
     val description: String? = null,
+    // A207. Its songs come from [rules] each time it opens; null for an ordinary playlist or an older server.
+    val isSmart: Boolean = false,
+    val rules: SmartRulesDto? = null,
 ) {
     val isMine: Boolean get() = isOwner != false
 }
+
+/**
+ * One smart playlist rule (A207). [value] is a number, text or true/false depending on the field, and absent for
+ * "never played"; Gson leaves nulls out and reads numbers back as Double.
+ */
+data class SmartRuleDto(val field: String, val op: String, val value: Any? = null)
+
+data class SmartRulesDto(
+    val v: Int = 1,
+    val match: String,
+    val rules: List<SmartRuleDto>,
+    val sort: String,
+    val limit: Int,
+)
+
+/** `POST /playlists` with rules. */
+data class CreateSmartPlaylistRequest(val name: String, val rules: SmartRulesDto)
+
+/** `PATCH /playlists/:id` with new rules, on a smart playlist. */
+data class EditSmartRulesRequest(val rules: SmartRulesDto)
+
+data class SmartPreviewRequest(val rules: SmartRulesDto)
+
+/** What the rules would pick right now: the count, and the first 50 songs. */
+data class SmartPreviewDto(val trackCount: Int, val tracks: List<PlaylistTrackDto>)
 
 /** `POST /playlists` and `PATCH /playlists/:id` both answer with this. */
 data class PlaylistRefDto(val id: Int, val name: String, val description: String? = null)

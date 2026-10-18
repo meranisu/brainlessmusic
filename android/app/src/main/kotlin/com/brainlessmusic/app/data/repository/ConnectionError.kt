@@ -1,5 +1,6 @@
 package com.brainlessmusic.app.data.repository
 
+import kotlinx.coroutines.CancellationException
 import retrofit2.HttpException
 import java.io.IOException
 import java.net.ConnectException
@@ -38,3 +39,19 @@ fun ConnectionError.toMessage(): String = when (this) {
     is ConnectionError.Unknown ->
         "Something went wrong" + (detail?.let { ": $it" } ?: ".")
 }
+
+/**
+ * Runs [block], rethrowing cancellation (a call superseded by the next one is not an error) and wrapping any other
+ * failure as a [ConnectionException].
+ */
+suspend fun <T> apiCall(block: suspend () -> T): T = apiResult(block).getOrThrow()
+
+/** [apiCall] as a [Result]; cancellation still propagates. */
+suspend fun <T> apiResult(block: suspend () -> T): Result<T> =
+    try {
+        Result.success(block())
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Result.failure(ConnectionException(classifyError(e)))
+    }

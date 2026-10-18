@@ -69,6 +69,7 @@ import androidx.lifecycle.viewModelScope
 import com.brainlessmusic.app.data.local.Skin
 import com.brainlessmusic.app.data.remote.dto.PlaylistSummaryDto
 import com.brainlessmusic.app.data.remote.dto.PublicPlaylistDto
+import com.brainlessmusic.app.data.remote.dto.SmartRulesDto
 import com.brainlessmusic.app.data.remote.dto.TrackSummaryDto
 import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.data.repository.ProfileRepository
@@ -179,6 +180,11 @@ class PlaylistsViewModel @Inject constructor(
         }
     }
 
+    /** What the rules would pick now, for the editor's preview (A207). */
+    suspend fun previewSmart(rules: SmartRulesDto) = profile.previewSmartPlaylist(rules)
+
+    suspend fun createSmart(name: String, rules: SmartRulesDto) = profile.createSmartPlaylist(name, rules)
+
     fun create(name: String, onCreated: (Int) -> Unit, onFailed: (String) -> Unit) {
         viewModelScope.launch {
             profile.createPlaylist(name).fold(
@@ -212,6 +218,7 @@ fun PlaylistsTab(
     val isGuest = viewModel.isGuest
     val state by viewModel.state.collectAsStateWithLifecycle()
     var naming by remember { mutableStateOf(false) }
+    var makingSmart by remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(Unit) { viewModel.load() }
 
@@ -231,6 +238,27 @@ fun PlaylistsTab(
                 )
             },
             onDismiss = { naming = false },
+        )
+    }
+
+    if (makingSmart) {
+        SmartPlaylistSheet(
+            title = "New smart playlist",
+            confirmLabel = "Create",
+            initial = remember { startingRulesDraft() },
+            takenNames = (state as? LoadState.Content)?.data?.playlists.orEmpty().map { it.name },
+            onPreview = { viewModel.previewSmart(it) },
+            onSave = { name, rules ->
+                viewModel.createSmart(name, rules).fold(
+                    onSuccess = { created ->
+                        // Same guard as New playlist: only open it if this screen is still the one showing.
+                        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) onOpenPlaylist(created.id)
+                        null
+                    },
+                    onFailure = { "Couldn't make the playlist. Try again." },
+                )
+            },
+            onDismiss = { makingSmart = false },
         )
     }
 
@@ -258,19 +286,24 @@ fun PlaylistsTab(
                     DislikedRow(home.disliked, onOpen = onOpenDisliked)
                 }
                 item(key = "heading", span = { GridItemSpan(maxLineSpan) }) { GridHeading("Your playlists") }
-                item(key = "new") { NewPlaylistTile(onClick = { naming = true }) }
+                item(key = "new") { NewPlaylistTile("New playlist", onClick = { naming = true }) }
+                item(key = "new-smart") { NewPlaylistTile("New smart playlist", onClick = { makingSmart = true }) }
                 items(home.playlists, key = { it.id }) { playlist ->
                     PlaylistTile(
                         name = playlist.name,
                         description = playlist.description,
-                        detail = songCount(playlist.trackCount) + if (playlist.isPublic) " · Public" else "",
+                        detail = songCount(playlist.trackCount) + when {
+                            playlist.isSmart -> " · Smart"
+                            playlist.isPublic -> " · Public"
+                            else -> ""
+                        },
                         covers = viewModel.covers(playlist.coverAlbumIds),
                         onClick = { onOpenPlaylist(playlist.id) },
                     )
                 }
                 if (home.playlists.isEmpty()) {
                     item(key = "hint", span = { GridItemSpan(maxLineSpan) }) {
-                        GridHint("No playlists yet. Make one with New playlist, or hold any song and pick Add to playlist.")
+                        GridHint("No playlists yet. Make one with New playlist, or hold any song and pick Add to playlist. A smart playlist fills itself from rules.")
                     }
                 }
             }
@@ -426,8 +459,8 @@ private fun DislikedRow(disliked: ListSummary, onOpen: () -> Unit) {
 }
 
 @Composable
-private fun NewPlaylistTile(onClick: () -> Unit) {
-    Column(Modifier.clip(coverShape(14.dp)).clickable(onClickLabel = "New playlist", onClick = onClick)) {
+private fun NewPlaylistTile(label: String, onClick: () -> Unit) {
+    Column(Modifier.clip(coverShape(14.dp)).clickable(onClickLabel = label, onClick = onClick)) {
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
@@ -443,7 +476,7 @@ private fun NewPlaylistTile(onClick: () -> Unit) {
                 Icon(AppIcons.add, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
             }
         }
-        Text("New playlist", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp))
+        Text(label, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp))
         Text(" ", style = MaterialTheme.typography.bodySmall)
     }
 }

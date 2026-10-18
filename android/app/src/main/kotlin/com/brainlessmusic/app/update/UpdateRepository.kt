@@ -161,7 +161,7 @@ class UpdateRepository @Inject constructor(
     fun canInstall(): Boolean = context.packageManager.canRequestPackageInstalls()
 
     private suspend fun fetchOffer(): Result<UpdateOffer?> = withContext(Dispatchers.IO) {
-        runCatching {
+        try {
             val request = Request.Builder()
                 .url("https://api.github.com/repos/$REPO/releases?per_page=30")
                 .header("Accept", "application/vnd.github+json")
@@ -169,9 +169,14 @@ class UpdateRepository @Inject constructor(
             http.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) error("GitHub answered ${response.code}")
                 // An array, not a TypeToken list: R8 can strip the generic signature a TypeToken reads.
-                val releases = gson.fromJson(response.body!!.charStream(), Array<GithubRelease>::class.java)
-                pickOffer(releases.toList(), BuildConfig.VERSION_NAME)
+                val body = response.body ?: error("GitHub sent an empty response")
+                val releases = gson.fromJson(body.charStream(), Array<GithubRelease>::class.java)
+                Result.success(pickOffer(releases.toList(), BuildConfig.VERSION_NAME))
             }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
@@ -184,7 +189,7 @@ class UpdateRepository @Inject constructor(
         val digest = MessageDigest.getInstance("SHA-256")
         http.newCall(Request.Builder().url(offer.apkUrl).build()).execute().use { response ->
             if (!response.isSuccessful) error("Download answered ${response.code}")
-            val body = response.body!!
+            val body = response.body ?: error("Download sent an empty response")
             val total = body.contentLength().takeIf { it > 0 } ?: offer.apkBytes
             var done = 0L
             var lastShown = -1

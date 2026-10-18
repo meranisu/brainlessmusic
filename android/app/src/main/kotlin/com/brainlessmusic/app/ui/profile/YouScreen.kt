@@ -1,5 +1,7 @@
 package com.brainlessmusic.app.ui.profile
 
+import com.brainlessmusic.app.ui.common.EmptyText
+import com.brainlessmusic.app.ui.common.SectionHeading
 import com.brainlessmusic.app.data.local.Skin
 import com.brainlessmusic.app.ui.theme.LocalSkin
 import androidx.compose.animation.core.animateFloatAsState
@@ -586,14 +588,9 @@ internal fun SectionTitle(title: String, trailing: (@Composable () -> Unit)? = n
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = if (trailing == null) 20.dp else 8.dp),
     ) {
-        Text(
+        SectionHeading(
             title,
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier
-                .weight(1f)
-                .padding(bottom = if (trailing == null) 4.dp else 0.dp)
-                .semantics { heading() },
+            Modifier.weight(1f).padding(bottom = if (trailing == null) 4.dp else 0.dp),
         )
         trailing?.invoke()
     }
@@ -601,12 +598,7 @@ internal fun SectionTitle(title: String, trailing: (@Composable () -> Unit)? = n
 
 @Composable
 internal fun EmptyLine(text: String) {
-    Text(
-        text,
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-    )
+    EmptyText(text, Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
 }
 
 /** Where a song or artist moved since the window before (A91). The same place shows nothing. */

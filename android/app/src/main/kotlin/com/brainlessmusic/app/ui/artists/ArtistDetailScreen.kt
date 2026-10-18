@@ -1,11 +1,10 @@
 package com.brainlessmusic.app.ui.artists
 
+import com.brainlessmusic.app.ui.common.AlbumCard
 import com.brainlessmusic.app.ui.common.Notices
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -25,7 +24,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -33,7 +31,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.brainlessmusic.app.data.remote.dto.AlbumSummaryDto
 import com.brainlessmusic.app.data.remote.dto.ArtistDetailDto
-import com.brainlessmusic.app.ui.common.CoverImage
 import com.brainlessmusic.app.ui.common.LoadState
 import com.brainlessmusic.app.ui.common.LoadStateContent
 import com.brainlessmusic.app.ui.albums.PlayShuffleRow
@@ -101,6 +98,7 @@ fun ArtistDetailScreen(
                         AlbumCard(
                             album = album,
                             coverUrl = viewModel.albumCoverUrl(album.id),
+                            subtitle = album.year?.toString() ?: "${album.trackCount} tracks",
                             onClick = { onAlbumClick(album.id) },
                         )
                     }
@@ -119,37 +117,12 @@ fun ArtistDetailScreen(
                                 album = album,
                                 coverUrl = viewModel.albumCoverUrl(album.id),
                                 onClick = { onAlbumClick(album.id) },
-                                subtitle = album.artistName,
+                                subtitle = album.artistName ?: album.year?.toString() ?: "${album.trackCount} tracks",
                             )
                         }
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun AlbumCard(album: AlbumSummaryDto, coverUrl: String?, onClick: () -> Unit, subtitle: String? = null) {
-    Column(modifier = Modifier.clickable(onClick = onClick)) {
-        CoverImage(
-            url = coverUrl,
-            contentDescription = album.title,
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f),
-        )
-        Text(
-            text = album.title,
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 6.dp),
-        )
-        Text(
-            text = subtitle ?: album.year?.toString() ?: "${album.trackCount} tracks",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }

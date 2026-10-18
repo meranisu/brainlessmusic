@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Pre-API-31 backups skip the session: its token key never leaves this device, so a restored copy can't decrypt. -->
+<!--
+  Pre-API-31 backups skip the session: its token key never leaves this device, so a restored copy can't decrypt.
+  Downloads, covers and the databases are skipped too: audio is large, and a restored index would point at files that
+  aren't there, or hold the old account's unsent plays.
+-->
 <full-backup-content>
     <exclude domain="file" path="datastore/session_prefs.preferences_pb" />
+    <exclude domain="file" path="downloads" />
+    <exclude domain="file" path="covers" />
+    <exclude domain="database" path="." />
 </full-backup-content>

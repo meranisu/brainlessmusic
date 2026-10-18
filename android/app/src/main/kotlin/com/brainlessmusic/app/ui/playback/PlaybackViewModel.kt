@@ -12,6 +12,8 @@ import com.brainlessmusic.app.data.repository.LibraryRepository
 import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.PlaybackUiState
 import com.brainlessmusic.app.playback.RemovedEntry
+import com.brainlessmusic.app.playback.SleepTimer
+import com.brainlessmusic.app.playback.SleepTimerState
 import com.brainlessmusic.app.rooms.RoomSession
 import com.brainlessmusic.app.rooms.RoomUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -31,6 +33,7 @@ class PlaybackViewModel @Inject constructor(
     private val profileRepository: com.brainlessmusic.app.data.repository.ProfileRepository,
     authRepository: AuthRepository,
     roomSession: RoomSession,
+    private val sleepTimer: SleepTimer,
 ) : ViewModel() {
 
     /** The "Listen together" room, if one is joined: the player names it and opens it. */
@@ -40,6 +43,11 @@ class PlaybackViewModel @Inject constructor(
     val canPlayLessOften: Boolean = !authRepository.isGuest
 
     val state: StateFlow<PlaybackUiState> = controller.state
+
+    val sleep: StateFlow<SleepTimerState> = sleepTimer.state
+    fun startSleep(minutes: Int) = sleepTimer.start(minutes)
+    fun startSleepAtSongEnd() = sleepTimer.startEndOfSong()
+    fun cancelSleep() = sleepTimer.cancel()
 
     val seekStyle: StateFlow<SeekStyle> = appearance.seekStyle
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SeekStyle.SQUIGGLE)

@@ -178,6 +178,24 @@ class SettingsViewModel @Inject constructor(
     // A second tap while the first logout runs would stack a second Login screen.
     private var loggingOut = false
 
+    /** Ends every session of this account, then signs this phone out (Q202). [onFailed] when the server can't be reached. */
+    fun logoutEverywhere(onLoggedOut: () -> Unit, onFailed: () -> Unit) {
+        if (loggingOut) return
+        loggingOut = true
+        viewModelScope.launch {
+            // Before the token is revoked: stopping saves the resume position to the server.
+            playbackController.stopAndFlush()
+            if (!authRepository.revokeAllSessions()) {
+                loggingOut = false
+                onFailed()
+                return@launch
+            }
+            authRepository.logout()
+            profileRepository.clear()
+            onLoggedOut()
+        }
+    }
+
     fun logout(onLoggedOut: () -> Unit) {
         if (loggingOut) return
         loggingOut = true

@@ -206,7 +206,8 @@ class SongActionsViewModel @Inject constructor(
         _playlists.value = LoadState.Loading
         viewModelScope.launch {
             val loaded = profile.playlists(trackId).fold(
-                onSuccess = { LoadState.Content(it) },
+                // A smart playlist fills itself from rules (A207), so a song can't be put in one by hand.
+                onSuccess = { LoadState.Content(it.filter { p -> !p.isSmart }) },
                 onFailure = { LoadState.Error("Couldn't load your playlists.") },
             )
             if (trackId == sheetTrackId) _playlists.value = loaded

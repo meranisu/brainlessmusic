@@ -23,7 +23,6 @@ import com.brainlessmusic.app.data.remote.dto.TrackDetailDto
 import com.brainlessmusic.app.data.remote.dto.TracksPageDto
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.coroutines.cancellation.CancellationException
 
 @Singleton
 class LibraryRepository @Inject constructor(
@@ -131,11 +130,5 @@ class LibraryRepository @Inject constructor(
      * keystroke was otherwise reported as an error, and the results flickered (C21, against A83).
      */
     private suspend fun <T> callApi(block: suspend (ApiService) -> T): Result<T> =
-        try {
-            Result.success(block(apiServiceFactory.get(serverConfig.url)))
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Result.failure(ConnectionException(classifyError(e)))
-        }
+        apiResult { block(apiServiceFactory.get(serverConfig.url)) }
 }

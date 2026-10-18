@@ -1,5 +1,6 @@
 package com.brainlessmusic.app.ui.profile
 
+import com.brainlessmusic.app.ui.common.EmptyText
 import com.brainlessmusic.app.ui.common.Notices
 import androidx.media3.common.util.UnstableApi
 import com.brainlessmusic.app.downloads.DownloadRepository
@@ -105,6 +106,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
+import com.brainlessmusic.app.data.remote.dto.SmartRulesDto
 import com.brainlessmusic.app.ui.common.SkinFab
 import com.brainlessmusic.app.ui.common.SkinExtendedFab
 import com.brainlessmusic.app.ui.common.CoverImage
@@ -214,6 +216,20 @@ class PlaylistDetailViewModel @Inject constructor(
             )
         }
     }
+
+    /** What the rules would pick now, for the editor's preview (A207). */
+    suspend fun previewSmart(rules: SmartRulesDto) = profile.previewSmartPlaylist(rules)
+
+    /** Saves new rules, then reloads so the list is what they pick now. Answers a line to show if it failed. */
+    suspend fun saveRules(rules: SmartRulesDto): String? =
+        profile.editSmartRules(playlistId, rules).fold(
+            onSuccess = {
+                load()
+                Notices.show("Rules saved")
+                null
+            },
+            onFailure = { "Couldn't save the rules. Try again." },
+        )
 
     /** The public switch (A162), for the owner. */
     fun setPublic(isPublic: Boolean, onFailed: (String) -> Unit) {
@@ -345,6 +361,7 @@ fun PlaylistDetailScreen(
     var menuOpen by remember { mutableStateOf(false) }
     var sortOpen by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf(false) }
+    var editingRules by remember { mutableStateOf(false) }
     var confirmingDelete by remember { mutableStateOf(false) }
     var searching by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
@@ -356,6 +373,8 @@ fun PlaylistDetailScreen(
     val playlist = (state as? LoadState.Content)?.data
     // Someone else's public playlist is read-only here (A162): no editing, remove or reorder.
     val isMine = playlist?.isMine ?: true
+    // Filled by rules each time it opens (A207): no hand edits to its songs, and never public (A210).
+    val isSmart = playlist?.isSmart == true
     val download by viewModel.download.collectAsStateWithLifecycle()
     val showFailure: (String) -> Unit = { Notices.show(it) }
     val closeSearch = {
@@ -373,6 +392,17 @@ fun PlaylistDetailScreen(
             takenNames = otherNames,
             onConfirm = { name, description -> viewModel.editDetails(name, description, showFailure) },
             onDismiss = { editing = false },
+        )
+    }
+    if (editingRules && playlist?.rules != null) {
+        SmartPlaylistSheet(
+            title = "Edit rules",
+            confirmLabel = "Save rules",
+            initial = remember(playlist.rules) { draftFromRules(playlist.rules) },
+            takenNames = null,
+            onPreview = { viewModel.previewSmart(it) },
+            onSave = { _, rules -> viewModel.saveRules(rules) },
+            onDismiss = { editingRules = false },
         )
     }
     if (confirmingDelete && playlist != null) {
@@ -396,7 +426,7 @@ fun PlaylistDetailScreen(
     LaunchedEffect(playlist?.tracks) { if (!dragging) rows = playlist?.tracks.orEmpty() }
     val shown = remember(rows, sort, query) { sortTracks(rows, sort).filter { matchesQuery(it, query) } }
     // Moving a song only means something in the playlist's own order, with every song showing.
-    val canDrag = isMine && sort == PlaylistSort.CUSTOM && query.isBlank()
+    val canDrag = isMine && !isSmart && sort == PlaylistSort.CUSTOM && query.isBlank()
 
     Scaffold(
         topBar = {
@@ -450,13 +480,24 @@ fun PlaylistDetailScreen(
                                         menuOpen = false
                                         editing = true
                                     })
-                                    DropdownMenuItem(
-                                        text = { Text(if (playlist.isPublic) "Make private" else "Make public") },
-                                        onClick = {
+                                    if (isSmart) {
+                                        DropdownMenuItem(text = { Text("Edit rules") }, onClick = {
                                             menuOpen = false
-                                            viewModel.setPublic(!playlist.isPublic, showFailure)
-                                        },
-                                    )
+                                            editingRules = true
+                                        })
+                                        DropdownMenuItem(text = { Text("Save as playlist") }, onClick = {
+                                            menuOpen = false
+                                            viewModel.saveCopy(onCopied = onOpenPlaylist, onFailed = showFailure)
+                                        })
+                                    } else {
+                                        DropdownMenuItem(
+                                            text = { Text(if (playlist.isPublic) "Make private" else "Make public") },
+                                            onClick = {
+                                                menuOpen = false
+                                                viewModel.setPublic(!playlist.isPublic, showFailure)
+                                            },
+                                        )
+                                    }
                                     DropdownMenuItem(text = { Text("Delete playlist") }, onClick = {
                                         menuOpen = false
                                         confirmingDelete = true
@@ -511,6 +552,7 @@ fun PlaylistDetailScreen(
                         onDownload = { viewModel.download { Notices.show(it, long = true) } },
                         onRemoveDownload = viewModel::removeDownload,
                         onEdit = { editing = true },
+                        onEditRules = { editingRules = true },
                         onOpenProfile = onOpenProfile,
                     )
                 }
@@ -531,7 +573,13 @@ fun PlaylistDetailScreen(
                 }
                 if (rows.isEmpty()) {
                     item(key = "empty") {
-                        EmptyNote(if (isMine) "No songs yet. Hold any song and pick Add to playlist." else "This playlist is empty.")
+                        EmptyNote(
+                            when {
+                                isSmart -> "Nothing matches the rules right now. Edit the rules, or check back after you have listened to more."
+                                isMine -> "No songs yet. Hold any song and pick Add to playlist."
+                                else -> "This playlist is empty."
+                            },
+                        )
                     }
                 } else if (shown.isEmpty()) {
                     item(key = "no-match") { EmptyNote("No songs here match \u201c${query.trim()}\u201d.") }
@@ -542,7 +590,7 @@ fun PlaylistDetailScreen(
                         PlaylistRow(
                             track = track,
                             coverUrl = viewModel.coverUrl(track),
-                            editable = detail.isMine,
+                            editable = detail.isMine && !detail.isSmart,
                             draggable = canDrag,
                             elevation = elevation,
                             onClick = { viewModel.play(shown, index) },
@@ -590,9 +638,21 @@ private fun PlaylistHeader(
     onDownload: () -> Unit,
     onRemoveDownload: () -> Unit,
     onEdit: () -> Unit,
+    onEditRules: () -> Unit,
     onOpenProfile: (Int) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 8.dp)) {
+        // What a smart playlist picks, in words; tapping it opens the rules (A207).
+        detail.rules?.let { rules ->
+            Text(
+                "Picks songs where ${describeRules(rules)}.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(end = 8.dp, bottom = 8.dp).then(
+                    if (detail.isMine) Modifier.clickable(onClickLabel = "Edit the rules", onClick = onEditRules) else Modifier,
+                ),
+            )
+        }
         val description = detail.description
         when {
             description != null -> Text(
@@ -613,6 +673,7 @@ private fun PlaylistHeader(
                 Text(
                     when {
                         !detail.isMine -> "by ${detail.ownerName ?: "someone"} · Save a copy to change it"
+                        detail.isSmart -> "Smart playlist · fills itself, only you see it"
                         detail.isPublic -> "Public · everyone here can find it and play it"
                         else -> "Private · only you see it"
                     },
@@ -636,12 +697,7 @@ private fun PlaylistHeader(
 
 @Composable
 private fun EmptyNote(text: String) {
-    Text(
-        text,
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 24.dp),
-    )
+    EmptyText(text, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 24.dp))
 }
 
 /** The top bar's search field: narrows the songs by title, artist or album as you type. */

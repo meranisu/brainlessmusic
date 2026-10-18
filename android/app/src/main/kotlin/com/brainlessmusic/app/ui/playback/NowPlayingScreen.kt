@@ -63,6 +63,7 @@ import com.brainlessmusic.app.playback.PlaybackUiState
 import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.playback.Repeat
 import com.brainlessmusic.app.playback.ShuffleMode
+import com.brainlessmusic.app.playback.SleepTimerState
 import com.brainlessmusic.app.playback.StreamInfo
 import com.brainlessmusic.app.rooms.RoomConnection
 import com.brainlessmusic.app.ui.common.CoverImage
@@ -112,6 +113,8 @@ fun NowPlayingScreen(
     val pills = skin == Skin.STANDARD && viewModel.playerButtons.collectAsStateWithLifecycle().value == PlayerButtons.PILLS
     val dataSaver by viewModel.dataSaver.collectAsStateWithLifecycle()
     val room by viewModel.room.collectAsStateWithLifecycle()
+    val sleep by viewModel.sleep.collectAsStateWithLifecycle()
+    var showSleep by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val current = state.current
     var showQueue by remember { mutableStateOf(false) }
@@ -150,7 +153,7 @@ fun NowPlayingScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Now playing")
+                        Text("Now playing", maxLines = 1, overflow = TextOverflow.Ellipsis)
                         // In a room: which one, or that it's reconnecting while the music carries on.
                         room.room?.let {
                             Text(
@@ -169,6 +172,14 @@ fun NowPlayingScreen(
                 // Data saver, lit while on, for everyone, and only while some queued song would stream (A95); like and
                 // add to a playlist (A65) hide themselves for guests.
                 actions = {
+                    IconButton(
+                        onClick = { showSleep = true },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            contentColor = if (sleep != SleepTimerState.Off) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                    ) {
+                        Icon(AppIcons.sleep, contentDescription = if (sleep != SleepTimerState.Off) "Sleep timer is on" else "Sleep timer")
+                    }
                     IconButton(
                         onClick = onOpenTogether,
                         colors = IconButtonDefaults.iconButtonColors(
@@ -447,6 +458,16 @@ fun NowPlayingScreen(
             trackArtist = current.artist,
             coverUrl = current.coverUrl,
             viewModel = songActions,
+        )
+    }
+
+    if (showSleep) {
+        SleepTimerSheet(
+            state = sleep,
+            onStart = viewModel::startSleep,
+            onEndOfSong = viewModel::startSleepAtSongEnd,
+            onCancel = viewModel::cancelSleep,
+            onDismiss = { showSleep = false },
         )
     }
 

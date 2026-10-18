@@ -5,15 +5,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.brainlessmusic.app.data.remote.dto.GenreDetailDto
 import com.brainlessmusic.app.data.remote.dto.GenreSummaryDto
-import com.brainlessmusic.app.data.repository.ConnectionException
 import com.brainlessmusic.app.data.repository.LibraryRepository
-import com.brainlessmusic.app.data.repository.toMessage
 import com.brainlessmusic.app.ui.common.LoadState
+import com.brainlessmusic.app.ui.profile.loadMessage
 import com.brainlessmusic.app.ui.navigation.Routes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -26,12 +26,15 @@ class GenresViewModel @Inject constructor(
     private val _state = MutableStateFlow<LoadState<List<GenreSummaryDto>>>(LoadState.Loading)
     val state: StateFlow<LoadState<List<GenreSummaryDto>>> = _state.asStateFlow()
 
+    private var loadJob: Job? = null
+
     init {
         load()
     }
 
     fun load() {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _state.value = LoadState.Loading
             libraryRepository.getGenres().fold(
                 onSuccess = { dto ->
@@ -40,9 +43,7 @@ class GenresViewModel @Inject constructor(
                     )
                 },
                 onFailure = {
-                    _state.value = LoadState.Error(
-                        (it as? ConnectionException)?.error?.toMessage() ?: "Something went wrong.",
-                    )
+                    _state.value = LoadState.Error(it.loadMessage())
                 },
             )
         }
@@ -61,19 +62,20 @@ class GenreDetailViewModel @Inject constructor(
     private val _state = MutableStateFlow<LoadState<GenreDetailDto>>(LoadState.Loading)
     val state: StateFlow<LoadState<GenreDetailDto>> = _state.asStateFlow()
 
+    private var loadJob: Job? = null
+
     init {
         load()
     }
 
     fun load() {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _state.value = LoadState.Loading
             libraryRepository.getGenreDetail(genreId).fold(
                 onSuccess = { _state.value = LoadState.Content(it) },
                 onFailure = {
-                    _state.value = LoadState.Error(
-                        (it as? ConnectionException)?.error?.toMessage() ?: "Something went wrong.",
-                    )
+                    _state.value = LoadState.Error(it.loadMessage())
                 },
             )
         }
