@@ -40,7 +40,7 @@ sharing links, jukebox mode, per-client transcoding profiles, plugins) are liste
 | Smart shuffle | Avoid same artist playing back-to-back | 🔧 (logic) 📱🌐 (UI) | | Low-Med | |
 | Listening stats/history dashboard | Visualize play counts, time-of-day patterns, etc. | 🔧 (data) 📱🌐 (UI) | | Med | Backend already has play history and top-tracks stats; the web UI has no history or top-tracks page yet, so this is mostly UI work |
 | Custom EQ presets | Per-genre or per-playlist EQ | 📱 | | Med | Client-side audio processing |
-| Sleep timer / alarm playlist | Timed stop, or wake-up playlist trigger | 📱 | | Low | |
+| Sleep timer / alarm playlist | Timed stop, or wake-up playlist trigger | 📱 | ✅ timer, Android 2026-10-18 | Low | Timer built ([features/sleep-timer](sleep-timer/planning.md)); the alarm playlist half is not |
 
 ## Road / bike-trip specific
 
@@ -56,7 +56,7 @@ sharing links, jukebox mode, per-client transcoding profiles, plugins) are liste
 | Feature | Description | Layers | Priority | Complexity | Notes |
 |---|---|---|---|---|---|
 | Smart auto-mixes | Sonic-similarity-based auto playlists from your own library | 🔧 | | High | Not in initial MVP scope |
-| Rule-based smart playlists | e.g. "not played in 60 days," "high energy," auto-refreshing | 🔧 | | Med | Not in initial MVP scope. **(Navidrome)** Navidrome has these as `.nsp` rule files. The data for the usual rules is already stored (`tracks.play_count`, `tracks.last_played_at`, `date_added`, favorites), so most rules would just be SQL queries. "High energy" would need audio analysis, which is a separate problem |
+| Rule-based smart playlists | e.g. "not played in 60 days," "high energy," auto-refreshing | 🔧 | In progress 2026-10-18 | Med | Planned: [features/smart-playlists](smart-playlists/planning.md) (rule builder, my plays only, backend + web + Android). **(Navidrome)** Navidrome has these as `.nsp` rule files. The data for the usual rules is already stored (`tracks.play_count`, `tracks.last_played_at`, `date_added`, favorites), so most rules would just be SQL queries. "High energy" would need audio analysis, which is a separate problem |
 | "On this day" / rediscovery | Surface old favorites | 🔧 (query logic) 📱🌐 (UI) | | Low-Med | |
 | Private continuous radio | Keep playing similar tracks after playlist ends | 🔧 | | Med-High | Depends on smart auto-mix logic |
 
@@ -124,6 +124,7 @@ For two people, request handling is not the bottleneck. The costs that can actua
 | Response compression | gzip/brotli for JSON API responses | 🔧 | | Low | `@fastify/compress` isn't a dependency. Mainly helps large track lists on mobile data. Audio is already compressed, so leave streams alone |
 | SQLite tuning | `synchronous = NORMAL`, larger `cache_size`, `mmap_size` | 🔧 | | Low | Only `journal_mode = WAL` is set (`backend/src/db/connection.ts:25`). Measure before changing anything |
 | Scale benchmark | Time a scan and measure memory against a synthetic 50k-track library | 🔧 | | Low-Med | Gives an actual number to compare with Navidrome instead of a guess. Run it in a `makeTempDir()` library, never the real one |
+| Library list cache | Show the last library list at once, then refresh it: keep the first page or two in the browser between visits (web), a Room-backed copy of the list with sync (Android, also browsing offline), a "nothing changed" 304 check | 🌐📱 (🔧 for the 304) | | Low (web), High (Android), Med (304) | Raised 2026-10-18 while building the letter jump ([features/library-letter-jump](library-letter-jump/planning.md)); parked, not decided. At 12,759 songs the server takes 25 to 125 ms a page, so measure the real server first. Costs: stale hidden, missing and liked flags, phone storage (about 10 MB per 50k songs), and a version number the 304 needs from every write path |
 
 ## Backup & portability
 

@@ -4,6 +4,166 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-18: Library letter jump and on-screen-only loading, web (A212, A213)
+
+- The web library no longer loads songs in order and keeps every one on the page. `LibraryPage` knows the list's length
+  from the server and loads only the pages near the selection (one before, two after, plus page 0 for the total) with
+  `useQueries`; `ArcadeSelect` draws only the rows on screen plus 6 spare each side, with skeleton rows for songs whose
+  page hasn't arrived, and the same `translateY` maths (padding above stands in for the rows before it). A jump of 8
+  rows or more snaps instead of sliding.
+- The letter rail uses `GET /browse/letters` (new `lib/letterIndex.ts`, `useLetterIndex`), so tapping any letter, or
+  typing it, jumps to that letter's first song whether or not it has loaded. Empty letters are dimmed; the lit letter
+  comes from offsets, so accented and Japanese titles no longer light `#`. Footer reads "N of total".
+- Backend: `GET /browse/letters?scope=tracks&missing=all` counts songs whose files are missing, so the offsets match
+  the web list, which still shows them (A213). Default unchanged, so Android is unchanged.
+- Play queues the pages around the chosen song (one before, two after, about 800 songs), not every song scrolled past
+  (Q205, assumed). Typing two or more letters searches only the loaded songs.
+- Verified: `cd backend && npm test` 684 pass, 0 fail (680 before, plus the new `missing=all` letters test and the earlier smart playlist ones; earlier runs failed only because another session ran the suite at the same time on the shared test database); `cd frontend && npx tsc -b` clean and no lint warnings in the
+  changed files. Run in a real browser (Playwright, throwaway 1,450-song library with 6 missing and 14 hidden songs, accented
+  and Japanese and Greek titles): 10 of 10 steps pass. Opening drew 16 rows and made 3 song requests plus 1 letters request;
+  all 27 rail letters landed on their first song, each jump fetching at most 1 page and drawing at most 22 rows; arrows,
+  Home, End, typing a letter and typing it again, the wheel, a 300 px drag, a missing song kept in place and marked, Play after
+  a jump (the queue carried on to the next song), and a phone width with no sideways scroll. Then run on a copy of the real local database (12,759 songs, taken
+  from the `brainless-app` container; the container itself was not touched): the 22 migrations it was missing (0018 to 0039) applied
+  in 4.5 s with every count unchanged (songs, albums, artists, users, plays). Server: 25 to 125 ms a page and 30 ms for the letters.
+  In the browser with the dev server warm: first row after 1.7 to 2.3 s (6.3 s the very first time, Vite compiling), every one of the
+  27 letter jumps landed on the right song in 26 to 300 ms (median about 100 ms), a cold jump fetches at most 4 pages (one before, the
+  page, two after, about 250 KB), at most 22 rows drawn, Play after a jump streamed the real file (206). Not checked: Safari and
+  Firefox, a screen reader, touch dragging on a real phone, the production build's timing.
+
+## 2026-10-18: Smart playlists, rough edges fixed (A207 to A211)
+
+- "Random" order is now seeded by the day and the playlist (`smartSeed`, Fibonacci hashing on the song id), so opening it
+  twice, renaming it or downloading it no longer reshuffles, and a limit that cuts the list keeps the same songs until
+  tomorrow. It is labelled "Random, new mix each day" on web and Android. Save as playlist freezes the order shown.
+- This also settles the offline download drift: the set only changes when your own plays or likes change what the rules
+  pick (or tomorrow, when a limit cuts a random list). A changed set shows the download as not done until you tap it
+  again, the same as an ordinary playlist edited after its download.
+- List cost: new `summarizeRules` counts and picks covers without building rows, and keeps the answer for 5 minutes,
+  dropped at once by `clearSmartSummaries` when that user's plays (not skips), likes, dislikes or data reset change
+  (`plays.ts`, `favorites.ts`, `lessOften.ts`, `users.ts`). A hidden song or a scan shows after the 5 minutes at most.
+  `resetDatabase()` clears it between tests, since ids start again at 1.
+- Migration `0039_add_play_history_user_track_index.sql`: covering index on `play_history (user_id, track_id, skipped,
+  played_at)`. Measured on a throwaway 50k-song, 200k-play database: a smart playlist run 190 to 260 ms, the play count
+  aggregate alone 245 ms, 75 ms with the index; a kept summary 0 ms. `database-schema.md` updated.
+- Verified: `cd backend && npm test` 680 pass, 0 fail (9 new: random stability, summaries, cache clearing, route level).
+  Android rebuilt and unit tests rerun; see the Android entry below for what was and wasn't run on a phone.
+
+## 2026-10-18: Smart playlists, Android (A207 to A209)
+
+- New "New smart playlist" tile on the Playlists tab opens `SmartPlaylistSheet` (a `SkinSheet`, so the game skins keep
+  their dress): rule sentences with pickers, all or any, order, limit, and a live preview of what the rules pick now.
+- A smart playlist's page: "Edit rules" and "Save as playlist" in the ⋮ menu, a line saying what it picks, no swipe to
+  remove, no drag handles, no Make public. "Add to playlist" leaves smart playlists out. Playlist tiles say "Smart".
+- New `ui/profile/SmartRules.kt` holds the field list, input checks and descriptions (mirrors the web's `smartRules.ts`);
+  DTOs, `ApiService` and `ProfileRepository` carry rules, create, edit and preview.
+- Release notes drafted as `android/release-notes/v0.4.22.md`; v0.4.21 (sleep timer) is untagged, so this assumes both ship.
+- Verified: `./gradlew :app:testDebugUnitTest :app:assembleDebug` passes, 175 unit tests, 0 failures, including the new
+  `SmartRulesTest` (12 cases). NOT tried on a phone or emulator: the sheet's layout in any skin, the dropdowns, the
+  keyboard, the preview, a Hit circle or Lane or Gear or Ring look, and downloading a smart playlist are all unchecked.
+
+## 2026-10-18: Smart playlists, backend and web (A207 to A209)
+
+- A playlist can now hold rules instead of tracks and fill itself each time it opens. Migration `0038_add_playlist_rules.sql`
+  adds one nullable `playlists.rules` column (JSON); NULL is an ordinary playlist, so nothing existing changes.
+- New `backend/src/db/smartPlaylists.ts`: `checkRules` rebuilds client JSON from a whitelist (9 fields, at most 10 rules,
+  limit 1 to 500) and `evaluateRules` runs it. Plays are the viewer's own, skips left out (A208). Hidden, missing and
+  disliked tracks are excluded unless a rule asks about `disliked` (A211). Values are bound parameters only.
+- Routes: `POST /playlists` and `PATCH /playlists/:id` take `rules`; new `POST /playlists/smart/preview`; add, remove
+  and reorder tracks return 409 on a smart playlist; `isPublic: true` returns 400 (A210); `copy` freezes the
+  current picks into an ordinary playlist. Summaries and detail carry `isSmart` (and `rules` on detail).
+- Web: new `SmartPlaylistEditor` (rule sentences, all/any, order, limit, live preview), `lib/smartRules.ts`, "New smart
+  playlist" on the Playlists page, "Edit rules" and "Save as playlist" on the detail page, no drag, remove or Public
+  box there. "Add to playlist" leaves smart playlists out, since a song can't be put in one by hand.
+- Verified: `cd backend && npm test` 671 pass, 0 fail (new `db/smartPlaylists.test.ts` and `routes/smartPlaylists.test.ts`;
+  the route table in `guestAccess.test.ts` gained the preview route). `cd frontend && npx tsc -b` clean, `npm run lint`
+  shows only the existing warnings. Then run in a real browser (Playwright, isolated throwaway DB and backend on :3101, Vite on
+  :5180): 12 of 12 steps pass. Built both example playlists in the editor (5 and 2 songs, as expected), created, opened, played,
+  edited the rules, saved as a playlist, checked the list marker, the 409 on a hand-added song, and the editor at 390 and 360 px
+  (no sideways scroll, Create button on screen, Escape closes). The only console errors were 404s for cover art that my
+  generated test files don't have. Not checked: the Add to playlist dialog in the UI, other browsers, keyboard-only use, dark
+  themes other than the default. No version bump or "What's new" entry yet.
+
+## 2026-10-18: Sleep timer, Android (A204 to A206)
+
+- New moon button on Now Playing opens a sheet: 15, 30, 45, 60 or 90 minutes, or "End of current song". At zero the
+  volume fades over 10 seconds and playback pauses; the queue stays. In a Listen together room this phone leaves the
+  room first, so the room keeps playing for others.
+- `PlaybackController` gets `fadeOutAndPause` and `pauseAtEndOfSong`; song-end fades and crossfades are not planned
+  while a sleep fade runs or an end-of-song pause is armed.
+- New moon icon in all five icon sets.
+- Verified: `SleepTimerTest` (11 cases) passes, and the debug Kotlin compiles. Full `assembleDebug` not run. Not tried on a
+  phone yet: the fade, end of song with crossfade, rooms and the five-icon top bar are all unchecked.
+
+## 2026-10-18: Code review fixes (backend, web, Android)
+
+- Backend: cover art temp files are named with a random id instead of the process id, so two scanner workers storing
+  the same album cover no longer share one temp file (the loser used to fail silently and the track got no cover).
+  `clientIp` only believes `CLIENT_IP_HEADER` when the connection comes from a loopback or private address, so a client
+  reaching the port directly can't rotate the header to dodge the rate limits.
+- Web: a malformed `#t=` in the title screen URL no longer crashes the page; the handoff QR image's alt text no longer
+  contains the session token.
+- Android: `AuthRepository` rethrows `CancellationException` (leaving the screen mid sign-in used to wipe the live
+  token). `PendingPlays.add` marks the play as being added before the insert, so a send can't pick it up with a partial
+  length.
+- Backend, filesystem writers take their root as a parameter again: `storeArtwork`, `artworkPathFor`, `thumbnailPathFor`,
+  `sendCover`, `persistArtwork`, `scanLibrary` and `syncLibrary` take the artwork root; `getOrCreate`, `warm`,
+  `evictIfOversized` and `cacheSizeBytes` take the transcode dir; `backupDatabase` and `listBackups` require their
+  directory. Routes and schedules pass `config.*Path`. Tests pass `config.artworkPath` / `config.transcodePath`.
+- Backend, review mediums: a backup that fails its integrity check is deleted, so it can't push out a good one.
+  Transcode cache eviction never removes the entry just made (the stream route got a 500), and sweeps `*.partial`
+  files older than an hour that dead encodes left. `prepare`, `playback-failure`, playlist add and the profile's
+  favourite song now treat a hidden track as missing for non-admins (`utils/visibleTrack.ts`). Rooms: lookups limited
+  to 30 a minute per user, failed WebSocket hellos to 20 a minute per address, 30 messages a second per socket.
+- Web: uploads send a 401 through `refuseSession` like other calls, and handle abort and timeout; `getToken` survives
+  blocked storage; an error body of `null` no longer throws. Keyboard shortcuts ignore Ctrl, Cmd and Alt, and a focused
+  button, link or slider. The handoff and folder dialogs are real dialogs (`useDialogA11y`: focus in, Tab trapped,
+  Escape, focus back); the handoff dialog also clears its copy timer and ignores a stale QR.
+- Android: backups skip downloads, covers and the databases (`backup_rules.xml`, `data_extraction_rules.xml`).
+- Not done: `MainActivity` `runBlocking` read of DataStore (needs a startup redesign); `PlayerBar` effects rebinding on
+  every `currentTime` tick (bigger refactor); a shared `<Modal>` for the other dialogs; server-side logout (Q202).
+- Web: the media-session and keyboard effects in `PlayerBar` bind once per loaded track and read live state through
+  `transportRef`, so a lock-screen press can't land in the gap between unbinding and rebinding every `timeupdate`.
+- Duplicates removed. Backend: `utils/parseId.ts` (all route id parsing; ids of 0 or below get the same 404),
+  `replyRateLimited.ts`, `fs.ts` (`exists`), `randomCode.ts`, `like.ts` (`likePattern`, also used by `db/browse.ts` and
+  `db/loudness.ts`, whose LIKE fallbacks did not escape `%` and `_`), `reportStreamFailure` in `routes/tracks.ts`.
+  Web: `lib/safeStorage.ts`, `lib/copyText.ts`, `hooks/useMediaUrl.ts`, `parseSqliteDate()` and `formatClock()` in
+  `lib/format.ts`, `authHeaders()` in `apiClient.ts`; `useDialogA11y` also on `ChangelogDialog`, `GuestAccess` and
+  `ConfirmDeleteDialog` (which now closes on Escape). Android: `apiCall`/`apiResult` in `ConnectionError.kt`,
+  `loadMessage()` reused by six view models, `load()` cancels its previous job in four, `SectionHeading` and
+  `EmptyText` in `ui/common/TextBlocks.kt` (Search headings are now announced as headings), `RoomSocket` closes on
+  `closed` and its fields are `@Volatile`.
+- Android, more: `MainActivity` no longer blocks `onCreate` with `runBlocking`; the saved theme, colours and skin load
+  in `lifecycleScope` and the splash waits for them (still capped). `ui/common/AlbumCard.kt` replaces three album
+  cards (Library, Genres, Artist detail). `ui/common/SongListItem.kt` replaces the song rows in Library, Search and
+  the people profile screen. The other track rows (album detail, You, song lists) differ too much and are left.
+- Verified: backend `tsc` clean and `npm test` 671 pass; frontend `npm run build` and `npm run lint` (existing
+  warnings only). Android `compileDebugKotlin` succeeded after all Android changes; Android unit tests not run; not run
+  in a browser or on a phone.
+- Sign out everywhere (A214, was Q202): `POST /auth/sessions/revoke` bumps `session_version` and returns a fresh token
+  (`bumpSessionVersion` in `db/users.ts`, tests in `api.test.ts` and `guestAccess.test.ts`). Web: Options has "Log out
+  everywhere"; the handoff dialog now starts with a "Make link" button that rotates the session first, so older links
+  and other devices end, and this browser stays in. Android: Settings, Account has "Log out everywhere" for accounts
+  (not guests); unsent offline plays are forgotten with it.
+- Lows, backend: loudness measuring has a 600 s ffmpeg timeout and waveform peaks 300 s, so a hung file can't stall the
+  backfill; the waveform `failedAt` map drops expired entries. Guest request `cancel` and `collect` share a per-IP limit
+  (`GUEST_REQUEST_POLLS_PER_MINUTE`, default 120, high because a waiting device polls). Avatar save, set and delete run
+  under one in-process lock (`withAvatarLock`) so one user's delete can't remove a file another just chose. An upload
+  whose row can't be written removes the filed file and says to retry; a failed album tidy-up or artwork write after the
+  row exists is logged and the upload still answers 201. `scanLibrary` takes an optional logger.
+- Lows, web: a failed `/auth/me` during sign-in clears the stored token; the mount fetch can't overwrite a newer
+  sign-in; a skipped track's AbortError no longer starts a network probe; the gapless retire timer is tracked and
+  cleared; the personal saved queue is no longer overwritten while in a room; the room client closes its socket on
+  `closed`.
+- Lows, Android: `onTaskRemoved` no longer blocks (assumes the default when the setting hasn't loaded); the update check
+  rethrows cancellation and handles an empty body; SQLite date parsing lives in `parseSqliteTime` in `ProfileFormat.kt`.
+- Checked and left: `songCoverUri` is only called on IO; the `MediaController` future needs lifecycle code that isn't
+  there; `/admin/health` for guests is intended (`guestAccess.test.ts`); `/library/browse` and `/library/roots` path
+  allowlist and `PlaybackService` controller allow-listing, decided not to do.
+- Open: nothing from the review except the larger row merges (You, song lists) and the admin path allowlist.
+- Verified: backend `npm test` (620 pass), frontend `npm run build` and `npm run lint` (warnings that were already
+  there). Android not compiled (low RAM) and no new tests; the `clientIp` change has no test.
+
 ## 2026-10-18: Headset buttons, Android and web (A202, A203)
 
 - Choose what a headset does: one, two or three presses, plus the Next and Previous buttons. Each takes play or pause,

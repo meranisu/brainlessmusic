@@ -4,6 +4,134 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `ArcadeSelect` (windowed rows, `total`, `getTrack`, `loaded`, `letters`), `AlphabetIndex`, `useLetterIndex()`, `letterAtIndex()`, `letterEntry()`, `SimpleLibrary` page loading and `play()` — `frontend/src/components/ArcadeSelect.tsx`, `AlphabetIndex.tsx`, `frontend/src/lib/letterIndex.ts`, `frontend/src/pages/LibraryPage.tsx`
+**Date:** 2026-10-18
+**How added:** refactor
+**Purpose:** let the web library jump to any letter at once and stop it keeping every scrolled song on the page.
+**Side effects:** `GET /browse/letters?scope=tracks&missing=all` once (refreshed with the `['tracks']` keys); `GET /tracks` for the pages near the selection and, on Play, the pages around the song.
+**Before:** an infinite query loaded pages in order, every loaded song was a row, and the rail knew only the letters of loaded songs.
+**After:** pages load by index around the selection, only rows near the strip are drawn (skeleton rows for unloaded ones), the rail jumps by the server's letter offsets, and Play queues about 800 songs around the chosen one.
+
+**Function:** `getLetterIndex(scope, { missing })` and the `missing=all` query option — `backend/src/db/letterIndex.ts`, `backend/src/routes/letters.ts`
+**Date:** 2026-10-18
+**How added:** new feature
+**Purpose:** make the letter offsets match a song list that shows songs whose files are missing.
+**Side effects:** none; read only.
+**Before:** the tracks letters always left missing songs out, so a list that shows them drifted by their count.
+**After:** `missing=all` keeps them; the default is unchanged.
+
+**Function:** `smartSeed()`, `randomOrder()`, `matchingTracks()`, `summarizeRules()`, `clearSmartSummaries()`, `clearAllSmartSummaries()` — `backend/src/db/smartPlaylists.ts`; calls added in `favorites.ts`, `lessOften.ts`, `plays.ts` (`recordScrobble`), `users.ts`, `testing/harness.ts`
+**Date:** 2026-10-18
+**How added:** refactor
+**Purpose:** keep a smart playlist's Random order steady for a day, and stop the playlist list, search and "Add to playlist" from re-running every smart playlist's rules on each call.
+**Side effects:** an in-memory map of kept summaries (up to 500, 5 minutes); `clearSmartSummaries(userId)` runs on a like, unlike, dislike, undislike, clear dislikes, a counted play and a user data reset or delete.
+**Before:** `RANDOM()` reshuffled on every open, and each list call evaluated every smart playlist in full (about 200 ms each at 50k songs).
+**After:** `(id + seed) * 2654435761 mod 2^32` order per playlist per day; counts and covers come from one light query and are kept; the query's `play_history` aggregate uses the new `idx_play_history_user_track` index (migration `0039`).
+
+**Function:** `SmartPlaylistSheet`, `checkSmartRules()`, `draftFromRules()`, `describeRules()` — `android/.../ui/profile/SmartPlaylistSheet.kt`, `SmartRules.kt`
+**Date:** 2026-10-18
+**How added:** new feature
+**Purpose:** the sheet and helpers that build, edit and describe smart playlist rules on Android.
+**Side effects:** calls `POST /playlists`, `PATCH /playlists/:id` and `POST /playlists/smart/preview` through `ProfileRepository`; `PlaylistDetailViewModel.saveRules` reloads the playlist after a save.
+**Before:** nothing; playlists were hand-made lists.
+**After:** rules are typed as sentences, checked on the phone before any request, previewed after 400 ms of quiet, and saved to a new or existing smart playlist. Smart playlists are left out of "Add to playlist" and lose swipe-remove, drag and Make public.
+
+**Function:** `checkRules()`, `parseStoredRules()`, `evaluateRules()` — `backend/src/db/smartPlaylists.ts`
+**Date:** 2026-10-18
+**How added:** new feature
+**Purpose:** validate smart playlist rules from the client, read them back from the `playlists.rules` column, and run them for one user.
+**Side effects:** none; `evaluateRules` only reads (`tracks`, `play_history`, `favorites`, `less_often`, `track_genres`).
+**Before:** nothing; every playlist was a hand-made list.
+**After:** rules become a SQL query built from a fixed field and op map, with values bound as parameters. Plays are the user's own and skips are left out.
+
+**Function:** `createPlaylist()`, `setPlaylistRules()`, `getPlaylistDetail()`, `listPlaylistsForUser()`, `searchPlaylists()`, `copyPlaylist()` — `backend/src/db/playlists.ts`
+**Date:** 2026-10-18
+**How added:** new feature
+**Purpose:** carry smart playlists through create, open, list, search and copy.
+**Side effects:** `createPlaylist` and `setPlaylistRules` write `playlists.rules`; `copyPlaylist` of a smart playlist inserts the current picks into `playlist_tracks`.
+**Before:** `getPlaylistDetail` always read `playlist_tracks`; lists counted rows.
+**After:** a playlist with rules is evaluated for its owner when opened, listed with the evaluated count and cover, and copied as a frozen ordinary playlist.
+
+**Function:** `refuseIfSmart()`, `POST /playlists/smart/preview`, create and `PATCH` with `rules` — `backend/src/routes/playlists.ts`
+**Date:** 2026-10-18
+**How added:** new feature
+**Purpose:** let accounts make and change smart playlists, preview rules, and keep hand edits and public sharing off them.
+**Side effects:** DB writes to `playlists.rules`. The preview writes nothing.
+**Before:** no rules; any owned playlist took track edits and could go public.
+**After:** 409 on add, remove and reorder for a smart playlist, 400 on `isPublic: true` or rules sent to an ordinary playlist.
+
+**Function:** `SmartPlaylistEditor`, `toSmartRules()`, `fromSmartRules()`, `describeRules()` — `frontend/src/components/SmartPlaylistEditor.tsx`, `frontend/src/lib/smartRules.ts`
+**Date:** 2026-10-18
+**How added:** new feature
+**Purpose:** the dialog and helpers that build, edit and describe smart playlist rules on the web.
+**Side effects:** `POST /playlists`, `PATCH /playlists/:id` and `POST /playlists/smart/preview` calls; invalidates the playlist queries.
+**Before:** nothing.
+**After:** rules are typed as sentences, checked in the browser before any request, previewed after 400 ms of quiet, and saved to a new or existing smart playlist.
+
+**Function:** `SleepTimerLogic`, `SleepTimer`, `SleepTimerState` (new, `android/.../playback/SleepTimer.kt`); `PlaybackController.fadeOutAndPause`, `pauseAtEndOfSong`, `onSleepSongEnd`; `SleepTimerSheet`, `sleepMinutesLeft` (new, `ui/playback/SleepTimerSheet.kt`); `PlaybackViewModel.sleep`/`startSleep`/`startSleepAtSongEnd`/`cancelSleep`; `AppIcons.sleep`
+**Date:** 2026-10-18
+**How added:** new feature
+**Purpose:** stop playback at bedtime after a chosen time or at the end of the current song.
+**Side effects:** at zero, leaves the Listen together room if joined (`RoomSession.leave`), then fades and pauses the player. Sets `pauseAtEndOfMediaItems` for the end-of-song choice.
+**Before:** nothing; the only way to stop at night was to pause by hand.
+**After:** a timer that fades out over 10 s and pauses, keeping the queue.
+
+**Function:** `measureLoudness()` — `backend/src/services/loudness.ts`; `computePeaks()`, `rememberFailure()`, `pruneFailures()` — `services/waveform.ts`; `guestRequestPollLimiter` — `routes/auth.ts`; `withAvatarLock()` — `services/avatars.ts` (used in `routes/profile.ts`, `routes/users.ts`); upload handler — `routes/tracks.ts`; `scanLibrary()` logger — `services/scanner.ts`; `signInWith()` — `frontend/src/auth/AuthContext.tsx`; `persistState`, gapless retire timer — `PlayerBar.tsx`; `closed` handling — `lib/roomClient.ts`; `parseSqliteTime()` — `android/.../ui/profile/ProfileFormat.kt`; `onTaskRemoved` — `PlaybackService.kt`; `fetchOffer()`, `fetchApk()` — `UpdateRepository.kt`
+**Date:** 2026-10-18
+**How added:** bug fix | hardening
+**Purpose:** the remaining low-severity findings from the 2026-10-18 code review.
+**Side effects:** a new config `GUEST_REQUEST_POLLS_PER_MINUTE`; the avatar lock serialises avatar changes; a failed upload removes its filed file.
+**Before:** hung ffmpeg stalled backfills; unlimited guest request polling; an avatar delete could race a set; a failed upload left an orphan file; failed sign-in kept a token; skipped tracks were probed; rooms overwrote the personal queue.
+**After:** each closed as described in the changelog entry.
+
+**Function:** `bumpSessionVersion()` — `backend/src/db/users.ts`; `POST /auth/sessions/revoke` — `routes/auth.ts`; `rotateSession()`, `signOutEverywhere()` — `frontend/src/auth/AuthContext.tsx`; `HandoffDialog` "Make link" — `components/HandoffDialog.tsx`; `revokeAllSessions()` — `AuthRepository.kt`; `logoutEverywhere()` — `SettingsViewModel.kt`
+**Date:** 2026-10-18
+**How added:** new feature (A214)
+**Purpose:** end every session of a user on the server, so a leaked handoff link or a lost device stops working.
+**Side effects:** `UPDATE users SET session_version = session_version + 1`; every older token gets 401 and room sockets close as unauthorized.
+**Before:** sign out only cleared the token on the device; a token stayed valid up to 7 days.
+**After:** "Log out everywhere" and making a handoff link end all older sessions; plain log out is unchanged.
+
+**Function:** `onCreate()` appearance read — `android/.../MainActivity.kt`; `AlbumCard()` — `ui/common/AlbumCard.kt`; `SongListItem()` — `ui/common/SongListItem.kt`
+**Date:** 2026-10-18
+**How added:** refactor | hardening
+**Purpose:** no disk read blocking the main thread at start; one album card and one song row instead of copies.
+**Side effects:** none.
+**Before:** `runBlocking` read of three DataStore flows in `onCreate`; three album cards and three song rows.
+**After:** the read runs in `lifecycleScope`, the splash holds until it lands and `setContent` draws once it has; shared composables with the same look.
+
+**Function:** `parseId()`, `replyRateLimited()`, `exists()`, `randomCode()`, `likePattern()` — `backend/src/utils/`; `safeStorage`, `copyText`, `useMediaUrl`, `authHeaders`, `parseSqliteDate`, `formatClock` — `frontend/src/lib/`, `hooks/`; `transportRef` effects — `PlayerBar.tsx`; `apiCall()`, `apiResult()` — `android/.../data/repository/ConnectionError.kt`; `SectionHeading`, `EmptyText` — `ui/common/TextBlocks.kt`
+**Date:** 2026-10-18
+**How added:** refactor
+**Purpose:** remove duplicated code found in the 2026-10-18 review.
+**Side effects:** none new.
+**Before:** the same logic copied at many call sites.
+**After:** one helper each; behavior kept, except ids of 0 or below now fail the parse everywhere (same 404), `LIKE` fallbacks escape `%` and `_`, and `ConfirmDeleteDialog` closes on Escape.
+
+**Function:** `findVisibleTrack()` — `backend/src/utils/visibleTrack.ts`; `backupDatabase()` failure path — `services/backup.ts`; `evictIfOversized()`, `sweepStalePartials()` — `services/transcodeCache.ts`; `/rooms/:code` and `/rooms/ws` handlers — `routes/rooms.ts`; `refuseSession()`, `getToken()` — `frontend/src/lib/apiClient.ts`; `uploadWithProgress()` — `UploadProvider.tsx`; `useDialogA11y()` — `frontend/src/hooks/useDialogA11y.ts`, used by `HandoffDialog` and `LibraryBrowseDialog`; keydown handler — `PlayerBar.tsx`
+**Date:** 2026-10-18
+**How added:** bug fix | hardening
+**Purpose:** the medium findings from the 2026-10-18 code review.
+**Side effects:** `sweepStalePartials` deletes stale `*.partial` files; a failed backup now deletes its file; the room limiters keep counters in memory.
+**Before:** hidden tracks reachable by id on four routes; bad backups kept; eviction could remove the entry just made; no room throttles; upload 401 ignored; shortcuts fired with modifiers and on focused controls; two dialogs without dialog semantics.
+**After:** each of those is closed as described in the changelog entry.
+
+**Function:** `storeArtwork()`, `artworkPathFor()`, `thumbnailPathFor()`, `sendCover()` — `backend/src/services/artwork.ts`; `persistArtwork()` — `artworkIngest.ts`; `scanLibrary()` — `scanner.ts`; `syncLibrary()` — `librarySync.ts`; `getOrCreate()`, `warm()`, `evictIfOversized()`, `cacheSizeBytes()` — `transcodeCache.ts`; `backupDatabase()`, `listBackups()` — `backup.ts`
+**Date:** 2026-10-18
+**How added:** refactor
+**Purpose:** filesystem writers take their root as a parameter (CLAUDE.md hard rule), found in the code review.
+**Side effects:** none new.
+**Before:** these read `config.artworkPath`, `config.transcodePath` or `config.backupPath` themselves.
+**After:** the caller passes the directory; routes and schedules pass the `config` value.
+
+**Function:** `storeArtwork()` temp name — `backend/src/services/artwork.ts`; `clientIp()`, `isProxyPeer()` — `backend/src/utils/clientIp.ts`; `tokenFromHash()` — `frontend/src/pages/TitleScreenPage.tsx`; `AuthRepository` guest, invite and email calls; `PendingPlays.add`/`send`
+**Date:** 2026-10-18
+**How added:** bug fix | hardening
+**Purpose:** fixes from the 2026-10-18 code review.
+**Side effects:** none new.
+**Before:** a shared `<pid>.tmp` name for concurrent cover writes; `CLIENT_IP_HEADER` trusted from any peer; a bad `#t=` threw; cancellation caught as a failure; a play could be sent mid-insert.
+**After:** unique temp names; header trusted only from loopback or private peers; bad hash gives no token; cancellation rethrown; `openRow` is `ADDING` during the insert and `send` stops there.
+
 **Function:** `HeadsetPresses`, `HeadsetAction`, `HeadsetSlot`, `HeadsetButtonPrefs` (new, `android/.../playback/`); `PlaybackService.onMediaButtonEvent`/`runHeadsetAction`; `PlaybackSettings.headsetButtons`/`setHeadsetAction`; `SettingsViewModel.headsetButtons`; `HeadsetRow` in `SettingsScreen.kt`; `createPressCounter`, `loadHeadsetPrefs`, `saveHeadsetPrefs` (new, `frontend/src/lib/headsetButtons.ts`); `HeadsetSettings` in `OptionsPage.tsx`; the `play`, `pause`, `nexttrack`, `previoustrack` handlers in `PlayerBar.tsx`.
 **Date:** 2026-10-18
 **How added:** new feature

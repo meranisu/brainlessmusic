@@ -90,6 +90,7 @@ erDiagram
         INTEGER is_public
         TEXT public_at
         TEXT description
+        TEXT rules
     }
     playlist_tracks {
         INTEGER playlist_id PK_FK
@@ -249,6 +250,7 @@ Added `0032`. Which genres a track has, from its genre tag split on `;` and `/` 
 | `is_public` | INTEGER | NOT NULL | `0` | Added `0034`. 1: everyone signed in on this server can see and play it, and save a copy (A162). Only an account owns playlists, so a guest never has one (A163) |
 | `public_at` | TEXT | nullable | — | Added `0034`. When it last went public; NULL while private. "From others" is newest first by it (A166) |
 | `description` | TEXT | nullable | — | Added `0036`. The owner's words on what it is, up to 300 characters, line breaks kept; NULL without one. Shown on public and private playlists alike, and kept by a copy (A185) |
+| `rules` | TEXT | nullable | — | Added `0038`. Smart playlist rules as versioned JSON (`db/smartPlaylists.ts`, A207); NULL for an ordinary playlist, which is every one made before. A smart playlist has no `playlist_tracks` rows: opening it runs the rules for its owner (A208). Always private (A210). A copy freezes the current picks into an ordinary playlist |
 
 **FKs:** `owner_id → users.id` (`NO ACTION` / `NO ACTION`).
 **Indexes:** `idx_playlists_owner_id`, `idx_playlists_public_at` (`is_public, public_at`, added `0034`).
@@ -283,7 +285,7 @@ Added `0032`. Which genres a track has, from its genre tag split on `;` and `/` 
 | `skipped` | INTEGER | NOT NULL | `0` | Added `0027`, boolean-as-int (A113): a song cut short before the scrobble threshold, sent once at its end with `ms_final = 1`. Counts toward time listened and `GET /me/history`; left out of plays, top lists, `GET /tracks/:id/history`, Smart shuffle's recency, and never bumps `tracks.play_count` / `last_played_at`. `0` on all rows before the migration |
 
 **FKs:** `user_id → users.id`, `track_id → tracks.id` (both `NO ACTION` / `NO ACTION`).
-**Indexes:** `idx_play_history_user_played_at` (composite, `user_id, played_at` — backs `GET /me/history`), `idx_play_history_track_id` (backs `GET /tracks/:id/history`), `idx_play_history_client_play_id` (unique, partial, `user_id, client_play_id` — `0026`, the resend check).
+**Indexes:** `idx_play_history_user_played_at` (composite, `user_id, played_at` — backs `GET /me/history`), `idx_play_history_track_id` (backs `GET /tracks/:id/history`), `idx_play_history_client_play_id` (unique, partial, `user_id, client_play_id` — `0026`, the resend check). Added `0039`: `idx_play_history_user_track` (`user_id, track_id, skipped, played_at`, covering) — backs the per-song play count and last play that smart playlist rules read, so SQLite needn't sort the user's history for `GROUP BY track_id`.
 **Append-only in practice** — no update/delete path exists for individual history rows; `deleteTrackRow()` bulk-deletes by `track_id` when a track is hard-deleted, and that's the only delete path today.
 
 ### `favorites`
@@ -586,6 +588,8 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | `0034_add_playlist_public.sql` | `playlists.is_public`, `playlists.public_at`, `idx_playlists_public_at` — public playlists (A162-A166) |
 | `0035_add_user_profile.sql` | `users.bio`, `avatar_id`, `favorite_track_id`, `favorite_artist_id` — the profile page (A167-A170) |
 | `0036_add_playlist_description.sql` | `playlists.description` — playlist descriptions (A185) |
+| `0039_add_play_history_user_track_index.sql` | `idx_play_history_user_track` covering index on `play_history` — smart playlist play counts (A207, A208) |
+| `0038_add_playlist_rules.sql` | `playlists.rules` — smart playlists (A207-A209) |
 | `0037_add_user_email.sql` | `users.email` + partial unique `users_email_unique` — sign-up with email, sign-in by email (A189-A192) |
 | `0031_add_track_disc_number.sql` | `tracks.disc_number` — disc order (v0.4 box 26) |
 | `0032_create_genres.sql` | `genres`, `track_genres` + `idx_track_genres_genre_id` (v0.4 box 27) |
@@ -595,6 +599,8 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-10-18 | Migration `0039_add_play_history_user_track_index.sql` — one index on `play_history`, the index note, migration row. From the migration SQL and a benchmark on a throwaway 50k-song, 200k-play database (aggregate 245 ms to 75 ms) | Smart playlist rules run a per-song play count over one user's history (A207, A208) |
+| 2026-10-18 | Migration `0038_add_playlist_rules.sql` — one `playlists` column, the ER block, migration row. From the migration SQL | Smart playlists (A207-A209) |
 | 2026-10-13 | Migration `0037_add_user_email.sql` — `users.email` row, the index note, `account_invites.token_hash` now short codes, the accept note, migration row. From the migration SQL and the test run | Sign up with an invite code, email and optional passcode; sign in by email (A189-A192) |
 | 2026-10-13 | Migration `0035_add_user_profile.sql` — four `users` columns and the migration row. From the migration SQL and the test run | The profile page (A167-A170) |
 | 2026-10-13 | Migration `0036_add_playlist_description.sql` — one `playlists` column. From the migration SQL and the test run | Playlist descriptions (A185) |

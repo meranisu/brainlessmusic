@@ -48,6 +48,11 @@ audit's Status column with the commit, and add a CHANGELOG entry as usual.
 | S23 | Low | Three filesystem writers read their root from config | open |
 | S24 | Low | Smaller items: cache key, `.partial` sweep, admin PATCH order, workflow input, handoff link | open |
 
+Added 2026-10-18 (code review): sign out used to leave a token, and any handoff link carrying it, valid for up to 7
+days. `POST /auth/sessions/revoke` now ends every session of a user ([A214](QUESTIONS.md)); making a handoff link calls
+it first. Also that day, `clientIp` believes `CLIENT_IP_HEADER` only from a loopback or private peer, so a client
+reaching the port directly can't rotate it to dodge the rate limits.
+
 ## Owner decisions waiting
 
 Asked in [QUESTIONS.md](QUESTIONS.md); answer there, not here.

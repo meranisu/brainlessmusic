@@ -32,6 +32,7 @@ is never asked twice.
 | [Q77](#q77--how-does-the-android-app-get-past-cloudflare-access) | How does the Android app get past Cloudflare Access? | 2026-10-11 | Yes, before Access goes on |
 | [Q78](#q78--who-goes-on-the-access-email-list) | Who goes on the Access email list? | 2026-10-11 | Yes, before Access goes on |
 | [Q175](#q175--how-strong-must-a-passcode-be) | How strong must a passcode be? | 2026-10-13 | No |
+| [Q205](#q205--how-much-queues-when-you-press-play-far-down-the-web-library) | How much queues when you press Play far down the web library? | 2026-10-18 | No |
 
 ### Q5 — Tag-editing scope
 **Asked:** 2026-09-09 · **Blocking:** no
@@ -75,6 +76,57 @@ owner out of password sign-in.
 Assumption until answered: S1 and S2 get fixed anyway; the passcode rules stay as they are.
 
 ## Answered
+
+### A214 — Sign out ends sessions on the server (was Q202) *(asked in chat)*
+**Answered:** 2026-10-18. Option B: "log out everywhere" bumps the user's `session_version`, which ends every token signed
+before it (other devices and handoff links). Making a handoff link does the same first and keeps the web browser signed
+in on a fresh token. Plain log out stays local. Built as `POST /auth/sessions/revoke` (guests allowed, since handoff
+needs it), a "Log out everywhere" button in web Options and Android Settings (accounts only), and a "Make link" step in
+the web handoff dialog. Not done: a per-device revoke (option A).
+
+### A213 — Missing songs stay in the web library list *(asked in chat)*
+**Answered:** 2026-10-18. The web library list keeps showing songs whose files are missing, and the letter positions get a
+`missing=all` option so they match that list. Android keeps hiding them. Built in
+[features/library-letter-jump](features/library-letter-jump/planning.md).
+
+### A212 — The web library loads only what is on screen *(asked in chat)*
+**Answered:** 2026-10-18. The web library knows its full length from the server and loads just the pages around the cursor,
+like Android, so a letter on the rail can be jumped to without loading everything before it. Built in
+[features/library-letter-jump](features/library-letter-jump/planning.md).
+
+### A211 — Disliked songs stay out of smart playlists unless a rule asks *(was Q204)*
+**Answered:** 2026-10-18. Option A: a disliked song is always left out, unless a rule explicitly asks about
+`disliked`. Hidden and missing songs are left out either way. Built in `evaluateRules`
+(`backend/src/db/smartPlaylists.ts`), see [features/smart-playlists](features/smart-playlists/planning.md).
+
+### A210 — Smart playlists are private only *(was Q203)*
+**Answered:** 2026-10-18. Option A: making one public is refused (400). "Save as playlist" makes an ordinary copy
+that can be shared. Revisit only if friends ask. Built in `PATCH /playlists/:id` (`backend/src/routes/playlists.ts`)
+and the web and Android pages, see [features/smart-playlists](features/smart-playlists/planning.md).
+
+### A209 — Which apps get smart playlists first *(asked in chat)*
+**Answered:** 2026-10-18. Backend, web and Android in the same round. Planned in
+[features/smart-playlists](features/smart-playlists/planning.md).
+
+### A208 — Whose plays smart playlist rules count *(asked in chat)*
+**Answered:** 2026-10-18. The viewer's own plays, from `play_history` (skips excluded). Not the shared
+`tracks.play_count`, so a friend's listening never changes your mixes.
+
+### A207 — How people make smart playlists *(asked in chat)*
+**Answered:** 2026-10-18. A rule builder anyone can use (rules, match all or any, sort, limit), not fixed presets.
+Saved like a playlist and refilled each time it is opened. Planned in
+[features/smart-playlists](features/smart-playlists/planning.md).
+
+### A206 — What the sleep timer does in a Listen together room *(asked in chat)*
+**Answered:** 2026-10-18. At zero this phone leaves the room and pauses; the room keeps playing for everyone else.
+"End of current song" becomes a countdown to the song's end while in a room. Built in
+[features/sleep-timer](features/sleep-timer/planning.md).
+
+### A205 — What the sleep timer does at zero *(asked in chat)*
+**Answered:** 2026-10-18. Fade out over 10 seconds, then pause. The queue stays, so Play resumes it.
+
+### A204 — Where the sleep timer lives and what it offers *(asked in chat)*
+**Answered:** 2026-10-18. Android only. Choices: 15, 30, 45, 60, 90 minutes and "End of current song".
 
 ### A203 — Which actions a headset press can trigger *(was Q201)*
 **Answered:** 2026-10-18. Play/pause, next, previous, seek forward 10 s, seek back 10 s, plus "Do nothing". No favorite and

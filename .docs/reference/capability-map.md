@@ -31,7 +31,7 @@ _Last checked against the code: 2026-09-09._
 | Layer | Status | Detail |
 |---|---|---|
 | Backend | ✅ | `/artists`, `/artists/:id`, `/albums`, `/albums/:id`, `/tracks`; FTS5 search on a trigram tokenizer (queries under 3 characters fall back to LIKE, which matters for 2-character CJK); cover art served with thumbnails and ETags |
-| Web | ✅ | Sortable, filterable track table plus album grid, album detail, artist list and artist detail pages, a header search box and a grouped results page |
+| Web | ✅ | Sortable, filterable track table plus album grid, album detail, artist list and artist detail pages, a header search box and a grouped results page, and a Simple library that loads only the pages near the cursor and jumps to any letter at once from the server's letter index (built 2026-10-18, A212) |
 | Mobile | ⬜ | |
 
 ## 4. Playback — turning a row into sound
@@ -46,8 +46,8 @@ _Last checked against the code: 2026-09-09._
 
 | Layer | Status | Detail |
 |---|---|---|
-| Backend | ✅ | Playlists (CRUD + add/remove/reorder, ownership-enforced), favorites, artist-adjacency-avoiding shuffle |
-| Web | ✅ | Playlist CRUD, add-to-playlist from the track menu, drag-to-reorder, hearts on rows and in the player, a favorites page, and smart shuffle from the player |
+| Backend | ✅ | Playlists (CRUD + add/remove/reorder, ownership-enforced), favorites, artist-adjacency-avoiding shuffle, smart playlists (rules saved on a playlist, run for the owner each time it opens; built 2026-10-18, A207 to A211) |
+| Web | ✅ | Playlist CRUD, add-to-playlist from the track menu, drag-to-reorder, hearts on rows and in the player, a favorites page, and smart shuffle from the player, and a smart playlist editor with live preview (built 2026-10-18; Android has the same, see its feature plan) |
 | Mobile | ⬜ | |
 
 ## 6. Memory — what the system remembers about you
