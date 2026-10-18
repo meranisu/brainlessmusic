@@ -4,6 +4,56 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-18: Review round 2: web room state cleared on sign-out; tabs follow each other's sign-in
+
+- `RoomProvider.tsx`: room, you, joining and connection state are reset once the user is null (during render, which keeps
+  lint at its 9 baseline warnings). Before, signing out and back in as the same account showed the old room until a new
+  state arrived; only a different account was hidden.
+- `lib/apiClient.ts`: `onTokenChangedElsewhere(listener)` wraps the `storage` event for the token key.
+- `auth/AuthContext.tsx`: uses it. A sign-out in another tab signs this one out and clears the query cache; a switch to
+  another account clears the cache and reloads `/auth/me`, so this tab no longer shows the old person while requests go out as the new one.
+- Verified: `tsc -b` clean, `npm run lint` 0 errors and 9 warnings (same count as before), `npm run build` succeeds.
+  Not run: any browser check of two tabs or a room. The frontend has no unit tests for this.
+
+## 2026-10-18: Review round 2: transcoded streams keep a stable ETag, so seeks get 206
+
+- `routes/tracks.ts` (stream handler): `ETag` and `Last-Modified` for a transcoded stream now use the source file's mtime.
+  The cache entry's mtime moves on every hit (`utimes` in `transcodeCache.getOrCreate`), so the ETag changed each request,
+  `If-Range` failed, and seeks on an M4A or low-quality stream came back as a full 200. The entry's size still separates variants.
+- Verified: `tsc --noEmit` clean; `npm test` 698 pass, 0 fail, 0 skipped (ffmpeg present). New test in `stream.test.ts`: two
+  cache hits give the same ETag and a ranged `If-Range` request gets 206. I did not run it against the old code to see it fail.
+
+## 2026-10-18: Review round 2: guest code, invite and guest request modules no longer open the DB on import
+
+- `db/connection.ts`: new `lazyTransaction(fn)`, a `db.transaction(fn)` built on first call and rebuilt if the handle was closed and reopened.
+- `db/guestCodes.ts`, `db/invites.ts`, `db/guestCodeRequests.ts`: the six module-level `db.transaction(...)` exports
+  (`claimGuestCode`, `deleteGuestCode`, `createInvite`, `acceptInvite`, `approveGuestCodeRequest`, `collectGuestCodeRequest`)
+  use it. Importing them used to open `DB_PATH`, the cause of the 2026-09-08 and 2026-09-09 incidents. Call signatures are unchanged.
+- Verified: `tsc --noEmit` clean; `npm test` 697 pass, 0 fail. `connection.test.ts` now also imports the three modules and
+  checks no handle opened. I did not run that test against the old code to see it fail.
+
+## 2026-10-18: Review round 2: login burst no longer bypasses the throttle or passcode lock
+
+- `routes/auth.ts`: `/auth/login` and `/auth/passcode-login` peeked the failure limits before the slow hash check and counted
+  after it, so a parallel burst all passed the peek and got unlimited guesses (and skipped the 10-failure passcode lock).
+  `claimLoginSlot()` now allows one check at a time per address and per account. The others get 429 "Too many tries".
+- Side effect: two people on one address signing in at the exact same moment can get one 429 and retry.
+- Verified: `tsc --noEmit` clean; `npm test` 697 pass, 0 fail (new test: four parallel wrong passwords give one 401 and
+  three 429). Not tested: the passcode route's burst, which uses the same helper.
+
+## 2026-10-18: Review round 2: hidden tracks no longer leak to non-admins; Android token loaded at app start
+
+- `db/playbackState.ts`, `routes/playbackState.ts`: `GET /me/playback-state` drops hidden tracks for a non-admin (A34). The
+  old comment said hidden tracks couldn't return via resume, but the query had no `hidden` filter.
+- `routes/shuffle.ts`: `POST /shuffle` caps the array at `MAX_QUEUE_LENGTH` (5000) and answers 404 `missing` for hidden
+  tracks when the caller is not an admin.
+- `routes/tracks.ts`: `/tracks/:id/cover`, `/tracks/:id/waveform` and `/tracks/:id/scrobble` use `findVisibleTrack`, so a
+  hidden track answers 404 and a scrobble can no longer raise its play_count.
+- Android `BrainlessMusicApp.onCreate`: loads the stored token into `TokenProvider` so a download service restarted by the
+  scheduler sends `Authorization`. Compiled only; not run on a device.
+- Verified: `tsc --noEmit` clean; `npm test` 696 pass, 0 fail (new test: hidden track dropped from resumed queue).
+  Not tested: the new 404s on cover, waveform, scrobble and shuffle have no route tests.
+
 ## 2026-10-18: Review fixes for the web motion pass
 
 - `useFoldRemove.ts`: the fold timer is cleared on unmount, so a view closed mid-fold no longer removes a row from a stale queue.

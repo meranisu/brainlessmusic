@@ -4,6 +4,54 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `onTokenChangedElsewhere()` — `frontend/src/lib/apiClient.ts`; `AuthProvider` effect — `frontend/src/auth/AuthContext.tsx`
+**Date:** 2026-10-18
+**How added:** bug fix
+**Purpose:** keep every open tab on the same signed-in account.
+**Side effects:** a `storage` listener on `window`; on a change it clears the query cache and either signs out or calls `/auth/me`.
+**Before:** nothing — new function. A logout or account switch in one tab left the others on the old user.
+**After:** the other tabs follow within one event.
+
+**Function:** stream handler `GET /tracks/:id/stream` — `backend/src/routes/tracks.ts`
+**Date:** 2026-10-18
+**How added:** bug fix
+**Purpose:** serves the file or its transcoded copy with range, ETag and 304 support.
+**Side effects:** none new.
+**Before:** validators came from the served file, so a transcode cache hit (which touches the entry's mtime) changed the ETag every time.
+**After:** validators use the source file's mtime and the served size, so they are stable across cache hits and `If-Range` works.
+
+**Function:** `lazyTransaction()` — `backend/src/db/connection.ts`
+**Date:** 2026-10-18
+**How added:** hardening
+**Purpose:** a transaction wrapper that opens the database on first call, not at import.
+**Side effects:** opens the connection on first call; builds a new transaction if the handle changed.
+**Before:** nothing — new function. Six exports called `db.transaction(...)` at module scope and opened the DB on import.
+**After:** those exports (guestCodes, invites, guestCodeRequests) go through it; importing them opens nothing.
+
+**Function:** `claimLoginSlot()` — `backend/src/routes/auth.ts`
+**Date:** 2026-10-18
+**How added:** hardening
+**Purpose:** one password or passcode check at a time per address and per account.
+**Side effects:** adds and removes keys in an in-memory set; the caller releases in a `finally`.
+**Before:** nothing — new function. The limit was peeked before `await verifyPassword` and counted after, so parallel requests all passed.
+**After:** a request that finds either slot busy gets 429 without a hash check. Failures are counted before the next check starts.
+
+**Function:** `loadPlaybackState()`, `fetchPlayable()` — `backend/src/db/playbackState.ts`
+**Date:** 2026-10-18
+**How added:** bug fix
+**Purpose:** the saved queue as it resumes, with unplayable tracks removed.
+**Side effects:** none (reads).
+**Before:** only missing tracks were dropped, so a hidden track came back to any user.
+**After:** hidden tracks are dropped too unless `includeHidden` is true (the route passes `isAdminRequest`).
+
+**Function:** `POST /shuffle` handler — `backend/src/routes/shuffle.ts`
+**Date:** 2026-10-18
+**How added:** hardening
+**Purpose:** smart-shuffle a list of track ids.
+**Side effects:** none.
+**Before:** no length cap, and hidden tracks were shuffled and returned to anyone.
+**After:** more than 5000 ids gives 400; a hidden track counts as not found for a non-admin.
+
 **Function:** `useFoldRemove()` — `frontend/src/hooks/useFoldRemove.ts`
 **Date:** 2026-10-18
 **How added:** modified (review fix)
