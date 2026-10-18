@@ -6,6 +6,9 @@ sealed interface GroupDownload {
     data class Running(val percent: Int) : GroupDownload
     data object Done : GroupDownload
     data object Failed : GroupDownload
+
+    /** Nothing is running and at least one song was paused by hand. */
+    data object Paused : GroupDownload
 }
 
 fun groupDownload(trackIds: List<Int>, downloads: Map<Int, TrackDownload>): GroupDownload {
@@ -15,6 +18,7 @@ fun groupDownload(trackIds: List<Int>, downloads: Map<Int, TrackDownload>): Grou
         each.all { it?.isDone == true } -> GroupDownload.Done
         each.any { it?.isActive == true } ->
             GroupDownload.Running((each.sumOf { (it?.percent ?: 0f).toDouble() } / each.size).toInt())
+        each.any { it?.isStopped == true } -> GroupDownload.Paused
         each.any { it?.isFailed == true } -> GroupDownload.Failed
         // Some songs on the phone and the rest never asked for: the button offers the rest.
         else -> GroupDownload.None

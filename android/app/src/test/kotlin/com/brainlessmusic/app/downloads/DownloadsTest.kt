@@ -47,4 +47,26 @@ class DownloadsTest {
         // Half on the phone, half never asked for: offer the rest.
         assertEquals(GroupDownload.None, groupDownload(ids, mapOf(1 to d(Download.STATE_COMPLETED, 100f))))
     }
+
+    @Test
+    fun `a song paused by hand shows the group as paused, but a running one wins`() {
+        val ids = listOf(1, 2)
+        assertEquals(
+            GroupDownload.Paused,
+            groupDownload(ids, mapOf(1 to d(Download.STATE_COMPLETED, 100f), 2 to d(Download.STATE_STOPPED, 40f))),
+        )
+        assertEquals(
+            GroupDownload.Running(20),
+            groupDownload(ids, mapOf(1 to d(Download.STATE_STOPPED), 2 to d(Download.STATE_DOWNLOADING, 40f))),
+        )
+        // A pause outranks a failure: resuming comes first.
+        assertEquals(GroupDownload.Paused, groupDownload(ids, mapOf(1 to d(Download.STATE_FAILED), 2 to d(Download.STATE_STOPPED))))
+    }
+
+    @Test
+    fun `only a stopped download counts as stopped`() {
+        assertEquals(true, d(Download.STATE_STOPPED).isStopped)
+        assertEquals(false, d(Download.STATE_QUEUED).isStopped)
+        assertEquals(false, d(Download.STATE_QUEUED).isDone)
+    }
 }

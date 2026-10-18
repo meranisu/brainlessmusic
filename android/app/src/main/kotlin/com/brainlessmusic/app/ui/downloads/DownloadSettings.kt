@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -15,7 +16,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -47,6 +51,13 @@ class DownloadSettingsViewModel @Inject constructor(
     private val songCache: SongCache,
 ) : ViewModel() {
     val spaceUsed: StateFlow<Long> = downloads.spaceUsed
+
+    val wifiOnly: StateFlow<Boolean> =
+        settings.downloadWifiOnly.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setWifiOnly(enabled: Boolean) {
+        viewModelScope.launch { settings.setDownloadWifiOnly(enabled) }
+    }
 
     val limitGb: StateFlow<Int> =
         settings.downloadLimitGb.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
@@ -100,6 +111,7 @@ internal fun DownloadSettings(
 ) {
     val used by viewModel.spaceUsed.collectAsStateWithLifecycle()
     val limit by viewModel.limitGb.collectAsStateWithLifecycle()
+    val wifiOnly by viewModel.wifiOnly.collectAsStateWithLifecycle()
     val usedText = Formatter.formatShortFileSize(LocalContext.current, used)
     var confirmDelete by remember { mutableStateOf(false) }
 
@@ -133,6 +145,21 @@ internal fun DownloadSettings(
                 )
             }
         }
+    }
+    divider()
+    block(
+        "Wi-Fi only",
+        if (wifiOnly) {
+            "Downloads wait for Wi-Fi and carry on when you connect. Songs already here still play."
+        } else {
+            "Downloads use any connection, Wi-Fi or mobile data. Turn this on to save your data plan."
+        },
+    ) {
+        Switch(
+            checked = wifiOnly,
+            onCheckedChange = viewModel::setWifiOnly,
+            modifier = Modifier.semantics { contentDescription = "Download on Wi-Fi only" },
+        )
     }
     divider()
     block("Delete all downloads", "Takes every downloaded song off this phone.") {

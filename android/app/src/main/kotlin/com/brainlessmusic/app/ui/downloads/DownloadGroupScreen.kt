@@ -1,5 +1,6 @@
 package com.brainlessmusic.app.ui.downloads
 
+import android.text.format.Formatter
 import com.brainlessmusic.app.ui.common.Notices
 import androidx.annotation.OptIn
 import androidx.compose.foundation.layout.Arrangement
@@ -89,6 +90,9 @@ data class GroupPage(
         }
 
     val doneCount: Int get() = songs.count { it.second?.isDone == true }
+
+    /** What the songs take on the phone, finished or not. */
+    val bytes: Long get() = songs.sumOf { it.second?.bytes ?: 0L }
 }
 
 @OptIn(UnstableApi::class)
@@ -134,6 +138,10 @@ class DownloadGroupViewModel @Inject constructor(
     fun removeSong(trackId: Int) = downloads.removeSong(trackId)
 
     fun downloadAgain(trackIds: List<Int>, onRefused: (String) -> Unit) = downloads.downloadAgain(trackIds, onRefused)
+
+    fun pauseSong(trackId: Int) = downloads.pause(trackId)
+
+    fun resumeSong(trackId: Int) = downloads.resume(trackId)
 
     fun removeAll(page: GroupPage) = downloads.removeGroup(groupId, page.songs.map { it.first.trackId })
 }
@@ -218,6 +226,7 @@ fun DownloadGroupScreen(
                         title = track.title,
                         supporting = when {
                             download?.isFailed == true -> "Download failed"
+                            download?.isStopped == true -> "Paused"
                             download?.isActive == true -> "Downloading, ${download.percent.toInt()}%"
                             download?.isDone != true -> "Not on the phone"
                             // An album page's header already names the album.
@@ -245,10 +254,26 @@ fun DownloadGroupScreen(
                                     text = { Text("Remove from phone") },
                                     onClick = { close(); viewModel.removeSong(track.trackId) },
                                 )
-                                download?.isActive == true -> DropdownMenuItem(
-                                    text = { Text("Stop download") },
-                                    onClick = { close(); viewModel.removeSong(track.trackId) },
-                                )
+                                download?.isActive == true -> {
+                                    DropdownMenuItem(
+                                        text = { Text("Pause download") },
+                                        onClick = { close(); viewModel.pauseSong(track.trackId) },
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Stop download") },
+                                        onClick = { close(); viewModel.removeSong(track.trackId) },
+                                    )
+                                }
+                                download?.isStopped == true -> {
+                                    DropdownMenuItem(
+                                        text = { Text("Resume download") },
+                                        onClick = { close(); viewModel.resumeSong(track.trackId) },
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Stop download") },
+                                        onClick = { close(); viewModel.removeSong(track.trackId) },
+                                    )
+                                }
                                 else -> DropdownMenuItem(
                                     text = { Text("Download") },
                                     onClick = { close(); viewModel.downloadAgain(listOf(track.trackId), toast) },
@@ -277,7 +302,8 @@ private fun GroupHeader(page: GroupPage, onPlay: () -> Unit, onShuffle: () -> Un
                     Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Text(
-                    songCount(page.doneCount, page.songs.size) + " on the phone",
+                    songCount(page.doneCount, page.songs.size) + " on the phone" +
+                        page.bytes.takeIf { it > 0 }?.let { " · " + Formatter.formatShortFileSize(LocalContext.current, it) }.orEmpty(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

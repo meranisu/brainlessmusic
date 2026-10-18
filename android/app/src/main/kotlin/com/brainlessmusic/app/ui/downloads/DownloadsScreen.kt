@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
@@ -46,6 +48,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -144,9 +147,17 @@ fun DownloadsScreen(navController: NavHostController, viewModel: DownloadsViewMo
                             )
                         }
                     }
-                    if (ui.active.isNotEmpty()) {
+                    if (ui.queue.isNotEmpty()) {
                         fullWidth("in-progress") {
-                            InProgressPanel(ui, onPause = viewModel::pauseAll, onResume = viewModel::resumeAll)
+                            InProgressPanel(
+                                ui,
+                                onPause = viewModel::pauseAll,
+                                onResume = viewModel::resumeAll,
+                                onPauseSong = viewModel::pauseSong,
+                                onResumeSong = viewModel::resumeSong,
+                                onCancelSong = viewModel::cancelSong,
+                                onRetrySong = { viewModel.retrySong(it, toast) },
+                            )
                         }
                     }
                     fullWidth("search") {
@@ -353,49 +364,136 @@ private fun PlayButtons(onPlayAll: () -> Unit, onShuffleAll: () -> Unit, modifie
     }
 }
 
-/** What is downloading now, three songs at most, with pause and resume for the whole queue. */
+/** What the queue holds now, three songs at most, with pause and resume for the whole queue and per song. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun InProgressPanel(ui: DownloadsUi, onPause: () -> Unit, onResume: () -> Unit) {
+private fun InProgressPanel(
+    ui: DownloadsUi,
+    onPause: () -> Unit,
+    onResume: () -> Unit,
+    onPauseSong: (DownloadSongRow) -> Unit,
+    onResumeSong: (DownloadSongRow) -> Unit,
+    onCancelSong: (DownloadSongRow) -> Unit,
+    onRetrySong: (DownloadSongRow) -> Unit,
+) {
+    var cancelling by remember { mutableStateOf<DownloadSongRow?>(null) }
+    var showAll by remember { mutableStateOf(false) }
+    val queue = ui.queue
+    val actions = QueueActions(onPauseSong, onResumeSong, onRetrySong) { cancelling = it }
+
+    cancelling?.let { row ->
+        AlertDialog(
+            onDismissRequest = { cancelling = null },
+            title = { Text("Stop this download?") },
+            text = { Text("\"${row.song.track.title}\" leaves the queue. Download it again from its album, playlist or song menu.") },
+            confirmButton = { TextButton(onClick = { cancelling = null; onCancelSong(row) }) { Text("Stop") } },
+            dismissButton = { TextButton(onClick = { cancelling = null }) { Text("Keep") } },
+        )
+    }
+    if (showAll) {
+        // Closes itself once the last song leaves the queue.
+        if (queue.isEmpty()) showAll = false
+        ModalBottomSheet(onDismissRequest = { showAll = false }) {
+            LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                item(key = "title") {
+                    Text(queueTitle(ui), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+                }
+                items(queue, key = { it.song.track.trackId }) { QueueRow(it, actions) }
+            }
+        }
+    }
+
     Surface(shape = MaterialTheme.cardShape, border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline), color = Color.Transparent) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                val count = ui.active.size
-                Text(
-                    if (ui.paused) "Paused, $count waiting" else if (count == 1) "Downloading 1 song" else "Downloading $count songs",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f),
-                )
+                Text(queueTitle(ui), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 if (ui.paused) {
                     TextButton(onClick = onResume) {
                         Icon(AppIcons.download, contentDescription = null)
                         Text("Resume all", modifier = Modifier.padding(start = 6.dp))
                     }
-                } else {
+                } else if (ui.active.isNotEmpty()) {
                     TextButton(onClick = onPause) {
                         Icon(AppIcons.pause, contentDescription = null)
                         Text("Pause all", modifier = Modifier.padding(start = 6.dp))
                     }
                 }
             }
-            ui.active.take(3).forEach { row ->
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(row.song.track.title, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    val percent = row.download?.percent ?: 0f
+            queue.take(3).forEach { QueueRow(it, actions) }
+            if (queue.size > 3) {
+                TextButton(onClick = { showAll = true }, contentPadding = PaddingValues(horizontal = 0.dp)) {
+                    Text("See all ${queue.size}")
+                }
+            }
+        }
+    }
+}
+
+/** What the panel and the sheet say the queue is doing. */
+internal fun queueTitle(ui: DownloadsUi): String {
+    val running = ui.active.size
+    val held = ui.queue.count { it.download?.isStopped == true }
+    val failed = ui.queue.count { it.download?.isFailed == true }
+    return when {
+        ui.waitingForWifi && running > 0 -> "Waiting for Wi-Fi, $running waiting"
+        ui.paused && running > 0 -> "Paused, $running waiting"
+        running == 1 -> "Downloading 1 song"
+        running > 1 -> "Downloading $running songs"
+        else -> listOfNotNull(
+            held.takeIf { it > 0 }?.let { "$it paused" },
+            failed.takeIf { it > 0 }?.let { "$it failed" },
+        ).joinToString(", ")
+    }
+}
+
+private class QueueActions(
+    val onPause: (DownloadSongRow) -> Unit,
+    val onResume: (DownloadSongRow) -> Unit,
+    val onRetry: (DownloadSongRow) -> Unit,
+    val onCancel: (DownloadSongRow) -> Unit,
+)
+
+/** One song in the queue: its name, how far along it is, and pause or resume, retry if it failed, and stop. */
+@Composable
+private fun QueueRow(row: DownloadSongRow, actions: QueueActions) {
+    val track = row.song.track
+    val download = row.download
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(track.title, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            when {
+                download?.isFailed == true -> Text(
+                    "Failed", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error,
+                )
+                download?.isStopped == true -> Text(
+                    "Paused, ${(download.percent).toInt()}%",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                else -> {
+                    val percent = download?.percent ?: 0f
                     LinearProgressIndicator(
                         progress = { percent / 100f },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .semantics { contentDescription = "${row.song.track.title}, ${percent.toInt()}%" },
+                            .semantics { contentDescription = "${track.title}, ${percent.toInt()}%" },
                     )
                 }
             }
-            if (ui.active.size > 3) {
-                Text(
-                    "and ${ui.active.size - 3} more",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+        }
+        when {
+            download?.isFailed == true -> IconButton(onClick = { actions.onRetry(row) }) {
+                Icon(AppIcons.refresh, contentDescription = "Retry ${track.title}")
             }
+            download?.isStopped == true -> IconButton(onClick = { actions.onResume(row) }) {
+                Icon(AppIcons.play, contentDescription = "Resume ${track.title}")
+            }
+            else -> IconButton(onClick = { actions.onPause(row) }) {
+                Icon(AppIcons.pause, contentDescription = "Pause ${track.title}")
+            }
+        }
+        IconButton(onClick = { actions.onCancel(row) }) {
+            Icon(AppIcons.close, contentDescription = "Stop downloading ${track.title}")
         }
     }
 }
@@ -472,6 +570,7 @@ private fun FilterRow(selected: DownloadFilter, showCached: Boolean, onSelect: (
 /** A cover with its download state in the corner; tap opens its page. */
 @Composable
 private fun DownloadTile(row: DownloadRow, onOpen: () -> Unit) {
+    val context = LocalContext.current
     Column(
         Modifier
             .clickable(onClickLabel = "Open", onClick = onOpen)
@@ -484,7 +583,7 @@ private fun DownloadTile(row: DownloadRow, onOpen: () -> Unit) {
         }
         Text(row.group.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(
-            listOfNotNull(row.group.subtitle, row.status()).joinToString(" · "),
+            row.detail { Formatter.formatShortFileSize(context, it) },
             style = MaterialTheme.typography.bodySmall,
             color = if (row.canRetry) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
@@ -539,6 +638,8 @@ internal fun StateBadge(state: GroupDownload, modifier: Modifier = Modifier) {
                     CircularProgressIndicator(progress = { state.percent / 100f }, modifier = Modifier.size(20.dp), strokeWidth = 2.5.dp)
                 GroupDownload.Failed ->
                     Icon(AppIcons.error, contentDescription = "Download failed", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                GroupDownload.Paused ->
+                    Icon(AppIcons.pause, contentDescription = "Paused", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                 GroupDownload.None ->
                     Icon(AppIcons.download, contentDescription = "Partly downloaded", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
             }

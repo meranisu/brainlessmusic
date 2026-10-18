@@ -29,6 +29,15 @@ class DownloadRowTest {
         assertEquals("2 of 3 songs", row(2, 3, GroupDownload.None).status())
         assertEquals("Downloading, 40%", row(1, 3, GroupDownload.Running(40)).status())
         assertEquals("Some songs failed", row(2, 3, GroupDownload.Failed).status())
+        assertEquals("Paused", row(2, 3, GroupDownload.Paused).status())
+    }
+
+    @Test
+    fun `tile detail adds the space once a song has any`() {
+        val size: (Long) -> String = { "${it / 1_000_000} MB" }
+        assertEquals("Artist · 3 songs", row(3, 3, GroupDownload.Done).detail(size))
+        assertEquals("Artist · 3 songs · 84 MB", row(3, 3, GroupDownload.Done).copy(bytes = 84_000_000).detail(size))
+        assertEquals("3 songs · 5 MB", row(3, 3, GroupDownload.Done, subtitle = null).copy(bytes = 5_000_000).detail(size))
     }
 
     @Test

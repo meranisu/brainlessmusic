@@ -13,17 +13,21 @@ import androidx.media3.exoplayer.offline.DefaultDownloaderFactory
 import androidx.media3.exoplayer.offline.DownloadManager
 import androidx.media3.exoplayer.scheduler.Requirements
 import androidx.room.Room
+import com.brainlessmusic.app.data.local.PlaybackSettings
 import com.brainlessmusic.app.downloads.CachedTrackDao
 import com.brainlessmusic.app.downloads.DownloadDao
 import com.brainlessmusic.app.downloads.DownloadDatabase
 import com.brainlessmusic.app.downloads.PendingPlayDao
 import com.brainlessmusic.app.downloads.SongCache
 import com.brainlessmusic.app.downloads.TrackCacheKey
+import com.brainlessmusic.app.downloads.downloadRequirements
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import java.io.File
 import java.util.concurrent.Executors
@@ -72,6 +76,7 @@ object DownloadModule {
         cache: Cache,
         songCache: SongCache,
         okHttpClient: OkHttpClient,
+        settings: PlaybackSettings,
     ): DownloadManager {
         // The shared client, so downloads carry the same bearer header and user-agent as playback. A song already in
         // the song cache is copied from it rather than fetched again; the download doesn't write back into it.
@@ -91,8 +96,9 @@ object DownloadModule {
             DefaultDownloaderFactory(cacheFactory, Executors.newFixedThreadPool(2)),
         ).apply {
             maxParallelDownloads = 2
-            // Any connection, Wi-Fi or mobile data (A85).
-            requirements = Requirements(Requirements.NETWORK)
+            // Any connection, Wi-Fi or mobile data (A85), unless the owner turned on Wi-Fi only (A219). Read here and not
+            // from the repository: the service may build the manager with the app closed, before the repository exists.
+            requirements = downloadRequirements(runBlocking { settings.downloadWifiOnly.first() })
         }
     }
 }

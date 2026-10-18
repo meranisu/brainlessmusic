@@ -71,7 +71,8 @@ retries, network rules, and a foreground notification, and the player can read i
   original.
 - **Service:** a `DownloadService` subclass with a progress notification. With targetSdk 34 that needs
   `FOREGROUND_SERVICE_DATA_SYNC` in the manifest (only `..._MEDIA_PLAYBACK` is there now).
-- **Network rule:** `Requirements.NETWORK`, so any connection, Wi-Fi or mobile data (A85). No setting for it.
+- **Network rule:** `Requirements.NETWORK`, so any connection, Wi-Fi or mobile data (A85). Settings, Downloads has an opt-in
+  "Wi-Fi only" switch (A219, off by default) that swaps it for `Requirements.NETWORK_UNMETERED`.
 - **Storage limit (A88):** off by default. When set, a download that would go over it isn't started; it shows
   "Storage limit reached" with a link to settings. Checked against `fileSize` from `GET /tracks/:id` before queueing.
   Nothing already downloaded is deleted to make room.

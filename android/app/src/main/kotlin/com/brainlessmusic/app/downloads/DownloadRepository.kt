@@ -10,6 +10,7 @@ import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadManager
 import androidx.media3.exoplayer.offline.DownloadRequest
 import androidx.media3.exoplayer.offline.DownloadService
+import androidx.media3.exoplayer.scheduler.Requirements
 import com.brainlessmusic.app.data.local.PlaybackSettings
 import com.brainlessmusic.app.data.remote.TokenProvider
 import com.brainlessmusic.app.data.remote.dto.AlbumDetailDto
@@ -22,7 +23,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -44,12 +48,19 @@ import javax.inject.Singleton
 
 /** One song's download, as the screens need it. */
 @OptIn(UnstableApi::class)
-data class TrackDownload(val state: Int, val percent: Float) {
+data class TrackDownload(val state: Int, val percent: Float, val bytes: Long = 0L) {
     val isDone: Boolean get() = state == Download.STATE_COMPLETED
+
+    /** Paused on its own from the queue (see [DownloadRepository.pause]); it keeps what it has and waits. */
+    val isStopped: Boolean get() = state == Download.STATE_STOPPED
     val isActive: Boolean
         get() = state == Download.STATE_QUEUED || state == Download.STATE_DOWNLOADING || state == Download.STATE_RESTARTING
     val isFailed: Boolean get() = state == Download.STATE_FAILED
 }
+
+/** Wi-Fi only waits for an unmetered connection; otherwise any network will do. */
+fun downloadRequirements(wifiOnly: Boolean): Requirements =
+    Requirements(if (wifiOnly) Requirements.NETWORK_UNMETERED else Requirements.NETWORK)
 
 /** Downloads by track id, kept current from [DownloadManager]; every change goes through [MusicDownloadService]. */
 @UnstableApi
@@ -83,6 +94,13 @@ class DownloadRepository @Inject constructor(
 
     /** The server answered 401 to a download: the session ran out, and the queue is paused until a sign-in. */
     val needsSignIn: StateFlow<Boolean> = _needsSignIn.asStateFlow()
+
+    private val _wifiOnly = MutableStateFlow(false)
+    private val _notMet = MutableStateFlow(manager.notMetRequirements)
+
+    /** Wi-Fi only is on and the phone isn't on Wi-Fi, so the queue is holding (A219). */
+    val waitingForWifi: StateFlow<Boolean> = combine(_wifiOnly, _notMet) { wifiOnly, notMet -> wifiOnly && notMet != 0 }
+        .stateIn(scope, SharingStarted.Eagerly, false)
 
     private var progressPoll: Job? = null
 
@@ -120,6 +138,10 @@ class DownloadRepository @Inject constructor(
                 }
             }
 
+            override fun onRequirementsStateChanged(manager: DownloadManager, requirements: Requirements, notMetRequirements: Int) {
+                _notMet.value = notMetRequirements
+            }
+
             override fun onDownloadsPausedChanged(manager: DownloadManager, downloadsPaused: Boolean) {
                 _paused.value = downloadsPaused
             }
@@ -146,6 +168,13 @@ class DownloadRepository @Inject constructor(
                 runCatching { DownloadService.start(context, MusicDownloadService::class.java) }
             }
             pollWhileActive()
+        }
+        scope.launch {
+            // Same manager the service runs, so a change holds or releases the queue at once.
+            settings.downloadWifiOnly.collect { wifiOnly ->
+                _wifiOnly.value = wifiOnly
+                manager.requirements = downloadRequirements(wifiOnly)
+            }
         }
         scope.launch {
             // Paused by a 401 (see [needsSignIn]): the next sign-in picks the queue up again, rather than it waiting for
@@ -328,6 +357,13 @@ class DownloadRepository @Inject constructor(
 
     fun pauseAll() = DownloadService.sendPauseDownloads(context, MusicDownloadService::class.java, false)
 
+    /** Holds one song of the queue; the others carry on. Its finished bytes stay, and [resume] picks up from them. */
+    fun pause(trackId: Int) =
+        DownloadService.sendSetStopReason(context, MusicDownloadService::class.java, downloadId(trackId), STOP_REASON_USER, false)
+
+    fun resume(trackId: Int) =
+        DownloadService.sendSetStopReason(context, MusicDownloadService::class.java, downloadId(trackId), Download.STOP_REASON_NONE, false)
+
     fun resumeAll() {
         _needsSignIn.value = false
         DownloadService.sendResumeDownloads(context, MusicDownloadService::class.java, false)
@@ -392,7 +428,7 @@ class DownloadRepository @Inject constructor(
     }
 
     private fun Download.toTrackDownload() =
-        TrackDownload(state, if (state == Download.STATE_COMPLETED) 100f else percentDownloaded.coerceAtLeast(0f))
+        TrackDownload(state, if (state == Download.STATE_COMPLETED) 100f else percentDownloaded.coerceAtLeast(0f), bytesDownloaded)
 }
 
 private fun Throwable?.isUnauthorized(): Boolean =
@@ -405,6 +441,9 @@ const val SONGS_GROUP = "songs"
 private fun songCoverKey(trackId: Int) = "song:$trackId"
 private const val COVERS_DIR = "download-covers"
 private const val BYTES_PER_GB = 1_000_000_000L
+
+/** Any non-zero reason holds a download; this one is "the owner paused it". */
+private const val STOP_REASON_USER = 1
 
 /** Size lookups in flight at once for the storage check. */
 private const val SIZE_LOOKUPS_AT_ONCE = 4

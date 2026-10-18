@@ -49,6 +49,8 @@ data class DownloadRow(
     val state: GroupDownload,
     /** Covers for the tile: the group's own, or for "Songs" its newest songs' (four make a mosaic). */
     val covers: List<String?> = listOf(group.coverPath?.let { File(it).toUri().toString() }),
+    /** What its songs take on the phone, finished or not. A song in two groups counts in both. */
+    val bytes: Long = 0L,
 )
 
 /** One downloaded song, for the Songs filter and the in-progress list. */
@@ -79,8 +81,11 @@ data class DownloadsUi(
     val limitGb: Int,
     val paused: Boolean,
     val needsSignIn: Boolean,
+    val waitingForWifi: Boolean = false,
     /** Played and kept whole, played most recently first; downloaded songs are left out. */
     val cached: List<CachedSongRow> = emptyList(),
+    /** Everything in the queue: running, waiting, paused and failed songs, in the order they were added. */
+    val queue: List<DownloadSongRow> = active,
 ) {
     val isEmpty: Boolean get() = groups.isEmpty() && cached.isEmpty()
 }
@@ -117,6 +122,7 @@ private data class Live(
     val limitGb: Int,
     val paused: Boolean,
     val needsSignIn: Boolean,
+    val waitingForWifi: Boolean,
 )
 
 @OptIn(UnstableApi::class)
@@ -149,20 +155,26 @@ class DownloadsViewModel @Inject constructor(
         Stored(groups, byGroup, songs, byGroup[SONGS_GROUP].orEmpty().associateWith { downloads.songCoverUri(it) })
     }.flowOn(Dispatchers.IO)
 
+    private val holds = combine(downloads.paused, downloads.needsSignIn, downloads.waitingForWifi) { paused, signIn, wifi ->
+        Triple(paused, signIn, wifi)
+    }
+
     private val live = combine(
         downloads.downloads,
         downloads.spaceUsed,
         settings.downloadLimitGb,
-        downloads.paused,
-        downloads.needsSignIn,
-    ) { states, used, limit, paused, signIn -> Live(states, used, limit, paused, signIn) }
+        holds,
+    ) { states, used, limit, (paused, signIn, wifi) -> Live(states, used, limit, paused, signIn, wifi) }
 
     @kotlin.OptIn(ExperimentalCoroutinesApi::class)
     val ui: StateFlow<LoadState<DownloadsUi>> = reload.flatMapLatest {
         combine(stored, live, songCache.cachedTracks) { s, l, cachedTracks ->
             val rows = s.groups.map { g ->
                 val ids = s.links[g.id].orEmpty()
-                val row = DownloadRow(g, ids, ids.count { l.downloads[it]?.isDone == true }, groupDownload(ids, l.downloads))
+                val row = DownloadRow(
+                    g, ids, ids.count { l.downloads[it]?.isDone == true }, groupDownload(ids, l.downloads),
+                    bytes = ids.sumOf { l.downloads[it]?.bytes ?: 0L },
+                )
                 if (g.kind == KIND_SONGS) row.copy(covers = s.songCovers(ids)) else row
             }
             val songs = s.songs.map { song ->
@@ -175,6 +187,7 @@ class DownloadsViewModel @Inject constructor(
                     groups = rows,
                     songs = songs,
                     active = songs.filter { it.download?.isActive == true },
+                    queue = songs.filter { it.download?.let { d -> d.isActive || d.isStopped || d.isFailed } == true },
                     albumCount = s.groups.count { it.kind == KIND_ALBUM },
                     playlistCount = s.groups.count { it.kind == KIND_PLAYLIST },
                     doneSongCount = songs.count { it.download?.isDone == true },
@@ -182,6 +195,7 @@ class DownloadsViewModel @Inject constructor(
                     limitGb = l.limitGb,
                     paused = l.paused,
                     needsSignIn = l.needsSignIn,
+                    waitingForWifi = l.waitingForWifi,
                     cached = cachedTracks
                         .filter { l.downloads[it.trackId]?.isDone != true }
                         .map { CachedSongRow(it, libraryRepository.trackCoverUrl(it.trackId)) },
@@ -252,6 +266,17 @@ class DownloadsViewModel @Inject constructor(
 
     fun resumeAll() = downloads.resumeAll()
 
+    fun pauseSong(row: DownloadSongRow) = downloads.pause(row.song.track.trackId)
+
+    fun resumeSong(row: DownloadSongRow) = downloads.resume(row.song.track.trackId)
+
+    /** Takes a queued song out of the queue. Same as removing it: an album or playlist that holds it can fetch it again. */
+    fun cancelSong(row: DownloadSongRow) = downloads.removeSong(row.song.track.trackId)
+
+    /** A failed song starts over. */
+    fun retrySong(row: DownloadSongRow, onRefused: (String) -> Unit) =
+        downloads.downloadAgain(listOf(row.song.track.trackId), onRefused)
+
     fun removeSong(row: DownloadSongRow) = downloads.removeSong(row.song.track.trackId)
 }
 
@@ -269,11 +294,16 @@ internal fun songCount(done: Int, total: Int): String {
 internal fun DownloadRow.status(): String = when (state) {
     is GroupDownload.Running -> "Downloading, ${state.percent}%"
     GroupDownload.Failed -> "Some songs failed"
+    GroupDownload.Paused -> "Paused"
     else -> songCount(doneCount, trackIds.size)
 }
 
 internal val DownloadRow.canRetry: Boolean
     get() = state == GroupDownload.Failed || (state == GroupDownload.None && doneCount < trackIds.size)
+
+/** What goes under a tile's name: the artist, how far along it is, and the space it takes once it takes any. */
+internal fun DownloadRow.detail(sizeText: (Long) -> String): String =
+    listOfNotNull(group.subtitle, status(), bytes.takeIf { it > 0 }?.let(sizeText)).joinToString(" · ")
 
 /**
  * The filter's tiles that match [query], in [sort] order; Songs shows songs instead, so it has none. While searching,

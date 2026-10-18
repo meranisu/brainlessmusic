@@ -67,6 +67,9 @@ internal fun DownloadButton(state: GroupDownload, what: String, onDownload: () -
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
+        GroupDownload.Paused -> IconButton(onClick = onDownload) {
+            Icon(AppIcons.download, contentDescription = "Paused. Resume download")
+        }
         GroupDownload.Failed -> IconButton(onClick = onDownload) {
             Icon(
                 AppIcons.error,

@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `pause()`, `resume()`, `downloadRequirements()`, `waitingForWifi` — `android/app/src/main/kotlin/com/brainlessmusic/app/downloads/DownloadRepository.kt`; `DownloadsViewModel` `pauseSong()`, `resumeSong()`, `cancelSong()`, `retrySong()`, `DownloadRow.detail()`, `queueTitle()`
+**Date:** 2026-10-18
+**How added:** new feature
+**Purpose:** hold, resume or stop one song of the download queue, show space per album and playlist, and let downloads wait for Wi-Fi (A219).
+**Side effects:** `sendSetStopReason` to `MusicDownloadService`; `manager.requirements` changes when the Wi-Fi only setting does.
+**Before:** only Pause all and Resume all; no size per group; any network only.
+**After:** per-song pause, resume and stop, a full queue sheet, sizes on tiles and group pages, an opt-in Wi-Fi only rule.
+
+---
+
 **Function:** `PasscodePad`, `Numpad` `submit()`, `submitPasscodeLogin()` — `frontend/src/components/PasscodePad.tsx`, `frontend/src/components/Numpad.tsx`, `frontend/src/pages/AccountSelectPage.tsx`
 **Date:** 2026-10-18
 **How added:** new feature

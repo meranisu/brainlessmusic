@@ -61,6 +61,11 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A219 — Download queue management: per-song pause, space per group, Wi-Fi only (was Q208) *(asked in chat)*
+**Answered:** 2026-10-18, in chat: "a b and d" (not c, priority). Cancel asks first. A song in two groups counts in both
+groups' sizes. (d) is an opt-in switch, off by default, so A85 (any network) still holds unless it is turned on. Android
+only, no backend change. Plan: [features/download-queue](features/download-queue/planning.md). Built, not phone-tested.
+
 ### A218 — Smart pre-caching on Android: how far ahead, which network, current song (was Q207) *(asked in chat)*
 **Answered:** 2026-10-18. Fetch ahead defaults to 3 songs after the playing one, with a Settings choice of Off, 1, 3, 5
 or 10. Any network, like downloads (A85), no Wi-Fi-only rule. The playing song is finished first, then the next ones.

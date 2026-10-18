@@ -93,6 +93,13 @@ class PlaybackSettings @Inject constructor(
         dataStore.edit { it[DOWNLOAD_LIMIT_GB_KEY] = gb }
     }
 
+    /** Whether downloads wait for an unmetered connection (Wi-Fi). Off by default, so any network works (A85). */
+    val downloadWifiOnly: Flow<Boolean> = dataStore.data.map { it[DOWNLOAD_WIFI_ONLY_KEY] ?: false }
+
+    suspend fun setDownloadWifiOnly(enabled: Boolean) {
+        dataStore.edit { it[DOWNLOAD_WIFI_ONLY_KEY] = enabled }
+    }
+
     /** The most the cache of played songs may take, in MB; 0 is unlimited. 1 GB by default (A198). */
     val songCacheLimitMb: Flow<Int> = dataStore.data.map { it[SONG_CACHE_LIMIT_MB_KEY] ?: SONG_CACHE_DEFAULT_MB }
 
@@ -175,6 +182,7 @@ class PlaybackSettings @Inject constructor(
         val LEVEL_VOLUME_KEY = booleanPreferencesKey("level_volume")
         val DATA_SAVER_KEY = booleanPreferencesKey("data_saver")
         val DOWNLOAD_LIMIT_GB_KEY = intPreferencesKey("download_limit_gb")
+        val DOWNLOAD_WIFI_ONLY_KEY = booleanPreferencesKey("download_wifi_only")
         val SONG_CACHE_LIMIT_MB_KEY = intPreferencesKey("song_cache_limit_mb")
         val PRECACHE_COUNT_KEY = intPreferencesKey("precache_count")
     }

@@ -4,6 +4,27 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-18: Download queue management on Android: per-song pause, space per group, Wi-Fi only (A219)
+
+- `DownloadRepository`: `pause(trackId)` and `resume(trackId)` set or clear a Media3 stop reason on one download; the rest of the
+  queue carries on. `TrackDownload` gains `bytes` and `isStopped`. `downloadRequirements(wifiOnly)` picks `NETWORK` or
+  `NETWORK_UNMETERED`; the repository follows the setting, `DownloadModule` reads it when it builds the manager (the service can
+  do that with the app closed). `waitingForWifi` is on when Wi-Fi only is set and any requirement is unmet.
+- `GroupDownload.Paused` (nothing runs, a song was paused by hand; a running song still wins, a pause beats a failure). Tile
+  badge, album and playlist download button, tile status line.
+- Downloads tab: the queue panel lists paused and failed songs as well as running ones, each with pause or resume (retry when
+  failed) and stop; stop asks first. "See all N" opens a sheet with the whole queue. Panel title reads "Waiting for Wi-Fi" when held.
+- Tiles show "Artist · 12 songs · 84 MB" and the group page header shows the size. A song in two groups counts in both; the
+  storage panel total is still the cache's real size.
+- Group page song menu: Pause, Resume, Stop download.
+- Settings, Downloads: "Wi-Fi only" switch, off by default (A85 still holds until it is turned on). Setting `download_wifi_only`.
+- Tests: `DownloadsTest` (paused group state, stopped flag), `DownloadRowTest` (Paused status, tile detail with size).
+- Verified: `./gradlew testDebugUnitTest -Pkotlin.incremental=false` BUILD SUCCESSFUL, 184 tests, 0 failed, 1 skipped (compile
+  included). Not run: `assembleDebug`, and nothing on a phone. A plain incremental compile showed false "unresolved reference"
+  errors from a stale Kotlin cache; `-Pkotlin.incremental=false` cleared them.
+
+---
+
 ## 2026-10-18: Passcode pad motion and a toast for short passcodes (A216)
 
 - `PasscodePad` (inline sign-in card and `Numpad`): each digit dot pops in, keys press down, the dot tray shakes on a refused
