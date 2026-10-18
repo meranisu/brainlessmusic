@@ -23,6 +23,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.util.UnstableApi
 import com.brainlessmusic.app.data.local.PlaybackSettings
+import com.brainlessmusic.app.data.local.PRECACHE_COUNTS
+import com.brainlessmusic.app.data.local.PRECACHE_DEFAULT_COUNT
 import com.brainlessmusic.app.data.local.SONG_CACHE_DEFAULT_MB
 import com.brainlessmusic.app.data.local.SONG_CACHE_LIMITS_MB
 import com.brainlessmusic.app.downloads.DownloadRepository
@@ -62,6 +64,13 @@ class DownloadSettingsViewModel @Inject constructor(
 
     fun setCacheLimitMb(mb: Int) {
         viewModelScope.launch { settings.setSongCacheLimitMb(mb) }
+    }
+
+    val precacheCount: StateFlow<Int> =
+        settings.precacheCount.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PRECACHE_DEFAULT_COUNT)
+
+    fun setPrecacheCount(count: Int) {
+        viewModelScope.launch { settings.setPrecacheCount(count) }
     }
 
     fun clearCache() {
@@ -143,6 +152,7 @@ private fun SongCacheSettings(
 ) {
     val used by viewModel.cacheUsed.collectAsStateWithLifecycle()
     val limit by viewModel.cacheLimitMb.collectAsStateWithLifecycle()
+    val ahead by viewModel.precacheCount.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val usedText = Formatter.formatShortFileSize(context, used)
     var confirmClear by remember { mutableStateOf(false) }
@@ -175,6 +185,22 @@ private fun SongCacheSettings(
                     selected = mb == limit,
                     onClick = { viewModel.setCacheLimitMb(mb) },
                     label = { Text(cacheSizeLabel(mb)) },
+                )
+            }
+        }
+    }
+    divider()
+    block(
+        "Fetch ahead",
+        "Saves the playing song and the next ones while you have signal, so they keep playing in a dead zone. " +
+            "Uses mobile data, and fills the cache above.",
+    ) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            PRECACHE_COUNTS.forEach { n ->
+                FilterChip(
+                    selected = n == ahead,
+                    onClick = { viewModel.setPrecacheCount(n) },
+                    label = { Text(if (n == 0) "Off" else if (n == 1) "1 song" else "$n songs") },
                 )
             }
         }

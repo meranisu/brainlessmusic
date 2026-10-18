@@ -18,28 +18,28 @@ sharing links, jukebox mode, per-client transcoding profiles, plugins) are liste
 
 | Feature | Description | Layers | Priority | Complexity | Notes |
 |---|---|---|---|---|---|
-| Room sync (group listening) | Spotify Jam-style shared session — synced playback across multiple listeners, anyone can skip | 🔧🌐📱 | | High | Core feature. Build here first — full effort. No existing reference to lean on. |
-| User profile page | A page per person: most played songs, favourite artists, songs and genres, liked and disliked songs, playlists they made (each public or private), a profile picture they upload, a bio and other details | 🔧🌐📱 | | Med-High | Owner request, 2026-10-13, raised while redesigning the Users tab. Much of the data exists: per-user listening stats behind Home (`backend/src/db/listeningStats.ts`), likes and dislikes (A153), playlists. New: picture upload and storage (resize, size cap), bio fields, a public/private flag on playlists, and who can see whose profile. "Public" means other people on this server, not a sharing link (out of scope). Guests: decide whether they get one |
-| Social layer (next-version theme candidate) | Grow profiles into a social layer among the people on the server: see what friends are playing now, what they've been listening to and liking, and follow along. Possible pieces: friends' "now playing" (Steam friends list style), an activity feed of plays, likes and new playlists (Twitter timeline style), following people, reacting to or commenting on a song or playlist | 🔧🌐📱 | High (owner) | High | Owner flagged it 2026-10-13 as possibly huge, after a friend's first reaction to profiles (v0.4.9): "it's like Spotify but it has functions like Twitter" and "or like Steam but for songs". Builds on profiles, People, people in search, Listen together and per-user stats. Still inside scope: for the handful of known people on this server, no sharing links, nothing public. Open before planning: which piece the friend actually meant by "Twitter", privacy controls (hide my activity, per-playlist visibility already exists), and whether this becomes v0.5's theme |
+| Room sync (group listening) | Spotify Jam-style shared session — synced playback across multiple listeners, anyone can skip | 🔧🌐📱 | ✅ all layers 2026-10-18 | High | Core feature. Build here first — full effort. No existing reference to lean on. Checked against code 2026-10-18: backend, web and Android all built; server merges simultaneous skips. |
+| User profile page | A page per person: most played songs, favourite artists, songs and genres, liked and disliked songs, playlists they made (each public or private), a profile picture they upload, a bio and other details | 🔧🌐📱 | ✅ all layers 2026-10-18 | Med-High | Owner request, 2026-10-13, raised while redesigning the Users tab. Much of the data exists: per-user listening stats behind Home (`backend/src/db/listeningStats.ts`), likes and dislikes (A153), playlists. New: picture upload and storage (resize, size cap), bio fields, a public/private flag on playlists, and who can see whose profile. "Public" means other people on this server, not a sharing link (out of scope). Guests: decide whether they get one Checked against code 2026-10-18: profile, liked, disliked, bio, avatar and public/private playlists exist in all three. |
+| Social layer (next-version theme candidate) | Grow profiles into a social layer among the people on the server: see what friends are playing now, what they've been listening to and liking, and follow along. Possible pieces: friends' "now playing" (Steam friends list style), an activity feed of plays, likes and new playlists (Twitter timeline style), following people, reacting to or commenting on a song or playlist | 🔧🌐📱 | Partial 2026-10-18 | High | Owner flagged it 2026-10-13 as possibly huge, after a friend's first reaction to profiles (v0.4.9): "it's like Spotify but it has functions like Twitter" and "or like Steam but for songs". Builds on profiles, People, people in search, Listen together and per-user stats. Still inside scope: for the handful of known people on this server, no sharing links, nothing public. Open before planning: which piece the friend actually meant by "Twitter", privacy controls (hide my activity, per-playlist visibility already exists), and whether this becomes v0.5's theme Checked against code 2026-10-18: only the People list with last listened time exists. No live now playing, activity feed, follow or reactions. |
 
 ## Offline / on-the-road
 
 | Feature | Description | Layers | Priority | Complexity | Notes |
 |---|---|---|---|---|---|
-| Offline downloads (original quality) | Download tracks for offline listening, retaining source FLAC/etc. quality | 📱 | | Med | Mostly a client-side problem — server just needs to serve original files |
-| Smart pre-caching | Auto-download next few queued tracks before signal is lost | 📱 | | Med | Builds on downloads feature |
-| Data-saver mode | Auto-switch to transcoded/lower bitrate on mobile data, full quality on WiFi | 📱 (🔧 for transcode support) | | Low-Med | |
-| Offline-first playback | Graceful fallback to local cache, no crash/hang when connection drops | 📱 | | Med | |
-| Download queue management | Pause/resume/prioritize downloads, view storage used per playlist/album | 📱 | | Low-Med | |
+| Offline downloads (original quality) | Download tracks for offline listening, retaining source FLAC/etc. quality | 📱 | ✅ Android 2026-10-11 | Med | Mostly a client-side problem — server just needs to serve original files. Built on Android (Media3 download cache in `DownloadRepository.kt`, never evicts). The web has none |
+| Smart pre-caching | Auto-download next few queued tracks before signal is lost | 📱 | ✅ Android 2026-10-18 | Med | Built, not phone-tested ([features/smart-precache](smart-precache/planning.md)). Fetches the playing song and the next 3 (Settings: Off, 1, 3, 5, 10) into the song cache on any network, skipped in rooms. Web preloads the next track on the server only |
+| Data-saver mode | Auto-switch to transcoded/lower bitrate on mobile data, full quality on WiFi | 📱 (🔧 for transcode support) | Partial | Low-Med | Manual toggle on Android and web (`?quality=low`). No automatic Wi-Fi vs mobile-data switch: `NetworkMonitor.kt` only knows online or offline. No Wi-Fi-only download option either |
+| Offline-first playback | Graceful fallback to local cache, no crash/hang when connection drops | 📱 | ✅ Android 2026-10-11 | Med | Queue skips to downloaded or cached songs, plays made offline are sent later, offline banner. The web has none. Offline browsing only covers the Downloads tab, not the library |
+| Download queue management | Pause/resume/prioritize downloads, view storage used per playlist/album | 📱 | Partial | Low-Med | Android has pause/resume all, a storage limit and total space used. Missing: per-item pause, priority or reorder, storage per album or playlist |
 
 ## Listening experience
 
 | Feature | Description | Layers | Priority | Complexity | Notes |
 |---|---|---|---|---|---|
-| Crossfade / gapless playback | Smoother track transitions | 📱🌐 | | Med | Media3 supports gapless natively; crossfade needs custom handling. **(Navidrome)** Its Subsonic clients play gapless, and the web player here doesn't (capability-map, Playback). Cheapest route: build the Android Phase 2 queue as a Media3 playlist from the start, not one track at a time |
-| Smart shuffle | Avoid same artist playing back-to-back | 🔧 (logic) 📱🌐 (UI) | | Low-Med | |
-| Listening stats/history dashboard | Visualize play counts, time-of-day patterns, etc. | 🔧 (data) 📱🌐 (UI) | | Med | Backend already has play history and top-tracks stats; the web UI has no history or top-tracks page yet, so this is mostly UI work |
-| Custom EQ presets | Per-genre or per-playlist EQ | 📱 | | Med | Client-side audio processing |
+| Crossfade / gapless playback | Smoother track transitions | 📱🌐 | ✅ web and Android 2026-10-18 | Med | Checked against code 2026-10-18: built on both clients (`frontend/src/lib/transitions.ts`, Android tail player in `EqualizerSession.kt`). The earlier note saying web has no gapless is out of date. |
+| Smart shuffle | Avoid same artist playing back-to-back | 🔧 (logic) 📱🌐 (UI) | ✅ all layers 2026-10-18 | Low-Med | Checked against code 2026-10-18: `backend/src/services/shuffle.ts`; Android shuffles on the phone (`SmartShuffle.kt`). |
+| Listening stats/history dashboard | Visualize play counts, time-of-day patterns, etc. | 🔧 (data) 📱🌐 (UI) | Partial 2026-10-18 | Med | Checked against code 2026-10-18: Android has a stats screen. Web shows stats on the profile page only and never calls `/me/history`. |
+| Custom EQ presets | Per-genre or per-playlist EQ | 📱 | Partial 2026-10-18 | Med | Checked against code 2026-10-18: Android opens the system equalizer. No presets of our own. Web has none. |
 | Sleep timer / alarm playlist | Timed stop, or wake-up playlist trigger | 📱 | ✅ timer, Android 2026-10-18 | Low | Timer built ([features/sleep-timer](sleep-timer/planning.md)); the alarm playlist half is not |
 
 ## Road / bike-trip specific
@@ -56,16 +56,16 @@ sharing links, jukebox mode, per-client transcoding profiles, plugins) are liste
 | Feature | Description | Layers | Priority | Complexity | Notes |
 |---|---|---|---|---|---|
 | Smart auto-mixes | Sonic-similarity-based auto playlists from your own library | 🔧 | | High | Not in initial MVP scope |
-| Rule-based smart playlists | e.g. "not played in 60 days," "high energy," auto-refreshing | 🔧 | In progress 2026-10-18 | Med | Planned: [features/smart-playlists](smart-playlists/planning.md) (rule builder, my plays only, backend + web + Android). **(Navidrome)** Navidrome has these as `.nsp` rule files. The data for the usual rules is already stored (`tracks.play_count`, `tracks.last_played_at`, `date_added`, favorites), so most rules would just be SQL queries. "High energy" would need audio analysis, which is a separate problem |
-| "On this day" / rediscovery | Surface old favorites | 🔧 (query logic) 📱🌐 (UI) | | Low-Med | |
-| Private continuous radio | Keep playing similar tracks after playlist ends | 🔧 | | Med-High | Depends on smart auto-mix logic |
+| Rule-based smart playlists | e.g. "not played in 60 days," "high energy," auto-refreshing | 🔧 | ✅ all layers 2026-10-18 | Med | Planned: [features/smart-playlists](smart-playlists/planning.md) (rule builder, my plays only, backend + web + Android). **(Navidrome)** Navidrome has these as `.nsp` rule files. The data for the usual rules is already stored (`tracks.play_count`, `tracks.last_played_at`, `date_added`, favorites), so most rules would just be SQL queries. "High energy" would need audio analysis, which is a separate problem Checked against code 2026-10-18: backend, web editor and Android sheet all exist. |
+| "On this day" / rediscovery | Surface old favorites | 🔧 (query logic) 📱🌐 (UI) | Partial 2026-10-18 | Low-Med | Checked against code 2026-10-18: a Rediscover shuffle mode exists (backend, Android). No on-this-day feature, nothing on web. |
+| Private continuous radio | Keep playing similar tracks after playlist ends | 🔧 | Partial 2026-10-18 | Med-High | Depends on smart auto-mix logic Checked against code 2026-10-18: web tops up the queue from its own source. Nothing similar plays after the queue ends. |
 
 ## Audio quality & fidelity
 
 | Feature | Description | Layers | Priority | Complexity | Notes |
 |---|---|---|---|---|---|
-| Loudness normalization | ReplayGain/R128 across mixed-format library | 🔧 | | Med | Where it's applied is decided: client-side `GainNode`, with the server only storing and shipping the number (A3 in QUESTIONS). What's left is reading the ReplayGain tags at scan time and storing them. **(Navidrome)** reads and serves these tags |
-| Bit-depth/sample-rate indicator | Show true lossless vs. transcoded status in player | 📱🌐 | | Low | |
+| Loudness normalization | ReplayGain/R128 across mixed-format library | 🔧 | ✅ all layers 2026-10-18 | Med | Checked against code 2026-10-18: built as volume levelling: ffmpeg measures loudness into `loudness_lufs` and `loudness_peak` in a background backfill; clients apply the gain. It does not read ReplayGain tags. |
+| Bit-depth/sample-rate indicator | Show true lossless vs. transcoded status in player | 📱🌐 | Partial 2026-10-18 | Low | Checked against code 2026-10-18: sample rate, bitrate and format are shown. No bit depth and no lossless badge. |
 | Synced lyrics (LRC) | Time-synced lyrics display | 🔧 (storage) 📱🌐 (display) | | Med | **(Navidrome)** reads embedded lyrics tags and `.lrc` files that sit next to the audio file. That avoids an external lyrics service |
 | Bluetooth codec awareness | Prefer aptX HD/LDAC when headphones support it | 📱 | | Med | Android Bluetooth codec APIs |
 
@@ -83,7 +83,7 @@ sharing links, jukebox mode, per-client transcoding profiles, plugins) are liste
 | Feature | Description | Layers | Priority | Complexity | Notes |
 |---|---|---|---|---|---|
 | Local "year in review" | Private Spotify-Wrapped-style stats, computed locally | 🔧 (data) 📱🌐 (UI) | | Med | |
-| Listening streaks/habits view | Track listening consistency over time | 🔧 (data) 📱🌐 (UI) | | Low-Med | |
+| Listening streaks/habits view | Track listening consistency over time | 🔧 (data) 📱🌐 (UI) | Partial 2026-10-18 | Low-Med | Checked against code 2026-10-18: per-range stats exist. No streaks and no hour or day view. |
 | Star ratings | 1–5 stars per track/album, next to the existing favorites heart | 🔧🌐📱 | | Low | **(Navidrome)** has both ratings and favorites. Ratings would give smart playlists something better than play count to filter on |
 | Forward scrobbles to ListenBrainz / Last.fm | Send your own plays on to an external profile | 🔧 | | Low-Med | **(Navidrome)** Must be opt-in per user and off by default, because it goes against *Zero telemetry* below |
 
@@ -93,21 +93,21 @@ sharing links, jukebox mode, per-client transcoding profiles, plugins) are liste
 |---|---|---|---|---|---|
 | Better duplicate detection | Dedup across mixed formats | 🔧 | | Med | |
 | Custom tagging/mood metadata | Track fields beyond standard tags | 🔧 | | Med | Needs own schema — own DB now, no upstream constraints |
-| Tag editing (write-back) | Edit tags from the app, write back to files | 🔧🌐 | | Med | Own tag-writing library, no gap to fill vs. a third-party server |
+| Tag editing (write-back) | Edit tags from the app, write back to files | 🔧🌐 | Partial 2026-10-18 | Med | Own tag-writing library, no gap to fill vs. a third-party server Checked against code 2026-10-18: `PATCH /tracks/:id` edits the database only. Nothing is written back to the files. |
 
 ## Metadata model **(Navidrome)**
 
-Navidrome is strongest here and this project is weakest. Today each track has one `artist_id`, and each album
-belongs to one artist. There's no album artist, disc number or genre (`.docs/reference/database-schema.md`, ER diagram). This
-gets harder to change the more data sits on top of it, so it's the one item in this pool where earlier is noticeably cheaper.
+Navidrome is strongest here. Album artist, disc numbers, genres and compilations were built after this list was written
+(migrations 0030 and 0032). What is still missing: multiple artists per track and MusicBrainz IDs. Each track still has one
+`artist_id`. This gets harder to change the more data sits on top of it, so earlier is cheaper.
 
 | Feature | Description | Layers | Priority | Complexity | Notes |
 |---|---|---|---|---|---|
-| Album artist | Group albums by the `albumartist` tag, not by the track artist | 🔧 (schema, scanner) 🌐📱 | | Med | Without it, a compilation or an album with "feat." tracks splits into several albums, one per track artist |
+| Album artist | Group albums by the `albumartist` tag, not by the track artist | 🔧 (schema, scanner) 🌐📱 | ✅ all layers 2026-10-18 | Med | Checked against code 2026-10-18: migration 0030; albums keyed on title, folder and album artist (`backend/src/db/library.ts:153`). |
 | Multiple artists per track | "A & B", "A feat. B" as linked artists, not one string | 🔧🌐📱 | | Med-High | Needs a `track_artists` join table. Settle how to split artist names before building it |
-| Disc numbers | Sort multi-disc albums correctly | 🔧🌐📱 | | Low | Album tracks are ordered by track number alone (`backend/src/db/browse.ts:325`), so two discs' track 1s end up next to each other |
-| Genres | Genre tag, browse by genre | 🔧🌐📱 | | Low-Med | Also useful as a filter for smart playlists |
-| Compilations / "Various Artists" | Recognise the compilation flag and group those albums together | 🔧 | | Low-Med | Depends on album artist. Already listed as a gap in capability-map, Ingest |
+| Disc numbers | Sort multi-disc albums correctly | 🔧🌐📱 | ✅ all layers 2026-10-18 | Low | Checked against code 2026-10-18: sort is disc then track (`backend/src/db/browse.ts:193`); disc headers on web and Android. |
+| Genres | Genre tag, browse by genre | 🔧🌐📱 | ✅ all layers 2026-10-18 | Low-Med | Checked against code 2026-10-18: migration 0032, `/genres` route, browse screens on web and Android. |
+| Compilations / "Various Artists" | Recognise the compilation flag and group those albums together | 🔧 | ✅ backend 2026-10-18 | Low-Med | Checked against code 2026-10-18: compilation flag files the album under Various Artists (`backend/src/db/library.ts:154`). Clients have no special handling. |
 | MusicBrainz IDs | Store MBIDs from tags when present | 🔧 | | Low | Makes identity stable when names are spelled differently, and helps duplicate detection above |
 
 ## Performance & scale
@@ -118,26 +118,26 @@ For two people, request handling is not the bottleneck. The costs that can actua
 | Feature | Description | Layers | Priority | Complexity | Notes |
 |---|---|---|---|---|---|
 | Incremental scan | Skip files whose size and mtime haven't changed since the last scan | 🔧 | | Low-Med | **(Navidrome)** skips unchanged folders by mtime. Here, `scanFile` parses the tags of *every* file on every scan (`backend/src/services/scanner.ts:72`), six at a time, and scans run at boot and every 12 h. Scan time grows with library size even when nothing has changed. Needs the file's mtime stored on the track row |
-| Pre-transcode the next queued track | When data-saver is on, warm the `?quality=low` cache for the next track or two before they're needed | 🔧 (📱🌐 trigger) | ✅ web 2026-10-10 | Low-Med | First play of an uncached track waits for a full conversion: 4.5 s for a 7-minute FLAC, measured 2026-09-10 (`transcodeCache.ts` header). The existing `inFlight` map already removes duplicate requests. Fits well with the bike-ride use case |
-| Cap concurrent ffmpeg runs | A global limit on simultaneous transcodes and waveform decodes | 🔧 | | Low | `inFlight` prevents two conversions of the *same* file, but nothing seen limits conversions of *different* files. Matters once pre-transcoding or room sync can start several at once |
+| Pre-transcode the next queued track | When data-saver is on, warm the `?quality=low` cache for the next track or two before they're needed | 🔧 (📱🌐 trigger) | ✅ web 2026-10-10 | Low-Med | First play of an uncached track waits for a full conversion: 4.5 s for a 7-minute FLAC, measured 2026-09-10 (`transcodeCache.ts` header). The existing `inFlight` map already removes duplicate requests. Fits well with the bike-ride use case Android never calls `POST /tracks/:id/prepare` (checked 2026-10-18). |
+| Cap concurrent ffmpeg runs | A global limit on simultaneous transcodes and waveform decodes | 🔧 | Partial 2026-10-18 | Low | `inFlight` prevents two conversions of the *same* file, but nothing seen limits conversions of *different* files. Matters once pre-transcoding or room sync can start several at once Checked against code 2026-10-18: `MAX_CONCURRENT_TRANSCODES` (default 2) caps transcodes only. Waveform, loudness and artwork runs are not capped. |
 | File watcher | Pick up new files within seconds instead of at the next 12 h scan | 🔧 | | Med | **(Navidrome)** has one. Only worth it after incremental scan, and inotify is unreliable on `/mnt` drives under WSL2 |
 | Response compression | gzip/brotli for JSON API responses | 🔧 | | Low | `@fastify/compress` isn't a dependency. Mainly helps large track lists on mobile data. Audio is already compressed, so leave streams alone |
-| SQLite tuning | `synchronous = NORMAL`, larger `cache_size`, `mmap_size` | 🔧 | | Low | Only `journal_mode = WAL` is set (`backend/src/db/connection.ts:25`). Measure before changing anything |
+| SQLite tuning | `synchronous = NORMAL`, larger `cache_size`, `mmap_size` | 🔧 | Not built | Low | Only `journal_mode = WAL` is set (`backend/src/db/connection.ts:25`). Measure before changing anything |
 | Scale benchmark | Time a scan and measure memory against a synthetic 50k-track library | 🔧 | | Low-Med | Gives an actual number to compare with Navidrome instead of a guess. Run it in a `makeTempDir()` library, never the real one |
-| Library list cache | Show the last library list at once, then refresh it: keep the first page or two in the browser between visits (web), a Room-backed copy of the list with sync (Android, also browsing offline), a "nothing changed" 304 check | 🌐📱 (🔧 for the 304) | | Low (web), High (Android), Med (304) | Raised 2026-10-18 while building the letter jump ([features/library-letter-jump](library-letter-jump/planning.md)); parked, not decided. At 12,759 songs the server takes 25 to 125 ms a page, so measure the real server first. Costs: stale hidden, missing and liked flags, phone storage (about 10 MB per 50k songs), and a version number the 304 needs from every write path |
+| Library list cache | Show the last library list at once, then refresh it: keep the first page or two in the browser between visits (web), a Room-backed copy of the list with sync (Android, also browsing offline), a "nothing changed" 304 check | 🌐📱 (🔧 for the 304) | Partial 2026-10-18 | Low (web), High (Android), Med (304) | Raised 2026-10-18 while building the letter jump ([features/library-letter-jump](library-letter-jump/planning.md)); parked, not decided. At 12,759 songs the server takes 25 to 125 ms a page, so measure the real server first. Costs: stale hidden, missing and liked flags, phone storage (about 10 MB per 50k songs), and a version number the 304 needs from every write path Checked against code 2026-10-18: web has only react-query's in-memory cache. Android and the 304 check are not built. |
 
 ## Backup & portability
 
 | Feature | Description | Layers | Priority | Complexity | Notes |
 |---|---|---|---|---|---|
 | Playlist/favorites export-import | Open format, avoids lock-in | 🔧 | | Low-Med | |
-| Automatic metadata backup | Protect play history/ratings from server rebuilds | 🔧 | | Low | |
+| Automatic metadata backup | Protect play history/ratings from server rebuilds | 🔧 | ✅ 2026-10-18 | Low | Checked against code 2026-10-18: `backend/src/services/backup.ts`: daily by default, keeps 14, runs an integrity check. |
 
 ## Privacy / control
 
 | Feature | Description | Layers | Priority | Complexity | Notes |
 |---|---|---|---|---|---|
-| Zero telemetry | No listening data leaves your network | 🔧 | | Low | Default posture of self-hosting |
+| Zero telemetry | No listening data leaves your network | 🔧 | ✅ 2026-10-18 | Low | Default posture of self-hosting Checked against code 2026-10-18: no analytics or crash SDKs. Only GitHub release checks go out. |
 | Full control over recommendations | No engagement-optimized algorithm, tuned to your own taste only | 🔧 | | N/A | Design principle, not a discrete feature |
 
 ---

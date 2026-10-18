@@ -61,6 +61,12 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A218 — Smart pre-caching on Android: how far ahead, which network, current song (was Q207) *(asked in chat)*
+**Answered:** 2026-10-18. Fetch ahead defaults to 3 songs after the playing one, with a Settings choice of Off, 1, 3, 5
+or 10. Any network, like downloads (A85), no Wi-Fi-only rule. The playing song is finished first, then the next ones.
+Songs go into the song cache (A198), as the copy the player will ask for (data saver gives the low copy). Not in rooms.
+Built in `android/.../downloads/Precacher.kt`, wired in `PlaybackController.updatePrecache()`. Uncommitted, not phone-tested.
+
 ### A217 — Browsing and adding library folders is confined to an allowlist (was Q206) *(asked in chat)*
 **Answered:** 2026-10-18. Option C: confine `GET /library/browse` and `POST /library/roots` to `BROWSE_ROOTS`
 (default: `LIBRARY_PATH` and `/mnt`, the two mounts in `docker-compose.yml`); a path outside it gets 403, symlinks are

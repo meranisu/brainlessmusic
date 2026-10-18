@@ -42,7 +42,7 @@ simpler than any clever caching.
 6. Plays made offline are counted once you're back online (A87).
 
 **Out (stays in [feature-brainstorm](../features/feature-brainstorm.md)):**
-- Smart pre-caching and automatic downloads ("download my favourites").
+- Automatic downloads ("download my favourites"). Smart pre-caching later got its own plan: [smart-precache](../features/smart-precache/planning.md).
 - A general streaming cache for songs that aren't downloaded.
 - Re-downloading automatically when a file changes on the server. A changed file just keeps its old copy until you
   delete it and download again.

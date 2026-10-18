@@ -100,6 +100,13 @@ class PlaybackSettings @Inject constructor(
         dataStore.edit { it[SONG_CACHE_LIMIT_MB_KEY] = mb }
     }
 
+    /** How many songs after the playing one are fetched ahead while online; 0 is off. 3 by default. */
+    val precacheCount: Flow<Int> = dataStore.data.map { it[PRECACHE_COUNT_KEY] ?: PRECACHE_DEFAULT_COUNT }
+
+    suspend fun setPrecacheCount(count: Int) {
+        dataStore.edit { it[PRECACHE_COUNT_KEY] = count }
+    }
+
     /** Gapless, crossfade or fade out then in, the pause fade and the album rule (A71, A72). */
     val transitions: Flow<TransitionPrefs> = dataStore.data.map { prefs ->
         val defaults = TransitionPrefs()
@@ -169,6 +176,7 @@ class PlaybackSettings @Inject constructor(
         val DATA_SAVER_KEY = booleanPreferencesKey("data_saver")
         val DOWNLOAD_LIMIT_GB_KEY = intPreferencesKey("download_limit_gb")
         val SONG_CACHE_LIMIT_MB_KEY = intPreferencesKey("song_cache_limit_mb")
+        val PRECACHE_COUNT_KEY = intPreferencesKey("precache_count")
     }
 }
 
@@ -176,3 +184,8 @@ const val SONG_CACHE_DEFAULT_MB = 1024
 
 /** The cache sizes Settings offers, in MB; 0 is unlimited (A198). */
 val SONG_CACHE_LIMITS_MB = listOf(500, 1024, 2048, 5120, 0)
+
+const val PRECACHE_DEFAULT_COUNT = 3
+
+/** The "Fetch ahead" choices, in songs; 0 is off. */
+val PRECACHE_COUNTS = listOf(0, 1, 3, 5, 10)

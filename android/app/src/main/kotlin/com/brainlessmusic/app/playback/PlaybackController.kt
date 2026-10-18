@@ -14,6 +14,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.cache.Cache
 import androidx.media3.datasource.cache.CacheDataSource
@@ -30,7 +31,10 @@ import com.brainlessmusic.app.data.local.TransitionPrefs
 import com.brainlessmusic.app.data.local.isNextOnAlbum
 import com.brainlessmusic.app.data.remote.NetworkMonitor
 import com.brainlessmusic.app.data.repository.LibraryRepository
+import com.brainlessmusic.app.downloads.PrecacheWant
+import com.brainlessmusic.app.downloads.Precacher
 import com.brainlessmusic.app.downloads.SongCache
+import com.brainlessmusic.app.downloads.precacheOrder
 import com.brainlessmusic.app.downloads.DownloadRepository
 import com.brainlessmusic.app.downloads.TrackCacheKey
 import com.brainlessmusic.app.rooms.RoomCommand
@@ -81,6 +85,7 @@ class PlaybackController @Inject constructor(
     private val networkMonitor: NetworkMonitor,
     private val pendingPlays: PendingPlays,
     private val songCache: SongCache,
+    private val precacher: Precacher,
     // Lazy: opening the download folder is disk work, and waits until the player is first built.
     private val downloadCache: dagger.Lazy<Cache>,
 ) {
@@ -216,6 +221,8 @@ class PlaybackController @Inject constructor(
     private var wantRepeat = Player.REPEAT_MODE_OFF
     // Mirrors the data saver setting; read by `toMediaItem`.
     private var dataSaver = false
+    // Mirrors the "Fetch ahead" setting: songs after the playing one to hold on the phone (see `updatePrecache`).
+    private var precacheCount = 0
 
     // Where the queue is topped up from as it runs low (see QueueSource). `generation` changes whenever the queue is
     // replaced, so a top-up that was in flight for the old queue is dropped instead of landing on the new one.
@@ -267,6 +274,8 @@ class PlaybackController @Inject constructor(
         }
         scope.launch { settings.keepShuffle.collect { keepShuffle = it } }
         scope.launch { settings.dataSaver.collect(::applyDataSaver) }
+        scope.launch { settings.precacheCount.collect { precacheCount = it; updatePrecache() } }
+        scope.launch { networkMonitor.online.collect { updatePrecache() } }
         // A song finishing its download, or the stored downloads loading at start, changes which copy a queued song
         // should use and, offline, whether it can play at all.
         scope.launch {
@@ -296,6 +305,7 @@ class PlaybackController @Inject constructor(
      * key would never find). The playing one keeps its file, for the reason above.
      */
     private fun rebuildQueuedItems() {
+        updatePrecache()
         // Before touching the player: with nothing queued it may not be built yet, and this is no reason to build it.
         if (queue.isEmpty()) return
         val current = player.currentMediaItemIndex
@@ -1076,7 +1086,13 @@ class PlaybackController @Inject constructor(
             publish()
         }
 
-        override fun onPlaybackStateChanged(playbackState: Int) = publish()
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            // Fetching waits for the playing song to be going: the player's own first bytes come first.
+            if (playbackState == Player.STATE_READY) updatePrecache()
+            publish()
+        }
+
+        override fun onTimelineChanged(timeline: Timeline, reason: Int) = updatePrecache()
 
         override fun onAudioSessionIdChanged(audioSessionId: Int) {
             if (player.isPlaying) equalizer.open(audioSessionId) else equalizer.close()
@@ -1126,6 +1142,7 @@ class PlaybackController @Inject constructor(
             if (playNextPending > 0) playNextPending--
             beginTrack()
             maybeRefill()
+            updatePrecache()
             publish()
         }
 
@@ -1204,6 +1221,31 @@ class PlaybackController @Inject constructor(
     }
 
     /** Downloaded, or whole in the song cache: plays with no signal (A199). */
+    /**
+     * Tells the [Precacher] which songs to hold: the playing one and the next [precacheCount] in play order, each as
+     * the copy the player will ask for. Nothing offline, in a room (the room picks the songs) or with the setting off.
+     * Called whenever any of that changes; the same list is a no-op there.
+     */
+    private fun updatePrecache() {
+        val live = playerLazy.isInitialized() && queue.isNotEmpty() && !inRoom && precacheCount > 0 &&
+            networkMonitor.online.value
+        if (!live) {
+            precacher.want(emptyList())
+            return
+        }
+        // Not yet playing: leave the list as it is, so a song just started is not starved by a fetch.
+        if (player.playbackState != Player.STATE_READY) return
+        val order = playOrder()
+        val repeatOne = player.repeatMode == Player.REPEAT_MODE_ONE
+        val picks = precacheOrder(
+            order,
+            order.indexOf(player.currentMediaItemIndex),
+            if (repeatOne) 0 else precacheCount,
+            wrap = player.repeatMode == Player.REPEAT_MODE_ALL,
+        )
+        precacher.want(picks.mapNotNull { i -> queue.getOrNull(i)?.let { item -> streamUrlFor(item)?.let { PrecacheWant(item, it) } } })
+    }
+
     private fun onPhone(trackId: Int) = downloads.isDownloaded(trackId) || songCache.isCached(trackId)
 
     private fun beginTrack() {
