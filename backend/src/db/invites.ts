@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { randomCode } from '../utils/randomCode.js';
-import { db } from './connection.js';
+import { db, lazyTransaction } from './connection.js';
 import { findUserByEmail, findUserById, findUserByUsername, insertUser, nameOf, type UserRow } from './users.js';
 
 /** One use, 7 days, like guest codes (A108). */
@@ -67,7 +67,7 @@ function findByToken(token: unknown): InviteRow | undefined {
  * A new invite and its raw token, the only time the token exists. With `guestUserId`, an upgrade invite for that guest
  * (A107); one open upgrade invite per guest, so making a new one revokes the old. Undefined when the id is not a guest.
  */
-export const createInvite = db.transaction(
+export const createInvite = lazyTransaction(
   (createdBy: number, guestUserId: number | null): { invite: InviteRow; token: string } | undefined => {
     if (guestUserId !== null) {
       const guest = findUserById(guestUserId);
@@ -176,7 +176,7 @@ export interface AcceptDetails {
  * device a new token. The password and passcode are hashed by the caller, before this runs, since a transaction can't
  * await.
  */
-export const acceptInvite = db.transaction(
+export const acceptInvite = lazyTransaction(
   (token: unknown, { username, email, passwordHash, passcodeHash }: AcceptDetails): AcceptOutcome => {
     const row = findByToken(token);
     if (!row || statusOf(row) !== 'open') return { ok: false, reason: 'invalid' };

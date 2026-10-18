@@ -1,5 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
-import { db } from './connection.js';
+import { db, lazyTransaction } from './connection.js';
 import { createGuestCode } from './guestCodes.js';
 import { findUserById, insertGuest, type UserRow } from './users.js';
 
@@ -79,7 +79,7 @@ export function listPendingRequests(): PendingRequestListing[] {
  * Approves a pending request: a new code, bound at once to a new guest with the requested name. False when the
  * request isn't pending (already answered, expired or unknown).
  */
-export const approveGuestCodeRequest = db.transaction((id: number, adminId: number): boolean => {
+export const approveGuestCodeRequest = lazyTransaction((id: number, adminId: number): boolean => {
   const row = db.prepare(`SELECT * FROM guest_code_requests WHERE id = ? AND ${PENDING}`).get(id) as
     | GuestCodeRequestRow
     | undefined;
@@ -118,7 +118,7 @@ export type CollectResult =
  * ago: all look the same from outside. An approved request is marked `collected` when first handed over, and answers
  * the same again until that window ends (`repeat: true`).
  */
-export const collectGuestCodeRequest = db.transaction((id: number, secret: unknown): CollectResult | undefined => {
+export const collectGuestCodeRequest = lazyTransaction((id: number, secret: unknown): CollectResult | undefined => {
   if (typeof secret !== 'string' || secret === '') return undefined;
 
   const row = db.prepare('SELECT * FROM guest_code_requests WHERE id = ?').get(id) as GuestCodeRequestRow | undefined;

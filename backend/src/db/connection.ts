@@ -48,3 +48,18 @@ export const db = new Proxy({} as Database.Database, {
     return property in (getDb() as unknown as object);
   },
 });
+
+/**
+ * `db.transaction(fn)` that waits for the first call to open the connection, so importing a module never opens the
+ * database. Rebuilt if the handle was closed and reopened (tests), since a transaction is bound to one handle.
+ */
+export function lazyTransaction<Args extends unknown[], Result>(
+  fn: (...args: Args) => Result,
+): (...args: Args) => Result {
+  let built: { handle: Database.Database; run: (...args: Args) => Result } | null = null;
+  return (...args) => {
+    const handle = getDb();
+    if (built?.handle !== handle) built = { handle, run: handle.transaction(fn) };
+    return built.run(...args);
+  };
+}

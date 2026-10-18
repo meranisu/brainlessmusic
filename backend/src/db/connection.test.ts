@@ -24,6 +24,9 @@ describe('lazy database connection', () => {
     await import('./users.js');
     await import('./library.js');
     await import('./browse.js');
+    await import('./guestCodes.js');
+    await import('./invites.js');
+    await import('./guestCodeRequests.js');
 
     assert.equal(isDatabaseOpen(), false, 'importing db modules must not open a handle');
   });

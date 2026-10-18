@@ -1,5 +1,5 @@
 import { randomCode } from '../utils/randomCode.js';
-import { db } from './connection.js';
+import { db, lazyTransaction } from './connection.js';
 import { deleteUser, findUserById, insertGuest, type UserRow } from './users.js';
 
 /** No 0/O, 1/I/L: the code gets read off a screen or a printed card. */
@@ -108,7 +108,7 @@ export interface ClaimedGuest {
  * returns its guest and ignores the name (A68). One transaction, so racing devices on a fresh code get one guest.
  * Undefined when the code can't be used.
  */
-export const claimGuestCode = db.transaction(
+export const claimGuestCode = lazyTransaction(
   (input: unknown, displayName: string, idleDays: number): ClaimedGuest | undefined => {
     const code = normalizeGuestCode(input);
     if (code.length !== CODE_LENGTH) return undefined;
@@ -212,7 +212,7 @@ export function listGuestCodes(): GuestCodeListing[] {
  * Deletes a code, and on a used one revokes it (A69): its guest is deleted with its data, so every device using it is
  * refused on its next request (`rejectDeletedUser`). False when there is no such code.
  */
-export const deleteGuestCode = db.transaction((id: number): boolean => {
+export const deleteGuestCode = lazyTransaction((id: number): boolean => {
   const row = db.prepare('SELECT used_by FROM guest_codes WHERE id = ?').get(id) as
     | { used_by: number | null }
     | undefined;
