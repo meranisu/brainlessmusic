@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { apiClient, getToken, onSessionRefused, setToken } from '../lib/apiClient';
+import { apiClient, getToken, onSessionRefused, onTokenChangedElsewhere, setToken } from '../lib/apiClient';
 import { applyTheme, clearTheme, hasLocalTheme, isTheme, loadTheme } from '../lib/theme';
 import type { User } from '../types/api';
 
@@ -63,6 +63,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
         clearTheme();
         queryClient.clear();
+      }),
+    [queryClient],
+  );
+
+  // Another tab signed out or switched account: this one follows, instead of staying on the old person's screen
+  // while every request goes out as the new one (or as nobody).
+  useEffect(
+    () =>
+      onTokenChangedElsewhere((token) => {
+        queryClient.clear();
+        if (!token) {
+          setUser(null);
+          clearTheme();
+          return;
+        }
+        apiClient
+          .get<User>('/auth/me')
+          .then((who) => setUser(who))
+          // A 401 has already ended the session through `onSessionRefused`; anything else leaves things as they are.
+          .catch(() => {});
       }),
     [queryClient],
   );

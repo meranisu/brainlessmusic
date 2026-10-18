@@ -74,6 +74,16 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   const [isJoining, setIsJoining] = useState(false);
   const clientRef = useRef<RoomClient | null>(null);
 
+  // Cleared, not just hidden: signing back in as the same account would otherwise show the old room until a new
+  // state arrives. Set during render, so there is no frame with the old room.
+  if (!user && (room || you !== null || roomFor !== null || isJoining || connection !== 'connecting')) {
+    setRoom(null);
+    setRoomFor(null);
+    setYou(null);
+    setIsJoining(false);
+    setConnection('connecting');
+  }
+
   const connect = useCallback(
     (code: string, quietIfGone = false) => {
       clientRef.current?.stop();
@@ -114,7 +124,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   // away for its grace period, then drops us).
   useEffect(() => {
     if (!user) {
-      // The room state is hidden below while signed out, and replaced on the next connect.
+      // The room state is cleared below, during render, once the user is null.
       clientRef.current?.stop();
       clientRef.current = null;
       return;

@@ -44,6 +44,20 @@ export function onSessionRefused(listener: () => void): () => void {
   return () => sessionRefusedListeners.delete(listener);
 }
 
+/**
+ * Runs `listener` when another tab signs in, out or switches account (the `storage` event fires only in the other
+ * tabs, never the one that wrote). Returns the unsubscribe.
+ */
+export function onTokenChangedElsewhere(listener: (token: string | null) => void): () => void {
+  const handle = (event: StorageEvent) => {
+    // A null key means the whole storage was cleared.
+    if (event.key !== null && event.key !== TOKEN_STORAGE_KEY) return;
+    listener(getToken());
+  };
+  window.addEventListener('storage', handle);
+  return () => window.removeEventListener('storage', handle);
+}
+
 interface RequestOptions {
   method?: string;
   body?: unknown;
