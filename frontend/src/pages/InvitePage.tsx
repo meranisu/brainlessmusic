@@ -120,7 +120,7 @@ function SignUpStep({ code, onBadCode }: { code: string; onBadCode?: () => void 
       return;
     }
     if (passcode !== '' && !PASSCODE_PATTERN.test(passcode)) {
-      setError('A passcode is 4 to 8 digits. Leave it empty to skip it.');
+      setError('A passcode is 6 to 8 digits. Leave it empty to skip it.');
       return;
     }
 
@@ -252,7 +252,7 @@ function SignUpStep({ code, onBadCode }: { code: string; onBadCode?: () => void 
         autoComplete="off"
         className="input mb-1 w-full font-mono tracking-widest"
       />
-      <p className="mb-4 text-xs text-blue-400">4 to 8 digits, a quicker way in than your password.</p>
+      <p className="mb-4 text-xs text-blue-400">6 to 8 digits, a quicker way in than your password.</p>
 
       {error && (
         <p role="alert" className="mb-3 text-sm text-red-300">

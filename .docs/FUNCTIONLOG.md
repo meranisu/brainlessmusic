@@ -4,6 +4,26 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `PasscodePad`, `Numpad` `submit()`, `submitPasscodeLogin()` — `frontend/src/components/PasscodePad.tsx`, `frontend/src/components/Numpad.tsx`, `frontend/src/pages/AccountSelectPage.tsx`
+**Date:** 2026-10-18
+**How added:** new feature
+**Purpose:** make passcode entry feel responsive and say why a short passcode is refused (A216).
+**Side effects:** shows a toast through `ToastProvider`; no network.
+**Before:** Sign in and Save stayed disabled below the minimum digits with no explanation; no motion on the pad.
+**After:** a short code is refused with a toast and a shake; dots, keys, errors and the pad's entrance animate once, off under reduced motion.
+
+---
+
+**Function:** `/auth/passcode-login` handler, `recordPasscodeFailure()`, `resetPasscodeFailures()`, `setPasscodeHashById()`, `clearPasscodeById()` — `backend/src/routes/auth.ts`, `backend/src/db/users.ts`
+**Date:** 2026-10-18
+**How added:** hardening
+**Purpose:** stop online guessing of a short passcode (S3, A216).
+**Side effects:** writes `users.passcode_failures` on every wrong passcode, on password sign-in and when a passcode is set or cleared.
+**Before:** only the in-memory per-IP and per-account limiters, so about 20 guesses an hour, forever.
+**After:** 10 wrong passcodes lock passcode sign-in until the next password sign-in or a new passcode; the count survives restarts.
+
+---
+
 **Function:** top-up effect, `playQueue(tracks, startIndex, loadMore?)`, `persistState()` window, `play(index)` `loadMore` — `frontend/src/components/PlayerBar.tsx`, `frontend/src/pages/LibraryPage.tsx`
 **Date:** 2026-10-18
 **How added:** new feature

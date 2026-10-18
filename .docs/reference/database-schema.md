@@ -136,6 +136,7 @@ erDiagram
 | `favorite_track_id` | INTEGER | nullable | — | Added `0035`. Pinned favourite song (A169). **No FK on purpose**: a removed song must not block its delete; a stale id just isn't shown |
 | `favorite_artist_id` | INTEGER | nullable | — | Added `0035`. Pinned favourite artist (A169). No FK, as above |
 | `email` | TEXT | nullable | — | Added `0037`. Stored trimmed and lowercased (`cleanEmail()`); unique among non-NULL rows. Required when signing up from an invite, asked for on accounts made before (A189-A190), accepted by password and passcode sign-in in place of the username (A192). Always NULL for guests. Nothing sends mail to it yet |
+| `passcode_failures` | INTEGER | NOT NULL | `0` | Added `0040`. Wrong passcode sign-ins since the last password sign-in or new passcode. At 10 (`PASSCODE_MAX_FAILURES`) passcode sign-in refuses everything until reset (A216) |
 
 **FKs:** none (root entity).
 **Indexes:** unique index on `username` (auto, from the `UNIQUE` constraint, case-sensitive, now redundant); unique `idx_users_username_nocase` on `username COLLATE NOCASE` (`0029`, the one that decides); partial unique `users_email_unique` on `email WHERE email IS NOT NULL` (`0037`); `idx_users_kind_last_seen` on `(kind, last_seen_at)` — both guest queries filter on kind and order by staleness.
@@ -589,6 +590,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | `0035_add_user_profile.sql` | `users.bio`, `avatar_id`, `favorite_track_id`, `favorite_artist_id` — the profile page (A167-A170) |
 | `0036_add_playlist_description.sql` | `playlists.description` — playlist descriptions (A185) |
 | `0039_add_play_history_user_track_index.sql` | `idx_play_history_user_track` covering index on `play_history` — smart playlist play counts (A207, A208) |
+| `0040_add_passcode_failures.sql` | `users.passcode_failures`; clears every existing `passcode_hash` (A216) |
 | `0038_add_playlist_rules.sql` | `playlists.rules` — smart playlists (A207-A209) |
 | `0037_add_user_email.sql` | `users.email` + partial unique `users_email_unique` — sign-up with email, sign-in by email (A189-A192) |
 | `0031_add_track_disc_number.sql` | `tracks.disc_number` — disc order (v0.4 box 26) |
@@ -599,6 +601,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-10-18 | Migration `0040_add_passcode_failures.sql` — `users.passcode_failures INTEGER NOT NULL DEFAULT 0`, all passcodes cleared. From the migration SQL, not re-introspected against the live DB | Passcodes lock after 10 wrong tries and need 6+ digits (A216, S3) |
 | 2026-10-18 | Migration `0039_add_play_history_user_track_index.sql` — one index on `play_history`, the index note, migration row. From the migration SQL and a benchmark on a throwaway 50k-song, 200k-play database (aggregate 245 ms to 75 ms) | Smart playlist rules run a per-song play count over one user's history (A207, A208) |
 | 2026-10-18 | Migration `0038_add_playlist_rules.sql` — one `playlists` column, the ER block, migration row. From the migration SQL | Smart playlists (A207-A209) |
 | 2026-10-13 | Migration `0037_add_user_email.sql` — `users.email` row, the index note, `account_invites.token_hash` now short codes, the accept note, migration row. From the migration SQL and the test run | Sign up with an invite code, email and optional passcode; sign in by email (A189-A192) |

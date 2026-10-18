@@ -2,7 +2,7 @@
 
 export const MIN_PASSWORD_LENGTH = 8;
 /** `PASSCODE_PATTERN` on the server. */
-export const PASSCODE_PATTERN = /^\d{4,8}$/;
+export const PASSCODE_PATTERN = /^\d{6,8}$/;
 
 /** Server errors start lower-case ("username already taken"); forms show them as sentences. */
 export function sentence(message: string): string {

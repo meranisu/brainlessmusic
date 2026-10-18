@@ -25,7 +25,7 @@ audit's Status column with the commit, and add a CHANGELOG entry as usual.
 |---|---|---|---|
 | S1 | High | Passcode sign-in can be brute-forced with parallel requests (the limit counts after bcrypt) | open |
 | S2 | Medium | Per-account sign-in limit is case-sensitive, so `Imran` and `imran` get separate budgets | open |
-| S3 | Medium | A 4-digit passcode is guessable in about 10 days, and failures lock out password sign-in | open, Q175 |
+| S3 | Medium | A 4-digit passcode is guessable in about 10 days, and failures lock out password sign-in | fixed 2026-10-18 (A216): 6+ digits, lock after 10 wrong tries; deploy pending |
 | S4 | Medium | A passcode survives a password reset; setting one needs no current password | open |
 | S5 | Medium | `backend/.env.example` reportedly holds a real-looking `JWT_SECRET` the boot check accepts | open, unverified |
 | S6 | Medium | Cover thumbnails run unbounded ffmpeg (guest can overload smol) | open |
@@ -57,7 +57,6 @@ reaching the port directly can't rotate it to dodge the rate limits.
 
 Asked in [QUESTIONS.md](QUESTIONS.md); answer there, not here.
 
-- **Q175:** how strong a passcode must be (S3).
 - **A200:** protect `main` while keeping direct pushes; GitHub setting and CI filter remain pending (S12).
 - **A201:** reserve account display names and usernames; validation remains pending (S20).
 

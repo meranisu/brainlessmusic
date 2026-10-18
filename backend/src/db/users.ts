@@ -25,7 +25,12 @@ export interface UserRow {
   avatar_id: string | null;
   /** Lowercase; NULL until added, and always for guests (A190). See `0037`. */
   email: string | null;
+  /** Wrong passcode sign-ins since the last password sign-in (A216). See `0040`. */
+  passcode_failures: number;
 }
+
+/** Wrong passcodes allowed before passcode sign-in is locked until the next password sign-in (A216). */
+export const PASSCODE_MAX_FAILURES = 10;
 
 /** Longest display name, in characters. */
 export const DISPLAY_NAME_MAX = 32;
@@ -262,10 +267,19 @@ export function setPasswordHashById(id: number, passwordHash: string): UserRow |
   return findUserById(id);
 }
 
-/** Self-service only, from Options. */
+/** Self-service only, from Options. A new passcode also clears the failure count. */
 export function setPasscodeHashById(id: number, passcodeHash: string): UserRow | undefined {
-  db.prepare('UPDATE users SET passcode_hash = ? WHERE id = ?').run(passcodeHash, id);
+  db.prepare('UPDATE users SET passcode_hash = ?, passcode_failures = 0 WHERE id = ?').run(passcodeHash, id);
   return findUserById(id);
+}
+
+export function recordPasscodeFailure(id: number): void {
+  db.prepare('UPDATE users SET passcode_failures = passcode_failures + 1 WHERE id = ?').run(id);
+}
+
+/** Called after a password sign-in, which is what unlocks the passcode. */
+export function resetPasscodeFailures(id: number): void {
+  db.prepare('UPDATE users SET passcode_failures = 0 WHERE id = ? AND passcode_failures != 0').run(id);
 }
 
 export function setUserTheme(id: number, theme: string): void {
@@ -278,7 +292,7 @@ export function setDisplayName(id: number, displayName: string | null): void {
 }
 
 export function clearPasscodeById(id: number): UserRow | undefined {
-  db.prepare('UPDATE users SET passcode_hash = NULL WHERE id = ?').run(id);
+  db.prepare('UPDATE users SET passcode_hash = NULL, passcode_failures = 0 WHERE id = ?').run(id);
   return findUserById(id);
 }
 

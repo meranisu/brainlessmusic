@@ -255,7 +255,7 @@ private fun FormStep(
         value = state.passcode,
         onValueChange = onPasscodeChange,
         label = { Text("Passcode (optional)") },
-        supportingText = { Text("4 to 8 digits, a quicker way in on the website.") },
+        supportingText = { Text("6 to 8 digits, a quicker way in on the website.") },
         singleLine = true,
         shape = RoundedCornerShape(16.dp),
         visualTransformation = PasswordVisualTransformation(),

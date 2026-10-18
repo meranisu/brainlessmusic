@@ -52,7 +52,7 @@ Work the first unticked box there.
 ## Open questions
 
 The list is [QUESTIONS.md](QUESTIONS.md) — check it before asking anything. Blocking now: **Q77** and **Q78**
-(how the Android app and guests get past Cloudflare Access, before it is switched on; A74). Open, non-blocking: **Q5**, **Q175**.
+(how the Android app and guests get past Cloudflare Access, before it is switched on; A74). Open, non-blocking: **Q5**.
 
 ## Next
 

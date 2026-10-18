@@ -248,7 +248,7 @@ describe('signing up with a code (A189-A192)', () => {
   it('signs in with the email, by password or the passcode chosen at sign-up', async () => {
     const { token } = await invite();
     assert.equal((await accept(token, 'pat', { passcode: '12a4' })).statusCode, 400);
-    const res = await accept(token, 'pat', { email: 'Pat@Example.com', passcode: '2468' });
+    const res = await accept(token, 'pat', { email: 'Pat@Example.com', passcode: '246813' });
     assert.equal(res.statusCode, 201, res.body);
 
     const me = await app.inject({ method: 'GET', url: '/api/auth/me', headers: bearer(res.json().token) });
@@ -264,7 +264,7 @@ describe('signing up with a code (A189-A192)', () => {
     const byPasscode = await app.inject({
       method: 'POST',
       url: '/api/auth/passcode-login',
-      payload: { username: 'pat@example.com', passcode: '2468' },
+      payload: { username: 'pat@example.com', passcode: '246813' },
     });
     assert.equal(byPasscode.statusCode, 200, byPasscode.body);
   });

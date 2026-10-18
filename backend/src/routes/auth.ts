@@ -12,7 +12,10 @@ import { claimGuestCode, guestCodesRequired, peekGuestCode, recordGuestCodeSigni
 import {
   bumpSessionVersion,
   cleanDisplayName,
+  PASSCODE_MAX_FAILURES,
   clearPasscodeById,
+  recordPasscodeFailure,
+  resetPasscodeFailures,
   countAccounts,
   countGuests,
   cleanEmail,
@@ -66,9 +69,12 @@ export function usernameProblem(username: string): string | undefined {
   if (username.toLowerCase().startsWith('guest-')) return 'usernames starting with "guest-" are reserved';
   return undefined;
 }
-export const PASSCODE_PATTERN = /^\d{4,8}$/;
+export const PASSCODE_PATTERN = /^\d{6,8}$/;
 /** A web theme id (`frontend/src/lib/theme.ts`): lowercase, short. */
 const THEME_ID = /^[a-z][a-z0-9-]{0,31}$/;
+
+/** Shown once the passcode is locked (A216); the web and Android sign-in screens show the server's text as is. */
+const PASSCODE_LOCKED_MESSAGE = 'Passcode locked, sign in with your password.';
 
 const HOUR_MS = 60 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
@@ -374,6 +380,7 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       return reply.code(401).send({ error: 'invalid username or password' });
     }
 
+    resetPasscodeFailures(user.id);
     const token = signToken(tokenUserOf(user));
     // The real username, since what was typed may be an email (A192); the Android app keys per-account settings on it.
     return reply.send({ token, username: user.username });
@@ -395,15 +402,21 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
     if (!rate.allowed) return tooManyTries(reply, rate);
 
     // Same refusal shape as `/auth/login`: no user, a guest, no passcode ever
-    // set, or a wrong one, all look identical from the outside.
-    if (
-      !user ||
-      user.kind === 'guest' ||
-      !user.passcode_hash ||
-      !(await verifyPasscode(passcode, user.passcode_hash))
-    ) {
+    // set, or a wrong one, all look identical from the outside. A locked passcode is the one exception (A216): it
+    // says so, so the owner knows to use the password.
+    if (!user || user.kind === 'guest' || !user.passcode_hash) {
       countLoginFailure(passcodeLoginLimiter, ip, limit, accountKey);
       return reply.code(401).send({ error: 'invalid username or passcode' });
+    }
+    if (user.passcode_failures >= PASSCODE_MAX_FAILURES) {
+      return reply.code(401).send({ error: PASSCODE_LOCKED_MESSAGE });
+    }
+    if (!(await verifyPasscode(passcode, user.passcode_hash))) {
+      countLoginFailure(passcodeLoginLimiter, ip, limit, accountKey);
+      recordPasscodeFailure(user.id);
+      return reply.code(401).send({
+        error: user.passcode_failures + 1 >= PASSCODE_MAX_FAILURES ? PASSCODE_LOCKED_MESSAGE : 'invalid username or passcode',
+      });
     }
 
     const token = signToken(tokenUserOf(user));
@@ -418,7 +431,7 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       const passcode = request.body?.passcode;
       if (typeof passcode !== 'string' || !PASSCODE_PATTERN.test(passcode)) {
-        return reply.code(400).send({ error: 'passcode must be 4-8 digits' });
+        return reply.code(400).send({ error: 'passcode must be 6-8 digits' });
       }
 
       const passcodeHash = await hashPasscode(passcode);

@@ -324,7 +324,7 @@ describe('passcode sign-in', () => {
     });
     assert.equal(me.json().hasPasscode, false);
 
-    assert.equal((await loginWithPasscode(admin.username, '1234')).statusCode, 401);
+    assert.equal((await loginWithPasscode(admin.username, '123456')).statusCode, 401);
   });
 
   it('can be created by the signed-in account and used to log back in', async () => {
@@ -336,7 +336,7 @@ describe('passcode sign-in', () => {
     });
     const { token } = login.json() as { token: string };
 
-    assert.equal((await setPasscode(token, '4269')).statusCode, 204);
+    assert.equal((await setPasscode(token, '426913')).statusCode, 204);
 
     const me = await app.inject({
       method: 'GET',
@@ -345,12 +345,12 @@ describe('passcode sign-in', () => {
     });
     assert.equal(me.json().hasPasscode, true);
 
-    const res = await loginWithPasscode(admin.username, '4269');
+    const res = await loginWithPasscode(admin.username, '426913');
     assert.equal(res.statusCode, 200);
     assert.ok(res.json().token);
   });
 
-  it('refuses a passcode outside 4-8 digits, or non-numeric', async () => {
+  it('refuses a passcode outside 6-8 digits, or non-numeric', async () => {
     const admin = await createAdmin();
     const login = await app.inject({
       method: 'POST',
@@ -359,7 +359,7 @@ describe('passcode sign-in', () => {
     });
     const { token } = login.json() as { token: string };
 
-    for (const passcode of ['123', '123456789', 'abcd', '12 34', '']) {
+    for (const passcode of ['123', '1234', '12345', '123456789', 'abcd', '12 34', '']) {
       const res = await setPasscode(token, passcode);
       assert.equal(res.statusCode, 400, `passcode ${JSON.stringify(passcode)} must be refused`);
     }
@@ -367,7 +367,7 @@ describe('passcode sign-in', () => {
 
   it('refuses a guest trying to set one', async () => {
     const { token } = (await mintGuest()).json() as { token: string };
-    assert.equal((await setPasscode(token, '1234')).statusCode, 403);
+    assert.equal((await setPasscode(token, '123456')).statusCode, 403);
   });
 
   it('refuses a wrong passcode with the same shape as no passcode at all', async () => {
@@ -377,9 +377,9 @@ describe('passcode sign-in', () => {
       url: '/api/auth/login',
       payload: { username: admin.username, password: PASSWORD },
     });
-    await setPasscode((login.json() as { token: string }).token, '4269');
+    await setPasscode((login.json() as { token: string }).token, '426913');
 
-    const res = await loginWithPasscode(admin.username, '0000');
+    const res = await loginWithPasscode(admin.username, '000000');
     assert.equal(res.statusCode, 401);
     assert.equal(res.json().error, 'invalid username or passcode');
   });
@@ -392,7 +392,7 @@ describe('passcode sign-in', () => {
       payload: { username: admin.username, password: PASSWORD },
     });
     const { token } = login.json() as { token: string };
-    await setPasscode(token, '4269');
+    await setPasscode(token, '426913');
 
     const cleared = await app.inject({
       method: 'DELETE',
@@ -401,7 +401,7 @@ describe('passcode sign-in', () => {
     });
     assert.equal(cleared.statusCode, 204);
 
-    assert.equal((await loginWithPasscode(admin.username, '4269')).statusCode, 401);
+    assert.equal((await loginWithPasscode(admin.username, '426913')).statusCode, 401);
   });
 
   it('rate-limits failed attempts per address', async () => {
@@ -412,15 +412,103 @@ describe('passcode sign-in', () => {
       url: '/api/auth/login',
       payload: { username: admin.username, password: PASSWORD },
     });
-    await setPasscode((login.json() as { token: string }).token, '4269');
+    await setPasscode((login.json() as { token: string }).token, '426913');
 
     for (let i = 0; i < 3; i += 1) {
-      const res = await loginWithPasscode(admin.username, '0000');
+      const res = await loginWithPasscode(admin.username, '000000');
       assert.equal(res.statusCode, 401, `attempt ${i + 1} is merely wrong`);
     }
 
-    const locked = await loginWithPasscode(admin.username, '4269');
+    const locked = await loginWithPasscode(admin.username, '426913');
     assert.equal(locked.statusCode, 429, 'even the right passcode waits once the budget is spent');
+  });
+});
+
+describe('passcode lock (A216)', () => {
+  async function setup() {
+    const admin = await createAdmin();
+    const login = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { username: admin.username, password: PASSWORD },
+    });
+    const { token } = login.json() as { token: string };
+    await app.inject({
+      method: 'POST',
+      url: '/api/auth/passcode',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { passcode: '426913' },
+    });
+    return { admin, token };
+  }
+
+  function passcodeLogin(username: string, passcode: string) {
+    return app.inject({ method: 'POST', url: '/api/auth/passcode-login', payload: { username, passcode } });
+  }
+
+  async function wrongTries(username: string, count: number) {
+    // The per-address budget is raised so only the stored count can stop these.
+    config.passcodeAttemptsPerMinute = 1000;
+    config.accountLoginFailuresPerHour = 1000;
+    let last;
+    for (let i = 0; i < count; i += 1) last = await passcodeLogin(username, '000000');
+    return last!;
+  }
+
+  it('locks after 10 wrong passcodes, even for the right one, and says so', async () => {
+    const { admin } = await setup();
+    const tenth = await wrongTries(admin.username, 10);
+    assert.equal(tenth.statusCode, 401);
+    assert.equal(tenth.json().error, 'Passcode locked, sign in with your password.');
+
+    const right = await passcodeLogin(admin.username, '426913');
+    assert.equal(right.statusCode, 401);
+    assert.equal(right.json().error, 'Passcode locked, sign in with your password.');
+  });
+
+  it('keeps the plain refusal for the first nine wrong ones', async () => {
+    const { admin } = await setup();
+    const ninth = await wrongTries(admin.username, 9);
+    assert.equal(ninth.json().error, 'invalid username or passcode');
+    assert.equal((await passcodeLogin(admin.username, '426913')).statusCode, 200);
+  });
+
+  it('a right passcode does not clear the count', async () => {
+    const { admin } = await setup();
+    await wrongTries(admin.username, 9);
+    assert.equal((await passcodeLogin(admin.username, '426913')).statusCode, 200);
+    const next = await wrongTries(admin.username, 1);
+    assert.equal(next.json().error, 'Passcode locked, sign in with your password.');
+  });
+
+  it('a password sign-in unlocks it', async () => {
+    const { admin } = await setup();
+    await wrongTries(admin.username, 10);
+    const pw = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { username: admin.username, password: PASSWORD },
+    });
+    assert.equal(pw.statusCode, 200);
+    assert.equal((await passcodeLogin(admin.username, '426913')).statusCode, 200);
+  });
+
+  it('setting a new passcode unlocks it', async () => {
+    const { admin, token } = await setup();
+    await wrongTries(admin.username, 10);
+    await app.inject({
+      method: 'POST',
+      url: '/api/auth/passcode',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { passcode: '135790' },
+    });
+    assert.equal((await passcodeLogin(admin.username, '135790')).statusCode, 200);
+  });
+
+  it('wrong tries on an account with no passcode are not counted or announced', async () => {
+    const admin = await createAdmin();
+    const res = await wrongTries(admin.username, 12);
+    assert.equal(res.json().error, 'invalid username or passcode');
   });
 });
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { PasscodePad } from './PasscodePad';
+import { useToast } from './ToastProvider';
 
 /** Must match `.numpad-*.is-closing` in `index.css`. */
 const CLOSE_MS = 160;
@@ -7,7 +8,7 @@ const CLOSE_MS = 160;
 interface NumpadProps {
   /** What the dialog is for, e.g. "Enter passcode". */
   title: string;
-  /** Continue stays disabled below this many digits. */
+  /** Below this many digits the button is refused with a toast, not hidden behind a dead button. */
   minLength?: number;
   maxLength?: number;
   submitLabel?: string;
@@ -34,6 +35,8 @@ export function Numpad({
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [refusals, setRefusals] = useState(0);
+  const { showToast } = useToast();
 
   /** Plays the exit before the parent unmounts this; panel and backdrop leave together. */
   const dismiss = useCallback(() => {
@@ -47,7 +50,12 @@ export function Numpad({
   }
 
   const submit = useCallback(async () => {
-    if (isSubmitting || code.length < minLength) return;
+    if (isSubmitting) return;
+    if (code.length < minLength) {
+      showToast(`Use ${minLength} to ${maxLength} digits.`, 'error');
+      setRefusals((n) => n + 1);
+      return;
+    }
     setError(null);
     setIsSubmitting(true);
 
@@ -56,11 +64,12 @@ export function Numpad({
       onSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.');
+      setRefusals((n) => n + 1);
       setCode('');
     } finally {
       setIsSubmitting(false);
     }
-  }, [isSubmitting, code, minLength, onSubmit, onSuccess]);
+  }, [isSubmitting, code, minLength, maxLength, onSubmit, onSuccess, showToast]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -109,6 +118,7 @@ export function Numpad({
           code={code}
           maxLength={maxLength}
           disabled={isSubmitting}
+          refusals={refusals}
           onPress={press}
           onBackspace={() => setCode((current) => current.slice(0, -1))}
         />
@@ -122,12 +132,14 @@ export function Numpad({
         </button>
 
         {error && (
-          <p className="mt-3 rounded-md bg-red-700 px-3 py-2 text-center text-xs text-white">{error}</p>
+          <p key={refusals} className="pad-notice mt-3 rounded-md bg-red-700 px-3 py-2 text-center text-xs text-white">
+            {error}
+          </p>
         )}
 
         <button
           type="submit"
-          disabled={isSubmitting || code.length < minLength}
+          disabled={isSubmitting}
           className="btn-primary btn-md mt-3 w-full"
         >
           {isSubmitting ? submittingLabel : submitLabel}

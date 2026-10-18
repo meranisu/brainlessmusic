@@ -94,7 +94,7 @@ const invitesRoute: FastifyPluginAsync = async (fastify) => {
       // Optional: empty or missing means none.
       if (passcode !== undefined && passcode !== null && passcode !== '') {
         if (typeof passcode !== 'string' || !PASSCODE_PATTERN.test(passcode)) {
-          return reply.code(400).send({ error: 'passcode must be 4-8 digits' });
+          return reply.code(400).send({ error: 'passcode must be 6-8 digits' });
         }
       }
 

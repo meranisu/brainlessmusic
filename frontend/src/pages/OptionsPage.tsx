@@ -608,7 +608,7 @@ export function OptionsPage() {
       {showPasscodeNumpad && (
         <Numpad
           title={user?.hasPasscode ? 'Change your passcode' : 'Choose a passcode'}
-          minLength={4}
+          minLength={6}
           maxLength={8}
           submitLabel="Save"
           submittingLabel="Saving…"

@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 const val MIN_PASSWORD_LENGTH = 8
-private val PASSCODE = Regex("^\\d{4,8}$")
+private val PASSCODE = Regex("^\\d{6,8}$")
 
 /** Where sign-up stands: the code first (unless a link brought it), then the form, or why the code doesn't work. */
 sealed interface SignUpStep {
@@ -107,7 +107,7 @@ class SignUpViewModel @Inject constructor(
             return
         }
         if (state.passcode.isNotEmpty() && !PASSCODE.matches(state.passcode)) {
-            _uiState.update { it.copy(error = "A passcode is 4 to 8 digits. Leave it empty to skip it.") }
+            _uiState.update { it.copy(error = "A passcode is 6 to 8 digits. Leave it empty to skip it.") }
             return
         }
         _uiState.update { it.copy(isSubmitting = true, error = null) }

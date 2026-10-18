@@ -4,6 +4,38 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-18: Passcode pad motion and a toast for short passcodes (A216)
+
+- `PasscodePad` (inline sign-in card and `Numpad`): each digit dot pops in, keys press down, the dot tray shakes on a refused
+  code, the pad eases in, and the error line slides in. All of it plays once on a tap or a result, runs on `--beat`, and is
+  off under `prefers-reduced-motion`. CSS is the `.pad-*` block in `index.css`.
+- Sign in and Save are no longer dead buttons below 6 digits. Tapping with too few shows a toast ("A passcode is 6 to 8
+  digits.", "Use 6 to 8 digits." in the keypad) and shakes the tray. `refusals` counts refused codes so the shake repeats.
+- Web version 0.3.0 to 0.3.1 (`package.json`, lockfile) with a `webChangelog.ts` entry for the 6-digit passcodes, the lock and
+  the pad motion.
+- Verified in a browser on a throwaway backend: dot, tray and notice animations run, the toast shows, the dot animation is
+  `none` with reduced motion. Android: `./gradlew compileDebugKotlin` BUILD SUCCESSFUL (validation text only). Not run: on a
+  phone, and `npm test` (no backend change in this entry).
+
+---
+
+## 2026-10-18: Passcodes lock after 10 wrong tries and need 6+ digits (A216, S3)
+
+- Migration `0040_add_passcode_failures.sql`: `users.passcode_failures`, and every existing `passcode_hash` is cleared (a hash
+  cannot show its length, so each account sets a new 6 to 8 digit passcode).
+- `/auth/passcode-login` counts wrong passcodes in the DB. At 10 it refuses even the right one with "Passcode locked, sign in
+  with your password." A right passcode does not clear the count. `/auth/login` success and setting a new passcode do.
+  Accounts with no passcode, guests and unknown names are not counted and get the plain refusal.
+- Because a locked account stops adding to the per-account hourly limiter, passcode guessing now adds at most 10 of its 20
+  failures, so it can no longer lock the owner out of password sign-in.
+- `PASSCODE_PATTERN` is `^\d{6,8}$` on the server, web (`accountRules.ts`, numpads, invite page) and Android sign-up.
+- Verified: `npm test` 692 pass, 0 fail (new "passcode lock (A216)" suite: lock at 10, right one refused when locked, 9 wrong
+  then right works, right one does not clear the count, password sign-in unlocks, new passcode unlocks, no-passcode account not
+  counted; 4 and 5 digit passcodes refused). Backend `tsc --noEmit` clean, frontend `npm run build` ok, lint has only the
+  warnings it had. Not run: the web UI by hand, Android build.
+
+---
+
 ## 2026-10-18: Web library Play keeps the queue going (A215)
 
 - `playQueue` takes an optional `loadMore`. A queue with one asks it for the next batch whenever 20 songs or fewer

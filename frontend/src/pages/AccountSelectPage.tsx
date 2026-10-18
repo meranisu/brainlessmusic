@@ -6,6 +6,7 @@ import { ShellBackdrop } from '../components/BackdropDepth';
 import { BrandMark, Wordmark } from '../components/BrandLockup';
 import { Numpad } from '../components/Numpad';
 import { PasscodePad } from '../components/PasscodePad';
+import { useToast } from '../components/ToastProvider';
 import { PasswordInput } from '../components/PasswordInput';
 import { RegisterForm } from '../components/RegisterForm';
 import { useThemeCycle } from '../hooks/useThemeCycle';
@@ -104,6 +105,9 @@ export function AccountSelectPage() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [passcode, setPasscodeInput] = useState('');
   const [passcodeError, setPasscodeError] = useState<string | null>(null);
+  /** Counts refused codes so the pad shakes each time, even for a repeated message. */
+  const [passcodeRefusals, setPasscodeRefusals] = useState(0);
+  const { showToast } = useToast();
   const [isPasscodeLoggingIn, setIsPasscodeLoggingIn] = useState(false);
   // Passcode mode starts as a button, so the keypad doesn't push the card past the fold until asked for.
   const [passcodeKeypadOpen, setPasscodeKeypadOpen] = useState(false);
@@ -311,7 +315,12 @@ export function AccountSelectPage() {
 
   async function submitPasscodeLogin(event: FormEvent) {
     event.preventDefault();
-    if (committing || pendingPasscodeSetup || isPasscodeLoggingIn || passcode.length < 4) return;
+    if (committing || pendingPasscodeSetup || isPasscodeLoggingIn) return;
+    if (passcode.length < 6) {
+      showToast('A passcode is 6 to 8 digits.', 'error');
+      setPasscodeRefusals((n) => n + 1);
+      return;
+    }
     setPasscodeError(null);
     setIsPasscodeLoggingIn(true);
 
@@ -320,6 +329,7 @@ export function AccountSelectPage() {
       await commitAndFinish('login', who.displayName);
     } catch (err) {
       setPasscodeError(err instanceof ApiError ? err.message : 'Could not sign in. Is the backend running?');
+      setPasscodeRefusals((n) => n + 1);
       setPasscodeInput('');
     } finally {
       setIsPasscodeLoggingIn(false);
@@ -636,12 +646,16 @@ export function AccountSelectPage() {
                         code={passcode}
                         maxLength={8}
                         disabled={disabled || isPasscodeLoggingIn}
+                        refusals={passcodeRefusals}
                         onPress={pressPasscodeDigit}
                         onBackspace={backspacePasscodeDigit}
                       />
 
                       {passcodeError && (
-                        <p className="mt-3 rounded-md border border-red-700 bg-red-700 px-3 py-2 text-sm text-white">
+                        <p
+                          key={passcodeRefusals}
+                          className="pad-notice mt-3 rounded-md border border-red-700 bg-red-700 px-3 py-2 text-sm text-white"
+                        >
                           {passcodeError}
                         </p>
                       )}
@@ -649,7 +663,7 @@ export function AccountSelectPage() {
                       <div className="mt-2 flex gap-2">
                         <button
                           type="submit"
-                          disabled={isPasscodeLoggingIn || disabled || passcode.length < 4}
+                          disabled={isPasscodeLoggingIn || disabled}
                           className="btn-primary btn-md flex-1"
                         >
                           {isPasscodeLoggingIn ? 'Signing in…' : 'Sign in'}
@@ -858,7 +872,7 @@ export function AccountSelectPage() {
       {showCreatePasscode && (
         <Numpad
           title="Choose a passcode"
-          minLength={4}
+          minLength={6}
           maxLength={8}
           submitLabel="Save"
           submittingLabel="Saving…"

@@ -16,6 +16,15 @@ export interface WebRelease {
 
 export const WEB_CHANGELOG: WebRelease[] = [
   {
+    version: '0.3.1',
+    date: '2026-10-18',
+    changes: [
+      'Passcodes are now 6 to 8 digits, and everyone starts fresh: your old passcode is cleared. Sign in with your password, then set a new passcode in Options.',
+      'After 10 wrong passcodes, passcode sign-in locks until you sign in with your password. The screen tells you when that happens.',
+      'The passcode pad is livelier: digits pop in, keys press down, and a wrong code shakes. Tapping Sign in with too few digits tells you what is needed.',
+    ],
+  },
+  {
     version: '0.3.0',
     date: '2026-10-11',
     changes: [

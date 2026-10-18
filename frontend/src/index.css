@@ -1336,6 +1336,99 @@
   }
 }
 
+/* Passcode pad: each motion answers one tap or one result, plays once, and keeps to the title screen's beat. */
+.pad-dot {
+  animation: pad-dot-in calc(var(--beat, 0.4s) * 0.5) cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+
+.pad-key {
+  transition:
+    transform calc(var(--beat, 0.4s) * 0.25) ease-out,
+    background-color 150ms,
+    border-color 150ms;
+}
+
+.pad-key:active:not(:disabled) {
+  transform: scale(0.93);
+}
+
+.pad-tray.is-refused {
+  animation: pad-refuse calc(var(--beat, 0.4s) * 1.25) ease-out both;
+}
+
+.pad-enter {
+  animation: pad-enter calc(var(--beat, 0.4s) * 0.75) ease-out both;
+}
+
+.pad-notice {
+  animation: pad-notice calc(var(--beat, 0.4s) * 0.75) ease-out both;
+}
+
+@keyframes pad-dot-in {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pad-refuse {
+  0%,
+  100% {
+    transform: none;
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(5px);
+  }
+  60% {
+    transform: translateX(-3px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+@keyframes pad-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pad-notice {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pad-dot,
+  .pad-tray.is-refused,
+  .pad-enter,
+  .pad-notice {
+    animation: none;
+  }
+
+  .pad-key:active:not(:disabled) {
+    transform: none;
+  }
+}
+
 /* The enter button blinks like PRESS START, by swapping between two oranges: fading would drop its text's contrast. */
 .enter-blink {
   animation: enter-blink calc(var(--beat, 0.4s) * 4) ease-in-out infinite;
