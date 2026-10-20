@@ -4,6 +4,17 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-20: Android asks the server to convert the next song early
+
+- `PlaybackController.prepareNext()` calls `POST /tracks/:id/prepare` (with `?quality=low` under data saver) for the next
+  song in play order, 15 s after a song starts (same delay as the web), so a skip run starts no conversions. Only when
+  nothing else pulls the next song early: "Fetch ahead" set to Off, or in a room. With Fetch ahead on, the pre-cache
+  already streams the next songs, which makes the server convert them. Skipped for a song already on the phone, under
+  repeat-one, offline, or one already asked for.
+- Why: brainstorm "Pre-transcode the next queued track" said Android never called the endpoint. First play of an
+  uncached FLAC on data saver waits for a full conversion (4.5 s for 7 minutes).
+- Verified: `./gradlew assembleDebug testDebugUnitTest` pass. Not run on a phone.
+
 ## 2026-10-20: Listening stats dashboard (backend, web, Android)
 
 - New `GET /me/stats/patterns?range=&tz=` (`backend/src/routes/stats.ts`, `getListeningPatterns()` in

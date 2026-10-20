@@ -193,6 +193,10 @@ interface ApiService {
     @GET("search?type=people")
     suspend fun searchPeople(@Query("q") query: String, @Query("offset") offset: Int, @Query("limit") limit: Int): SearchPageDto<PersonDto>
 
+    /** Asks the server to convert a track ahead of time; replies at once whatever it decides. */
+    @POST("tracks/{id}/prepare")
+    suspend fun prepareTrack(@Path("id") id: Int, @Query("quality") quality: String?)
+
     @POST("tracks/{id}/scrobble")
     suspend fun scrobble(@Path("id") id: Int, @Body body: ScrobbleRequest): ScrobbleResponse
 

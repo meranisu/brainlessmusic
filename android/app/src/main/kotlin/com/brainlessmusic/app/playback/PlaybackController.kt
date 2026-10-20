@@ -69,6 +69,7 @@ import javax.inject.Singleton
 
 private const val TAG = "PlaybackController"
 private const val TICK_MS = 500L
+private const val PREPARE_NEXT_DELAY_MS = 15_000L
 
 /**
  * The app's one ExoPlayer, wrapped in a MediaSession by [PlaybackService]. It streams through the authenticated
@@ -223,6 +224,9 @@ class PlaybackController @Inject constructor(
     private var dataSaver = false
     // Mirrors the "Fetch ahead" setting: songs after the playing one to hold on the phone (see `updatePrecache`).
     private var precacheCount = 0
+    // With "Fetch ahead" off or in a room nothing pulls the next song early, so the server is asked to convert it (see `prepareNext`).
+    private var prepareJob: Job? = null
+    private var preparedId: Int? = null
 
     // Where the queue is topped up from as it runs low (see QueueSource). `generation` changes whenever the queue is
     // replaced, so a top-up that was in flight for the old queue is dropped instead of landing on the new one.
@@ -1231,6 +1235,7 @@ class PlaybackController @Inject constructor(
             networkMonitor.online.value
         if (!live) {
             precacher.want(emptyList())
+            prepareNext()
             return
         }
         // Not yet playing: leave the list as it is, so a song just started is not starved by a fetch.
@@ -1244,6 +1249,26 @@ class PlaybackController @Inject constructor(
             wrap = player.repeatMode == Player.REPEAT_MODE_ALL,
         )
         precacher.want(picks.mapNotNull { i -> queue.getOrNull(i)?.let { item -> streamUrlFor(item)?.let { PrecacheWant(item, it) } } })
+    }
+
+    /**
+     * Asks the server to convert the next song after [PREPARE_NEXT_DELAY_MS], so a skip run doesn't start one per song.
+     * Same delay as the web. Skipped for a song already on the phone, or one already asked for.
+     */
+    private fun prepareNext() {
+        prepareJob?.cancel()
+        if (!playerLazy.isInitialized() || queue.isEmpty() || !networkMonitor.online.value) return
+        if (player.playbackState != Player.STATE_READY || player.repeatMode == Player.REPEAT_MODE_ONE) return
+        val order = playOrder()
+        val next = precacheOrder(order, order.indexOf(player.currentMediaItemIndex), 1, wrap = player.repeatMode == Player.REPEAT_MODE_ALL)
+            .drop(1).firstOrNull()?.let(queue::getOrNull) ?: return
+        val id = next.trackId
+        if (id == preparedId || onPhone(id)) return
+        prepareJob = scope.launch {
+            delay(PREPARE_NEXT_DELAY_MS)
+            preparedId = id
+            libraryRepository.prepareTrack(id, dataSaver)
+        }
     }
 
     private fun onPhone(trackId: Int) = downloads.isDownloaded(trackId) || songCache.isCached(trackId)

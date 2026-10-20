@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `prepareNext()` — `android/app/src/main/kotlin/com/brainlessmusic/app/playback/PlaybackController.kt` (with `LibraryRepository.prepareTrack()`, `ApiService.prepareTrack()`)
+**Date:** 2026-10-20
+**How added:** new feature
+**Purpose:** asks the server to convert the next song ahead of time when the pre-cache is off or in a room.
+**Side effects:** one `POST /tracks/:id/prepare` per next song, after 15 s.
+**Before:** Android never called the endpoint.
+**After:** the next song's converted copy is warm on the server before it plays.
+
 **Function:** `getListeningPatterns()` — `backend/src/db/listeningStats.ts`
 **Date:** 2026-10-20
 **How added:** new feature

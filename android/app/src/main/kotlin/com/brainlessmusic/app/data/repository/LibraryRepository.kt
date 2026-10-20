@@ -103,6 +103,10 @@ class LibraryRepository @Inject constructor(
         return callApi { it.scrobble(trackId, body) }.map { it.playId }
     }
 
+    /** Warms the server's converted copy of [trackId] so its first play doesn't wait for it. Best effort. */
+    suspend fun prepareTrack(trackId: Int, dataSaver: Boolean): Result<Unit> =
+        callApi { it.prepareTrack(trackId, if (dataSaver) "low" else null) }
+
     /** The play's real length, sent when the track ends, is skipped or pauses (A62). Later calls overwrite earlier ones. */
     suspend fun finishPlay(playId: Int, msPlayed: Long): Result<Unit> =
         callApi { it.finishPlay(playId, FinishPlayRequest(msPlayed)) }
