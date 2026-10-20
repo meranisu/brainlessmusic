@@ -31,6 +31,8 @@ is never asked twice.
 | [Q5](#q5--tag-editing-scope) | Tag-editing scope | 2026-09-09 | No |
 | [Q77](#q77--how-does-the-android-app-get-past-cloudflare-access) | How does the Android app get past Cloudflare Access? | 2026-10-11 | Yes, before Access goes on |
 | [Q78](#q78--who-goes-on-the-access-email-list) | Who goes on the Access email list? | 2026-10-11 | Yes, before Access goes on |
+| [Q220](#q220--android-whole-library-copy-room) | Android: keep a copy of the whole library on the phone? | 2026-10-20 | No |
+| [Q221](#q221--304-nothing-changed-check) | Build the 304 "nothing changed" check? | 2026-10-20 | No |
 
 ### Q5 — Tag-editing scope
 **Asked:** 2026-09-09 · **Blocking:** no
@@ -58,6 +60,24 @@ includes friends using a guest code on the web: without their email on the list 
 
 - **A. You and the friends who use the web (recommended).** Each friend's email goes on the list once.
 - **B. Only you.** Friends use the Android app only (with Q77's token), never the web.
+
+### Q220 — Android whole-library copy (Room)
+**Asked:** 2026-10-20 · **Blocking:** no ([library-list-cache](features/library-list-cache/planning.md), Phase 2)
+
+The first page now shows at once. Keeping every song, album and artist on the phone would make scrolling, letter jumps
+and browsing with no signal instant too, at the cost of a sync system (a new server endpoint and a version bumped by
+every library change) and about 10 MB per 50k songs.
+
+- **A. Build it.** Worth it if browsing the library with no signal matters (bike rides away from coverage).
+- **B. Park it (recommended).** Downloads and the song cache already cover offline listening; the first-page copy covers the wait.
+
+### Q221 — 304 "nothing changed" check
+**Asked:** 2026-10-20 · **Blocking:** no ([library-list-cache](features/library-list-cache/planning.md), Phase 3)
+
+A 304 still makes the 0.2 to 1 s tunnel trip, so it saves data, not time; pages are already compressed.
+
+- **A. Build it with Q220's A**, since both need the same library version counter.
+- **B. Skip it (recommended)** unless Q220 is A.
 
 ## Answered
 

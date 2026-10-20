@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `LibraryPageStore`, `SavedFirstPage` — `android/app/src/main/kotlin/com/brainlessmusic/app/data/paging/SavedFirstPage.kt` (with `LibraryViewModel.pager`, `savedPageState()`, `PagedContent` in `LibraryScreen.kt`)
+**Date:** 2026-10-20
+**How added:** new feature
+**Purpose:** keep the first page of Songs, Albums and Artists on disk and show it while the fresh page loads.
+**Side effects:** writes JSON files under `filesDir/library_pages/`; deleted on logout and on a refused session.
+**Before:** every app start waited for the server before the list showed.
+**After:** the saved page shows at once with an "Updating…" chip; the list reloads only if the server's page differs.
+
+**Function:** `loadLibraryPage()`, `saveLibraryPage()`, `clearLibraryPages()` — `frontend/src/lib/libraryPageCache.ts` (with `pageQuery` in `frontend/src/pages/LibraryPage.tsx`)
+**Date:** 2026-10-20
+**How added:** new feature
+**Purpose:** keep the Simple library's first 3 pages in `localStorage` per user, so the list shows before the server answers.
+**Side effects:** `localStorage` reads and writes under `brainlessmusic.libraryPage.<userId>.<page>`; cleared on logout.
+**Before:** the list waited for the server on every visit; react-query's copy was lost on reload.
+**After:** the saved pages show at once (as `initialData`, dated 0 so they refetch) and are replaced by the fresh answer.
+
 **Function:** `CoverCache` — `android/app/src/main/kotlin/com/brainlessmusic/app/downloads/CoverCache.kt` (with `PlaybackSettings.coverCacheLimitMb`, `CoverCacheSettings()` in `ui/downloads/DownloadSettings.kt`)
 **Date:** 2026-10-20
 **How added:** new feature

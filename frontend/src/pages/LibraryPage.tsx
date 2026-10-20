@@ -11,6 +11,7 @@ import { useToast } from '../components/ToastProvider';
 import { apiClient } from '../lib/apiClient';
 import { formatScanStatus } from '../lib/format';
 import { useLetterIndex } from '../lib/letterIndex';
+import { loadLibraryPage, saveLibraryPage } from '../lib/libraryPageCache';
 import { loadLibraryView, saveLibraryView, type LibraryView } from '../lib/libraryView';
 import type { LibraryRootListResponse, TrackListResponse, TrackSummary } from '../types/api';
 import { Skeleton, SkeletonArcade } from '../components/Skeleton';
@@ -26,12 +27,18 @@ const PAGES_BEFORE = 1;
 const PAGES_AFTER = 2;
 
 /** One page of the library list. The same key and fetch serve the strip and Play, so a page loads once. */
-const pageQuery = (page: number) => ({
+// The opening pages start from the browser's copy (dated 0, so they refetch at once) and save each fresh answer.
+const pageQuery = (userId: number | undefined) => (page: number) => ({
   queryKey: ['tracks', 'arcade', page],
-  queryFn: () =>
-    apiClient.get<TrackListResponse>(
+  queryFn: async () => {
+    const data = await apiClient.get<TrackListResponse>(
       `/tracks?sort=title&order=asc&hidden=exclude&missing=all&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`,
-    ),
+    );
+    saveLibraryPage(userId, page, data);
+    return data;
+  },
+  initialData: () => loadLibraryPage(userId, page),
+  initialDataUpdatedAt: 0,
   staleTime: 30_000,
 });
 
@@ -76,7 +83,7 @@ function SimpleLibrary() {
 
   // The list is as long as the server says, but only the pages near the selection are loaded: a jump to Z fetches the
   // pages around Z, not every page before it. Page 0 stays for the total.
-  const first = useQuery(pageQuery(0));
+  const first = useQuery(pageQuery(user?.id)(0));
   const total = first.data?.total ?? 0;
   const lastPage = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1);
   const shown = Math.min(selected, Math.max(total - 1, 0));
@@ -86,7 +93,7 @@ function SimpleLibrary() {
     for (let p = shownPage - PAGES_BEFORE; p <= shownPage + PAGES_AFTER; p++) if (p >= 1 && p <= lastPage) pages.push(p);
     return pages;
   }, [shownPage, lastPage]);
-  const nearby = useQueries({ queries: wanted.map(pageQuery), combine: dataOf });
+  const nearby = useQueries({ queries: wanted.map(pageQuery(user?.id)), combine: dataOf });
 
   const pages = useMemo(() => {
     const byPage = new Map<number, TrackSummary[]>();
@@ -122,7 +129,7 @@ function SimpleLibrary() {
       const to = Math.min(lastPage, page + PAGES_AFTER);
       try {
         const results = await Promise.all(
-          Array.from({ length: to - from + 1 }, (_, i) => queryClient.fetchQuery(pageQuery(from + i))),
+          Array.from({ length: to - from + 1 }, (_, i) => queryClient.fetchQuery(pageQuery(user?.id)(from + i))),
         );
         const run = results.flatMap((result) => result.tracks);
         const track = run[index - from * PAGE_SIZE];
@@ -132,7 +139,7 @@ function SimpleLibrary() {
         let nextPage = to + 1;
         const loadMore = async () => {
           while (nextPage <= lastPage) {
-            const { tracks } = await queryClient.fetchQuery(pageQuery(nextPage++));
+            const { tracks } = await queryClient.fetchQuery(pageQuery(user?.id)(nextPage++));
             const more = tracks.filter((candidate) => !candidate.missing);
             if (more.length > 0) return more;
           }
@@ -143,7 +150,7 @@ function SimpleLibrary() {
         showToast("Couldn't load those songs to play. Try again.", 'error');
       }
     },
-    [lastPage, queryClient, playQueue, showToast],
+    [lastPage, queryClient, playQueue, showToast, user?.id],
   );
 
   if (first.isLoading) {
@@ -154,13 +161,17 @@ function SimpleLibrary() {
     );
   }
 
-  if (first.isError) {
+  // A saved copy keeps showing when the refresh fails, with a note saying so.
+  if (first.isError && !first.data) {
     return <p className="text-sm text-red-300">Could not load your library.</p>;
   }
 
   if (total === 0) {
     return <LibraryEmptyState />;
   }
+
+  // Dated 0 means the browser's copy is still on screen: a change made elsewhere may be about to show up.
+  const savedCopyNote = first.dataUpdatedAt === 0 ? (first.isError ? "Couldn't refresh" : 'Updating…') : '';
 
   return (
     <ArcadeSelect
@@ -172,7 +183,7 @@ function SimpleLibrary() {
       selected={shown}
       onSelect={setSelected}
       onPlay={play}
-      scanStatus={scanStatus}
+      scanStatus={scanStatus || savedCopyNote}
     />
   );
 }

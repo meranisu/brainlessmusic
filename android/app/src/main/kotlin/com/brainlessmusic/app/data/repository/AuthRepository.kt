@@ -1,5 +1,6 @@
 package com.brainlessmusic.app.data.repository
 
+import com.brainlessmusic.app.data.paging.LibraryPageStore
 import com.brainlessmusic.app.data.local.AppearanceSettings
 import com.brainlessmusic.app.data.local.ColorTheme
 import com.brainlessmusic.app.data.local.SessionStore
@@ -52,6 +53,7 @@ class AuthRepository @Inject constructor(
     private val appearance: AppearanceSettings,
     private val pendingPlays: PendingPlays,
     private val networkMonitor: NetworkMonitor,
+    private val libraryPageStore: LibraryPageStore,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -398,6 +400,7 @@ class AuthRepository @Inject constructor(
         tokenProvider.current = null
         mediaUrlProvider.current = null
         pendingPlays.forget()
+        libraryPageStore.clear()
         sessionStore.clearCredentials()
     }
 
@@ -425,6 +428,7 @@ class AuthRepository @Inject constructor(
         tokenProvider.current = null
         tokenProvider.isGuest = false
         mediaUrlProvider.current = null
+        libraryPageStore.clear()
         sessionStore.clearCredentials()
     }
 }

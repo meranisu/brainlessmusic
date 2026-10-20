@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { apiClient, getToken, onSessionRefused, onTokenChangedElsewhere, setToken } from '../lib/apiClient';
+import { clearLibraryPages } from '../lib/libraryPageCache';
 import { applyTheme, clearTheme, hasLocalTheme, isTheme, loadTheme } from '../lib/theme';
 import type { User } from '../types/api';
 
@@ -62,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       onSessionRefused(() => {
         setUser(null);
         clearTheme();
+        clearLibraryPages();
         queryClient.clear();
       }),
     [queryClient],
@@ -76,6 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!token) {
           setUser(null);
           clearTheme();
+          clearLibraryPages();
           return;
         }
         apiClient
@@ -201,6 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
     setUser(null);
     clearTheme();
+    clearLibraryPages();
     queryClient.clear();
   }
 

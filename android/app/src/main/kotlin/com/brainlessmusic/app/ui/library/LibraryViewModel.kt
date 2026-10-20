@@ -9,6 +9,9 @@ import androidx.paging.cachedIn
 import androidx.paging.map
 import com.brainlessmusic.app.data.paging.OffsetPage
 import com.brainlessmusic.app.data.paging.OffsetPagingSource
+import com.brainlessmusic.app.data.paging.LibraryPageStore
+import com.brainlessmusic.app.data.paging.SavedFirstPage
+import com.brainlessmusic.app.data.paging.SavedPageState
 import com.brainlessmusic.app.data.remote.dto.AlbumSummaryDto
 import com.brainlessmusic.app.data.remote.dto.ArtistSummaryDto
 import com.brainlessmusic.app.data.remote.dto.LetterEntryDto
@@ -56,7 +59,20 @@ class LibraryViewModel @Inject constructor(
     private val playbackController: PlaybackController,
     private val playbackResume: PlaybackResume,
     private val libraryShuffle: LibraryShuffle,
+    libraryPageStore: LibraryPageStore,
 ) : ViewModel() {
+
+    // The first page of each list shows from the phone's copy while the server's answer is on its way.
+    private val savedSongs = SavedFirstPage(libraryPageStore, "songs", TrackSummaryDto::class.java, viewModelScope)
+    private val savedAlbums = SavedFirstPage(libraryPageStore, "albums", AlbumSummaryDto::class.java, viewModelScope)
+    private val savedArtists = SavedFirstPage(libraryPageStore, "artists", ArtistSummaryDto::class.java, viewModelScope)
+
+    /** Per tab: whether its list is the saved copy still being checked, or one that could not be checked. */
+    fun savedPageState(tab: LibraryTab): StateFlow<SavedPageState> = when (tab) {
+        LibraryTab.ALBUMS -> savedAlbums.state
+        LibraryTab.ARTISTS -> savedArtists.state
+        else -> savedSongs.state
+    }
 
     private val _tab = MutableStateFlow(LibraryTab.SONGS)
     val tab: StateFlow<LibraryTab> = _tab.asStateFlow()
@@ -78,19 +94,23 @@ class LibraryViewModel @Inject constructor(
         .distinctUntilChanged()
         .debounce { if (it == null) 0L else FILTER_DEBOUNCE_MS } // clearing is instant
         .flatMapLatest { filter ->
-            pager { offset, limit ->
+            // Only the unfiltered list is saved; a filter always asks the server.
+            val fetch: suspend (Int, Int) -> Result<OffsetPage<TrackSummaryDto>> = { offset, limit ->
                 libraryRepository.getTracksPage(offset, limit, filter).map { OffsetPage(it.tracks, it.total) }
-            }.map { page -> page.map { SongListRow(it, filter) } }
+            }
+            (if (filter == null) pager(savedSongs, savedSongs.wrap(fetch)) else pager(null, fetch)).map { page -> page.map { SongListRow(it, filter) } }
         }
         .cachedIn(viewModelScope)
 
-    val albums: Flow<PagingData<AlbumSummaryDto>> = pager { offset, limit ->
-        libraryRepository.getAlbumsPage(offset, limit).map { OffsetPage(it.albums, it.total) }
-    }.cachedIn(viewModelScope)
+    val albums: Flow<PagingData<AlbumSummaryDto>> = pager(
+        savedAlbums,
+        savedAlbums.wrap { offset, limit -> libraryRepository.getAlbumsPage(offset, limit).map { OffsetPage(it.albums, it.total) } },
+    ).cachedIn(viewModelScope)
 
-    val artists: Flow<PagingData<ArtistSummaryDto>> = pager { offset, limit ->
-        libraryRepository.getArtistsPage(offset, limit).map { OffsetPage(it.artists, it.total) }
-    }.cachedIn(viewModelScope)
+    val artists: Flow<PagingData<ArtistSummaryDto>> = pager(
+        savedArtists,
+        savedArtists.wrap { offset, limit -> libraryRepository.getArtistsPage(offset, limit).map { OffsetPage(it.artists, it.total) } },
+    ).cachedIn(viewModelScope)
 
     private val _letters = MutableStateFlow<Map<LibraryTab, List<LetterEntryDto>>>(emptyMap())
     val letters: StateFlow<Map<LibraryTab, List<LetterEntryDto>>> = _letters.asStateFlow()
@@ -158,7 +178,10 @@ class LibraryViewModel @Inject constructor(
         viewModelScope.launch { libraryShuffle.start()?.let(onNothing) }
     }
 
-    private fun <T : Any> pager(fetch: suspend (offset: Int, limit: Int) -> Result<OffsetPage<T>>): Flow<PagingData<T>> =
+    private fun <T : Any> pager(
+        saved: SavedFirstPage<T>?,
+        fetch: suspend (offset: Int, limit: Int) -> Result<OffsetPage<T>>,
+    ): Flow<PagingData<T>> =
         Pager(
             config = PagingConfig(
                 pageSize = PAGE_SIZE,
@@ -169,7 +192,7 @@ class LibraryViewModel @Inject constructor(
                 // through every page in between.
                 jumpThreshold = PAGE_SIZE * 2,
             ),
-            pagingSourceFactory = { OffsetPagingSource(fetch) },
+            pagingSourceFactory = { OffsetPagingSource(fetch).also { saved?.source = it } },
         ).flow
 }
 

@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -95,6 +96,7 @@ import androidx.navigation.NavHostController
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
+import com.brainlessmusic.app.data.paging.SavedPageState
 import androidx.paging.compose.itemKey
 import com.brainlessmusic.app.data.remote.dto.AlbumSummaryDto
 import com.brainlessmusic.app.data.remote.dto.ArtistSummaryDto
@@ -442,6 +444,7 @@ private fun <T : Any> PagedContent(
     onRefresh: () -> Unit,
     topInset: Dp,
     loadingLabel: String,
+    savedState: SavedPageState = SavedPageState.NONE,
     skeleton: @Composable () -> Unit,
     content: @Composable () -> Unit,
 ) {
@@ -492,7 +495,22 @@ private fun <T : Any> PagedContent(
                     )
                 },
                 modifier = Modifier.fillMaxSize(),
-            ) { content() }
+            ) {
+                content()
+                // The phone's copy is on screen: a change made elsewhere may be about to show up.
+                if (savedState != SavedPageState.NONE) {
+                    Text(
+                        if (savedState == SavedPageState.UPDATING) "Updating…" else "Couldn't refresh",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = topInset + 4.dp)
+                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(50))
+                            .padding(horizontal = 10.dp, vertical = 3.dp),
+                    )
+                }
+            }
         }
     }
 }
@@ -521,6 +539,7 @@ private fun SongsTab(viewModel: LibraryViewModel, navController: NavHostControll
         onRefresh = { viewModel.reloadLetters(LibraryTab.SONGS) },
         topInset = TabBarClearance,
         loadingLabel = "Loading songs",
+        savedState = viewModel.savedPageState(LibraryTab.SONGS).collectAsStateWithLifecycle().value,
         skeleton = {
             SkeletonListRows(trailing = true, contentPadding = PaddingValues(top = TabBarClearance, end = ListEndPadding))
         },
@@ -643,6 +662,7 @@ private fun AlbumsTab(viewModel: LibraryViewModel, navController: NavHostControl
         onRefresh = { viewModel.reloadLetters(LibraryTab.ALBUMS) },
         topInset = TabBarClearance,
         loadingLabel = "Loading albums",
+        savedState = viewModel.savedPageState(LibraryTab.ALBUMS).collectAsStateWithLifecycle().value,
         skeleton = { SkeletonAlbumGrid(contentPadding = AlbumGridPadding) },
     ) {
         Box(Modifier.fillMaxSize()) {
@@ -699,6 +719,7 @@ private fun ArtistsTab(viewModel: LibraryViewModel, navController: NavHostContro
         onRefresh = { viewModel.reloadLetters(LibraryTab.ARTISTS) },
         topInset = TabBarClearance,
         loadingLabel = "Loading artists",
+        savedState = viewModel.savedPageState(LibraryTab.ARTISTS).collectAsStateWithLifecycle().value,
         skeleton = { SkeletonListRows(contentPadding = PaddingValues(top = TabBarClearance, end = ListEndPadding)) },
     ) {
         Box(Modifier.fillMaxSize()) {

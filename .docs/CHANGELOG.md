@@ -4,6 +4,31 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-20: Web library list shows the last copy at once
+
+- New `frontend/src/lib/libraryPageCache.ts`: the Simple library's first 3 pages (200 songs each) are saved in the
+  browser per user. `pageQuery` in `LibraryPage.tsx` starts from that copy, marked stale so the real fetch still runs,
+  and saves each fresh answer. Logout, a refused session and an account switch in another tab clear the copies
+  (`AuthContext.tsx`).
+- Why: on production, a request that does no work took 0.20 to 1.03 s through the tunnel (5 tries of `/api/health`,
+  2026-10-20). That trip, not the server, is the wait, so a 304 check would not help; showing the saved list does.
+- Verified: `npm run build` and `npm run lint` pass (no new warnings). In Chromium (Playwright) on a copy of the dev DB
+  (19 songs): page 0 saved after the first visit; on reload with `/api/tracks` held back 4 s the list showed after
+  about 0.9 s; logout removed the saved page. Not tried on production or with a large library.
+- Follow-up: while the saved copy is on screen the list footer says "Updating…", or "Couldn't refresh" if the fetch
+  failed; a failed refresh now keeps the saved list up instead of the error line. Play already fetches fresh pages, so
+  the saved copy is display only. Verified: `tsc -b` and oxlint pass. The note itself not seen in a browser.
+
+## 2026-10-20: Android library lists show the last copy at once
+
+- New `data/paging/SavedFirstPage.kt`: `LibraryPageStore` keeps the first page (100 rows) of Songs, Albums and Artists
+  in `filesDir/library_pages/`. `SavedFirstPage` serves it once, fetches the real page behind it, saves that, and
+  reloads the list only if the two differ. A "Updating…" / "Couldn't refresh" chip shows over the list meanwhile
+  (`PagedContent` in `LibraryScreen.kt`). A filtered Songs list always asks the server. Logout and a refused session
+  clear the files (`AuthRepository`).
+- Why: same as the web change: the tunnel trip, not the server, is the wait.
+- Verified: `./gradlew compileDebugKotlin` passes. Not run on a phone or emulator.
+
 ## 2026-10-20: Android album art cache with its own size limit
 
 - New `CoverCache` (`android/.../downloads/CoverCache.kt`): Coil's disk cache for covers, in the same `image_cache`
