@@ -4,6 +4,110 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `getListeningPatterns()` — `backend/src/db/listeningStats.ts`
+**Date:** 2026-10-20
+**How added:** new feature
+**Purpose:** when one account listens over a range, in a given zone: by hour, weekday, a trend, streaks, busiest (with new `resolveTimeZone()` and private `localClock`, `streaks`).
+**Side effects:** none (reads `play_history`).
+**Before:** nothing — new function.
+**After:** backs `GET /me/stats/patterns`.
+
+**Function:** `statsRoute` — `backend/src/routes/stats.ts`
+**Date:** 2026-10-20
+**How added:** new feature
+**Purpose:** adds `GET /me/stats/patterns`; `/me/stats` also returns `topGenres`; range check shared (`isRange`).
+**Side effects:** none.
+**Before:** `/me/stats` without genres; no patterns endpoint.
+**After:** as above, accounts only.
+
+**Function:** `StatsPage()` — `frontend/src/pages/StatsPage.tsx`
+**Date:** 2026-10-20
+**How added:** new feature
+**Purpose:** the web Stats page (with `Record`, `TrendChart`, `WhenYouListen`, `Bars`, `RecentlyPlayed`).
+**Side effects:** GETs `/me/stats`, `/me/stats/patterns`, `/me/history`; plays songs on click.
+**Before:** nothing — new page.
+**After:** at `/stats`, in More for accounts.
+
+**Function:** `RangePicker()`, `Section()`, `SongRows()` — `frontend/src/components/ListeningParts.tsx`
+**Date:** 2026-10-20
+**How added:** refactor
+**Purpose:** shared by the profile page and the Stats page.
+**Side effects:** none.
+**Before:** private to `ProfilePage.tsx`; `Section` let a grid item grow past a phone's width.
+**After:** exported; `Section` has `min-w-0`.
+
+**Function:** `StatsScreen()`, `StatsViewModel` — `android/.../ui/stats/`
+**Date:** 2026-10-20
+**How added:** new feature
+**Purpose:** the Android Stats screen, from Home's "See all your stats"; `ProfileRepository.listeningPatterns()` and `historyPage()` added.
+**Side effects:** network reads; plays songs on tap.
+**Before:** nothing — new screen.
+**After:** route `stats`.
+
+**Function:** `scanLibrary()` — `backend/src/services/scanner.ts`
+**Date:** 2026-10-20
+**How added:** performance
+**Purpose:** commit a scan's writes 32 files at a time (`scanFile` split into new private `readFile`, `writeBatch`, `failed`, `inChunks`).
+**Side effects:** up to 32 files' tags and pictures held in memory per batch; artwork stored after the batch commits.
+**Before:** each file read, written and committed on its own; several commits per track.
+**After:** one commit per 32 files, a savepoint per file; 1,000-track bench 11.0 s to 3.2 s.
+
+**Function:** `thumbnailPathFor()` — `backend/src/services/artwork.ts`
+**Date:** 2026-10-20
+**How added:** performance
+**Purpose:** cap and dedupe cover thumbnail ffmpeg runs (new private `makeThumbnail`, `takeThumbSlot`, `releaseThumbSlot`).
+**Side effects:** past 2 running and 64 waiting, returns the full image; ffmpeg killed after 30 s.
+**Before:** one ffmpeg per request, no limit, no timeout; same-cover requests shared a temp file.
+**After:** at most 2 at once; same cover runs once.
+
+**Function:** `buildApp()` — `backend/src/app.ts`
+**Date:** 2026-10-20
+**How added:** new feature
+**Purpose:** compress replies over 1 KB (`@fastify/compress`).
+**Side effects:** adds `content-encoding` to compressible replies when the client sends `accept-encoding`; audio untouched.
+**Before:** no compression.
+**After:** gzip/brotli for JSON and text.
+
+**Function:** `makeTempDir()` — `backend/src/testing/tempDir.ts`
+**Date:** 2026-10-20
+**How added:** refactor
+**Purpose:** make a scratch folder without importing the DB or config, so a script can set data paths first.
+**Side effects:** none new.
+**Before:** lived in `harness.ts`, which imports `db/connection.js` and so `config.ts`.
+**After:** own file; `harness.ts` re-exports it, so tests are unchanged.
+
+**Function:** `main()`, `writeLibrary()`, `id3Tag()`, `measure()` — `backend/src/scripts/scale-benchmark.ts`
+**Date:** 2026-10-20
+**How added:** new feature
+**Purpose:** time scans of a synthetic library and sample peak memory.
+**Side effects:** writes and then deletes one temp folder; never touches configured paths.
+**Before:** nothing — new.
+**After:** `npm run bench:scale`.
+
+**Function:** `scanLibrary()`, `scanFile()` — `backend/src/services/scanner.ts`
+**Date:** 2026-10-20
+**How added:** new feature
+**Purpose:** skip files unchanged since their last read; `options.full` turns the skip off.
+**Side effects:** fewer DB writes and artwork writes; unchanged files are only stat'ed.
+**Before:** every file's tags were parsed and its row upserted on every scan.
+**After:** a file whose size, mtime and `SCANNER_VERSION` match its row returns `unchanged`; `ScanSummary.filesUnchanged` counts them.
+
+**Function:** `listTrackFileStamps()`, `upsertTrack()` — `backend/src/db/library.ts`
+**Date:** 2026-10-20
+**How added:** new feature
+**Purpose:** load each track's size, mtime and scan version for one root in one query; store mtime and version on upsert.
+**Side effects:** read-only (`listTrackFileStamps`); `upsertTrack` now also writes `file_mtime`, `scan_version`.
+**Before:** nothing — new function; upsert did not store mtime or version.
+**After:** the scanner compares against the stamps instead of reading tags.
+
+**Function:** `syncLibrary()` — `backend/src/services/librarySync.ts`; scan handlers — `backend/src/routes/library.ts`
+**Date:** 2026-10-20
+**How added:** new feature
+**Purpose:** pass `full` from `?full=1` on both scan routes through to the scanner; the log line reports unchanged files.
+**Side effects:** none new.
+**Before:** no way to ask for a full reread (every scan was full).
+**After:** default incremental; `?full=1` rereads all.
+
 **Function:** `onTokenChangedElsewhere()` — `frontend/src/lib/apiClient.ts`; `AuthProvider` effect — `frontend/src/auth/AuthContext.tsx`
 **Date:** 2026-10-18
 **How added:** bug fix

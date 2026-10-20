@@ -61,6 +61,34 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A230 — Listening patterns: own only (was Q219)
+**Answered:** 2026-10-20, in chat. Own only. `/me/stats/patterns` sits behind `requireAccount`; profiles don't show patterns. [stats dashboard](features/stats-dashboard/planning.md).
+
+### A229 — All-time trend chart (was Q218)
+**Answered:** 2026-10-20, in chat. Weekly bars for All time; daily for week, month and year. [stats dashboard](features/stats-dashboard/planning.md).
+
+### A228 — Android Stats placement (was Q217)
+**Answered:** 2026-10-20, in chat. A separate Stats screen, opened from the Home stats card. Home stays as it is. [stats dashboard](features/stats-dashboard/planning.md).
+
+### A227 — Web Stats page in the nav (was Q216)
+**Answered:** 2026-10-20, in chat. Overflow menu, not a primary tab. [stats dashboard](features/stats-dashboard/planning.md).
+
+### A226 — Delete the leftover benchmark folder? (was Q215)
+**Answered:** 2026-10-20, in chat. Yes. `/tmp/brainlessmusic-scale-bench-p39nNJ` (645 MB, synthetic files only) deleted.
+
+### A225 — Commit response compression alone or with the scan work? (was Q214)
+**Answered:** 2026-10-20, in chat. One commit for all of it: incremental scan, scale benchmark, response compression and
+the thumbnail cap. Do not commit yet; more performance work goes in first.
+
+### A224 — Does an mtime-only change reread tags? (was Q213)
+**Answered:** 2026-10-20, in chat. Yes: any change to size or modified time rereads the file. Built that way in the
+incremental scan ([incremental-scan](features/incremental-scan/planning.md)).
+
+### A223 — Full rescan button on the web (was Q212)
+**Answered:** 2026-10-20, in chat. Yes, on the web admin page. Built: a "Full rescan" button beside each folder's
+"Rescan" in Options → Library folders, calling `POST /library/roots/:id/scan?full=1`. Browser-checked on a throwaway
+3-song library, desktop and phone width.
+
 ### A222 — Desktop Now Playing view: tabs, background, queue editing (was Q211) *(asked in chat)*
 **Answered:** 2026-10-18, in chat. Tabs: Up next and Related (more from the album, other albums by the artist, from data the
 app already has). Lyrics later, as its own feature. Background: a flat wash of the cover's colour mixed into the theme ground,

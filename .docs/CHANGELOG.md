@@ -4,6 +4,97 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-20: Listening stats dashboard (backend, web, Android)
+
+- New `GET /me/stats/patterns?range=&tz=` (`backend/src/routes/stats.ts`, `getListeningPatterns()` in
+  `backend/src/db/listeningStats.ts`): plays and time by local hour and weekday, a day-by-day trend (week-by-week for
+  all time, A229), the day streak over all time, and the busiest hour, weekday and day. `tz` is an IANA zone from the
+  client; the server buckets in JS with `Intl`, so daylight saving is right. A missing or unknown zone falls back to
+  UTC. Accounts only. `/me/stats` now also returns `topGenres`.
+- Web: new Stats page at `/stats` (`frontend/src/pages/StatsPage.tsx`), in the More menu for accounts (A227): time
+  listened against the window before, the day streak (as a "day combo"), plays per day with a plays/minutes switch,
+  hour and weekday bars, top songs, artists, albums and genres, and every play 50 at a time. The range picker, section
+  heading and song rows moved from the profile page to `frontend/src/components/ListeningParts.tsx`.
+- Fix found on the way: a long song title in a profile's Top songs pushed the page sideways on a phone (a grid item's
+  minimum width). `Section` now has `min-w-0`.
+- Android: new Stats screen (`ui/stats/StatsScreen.kt`, `StatsViewModel.kt`), opened by "See all your stats" under
+  Home's listening card (A228). Same sections, bars drawn on a `Canvas`. If the patterns call fails (an older server),
+  the rest still shows.
+- Why: brainstorm "Listening stats/history dashboard" row; plan in `features/stats-dashboard/planning.md`.
+- Verified: `cd backend && npm test` 718/718 (10 new in `listeningPatterns.test.ts`: zone shifts the hour, a London DST
+  day, skips, zero-filled days, weekly bars, streaks, guest 403, unknown zone). `npm run build` and `npm run lint` in
+  `frontend/` clean. `./gradlew assembleDebug` builds. Web page driven in Chromium at 1366 and 375 px against a copy of
+  the local DB with 4,522 seeded plays: every range, the plays/minutes switch, "Show 50 more" (50 to 100 rows), the
+  More menu link; no sideways scroll; hours land in Asia/Kuala_Lumpur time. A year of patterns took 78 ms. Copy
+  deleted after. Android not run on a phone (phone not connected).
+
+## 2026-10-20: Scan writes 32 files per transaction
+
+- `scanLibrary()` in `backend/src/services/scanner.ts` now reads 32 files (6 at a time), then writes all 32 in one
+  transaction. Each file's write sits in its own savepoint, so one bad write fails that file only. Artwork is stored
+  after the commit.
+- Cause of the ~12 ms/file read cost: not tag parsing (~1.4 ms/file), but commits. Every track took several
+  auto-committed writes (artist, album, track, genres), and each commit fsyncs: about 100 ms on the dev WSL2 disk
+  with the default `synchronous = FULL`, 0.04 ms inside one transaction. `synchronous = NORMAL` alone changed little.
+- Bench, 1,000 tracks: first scan 11.0 s to 3.2 s, full rescan 11.3 s to 3.1 s. Unchanged rescans as before (0.08 s).
+- 708 backend tests pass; `tsc --noEmit` clean.
+
+## 2026-10-20: Cap cover thumbnail ffmpeg runs
+
+- `thumbnailPathFor()` in `backend/src/services/artwork.ts` now runs at most 2 thumbnail ffmpegs at once, queues up to
+  64 more and serves the full image past that. The same cover asked for at once shares one run (they used to share one
+  temp file, too). Each run is killed after 30 s.
+- Before: a grid of uncached covers started one ffmpeg per cover. Waveform decodes (2) and loudness (1) were already
+  capped; avatar crops are rare and already time out, so left alone.
+- New tests in `backend/src/services/artwork.test.ts`: 10 parallel asks for one cover give one thumbnail and no temp
+  files left; 5 covers past the slot limit each get a thumbnail.
+- Why: brainstorm "Performance & scale", "Cap concurrent ffmpeg runs" row.
+- Verified: `npx tsc --noEmit` clean; `cd backend && npm test` 708/708 pass.
+
+## 2026-10-20: Response compression
+
+- `@fastify/compress` ^8.3.1 registered in `backend/src/app.ts` with `threshold: 1024`. JSON and other text replies over
+  1 KB go out gzip or brotli when the client accepts it; mainly long track lists on mobile data. The plugin treats audio
+  types as not compressible, so streams and Range requests are unchanged.
+- New `backend/src/routes/compression.test.ts`: a large JSON reply comes back gzip, an `audio/flac` reply is untouched.
+  The probe routes sit inside `app.register` so they are added after the plugin hooks route creation.
+- Why: brainstorm "Performance & scale", "Response compression" row.
+- Verified: `npx tsc --noEmit` clean; `cd backend && npm test` 706/706 pass.
+
+## 2026-10-20: Scale benchmark script
+
+- `backend/src/scripts/scale-benchmark.ts`, run with `cd backend && npm run bench:scale -- --tracks 50000` (`--keep`
+  leaves the files). Writes a synthetic library (10 tracks per album, 5 albums per artist, one ffmpeg MP3 with a
+  hand-written ID3v2.3 tag) into one `makeTempDir()` folder. Then it times the first scan, an unchanged rescan, a rescan
+  with 1% of files touched, a full rescan and the missing-file check, and prints peak RSS and DB size. The data env vars
+  point into that folder before `config.ts` is imported, and the script stops if config picked up anything else.
+- `makeTempDir()` moved to `backend/src/testing/tempDir.ts` (no DB import); `harness.ts` re-exports it.
+- Why: brainstorm "Performance & scale", "Scale benchmark" row.
+- Verified: `npx tsc --noEmit` clean; `cd backend && npm test` 704/704 pass. 2,000-track run: first scan 25.4 s
+  (79 files/s, 128 MB RSS), unchanged rescan 0.14 s, 20 touched 0.19 s, full rescan 23.8 s, missing check 0.08 s,
+  DB 1.7 MB. A full tag read costs about 12 ms per file even for 1 s MP3s; the cause is not looked into. 50,000-track
+  run: first scan 1077 s (46 files/s), unchanged rescan 5.8 s, 500 touched 23.4 s, full rescan 1303 s, missing-file
+  check 43.8 s (0.08 s at 2k, so it grows faster than the library), peak RSS 231 MB, DB 35.2 MB.
+
+## 2026-10-20: Incremental library scan
+
+- Migration `0041_add_track_file_mtime.sql`: `tracks.file_mtime` (whole ms) and `tracks.scan_version`, both nullable.
+- `scanner.ts`: each file is stat'ed first. When its size, mtime and `SCANNER_VERSION` match its row, its tags are not
+  read and nothing is written (`filesUnchanged` in the summary). Before, every scan (boot and every 12 h) parsed all
+  12,770 files, upserted each row and rewrote its artwork. Failed files have no row, so they are still retried each scan.
+- `syncLibrary(..., { full })`, plus `?full=1` on `POST /library/scan` and `POST /library/roots/:id/scan`, rereads
+  everything. Boot and scheduled scans stay incremental. The first scan after deploy reads every file once to fill
+  the new columns.
+- Web (`OptionsPage.tsx`): a "Full rescan" button beside each folder's "Rescan" sends `?full=1` (A223). An mtime-only
+  change rereads the file (A224).
+- Why: brainstorm "Performance & scale", first row. Plan: `.docs/features/incremental-scan/planning.md`.
+- Verified: `npx tsc --noEmit` clean; `cd backend && npm test` 704/704 pass, 0 skipped, including six new
+  `scanLibrary, incremental` tests (mtime change, replaced file drops loudness, stale version, `full`, admin edit kept)
+  and the updated rescan test. Read-only timing on `/mnt/d/Music`: walk 0.7 s, stat of 12,770 files 6 at a time 14.3 s.
+  That is roughly what an unchanged rescan now costs. A full scan of the real library was not run. Web: `npm run build`
+  and `npm run lint` clean; Playwright against an isolated backend with a 3-song library: Rescan returned 3 unchanged,
+  Full rescan hit `?full=1` and returned 3 updated; no page overflow at 390 px, no console errors.
+
 ## 2026-10-18: Review round 2: web room state cleared on sign-out; tabs follow each other's sign-in
 
 - `RoomProvider.tsx`: room, you, joining and connection state are reset once the user is null (during render, which keeps
