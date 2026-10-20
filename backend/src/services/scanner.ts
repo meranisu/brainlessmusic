@@ -4,13 +4,17 @@ import {
   albumIdsByTrack,
   clearTracksMissing,
   findTrackByPath,
+  listTrackFileStamps,
   listTrackPaths,
   markTracksMissing,
   settleAlbums,
   upsertTrack,
+  type TrackFileStamp,
+  type TrackRow,
 } from '../db/library.js';
+import { db } from '../db/connection.js';
 import { persistArtwork } from './artworkIngest.js';
-import { AUDIO_EXTENSIONS, extractTrackTags } from './trackTags.js';
+import { AUDIO_EXTENSIONS, extractTrackTags, type TrackTags } from './trackTags.js';
 
 export interface ScanFailure {
   path: string;
@@ -21,6 +25,8 @@ export interface ScanSummary {
   filesFound: number;
   filesAdded: number;
   filesUpdated: number;
+  /** Skipped: size, mtime and scanner version all matched the row, so the tags were not read. */
+  filesUnchanged: number;
   filesFailed: number;
   /** Subdirectories skipped as unreadable (e.g. `System Volume Information`). Not fatal; see `findAudioFiles`. */
   unreadableDirs: number;
@@ -64,34 +70,79 @@ export type ScanLogger = { warn: (msg: string) => void; info: (msg: string) => v
 
 const consoleLogger: ScanLogger = { warn: (msg) => console.error(msg), info: (msg) => console.log(msg) };
 
-type ScanFileResult = { status: 'added' | 'updated' } | { status: 'failed'; error: string };
+type ScanFileResult = { status: 'added' | 'updated' | 'unchanged' } | { status: 'failed'; error: string };
 
-async function scanFile(
-  filePath: string,
-  rootId: number,
-  artworkRoot: string,
-  log: ScanLogger,
-): Promise<ScanFileResult> {
+/**
+ * Stored on each track a scan reads. Bump it when `extractTrackTags` starts reading something new (as genres did in
+ * 0032): rows below it no longer match, so the next scan reads every file once.
+ */
+export const SCANNER_VERSION = 1;
+
+type FileRead =
+  | { status: 'unchanged' }
+  | { status: 'failed'; error: string }
+  | { status: 'read'; fileSize: number; fileMtime: number; tags: TrackTags };
+
+/** The async half of a file's scan: stat, and tags unless the stamp says nothing changed. Writes nothing. */
+async function readFile(filePath: string, log: ScanLogger, stamp: TrackFileStamp | undefined): Promise<FileRead> {
   try {
-    const [stats, tags] = await Promise.all([stat(filePath), extractTrackTags(filePath)]);
+    const stats = await stat(filePath);
+    const fileMtime = Math.floor(stats.mtimeMs);
+    if (
+      stamp &&
+      stamp.file_size === stats.size &&
+      stamp.file_mtime === fileMtime &&
+      stamp.scan_version === SCANNER_VERSION
+    ) {
+      return { status: 'unchanged' };
+    }
 
+    return { status: 'read', fileSize: stats.size, fileMtime, tags: await extractTrackTags(filePath) };
+  } catch (err) {
+    return failed(filePath, err, log);
+  }
+}
+
+function failed(filePath: string, err: unknown, log: ScanLogger): { status: 'failed'; error: string } {
+  const message = err instanceof Error ? err.message : String(err);
+  log.warn(`Failed to scan ${filePath}: ${message}`);
+  return { status: 'failed', error: message };
+}
+
+/**
+ * Writes a batch of read files in one transaction. Each commit costs an fsync, about 100 ms on the dev WSL2 disk
+ * (measured 2026-10-20), and a track takes several writes; one commit per batch is most of the scan's speed.
+ * A file whose write throws is rolled back alone (savepoint) and reported failed; the rest of the batch commits.
+ */
+function writeBatch(
+  batch: readonly { filePath: string; read: FileRead }[],
+  rootId: number,
+  log: ScanLogger,
+): Array<{ result: ScanFileResult; track?: TrackRow; picture?: TrackTags['picture'] }> {
+  const writeOne = db.transaction((filePath: string, read: Extract<FileRead, { status: 'read' }>) => {
     const existed = Boolean(findTrackByPath(filePath));
-
     const track = upsertTrack({
       path: filePath,
-      fileSize: stats.size,
+      fileSize: read.fileSize,
       rootId,
-      ...tags,
+      fileMtime: read.fileMtime,
+      scanVersion: SCANNER_VERSION,
+      ...read.tags,
     });
+    return { existed, track };
+  });
 
-    await persistArtwork(artworkRoot, track.id, track.album_id, tags.picture);
-
-    return { status: existed ? 'updated' : 'added' };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    log.warn(`Failed to scan ${filePath}: ${message}`);
-    return { status: 'failed', error: message };
-  }
+  return db.transaction(() =>
+    batch.map(({ filePath, read }) => {
+      if (read.status !== 'read') return { result: read };
+      try {
+        const { existed, track } = writeOne(filePath, read);
+        return { result: { status: existed ? 'updated' : 'added' } as const, track, picture: read.tags.picture };
+      } catch (err) {
+        return { result: failed(filePath, err, log) };
+      }
+    }),
+  )();
 }
 
 /** After each file; `processed` includes it. Files run concurrently, so calls arrive in completion order. */
@@ -100,9 +151,20 @@ export type ScanProgressCallback = (processed: number, total: number) => void;
 /** Files scanned at once. Tag parsing is I/O-bound but heavier than a stat, hence lower than reconcile's batch. */
 const SCAN_CONCURRENCY = 6;
 
+/** Files written per transaction. Read results, embedded pictures included, are held in memory until their batch commits. */
+const WRITE_BATCH = 32;
+
+/** Runs `fn` over `items`, at most `width` at a time, keeping order. */
+async function inChunks<T, R>(items: readonly T[], width: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = [];
+  for (let i = 0; i < items.length; i += width) out.push(...(await Promise.all(items.slice(i, i + width).map(fn))));
+  return out;
+}
+
 /**
- * Walks `libraryRoot`, reads tags and upserts each file by path; bad files are logged and skipped. The root is a
- * parameter so the walked directory is visible at the call site. `onProgress` feeds librarySync's progress.
+ * Walks `libraryRoot`, reads tags and upserts each file by path; bad files are logged and skipped. A file unchanged
+ * since its last read is skipped unless `full` is set. The root is a parameter so the walked directory is visible at
+ * the call site. `onProgress` feeds librarySync's progress.
  */
 export async function scanLibrary(
   libraryRoot: string,
@@ -110,28 +172,38 @@ export async function scanLibrary(
   artworkRoot: string,
   onProgress?: ScanProgressCallback,
   log: ScanLogger = consoleLogger,
+  options: { full?: boolean } = {},
 ): Promise<ScanSummary> {
   const start = Date.now();
 
   const { files, unreadableDirs } = await findAudioFiles(libraryRoot);
   const albumsBefore = albumIdsByTrack(rootId);
+  const stamps = options.full ? new Map<string, TrackFileStamp>() : listTrackFileStamps(rootId);
 
   let filesAdded = 0;
   let filesUpdated = 0;
+  let filesUnchanged = 0;
   const failures: ScanFailure[] = [];
 
   let processed = 0;
 
-  for (let i = 0; i < files.length; i += SCAN_CONCURRENCY) {
-    const batch = files.slice(i, i + SCAN_CONCURRENCY);
-    const results = await Promise.all(batch.map((filePath) => scanFile(filePath, rootId, artworkRoot, log)));
+  for (let i = 0; i < files.length; i += WRITE_BATCH) {
+    const batch = files.slice(i, i + WRITE_BATCH);
+    const reads = await inChunks(batch, SCAN_CONCURRENCY, (filePath) => readFile(filePath, log, stamps.get(filePath)));
+    const written = writeBatch(batch.map((filePath, index) => ({ filePath, read: reads[index] })), rootId, log);
+    // Artwork writes files, so it runs after the commit; a failure here never fails the track.
+    await inChunks(written, SCAN_CONCURRENCY, async ({ track, picture }) => {
+      if (track) await persistArtwork(artworkRoot, track.id, track.album_id, picture ?? null);
+    });
 
     batch.forEach((filePath, index) => {
-      const result = results[index];
+      const { result } = written[index];
       if (result.status === 'failed') {
         failures.push({ path: filePath, error: result.error });
       } else if (result.status === 'added') {
         filesAdded++;
+      } else if (result.status === 'unchanged') {
+        filesUnchanged++;
       } else {
         filesUpdated++;
       }
@@ -148,6 +220,7 @@ export async function scanLibrary(
     filesFound: files.length,
     filesAdded,
     filesUpdated,
+    filesUnchanged,
     filesFailed: failures.length,
     unreadableDirs,
     durationMs: Date.now() - start,

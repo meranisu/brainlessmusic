@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict';
 import { config } from '../config.js';
 import { execFile } from 'node:child_process';
-import { chmod, mkdir, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, utimes, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
-import { after, before, beforeEach, describe, it } from 'node:test';
+import { after, afterEach, before, beforeEach, describe, it } from 'node:test';
 import { db } from '../db/connection.js';
 import { insertLibraryRoot } from '../db/libraryRoots.js';
 import { makeTempDir, resetDatabase } from '../testing/harness.js';
-import { scanLibrary } from './scanner.js';
+import { SCANNER_VERSION, scanLibrary } from './scanner.js';
 
 const run = promisify(execFile);
 
@@ -142,7 +142,7 @@ describe('scanLibrary', async () => {
     assert.equal(count('tracks'), 3);
   });
 
-  it('is idempotent: a re-scan updates rather than duplicates', { skip: !ffmpegAvailable }, async () => {
+  it('is idempotent: a re-scan skips unchanged files rather than duplicating them', { skip: !ffmpegAvailable }, async () => {
     const first = await scanLibrary(library, TEST_ROOT_ID, config.artworkPath);
     assert.equal(first.filesAdded, 3);
     assert.equal(first.filesUpdated, 0);
@@ -152,7 +152,8 @@ describe('scanLibrary', async () => {
 
     const second = await scanLibrary(library, TEST_ROOT_ID, config.artworkPath);
     assert.equal(second.filesAdded, 0, 'nothing new on a re-scan');
-    assert.equal(second.filesUpdated, 3);
+    assert.equal(second.filesUpdated, 0, 'nothing changed on disk');
+    assert.equal(second.filesUnchanged, 3);
 
     assert.equal(count('tracks'), 3, 'a re-scan must not duplicate tracks');
     assert.equal(count('artists'), artistsAfterFirst, 'a re-scan must not duplicate artists');
@@ -161,7 +162,7 @@ describe('scanLibrary', async () => {
 
   it('returns a summary whose counts add up', { skip: !ffmpegAvailable }, async () => {
     const s = await scanLibrary(library, TEST_ROOT_ID, config.artworkPath);
-    assert.equal(s.filesFound, s.filesAdded + s.filesUpdated + s.filesFailed);
+    assert.equal(s.filesFound, s.filesAdded + s.filesUpdated + s.filesUnchanged + s.filesFailed);
     assert.ok(s.durationMs >= 0);
   });
 
@@ -220,4 +221,82 @@ describe('scanLibrary', async () => {
       }
     },
   );
+});
+
+describe('scanLibrary, incremental', async () => {
+  const ffmpegAvailable = await hasFfmpeg();
+  let library = '';
+  let cleanup: () => Promise<void> = async () => {};
+
+  // Its own library: these tests change files on disk, which the shared one above must not see.
+  beforeEach(async () => {
+    resetDatabase();
+    const dir = await makeTempDir('scan-incremental');
+    library = dir.path;
+    cleanup = dir.cleanup;
+    TEST_ROOT_ID = insertLibraryRoot(library, null).id;
+    if (!ffmpegAvailable) return;
+    await makeAudio(join(library, 'a.mp3'), { title: 'A' });
+    await makeAudio(join(library, 'b.mp3'), { title: 'B' });
+  });
+
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  const row = (name: string) =>
+    db.prepare('SELECT * FROM tracks WHERE path = ?').get(join(library, name)) as Record<string, unknown>;
+
+  it('stores the mtime and scanner version it read', { skip: !ffmpegAvailable }, async () => {
+    await scanLibrary(library, TEST_ROOT_ID, config.artworkPath);
+    assert.equal(typeof row('a.mp3').file_mtime, 'number');
+    assert.equal(row('a.mp3').scan_version, SCANNER_VERSION);
+  });
+
+  it('rereads only a file whose mtime changed', { skip: !ffmpegAvailable }, async () => {
+    await scanLibrary(library, TEST_ROOT_ID, config.artworkPath);
+    const later = new Date(Date.now() + 60_000);
+    await utimes(join(library, 'a.mp3'), later, later);
+
+    const second = await scanLibrary(library, TEST_ROOT_ID, config.artworkPath);
+    assert.equal(second.filesUpdated, 1);
+    assert.equal(second.filesUnchanged, 1);
+  });
+
+  it('rereads a replaced file and drops its old loudness', { skip: !ffmpegAvailable }, async () => {
+    await scanLibrary(library, TEST_ROOT_ID, config.artworkPath);
+    db.prepare('UPDATE tracks SET loudness_lufs = -9 WHERE path = ?').run(join(library, 'a.mp3'));
+    await makeAudio(join(library, 'a.mp3'), { title: 'A, new take', artist: 'Someone Longer' });
+
+    const second = await scanLibrary(library, TEST_ROOT_ID, config.artworkPath);
+    assert.equal(second.filesUpdated, 1);
+    assert.equal(row('a.mp3').title, 'A, new take');
+    assert.equal(row('a.mp3').loudness_lufs, null);
+  });
+
+  it('rereads a row from an older scanner version', { skip: !ffmpegAvailable }, async () => {
+    await scanLibrary(library, TEST_ROOT_ID, config.artworkPath);
+    db.prepare('UPDATE tracks SET scan_version = NULL WHERE path = ?').run(join(library, 'b.mp3'));
+
+    const second = await scanLibrary(library, TEST_ROOT_ID, config.artworkPath);
+    assert.equal(second.filesUpdated, 1);
+    assert.equal(row('b.mp3').scan_version, SCANNER_VERSION);
+  });
+
+  it('rereads everything when full is set', { skip: !ffmpegAvailable }, async () => {
+    await scanLibrary(library, TEST_ROOT_ID, config.artworkPath);
+    const second = await scanLibrary(library, TEST_ROOT_ID, config.artworkPath, undefined, undefined, { full: true });
+    assert.equal(second.filesUpdated, 2);
+    assert.equal(second.filesUnchanged, 0);
+  });
+
+  it('keeps an admin edit through a full rescan', { skip: !ffmpegAvailable }, async () => {
+    await scanLibrary(library, TEST_ROOT_ID, config.artworkPath);
+    db.prepare("UPDATE tracks SET title = 'Edited', tags_edited_at = datetime('now') WHERE path = ?").run(
+      join(library, 'a.mp3'),
+    );
+
+    await scanLibrary(library, TEST_ROOT_ID, config.artworkPath, undefined, undefined, { full: true });
+    assert.equal(row('a.mp3').title, 'Edited');
+  });
 });

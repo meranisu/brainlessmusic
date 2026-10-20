@@ -1,3 +1,4 @@
+import compress from '@fastify/compress';
 import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
 import websocket from '@fastify/websocket';
@@ -57,6 +58,10 @@ export function buildApp() {
     origin: config.corsOrigins.length > 0 ? config.corsOrigins : false,
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
   });
+
+  // gzip/brotli for JSON over 1 KB, mainly long track lists on mobile data. Audio types are not compressible to the
+  // plugin, so streams and Range requests pass through untouched.
+  app.register(compress, { threshold: 1024 });
 
   app.register(multipart, {
     limits: {

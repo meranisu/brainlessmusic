@@ -48,6 +48,9 @@ export interface TrackRow {
   loudness_lufs: number | null;
   /** True peak in dBTP; null until measured, or for a silent file. */
   loudness_peak: number | null;
+  /** Whole-ms mtime at the last read; null until a scan reads the file. With `scan_version`, lets a scan skip it. See `0041`. */
+  file_mtime: number | null;
+  scan_version: number | null;
 }
 
 export interface TrackInput {
@@ -70,6 +73,9 @@ export interface TrackInput {
   genres?: readonly string[];
   /** Which `library_roots` row this file was found under. */
   rootId: number;
+  /** Omitted (an upload): stored null, so the next scan reads the file once more. */
+  fileMtime?: number | null;
+  scanVersion?: number | null;
 }
 
 export interface TrackFieldUpdate {
@@ -191,8 +197,8 @@ export function upsertTrack(input: TrackInput): TrackRow {
     : null;
 
   db.prepare(
-    `INSERT INTO tracks (path, title, artist_id, album_id, track_number, disc_number, duration, format, file_size, bitrate, sample_rate, root_id)
-     VALUES (@path, @title, @artistId, @albumId, @trackNumber, @discNumber, @duration, @format, @fileSize, @bitrate, @sampleRate, @rootId)
+    `INSERT INTO tracks (path, title, artist_id, album_id, track_number, disc_number, duration, format, file_size, bitrate, sample_rate, root_id, file_mtime, scan_version)
+     VALUES (@path, @title, @artistId, @albumId, @trackNumber, @discNumber, @duration, @format, @fileSize, @bitrate, @sampleRate, @rootId, @fileMtime, @scanVersion)
      ON CONFLICT (path) DO UPDATE SET
        title = CASE WHEN tracks.tags_edited_at IS NULL THEN excluded.title ELSE tracks.title END,
        artist_id = CASE WHEN tracks.tags_edited_at IS NULL THEN excluded.artist_id ELSE tracks.artist_id END,
@@ -207,7 +213,9 @@ export function upsertTrack(input: TrackInput): TrackRow {
        loudness_peak = CASE WHEN tracks.file_size = excluded.file_size THEN tracks.loudness_peak ELSE NULL END,
        bitrate = excluded.bitrate,
        sample_rate = excluded.sample_rate,
-       root_id = excluded.root_id`,
+       root_id = excluded.root_id,
+       file_mtime = excluded.file_mtime,
+       scan_version = excluded.scan_version`,
   ).run({
     path: input.path,
     title: input.title,
@@ -221,6 +229,8 @@ export function upsertTrack(input: TrackInput): TrackRow {
     bitrate: input.bitrate ?? null,
     sampleRate: input.sampleRate ?? null,
     rootId: input.rootId,
+    fileMtime: input.fileMtime ?? null,
+    scanVersion: input.scanVersion ?? null,
   });
 
   const track = findTrackByPath(input.path)!;
@@ -463,6 +473,20 @@ export function listTrackPaths(
   return db
     .prepare('SELECT id, path, missing_since FROM tracks ORDER BY id')
     .all() as { id: number; path: string; missing_since: string | null }[];
+}
+
+export interface TrackFileStamp {
+  file_size: number;
+  file_mtime: number | null;
+  scan_version: number | null;
+}
+
+/** What a scan compares against disk to skip an unchanged file, keyed by path. One query for the whole root. */
+export function listTrackFileStamps(rootId: number): Map<string, TrackFileStamp> {
+  const rows = db
+    .prepare('SELECT path, file_size, file_mtime, scan_version FROM tracks WHERE root_id = ?')
+    .all(rootId) as (TrackFileStamp & { path: string })[];
+  return new Map(rows.map(({ path, ...stamp }) => [path, stamp]));
 }
 
 /** Marks tracks missing, keeping an existing stamp so the date still says "since when". */

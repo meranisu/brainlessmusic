@@ -45,12 +45,12 @@ export function getScanProgress(rootId: number): ScanProgress | null {
   return scanProgress.get(rootId) ?? null;
 }
 
-/** Reconciles one root, scanning first if asked. `null` if it is already syncing. */
+/** Reconciles one root, scanning first if asked; `full` rereads unchanged files too. `null` if it is already syncing. */
 export async function syncLibrary(
   libraryRoot: string,
   rootId: number,
   artworkRoot: string,
-  options: { scan?: boolean } = {},
+  options: { scan?: boolean; full?: boolean } = {},
 ): Promise<LibrarySyncResult | null> {
   if (running.has(rootId)) return null;
   running.add(rootId);
@@ -65,7 +65,7 @@ export async function syncLibrary(
       options.scan && rootIsReadable
         ? await scanLibrary(libraryRoot, rootId, artworkRoot, (processed, total) => {
             scanProgress.set(rootId, { processed, total });
-          })
+          }, undefined, { full: options.full })
         : undefined;
     // Only after a scan that actually ran: a reconcile-only pass has no
     // failure list, and replacing with nothing would wipe the last real one.
@@ -94,7 +94,8 @@ function describe(label: string, result: LibrarySyncResult): string {
   if (scan) {
     parts.push(
       `scanned ${scan.filesFound} file${scan.filesFound === 1 ? '' : 's'} ` +
-        `(${scan.filesAdded} added, ${scan.filesUpdated} updated, ${scan.filesFailed} failed)`,
+        `(${scan.filesAdded} added, ${scan.filesUpdated} updated, ${scan.filesUnchanged} unchanged, ` +
+        `${scan.filesFailed} failed)`,
     );
   }
 

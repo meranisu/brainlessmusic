@@ -158,14 +158,16 @@ const libraryRoute: FastifyPluginAsync = async (fastify) => {
     });
   });
 
-  fastify.post<{ Params: { id: string } }>('/library/roots/:id/scan', adminOnly, async (request, reply) => {
+  // `?full=1` rereads every file's tags, not only the changed ones.
+  fastify.post<{ Params: { id: string }; Querystring: { full?: string } }>('/library/roots/:id/scan', adminOnly, async (request, reply) => {
     const id = parseId(request.params.id);
     const root = id === undefined ? undefined : findLibraryRootById(id);
     if (id === undefined || !root) {
       return reply.code(404).send({ error: 'Library root not found' });
     }
 
-    const result = await syncLibrary(root.path, root.id, config.artworkPath, { scan: true });
+    const full = request.query.full === '1';
+    const result = await syncLibrary(root.path, root.id, config.artworkPath, { scan: true, full });
     if (!result) {
       return reply.code(409).send({ error: 'A scan of this root is already in progress' });
     }
@@ -191,12 +193,13 @@ const libraryRoute: FastifyPluginAsync = async (fastify) => {
   });
 
   // Scans every root in sequence, as the empty-library screen and the schedule need.
-  fastify.post('/library/scan', adminOnly, async (request, reply) => {
+  fastify.post<{ Querystring: { full?: string } }>('/library/scan', adminOnly, async (request, reply) => {
     try {
+      const full = request.query.full === '1';
       const roots = listLibraryRoots();
       const results = [];
       for (const root of roots) {
-        const result = await syncLibrary(root.path, root.id, config.artworkPath, { scan: true });
+        const result = await syncLibrary(root.path, root.id, config.artworkPath, { scan: true, full });
         results.push({ rootId: root.id, label: root.label, scan: result?.scan, reconcile: result?.reconcile });
       }
       return reply.send({ roots: results });

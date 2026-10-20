@@ -81,6 +81,8 @@ erDiagram
         TEXT waveform
         REAL loudness_lufs
         REAL loudness_peak
+        INTEGER file_mtime
+        INTEGER scan_version
     }
     playlists {
         INTEGER id PK
@@ -210,6 +212,8 @@ Rebuilt by `0030` (v0.4 metadata model): same ids, new key. See [features/metada
 | `tags_edited_at` | TEXT | nullable | — | Added `0025`. When an admin last edited title, artist, album or track number (`updateTrackFields`). Non-NULL makes a rescan (`upsertTrack`'s `ON CONFLICT`) keep those four instead of the file's tags, since edits aren't written to the file (Q5, C9). Everything else from the file is still refreshed. Visibility flags don't set it |
 | `loudness_lufs` | REAL | nullable | — | Added `0028`. Integrated loudness (EBU R128), measured by `services/loudness.ts` with ffmpeg `ebur128` in the background. `NULL` = not measured yet. `upsertTrack` clears it when a rescan sees a different `file_size`. Feeds `trackGainSql()` → `gainDb` on every track payload (A3) |
 | `loudness_peak` | REAL | nullable | — | Added `0028`. True peak in dBTP; caps a boost at -1 dBTP. `NULL` with a measured `loudness_lufs` is a silent file (no gain sent) |
+| `file_mtime` | INTEGER | nullable | — | Added `0041`. The file's mtime in whole ms when a scan last read it. A scan skips the file when this, `file_size` and `scan_version` all match. `NULL` until a scan reads it (rows from before 0041, uploads) |
+| `scan_version` | INTEGER | nullable | — | Added `0041`. `SCANNER_VERSION` (`services/scanner.ts`) at the last read. Bumping the constant makes the next scan reread every file |
 | `artwork_id` | TEXT | nullable | — | added in `0007`. Filename of the cached cover embedded in *this* file: `<sha256>.<jpg\|png\|webp\|gif>` under `ARTWORK_PATH`. Same backfill caveat as `bitrate` — existing rows stay `NULL` until re-scanned. `GET /tracks/:id/cover` falls back to `albums.artwork_id` when this is `NULL` |
 
 **FKs:** `artist_id → artists.id`, `album_id → albums.id` (both `NO ACTION` / `NO ACTION`).
@@ -590,6 +594,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | `0035_add_user_profile.sql` | `users.bio`, `avatar_id`, `favorite_track_id`, `favorite_artist_id` — the profile page (A167-A170) |
 | `0036_add_playlist_description.sql` | `playlists.description` — playlist descriptions (A185) |
 | `0039_add_play_history_user_track_index.sql` | `idx_play_history_user_track` covering index on `play_history` — smart playlist play counts (A207, A208) |
+| `0041_add_track_file_mtime.sql` | `tracks.file_mtime`, `tracks.scan_version` — incremental scan |
 | `0040_add_passcode_failures.sql` | `users.passcode_failures`; clears every existing `passcode_hash` (A216) |
 | `0038_add_playlist_rules.sql` | `playlists.rules` — smart playlists (A207-A209) |
 | `0037_add_user_email.sql` | `users.email` + partial unique `users_email_unique` — sign-up with email, sign-in by email (A189-A192) |
@@ -601,6 +606,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-10-20 | Migration `0041_add_track_file_mtime.sql` — `tracks.file_mtime INTEGER`, `tracks.scan_version INTEGER`, both nullable, no backfill. From the migration SQL and the test run, not re-introspected against the live DB | Incremental scan: unchanged files are no longer reread every 12 h |
 | 2026-10-18 | Migration `0040_add_passcode_failures.sql` — `users.passcode_failures INTEGER NOT NULL DEFAULT 0`, all passcodes cleared. From the migration SQL, not re-introspected against the live DB | Passcodes lock after 10 wrong tries and need 6+ digits (A216, S3) |
 | 2026-10-18 | Migration `0039_add_play_history_user_track_index.sql` — one index on `play_history`, the index note, migration row. From the migration SQL and a benchmark on a throwaway 50k-song, 200k-play database (aggregate 245 ms to 75 ms) | Smart playlist rules run a per-song play count over one user's history (A207, A208) |
 | 2026-10-18 | Migration `0038_add_playlist_rules.sql` — one `playlists` column, the ER block, migration row. From the migration SQL | Smart playlists (A207-A209) |

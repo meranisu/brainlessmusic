@@ -1,6 +1,17 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
-import { isValidArtworkId, mimeTypeForArtwork } from './artwork.js';
+import { execFile } from 'node:child_process';
+import { readdir } from 'node:fs/promises';
+import { join } from 'node:path';
+import { after, before, describe, it } from 'node:test';
+import { promisify } from 'node:util';
+import { makeTempDir } from '../testing/tempDir.js';
+import { isValidArtworkId, mimeTypeForArtwork, thumbnailPathFor } from './artwork.js';
+
+const run = promisify(execFile);
+const ffmpegAvailable = await run('ffmpeg', ['-version']).then(
+  () => true,
+  () => false,
+);
 
 const HASH = 'a'.repeat(64);
 
@@ -39,5 +50,34 @@ describe('artwork mime types', () => {
 
   it('falls back for anything unknown', () => {
     assert.equal(mimeTypeForArtwork(`${HASH}.bin`), 'application/octet-stream');
+  });
+});
+
+describe('cover thumbnails', { skip: !ffmpegAvailable && 'ffmpeg not installed' }, () => {
+  let root: string;
+  let cleanup: () => Promise<void>;
+  const ids: string[] = [];
+
+  before(async () => {
+    ({ path: root, cleanup } = await makeTempDir('artwork-thumbs'));
+    for (let i = 0; i < 5; i++) {
+      const id = `${String(i).repeat(64)}.png`;
+      await run('ffmpeg', ['-v', 'error', '-f', 'lavfi', '-i', `color=c=red:s=${600 + i}x600`, '-frames:v', '1', join(root, id)]);
+      ids.push(id);
+    }
+  });
+
+  after(() => cleanup());
+
+  it('makes one thumbnail when the same cover is asked for at once', async () => {
+    const paths = await Promise.all(Array.from({ length: 10 }, () => thumbnailPathFor(root, ids[0])));
+    const thumb = join(root, `${ids[0]}.thumb.jpg`);
+    assert.ok(paths.every((p) => p === thumb));
+    assert.deepEqual((await readdir(root)).filter((f) => f.includes('.tmp.')), []);
+  });
+
+  it('queues different covers past the slot limit and still makes each one', async () => {
+    const paths = await Promise.all(ids.map((id) => thumbnailPathFor(root, id)));
+    assert.deepEqual(paths, ids.map((id) => join(root, `${id}.thumb.jpg`)));
   });
 });

@@ -14,6 +14,36 @@ export interface EmbeddedPicture {
 /** Longest edge of a generated thumbnail, in pixels. */
 const THUMB_WIDTH = 256;
 
+/** Thumbnails made at once. A library grid of new covers would otherwise start one ffmpeg per cover. */
+const MAX_ACTIVE_THUMBS = 2;
+/** Requests that may wait for a slot. Past this the full image is served instead. */
+const MAX_WAITING_THUMBS = 64;
+/** A thumbnail taking longer than this is killed, so an odd image can't hold a slot. */
+const THUMB_TIMEOUT_SECONDS = 30;
+
+/** Thumbnails in flight by output path, so the same cover asked twice runs ffmpeg once. */
+const thumbsInFlight = new Map<string, Promise<string>>();
+let activeThumbs = 0;
+const waitingForThumbSlot: Array<() => void> = [];
+
+/** Waits for a thumbnail slot; false when the queue is already full. */
+async function takeThumbSlot(): Promise<boolean> {
+  if (activeThumbs < MAX_ACTIVE_THUMBS) {
+    activeThumbs++;
+    return true;
+  }
+  if (waitingForThumbSlot.length >= MAX_WAITING_THUMBS) return false;
+  // The releaser hands its slot straight over, so the count stays the same.
+  await new Promise<void>((resolve) => waitingForThumbSlot.push(resolve));
+  return true;
+}
+
+function releaseThumbSlot(): void {
+  const next = waitingForThumbSlot.shift();
+  if (next) next();
+  else activeThumbs--;
+}
+
 const EXTENSION_BY_MIME: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/jpg': 'jpg',
@@ -75,11 +105,22 @@ export async function thumbnailPathFor(root: string, id: string): Promise<string
   if (await exists(thumbPath)) return thumbPath;
   if (!(await exists(source))) return null;
 
+  const pending = thumbsInFlight.get(thumbPath);
+  if (pending) return pending;
+
+  const made = makeThumbnail(source, thumbPath).finally(() => thumbsInFlight.delete(thumbPath));
+  thumbsInFlight.set(thumbPath, made);
+  return made;
+}
+
+/** Runs the downscale in a slot; resolves to the thumbnail, or to [source] when busy or ffmpeg fails. */
+async function makeThumbnail(source: string, thumbPath: string): Promise<string> {
+  if (!(await takeThumbSlot())) return source;
   const tempPath = `${thumbPath}.${process.pid}.tmp.jpg`;
 
   try {
     await new Promise<void>((resolve, reject) => {
-      ffmpeg(source)
+      ffmpeg(source, { timeout: THUMB_TIMEOUT_SECONDS })
         // `min(w,iw)` avoids upscaling art that is already small; -2 keeps the
         // aspect ratio while staying even-numbered, which JPEG encoding wants.
         .outputOptions(['-vf', `scale='min(${THUMB_WIDTH},iw)':-2`, '-frames:v', '1'])
@@ -93,6 +134,8 @@ export async function thumbnailPathFor(root: string, id: string): Promise<string
     return thumbPath;
   } catch {
     return source;
+  } finally {
+    releaseThumbSlot();
   }
 }
 
