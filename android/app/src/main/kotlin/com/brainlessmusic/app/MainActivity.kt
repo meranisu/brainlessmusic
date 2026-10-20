@@ -43,8 +43,10 @@ import com.brainlessmusic.app.ui.theme.BrainlessMusicTheme
 import com.brainlessmusic.app.ui.theme.SkinTransition
 import com.brainlessmusic.app.ui.splash.ArcadeGoodbye
 import com.brainlessmusic.app.ui.splash.ArcadeWelcome
+import com.brainlessmusic.app.ui.splash.IntroGate
 import com.brainlessmusic.app.ui.theme.isDark
 import com.brainlessmusic.app.ui.update.UpdateSheetHost
+import com.brainlessmusic.app.update.UpdateCheckWorker
 import com.brainlessmusic.app.update.UpdateRepository
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -110,8 +112,9 @@ class MainActivity : ComponentActivity() {
                 .start()
             Handler(Looper.getMainLooper()).postDelayed(::remove, SPLASH_FADE_MS + SPLASH_REMOVE_GRACE_MS)
         }
-        // A newer release on GitHub: at most one look a day, quiet when offline (A104).
-        updates.checkOnLaunch()
+        // A newer release on GitHub: looked for in onStart, and in the background with a notification (A104).
+        UpdateCheckWorker.schedule(this)
+        if (savedInstanceState == null) openUpdateFrom(intent)
         // A room or invite link that started the app. Not on a re-creation, which would replay the link already used.
         if (savedInstanceState == null) {
             roomLinks.handle(intent)
@@ -154,6 +157,8 @@ class MainActivity : ComponentActivity() {
                 BrainlessMusicTheme(colorTheme = colorTheme, darkTheme = darkTheme, skin = skin) {
                     Surface(modifier = Modifier.fillMaxSize()) {
                         BrainlessNavGraph(startViewModel = startViewModel, roomLinks = roomLinks, inviteLinks = inviteLinks)
+                        // The system splash is a view under the sheet's window, so the sheet waits for it too.
+                        if (!splashGone) IntroGate.Hold()
                         UpdateSheetHost()
                         NoticeHost()
                         ArcadeWelcome(startViewModel)
@@ -165,10 +170,24 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // Each return to the app, not only a cold start, so a release from a minute ago shows without a restart.
+    override fun onStart() {
+        super.onStart()
+        updates.checkOnLaunch()
+    }
+
+    /** The "Update available" notification was tapped: show the sheet. */
+    private fun openUpdateFrom(intent: Intent?) {
+        if (intent?.getBooleanExtra(UpdateCheckWorker.EXTRA_OPEN_UPDATE, false) != true) return
+        intent.removeExtra(UpdateCheckWorker.EXTRA_OPEN_UPDATE)
+        updates.checkNow()
+    }
+
     // singleTask: a room link tapped while the app is open arrives here, not as a second copy of the app.
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        openUpdateFrom(intent)
         roomLinks.handle(intent)
         inviteLinks.handle(intent)
     }

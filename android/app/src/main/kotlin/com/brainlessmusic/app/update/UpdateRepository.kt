@@ -9,6 +9,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import com.brainlessmusic.app.BuildConfig
 import com.google.gson.Gson
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -43,7 +44,8 @@ sealed interface UpdateState {
 }
 
 /**
- * In-app updates from GitHub Releases (A104–A106): a check on launch at most once a day plus one from Settings, the
+ * In-app updates from GitHub Releases (A104–A106): a check each time the app opens (at most hourly), one in the
+ * background every few hours that posts a notification ([UpdateCheckWorker]), and one from Settings; the
  * download checked against GitHub's SHA-256, then Android's own installer. Release builds only: a debug build is a
  * different app (`.debug`) and never offers itself a release. Plan: `.docs/features/app-self-update/planning.md`.
  */
@@ -71,20 +73,53 @@ class UpdateRepository @Inject constructor(
 
     val enabled: Boolean get() = !BuildConfig.DEBUG
 
-    /** On launch: at most once a day, quiet when offline. */
+    /**
+     * Each time the app comes to the front: at most once an hour, quiet when offline. The sheet opens by itself once per
+     * version a day; after Later, the Settings row and the notification still offer it.
+     */
     fun checkOnLaunch() {
-        if (!enabled || _state.value !is UpdateState.Idle) return
+        if (!enabled || !nothingOffered()) return
         scope.launch {
             val prefs = dataStore.data.first()
             val now = System.currentTimeMillis()
-            if (now - (prefs[LAST_CHECK_KEY] ?: 0L) < DAY_MS) return@launch
-            // Only a check that reached GitHub counts: an offline launch tries again next time, not a day later.
+            if (now - (prefs[LAST_CHECK_KEY] ?: 0L) < CHECK_GAP_MS) return@launch
+            // Only a check that reached GitHub counts: an offline launch tries again next time.
             val offer = fetchOffer().getOrElse { return@launch }
             dataStore.edit { it[LAST_CHECK_KEY] = now }
             if (offer == null) return@launch
+            // Seen in the app, so the background check doesn't also notify about it.
+            dataStore.edit { it[NOTIFIED_VERSION_KEY] = offer.version }
+            if (!nothingOffered()) return@launch
             _state.value = UpdateState.Available(offer)
-            _sheetOpen.value = true
+            val freshVersion = prefs[OFFERED_VERSION_KEY] != offer.version
+            if (freshVersion || now - (prefs[OFFERED_AT_KEY] ?: 0L) >= DAY_MS) {
+                dataStore.edit {
+                    it[OFFERED_VERSION_KEY] = offer.version
+                    it[OFFERED_AT_KEY] = now
+                }
+                _sheetOpen.value = true
+            }
         }
+    }
+
+    /** No offer on screen yet: an Available, a download or a failed download is left alone. */
+    private fun nothingOffered(): Boolean = when (val s = _state.value) {
+        is UpdateState.Idle, is UpdateState.UpToDate -> true
+        is UpdateState.Failed -> s.offer == null
+        else -> false
+    }
+
+    /**
+     * From [UpdateCheckWorker], with the app possibly closed: the newer version, once per version, or null. Failures
+     * are null too; the worker tries again on its next run.
+     */
+    suspend fun versionToNotify(): String? {
+        if (!enabled) return null
+        val offer = fetchOffer().getOrNull() ?: return null
+        val prefs = dataStore.data.first()
+        if (prefs[NOTIFIED_VERSION_KEY] == offer.version) return null
+        dataStore.edit { it[NOTIFIED_VERSION_KEY] = offer.version }
+        return offer.version
     }
 
     /** From Settings: ignores the daily gate, and says so when there's nothing new. */
@@ -229,6 +264,10 @@ class UpdateRepository @Inject constructor(
         const val APK_MIME = "application/vnd.android.package-archive"
         const val UPDATES_DIR = "updates"
         const val DAY_MS = 24 * 60 * 60 * 1000L
+        const val CHECK_GAP_MS = 60 * 60 * 1000L
         val LAST_CHECK_KEY = longPreferencesKey("update_last_check")
+        val OFFERED_VERSION_KEY = stringPreferencesKey("update_offered_version")
+        val OFFERED_AT_KEY = longPreferencesKey("update_offered_at")
+        val NOTIFIED_VERSION_KEY = stringPreferencesKey("update_notified_version")
     }
 }

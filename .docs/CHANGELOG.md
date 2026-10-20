@@ -4,6 +4,21 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-20: Android update check finds new releases sooner, notifies, and waits for intros
+
+- Why: the launch check stamped "checked" even when GitHub had nothing new yet, so a release tagged an hour later was
+  not looked for until the next day. And the update sheet, a separate window, opened on top of the welcome and
+  skin-change intros.
+- `UpdateRepository.checkOnLaunch()` now runs from `MainActivity.onStart` (every return to the app), at most once an
+  hour. The sheet opens by itself once per version a day; after Later the Settings row still offers it.
+- New `update/UpdateCheckWorker.kt` (WorkManager `work-runtime-ktx` 2.9.1 added): every 6 h with a network, app open
+  or not, it posts "Update available" once per version on a new `updates` channel. Tapping it opens the app on the
+  sheet. Release builds only; nothing without the notification permission.
+- New `ui/splash/IntroGate.kt`: `ArcadeWelcome`, `SkinTransition` and the system splash hold it; `UpdateSheetHost`
+  stays hidden while held and opens after.
+- Verified: not yet; `compileReleaseKotlin` was still running at commit time. Not run on a phone; the notification needs a real release newer than the
+  installed one to show.
+
 ## 2026-10-20: Web library list shows the last copy at once
 
 - New `frontend/src/lib/libraryPageCache.ts`: the Simple library's first 3 pages (200 songs each) are saved in the

@@ -1,5 +1,6 @@
 package com.brainlessmusic.app.ui.theme
 
+import com.brainlessmusic.app.ui.splash.IntroGate
 import android.provider.Settings
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -73,6 +74,7 @@ fun SkinTransition(skin: Skin) {
 
     val p = progress.value
     if (p >= 1f) return
+    IntroGate.Hold()
 
     Box(
         contentAlignment = Alignment.Center,

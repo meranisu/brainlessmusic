@@ -1,5 +1,6 @@
 package com.brainlessmusic.app.ui.update
 
+import com.brainlessmusic.app.ui.splash.IntroGate
 import com.brainlessmusic.app.ui.common.Notices
 import android.content.ActivityNotFoundException
 import androidx.compose.foundation.layout.Arrangement
@@ -58,7 +59,8 @@ fun UpdateSheetHost(viewModel: UpdateViewModel = hiltViewModel()) {
         is UpdateState.Failed -> s.offer
         else -> null
     }
-    if (!open || offer == null) return
+    // Held, not dropped, while an intro plays: it opens once the intro ends.
+    if (!open || offer == null || IntroGate.isPlaying) return
 
     SkinSheet(onDismissRequest = viewModel::later) {
         UpdateSheetContent(offer, state, viewModel)

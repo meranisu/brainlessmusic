@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `UpdateCheckWorker`, `UpdateRepository.versionToNotify()`, `IntroGate` — `android/app/src/main/kotlin/com/brainlessmusic/app/update/UpdateCheckWorker.kt`, `ui/splash/IntroGate.kt` (with `UpdateRepository.checkOnLaunch()`, `MainActivity.onStart`/`openUpdateFrom`, `UpdateSheetHost`)
+**Date:** 2026-10-20
+**How added:** bug fix + new feature
+**Purpose:** find a new release within the hour, notify about it with the app closed, and keep the update sheet off the intros.
+**Side effects:** periodic WorkManager job `update-check` (6 h, network required); notification channel `updates`; DataStore keys `update_offered_version`, `update_offered_at`, `update_notified_version`.
+**Before:** one check a day at cold start, stamped even when nothing was new; no notification; the sheet could open over the welcome or skin intro.
+**After:** checked on each return to the app (hourly gate) and every 6 h in the background; the sheet waits until no intro is playing.
+
 **Function:** `LibraryPageStore`, `SavedFirstPage` — `android/app/src/main/kotlin/com/brainlessmusic/app/data/paging/SavedFirstPage.kt` (with `LibraryViewModel.pager`, `savedPageState()`, `PagedContent` in `LibraryScreen.kt`)
 **Date:** 2026-10-20
 **How added:** new feature

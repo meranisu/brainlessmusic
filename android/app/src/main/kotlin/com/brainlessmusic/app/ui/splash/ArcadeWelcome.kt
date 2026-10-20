@@ -122,6 +122,7 @@ fun ArcadeWelcome(viewModel: StartViewModel) {
 
     val p = progress.value
     if (p >= 1f) return
+    IntroGate.Hold()
 
     Box(
         contentAlignment = Alignment.Center,
