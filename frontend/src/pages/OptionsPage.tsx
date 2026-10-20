@@ -218,7 +218,9 @@ function LibrarySection() {
   });
 
   const rescanRoot = useMutation({
-    mutationFn: (id: number) => apiClient.post<LibraryRootScanResult>(`/library/roots/${id}/scan`),
+    // `full` rereads every file's tags; a plain rescan skips files unchanged since they were last read.
+    mutationFn: ({ id, full }: { id: number; full: boolean }) =>
+      apiClient.post<LibraryRootScanResult>(`/library/roots/${id}/scan${full ? '?full=1' : ''}`),
     onSuccess: (result) => {
       invalidate();
       showToast(summarize(result) ?? 'Rescanned');
@@ -264,11 +266,20 @@ function LibrarySection() {
               </span>
               <div className="flex shrink-0 gap-1.5">
                 <button
-                  onClick={() => rescanRoot.mutate(root.id)}
+                  onClick={() => rescanRoot.mutate({ id: root.id, full: false })}
                   disabled={root.scanning || rescanRoot.isPending}
+                  title="Reads new and changed files only"
                   className="btn-ghost btn-sm"
                 >
                   Rescan
+                </button>
+                <button
+                  onClick={() => rescanRoot.mutate({ id: root.id, full: true })}
+                  disabled={root.scanning || rescanRoot.isPending}
+                  title="Rereads every file's tags, changed or not. Slow on a big folder"
+                  className="btn-ghost btn-sm"
+                >
+                  Full rescan
                 </button>
                 <button onClick={() => setRemoveTarget(root)} className="btn-ghost btn-sm text-red-300!">
                   Remove

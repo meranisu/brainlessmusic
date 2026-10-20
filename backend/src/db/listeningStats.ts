@@ -292,3 +292,209 @@ export function getTopGenres(userId: number, range: StatsRange, limit: number, i
     )
     .all(userId, since ?? '', limit) as TopGenreStat[];
 }
+
+export interface PatternBucket {
+  plays: number;
+  msListened: number;
+}
+
+export interface TrendPoint extends PatternBucket {
+  /** Local date (`YYYY-MM-DD`) the day or week starts on. Weeks start on Monday. */
+  date: string;
+  skips: number;
+}
+
+export interface ListeningPatterns {
+  range: StatsRange;
+  /** The IANA zone the buckets are in: the one asked for, or `UTC` when it was missing or unknown. */
+  tz: string;
+  /** Daily points for week, month and year; weekly for all time (A229). */
+  bucket: 'day' | 'week';
+  /** 24 entries, local hour 0 to 23. */
+  byHour: PatternBucket[];
+  /** 7 entries, Monday first. */
+  byWeekday: PatternBucket[];
+  /** Every day or week from the range start to today, zeros included. */
+  trend: TrendPoint[];
+  /** Days in a row with at least one play, over all time whatever the range. Today or yesterday keeps `current` alive. */
+  streak: { current: number; longest: number; longestEndedOn: string | null };
+  busiest: { hour: number | null; weekday: number | null; day: { date: string; plays: number } | null };
+}
+
+const DAY_MS = 86_400_000;
+
+/** [tz] when the runtime knows it, otherwise `UTC`. A bad zone from a client is not worth a 400. */
+export function resolveTimeZone(tz: string | undefined): string {
+  if (!tz) return 'UTC';
+  try {
+    return new Intl.DateTimeFormat('en-US', { timeZone: tz }).resolvedOptions().timeZone;
+  } catch {
+    return 'UTC';
+  }
+}
+
+/**
+ * Turns SQLite UTC timestamps into local wall-clock time in one zone. The offset is looked up once per UTC hour, since
+ * zones change offset on the hour; that keeps a year of plays to a few hundred `Intl` calls.
+ */
+function localClock(tz: string): (utcMs: number) => Date {
+  const format = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+  });
+  const offsets = new Map<number, number>();
+  return (utcMs) => {
+    const hour = Math.floor(utcMs / 3_600_000);
+    let offset = offsets.get(hour);
+    if (offset === undefined) {
+      const at = hour * 3_600_000;
+      const p = Object.fromEntries(format.formatToParts(at).map((x) => [x.type, x.value]));
+      offset = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - at;
+      offsets.set(hour, offset);
+    }
+    // A Date whose UTC fields read as the local wall clock.
+    return new Date(utcMs + offset);
+  };
+}
+
+const sqliteMs = (at: string) => Date.parse(`${at.replace(' ', 'T')}Z`);
+const isoDay = (d: Date) => d.toISOString().slice(0, 10);
+const mondayIndex = (d: Date) => (d.getUTCDay() + 6) % 7;
+const weekStart = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) - mondayIndex(d) * DAY_MS);
+
+function emptyBuckets(n: number): PatternBucket[] {
+  return Array.from({ length: n }, () => ({ plays: 0, msListened: 0 }));
+}
+
+function indexOfMax(buckets: PatternBucket[]): number | null {
+  let best: number | null = null;
+  buckets.forEach((b, i) => {
+    if (b.plays > 0 && (best === null || b.plays > buckets[best].plays)) best = i;
+  });
+  return best;
+}
+
+/** Longest run and the run still going (ending today or yesterday) over a set of local days. */
+function streaks(days: Set<string>, today: string): ListeningPatterns['streak'] {
+  const sorted = [...days].sort();
+  let longest = 0;
+  let longestEndedOn: string | null = null;
+  let run = 0;
+  let prev = 0;
+  for (const day of sorted) {
+    const ms = Date.parse(day);
+    run = ms - prev === DAY_MS ? run + 1 : 1;
+    prev = ms;
+    if (run > longest) {
+      longest = run;
+      longestEndedOn = day;
+    }
+  }
+  let current = 0;
+  let cursor = Date.parse(today);
+  if (!days.has(today)) cursor -= DAY_MS;
+  while (days.has(isoDay(new Date(cursor)))) {
+    current++;
+    cursor -= DAY_MS;
+  }
+  return { current, longest, longestEndedOn };
+}
+
+/**
+ * When one account listens over [range], in [tz]: by local hour, by weekday, as a day-by-day (or week-by-week) trend,
+ * plus streaks. Plays leave out skips (A113); time listened and the trend's `skips` include them.
+ */
+export function getListeningPatterns(userId: number, range: StatsRange, tz: string | undefined, now = Date.now()): ListeningPatterns {
+  const zone = resolveTimeZone(tz);
+  const local = localClock(zone);
+  const since = sinceFor(range);
+  const bucket = range === 'all' ? 'week' : 'day';
+
+  const rows = db
+    .prepare(
+      `SELECT ph.played_at AS at, ph.skipped AS skipped, ${LISTENED_MS} AS ms
+       FROM play_history ph JOIN tracks t ON t.id = ph.track_id
+       WHERE ph.user_id = ? AND ph.played_at >= ?
+       ORDER BY ph.played_at`,
+    )
+    .all(userId, since ?? '') as { at: string; skipped: number; ms: number }[];
+
+  const byHour = emptyBuckets(24);
+  const byWeekday = emptyBuckets(7);
+  const perDay = new Map<string, TrendPoint>();
+  const playedDays = new Set<string>();
+  const point = (map: Map<string, TrendPoint>, date: string) => {
+    let p = map.get(date);
+    if (!p) map.set(date, (p = { date, plays: 0, msListened: 0, skips: 0 }));
+    return p;
+  };
+
+  for (const row of rows) {
+    const when = local(sqliteMs(row.at));
+    const played = row.skipped === 0 ? 1 : 0;
+    const day = isoDay(when);
+    for (const b of [byHour[when.getUTCHours()], byWeekday[mondayIndex(when)]]) {
+      b.plays += played;
+      b.msListened += row.ms;
+    }
+    const p = point(perDay, day);
+    p.plays += played;
+    p.msListened += row.ms;
+    p.skips += 1 - played;
+    if (played) playedDays.add(day);
+  }
+
+  const today = local(now);
+  const trend: TrendPoint[] = [];
+  if (bucket === 'day') {
+    const first = local(sqliteMs(since!));
+    for (let ms = Date.parse(isoDay(first)); ms <= Date.parse(isoDay(today)); ms += DAY_MS) {
+      const date = isoDay(new Date(ms));
+      trend.push(perDay.get(date) ?? { date, plays: 0, msListened: 0, skips: 0 });
+    }
+  } else if (perDay.size > 0) {
+    const perWeek = new Map<string, TrendPoint>();
+    for (const p of perDay.values()) {
+      const w = point(perWeek, isoDay(weekStart(new Date(Date.parse(p.date)))));
+      w.plays += p.plays;
+      w.msListened += p.msListened;
+      w.skips += p.skips;
+    }
+    const firstWeek = Date.parse([...perWeek.keys()].sort()[0]);
+    for (let ms = firstWeek; ms <= weekStart(today).getTime(); ms += 7 * DAY_MS) {
+      const date = isoDay(new Date(ms));
+      trend.push(perWeek.get(date) ?? { date, plays: 0, msListened: 0, skips: 0 });
+    }
+  }
+
+  // Streaks span all time; the range's rows already are all time for `all`.
+  let allDays = playedDays;
+  if (range !== 'all') {
+    allDays = new Set(
+      (db.prepare(`SELECT ph.played_at AS at FROM play_history ph WHERE ph.user_id = ? AND ${PLAYED_ONLY}`).all(userId) as { at: string }[]).map(
+        (r) => isoDay(local(sqliteMs(r.at))),
+      ),
+    );
+  }
+
+  let busiestDay: { date: string; plays: number } | null = null;
+  for (const p of perDay.values()) {
+    if (p.plays > 0 && (!busiestDay || p.plays > busiestDay.plays)) busiestDay = { date: p.date, plays: p.plays };
+  }
+
+  return {
+    range,
+    tz: zone,
+    bucket,
+    byHour,
+    byWeekday,
+    trend,
+    streak: streaks(allDays, isoDay(today)),
+    busiest: { hour: indexOfMax(byHour), weekday: indexOfMax(byWeekday), day: busiestDay },
+  };
+}

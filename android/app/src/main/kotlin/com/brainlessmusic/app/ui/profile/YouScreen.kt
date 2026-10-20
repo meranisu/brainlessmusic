@@ -41,6 +41,7 @@ import com.brainlessmusic.app.ui.common.segmentShape
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -184,6 +185,13 @@ fun YouScreen(
                                     Skin.STANDARD -> StandardListening(stats, range)
                                 }
                             }
+                        }
+                        // The full picture (A228): when you listen, the trend, the day combo, every play.
+                        item {
+                            TextButton(
+                                onClick = { navController.navigate(Routes.STATS) { launchSingleTop = true } },
+                                modifier = Modifier.padding(horizontal = 8.dp),
+                            ) { Text("See all your stats") }
                         }
 
                         if (recent.isNotEmpty()) {

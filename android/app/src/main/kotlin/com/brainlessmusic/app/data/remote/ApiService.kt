@@ -53,6 +53,7 @@ import com.brainlessmusic.app.data.remote.dto.TracksPageDto
 import com.brainlessmusic.app.data.remote.dto.UserStatsDto
 import com.brainlessmusic.app.data.remote.dto.TrackStatDto
 import com.brainlessmusic.app.data.remote.dto.HistoryPageDto
+import com.brainlessmusic.app.data.remote.dto.ListeningPatternsDto
 import com.brainlessmusic.app.data.remote.dto.CreateRoomRequest
 import com.brainlessmusic.app.data.remote.dto.RoomCodeResponse
 import com.brainlessmusic.app.data.remote.dto.RoomLookupDto
@@ -222,6 +223,9 @@ interface ApiService {
     // Profile (A61): stats, liked songs, songs heard less, playlists. Accounts only.
     @GET("me/stats")
     suspend fun stats(@Query("range") range: String, @Query("limit") limit: Int): UserStatsDto
+
+    @GET("me/stats/patterns")
+    suspend fun listeningPatterns(@Query("range") range: String, @Query("tz") tz: String): ListeningPatternsDto
 
     @GET("me/stats/tracks/{id}")
     suspend fun trackStat(@Path("id") id: Int): TrackStatDto

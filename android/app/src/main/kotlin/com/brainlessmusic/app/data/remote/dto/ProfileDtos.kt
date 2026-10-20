@@ -12,6 +12,8 @@ data class UserStatsDto(
     val topArtists: List<TopArtistDto>,
     val topAlbums: List<TopAlbumDto>,
     val counts: ProfileCountsDto,
+    /** Added for the Stats screen (2026-10-20); missing from older servers. */
+    val topGenres: List<ProfileGenreDto> = emptyList(),
 )
 
 data class StatsTotalsDto(val plays: Int, val msListened: Long, val tracks: Int, val artists: Int)
@@ -232,3 +234,30 @@ data class ProfileDto(
 data class ProfileUpdateRequest(val bio: String?, val favoriteTrackId: Int?, val favoriteArtistId: Int?)
 
 data class AvatarDto(val avatarId: String? = null)
+
+/** `GET /me/stats/patterns`: when you listen, bucketed in the zone sent as `tz`. Plays leave out skips; time includes them. */
+data class ListeningPatternsDto(
+    val range: String,
+    val tz: String,
+    /** "day" for week, month and year; "week" (Monday first) for all time (A229). */
+    val bucket: String,
+    /** 24 entries, local hour 0 to 23. */
+    val byHour: List<PatternBucketDto>,
+    /** 7 entries, Monday first. */
+    val byWeekday: List<PatternBucketDto>,
+    val trend: List<TrendPointDto>,
+    val streak: StreakDto,
+    val busiest: BusiestDto,
+)
+
+data class PatternBucketDto(val plays: Int, val msListened: Long)
+
+/** [date] is the local day, or the Monday of the week, as `YYYY-MM-DD`. */
+data class TrendPointDto(val date: String, val plays: Int, val msListened: Long, val skips: Int)
+
+/** Days in a row with a play, over all time whatever the range. */
+data class StreakDto(val current: Int, val longest: Int, val longestEndedOn: String?)
+
+data class BusiestDto(val hour: Int?, val weekday: Int?, val day: BusiestDayDto?)
+
+data class BusiestDayDto(val date: String, val plays: Int)

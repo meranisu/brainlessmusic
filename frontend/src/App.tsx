@@ -35,6 +35,7 @@ const TogetherPage = lazyPage(() => import('./pages/TogetherPage').then((m) => (
 const UploadPage = lazyPage(() => import('./pages/UploadPage').then((m) => ({ default: m.UploadPage })));
 const UsersPage = lazyPage(() => import('./pages/UsersPage').then((m) => ({ default: m.UsersPage })));
 const PeoplePage = lazyPage(() => import('./pages/PeoplePage').then((m) => ({ default: m.PeoplePage })));
+const StatsPage = lazyPage(() => import('./pages/StatsPage').then((m) => ({ default: m.StatsPage })));
 const ProfilePage = lazyPage(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
 const LogsPage = lazyPage(() => import('./pages/LogsPage').then((m) => ({ default: m.LogsPage })));
 const LevellingPage = lazyPage(() => import('./pages/LevellingPage').then((m) => ({ default: m.LevellingPage })));
@@ -71,6 +72,8 @@ export function App() {
             <Route path="/genres/:id" element={<GenreDetailPage />} />
             <Route element={<RequireAccount />}>
               <Route path="/favorites" element={<FavoritesPage />} />
+              {/* Your own listening only (A230); guests have no history (A37). */}
+              <Route path="/stats" element={<StatsPage />} />
             </Route>
             {/* Guests too: they see and play public playlists, and have none of their own (A163). */}
             <Route path="/playlists" element={<PlaylistsPage />} />

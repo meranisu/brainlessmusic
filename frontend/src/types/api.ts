@@ -621,3 +621,65 @@ export interface Profile {
   liked: { total: number; tracks: TrackSummary[] };
   disliked: { total: number; tracks: TrackSummary[] };
 }
+
+type StatsTotals = { plays: number; msListened: number; tracks: number; artists: number };
+
+/** `GET /me/stats`: your own listening over a range, with the window before it for comparison (A91). */
+export interface MyStats {
+  range: StatsRange;
+  since: string | null;
+  memberSince: string;
+  totals: StatsTotals;
+  /** Same length, just before; null for all time. */
+  previousTotals: StatsTotals | null;
+  topTracks: { track: TrackSummary; plays: number; msListened: number; previousRank?: number | null }[];
+  topArtists: { id: number; name: string; plays: number; msListened: number; previousRank?: number | null }[];
+  topAlbums: { id: number; title: string; artist: string | null; plays: number; msListened: number }[];
+  topGenres: { id: number; name: string; plays: number }[];
+  counts: { liked: number; lessOften: number; playlists: number };
+}
+
+export interface PatternBucket {
+  plays: number;
+  msListened: number;
+}
+
+/** `GET /me/stats/patterns`: when you listen, in the zone sent as `tz`. Plays leave out skips; time includes them. */
+export interface ListeningPatterns {
+  range: StatsRange;
+  tz: string;
+  /** Daily for week, month and year; weekly (Monday first) for all time (A229). */
+  bucket: 'day' | 'week';
+  byHour: PatternBucket[];
+  /** Monday first. */
+  byWeekday: PatternBucket[];
+  trend: (PatternBucket & { date: string; skips: number })[];
+  /** In days, over all time whatever the range. */
+  streak: { current: number; longest: number; longestEndedOn: string | null };
+  busiest: { hour: number | null; weekday: number | null; day: { date: string; plays: number } | null };
+}
+
+/** One row of `GET /me/history`, newest first. */
+export interface HistoryEntry {
+  id: number;
+  trackId: number;
+  title: string;
+  artist: string | null;
+  album: string | null;
+  albumId: number | null;
+  trackNumber: number | null;
+  duration: number | null;
+  gainDb: number | null;
+  format: string | null;
+  playedAt: string;
+  msPlayed: number | null;
+  missing: number;
+  skipped: number;
+}
+
+export interface HistoryPage {
+  total: number;
+  limit: number;
+  offset: number;
+  history: HistoryEntry[];
+}

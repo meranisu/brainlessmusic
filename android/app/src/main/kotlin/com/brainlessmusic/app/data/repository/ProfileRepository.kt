@@ -23,6 +23,8 @@ import com.brainlessmusic.app.data.remote.dto.PlaylistSummaryDto
 import com.brainlessmusic.app.data.remote.dto.ReorderPlaylistRequest
 import com.brainlessmusic.app.data.remote.dto.TrackStatDto
 import com.brainlessmusic.app.data.remote.dto.UserStatsDto
+import com.brainlessmusic.app.data.remote.dto.ListeningPatternsDto
+import com.brainlessmusic.app.data.remote.dto.HistoryPageDto
 import com.brainlessmusic.app.data.remote.dto.PersonDto
 import com.brainlessmusic.app.data.remote.dto.ProfileDto
 import com.brainlessmusic.app.data.remote.dto.TrackSummaryDto
@@ -38,6 +40,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import retrofit2.HttpException
+import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -82,6 +85,13 @@ class ProfileRepository @Inject constructor(
     private var dislikedLoaded = false
 
     suspend fun stats(range: StatsRange): Result<UserStatsDto> = callApi { it.stats(range.query, TOP_LIMIT) }
+
+    /** When you listen over [range], in the phone's time zone (Stats screen). */
+    suspend fun listeningPatterns(range: StatsRange): Result<ListeningPatternsDto> =
+        callApi { it.listeningPatterns(range.query, ZoneId.systemDefault().id) }
+
+    /** One page of every play, newest first, skips and missing files included (Stats screen's Recently played). */
+    suspend fun historyPage(offset: Int, limit: Int): Result<HistoryPageDto> = callApi { it.history(limit, offset) }
 
     /** This account's numbers for one song, all time (A91). */
     suspend fun trackStat(trackId: Int): Result<TrackStatDto> = callApi { it.trackStat(trackId) }

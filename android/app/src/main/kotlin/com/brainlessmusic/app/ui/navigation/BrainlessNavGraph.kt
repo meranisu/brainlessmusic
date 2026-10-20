@@ -44,6 +44,7 @@ import com.brainlessmusic.app.ui.profile.PlaylistDetailScreen
 import com.brainlessmusic.app.ui.profile.SongListKind
 import com.brainlessmusic.app.ui.profile.SongListScreen
 import com.brainlessmusic.app.ui.profile.YouScreen
+import com.brainlessmusic.app.ui.stats.StatsScreen
 import com.brainlessmusic.app.ui.search.SearchScreen
 import com.brainlessmusic.app.ui.settings.SettingsPage
 import com.brainlessmusic.app.ui.settings.SettingsPageScreen
@@ -271,6 +272,14 @@ fun BrainlessNavGraph(
                     YouScreen(
                         navController = navController,
                         onOpenArtist = { id -> navController.navigate(Routes.artistDetail(id)) },
+                        onOpenAlbum = { navController.navigate(Routes.albumDetail(it)) },
+                    )
+                }
+                screen(Routes.STATS) { entry ->
+                    StatsScreen(
+                        onBack = { navController.popFrom(entry) },
+                        onOpenNowPlaying = { navController.openNowPlaying() },
+                        onOpenArtist = { navController.navigate(Routes.artistDetail(it)) },
                         onOpenAlbum = { navController.navigate(Routes.albumDetail(it)) },
                     )
                 }
