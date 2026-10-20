@@ -16,7 +16,7 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
   sheet. Release builds only; nothing without the notification permission.
 - New `ui/splash/IntroGate.kt`: `ArcadeWelcome`, `SkinTransition` and the system splash hold it; `UpdateSheetHost`
   stays hidden while held and opens after.
-- Verified: not yet; `compileReleaseKotlin` was still running at commit time. Not run on a phone; the notification needs a real release newer than the
+- Verified: `./gradlew compileReleaseKotlin` passes. Not run on a phone; the notification needs a real release newer than the
   installed one to show.
 
 ## 2026-10-20: Web library list shows the last copy at once
