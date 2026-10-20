@@ -4,6 +4,30 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `visiblePeople()`, `listFeed()`, `setHideActivity()` — `backend/src/db/social.ts`
+**Date:** 2026-10-21
+**How added:** new feature
+**Purpose:** who may appear in the social layer (other accounts not hiding activity) and the merged activity feed (A239-A242).
+**Side effects:** `setHideActivity` writes `users.hide_activity`.
+**Before:** nothing — new function.
+**After:** feed of plays, likes and public playlists, newest first, cursor by `at`.
+
+**Function:** `socialRoute` (`GET /social/now-playing`, `GET /social/feed`, `PUT /me/activity-visibility`) — `backend/src/routes/social.ts`
+**Date:** 2026-10-21
+**How added:** new feature
+**Purpose:** friends' now playing from `listListeners()`, the feed, and the hide switch. Accounts only.
+**Side effects:** none beyond the hide switch.
+**Before:** nothing — new route.
+**After:** registered in `app.ts`; gates listed in `guestAccess.test.ts`.
+
+**Function:** `FriendsPage` — `frontend/src/pages/FriendsPage.tsx`; `FriendsScreen`, `FriendsViewModel` — `android/.../ui/people/FriendsScreen.kt`
+**Date:** 2026-10-21
+**How added:** new feature
+**Purpose:** show friends' now playing (polled 15 s while visible) and the feed; toggle "Hide my activity".
+**Side effects:** polling `GET /social/now-playing`.
+**Before:** nothing — new screen.
+**After:** web `/friends` under More; Android from the You tab.
+
 **Function:** `analyzeSamples()`, `estimateTempo()` — `backend/src/utils/audioAnalysis.ts`
 **Date:** 2026-10-20
 **How added:** new feature

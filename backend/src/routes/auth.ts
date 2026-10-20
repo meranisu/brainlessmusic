@@ -495,6 +495,7 @@ const authRoute: FastifyPluginAsync = async (fastify) => {
       theme: user.theme,
       // So the header's picture button needs no second request (A171).
       avatarId: user.avatar_id,
+      hideActivity: Boolean(user.hide_activity),
     });
   });
 

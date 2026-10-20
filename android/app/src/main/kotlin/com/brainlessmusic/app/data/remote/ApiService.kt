@@ -1,5 +1,8 @@
 package com.brainlessmusic.app.data.remote
 
+import com.brainlessmusic.app.data.remote.dto.ActivityVisibilityRequest
+import com.brainlessmusic.app.data.remote.dto.FeedPageDto
+import com.brainlessmusic.app.data.remote.dto.NowPlayingDto
 import com.brainlessmusic.app.data.remote.dto.AcceptInviteRequest
 import com.brainlessmusic.app.data.remote.dto.AcceptInviteResponse
 import com.brainlessmusic.app.data.remote.dto.AddPlaylistTrackRequest
@@ -333,6 +336,16 @@ interface ApiService {
     // Profiles (A167-A174). Anyone signed in reads them; only an account edits its own.
     @GET("people")
     suspend fun people(): PeopleDto
+
+    // Friends' now playing and the activity feed (A239-A241). Accounts only; a guest gets 403.
+    @GET("social/now-playing")
+    suspend fun friendsNowPlaying(): NowPlayingDto
+
+    @GET("social/feed")
+    suspend fun friendsFeed(@Query("before") before: String?): FeedPageDto
+
+    @PUT("me/activity-visibility")
+    suspend fun setActivityHidden(@Body body: ActivityVisibilityRequest)
 
     @GET("users/{id}/profile")
     suspend fun profile(@Path("id") id: Int, @Query("range") range: String): ProfileDto

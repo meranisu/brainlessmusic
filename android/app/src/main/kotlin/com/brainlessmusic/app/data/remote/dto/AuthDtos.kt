@@ -79,6 +79,8 @@ data class MeResponse(
     val avatarId: String? = null,
     /** Null asks for one (A190); always null for a guest, who is never asked, and from a server older than emails. */
     val email: String? = null,
+    /** Left out of friends' now playing and the feed (A241); false from a server older than the social layer. */
+    val hideActivity: Boolean = false,
 )
 
 /** `GET /invites/:code` (A107-A112): `open`, `used`, `expired` or `revoked`. [forGuest] is set on an upgrade invite. */

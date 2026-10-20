@@ -139,6 +139,7 @@ erDiagram
 | `favorite_artist_id` | INTEGER | nullable | — | Added `0035`. Pinned favourite artist (A169). No FK, as above |
 | `email` | TEXT | nullable | — | Added `0037`. Stored trimmed and lowercased (`cleanEmail()`); unique among non-NULL rows. Required when signing up from an invite, asked for on accounts made before (A189-A190), accepted by password and passcode sign-in in place of the username (A192). Always NULL for guests. Nothing sends mail to it yet |
 | `passcode_failures` | INTEGER | NOT NULL | `0` | Added `0040`. Wrong passcode sign-ins since the last password sign-in or new passcode. At 10 (`PASSCODE_MAX_FAILURES`) passcode sign-in refuses everything until reset (A216) |
+| `hide_activity` | INTEGER | NOT NULL | `0` | Added `0043`. 1 leaves the account out of friends' now playing and the activity feed (A241) |
 
 **FKs:** none (root entity).
 **Indexes:** unique index on `username` (auto, from the `UNIQUE` constraint, case-sensitive, now redundant); unique `idx_users_username_nocase` on `username COLLATE NOCASE` (`0029`, the one that decides); partial unique `users_email_unique` on `email WHERE email IS NOT NULL` (`0037`); `idx_users_kind_last_seen` on `(kind, last_seen_at)` — both guest queries filter on kind and order by staleness.
@@ -308,7 +309,7 @@ track by `services/audioFeatures.ts`. One row per measured track; no row means n
 | `skipped` | INTEGER | NOT NULL | `0` | Added `0027`, boolean-as-int (A113): a song cut short before the scrobble threshold, sent once at its end with `ms_final = 1`. Counts toward time listened and `GET /me/history`; left out of plays, top lists, `GET /tracks/:id/history`, Smart shuffle's recency, and never bumps `tracks.play_count` / `last_played_at`. `0` on all rows before the migration |
 
 **FKs:** `user_id → users.id`, `track_id → tracks.id` (both `NO ACTION` / `NO ACTION`).
-**Indexes:** `idx_play_history_user_played_at` (composite, `user_id, played_at` — backs `GET /me/history`), `idx_play_history_track_id` (backs `GET /tracks/:id/history`), `idx_play_history_client_play_id` (unique, partial, `user_id, client_play_id` — `0026`, the resend check). Added `0039`: `idx_play_history_user_track` (`user_id, track_id, skipped, played_at`, covering) — backs the per-song play count and last play that smart playlist rules read, so SQLite needn't sort the user's history for `GROUP BY track_id`.
+**Indexes:** `idx_play_history_user_played_at` (composite, `user_id, played_at` — backs `GET /me/history`), `idx_play_history_track_id` (backs `GET /tracks/:id/history`), `idx_play_history_client_play_id` (unique, partial, `user_id, client_play_id` — `0026`, the resend check). Added `0039`: `idx_play_history_user_track` (`user_id, track_id, skipped, played_at`, covering) — backs the per-song play count and last play that smart playlist rules read, so SQLite needn't sort the user's history for `GROUP BY track_id`. Added `0043`: `idx_play_history_played_at` — backs the cross-user activity feed (`GET /social/feed`).
 **Append-only in practice** — no update/delete path exists for individual history rows; `deleteTrackRow()` bulk-deletes by `track_id` when a track is hard-deleted, and that's the only delete path today.
 
 ### `favorites`
@@ -613,6 +614,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | `0036_add_playlist_description.sql` | `playlists.description` — playlist descriptions (A185) |
 | `0039_add_play_history_user_track_index.sql` | `idx_play_history_user_track` covering index on `play_history` — smart playlist play counts (A207, A208) |
 | `0042_create_track_features.sql` | `track_features` — audio features for smart auto-mixes (A234, A238) |
+| `0043_add_user_hide_activity.sql` | `users.hide_activity`; `idx_play_history_played_at` — social layer (A239-A241) |
 | `0041_add_track_file_mtime.sql` | `tracks.file_mtime`, `tracks.scan_version` — incremental scan |
 | `0040_add_passcode_failures.sql` | `users.passcode_failures`; clears every existing `passcode_hash` (A216) |
 | `0038_add_playlist_rules.sql` | `playlists.rules` — smart playlists (A207-A209) |

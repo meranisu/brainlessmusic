@@ -81,6 +81,22 @@ A 304 still makes the 0.2 to 1 s tunnel trip, so it saves data, not time; pages 
 
 ## Answered
 
+### A242 — Social feed: one play line per person per song per day *(asked in chat)*
+**Answered:** 2026-10-21, in chat: "which is suitable i guess". Picked: one per person per song per day; skips left out.
+
+### A243 — Social layer on web: its own Friends page *(asked in chat)*
+**Answered:** 2026-10-21, in chat. A Friends page in the nav beside People, not a section of People.
+
+### A239 — Social layer: now playing plus feed first *(was Q226)*
+**Answered:** 2026-10-21, in chat. Build friends' live "now playing" and an activity feed of plays, likes and new playlists together. Reactions and comments wait.
+
+### A240 — Social layer: everyone sees everyone *(was Q227)*
+**Answered:** 2026-10-21, in chat. No follow model; every non-guest account on the server sees every other.
+
+### A241 — Social layer: one hide switch, no guests *(was Q228)*
+**Answered:** 2026-10-21, in chat. One "Hide my activity" setting per account. Guests never appear in now playing or the feed.
+
+
 ### A238 — Audio features built now (was Q225)
 **Answered:** 2026-10-20, in chat. Build the ffmpeg audio pass in Phase 1. [smart-auto-mix](features/smart-auto-mix/planning.md).
 

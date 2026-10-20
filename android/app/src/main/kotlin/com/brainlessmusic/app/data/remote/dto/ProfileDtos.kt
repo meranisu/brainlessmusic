@@ -261,3 +261,32 @@ data class StreakDto(val current: Int, val longest: Int, val longestEndedOn: Str
 data class BusiestDto(val hour: Int?, val weekday: Int?, val day: BusiestDayDto?)
 
 data class BusiestDayDto(val date: String, val plays: Int)
+
+/** Someone in friends' now playing or the feed (A239): display name only. */
+data class SocialPersonDto(val id: Int, val name: String, val avatarId: String? = null)
+
+/** `GET /social/now-playing`. [since] is ISO, when they started this song. */
+data class FriendListeningDto(
+    val person: SocialPersonDto,
+    val track: TrackSummaryDto,
+    val positionSeconds: Double,
+    val since: String,
+)
+
+data class NowPlayingDto(val listening: List<FriendListeningDto>)
+
+data class FeedPlaylistDto(val id: Int, val name: String, val trackCount: Int)
+
+/** One feed line: [kind] is `play`, `like` (with [track]) or `playlist` (with [playlist]). [at] is SQLite UTC. */
+data class FeedItemDto(
+    val kind: String,
+    val at: String,
+    val person: SocialPersonDto,
+    val track: TrackSummaryDto? = null,
+    val playlist: FeedPlaylistDto? = null,
+)
+
+/** `GET /social/feed`. Pass [nextBefore] back untouched as `before` for older; null at the end. */
+data class FeedPageDto(val items: List<FeedItemDto>, val nextBefore: String? = null)
+
+data class ActivityVisibilityRequest(val hidden: Boolean)

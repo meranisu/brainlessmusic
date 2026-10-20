@@ -77,6 +77,10 @@ const EXPECTED: Record<string, Gate> = {
   'DELETE /auth/passcode': 'account',
   'POST /auth/passcode': 'account',
   'PUT /me/email': 'account',
+  // Friends' now playing and the feed (A239-A241): guests neither see nor appear.
+  'GET /social/now-playing': 'account',
+  'GET /social/feed': 'account',
+  'PUT /me/activity-visibility': 'account',
   'GET /me/favorites': 'account',
   'GET /me/favorites/ids': 'account',
   'GET /me/less-often/ids': 'account',

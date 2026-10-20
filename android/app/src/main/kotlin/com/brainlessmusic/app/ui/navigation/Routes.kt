@@ -24,6 +24,7 @@ object Routes {
     const val SONG_LIST = "you/{list}"
     const val TOGETHER = "together"
     const val PEOPLE = "people"
+    const val FRIENDS = "friends"
     /** Your own listening in full (A228), opened from Home. */
     const val STATS = "stats"
     const val PROFILE = "people/{userId}"

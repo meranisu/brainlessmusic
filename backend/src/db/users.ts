@@ -23,6 +23,8 @@ export interface UserRow {
   session_version: number;
   /** The profile picture's content hash (A167); NULL means none. See `0035`. */
   avatar_id: string | null;
+  /** 1 leaves this account out of friends' now playing and the feed (A241). See `0043`. */
+  hide_activity: number;
   /** Lowercase; NULL until added, and always for guests (A190). See `0037`. */
   email: string | null;
   /** Wrong passcode sign-ins since the last password sign-in (A216). See `0040`. */

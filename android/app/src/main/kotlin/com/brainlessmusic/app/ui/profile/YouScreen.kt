@@ -194,6 +194,13 @@ fun YouScreen(
                                 modifier = Modifier.padding(horizontal = 8.dp),
                             ) { Text("See all your stats") }
                         }
+                        // What everyone else is playing (A239). Inside the stats block, which guests never reach.
+                        item {
+                            TextButton(
+                                onClick = { navController.navigate(Routes.FRIENDS) { launchSingleTop = true } },
+                                modifier = Modifier.padding(horizontal = 8.dp),
+                            ) { Text("See what friends are playing") }
+                        }
 
                         if (mixes.isNotEmpty()) {
                             item { SectionTitle("Mixes for you") }

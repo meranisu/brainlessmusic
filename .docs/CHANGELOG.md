@@ -4,6 +4,23 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-21: Social layer part 1: friends' now playing and activity feed (all three clients)
+
+- Why: owner picked the social layer (A239-A243). Plan: `.docs/features/social-layer/planning.md`.
+- Backend:
+  - Migration `0043_add_user_hide_activity.sql` adds `users.hide_activity` and an index on `play_history(played_at)`.
+  - `GET /social/now-playing` reuses the control centre's listeners (`services/streamMonitor.ts`), which players
+    already feed every 10 s through `PUT /me/playback-state`. One line per person; hidden tracks left out.
+  - `GET /social/feed?before=&limit=` (`db/social.ts`): plays (one per person per song per day, no skips, last
+    30 days), likes, playlists made public; newest first, paged by `nextBefore`.
+  - `PUT /me/activity-visibility {hidden}`; `/auth/me` returns `hideActivity`.
+  - All three are accounts only. Guests, yourself and anyone hiding their activity never appear.
+- Web: new Friends page (`/friends`, under More, not for guests): "Listening now" polled every 15 s, the feed with
+  "Show older", and a "Hide my activity" checkbox. Tapping a song plays it.
+- Android: new `FriendsScreen` opened from You ("See what friends are playing"), same parts, polls only while shown.
+- Feed paging uses the full sort key (`at|kind|userId|refId`) as `nextBefore`, so items sharing a second are never
+  skipped or repeated across pages.
+
 ## 2026-10-20: Smart auto-mixes: song radio, endless queue, daily mixes (all three clients)
 
 - Why: owner picked "smart auto-mixes" from the brainstorm (A234). Similarity uses tags and listening history, plus

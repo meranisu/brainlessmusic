@@ -45,6 +45,7 @@ import com.brainlessmusic.app.ui.profile.SongListKind
 import com.brainlessmusic.app.ui.profile.SongListScreen
 import com.brainlessmusic.app.ui.profile.YouScreen
 import com.brainlessmusic.app.ui.stats.StatsScreen
+import com.brainlessmusic.app.ui.people.FriendsScreen
 import com.brainlessmusic.app.ui.search.SearchScreen
 import com.brainlessmusic.app.ui.settings.SettingsPage
 import com.brainlessmusic.app.ui.settings.SettingsPageScreen
@@ -313,6 +314,15 @@ fun BrainlessNavGraph(
                         onBack = { navController.popFrom(entry) },
                         onOpenNowPlaying = { navController.openNowPlaying() },
                         onOpenProfile = { navController.navigate(Routes.profile(it)) },
+                    )
+                }
+                // Friends' now playing and activity (A239-A241). Accounts only; the entry on You is hidden for guests.
+                screen(Routes.FRIENDS) { entry ->
+                    FriendsScreen(
+                        onBack = { navController.popFrom(entry) },
+                        onOpenNowPlaying = { navController.openNowPlaying() },
+                        onOpenProfile = { navController.navigate(Routes.profile(it)) },
+                        onOpenPlaylist = { navController.navigate(Routes.playlistDetail(it)) },
                     )
                 }
                 screen(Routes.PROFILE, arguments = listOf(intArg(Routes.ARG_USER_ID))) { entry ->

@@ -14,6 +14,8 @@ export interface User {
   avatarId: string | null;
   /** Null asks for one (A190). Always `null` for a guest, who is never asked. */
   email: string | null;
+  /** Left out of friends' now playing and the feed (A241). Always `false` for a guest. */
+  hideActivity: boolean;
 }
 
 export interface TrackSummary {
@@ -682,4 +684,30 @@ export interface HistoryPage {
   limit: number;
   offset: number;
   history: HistoryEntry[];
+}
+
+/** Someone in friends' now playing or the feed (A239): display name only. */
+export interface SocialPerson {
+  id: number;
+  name: string;
+  avatarId: string | null;
+}
+
+/** `GET /social/now-playing`: other accounts playing right now. */
+export interface FriendListening {
+  person: SocialPerson;
+  track: TrackSummary;
+  positionSeconds: number;
+  /** When they started this song, ISO. */
+  since: string;
+}
+
+/** `GET /social/feed`: plays (one per person per song per day), likes, playlists made public. `at` is SQLite UTC. */
+export type FeedItem =
+  | { kind: 'play' | 'like'; at: string; person: SocialPerson; track: TrackSummary }
+  | { kind: 'playlist'; at: string; person: SocialPerson; playlist: { id: number; name: string; trackCount: number } };
+
+export interface FeedPage {
+  items: FeedItem[];
+  nextBefore: string | null;
 }

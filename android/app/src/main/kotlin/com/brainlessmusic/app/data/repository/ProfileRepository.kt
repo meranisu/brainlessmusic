@@ -4,6 +4,9 @@ import com.brainlessmusic.app.data.remote.ApiService
 import com.brainlessmusic.app.data.remote.ApiServiceFactory
 import com.brainlessmusic.app.data.remote.ServerConfig
 import com.brainlessmusic.app.data.remote.TokenProvider
+import com.brainlessmusic.app.data.remote.dto.ActivityVisibilityRequest
+import com.brainlessmusic.app.data.remote.dto.FeedPageDto
+import com.brainlessmusic.app.data.remote.dto.FriendListeningDto
 import com.brainlessmusic.app.data.remote.dto.AddPlaylistTrackRequest
 import com.brainlessmusic.app.data.remote.dto.CreateSmartPlaylistRequest
 import com.brainlessmusic.app.data.remote.dto.EditSmartRulesRequest
@@ -223,6 +226,15 @@ class ProfileRepository @Inject constructor(
 
     /** Everyone with a profile, most recently listening first (A170). Guests too. */
     suspend fun people(): Result<List<PersonDto>> = callApi { it.people().people }
+
+    suspend fun friendsNowPlaying(): Result<List<FriendListeningDto>> = callApi { it.friendsNowPlaying().listening }
+
+    suspend fun friendsFeed(before: String?): Result<FeedPageDto> = callApi { it.friendsFeed(before) }
+
+    suspend fun hideActivity(): Result<Boolean> = callApi { it.me().hideActivity }
+
+    suspend fun setActivityHidden(hidden: Boolean): Result<Unit> =
+        callApi { it.setActivityHidden(ActivityVisibilityRequest(hidden)) }
 
     suspend fun profile(userId: Int, range: StatsRange): Result<ProfileDto> = callApi { it.profile(userId, range.query) }
 

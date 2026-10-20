@@ -20,6 +20,7 @@ import libraryRoute from './routes/library.js';
 import playlistsRoute from './routes/playlists.js';
 import profileRoute from './routes/profile.js';
 import roomsRoute from './routes/rooms.js';
+import socialRoute from './routes/social.js';
 import searchRoute from './routes/search.js';
 import lettersRoute from './routes/letters.js';
 import shuffledTracksRoute from './routes/shuffledTracks.js';
@@ -100,6 +101,7 @@ export function buildApp() {
       api.register(guestCodesRoute);
       api.register(invitesRoute);
       api.register(roomsRoute);
+      api.register(socialRoute);
     },
     { prefix: API_PREFIX },
   );
