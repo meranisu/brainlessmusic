@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `startLibrarySyncSchedule()` — `backend/src/services/librarySync.ts`
+**Date:** 2026-10-20
+**How added:** refactor
+**Purpose:** checks for a due root every 5 minutes (was hourly); default interval now 15 minutes (`config.libraryScanIntervalHours`).
+**Side effects:** a library scan every 15 minutes; unchanged files only `stat`ed.
+**Before:** due check hourly, scan every 12 h.
+**After:** new files picked up within about 15 minutes.
+
 **Function:** `prepareNext()` — `android/app/src/main/kotlin/com/brainlessmusic/app/playback/PlaybackController.kt` (with `LibraryRepository.prepareTrack()`, `ApiService.prepareTrack()`)
 **Date:** 2026-10-20
 **How added:** new feature

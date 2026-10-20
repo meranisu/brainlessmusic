@@ -75,7 +75,8 @@ export const config = {
   transcodeMinSourceBitrateRatio: Number(process.env.TRANSCODE_MIN_SOURCE_BITRATE_RATIO ?? 1.5),
   // Boot only stats known paths; the full tag-reading walk runs on the interval, since `tsx watch` restarts on every save.
   libraryScanEnabled: process.env.LIBRARY_SCAN_ENABLED !== 'false',
-  libraryScanIntervalHours: Number(process.env.LIBRARY_SCAN_INTERVAL_HOURS ?? 12),
+  // 15 minutes: since 0041 an unchanged file costs one stat, so a frequent scan stands in for a file watcher.
+  libraryScanIntervalHours: Number(process.env.LIBRARY_SCAN_INTERVAL_HOURS ?? 0.25),
   // Above this share newly missing in one sweep, nothing is marked: an unmounted root looks exactly like a deleted one.
   libraryMissingAbortRatio: Number(process.env.LIBRARY_MISSING_ABORT_RATIO ?? 0.5),
   // Built frontend served by the API. Set in the image; unset in dev, where Vite serves it.

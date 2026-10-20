@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-20: Library scan every 15 minutes instead of every 12 hours
+
+- `LIBRARY_SCAN_INTERVAL_HOURS` default 12 to 0.25 (`backend/src/config.ts`); the schedule checks for a due root every
+  5 minutes instead of hourly (`DUE_CHECK_MS`, `backend/src/services/librarySync.ts`). New files show up within about
+  15 minutes. The env var still overrides it.
+- Why: stands in for a file watcher. Since 0041 an unchanged file costs one `stat`, about 1.5 s per scan at 12,759
+  songs (estimated from the 50k benchmark's 5.8 s, not measured on smol). A scan still running makes the next tick
+  skip ("one is already running"). A watcher stays parked: inotify misses changes on `/mnt` drives under WSL2.
+- Verified: `cd backend && npm test` 718/718, type check clean; `isScanDue` test gains fraction-of-an-hour cases.
+
 ## 2026-10-20: Android asks the server to convert the next song early
 
 - `PlaybackController.prepareNext()` calls `POST /tracks/:id/prepare` (with `?quality=low` under data saver) for the next

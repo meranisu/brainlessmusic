@@ -31,7 +31,7 @@ Yes, there are this many knobs. Most of them you will never touch.
 | `BACKUP_INTERVAL_HOURS` | `24` | how often a backup runs while the server is up |
 | `BACKUP_KEEP` | `14` | how many backups to retain; older ones are deleted |
 | `LIBRARY_SCAN_ENABLED` | `true` | scheduled library sync; `false` turns it off |
-| `LIBRARY_SCAN_INTERVAL_HOURS` | `12` | how often a full scan runs while the server is up. A cheap presence check also runs at boot |
+| `LIBRARY_SCAN_INTERVAL_HOURS` | `0.25` | how often a scan runs while the server is up (fractions allowed; checked every 5 minutes). Unchanged files are only `stat`ed. A cheap presence check also runs at boot |
 | `LIBRARY_MISSING_ABORT_RATIO` | `0.5` | if more than this share of the library vanishes in one sweep, nothing is flagged, because an unmounted library looks exactly like a deleted one |
 | `TRANSCODE_PATH` | `./data/transcodes` | converted copies of tracks. Safe to delete; each missing entry costs one re-encode |
 | `TRANSCODE_CACHE_MAX_MB` | `2048` | cache ceiling. Least-recently-used entries are dropped after a write, the only moment the cache grows. `0` disables the cap |

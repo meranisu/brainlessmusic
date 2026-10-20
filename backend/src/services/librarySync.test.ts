@@ -56,6 +56,8 @@ describe('isScanDue (0033)', () => {
   it('reads SQLite UTC timestamps and compares against the interval', () => {
     assert.equal(isScanDue('2026-10-12 00:00:00', now, 12), true, 'exactly 12 h ago');
     assert.equal(isScanDue('2026-10-12 00:00:01', now, 12), false, 'a second short');
+    assert.equal(isScanDue('2026-10-12 11:45:00', now, 0.25), true, 'a fraction of an hour: 15 min ago');
+    assert.equal(isScanDue('2026-10-12 11:46:00', now, 0.25), false, '14 min ago');
     assert.equal(isScanDue('2026-10-11 09:00:00', now, 12), true);
   });
 

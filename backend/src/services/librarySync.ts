@@ -108,7 +108,7 @@ function describe(label: string, result: LibrarySyncResult): string {
 }
 
 /** How often the schedule looks for a root that is due a scan. */
-const DUE_CHECK_MS = 60 * 60 * 1000;
+const DUE_CHECK_MS = 5 * 60 * 1000;
 
 /**
  * Whether a root is due a full scan: never scanned, or the last one is at least `intervalHours` old. `lastFullScanAt`
@@ -122,7 +122,7 @@ export function isScanDue(lastFullScanAt: string | null, now: Date, intervalHour
 }
 
 /**
- * At boot, reconciles every root and scans those due; then hourly, scans whichever are due. The clock is the
+ * At boot, reconciles every root and scans those due; then every 5 minutes, scans whichever are due. The clock is the
  * database's `last_full_scan_at`, so a restart (each auto-deploy, A120) no longer starts the interval over. A manual
  * scan stamps it too. Roots are re-read per run, so new ones are picked up without a restart. One root failing doesn't
  * stop the rest. `unref`'d.
