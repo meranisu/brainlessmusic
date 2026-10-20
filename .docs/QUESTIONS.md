@@ -61,6 +61,15 @@ includes friends using a guest code on the web: without their email on the list 
 
 ## Answered
 
+### A233 — Album art cache (Android)
+**Answered:** 2026-10-20, in chat. Android only; same limit choices as the song cache; its own clear button, apart from the song cache. Built in `downloads/CoverCache.kt` (500 MB default, my call), uncommitted.
+
+### A232 — Pick up new files: 15-minute scans, not a file watcher
+**Answered:** 2026-10-20, in chat. Scan every 15 minutes (default `LIBRARY_SCAN_INTERVAL_HOURS=0.25`, due check every 5 min), set in code, not on smol. Watcher parked; revisit only if 15 minutes feels slow. c222f4b.
+
+### A231 — Push the 2026-10-20 perf commits
+**Answered:** 2026-10-20, in chat. Wait. e612988..c222f4b stay local until the owner says push (push deploys to smol and runs 0041).
+
 ### A230 — Listening patterns: own only (was Q219)
 **Answered:** 2026-10-20, in chat. Own only. `/me/stats/patterns` sits behind `requireAccount`; profiles don't show patterns. [stats dashboard](features/stats-dashboard/planning.md).
 

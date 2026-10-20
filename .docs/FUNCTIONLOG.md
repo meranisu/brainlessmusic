@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `CoverCache` — `android/app/src/main/kotlin/com/brainlessmusic/app/downloads/CoverCache.kt` (with `PlaybackSettings.coverCacheLimitMb`, `CoverCacheSettings()` in `ui/downloads/DownloadSettings.kt`)
+**Date:** 2026-10-20
+**How added:** new feature
+**Purpose:** Coil disk cache for album art with a size limit from Settings, space used and clearing.
+**Side effects:** rebuilds the Coil disk cache on the same folder when the limit changes; reads the limit once with `runBlocking` at first image load.
+**Before:** Coil's default disk cache, no setting.
+**After:** limit chips (500 MB default) and a "Clear album art" button in Settings > Downloads.
+
 **Function:** `startLibrarySyncSchedule()` — `backend/src/services/librarySync.ts`
 **Date:** 2026-10-20
 **How added:** refactor

@@ -107,6 +107,13 @@ class PlaybackSettings @Inject constructor(
         dataStore.edit { it[SONG_CACHE_LIMIT_MB_KEY] = mb }
     }
 
+    /** The most the album art cache may take, in MB; 0 is no limit. 500 MB by default. */
+    val coverCacheLimitMb: Flow<Int> = dataStore.data.map { it[COVER_CACHE_LIMIT_MB_KEY] ?: COVER_CACHE_DEFAULT_MB }
+
+    suspend fun setCoverCacheLimitMb(mb: Int) {
+        dataStore.edit { it[COVER_CACHE_LIMIT_MB_KEY] = mb }
+    }
+
     /** How many songs after the playing one are fetched ahead while online; 0 is off. 3 by default. */
     val precacheCount: Flow<Int> = dataStore.data.map { it[PRECACHE_COUNT_KEY] ?: PRECACHE_DEFAULT_COUNT }
 
@@ -184,6 +191,7 @@ class PlaybackSettings @Inject constructor(
         val DOWNLOAD_LIMIT_GB_KEY = intPreferencesKey("download_limit_gb")
         val DOWNLOAD_WIFI_ONLY_KEY = booleanPreferencesKey("download_wifi_only")
         val SONG_CACHE_LIMIT_MB_KEY = intPreferencesKey("song_cache_limit_mb")
+        val COVER_CACHE_LIMIT_MB_KEY = intPreferencesKey("cover_cache_limit_mb")
         val PRECACHE_COUNT_KEY = intPreferencesKey("precache_count")
     }
 }
@@ -192,6 +200,8 @@ const val SONG_CACHE_DEFAULT_MB = 1024
 
 /** The cache sizes Settings offers, in MB; 0 is unlimited (A198). */
 val SONG_CACHE_LIMITS_MB = listOf(500, 1024, 2048, 5120, 0)
+
+const val COVER_CACHE_DEFAULT_MB = 500
 
 const val PRECACHE_DEFAULT_COUNT = 3
 

@@ -12,6 +12,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,10 +28,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.util.UnstableApi
 import com.brainlessmusic.app.data.local.PlaybackSettings
+import com.brainlessmusic.app.data.local.COVER_CACHE_DEFAULT_MB
 import com.brainlessmusic.app.data.local.PRECACHE_COUNTS
 import com.brainlessmusic.app.data.local.PRECACHE_DEFAULT_COUNT
 import com.brainlessmusic.app.data.local.SONG_CACHE_DEFAULT_MB
 import com.brainlessmusic.app.data.local.SONG_CACHE_LIMITS_MB
+import com.brainlessmusic.app.downloads.CoverCache
 import com.brainlessmusic.app.downloads.DownloadRepository
 import com.brainlessmusic.app.downloads.SongCache
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -49,6 +52,7 @@ class DownloadSettingsViewModel @Inject constructor(
     private val settings: PlaybackSettings,
     private val downloads: DownloadRepository,
     private val songCache: SongCache,
+    private val coverCache: CoverCache,
 ) : ViewModel() {
     val spaceUsed: StateFlow<Long> = downloads.spaceUsed
 
@@ -86,6 +90,21 @@ class DownloadSettingsViewModel @Inject constructor(
 
     fun clearCache() {
         viewModelScope.launch { songCache.clear() }
+    }
+
+    val coverUsed: StateFlow<Long> = coverCache.spaceUsed
+
+    val coverLimitMb: StateFlow<Int> =
+        settings.coverCacheLimitMb.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), COVER_CACHE_DEFAULT_MB)
+
+    fun setCoverLimitMb(mb: Int) {
+        viewModelScope.launch { settings.setCoverCacheLimitMb(mb) }
+    }
+
+    fun refreshCoverUsed() = coverCache.refresh()
+
+    fun clearCovers() {
+        viewModelScope.launch { coverCache.clearAll() }
     }
 }
 
@@ -167,6 +186,8 @@ internal fun DownloadSettings(
     }
     divider()
     SongCacheSettings(block, divider, viewModel)
+    divider()
+    CoverCacheSettings(block, divider, viewModel)
 }
 
 /** The played-songs cache (A198): its size, the space it uses, and emptying it. */
@@ -238,8 +259,59 @@ private fun SongCacheSettings(
     }
 }
 
+/** The album art cache: its size, the space it uses, and emptying it. Apart from the song cache. */
+@kotlin.OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CoverCacheSettings(
+    block: @Composable (title: String, detail: String?, content: @Composable () -> Unit) -> Unit,
+    divider: @Composable () -> Unit,
+    viewModel: DownloadSettingsViewModel,
+) {
+    val used by viewModel.coverUsed.collectAsStateWithLifecycle()
+    val limit by viewModel.coverLimitMb.collectAsStateWithLifecycle()
+    val usedText = Formatter.formatShortFileSize(LocalContext.current, used)
+    var confirmClear by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { viewModel.refreshCoverUsed() }
+
+    if (confirmClear) {
+        AlertDialog(
+            onDismissRequest = { confirmClear = false },
+            title = { Text("Clear album art?") },
+            text = { Text("Frees $usedText. Covers load from the server again next time.") },
+            confirmButton = {
+                TextButton(onClick = { confirmClear = false; viewModel.clearCovers() }) { Text("Clear") }
+            },
+            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Cancel") } },
+        )
+    }
+
+    block(
+        "Album art cache",
+        if (limit > 0) {
+            "Covers you've seen are kept here, so they show at once. Using $usedText of ${cacheSizeLabel(limit)}; " +
+                "when it's full, the covers seen longest ago go first."
+        } else {
+            "Covers you've seen are kept here, so they show at once. Using $usedText, no limit."
+        },
+    ) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SONG_CACHE_LIMITS_MB.forEach { mb ->
+                FilterChip(
+                    selected = mb == limit,
+                    onClick = { viewModel.setCoverLimitMb(mb) },
+                    label = { Text(cacheSizeLabel(mb)) },
+                )
+            }
+        }
+    }
+    divider()
+    block("Clear album art", "Takes every saved cover off this phone. Songs stay.") {
+        OutlinedButton(onClick = { confirmClear = true }, enabled = used > 0) { Text("Clear album art") }
+    }
+}
+
 private fun cacheSizeLabel(mb: Int): String = when {
-    mb <= 0 -> "Unlimited"
+    mb <= 0 -> "No limits"
     mb % 1024 == 0 -> "${mb / 1024} GB"
     else -> "$mb MB"
 }

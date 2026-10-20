@@ -4,6 +4,16 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-20: Android album art cache with its own size limit
+
+- New `CoverCache` (`android/.../downloads/CoverCache.kt`): Coil's disk cache for covers, in the same `image_cache`
+  folder, now with a size set in Settings > Downloads > "Album art cache" (500 MB default, same choices as the song
+  cache: 500 MB, 1 GB, 2 GB, 5 GB, No limits). Shows the space used and has its own "Clear album art" button. A new
+  limit swaps in a fresh Coil cache on the same folder, which trims to fit. Wired in `BrainlessMusicApp.newImageLoader()`.
+- The song cache's "Unlimited" chip now reads "No limits".
+- Why: owner asked for it, so covers load faster and the space they take is visible.
+- Verified: `./gradlew compileDebugKotlin` passes. Not run on a phone.
+
 ## 2026-10-20: Library scan every 15 minutes instead of every 12 hours
 
 - `LIBRARY_SCAN_INTERVAL_HOURS` default 12 to 0.25 (`backend/src/config.ts`); the schedule checks for a due root every

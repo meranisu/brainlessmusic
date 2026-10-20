@@ -5,6 +5,7 @@ import coil.ImageLoader
 import coil.ImageLoaderFactory
 import com.brainlessmusic.app.data.local.SessionStore
 import com.brainlessmusic.app.data.remote.TokenProvider
+import com.brainlessmusic.app.downloads.CoverCache
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -27,6 +28,9 @@ class BrainlessMusicApp : Application(), ImageLoaderFactory {
     lateinit var tokenProvider: TokenProvider
 
     @Inject
+    lateinit var coverCache: CoverCache
+
+    @Inject
     lateinit var sessionStore: SessionStore
 
     /**
@@ -44,5 +48,6 @@ class BrainlessMusicApp : Application(), ImageLoaderFactory {
     override fun newImageLoader(): ImageLoader =
         ImageLoader.Builder(this)
             .okHttpClient(okHttpClient)
+            .diskCache { coverCache }
             .build()
 }
