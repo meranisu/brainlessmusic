@@ -111,6 +111,7 @@ fun YouScreen(
     val username by viewModel.username.collectAsStateWithLifecycle()
     val recent by viewModel.recent.collectAsStateWithLifecycle()
     val mixes by viewModel.mixes.collectAsStateWithLifecycle()
+    val onThisDay by viewModel.onThisDay.collectAsStateWithLifecycle()
     val switching by viewModel.switching.collectAsStateWithLifecycle()
     // Picking another range keeps this one up, faded, until the new numbers land.
     val rangeAlpha by animateFloatAsState(if (switching) 0.5f else 1f, label = "rangeAlpha")
@@ -213,6 +214,21 @@ fun YouScreen(
                                     subtitle = { mix -> mix.tracks.take(3).mapNotNull { it.artist }.distinct().joinToString(", ").ifEmpty { "${mix.tracks.size} songs" } },
                                     onClick = { index -> mixes.getOrNull(index)?.let(viewModel::playMix) },
                                     onClickLabel = "Play mix",
+                                )
+                            }
+                        }
+
+                        if (onThisDay.isNotEmpty()) {
+                            item { SectionTitle("On this day") }
+                            item {
+                                CoverRow(
+                                    items = onThisDay,
+                                    key = { it.year },
+                                    cover = { viewModel.trackCoverUrl(it.tracks.first().id) },
+                                    title = { if (it.yearsAgo == 1) "1 year ago" else "${it.yearsAgo} years ago" },
+                                    subtitle = { "${it.year} · ${if (it.tracks.size == 1) "1 song" else "${it.tracks.size} songs"}" },
+                                    onClick = { index -> onThisDay.getOrNull(index)?.let(viewModel::playYear) },
+                                    onClickLabel = "Play",
                                 )
                             }
                         }

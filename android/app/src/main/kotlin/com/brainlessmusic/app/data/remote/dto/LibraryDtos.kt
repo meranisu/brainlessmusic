@@ -218,6 +218,15 @@ data class DailyMixDto(
 
 data class DailyMixesDto(val mixes: List<DailyMixDto>)
 
+/** `GET /me/on-this-day`: what was played on today's local date in earlier years (backend/src/db/onThisDay.ts). */
+data class OnThisDayYearDto(
+    val year: Int,
+    val yearsAgo: Int,
+    val tracks: List<TrackSummaryDto>,
+)
+
+data class OnThisDayDto(val date: String, val years: List<OnThisDayYearDto>)
+
 /** `GET /browse/letters`: where each letter starts in a listing (backend/src/db/letterIndex.ts). */
 data class LetterIndexDto(
     val scope: String,

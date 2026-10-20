@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `getOnThisDay()` — `backend/src/db/onThisDay.ts`
+**Date:** 2026-10-21
+**How added:** new feature
+**Purpose:** songs a user played on today's local month/day in each earlier year, grouped by year, for `GET /me/on-this-day`.
+**Side effects:** none (read only).
+**Before:** nothing — new function.
+**After:** `{ date: "MM-DD", years: [{ year, yearsAgo, tracks }] }`, newest year first, empty years left out.
+
 **Function:** `visiblePeople()`, `listFeed()`, `setHideActivity()` — `backend/src/db/social.ts`
 **Date:** 2026-10-21
 **How added:** new feature

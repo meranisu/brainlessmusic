@@ -46,7 +46,7 @@ export function DailyMixes() {
   if (list.length === 0) return null;
 
   return (
-    <div ref={ref} className="relative mr-auto">
+    <div ref={ref} className="relative">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}

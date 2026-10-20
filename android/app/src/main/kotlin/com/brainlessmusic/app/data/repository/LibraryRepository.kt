@@ -21,6 +21,7 @@ import com.brainlessmusic.app.data.remote.dto.SearchResultsDto
 import com.brainlessmusic.app.data.remote.dto.ShuffledTracksPageDto
 import com.brainlessmusic.app.data.remote.dto.RadioPageDto
 import com.brainlessmusic.app.data.remote.dto.DailyMixesDto
+import com.brainlessmusic.app.data.remote.dto.OnThisDayDto
 import com.brainlessmusic.app.data.remote.dto.TrackDetailDto
 import com.brainlessmusic.app.data.remote.dto.TracksPageDto
 import javax.inject.Inject
@@ -55,6 +56,9 @@ class LibraryRepository @Inject constructor(
 
     /** Today's mixes; account only, so guests never ask. */
     suspend fun getDailyMixes(): Result<DailyMixesDto> = callApi { it.dailyMixes() }
+
+    /** On this day, by this device's zone; account only, like the mixes. */
+    suspend fun getOnThisDay(): Result<OnThisDayDto> = callApi { it.onThisDay(java.time.ZoneId.systemDefault().id) }
 
     suspend fun getArtistsPage(offset: Int, limit: Int): Result<ArtistsPageDto> =
         callApi { it.artists(limit, offset) }

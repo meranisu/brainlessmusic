@@ -54,6 +54,7 @@ import com.brainlessmusic.app.data.remote.dto.SearchResultsDto
 import com.brainlessmusic.app.data.remote.dto.ShuffledTracksPageDto
 import com.brainlessmusic.app.data.remote.dto.RadioPageDto
 import com.brainlessmusic.app.data.remote.dto.DailyMixesDto
+import com.brainlessmusic.app.data.remote.dto.OnThisDayDto
 import com.brainlessmusic.app.data.remote.dto.TracksPageDto
 import com.brainlessmusic.app.data.remote.dto.UserStatsDto
 import com.brainlessmusic.app.data.remote.dto.TrackStatDto
@@ -169,6 +170,9 @@ interface ApiService {
 
     @GET("mix/daily")
     suspend fun dailyMixes(): DailyMixesDto
+
+    @GET("me/on-this-day")
+    suspend fun onThisDay(@Query("tz") tz: String): OnThisDayDto
 
     @GET("browse/letters")
     suspend fun letters(@Query("scope") scope: String): LetterIndexDto

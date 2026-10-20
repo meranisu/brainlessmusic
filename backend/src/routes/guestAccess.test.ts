@@ -89,6 +89,7 @@ const EXPECTED: Record<string, Gate> = {
   'GET /mix/daily': 'account',
   'GET /me/stats/tracks/:id': 'account',
   'GET /me/stats/patterns': 'account',
+  'GET /me/on-this-day': 'account',
   'PATCH /me/history/:id': 'account',
   'DELETE /me/less-often': 'account',
   'GET /me/history': 'account',

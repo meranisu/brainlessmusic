@@ -3,6 +3,7 @@ package com.brainlessmusic.app.ui.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.brainlessmusic.app.data.remote.dto.DailyMixDto
+import com.brainlessmusic.app.data.remote.dto.OnThisDayYearDto
 import com.brainlessmusic.app.data.remote.dto.HistoryEntryDto
 import com.brainlessmusic.app.data.remote.dto.TrackSummaryDto
 import com.brainlessmusic.app.data.remote.dto.UserStatsDto
@@ -101,6 +102,10 @@ class YouViewModel @Inject constructor(
     private val _mixes = MutableStateFlow<List<DailyMixDto>>(emptyList())
     val mixes: StateFlow<List<DailyMixDto>> = _mixes.asStateFlow()
 
+    // On this day: earlier years' plays on today's date, loaded with the mixes.
+    private val _onThisDay = MutableStateFlow<List<OnThisDayYearDto>>(emptyList())
+    val onThisDay: StateFlow<List<OnThisDayYearDto>> = _onThisDay.asStateFlow()
+
     // A guest's Home (A98): no stats, so the library and some random picks instead.
     private val _guest = MutableStateFlow<LoadState<GuestHome>>(LoadState.Loading)
     val guest: StateFlow<LoadState<GuestHome>> = _guest.asStateFlow()
@@ -166,6 +171,15 @@ class YouViewModel @Inject constructor(
         viewModelScope.launch {
             libraryRepository.getDailyMixes().onSuccess { daily -> _mixes.value = daily.mixes.filter { it.tracks.isNotEmpty() } }
         }
+        viewModelScope.launch {
+            libraryRepository.getOnThisDay().onSuccess { result -> _onThisDay.value = result.years.filter { it.tracks.isNotEmpty() } }
+        }
+    }
+
+    /** Plays that year's songs from this date, most played first. */
+    fun playYear(year: OnThisDayYearDto) {
+        val items = year.tracks.map { libraryRepository.queueItem(it) }
+        if (items.isNotEmpty()) playbackController.playQueue(items, 0)
     }
 
     /** Plays a mix, then keeps going as a radio from its first song. */

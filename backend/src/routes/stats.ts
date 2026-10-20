@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { getListeningPatterns, getTopGenres, getTrackStat, getUserStats, type StatsRange } from '../db/listeningStats.js';
 import { findTrackById } from '../db/library.js';
+import { getOnThisDay } from '../db/onThisDay.js';
 import { countTopTracks, listTopTracks } from '../db/plays.js';
 import { parsePagination } from '../utils/pagination.js';
 import { parseId } from '../utils/parseId.js';
@@ -42,6 +43,13 @@ const statsRoute: FastifyPluginAsync = async (fastify) => {
       if (!isRange(range)) return reply.code(400).send({ error: RANGE_ERROR });
       return reply.send(getListeningPatterns(request.user!.id, range, request.query.tz));
     },
+  );
+
+  // What the account played on today's local date in earlier years, grouped by year. `tz` is an IANA zone.
+  fastify.get<{ Querystring: { tz?: string } }>(
+    '/me/on-this-day',
+    { preHandler: [fastify.authenticate, fastify.requireAccount] },
+    async (request) => getOnThisDay(request.user!.id, request.query.tz),
   );
 
   fastify.get<{ Params: { id: string } }>(

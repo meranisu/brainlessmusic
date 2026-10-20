@@ -4,6 +4,15 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-21: On this day (all three clients)
+
+- Why: brainstorm row "On this day" was Partial (only Rediscover shuffle). Plan: `.docs/features/on-this-day/planning.md`.
+- Backend: `GET /me/on-this-day?tz=` (`db/onThisDay.ts`, route in `routes/stats.ts`). For each earlier year, the
+  songs played on today's local date (by the client's IANA zone), most played first, up to 20 per year. Skips do not
+  count; on Feb 29, years without one use Feb 28. Accounts only. No migration; uses `idx_play_history_user_played_at`.
+- Web: "On this day" button next to Mixes in the library toolbar; a menu of years, a pick plays that day's songs.
+- Android: "On this day" row under "Mixes for you" on You; a card per year plays that day's songs.
+
 ## 2026-10-21: Social layer part 1: friends' now playing and activity feed (all three clients)
 
 - Why: owner picked the social layer (A239-A243). Plan: `.docs/features/social-layer/planning.md`.
