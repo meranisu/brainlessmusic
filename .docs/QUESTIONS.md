@@ -33,12 +33,26 @@ is never asked twice.
 | [Q78](#q78--who-goes-on-the-access-email-list) | Who goes on the Access email list? | 2026-10-11 | Yes, before Access goes on |
 | [Q220](#q220--android-whole-library-copy-room) | Android: keep a copy of the whole library on the phone? | 2026-10-20 | No |
 | [Q221](#q221--304-nothing-changed-check) | Build the 304 "nothing changed" check? | 2026-10-20 | No |
+| [Q229](#q229--bluetooth-codec-show-only) | Bluetooth codec: show it, not choose it? | 2026-10-21 | No |
+| [Q230](#q230--rescan-for-bit-depth-on-smol) | Rescan smol for bit depth after the audio pass? | 2026-10-21 | No |
 
 ### Q5 — Tag-editing scope
 **Asked:** 2026-09-09 · **Blocking:** no
 
 Which fields are editable, whether batch-edit exists, and what undo/backup
 behaviour looks like when the edit writes back to the file on disk.
+
+### Q229 — Bluetooth codec: show only?
+**Asked:** 2026-10-21 · **Blocking:** no (Audio rows, [feature-brainstorm.md](features/feature-brainstorm.md))
+
+A normal Android app cannot pick aptX HD or LDAC; the system and developer options do. The realistic version shows
+the active codec and warns when it is lossy (SBC). Is that enough?
+
+### Q230 — Rescan for bit depth on smol?
+**Asked:** 2026-10-21 · **Blocking:** no
+
+Bit depth needs a new column and a `SCANNER_VERSION` bump, so smol rescans every song. That queues behind the
+~3.7 h audio pass from the unpushed smart auto-mix commit. Fine?
 
 ### Q77 — How does the Android app get past Cloudflare Access?
 **Asked:** 2026-10-11 · **Blocking:** yes, before Access goes on ([A74](#a74--cloudflare-access-goes-in-front-of-the-public-hostname-was-q30))
@@ -80,6 +94,9 @@ A 304 still makes the 0.2 to 1 s tunnel trip, so it saves data, not time; pages 
 - **B. Skip it (recommended)** unless Q220 is A.
 
 ## Answered
+
+### A244 — On this day: plays only, after Mixes, 20 a year *(asked in chat)*
+**Answered:** 2026-10-21, in chat. Plays only (not "added on this day"); web button after the daily mixes; up to 20 songs per year.
 
 ### A242 — Social feed: one play line per person per song per day *(asked in chat)*
 **Answered:** 2026-10-21, in chat: "which is suitable i guess". Picked: one per person per song per day; skips left out.
