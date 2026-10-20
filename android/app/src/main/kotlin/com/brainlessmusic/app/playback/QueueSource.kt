@@ -31,6 +31,16 @@ sealed interface QueueSource {
                 Shuffled(kotlin.random.Random.nextInt(Int.MAX_VALUE), 0, skipTrackId, mode)
         }
     }
+
+    /**
+     * Songs like [seedTrackId] (A234), leaving out whatever is already queued; ends when the server has no more.
+     * [endless] marks the one started when a queue ran out (A235), so a spent one isn't started again for the same queue.
+     */
+    data class Radio(
+        val seedTrackId: Int,
+        val seed: Int = kotlin.random.Random.nextInt(Int.MAX_VALUE),
+        val endless: Boolean = false,
+    ) : QueueSource
 }
 
 /** The tracks of album [albumId] after [afterTrackId], in the album's own order. */

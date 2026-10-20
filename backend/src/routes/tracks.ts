@@ -16,6 +16,7 @@ import {
 import { findTrackArtworkId } from '../db/artwork.js';
 import { peaksForTrack } from '../services/waveform.js';
 import { prioritizeLoudness, requestLoudnessBackfill } from '../services/loudness.js';
+import { requestFeaturesBackfill } from '../services/audioFeatures.js';
 import {
   deleteTrackRow,
   findTrackById,
@@ -286,6 +287,7 @@ const tracksRoute: FastifyPluginAsync = async (fastify) => {
           request.log.warn({ err, trackId: track.id }, 'Upload saved but album or artwork tidy-up failed; a scan will redo it');
         }
         requestLoudnessBackfill();
+        requestFeaturesBackfill();
 
         return reply.code(201).send({ track: getTrackSummaryById(track.id) });
       } finally {

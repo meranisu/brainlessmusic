@@ -23,6 +23,7 @@ import roomsRoute from './routes/rooms.js';
 import searchRoute from './routes/search.js';
 import lettersRoute from './routes/letters.js';
 import shuffledTracksRoute from './routes/shuffledTracks.js';
+import mixRoute from './routes/mix.js';
 import shuffleRoute from './routes/shuffle.js';
 import statsRoute from './routes/stats.js';
 import tracksRoute from './routes/tracks.js';
@@ -94,6 +95,7 @@ export function buildApp() {
       api.register(shuffleRoute);
       api.register(lettersRoute);
       api.register(shuffledTracksRoute);
+      api.register(mixRoute);
       api.register(usersRoute);
       api.register(guestCodesRoute);
       api.register(invitesRoute);

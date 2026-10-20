@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { usePlayer } from '../components/PlayerBar';
-import { DataSaverIcon, VolumeIcon } from '../components/icons';
+import { DataSaverIcon, RadioIcon, VolumeIcon } from '../components/icons';
 import { useRef, useState, type FormEvent } from 'react';
 import { HandoffDialog } from '../components/HandoffDialog';
 import { LibraryBrowseDialog } from '../components/LibraryBrowseDialog';
@@ -418,7 +418,7 @@ function HeadsetSettings() {
  */
 export function OptionsPage() {
   const { user, logout, signOutEverywhere, setPasscode, clearPasscode, setDisplayName } = useAuth();
-  const { dataSaver, setDataSaver, transitions, setTransitions, canFade } = usePlayer();
+  const { dataSaver, setDataSaver, transitions, setTransitions, canFade, endless, setEndless } = usePlayer();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [showHandoff, setShowHandoff] = useState(false);
@@ -489,6 +489,15 @@ export function OptionsPage() {
           checked={dataSaver}
           onChange={() => void setDataSaver(!dataSaver)}
         />
+        <div className="mt-2">
+          <ToggleRow
+            label="Keep playing"
+            detail="When the queue ends, play songs like the last one"
+            icon={<RadioIcon className="h-5 w-5" />}
+            checked={endless}
+            onChange={() => setEndless(!endless)}
+          />
+        </div>
         {/* Hidden where the browser ignores volume (iPhone, iPad), like the fades below. */}
         {canFade && (
           <div className="mt-2">

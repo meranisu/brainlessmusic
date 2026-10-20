@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { ArcadeSelect } from '../components/ArcadeSelect';
+import { DailyMixes } from '../components/DailyMixes';
 import { useFavoriteIds } from '../components/FavoriteButton';
 import { LibraryEmptyState } from '../components/LibraryEmptyState';
 import { LibraryFull } from '../components/LibraryFull';
@@ -203,6 +204,7 @@ export function LibraryPage() {
   return (
     <>
       <div className="library-toolbar">
+        <DailyMixes />
         <div className="library-view-toggle" role="group" aria-label="Library view">
           {(['simple', 'full'] as const).map((option) => (
             <button

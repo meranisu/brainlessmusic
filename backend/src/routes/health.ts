@@ -7,6 +7,8 @@ import { isAnyLibrarySyncRunning } from '../services/librarySync.js';
 import { getTrackSummaryById } from '../db/browse.js';
 import { listTrackLoudness, summarizeLoudness, type LoudnessStatus } from '../db/loudness.js';
 import { getLoudnessWork } from '../services/loudness.js';
+import { summarizeFeatures } from '../db/audioFeatures.js';
+import { FEATURES_VERSION, getFeaturesWork } from '../services/audioFeatures.js';
 import { getHealthSnapshot, listListeners } from '../services/streamMonitor.js';
 import { getSystemStats } from '../services/systemStats.js';
 
@@ -49,6 +51,7 @@ const healthRoute: FastifyPluginAsync = async (fastify) => {
       scanFailures: listScanFailures(),
       scanFailureCount: countScanFailures(),
       plays: summarizeRecentPlays(),
+      audioFeatures: { ...summarizeFeatures(FEATURES_VERSION), ...getFeaturesWork() },
     }),
   );
 

@@ -116,6 +116,12 @@ fun SongMenuSheet(
                     onDismiss()
                 }
             }
+            if (!viewModel.inRoom) {
+                MenuRow(AppIcons.playCircle, "Start radio", detail = "Play songs like this one") {
+                    viewModel.startRadio(item)
+                    onDismiss()
+                }
+            }
             if (viewModel.canEdit) {
                 val isLiked = item.trackId in liked
                 MenuRow(

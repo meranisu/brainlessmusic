@@ -69,6 +69,13 @@ class PlaybackSettings @Inject constructor(
             ?.takeIf { it != ShuffleMode.OFF } ?: ShuffleMode.SHUFFLE
     }
 
+    /** When the queue runs out, keep playing songs like its last one. On by default (A235). */
+    val endlessQueue: Flow<Boolean> = dataStore.data.map { it[ENDLESS_QUEUE_KEY] ?: true }
+
+    suspend fun setEndlessQueue(enabled: Boolean) {
+        dataStore.edit { it[ENDLESS_QUEUE_KEY] = enabled }
+    }
+
     /** A `Player.REPEAT_MODE_*` value. */
     val repeatMode: Flow<Int> = dataStore.data.map { it[REPEAT_KEY] ?: 0 }
 
@@ -178,6 +185,7 @@ class PlaybackSettings @Inject constructor(
         val SHUFFLE_KEY = booleanPreferencesKey("shuffle")
         val SHUFFLE_MODE_KEY = stringPreferencesKey("shuffle_mode")
         val KEEP_SHUFFLE_KEY = booleanPreferencesKey("keep_shuffle")
+        val ENDLESS_QUEUE_KEY = booleanPreferencesKey("endless_queue")
         val LAST_SHUFFLE_MODE_KEY = stringPreferencesKey("last_shuffle_mode")
         val REPEAT_KEY = intPreferencesKey("repeat_mode")
         val AUTO_PLAY_ON_RESUME_KEY = booleanPreferencesKey("auto_play_on_resume")

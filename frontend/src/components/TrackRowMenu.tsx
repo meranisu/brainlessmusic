@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { TrackSummary } from '../types/api';
 import { usePresence } from '../hooks/usePresence';
+import { usePlayer } from './PlayerBar';
 
 interface TrackRowMenuProps {
   track: TrackSummary;
@@ -25,6 +26,7 @@ export function TrackRowMenu({
   onDelete,
 }: TrackRowMenuProps) {
   const [open, setOpen] = useState(false);
+  const { startRadio, inRoom } = usePlayer();
   const menu = usePresence(open || null, 120);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -59,6 +61,7 @@ export function TrackRowMenu({
       </button>
       {menu.item && (
         <div data-state={menu.state} className="motion-menu absolute right-0 z-20 mt-1 w-48 rounded-lg border border-blue-700 bg-blue-800 py-1 text-sm">
+          {!inRoom && !track.missing && <MenuItem onClick={runAndClose(() => startRadio(track))}>Start radio</MenuItem>}
           {onAddToPlaylist && <MenuItem onClick={runAndClose(onAddToPlaylist)}>Add to playlist</MenuItem>}
           <MenuItem onClick={runAndClose(onEdit)}>Edit tags</MenuItem>
           <MenuItem onClick={runAndClose(onDiagnostics)}>Diagnostics</MenuItem>

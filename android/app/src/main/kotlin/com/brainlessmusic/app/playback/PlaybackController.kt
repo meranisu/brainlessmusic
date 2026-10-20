@@ -219,6 +219,9 @@ class PlaybackController @Inject constructor(
     private var lastOnMode = ShuffleMode.SHUFFLE
     // Off: a tapped song turns shuffle off (see `playQueue`).
     private var keepShuffle = false
+    private var endlessQueue = true
+    // The queue generation whose endless radio ran dry, so it isn't started again until a new queue.
+    private var endlessSpentFor = -1
     private var wantRepeat = Player.REPEAT_MODE_OFF
     // Mirrors the data saver setting; read by `toMediaItem`.
     private var dataSaver = false
@@ -277,6 +280,7 @@ class PlaybackController @Inject constructor(
             }
         }
         scope.launch { settings.keepShuffle.collect { keepShuffle = it } }
+        scope.launch { settings.endlessQueue.collect { endlessQueue = it; if (it && playerLazy.isInitialized()) maybeRefill() } }
         scope.launch { settings.dataSaver.collect(::applyDataSaver) }
         scope.launch { settings.precacheCount.collect { precacheCount = it; updatePrecache() } }
         scope.launch { networkMonitor.online.collect { updatePrecache() } }
@@ -386,6 +390,10 @@ class PlaybackController @Inject constructor(
         maybeRefill()
     }
 
+    /** Plays [items] (default just [item]), then keeps going with songs like [item] (A234). */
+    fun startRadio(item: QueueItem, items: List<QueueItem> = listOf(item)) =
+        playQueue(items, 0, QueueSource.Radio(item.trackId), shuffle = false)
+
     /** Inserts right after the current track; starts playing if nothing is queued. */
     fun playNext(item: QueueItem) {
         if (inRoom) return roomSend(RoomCommand.Add(listOf(item.trackId), after = room?.currentEntry?.entryId))
@@ -424,6 +432,13 @@ class PlaybackController @Inject constructor(
 
     /** When the queue is running low and has a [source], fetch the next batch and add it to the end. */
     private fun maybeRefill() {
+        // With endless on, a queue with no source left carries on as a radio from its last song (A235). Not in a room
+        // (the room owns its queue) and not with repeat on (that queue never ends).
+        if (source == null && endlessQueue && !inRoom && endlessSpentFor != generation && queue.isNotEmpty() &&
+            player.repeatMode == Player.REPEAT_MODE_OFF && tracksRemaining() <= REFILL_WHEN_REMAINING
+        ) {
+            source = QueueSource.Radio(queue.last().trackId, endless = true)
+        }
         val from = source
         if (from == null || refilling || queue.isEmpty() || tracksRemaining() > REFILL_WHEN_REMAINING) return
         refilling = true
@@ -435,6 +450,7 @@ class PlaybackController @Inject constructor(
                 // The queue was replaced or stopped while this was on its way: its items and its next source belong to
                 // nothing now, and must not overwrite the new queue's source (or bring back a cleared one).
                 if (chunk != null && startedFor == generation) {
+                    if (from is QueueSource.Radio && from.endless && chunk.next == null) endlessSpentFor = generation
                     source = chunk.next
                     if (chunk.items.isNotEmpty()) {
                         appendItems(chunk.items)
@@ -457,6 +473,11 @@ class PlaybackController @Inject constructor(
     /** The next batch from [current]; `null` when the request failed. Pure: the caller decides whether to keep it. */
     private suspend fun nextChunk(current: QueueSource): Chunk? {
         when (current) {
+            is QueueSource.Radio -> {
+                val exclude = listOf(current.seedTrackId) + queue.map { it.trackId }
+                val page = libraryRepository.getRadio(current.seedTrackId, current.seed, exclude, RADIO_CHUNK).getOrNull() ?: return null
+                return Chunk(page.tracks.map(libraryRepository::queueItem), if (page.tracks.isEmpty()) null else current)
+            }
             is QueueSource.Songs -> {
                 val page = libraryRepository.getTracksPage(current.nextOffset, REFILL_CHUNK, current.search).getOrNull() ?: return null
                 val next = current.nextOffset + page.tracks.size
@@ -1824,6 +1845,8 @@ class PlaybackController @Inject constructor(
 
         /** ...with this many at a time (the server's page cap). */
         const val REFILL_CHUNK = 200
+        /** Songs per radio request; the server caps it at 100. */
+        const val RADIO_CHUNK = 40
 
         const val ROOM_TICK_MS = 1_000L
         /** Status goes out every this many ticks (5 s). */

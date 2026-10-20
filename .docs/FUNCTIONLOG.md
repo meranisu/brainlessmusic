@@ -4,6 +4,62 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `analyzeSamples()`, `estimateTempo()` — `backend/src/utils/audioAnalysis.ts`
+**Date:** 2026-10-20
+**How added:** new feature
+**Purpose:** turn mono samples into energy, dynamics, brightness and tempo for smart auto-mixes (A238). Pure, so tests feed it synthetic signals.
+**Side effects:** none.
+**Before:** nothing — new function.
+**After:** click tracks at 60-175 BPM read within 3 %; a held tone reads no tempo.
+
+**Function:** `measureFeatures()`, `requestFeaturesBackfill()`, `startFeaturesBackfill()`, `getFeaturesWork()` — `backend/src/services/audioFeatures.ts`
+**Date:** 2026-10-20
+**How added:** new feature
+**Purpose:** a background pass that measures every track without current features, one at a time, from a 60 s slice.
+**Side effects:** spawns reniced ffmpeg; writes `track_features`.
+**Before:** nothing — new function.
+**After:** started at boot, after scans and uploads; progress in the Control Center response.
+
+**Function:** `findUnanalyzedTrackIds()`, `setTrackFeatures()`, `getTrackFeatures()`, `getFeatureStats()`, `summarizeFeatures()` — `backend/src/db/audioFeatures.ts`
+**Date:** 2026-10-20
+**How added:** new feature
+**Purpose:** read and write `track_features`; a row counts only at the current version and the track's present file size.
+**Side effects:** DB writes (`setTrackFeatures`).
+**Before:** nothing — new function.
+**After:** backs the backfill and the audio part of the mix score.
+
+**Function:** `getMixTrack()`, `findCandidates()`, `coPlayCounts()`, `listDailySeedGenres()` — `backend/src/db/similarity.ts`
+**Date:** 2026-10-20
+**How added:** new feature
+**Purpose:** the SQL half of smart auto-mixes: what a song is compared on, which songs are worth scoring, which were played next to it, a user's top genres.
+**Side effects:** none.
+**Before:** nothing — new function.
+**After:** backs `buildRadio()` and `getDailyMixes()`.
+
+**Function:** `scoreTrack()`, `audioLikeness()`, `spreadArtists()`, `buildRadio()`, `getDailyMixes()` — `backend/src/services/mix.ts`
+**Date:** 2026-10-20
+**How added:** new feature
+**Purpose:** score candidates against a seed, pick a radio, and build each user's daily mixes (A234, A236).
+**Side effects:** daily mixes cached in memory per user per day.
+**Before:** nothing — new function.
+**After:** served by `GET /mix/radio` and `GET /mix/daily` (`backend/src/routes/mix.ts`).
+
+**Function:** `radioSource()`, `fetchRadio()`, `fetchDailyMixes()`, endless preference — `frontend/src/lib/mix.ts`; `startRadio()`, endless top-up — `frontend/src/components/PlayerBar.tsx`; `DailyMixes` — `frontend/src/components/DailyMixes.tsx`
+**Date:** 2026-10-20
+**How added:** new feature
+**Purpose:** Start radio, Keep playing (A235) and the Mixes menu on the web.
+**Side effects:** `localStorage` key `brainlessmusic.endlessQueue`.
+**Before:** a queue without a source stopped at its end.
+**After:** with Keep playing on, it carries on as a radio from its last song, outside rooms and with repeat off.
+
+**Function:** `PlaybackController.startRadio()`, `QueueSource.Radio`, endless refill in `maybeRefill()`, `YouViewModel.playMix()` — `android/app/src/main/kotlin/com/brainlessmusic/app/playback/PlaybackController.kt` (with `QueueSource.kt`, `PlaybackSettings.endlessQueue`, `SongMenu.kt`, `YouScreen.kt`)
+**Date:** 2026-10-20
+**How added:** new feature
+**Purpose:** the same three surfaces on Android.
+**Side effects:** DataStore key `endless_queue`.
+**Before:** a queue without a source stopped at its end.
+**After:** the song menu has Start radio, Home has Mixes for you, Settings has Keep playing.
+
 **Function:** `UpdateCheckWorker`, `UpdateRepository.versionToNotify()`, `IntroGate` — `android/app/src/main/kotlin/com/brainlessmusic/app/update/UpdateCheckWorker.kt`, `ui/splash/IntroGate.kt` (with `UpdateRepository.checkOnLaunch()`, `MainActivity.onStart`/`openUpdateFrom`, `UpdateSheetHost`)
 **Date:** 2026-10-20
 **How added:** bug fix + new feature

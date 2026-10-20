@@ -11,7 +11,7 @@ import type { AlbumDetail } from '../types/api';
 import { AddToPlaylistDialog } from './AddToPlaylistDialog';
 import { CoverArt } from './CoverArt';
 import { FavoriteButton, useFavoriteIds } from './FavoriteButton';
-import { ChevronDownIcon, CloseIcon, PauseIcon, PlayIcon, PlusIcon } from './icons';
+import { ChevronDownIcon, CloseIcon, PauseIcon, PlayIcon, PlusIcon, RadioIcon } from './icons';
 import type { PlayerContextValue } from './PlayerBar';
 import { Presence } from './Presence';
 import { RelatedTab } from './RelatedTab';
@@ -139,6 +139,15 @@ export function DesktopNowPlaying({ player, onClose }: { player: PlayerContextVa
               aria-label="Add to playlist"
             >
               <PlusIcon className="h-4.5 w-4.5" />
+            </button>
+            <button
+              onClick={() => player.startRadio(current)}
+              disabled={inRoom}
+              className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-900/80 text-blue-300 transition-[background-color,transform] duration-200 ease-[var(--ease-spring)] hover:bg-blue-800 active:scale-90 disabled:opacity-40"
+              aria-label={inRoom ? 'Start radio (off in a room)' : 'Start radio'}
+              title="Start radio: songs like this one"
+            >
+              <RadioIcon className="h-4.5 w-4.5" />
             </button>
           </div>
         </section>

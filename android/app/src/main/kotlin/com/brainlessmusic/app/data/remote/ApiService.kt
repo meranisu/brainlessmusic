@@ -49,6 +49,8 @@ import com.brainlessmusic.app.data.remote.dto.ScrobbleRequest
 import com.brainlessmusic.app.data.remote.dto.ScrobbleResponse
 import com.brainlessmusic.app.data.remote.dto.SearchResultsDto
 import com.brainlessmusic.app.data.remote.dto.ShuffledTracksPageDto
+import com.brainlessmusic.app.data.remote.dto.RadioPageDto
+import com.brainlessmusic.app.data.remote.dto.DailyMixesDto
 import com.brainlessmusic.app.data.remote.dto.TracksPageDto
 import com.brainlessmusic.app.data.remote.dto.UserStatsDto
 import com.brainlessmusic.app.data.remote.dto.TrackStatDto
@@ -152,6 +154,18 @@ interface ApiService {
         @Query("limit") limit: Int,
         @Query("offset") offset: Int,
     ): ShuffledTracksPageDto
+
+    /** [exclude] is comma-separated ids already queued, so a refill never repeats one. */
+    @GET("mix/radio")
+    suspend fun radio(
+        @Query("seedTrackId") seedTrackId: Int,
+        @Query("seed") seed: Int,
+        @Query("exclude") exclude: String?,
+        @Query("limit") limit: Int,
+    ): RadioPageDto
+
+    @GET("mix/daily")
+    suspend fun dailyMixes(): DailyMixesDto
 
     @GET("browse/letters")
     suspend fun letters(@Query("scope") scope: String): LetterIndexDto

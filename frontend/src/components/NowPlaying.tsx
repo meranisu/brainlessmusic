@@ -13,6 +13,7 @@ import {
   PauseIcon,
   PlayIcon,
   PlusIcon,
+  RadioIcon,
   RepeatIcon,
   RepeatOneIcon,
   ShuffleIcon,
@@ -102,6 +103,7 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
     toggleMute,
     stop,
     inRoom,
+    startRadio,
   } = player;
 
   const swapClass = useSwapClass(current?.id ?? 0, index);
@@ -268,6 +270,14 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
         </div>
         <button onClick={() => setAddingToPlaylist(true)} className={pill(false)} aria-label="Add to playlist">
           <PlusIcon className="h-4.5 w-4.5" />
+        </button>
+        <button
+          onClick={() => startRadio(current)}
+          disabled={inRoom}
+          className={`${pill(false)} disabled:opacity-40`}
+          aria-label={inRoom ? 'Start radio (off in a room)' : 'Start radio'}
+        >
+          <RadioIcon className="h-4.5 w-4.5" />
         </button>
         <button
           onClick={toggleShuffle}

@@ -13,7 +13,7 @@ SQLite (`better-sqlite3`), WAL journal mode. Confirmed live against `backend/dat
 | `PRAGMA foreign_keys` | **`ON`** (confirmed live) — `better-sqlite3`'s per-connection default, not set explicitly anywhere in `backend/src/`. See [Discrepancy 1](#1-foreign-keys-are-enforced-not-off) |
 | `PRAGMA integrity_check` | `ok` (2026-09-03) |
 | `PRAGMA foreign_key_check` | no violations (2026-09-03) |
-| Domain tables | `users`, `artists`, `albums`, `tracks`, `playlists`, `playlist_tracks`, `play_history`, `favorites`, `less_often`, `guest_codes`, `guest_code_requests`, `guest_code_signins`, `account_invites` (+ `server_settings`, see its section) |
+| Domain tables | `users`, `artists`, `albums`, `tracks`, `track_features`, `playlists`, `playlist_tracks`, `play_history`, `favorites`, `less_often`, `guest_codes`, `guest_code_requests`, `guest_code_signins`, `account_invites` (+ `server_settings`, see its section) |
 | Infrastructure tables | `schema_migrations` (migration bookkeeping only, not domain data) |
 
 ## Entity relationships
@@ -243,6 +243,24 @@ Added `0032`. Which genres a track has, from its genre tag split on `;` and `/` 
 | `genre_id` | INTEGER | NOT NULL | — | **PK (composite, 2 of 2)**, **FK → `genres.id`** |
 
 **Indexes:** `idx_track_genres_genre_id`, plus the PK's own. Replaced on every scan of the track (`setTrackGenres()`); `deleteTrackRow()` and `deleteTrackRowsOfRoot()` delete these first.
+
+### `track_features`
+
+Added `0042`. Audio features for smart auto-mixes (A234, A238), measured in the background from a 60 s slice of each
+track by `services/audioFeatures.ts`. One row per measured track; no row means not measured yet.
+
+| Column | Type | Null? | Default | Notes |
+|---|---|---|---|---|
+| `track_id` | INTEGER | NOT NULL | — | **PK**, **FK → `tracks.id` `ON DELETE CASCADE`**, the only cascading FK in the schema |
+| `version` | INTEGER | NOT NULL | — | `FEATURES_VERSION` when measured. An older version counts as not measured, so bumping the constant measures everything again |
+| `file_size` | INTEGER | NOT NULL | — | The track's `file_size` when measured. A mismatch counts as not measured, so a replaced file is measured again without the scanner touching this table |
+| `tempo` | REAL | nullable | — | BPM, 60 to 180. `NULL` when no beat stands out |
+| `energy` | REAL | NOT NULL | — | Mean frame RMS, 0 to 1 |
+| `dynamics` | REAL | NOT NULL | — | Frame loudness spread in dB, 90th minus 10th percentile |
+| `brightness` | REAL | NOT NULL | — | Zero crossings per sample |
+| `analyzed_at` | TEXT | NOT NULL | `datetime('now')` | |
+
+**Indexes:** the PK only.
 
 ### `playlists`
 
@@ -489,7 +507,7 @@ Practical effect: the manual cleanup in `deleteTrackRow()` and `deletePlaylist()
 
 ### 2. No cascade anywhere — every delete path must clean up dependents manually, in order
 
-Every FK in this schema is `NO ACTION` / `NO ACTION`. Combined with Discrepancy 1, that means **any future code that deletes a `users`, `artists`, `albums`, or `playlists` row will throw a constraint error unless it manually deletes every dependent row first**, same pattern as `deleteTrackRow()`. Concretely, if a "delete user" admin feature ever gets built, it needs (at minimum, in order): `favorites WHERE user_id`, `play_history WHERE user_id`, `playlist_tracks WHERE playlist_id IN (SELECT id FROM playlists WHERE owner_id = ?)`, `playlists WHERE owner_id`, then `users`. Nothing today deletes a user, artist, or album row, so this isn't an active bug — it's a landmine for whoever builds that feature next, flagged here so it isn't rediscovered the hard way.
+Every FK in this schema is `NO ACTION` / `NO ACTION`, except `track_features.track_id` (`0042`), which cascades: a deleted track takes its features with it. Combined with Discrepancy 1, that means **any future code that deletes a `users`, `artists`, `albums`, or `playlists` row will throw a constraint error unless it manually deletes every dependent row first**, same pattern as `deleteTrackRow()`. Concretely, if a "delete user" admin feature ever gets built, it needs (at minimum, in order): `favorites WHERE user_id`, `play_history WHERE user_id`, `playlist_tracks WHERE playlist_id IN (SELECT id FROM playlists WHERE owner_id = ?)`, `playlists WHERE owner_id`, then `users`. Nothing today deletes a user, artist, or album row, so this isn't an active bug — it's a landmine for whoever builds that feature next, flagged here so it isn't rediscovered the hard way.
 
 ### 3. Case-sensitive uniqueness vs. case-insensitive display/sort
 
@@ -594,6 +612,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | `0035_add_user_profile.sql` | `users.bio`, `avatar_id`, `favorite_track_id`, `favorite_artist_id` — the profile page (A167-A170) |
 | `0036_add_playlist_description.sql` | `playlists.description` — playlist descriptions (A185) |
 | `0039_add_play_history_user_track_index.sql` | `idx_play_history_user_track` covering index on `play_history` — smart playlist play counts (A207, A208) |
+| `0042_create_track_features.sql` | `track_features` — audio features for smart auto-mixes (A234, A238) |
 | `0041_add_track_file_mtime.sql` | `tracks.file_mtime`, `tracks.scan_version` — incremental scan |
 | `0040_add_passcode_failures.sql` | `users.passcode_failures`; clears every existing `passcode_hash` (A216) |
 | `0038_add_playlist_rules.sql` | `playlists.rules` — smart playlists (A207-A209) |
@@ -606,6 +625,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-10-20 | Migration `0042_create_track_features.sql` — new `track_features` table, FK to `tracks` with `ON DELETE CASCADE`. From the migration SQL and the test run, not re-introspected against the live DB | Smart auto-mixes compare songs by sound (A234, A238) |
 | 2026-10-20 | Migration `0041_add_track_file_mtime.sql` — `tracks.file_mtime INTEGER`, `tracks.scan_version INTEGER`, both nullable, no backfill. From the migration SQL and the test run, not re-introspected against the live DB | Incremental scan: unchanged files are no longer reread every 12 h |
 | 2026-10-18 | Migration `0040_add_passcode_failures.sql` — `users.passcode_failures INTEGER NOT NULL DEFAULT 0`, all passcodes cleared. From the migration SQL, not re-introspected against the live DB | Passcodes lock after 10 wrong tries and need 6+ digits (A216, S3) |
 | 2026-10-18 | Migration `0039_add_play_history_user_track_index.sql` — one index on `play_history`, the index note, migration row. From the migration SQL and a benchmark on a throwaway 50k-song, 200k-play database (aggregate 245 ms to 75 ms) | Smart playlist rules run a per-song play count over one user's history (A207, A208) |

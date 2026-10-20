@@ -91,6 +91,8 @@ class SongActionsViewModel @Inject constructor(
     fun removeDownload(trackId: Int) = downloads.removeSong(trackId)
 
     val canEdit: Boolean = !profile.isGuest
+    /** Read when the menu opens; a radio started in a room would only add one song to the room's queue. */
+    val inRoom: Boolean get() = playback.state.value.inRoom
     val likedIds: StateFlow<Set<Int>> = profile.likedIds
     val dislikedIds: StateFlow<Set<Int>> = profile.dislikedIds
 
@@ -138,6 +140,9 @@ class SongActionsViewModel @Inject constructor(
     }
 
     /** Returns the line to show: with nothing queued, the song starts now rather than next. */
+    /** Plays [item], then keeps going with songs like it (A234). */
+    fun startRadio(item: QueueItem) = playback.startRadio(item)
+
     fun playNext(item: QueueItem): String {
         val wasEmpty = playback.state.value.queue.isEmpty()
         playback.playNext(item)

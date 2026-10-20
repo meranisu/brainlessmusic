@@ -19,6 +19,8 @@ import com.brainlessmusic.app.data.remote.dto.SavePlaybackStateRequest
 import com.brainlessmusic.app.data.remote.dto.ScrobbleRequest
 import com.brainlessmusic.app.data.remote.dto.SearchResultsDto
 import com.brainlessmusic.app.data.remote.dto.ShuffledTracksPageDto
+import com.brainlessmusic.app.data.remote.dto.RadioPageDto
+import com.brainlessmusic.app.data.remote.dto.DailyMixesDto
 import com.brainlessmusic.app.data.remote.dto.TrackDetailDto
 import com.brainlessmusic.app.data.remote.dto.TracksPageDto
 import javax.inject.Inject
@@ -46,6 +48,13 @@ class LibraryRepository @Inject constructor(
     /** [mode] is a [com.brainlessmusic.app.playback.ShuffleMode.apiName]; [asOf] is when the pass started, in Unix seconds. */
     suspend fun getShuffledPage(seed: Int, mode: String, asOf: Long, offset: Int, limit: Int): Result<ShuffledTracksPageDto> =
         callApi { it.shuffled(seed, mode, asOf, limit, offset) }
+
+    /** Songs like [seedTrackId] (A234), leaving out [exclude]. The server takes at most 1000 ids; the newest matter. */
+    suspend fun getRadio(seedTrackId: Int, seed: Int, exclude: List<Int>, limit: Int): Result<RadioPageDto> =
+        callApi { it.radio(seedTrackId, seed, exclude.takeLast(1000).joinToString(",").ifEmpty { null }, limit) }
+
+    /** Today's mixes; account only, so guests never ask. */
+    suspend fun getDailyMixes(): Result<DailyMixesDto> = callApi { it.dailyMixes() }
 
     suspend fun getArtistsPage(offset: Int, limit: Int): Result<ArtistsPageDto> =
         callApi { it.artists(limit, offset) }

@@ -202,6 +202,22 @@ data class ShuffledTracksPageDto(
     val tracks: List<TrackSummaryDto>,
 )
 
+/** `GET /mix/radio`: songs like [seedTrackId] (backend/src/routes/mix.ts). Empty when the radio has run dry. */
+data class RadioPageDto(
+    val seedTrackId: Int,
+    val seed: Int,
+    val tracks: List<TrackSummaryDto>,
+)
+
+/** One of `GET /mix/daily`'s mixes: named after the genre it comes from, the same all day (A236). */
+data class DailyMixDto(
+    val id: Int,
+    val name: String,
+    val tracks: List<TrackSummaryDto>,
+)
+
+data class DailyMixesDto(val mixes: List<DailyMixDto>)
+
 /** `GET /browse/letters`: where each letter starts in a listing (backend/src/db/letterIndex.ts). */
 data class LetterIndexDto(
     val scope: String,

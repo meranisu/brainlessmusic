@@ -60,6 +60,7 @@ import {
 } from '../lib/headsetButtons';
 import type { PlaybackState, TrackSummary } from '../types/api';
 import { useToast } from './ToastProvider';
+import { loadEndlessPreference, radioSource, saveEndlessPreference } from '../lib/mix';
 
 export type QueueTrack = Pick<TrackSummary, 'id' | 'title' | 'artist' | 'duration'> &
   Partial<Pick<TrackSummary, 'format' | 'albumId' | 'trackNumber' | 'gainDb'>>;
@@ -256,6 +257,11 @@ export interface PlayerContextValue {
    */
   playQueue: (tracks: QueueTrack[], startIndex: number, loadMore?: LoadMore) => void;
   playTrack: (track: QueueTrack) => void;
+  /** Plays [tracks] (default just [track]), then keeps going with songs like [track] (A234). */
+  startRadio: (track: QueueTrack, tracks?: QueueTrack[]) => void;
+  /** When the queue runs out, keep playing songs like its last one (A235). Per device. */
+  endless: boolean;
+  setEndless: (enabled: boolean) => void;
   toggle: () => void;
   next: () => void;
   previous: () => void;
@@ -358,7 +364,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // leaving the queue permanently scrambled.
   const originalQueueRef = useRef<QueueTrack[] | null>(null);
   // The current queue's source of more songs, if it has one. Replaced or cleared whenever the queue is.
-  const moreRef = useRef<{ fetch: LoadMore; busy: boolean; done: boolean } | null>(null);
+  // `radio`: the endless queue's own source, which is never replaced by another radio once it runs dry.
+  const moreRef = useRef<{ fetch: LoadMore; busy: boolean; done: boolean; radio?: boolean } | null>(null);
+  const [endless, setEndlessState] = useState(loadEndlessPreference);
   // In a ref so the long-lived audio listeners see live values.
   const progressRef = useRef<PlayProgress | null>(null);
   // True while a quality swap resets `src`, so the scrubber doesn't flick to 0 before the seek lands.
@@ -966,6 +974,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     playQueue([track], 0);
   }
 
+  function startRadio(track: QueueTrack, tracks: QueueTrack[] = [track]) {
+    playQueue(tracks, 0, radioSource(track.id, () => stateRef.current.queue.map((queued) => queued.id)));
+  }
+
+  function setEndless(enabled: boolean) {
+    setEndlessState(enabled);
+    saveEndlessPreference(enabled);
+  }
+
   function goTo(at: number) {
     if (at < 0 || at >= queue.length) return;
     setIndex(at);
@@ -1274,10 +1291,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Tops the queue up from its source when few songs remain (Q205). Not in a room: the room owns its queue.
+  // With endless on, a queue whose own source is used up (or that never had one) carries on as a radio from its
+  // last song (A235). Not with repeat on: that queue already never ends. Not while paused either, so a queue restored
+  // at page load doesn't fetch a radio nobody asked to hear yet.
   useEffect(() => {
-    const more = moreRef.current;
-    if (!more || more.busy || more.done || roomRef.current.room) return;
-    if (queue.length - index > TOP_UP_AT) return;
+    if (roomRef.current.room || queue.length === 0 || queue.length - index > TOP_UP_AT) return;
+    let more = moreRef.current;
+    if ((!more || (more.done && !more.radio)) && endless && repeat === 'off' && isPlaying) {
+      const last = queue[queue.length - 1];
+      more = { fetch: radioSource(last.id, () => stateRef.current.queue.map((queued) => queued.id)), busy: false, done: false, radio: true };
+      moreRef.current = more;
+    }
+    if (!more || more.busy || more.done) return;
     more.busy = true;
     void more
       .fetch()
@@ -1297,7 +1322,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       .finally(() => {
         more.busy = false;
       });
-  }, [queue, index]);
+  }, [queue, index, endless, repeat, isPlaying]);
 
   // Saved on a tick while playing, on stop or track change, and when the page is hidden.
   useEffect(() => {
@@ -1956,6 +1981,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     servedLabel,
     playQueue,
     playTrack,
+    startRadio,
+    endless,
+    setEndless,
     toggle,
     next,
     previous,

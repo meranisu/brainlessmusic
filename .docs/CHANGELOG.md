@@ -4,6 +4,52 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-20: Smart auto-mixes: song radio, endless queue, daily mixes (all three clients)
+
+- Why: owner picked "smart auto-mixes" from the brainstorm (A234). Similarity uses tags and listening history, plus
+  a light ffmpeg audio pass (A238). Plan: `.docs/features/smart-auto-mix/planning.md`.
+- Backend, audio:
+  - Migration `0042_create_track_features.sql` adds the `track_features` table.
+  - `services/audioFeatures.ts` decodes a 60 s mono 11 kHz slice starting 30 % into each track, one at a time and
+    reniced, in the background like loudness.
+  - `utils/audioAnalysis.ts` measures energy, dynamics, brightness (zero-crossing rate) and tempo (autocorrelation of
+    the onset envelope).
+  - Started at boot, after a scan and after an upload. Progress is in `GET /admin/control-center` as `audioFeatures`.
+- Backend, similarity:
+  - `db/similarity.ts` finds candidates: songs with a shared genre, same artist or album artist, within 5 years, or
+    played next to the seed by anyone within 30 min.
+  - `services/mix.ts` scores them: genre 0.30, co-play 0.25, audio 0.25, artist 0.10, year 0.05, liked 0.05.
+  - It then makes a seeded weighted pick from the best 200 and spreads artists out.
+- New routes in `routes/mix.ts`:
+  - `GET /mix/radio?seedTrackId=&seed=&exclude=&limit=`, open to guests. Refills pass the queued ids so no song repeats.
+  - `GET /mix/daily`, accounts only: up to 6 mixes of 30 songs from the last 30 days' top genres (A236). The same
+    all day.
+- Web:
+  - "Start radio" in the song row menu and in Now Playing, on phone and desktop.
+  - A "Keep playing" toggle in Options, on by default (A235). When the queue runs out, songs like its last one carry on.
+    Not in rooms, not with repeat on.
+  - A "Mixes" menu in the library toolbar. Not shown to guests.
+- Android:
+  - `QueueSource.Radio` and `PlaybackController.startRadio()`.
+  - The endless queue lives in `maybeRefill()`, with a "Keep playing" setting.
+  - "Start radio" in the song menu.
+  - A "Mixes for you" row on Home.
+- Verified:
+  - Backend type check; `npm test` 738 of 738 pass.
+  - Web `npm run build` and `npm run lint`: no new warnings. Android `./gradlew assembleDebug` passes.
+  - On a migrated copy of the local library (12,759 songs), with seeded genres and plays:
+    - a radio takes about 55 ms
+    - audio analysis averages 1.05 s a song at 141 MB RSS over 40 real files
+    - the background pass analyzed 339 songs with no failures
+  - In Chromium (Playwright):
+    - the Mixes menu plays a mix
+    - Start radio from the row menu fetches a radio
+    - a 5-song album, once playing, fetched a radio seeded by its last song with all 5 excluded
+    - the Keep playing toggle shows, on
+  - Fixed during the check: a paused queue restored at page load started a radio. The endless radio now starts only
+    while playing.
+  - Not done: radio quality on real genres and history (the local copy has none), and any phone test.
+
 ## 2026-10-20: Android update check finds new releases sooner, notifies, and waits for intros
 
 - Why: the launch check stamped "checked" even when GitHub had nothing new yet, so a release tagged an hour later was

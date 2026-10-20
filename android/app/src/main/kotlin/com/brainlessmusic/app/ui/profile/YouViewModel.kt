@@ -2,6 +2,7 @@ package com.brainlessmusic.app.ui.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.brainlessmusic.app.data.remote.dto.DailyMixDto
 import com.brainlessmusic.app.data.remote.dto.HistoryEntryDto
 import com.brainlessmusic.app.data.remote.dto.TrackSummaryDto
 import com.brainlessmusic.app.data.remote.dto.UserStatsDto
@@ -96,6 +97,10 @@ class YouViewModel @Inject constructor(
     private val _recent = MutableStateFlow<List<HistoryEntryDto>>(emptyList())
     val recent: StateFlow<List<HistoryEntryDto>> = _recent.asStateFlow()
 
+    // Today's mixes (A234, A236); the same all day on the server, so loaded at start and on pull, not on every return.
+    private val _mixes = MutableStateFlow<List<DailyMixDto>>(emptyList())
+    val mixes: StateFlow<List<DailyMixDto>> = _mixes.asStateFlow()
+
     // A guest's Home (A98): no stats, so the library and some random picks instead.
     private val _guest = MutableStateFlow<LoadState<GuestHome>>(LoadState.Loading)
     val guest: StateFlow<LoadState<GuestHome>> = _guest.asStateFlow()
@@ -114,6 +119,7 @@ class YouViewModel @Inject constructor(
         } else {
             load()
             loadRecent()
+            loadMixes()
             viewModelScope.launch { profile.loadMe() }
         }
     }
@@ -155,6 +161,18 @@ class YouViewModel @Inject constructor(
     }
 
     private var recentJob: Job? = null
+
+    private fun loadMixes() {
+        viewModelScope.launch {
+            libraryRepository.getDailyMixes().onSuccess { daily -> _mixes.value = daily.mixes.filter { it.tracks.isNotEmpty() } }
+        }
+    }
+
+    /** Plays a mix, then keeps going as a radio from its first song. */
+    fun playMix(mix: DailyMixDto) {
+        val items = mix.tracks.map { libraryRepository.queueItem(it) }
+        if (items.isNotEmpty()) playbackController.startRadio(items.first(), items)
+    }
 
     private fun loadRecent() {
         recentJob?.cancel()
@@ -205,6 +223,7 @@ class YouViewModel @Inject constructor(
         if (isGuest) return loadGuest(keepShown = true)
         reload(showSpinner = true)
         loadRecent()
+        loadMixes()
     }
 
     /** Coming back to the tab: counts may have changed elsewhere (a song unliked, a playlist made). No spinner. */

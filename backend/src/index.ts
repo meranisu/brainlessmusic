@@ -3,6 +3,7 @@ import { config } from './config.js';
 import { startBackupSchedule } from './services/backup.js';
 import { startLibrarySyncSchedule } from './services/librarySync.js';
 import { startLoudnessBackfill } from './services/loudness.js';
+import { startFeaturesBackfill } from './services/audioFeatures.js';
 import { formatSecretProblem, inspectJwtSecret } from './utils/secretPolicy.js';
 
 // Checked at server boot, not in config.ts, so `npm run migrate` and the CLI scripts (which never sign) still run.
@@ -60,6 +61,12 @@ app.listen({ port: config.port, host: '0.0.0.0' }, (err, address) => {
 
   // Measures tracks scanned before levelling existed, then whatever each sync adds. One ffmpeg at a time, reniced.
   startLoudnessBackfill({
+    info: (msg) => app.log.info(msg),
+    warn: (msg) => app.log.warn(msg),
+  });
+
+  // Audio features for smart auto-mixes: a 60 s slice per track, one ffmpeg at a time, reniced (A238).
+  startFeaturesBackfill({
     info: (msg) => app.log.info(msg),
     warn: (msg) => app.log.warn(msg),
   });

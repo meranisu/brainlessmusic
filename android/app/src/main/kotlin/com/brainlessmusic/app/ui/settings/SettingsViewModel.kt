@@ -140,6 +140,13 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settings.setKeepShuffle(enabled) }
     }
 
+    val endlessQueue: StateFlow<Boolean> = settings.endlessQueue
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    fun setEndlessQueue(enabled: Boolean) {
+        viewModelScope.launch { settings.setEndlessQueue(enabled) }
+    }
+
     fun setAutoPlayOnResume(enabled: Boolean) {
         viewModelScope.launch { settings.setAutoPlayOnResume(enabled) }
     }

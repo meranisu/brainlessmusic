@@ -257,6 +257,7 @@ fun SettingsPageScreen(
     val autoPlay by viewModel.autoPlayOnResume.collectAsStateWithLifecycle()
     val keepPlaying by viewModel.keepPlayingWhenSwipedAway.collectAsStateWithLifecycle()
     val keepShuffle by viewModel.keepShuffle.collectAsStateWithLifecycle()
+    val endlessQueue by viewModel.endlessQueue.collectAsStateWithLifecycle()
     val dataSaver by viewModel.dataSaver.collectAsStateWithLifecycle()
     val transitions by viewModel.transitions.collectAsStateWithLifecycle()
     val headsetButtons by viewModel.headsetButtons.collectAsStateWithLifecycle()
@@ -469,6 +470,17 @@ fun SettingsPageScreen(
                             },
                             checked = keepShuffle,
                             onCheckedChange = viewModel::setKeepShuffle,
+                        )
+                        Divider()
+                        SwitchRow(
+                            title = "Keep playing",
+                            detail = if (endlessQueue) {
+                                "When the queue ends, songs like the last one carry on."
+                            } else {
+                                "Music stops when the queue ends."
+                            },
+                            checked = endlessQueue,
+                            onCheckedChange = viewModel::setEndlessQueue,
                         )
                         Divider()
                         SwitchRow(

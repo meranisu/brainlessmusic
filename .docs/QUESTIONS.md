@@ -81,6 +81,21 @@ A 304 still makes the 0.2 to 1 s tunnel trip, so it saves data, not time; pages 
 
 ## Answered
 
+### A238 — Audio features built now (was Q225)
+**Answered:** 2026-10-20, in chat. Build the ffmpeg audio pass in Phase 1. [smart-auto-mix](features/smart-auto-mix/planning.md).
+
+### A237 — Daily mixes stay off profiles (was Q224)
+**Answered:** 2026-10-20, in chat. No: only on your own Home.
+
+### A236 — Up to 6 daily mixes (was Q223)
+**Answered:** 2026-10-20, in chat. Up to 6, one per top genre, fewer if the user plays few genres.
+
+### A235 — Endless queue on by default (was Q222)
+**Answered:** 2026-10-20, in chat. On by default, with a Settings toggle.
+
+### A234 — Smart auto-mixes: hybrid similarity, all three surfaces
+**Answered:** 2026-10-20, in chat. Similarity is tags and listening data plus a light ffmpeg audio pass (not an ML model, not tags only). Surfaces: song radio, endless queue, daily mixes. Plan: [features/smart-auto-mix](features/smart-auto-mix/planning.md).
+
 ### A233 — Album art cache (Android)
 **Answered:** 2026-10-20, in chat. Android only; same limit choices as the song cache; its own clear button, apart from the song cache. Built in `downloads/CoverCache.kt` (500 MB default, my call), uncommitted.
 
