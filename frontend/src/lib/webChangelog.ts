@@ -16,6 +16,22 @@ export interface WebRelease {
 
 export const WEB_CHANGELOG: WebRelease[] = [
   {
+    version: '0.4.0',
+    date: '2026-10-21',
+    changes: [
+      'Your profile has tabs now: Profile, Stats and Friends. Stats and Friends left the More menu; old /stats and /friends links still land on the right tab.',
+      'Stats: your top songs, artists and albums, when in the day and week you listen, your trend over time and your day streak.',
+      'Mixes: up to six daily mixes in the library toolbar, built from what you play. Each has a cover made of its songs, and opening one lists its songs (up to 30) with Play and Shuffle.',
+      'Start radio on any song, and Keep playing carries on with similar songs when the queue runs out (on by default).',
+      "Friends: see what everyone is playing right now and a feed of their plays, likes and public playlists. One switch hides your own activity.",
+      'On this day: a button in the library toolbar plays what you listened to on today\'s date in past years.',
+      'The library list shows up straight away from the copy saved last time, then refreshes.',
+      'A wide screen gets a full Now Playing view, and the queue can remove songs and show related ones.',
+      'Pages and menus move more smoothly.',
+      'Signing out clears the listening room, and signing in or out in another tab is picked up here too.',
+    ],
+  },
+  {
     version: '0.3.1',
     date: '2026-10-18',
     changes: [

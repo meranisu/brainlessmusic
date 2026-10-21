@@ -4,6 +4,12 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-21: Web version 0.4.0 and its What's new entry
+
+- Why: owner asked for the web changelog to show the recent changes. `frontend/package.json` 0.3.1 to 0.4.0, entry in
+  `frontend/src/lib/webChangelog.ts` covering everything web-facing since 0.3.1 (stats, mixes, radio, friends, on
+  this day, list cache, desktop Now Playing, profile tabs, mix pages). Web build passes.
+
 ## 2026-10-21: Mix pages, mix covers, mixes filled to 30
 
 - Why: owner request in chat (A250). Plan: `.docs/features/mix-pages/planning.md`.
