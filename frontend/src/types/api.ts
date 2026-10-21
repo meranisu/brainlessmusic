@@ -124,6 +124,22 @@ export interface PlaybackFailureEntry {
   createdAt: string;
 }
 
+/** A Listen together problem a client reported or the room socket saw (`GET /admin/room-issues`). Admin-only. */
+export interface RoomIssueEntry {
+  id: number;
+  userId: number;
+  username: string;
+  source: 'android' | 'web' | 'server';
+  kind: string;
+  roomCode: string | null;
+  message: string;
+  detail: string | null;
+  httpStatus: number | null;
+  appVersion: string | null;
+  userAgent: string | null;
+  createdAt: string;
+}
+
 /** A player that checked in within the last 30 s: who is listening to what, and on which device. */
 export interface Listener {
   userId: number;

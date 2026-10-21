@@ -17,6 +17,7 @@ const TABLES_IN_DELETION_ORDER = [
   'guest_codes',
   'server_settings',
   'playback_failures',
+  'room_issues',
   'scan_failures',
   'play_history',
   'track_genres',

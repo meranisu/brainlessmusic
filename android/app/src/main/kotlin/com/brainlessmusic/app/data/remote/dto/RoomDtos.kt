@@ -36,3 +36,14 @@ data class InvitablePeopleResponse(val people: List<SocialPersonDto>)
 data class SendInvitesRequest(val userIds: List<Int>)
 
 data class SendInvitesResponse(val invited: Int)
+
+/** `POST /rooms/issues`: a room problem for the admin Logs page (`rooms/RoomIssues.kt`). */
+data class RoomIssueReport(
+    val source: String,
+    val kind: String,
+    val message: String,
+    val detail: String?,
+    val httpStatus: Int?,
+    val roomCode: String?,
+    val appVersion: String,
+)

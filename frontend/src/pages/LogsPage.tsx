@@ -2,11 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { apiClient } from '../lib/apiClient';
 import { formatDateTime } from '../lib/format';
-import type { ControlCenterSnapshot, HealthSnapshot, PlaybackFailureEntry } from '../types/api';
+import type { ControlCenterSnapshot, HealthSnapshot, PlaybackFailureEntry, RoomIssueEntry } from '../types/api';
 import { EmptyRow, Section } from './controlCenterParts';
 
 /**
- * The Control Center's long tables (A158): stream errors, playback failures and file integrity. The Overview shows
+ * The Control Center's long tables (A158): stream errors, playback failures, room issues and file integrity. The Overview shows
  * each one's count and newest entry and links here.
  */
 
@@ -46,6 +46,18 @@ export function LogsPage() {
     placeholderData: (prev) => prev,
   });
   const failurePages = failures ? Math.max(1, Math.ceil(failures.total / FAILURES_PAGE_SIZE)) : 1;
+
+  const [issuesPage, setIssuesPage] = useState(0);
+  const { data: issues, isLoading: isLoadingIssues } = useQuery({
+    queryKey: ['room-issues', issuesPage],
+    queryFn: () =>
+      apiClient.get<{ issues: RoomIssueEntry[]; total: number }>(
+        `/admin/room-issues?limit=${FAILURES_PAGE_SIZE}&offset=${issuesPage * FAILURES_PAGE_SIZE}`,
+      ),
+    refetchInterval: POLL_INTERVAL_MS,
+    placeholderData: (prev) => prev,
+  });
+  const issuePages = issues ? Math.max(1, Math.ceil(issues.total / FAILURES_PAGE_SIZE)) : 1;
 
   return (
     <div className="space-y-6">
@@ -112,6 +124,67 @@ export function LogsPage() {
             <button
               disabled={failuresPage + 1 >= failurePages}
               onClick={() => setFailuresPage((p) => p + 1)}
+              className="btn-secondary btn-sm"
+            >
+              Next
+            </button>
+          </div>
+        )}
+      </Section>
+
+      <Section
+        title={issues ? `Room issues (${issues.total})` : 'Room issues'}
+        description="Listen together problems the apps would otherwise hide: a room message that didn't parse, a socket that kept dropping, a request that failed. Repeats within a minute are sent once."
+      >
+        <div className="card max-h-[60vh] overflow-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="sticky top-0 border-b border-blue-800 bg-blue-900">
+              <tr className="text-xs uppercase tracking-wide text-blue-400">
+                <th className="px-4 py-2.5 font-medium">Time</th>
+                <th className="px-4 py-2.5 font-medium">User</th>
+                <th className="px-4 py-2.5 font-medium">From</th>
+                <th className="px-4 py-2.5 font-medium">Room</th>
+                <th className="px-4 py-2.5 font-medium">What</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-blue-800/60">
+              {issues?.issues.map((i) => (
+                <tr key={i.id}>
+                  <td className="px-4 py-2.5 whitespace-nowrap text-blue-200">{formatDateTime(i.createdAt)}</td>
+                  <td className="px-4 py-2.5 text-blue-200">{i.username}</td>
+                  <td className="px-4 py-2.5 whitespace-nowrap text-blue-200" title={i.userAgent ?? undefined}>
+                    {i.source}
+                    {i.appVersion ? ` ${i.appVersion}` : ''}
+                  </td>
+                  <td className="px-4 py-2.5 font-mono text-blue-200">{i.roomCode ?? '—'}</td>
+                  <td className="px-4 py-2.5 text-blue-100">
+                    <span className="text-blue-300">{i.kind}</span> {i.message}
+                    {i.httpStatus !== null && <span className="text-blue-300"> (HTTP {i.httpStatus})</span>}
+                    {i.detail && <p className="mt-0.5 break-all font-mono text-xs text-blue-300">{i.detail}</p>}
+                  </td>
+                </tr>
+              ))}
+              {!isLoadingIssues && (issues?.issues.length ?? 0) === 0 && (
+                <EmptyRow colSpan={5}>No room issues reported.</EmptyRow>
+              )}
+            </tbody>
+          </table>
+        </div>
+        {issuePages > 1 && (
+          <div className="mt-3 flex items-center gap-3 text-sm text-blue-200">
+            <button
+              disabled={issuesPage === 0}
+              onClick={() => setIssuesPage((p) => p - 1)}
+              className="btn-secondary btn-sm"
+            >
+              Prev
+            </button>
+            <span>
+              Page {issuesPage + 1} of {issuePages}
+            </span>
+            <button
+              disabled={issuesPage + 1 >= issuePages}
+              onClick={() => setIssuesPage((p) => p + 1)}
               className="btn-secondary btn-sm"
             >
               Next

@@ -205,6 +205,50 @@ export function reportPlaybackFailure(
   void apiClient.post(`/tracks/${trackId}/playback-failure`, details).catch(() => {});
 }
 
+export type RoomIssueKind =
+  | 'parse-failed'
+  | 'socket-failed'
+  | 'socket-closed'
+  | 'server-error'
+  | 'server-closed'
+  | 'request-failed';
+
+/** Same kind and message again within this window is dropped, so a reconnect loop leaves one row, not hundreds. */
+const ROOM_ISSUE_REPEAT_MS = 60_000;
+const roomIssueSentAt = new Map<string, number>();
+
+/**
+ * Records a Listen together problem the UI would otherwise swallow, for the admin Logs page. Pass the caught `error`
+ * and its text and HTTP status go along. Best effort, never a toast.
+ */
+export function reportRoomIssue(
+  kind: RoomIssueKind,
+  message: string,
+  extra: { error?: unknown; detail?: string; httpStatus?: number; roomCode?: string } = {},
+): void {
+  const { error, ...rest } = extra;
+  const detail = rest.detail ?? (error instanceof Error ? error.message : error === undefined ? undefined : String(error));
+  const httpStatus = rest.httpStatus ?? (error instanceof ApiError ? error.status : undefined);
+  console.warn(`[room] ${kind}: ${message}`, detail ?? '', httpStatus ?? '');
+
+  const key = `${kind}|${message}`;
+  const now = Date.now();
+  if (now - (roomIssueSentAt.get(key) ?? -Infinity) < ROOM_ISSUE_REPEAT_MS) return;
+  roomIssueSentAt.set(key, now);
+  if (!getToken()) return;
+  void apiClient
+    .post('/rooms/issues', {
+      source: 'web',
+      kind,
+      message,
+      detail,
+      httpStatus,
+      roomCode: rest.roomCode,
+      appVersion: __APP_VERSION__,
+    })
+    .catch(() => {});
+}
+
 /** Asks the server to convert a track ahead of play at the same quality. Fire-and-forget. */
 export function prepareTrack(trackId: number, quality?: 'low'): void {
   const query = quality ? `?quality=${quality}` : '';

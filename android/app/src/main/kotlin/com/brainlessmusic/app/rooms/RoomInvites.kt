@@ -45,6 +45,7 @@ class RoomInvites @Inject constructor(
     private val serverConfig: ServerConfig,
     private val tokenProvider: TokenProvider,
     private val session: RoomSession,
+    private val issues: RoomIssues,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var holders = 0
@@ -54,10 +55,12 @@ class RoomInvites @Inject constructor(
 
     private val api get() = apiServiceFactory.get(serverConfig.url)
 
-    suspend fun invitable(): Result<List<SocialPersonDto>> = apiResult { api.invitablePeople().people }
+    suspend fun invitable(): Result<List<SocialPersonDto>> =
+        apiResult { issues.tracked("Couldn't load the invite list") { api.invitablePeople().people } }
 
     /** How many new invites went out; someone already invited isn't asked twice. */
-    suspend fun send(userIds: List<Int>): Result<Int> = apiResult { api.sendInvites(SendInvitesRequest(userIds)).invited }
+    suspend fun send(userIds: List<Int>): Result<Int> =
+        apiResult { issues.tracked("Couldn't send an invite") { api.sendInvites(SendInvitesRequest(userIds)).invited } }
 
     fun acquire() {
         holders += 1
@@ -81,7 +84,8 @@ class RoomInvites @Inject constructor(
     private suspend fun poll() {
         // Guests can't be invited (accounts only, both ways).
         if (tokenProvider.current == null || tokenProvider.isGuest) return
-        val invites = apiResult { api.roomInvites().invites }.getOrNull() ?: return
+        val invites = apiResult { issues.tracked("Couldn't check for room invites") { api.roomInvites().invites } }
+            .getOrNull() ?: return
         val here = session.state.value.room?.code
         for (invite in invites) {
             if (invite.code == here || !announced.add(invite.code)) continue

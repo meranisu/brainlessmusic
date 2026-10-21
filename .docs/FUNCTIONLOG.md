@@ -4,6 +4,30 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `recordRoomIssue()`, `countRoomIssues()`, `listRecentRoomIssues()` — `backend/src/db/roomIssues.ts`; `POST /rooms/issues`, WS `logIssue()` — `backend/src/routes/rooms.ts`; `GET /admin/room-issues` — `backend/src/routes/health.ts`
+**Date:** 2026-10-21
+**How added:** new feature
+**Purpose:** the room issue log: store Listen together problems for the admin.
+**Side effects:** writes `room_issues` (capped at 1000 rows); `request.log.warn` per report.
+**Before:** room errors were not logged anywhere.
+**After:** client reports and server-seen socket problems are kept and listed newest first.
+
+**Function:** `reportRoomIssue()` — `frontend/src/lib/apiClient.ts`; Room issues section — `frontend/src/pages/LogsPage.tsx`
+**Date:** 2026-10-21
+**How added:** new feature
+**Purpose:** web side of the room issue log; called from `roomClient.ts`, `RoomProvider.tsx`, `TogetherPage.tsx`, `InviteBanner.tsx`.
+**Side effects:** `POST /rooms/issues` (fire-and-forget, deduped 60 s), `console.warn`.
+**Before:** those failures were caught and dropped or only toasted.
+**After:** each leaves a row the admin sees on the Logs page.
+
+**Function:** `RoomIssues.report()`, `RoomIssues.tracked()` — `android/.../rooms/RoomIssues.kt`; `RoomSocket` `report` parameter
+**Date:** 2026-10-21
+**How added:** new feature
+**Purpose:** Android side of the room issue log; used by `RoomSocket`, `RoomSession`, `RoomInvites`.
+**Side effects:** `POST /rooms/issues` (fire-and-forget, deduped 60 s), `Log.w` tag `RoomIssues`.
+**Before:** parse failures, socket drops and failed room requests left no trace.
+**After:** reported with exception text, HTTP status and app version.
+
 **Function:** `playNext()`, `addToQueue()`, `insertTrack()` — `frontend/src/components/PlayerBar.tsx`; `QueueMenu()` — `frontend/src/components/QueueMenu.tsx`
 **Date:** 2026-10-21
 **How added:** new feature

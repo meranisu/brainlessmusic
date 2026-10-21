@@ -402,3 +402,76 @@ describe('room invites (A255)', () => {
     alice.ws.close();
   });
 });
+
+describe('room issue log', () => {
+  function report(token: string, payload: Record<string, unknown>) {
+    return app.inject({
+      method: 'POST',
+      url: '/api/rooms/issues',
+      headers: { authorization: `Bearer ${token}`, 'user-agent': 'test-agent' },
+      payload,
+    });
+  }
+
+  function listIssues(token: string) {
+    return app.inject({ method: 'GET', url: '/api/admin/room-issues', headers: { authorization: `Bearer ${token}` } });
+  }
+
+  it('stores a client report, guests included, and shows it to an admin only', async () => {
+    const sent = await report(guestToken, {
+      source: 'android',
+      kind: 'request-failed',
+      message: 'Could not load the invite list',
+      httpStatus: 502,
+      appVersion: '0.4.29',
+      roomCode: 'ABCDEF',
+    });
+    assert.equal(sent.statusCode, 204);
+
+    assert.equal((await listIssues(aliceToken)).statusCode, 403);
+    setAdminById(aliceId, true);
+    const listed = await listIssues(aliceToken);
+    assert.equal(listed.statusCode, 200);
+    const { issues, total } = listed.json();
+    assert.equal(total, 1);
+    assert.equal(issues[0].userId, guestId);
+    assert.equal(issues[0].source, 'android');
+    assert.equal(issues[0].httpStatus, 502);
+    assert.equal(issues[0].userAgent, 'test-agent');
+  });
+
+  it('refuses an unknown kind or a missing message, and a flood', async () => {
+    assert.equal((await report(aliceToken, { kind: 'anything', message: 'x' })).statusCode, 400);
+    assert.equal((await report(aliceToken, { kind: 'socket-failed' })).statusCode, 400);
+
+    let last = 0;
+    for (let i = 0; i < 31; i++) last = (await report(bobToken, { kind: 'socket-failed', message: `m${i}` })).statusCode;
+    assert.equal(last, 429);
+  });
+
+  it('logs bad frames from a joined user, but nothing before the hello', async () => {
+    const stranger = await connect();
+    stranger.ws.send('not json');
+    assert.equal((await stranger.ofType('error')).reason, 'bad-json');
+    stranger.ws.close();
+
+    const { code } = (await createRoom(aliceToken)).json();
+    const alice = await join(aliceToken, code);
+    alice.ws.send('not json');
+    assert.equal((await alice.ofType('error')).reason, 'bad-json');
+    alice.send({ type: 'mystery' });
+    assert.equal((await alice.ofType('error')).reason, 'unknown-type');
+    alice.ws.close();
+
+    setAdminById(aliceId, true);
+    const { issues } = (await listIssues(aliceToken)).json();
+    assert.deepEqual(
+      issues.map((i: { source: string; userId: number; roomCode: string }) => [i.source, i.userId, i.roomCode]),
+      [
+        ['server', aliceId, code],
+        ['server', aliceId, code],
+      ],
+    );
+    assert.equal(issues[0].detail, 'mystery');
+  });
+});

@@ -1,4 +1,4 @@
-import { apiClient, getToken } from './apiClient';
+import { apiClient, getToken, reportRoomIssue } from './apiClient';
 
 /**
  * The live half of room sync ("Listen together", A102): one WebSocket to `/api/rooms/ws`, the server's clock, and
@@ -129,6 +129,10 @@ const PING_EVERY_MS = 20_000;
 const RTT_WINDOW_MS = 120_000;
 const BEST_SAMPLES = 3;
 const RECONNECT_STEPS_MS = [1000, 2000, 4000, 8000, 10_000];
+/** Drops in a row (no welcome between) before the room issue log hears about it. */
+const DROPS_WORTH_REPORTING = 3;
+/** Ways a room ends that are someone's choice, not a fault; the rest go to the room issue log. */
+const NORMAL_CLOSES = new Set(['ended', 'kicked', 'not-found', 'replaced', 'left', 'full']);
 /** A drop isn't noticed until a ping goes unanswered, so give up on the socket after this long silent. */
 const SILENT_LIMIT_MS = PING_EVERY_MS + 10_000;
 /** Ops remembered for naming a rejection. Accepted commands get no reply, so only the newest few are kept. */
@@ -202,8 +206,9 @@ export class RoomClient {
     if (this.socket?.readyState === WebSocket.OPEN && this.joined) {
       this.socket.send(JSON.stringify({ type: 'leave' }));
     } else {
-      void apiClient.post('/rooms/leave', {}).catch(() => {
+      void apiClient.post('/rooms/leave', {}).catch((error) => {
         // Unreachable: the server drops us after its grace period anyway.
+        reportRoomIssue('request-failed', "Couldn't leave the room over REST", { error, roomCode: this.code });
       });
     }
     this.stop();
@@ -240,13 +245,24 @@ export class RoomClient {
       let message: { type: string; [key: string]: unknown };
       try {
         message = JSON.parse(String(event.data));
-      } catch {
+      } catch (error) {
+        reportRoomIssue('parse-failed', 'Room message is not JSON', {
+          detail: `${error instanceof Error ? error.message : error}: ${String(event.data).slice(0, 300)}`,
+          roomCode: this.code,
+        });
         return;
       }
       this.handle(message);
     };
-    socket.onclose = () => {
+    socket.onclose = (event) => {
       if (socket !== this.socket) return;
+      // One drop is a network blip; three in a row without a welcome is worth a look.
+      if (this.attempt + 1 === DROPS_WORTH_REPORTING) {
+        reportRoomIssue('socket-closed', `Room socket dropped ${DROPS_WORTH_REPORTING} times in a row`, {
+          detail: `last close ${event.code}${event.reason ? ` ${event.reason}` : ''}`,
+          roomCode: this.code,
+        });
+      }
       this.socket = null;
       this.joined = false;
       this.clearTimers();
@@ -277,7 +293,19 @@ export class RoomClient {
         this.events.onRejected(op, String(message.reason));
         return;
       }
+      case 'error':
+        reportRoomIssue('server-error', 'Server refused a room message', {
+          detail: String(message.reason),
+          roomCode: this.code,
+        });
+        return;
       case 'closed': {
+        if (!NORMAL_CLOSES.has(String(message.reason))) {
+          reportRoomIssue('server-closed', 'Server closed the room socket', {
+            detail: String(message.reason),
+            roomCode: this.code,
+          });
+        }
         this.stopped = true;
         this.clearTimers();
         // Detach first so the close below can't reach the reconnect path.

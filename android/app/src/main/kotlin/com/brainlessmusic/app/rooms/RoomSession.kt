@@ -49,6 +49,7 @@ class RoomSession @Inject constructor(
     private val apiServiceFactory: ApiServiceFactory,
     private val serverConfig: ServerConfig,
     private val tokenProvider: TokenProvider,
+    private val issues: RoomIssues,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -90,7 +91,9 @@ class RoomSession @Inject constructor(
 
     private suspend fun rejoin() {
         if (socket != null) return
-        val code = runCatching { apiServiceFactory.get(serverConfig.url).myRoom().code }.getOrNull() ?: return
+        val code = runCatching { apiServiceFactory.get(serverConfig.url).myRoom().code }
+            .onFailure { issues.report(RoomIssueKind.REQUEST_FAILED, "Couldn't check for a room to rejoin", it) }
+            .getOrNull() ?: return
         if (socket == null && tokenProvider.current != null) connect(code, quietIfGone = true)
     }
 
@@ -116,7 +119,9 @@ class RoomSession @Inject constructor(
             playing = playing.isPlaying,
         )
         return apiResult {
-            val code = apiServiceFactory.get(serverConfig.url).createRoom(request).code ?: error("No room code came back")
+            val code = issues.tracked("Couldn't create a room") {
+                apiServiceFactory.get(serverConfig.url).createRoom(request).code ?: error("No room code came back")
+            }
             connect(code, quietIfGone = false)
         }
     }
@@ -126,7 +131,9 @@ class RoomSession @Inject constructor(
         try {
             apiServiceFactory.get(serverConfig.url).lookupRoom(code)
         } catch (e: HttpException) {
-            if (e.code() == 404) null else throw e
+            if (e.code() == 404) null else throw e.also { issues.report(RoomIssueKind.REQUEST_FAILED, "Couldn't look up a room", it, code) }
+        } catch (e: java.io.IOException) {
+            throw e.also { issues.report(RoomIssueKind.REQUEST_FAILED, "Couldn't look up a room", it, code) }
         }
     }
 
@@ -138,7 +145,11 @@ class RoomSession @Inject constructor(
         socket = null
         if (leaving?.leave() == false) {
             // Reconnecting: the socket couldn't carry it, so the leave goes over REST.
-            scope.launch { runCatching { apiServiceFactory.get(serverConfig.url).leaveRoom() } }
+            val code = leaving?.code
+            scope.launch {
+                runCatching { apiServiceFactory.get(serverConfig.url).leaveRoom() }
+                    .onFailure { issues.report(RoomIssueKind.REQUEST_FAILED, "Couldn't leave the room over REST", it, code) }
+            }
         }
         _state.value = RoomUiState()
         controller.exitRoom()
@@ -163,6 +174,7 @@ class RoomSession @Inject constructor(
             client = socketClient,
             token = { tokenProvider.current },
             scope = scope,
+            report = { kind, message, detail -> issues.report(kind, message, detail, roomCode = code) },
             events = object : RoomSocket.Events {
                 override fun onState(room: RoomState, you: Int?) {
                     if (socket !== created) return

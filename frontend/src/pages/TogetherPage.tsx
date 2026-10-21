@@ -6,7 +6,7 @@ import { usePlayer } from '../components/PlayerBar';
 import { useRoom } from '../components/RoomProvider';
 import { useToast } from '../components/ToastProvider';
 import { ArrowUpIcon, CloseIcon, PlayIcon } from '../components/icons';
-import { ApiError, apiClient } from '../lib/apiClient';
+import { ApiError, apiClient, reportRoomIssue } from '../lib/apiClient';
 import { copyText } from '../lib/copyText';
 import { roomAllows, type RoomSettings, type RoomState } from '../lib/roomClient';
 import type { SocialPerson } from '../types/api';
@@ -67,7 +67,9 @@ function OutsideRoom({ linked }: { linked: string | null }) {
       })
       .catch((err) => {
         if (cancelled) return;
-        setResult({ code, preview: null, failed: err instanceof ApiError && err.status === 404 ? 'missing' : 'failed' });
+        const missing = err instanceof ApiError && err.status === 404;
+        if (!missing) reportRoomIssue('request-failed', "Couldn't look up a room", { error: err, roomCode: code });
+        setResult({ code, preview: null, failed: missing ? 'missing' : 'failed' });
       });
     return () => {
       cancelled = true;
@@ -254,7 +256,11 @@ function InvitePanel({ onClose }: { onClose: () => void }) {
   const [picked, setPicked] = useState<Set<number>>(new Set());
   const people = useQuery({
     queryKey: ['rooms', 'invitable'],
-    queryFn: () => apiClient.get<{ people: SocialPerson[] }>('/rooms/invitable'),
+    queryFn: () =>
+      apiClient.get<{ people: SocialPerson[] }>('/rooms/invitable').catch((error: unknown) => {
+        reportRoomIssue('request-failed', "Couldn't load the invite list", { error });
+        throw error;
+      }),
   });
   const send = useMutation({
     mutationFn: (userIds: number[]) => apiClient.post<{ invited: number }>('/rooms/invites', { userIds }),
@@ -266,7 +272,10 @@ function InvitePanel({ onClose }: { onClose: () => void }) {
       );
       onClose();
     },
-    onError: (error) => showToast(error instanceof ApiError ? error.message : "Couldn't send the invite.", 'error'),
+    onError: (error) => {
+      reportRoomIssue('request-failed', "Couldn't send an invite", { error });
+      showToast(error instanceof ApiError ? error.message : "Couldn't send the invite.", 'error');
+    },
   });
 
   function toggle(id: number) {

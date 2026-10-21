@@ -4,6 +4,30 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-21: Room issue log
+
+- Why: owner request after v0.4.27's rooms broke on phones with nothing recorded (`RoomSocket.parseRoom()` swallowed
+  the Gson error) and the invite list failure (Q261) stayed unexplained. Plan: `features/room-issue-log/planning.md`.
+- Backend: migration `0044_create_room_issues.sql`, `db/roomIssues.ts` (1000-row cap, clipping like playback
+  failures). `POST /rooms/issues` (any signed-in user, guests too; fixed `kind` list; 30 per minute) and admin-only
+  `GET /admin/room-issues`. The room socket records `server` rows for bad JSON, a message flood, an unknown message
+  type and a session that stopped being valid, only once a user has joined. User delete and idle-guest prune clear
+  the rows first.
+- Web: `reportRoomIssue()` (`lib/apiClient.ts`), deduped per kind and message for 60 s, plus `console.warn`. Reports
+  a room message that isn't JSON, three socket drops in a row, `error` frames, closes that aren't someone's choice,
+  and failed requests: rejoin check, create, lookup (not a 404), invite list, send invite, invite poll, decline,
+  REST leave. "Room issues" table on the Logs page.
+- Android: `RoomIssues` (`rooms/RoomIssues.kt`), same dedupe, also `Log.w` with tag `RoomIssues`. `RoomSocket` takes a
+  `report` callback: JSON and `parseRoom` failures (with the message type and its first 300 characters), three drops
+  in a row (close code or throwable, HTTP status), `error` frames, abnormal closes. `RoomSession` and `RoomInvites`
+  report the same failed requests as the web. UI unchanged. DTO `RoomIssueReport` sits in `data/remote/dto`, so the
+  existing keep rule covers it.
+- Verified: `cd backend && npm test` 781/781 (new tests in `db/failureLogs.test.ts`, `routes/rooms.test.ts`,
+  `routes/guestAccess.test.ts`); `cd frontend && npm run build` and `npm run lint` (no new warnings); `cd android &&
+  ./gradlew assembleDebug compileDebugUnitTestKotlin` passes. Browser run with Playwright against a scratch backend: a
+  room lookup forced to 500 on the Together page left one row (the repeat was deduped), shown on the Logs page at
+  desktop width. Not checked: phone width, a real device, the release APK.
+
 ## 2026-10-21: Android room settings survive R8; room code beside "Now playing"
 
 - Why: owner report in chat (adder pictures in the queue and the invite list not loading, room label tidy-up).

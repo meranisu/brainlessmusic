@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useAuth } from '../auth/AuthContext';
-import { apiClient } from '../lib/apiClient';
+import { apiClient, reportRoomIssue } from '../lib/apiClient';
 import {
   RoomClient,
   type ClosedReason,
@@ -154,8 +154,9 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       .then(({ code }) => {
         if (!cancelled && code && !clientRef.current) connect(code, true);
       })
-      .catch(() => {
+      .catch((error) => {
         // No rejoin is the same as not having been in a room.
+        reportRoomIssue('request-failed', "Couldn't check for a room to rejoin", { error });
       });
     return () => {
       cancelled = true;
@@ -166,7 +167,12 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
   const create = useCallback(
     async (start: RoomStart) => {
-      const { code } = await apiClient.post<{ code: string }>('/rooms', start);
+      const { code } = await apiClient
+        .post<{ code: string }>('/rooms', start)
+        .catch((error: unknown) => {
+          reportRoomIssue('request-failed', "Couldn't create a room", { error });
+          throw error;
+        });
       connect(code);
     },
     [connect],

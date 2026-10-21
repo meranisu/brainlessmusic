@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { countMissingTracks } from '../db/library.js';
 import { summarizeRecentPlays } from '../db/plays.js';
 import { countPlaybackFailures, listRecentPlaybackFailures } from '../db/playbackFailures.js';
+import { countRoomIssues, listRecentRoomIssues } from '../db/roomIssues.js';
 import { countScanFailures, listScanFailures } from '../db/scanFailures.js';
 import { isAnyLibrarySyncRunning } from '../services/librarySync.js';
 import { getTrackSummaryById } from '../db/browse.js';
@@ -37,6 +38,23 @@ const healthRoute: FastifyPluginAsync = async (fastify) => {
           Number.isInteger(offset) && offset > 0 ? offset : 0,
         ),
         total: countPlaybackFailures(),
+      };
+    },
+  );
+
+  // Admin-only, same reason: room problems clients reported or the room socket saw (`room_issues`).
+  fastify.get<{ Querystring: { limit?: string; offset?: string } }>(
+    '/admin/room-issues',
+    { preHandler: [fastify.authenticate, fastify.requireAdmin] },
+    async (request) => {
+      const limit = Number(request.query.limit);
+      const offset = Number(request.query.offset);
+      return {
+        issues: listRecentRoomIssues(
+          Number.isInteger(limit) && limit > 0 ? limit : undefined,
+          Number.isInteger(offset) && offset > 0 ? offset : 0,
+        ),
+        total: countRoomIssues(),
       };
     },
   );

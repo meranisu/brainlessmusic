@@ -357,6 +357,28 @@ one seed in four, `db/lessOften.ts`). No extra index: every read is by `user_id`
 **An event log** — append-only, newest first in `GET /admin/playback-failures` (admin-only: it names users). Deliberately **not** fed into `/admin/health`, which any signed-in user can read.
 **Deletion order matters:** `deleteTrackRow()`, `pruneIdleGuests()` and `deleteUser()` each delete a parent's `playback_failures` rows first (regression tests in `db/failureLogs.test.ts`).
 
+### `room_issues`
+
+Added `0044`. The room issue log: Listen together problems the clients used to swallow.
+
+| Column | Type | Null? | Default | Notes |
+|---|---|---|---|---|
+| `id` | INTEGER | — | — | **PK**, autoincrement |
+| `user_id` | INTEGER | NOT NULL | — | **FK → `users.id`**, `ON DELETE NO ACTION`, guests included |
+| `source` | TEXT | NOT NULL | — | `'android'` or `'web'` (`POST /rooms/issues`), or `'server'` (the room socket, only once a user has joined, so anonymous probes can't push real rows out) |
+| `kind` | TEXT | NOT NULL | — | one of `ROOM_ISSUE_KINDS` (`db/roomIssues.ts`): `parse-failed`, `socket-failed`, `socket-closed`, `server-error`, `server-closed`, `request-failed` |
+| `room_code` | TEXT | nullable | — | |
+| `message` | TEXT | NOT NULL | — | clipped to 500 chars |
+| `detail` | TEXT | nullable | — | exception text or a cut of the message that failed; clipped to 1000 |
+| `http_status` | INTEGER | nullable | — | |
+| `app_version` | TEXT | nullable | — | client build (`BuildConfig.VERSION_NAME`, web `__APP_VERSION__`) |
+| `user_agent` | TEXT | nullable | — | |
+| `created_at` | TEXT | NOT NULL | `datetime('now')` | |
+
+**Indexes:** `idx_room_issues_created_at`, `idx_room_issues_user_id`.
+**An event log**, capped at the newest 1000 rows (`ROOM_ISSUES_KEPT`), newest first in `GET /admin/room-issues` (admin-only).
+**Deletion order matters:** `pruneIdleGuests()` and `deleteUser()` delete a user's `room_issues` rows first (test in `db/failureLogs.test.ts`).
+
 ### `library_roots`
 
 Added `0013`; this section was missing until `0033` (2026-10-12). One row per scanned music folder; `LIBRARY_PATH` is
@@ -492,6 +514,7 @@ Written by `backend/src/db/migrate.ts` on every `npm run migrate` — not someth
 | `albums` | `merged_into_id` | `albums` | `NO ACTION` | nothing deletes albums |
 | `playback_failures` | `user_id` | `users` | `NO ACTION` | `pruneIdleGuests()` and `deleteUser()` (`db/users.ts`) — delete `playback_failures` rows first |
 | `playback_failures` | `track_id` | `tracks` | `NO ACTION` | `deleteTrackRow()` — deletes `playback_failures` rows first |
+| `room_issues` | `user_id` | `users` | `NO ACTION` | `pruneIdleGuests()` and `deleteUser()` (`db/users.ts`) delete `room_issues` rows first |
 | `scan_failures` | `root_id` | `library_roots` | `NO ACTION` | `deleteLibraryRoot()` (`db/libraryRoots.ts`) — deletes `scan_failures` rows first |
 | `tracks` | `root_id` | `library_roots` | `NO ACTION` | `deleteLibraryRoot()` — deletes the root's tracks first, each through `deleteTrackRow()` (since 2026-10-11, A51; before that it set `root_id` to NULL) |
 | `guest_codes` | `created_by`, `used_by` | `users` | `NO ACTION` | `deleteUser()` nulls both; `pruneIdleGuests()` nulls `used_by` (`db/users.ts`) |
@@ -615,6 +638,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 | `0039_add_play_history_user_track_index.sql` | `idx_play_history_user_track` covering index on `play_history` — smart playlist play counts (A207, A208) |
 | `0042_create_track_features.sql` | `track_features` — audio features for smart auto-mixes (A234, A238) |
 | `0043_add_user_hide_activity.sql` | `users.hide_activity`; `idx_play_history_played_at` — social layer (A239-A241) |
+| `0044_create_room_issues.sql` | `room_issues` + `idx_room_issues_created_at`, `idx_room_issues_user_id` — the room issue log |
 | `0041_add_track_file_mtime.sql` | `tracks.file_mtime`, `tracks.scan_version` — incremental scan |
 | `0040_add_passcode_failures.sql` | `users.passcode_failures`; clears every existing `passcode_hash` (A216) |
 | `0038_add_playlist_rules.sql` | `playlists.rules` — smart playlists (A207-A209) |
@@ -627,6 +651,7 @@ console.log('integrity_check:', db.pragma('integrity_check', { simple: true }));
 
 | Date | Change | Why |
 |---|---|---|
+| 2026-10-21 | Migration `0044_create_room_issues.sql`: new `room_issues` table, FK to `users` without cascade; table section, relationship row and migration row. From the migration SQL and the test run, not introspected from the live DB | Room issue log (owner request after v0.4.27's rooms broke silently on phones) |
 | 2026-10-20 | Migration `0042_create_track_features.sql` — new `track_features` table, FK to `tracks` with `ON DELETE CASCADE`. From the migration SQL and the test run, not re-introspected against the live DB | Smart auto-mixes compare songs by sound (A234, A238) |
 | 2026-10-20 | Migration `0041_add_track_file_mtime.sql` — `tracks.file_mtime INTEGER`, `tracks.scan_version INTEGER`, both nullable, no backfill. From the migration SQL and the test run, not re-introspected against the live DB | Incremental scan: unchanged files are no longer reread every 12 h |
 | 2026-10-18 | Migration `0040_add_passcode_failures.sql` — `users.passcode_failures INTEGER NOT NULL DEFAULT 0`, all passcodes cleared. From the migration SQL, not re-introspected against the live DB | Passcodes lock after 10 wrong tries and need 6+ digits (A216, S3) |

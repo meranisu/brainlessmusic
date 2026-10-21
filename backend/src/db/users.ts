@@ -195,6 +195,7 @@ export function pruneIdleGuests(idleDays: number): number {
     clearSmartSummaries(id);
       db.prepare('DELETE FROM playback_state WHERE user_id = ?').run(id);
       db.prepare('DELETE FROM playback_failures WHERE user_id = ?').run(id);
+      db.prepare('DELETE FROM room_issues WHERE user_id = ?').run(id);
       db.prepare('UPDATE guest_codes SET used_by = NULL WHERE used_by = ?').run(id);
       db.prepare(
         "UPDATE account_invites SET guest_user_id = NULL, revoked_at = COALESCE(revoked_at, datetime('now')) WHERE guest_user_id = ?",
@@ -310,6 +311,7 @@ export function deleteUser(id: number): boolean {
     clearSmartSummaries(userId);
     db.prepare('DELETE FROM playback_state WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM playback_failures WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM room_issues WHERE user_id = ?').run(userId);
     db.prepare('UPDATE guest_codes SET used_by = NULL WHERE used_by = ?').run(userId);
     db.prepare('UPDATE guest_codes SET created_by = NULL WHERE created_by = ?').run(userId);
     db.prepare('UPDATE account_invites SET created_by = NULL WHERE created_by = ?').run(userId);

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import { apiClient } from '../lib/apiClient';
+import { apiClient, reportRoomIssue } from '../lib/apiClient';
 import type { RoomInvite } from '../types/api';
 import { Avatar } from './Avatar';
 import { Presence } from './Presence';
@@ -21,12 +21,17 @@ export function InviteBanner() {
   const queryClient = useQueryClient();
   const invites = useQuery({
     queryKey: ['rooms', 'invites'],
-    queryFn: () => apiClient.get<{ invites: RoomInvite[] }>('/rooms/invites'),
+    queryFn: () =>
+      apiClient.get<{ invites: RoomInvite[] }>('/rooms/invites').catch((error: unknown) => {
+        reportRoomIssue('request-failed', "Couldn't check for room invites", { error });
+        throw error;
+      }),
     enabled: user != null && !user.isGuest,
     refetchInterval: INVITE_POLL_MS,
   });
   const decline = useMutation({
     mutationFn: (code: string) => apiClient.delete(`/rooms/invites/${code}`),
+    onError: (error, code) => reportRoomIssue('request-failed', "Couldn't decline an invite", { error, roomCode: code }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['rooms', 'invites'] }),
   });
 

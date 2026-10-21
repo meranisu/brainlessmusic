@@ -8,6 +8,7 @@ import {
   listRecentPlaybackFailures,
   recordPlaybackFailure,
 } from './playbackFailures.js';
+import { ROOM_ISSUES_KEPT, countRoomIssues, listRecentRoomIssues, recordRoomIssue } from './roomIssues.js';
 import { countScanFailures, listScanFailures, replaceScanFailures } from './scanFailures.js';
 import { db } from './connection.js';
 import { deleteUser, insertGuest, insertUser, pruneIdleGuests } from './users.js';
@@ -124,6 +125,62 @@ describe('playback_failures', () => {
     recordPlaybackFailure({ userId: user.id, trackId: track.id, source: 'client', message: 'x' });
 
     assert.equal(deleteUser(user.id), true);
+  });
+});
+
+describe('room_issues', () => {
+  it('lists an issue with who, where and the detail', () => {
+    const user = insertUser('imran', 'hash');
+    recordRoomIssue({
+      userId: user.id,
+      source: 'android',
+      kind: 'parse-failed',
+      message: 'Could not read a room message',
+      roomCode: 'ABCDEF',
+      detail: 'JsonSyntaxException',
+      httpStatus: 500,
+      appVersion: '0.4.29',
+    });
+
+    const [entry] = listRecentRoomIssues();
+    assert.equal(entry.username, 'imran');
+    assert.equal(entry.kind, 'parse-failed');
+    assert.equal(entry.roomCode, 'ABCDEF');
+    assert.equal(entry.httpStatus, 500);
+    assert.equal(entry.appVersion, '0.4.29');
+  });
+
+  it('keeps only the newest rows, clips oversized text, and pages newest first', () => {
+    const user = insertUser('imran', 'hash');
+    for (let i = 0; i < ROOM_ISSUES_KEPT + 5; i += 1) {
+      recordRoomIssue({ userId: user.id, source: 'web', kind: 'socket-failed', message: `issue ${i}` });
+    }
+    recordRoomIssue({
+      userId: user.id,
+      source: 'web',
+      kind: 'socket-failed',
+      message: 'x'.repeat(1_000_000),
+      detail: 'y'.repeat(1_000_000),
+    });
+
+    assert.equal(countRoomIssues(), ROOM_ISSUES_KEPT);
+    const [newest, second] = listRecentRoomIssues(2, 0);
+    assert.ok(newest.message.length <= 500, 'a megabyte of message is cut down');
+    assert.ok((newest.detail ?? '').length <= 1000);
+    assert.equal(second.message, `issue ${ROOM_ISSUES_KEPT + 4}`);
+    assert.equal(listRecentRoomIssues(1, 1)[0].message, second.message);
+  });
+
+  it('does not stop a user or an idle guest with issues from being removed', () => {
+    const user = insertUser('imran', 'hash');
+    const guest = insertGuest();
+    recordRoomIssue({ userId: user.id, source: 'web', kind: 'request-failed', message: 'x' });
+    recordRoomIssue({ userId: guest.id, source: 'android', kind: 'request-failed', message: 'x' });
+    db.prepare("UPDATE users SET last_seen_at = datetime('now', '-400 days') WHERE id = ?").run(guest.id);
+
+    assert.equal(deleteUser(user.id), true);
+    assert.equal(pruneIdleGuests(30), 1);
+    assert.equal(countRoomIssues(), 0);
   });
 });
 

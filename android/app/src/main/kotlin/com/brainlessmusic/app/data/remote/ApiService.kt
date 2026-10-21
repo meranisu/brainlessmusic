@@ -1,6 +1,7 @@
 package com.brainlessmusic.app.data.remote
 
 import com.brainlessmusic.app.data.remote.dto.ActivityVisibilityRequest
+import com.brainlessmusic.app.data.remote.dto.RoomIssueReport
 import com.brainlessmusic.app.data.remote.dto.FeedPageDto
 import com.brainlessmusic.app.data.remote.dto.NowPlayingDto
 import com.brainlessmusic.app.data.remote.dto.AcceptInviteRequest
@@ -350,6 +351,10 @@ interface ApiService {
 
     @DELETE("rooms/invites/{code}")
     suspend fun declineInvite(@Path("code") code: String)
+
+    // The room issue log (`rooms/RoomIssues.kt`). Answers 204.
+    @POST("rooms/issues")
+    suspend fun reportRoomIssue(@Body body: RoomIssueReport)
 
     @GET("rooms/{code}")
     suspend fun lookupRoom(@Path("code") code: String): RoomLookupDto

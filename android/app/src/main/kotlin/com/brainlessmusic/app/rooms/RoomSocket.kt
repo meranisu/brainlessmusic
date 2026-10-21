@@ -22,7 +22,7 @@ import okhttp3.WebSocketListener
  * OkHttp's callbacks hop onto [scope] (a main-thread scope) before touching anything.
  */
 class RoomSocket(
-    private val code: String,
+    val code: String,
     private val url: String,
     private val client: OkHttpClient,
     private val token: () -> String?,
@@ -30,6 +30,8 @@ class RoomSocket(
     private val events: Events,
     /** Monotonic ms; a parameter so the socket can be driven from a JVM test. */
     private val now: () -> Long = SystemClock::elapsedRealtime,
+    /** To the room issue log ([RoomIssues]): problems that otherwise only show as a silent reconnect or a stuck screen. */
+    private val report: (kind: RoomIssueKind, message: String, detail: String?) -> Unit = { _, _, _ -> },
 ) {
     interface Events {
         /** [you] comes with the first state after each (re)connect. */
@@ -166,18 +168,26 @@ class RoomSocket(
                 scope.launch {
                     if (ws !== socket) return@launch
                     lastHeard = arrivedAt
-                    val message = runCatching { JsonParser.parseString(text).asJsonObject }.getOrNull() ?: return@launch
+                    val message = runCatching { JsonParser.parseString(text).asJsonObject }
+                        .onFailure { report(RoomIssueKind.PARSE_FAILED, "Room message is not JSON", "$it: ${text.take(300)}") }
+                        .getOrNull() ?: return@launch
                     handle(message, arrivedAt)
                 }
             }
 
-            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) = dropped(webSocket)
+            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) =
+                dropped(webSocket, RoomIssueKind.SOCKET_CLOSED, "close $code" + if (reason.isEmpty()) "" else " $reason")
 
-            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) = dropped(webSocket)
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) =
+                dropped(webSocket, RoomIssueKind.SOCKET_FAILED, "$t" + (response?.let { " HTTP ${it.code}" } ?: ""))
 
-            private fun dropped(webSocket: WebSocket) {
+            private fun dropped(webSocket: WebSocket, kind: RoomIssueKind, detail: String) {
                 scope.launch {
                     if (webSocket !== socket) return@launch
+                    // One drop is a network blip; three in a row without a welcome is worth a look.
+                    if (attempt + 1 == DROPS_WORTH_REPORTING) {
+                        report(kind, "Room socket dropped $DROPS_WORTH_REPORTING times in a row", "last: $detail")
+                    }
                     socket = null
                     joined = false
                     clearTimers()
@@ -197,6 +207,7 @@ class RoomSocket(
                 parseRoom(message)?.let { events.onState(it, message.get("you")?.asInt) }
             }
             "state" -> parseRoom(message)?.let { events.onState(it, null) }
+            "error" -> report(RoomIssueKind.SERVER_ERROR, "Server refused a room message", message.get("reason")?.asString)
             "pong" -> {
                 val t0 = message.get("t0")?.asLong ?: return
                 val ts = message.get("ts")?.asLong ?: return
@@ -208,6 +219,8 @@ class RoomSocket(
                 events.onRejected(op, message.get("reason")?.asString.orEmpty())
             }
             "closed" -> {
+                val reason = message.get("reason")?.asString
+                if (reason !in NORMAL_CLOSES) report(RoomIssueKind.SERVER_CLOSED, "Server closed the room socket", reason)
                 stopped = true
                 clearTimers()
                 // Detach first, as stop() does, so the close callback finds no current socket and doesn't reconnect.
@@ -220,8 +233,14 @@ class RoomSocket(
         }
     }
 
+    // v0.4.27's R8 bug failed here on every message with nothing logged; the report is how the next one shows up.
     private fun parseRoom(message: JsonObject): RoomState? =
-        runCatching { gson.fromJson(message.getAsJsonObject("room"), RoomState::class.java) }.getOrNull()
+        runCatching { gson.fromJson(message.getAsJsonObject("room"), RoomState::class.java) }
+            .onFailure {
+                val type = message.get("type")?.asString
+                report(RoomIssueKind.PARSE_FAILED, "Couldn't read the room in a '$type' message", "$it: ${message.toString().take(300)}")
+            }
+            .getOrNull()
 
     /** 8 quick pings on every (re)connect, one every 3 s for half a minute, then one every 20 s. */
     private fun startClockSync() {
@@ -273,5 +292,9 @@ class RoomSocket(
         const val PING_EVERY_MS = 20_000L
         const val SILENT_LIMIT_MS = PING_EVERY_MS + 10_000L
         val RECONNECT_STEPS_MS = longArrayOf(1_000, 2_000, 4_000, 8_000, 10_000)
+        /** Drops in a row (no welcome between) before the room issue log hears about it. */
+        const val DROPS_WORTH_REPORTING = 3
+        /** Ways a room ends that are someone's choice, not a fault; the rest go to the room issue log. */
+        val NORMAL_CLOSES = setOf("ended", "kicked", "not-found", "replaced", "left", "full")
     }
 }

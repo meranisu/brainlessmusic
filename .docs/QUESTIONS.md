@@ -60,7 +60,8 @@ Bit depth needs a new column and a `SCANNER_VERSION` bump, so smol rescans every
 
 Owner report: in Listen together on the phone app (v0.4.27), adder pictures showed "?", rooms couldn't be created and
 the invite list failed. The first two were an R8 bug, fixed in v0.4.28 (CHANGELOG 2026-10-21). The invite list is not
-explained by it. Does it still fail on v0.4.28? If so, plug the phone in over USB so `adb logcat` shows the error.
+explained by it. Does it still fail on v0.4.28? If so, plug the phone in over USB so `adb logcat` shows the error. From v0.4.29 the
+failure is also recorded on the web Logs page ("Room issues", with the HTTP status), so a retry on v0.4.29 may answer this without a cable.
 
 ### Q77 — How does the Android app get past Cloudflare Access?
 **Asked:** 2026-10-11 · **Blocking:** yes, before Access goes on ([A74](#a74--cloudflare-access-goes-in-front-of-the-public-hostname-was-q30))

@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import type { WebSocket } from 'ws';
 import { getTrackSummariesByIds } from '../db/browse.js';
+import { ROOM_ISSUE_KINDS, type RoomIssueKind, recordRoomIssue } from '../db/roomIssues.js';
 import { invitablePeople } from '../db/social.js';
 import { type UserRow, findUserById, nameOf } from '../db/users.js';
 import {
@@ -32,6 +33,9 @@ const FAILED_HELLOS_PER_MINUTE = 20;
 const SOCKET_MESSAGES_PER_SECOND = 30;
 const lookupLimiter = createRateLimiter();
 const failedHelloLimiter = createRateLimiter();
+/** A client dedupes its own reports, so a real one sends a handful; a loop gets refused instead of written. */
+const ISSUE_REPORTS_PER_MINUTE = 30;
+const issueLimiter = createRateLimiter();
 /** Protocol pings catch a phone that vanished without closing its socket, well inside Cloudflare's ~100 s limit. */
 const HEARTBEAT_MS = 30_000;
 
@@ -205,6 +209,41 @@ const roomsRoute: FastifyPluginAsync = async (fastify) => {
     },
   );
 
+  // Room issue log: what the clients would otherwise swallow (parse failures, dropped sockets, failed requests).
+  // Guests too, they join rooms. Read back through `GET /admin/room-issues`.
+  fastify.post<{ Body: Record<string, unknown> }>(
+    '/rooms/issues',
+    { preHandler: fastify.authenticate },
+    async (request, reply) => {
+      const rate = issueLimiter.check(String(request.user!.id), { limit: ISSUE_REPORTS_PER_MINUTE, windowMs: MINUTE_MS });
+      if (!rate.allowed) return replyRateLimited(reply, rate, 'Too many reports');
+
+      const body = request.body ?? {};
+      const text = (value: unknown) => (typeof value === 'string' && value.length > 0 ? value : undefined);
+      const kind = body.kind;
+      const message = text(body.message);
+      if (typeof kind !== 'string' || !(ROOM_ISSUE_KINDS as readonly string[]).includes(kind) || !message) {
+        return reply.code(400).send({ error: 'kind and message are required' });
+      }
+      const source = body.source === 'android' ? 'android' : 'web';
+      const issue = {
+        source,
+        kind: kind as RoomIssueKind,
+        message,
+        roomCode: text(body.roomCode),
+        detail: text(body.detail),
+        httpStatus: Number.isInteger(body.httpStatus) ? (body.httpStatus as number) : undefined,
+        appVersion: text(body.appVersion),
+      } as const;
+      request.log.warn(
+        { userId: request.user!.id, username: request.user!.username, ...issue },
+        'Client reported a room issue',
+      );
+      recordRoomIssue({ userId: request.user!.id, userAgent: request.headers['user-agent'], ...issue });
+      return reply.code(204).send();
+    },
+  );
+
   fastify.get('/admin/rooms', { preHandler: [fastify.authenticate, fastify.requireAdmin] }, async () => ({
     serverNow: rooms.now(),
     rooms: rooms.overview(),
@@ -222,6 +261,20 @@ const roomsRoute: FastifyPluginAsync = async (fastify) => {
     const closeWith = (reason: string) => {
       send({ type: 'closed', reason });
       socket.close(4000, reason);
+    };
+    // Only once a user is known: before the hello anyone on the internet could write rows and push real ones out.
+    const logIssue = (kind: RoomIssueKind, message: string, detail?: string) => {
+      if (!joined) return;
+      request.log.warn({ userId: joined.userId, roomCode: joined.code, kind, detail }, message);
+      recordRoomIssue({
+        userId: joined.userId,
+        source: 'server',
+        kind,
+        roomCode: joined.code,
+        message,
+        detail,
+        userAgent: request.headers['user-agent'],
+      });
     };
 
     const helloTimer = setTimeout(() => closeWith('no-hello'), HELLO_TIMEOUT_MS);
@@ -251,6 +304,7 @@ const roomsRoute: FastifyPluginAsync = async (fastify) => {
         message = JSON.parse(data.toString());
         if (typeof message !== 'object' || message === null) throw new Error('not an object');
       } catch {
+        logIssue('server-error', 'Client sent a message that is not JSON', data.toString().slice(0, 300));
         send({ type: 'error', reason: 'bad-json' });
         return;
       }
@@ -262,6 +316,8 @@ const roomsRoute: FastifyPluginAsync = async (fastify) => {
           windowCount = 0;
         }
         if (++windowCount > SOCKET_MESSAGES_PER_SECOND) {
+          // Once per window, not once per refused message.
+          if (windowCount === SOCKET_MESSAGES_PER_SECOND + 1) logIssue('server-error', 'Client sent too many messages');
           send({ type: 'error', reason: 'rate-limited' });
           return;
         }
@@ -310,6 +366,7 @@ const roomsRoute: FastifyPluginAsync = async (fastify) => {
         case 'cmd': {
           // A deleted user or changed password ends the session here too, not just on the next REST call.
           if (!stillValid(joined.userId, joined.sessionVersion)) {
+            logIssue('server-closed', 'Session no longer valid, closed the room socket');
             const { code, userId } = joined;
             joined = null;
             closeWith('unauthorized');
@@ -330,6 +387,7 @@ const roomsRoute: FastifyPluginAsync = async (fastify) => {
           rooms.leave(joined.code, joined.userId);
           return;
         default:
+          logIssue('server-error', 'Client sent an unknown message type', String(message.type).slice(0, 100));
           send({ type: 'error', reason: 'unknown-type' });
       }
     });
