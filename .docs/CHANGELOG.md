@@ -15,7 +15,9 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
   following song, the first with repeat all, else -1) drives both `hasNext` and `PlaybackUiState.nextIndex` in a room,
   so Up next names the song Next will play.
 - Verified: backend `tsc --noEmit` clean and `npm test` 784/784; Android `rooms.*` and `playback.*` unit tests pass
-  (`RoomOrderTest` 6, new case for `nextIndex`). Device check on production after deploy: see A271 follow-up.
+  (`RoomOrderTest` 6, new case for `nextIndex`). On production after the auto-deploy, emulator with the v0.4.33 release APK, test account `user`, as a
+  room's only member and host: the album line shows in a room ("MEGATON KICK"), and on the last of 41 songs with repeat
+  all Up next names the first song. A guest's view not checked.
 
 ## 2026-10-22: Now Playing tidy-up review fixes (A269)
 
