@@ -8,6 +8,7 @@ import { useSwapClass } from '../hooks/useSwapClass';
 import { apiClient } from '../lib/apiClient';
 import { formatClock } from '../lib/format';
 import type { AlbumDetail } from '../types/api';
+import { AddedBy } from './AddedBy';
 import { AddToPlaylistDialog } from './AddToPlaylistDialog';
 import { CoverArt } from './CoverArt';
 import { FavoriteButton, useFavoriteIds } from './FavoriteButton';
@@ -236,6 +237,7 @@ export function DesktopNowPlaying({ player, onClose }: { player: PlayerContextVa
                                 <span className="block truncate text-sm font-medium text-white">{track.title}</span>
                                 <span className="block truncate text-xs text-blue-300">{track.artist ?? 'Unknown Artist'}</span>
                               </span>
+                              {inRoom && track.addedBy && <AddedBy person={track.addedBy} />}
                               <span className="font-mono text-xs tabular-nums text-blue-400">
                                 {track.duration ? formatClock(track.duration) : ''}
                               </span>

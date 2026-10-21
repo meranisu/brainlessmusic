@@ -14,6 +14,22 @@ export interface RoomEntry {
   durationMs: number;
   gainDb: number | null;
   addedBy: number;
+  /** Who added it, kept on the entry so it still shows after they leave (A256). Missing from an older server. */
+  addedByName?: string;
+  addedByAvatarId?: string | null;
+}
+
+/** The host's choices for the room (A253). The host is never held back; `'host'` means only the host. */
+export interface RoomSettings {
+  shuffle: boolean;
+  repeat: 'off' | 'all' | 'one';
+  turns: boolean;
+  skip: 'vote' | 'everyone' | 'host';
+  playback: 'everyone' | 'host';
+  add: 'everyone' | 'host';
+  /** Moving and removing other people's songs; your own you always can. */
+  editQueue: 'everyone' | 'host';
+  invite: 'everyone' | 'host';
 }
 
 export interface RoomMember {
@@ -34,6 +50,40 @@ export interface RoomState {
   current: number;
   /** While playing, the song is at `positionMs + (serverNow - anchorMs)`; before `anchorMs` it hasn't started. */
   playback: { playing: boolean; positionMs: number; anchorMs: number };
+  /** Missing from a server older than them. */
+  settings?: RoomSettings;
+  skipVote?: { entryId: number; votes: number[]; needed: number } | null;
+}
+
+/** Whether `you` may do something the room's settings can limit. Fine on an older server, which has no settings. */
+export function roomAllows(
+  room: RoomState,
+  you: number | null,
+  area: 'playback' | 'add' | 'editQueue' | 'invite',
+): boolean {
+  return room.hostUserId === you || !room.settings || room.settings[area] === 'everyone';
+}
+
+/** What Next does for `you` right now: skip at once, add a vote, or nothing (A254). */
+export function roomNextAction(room: RoomState, you: number | null): 'skip' | 'vote' | 'blocked' {
+  const playing = room.queue[room.current];
+  const skip = room.settings?.skip ?? 'everyone';
+  if (room.hostUserId === you || skip === 'everyone' || playing?.addedBy === you) return 'skip';
+  return skip === 'vote' ? 'vote' : 'blocked';
+}
+
+/** The Next button's label in a room: "Vote to skip (1 of 2)" while a vote is going. */
+export function roomNextLabel(room: RoomState, you: number | null): string {
+  const action = roomNextAction(room, you);
+  if (action === 'skip') return 'Next track';
+  if (action === 'blocked') return 'Only the host can skip';
+  const vote = room.skipVote;
+  const playing = room.queue[room.current];
+  if (vote && playing && vote.entryId === playing.entryId) {
+    const voted = you !== null && vote.votes.includes(you);
+    return `${voted ? 'You voted to skip' : 'Vote to skip'} (${vote.votes.length} of ${vote.needed})`;
+  }
+  return 'Vote to skip';
 }
 
 export type RoomCommand =
@@ -47,7 +97,8 @@ export type RoomCommand =
   | { op: 'remove'; entryId: number }
   | { op: 'move'; entryId: number; toIndex: number }
   | { op: 'end' }
-  | { op: 'kick'; userId: number };
+  | { op: 'kick'; userId: number }
+  | { op: 'settings'; settings: Partial<RoomSettings> };
 
 /** `live`: in step. `connecting`: first connect or a reconnect after a drop; the music carries on meanwhile. */
 export type Connection = 'connecting' | 'live';

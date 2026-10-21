@@ -16,6 +16,10 @@ export const RESUME_LEAD_MS = 300;
 export const AWAY_GRACE_MS = 2 * 60 * 1000;
 /** "Previous" past this point restarts the song instead of going back one. */
 export const RESTART_THRESHOLD_MS = 3000;
+/** An invite to a room nobody answers lapses after this (A255). */
+export const INVITE_TTL_MS = 10 * 60 * 1000;
+/** People one invite call may name: as many as a room can hold. */
+export const MAX_INVITES_PER_CALL = MAX_MEMBERS;
 
 /** No O/0 or I/1, since codes are read out loud or typed from a chat. */
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -35,6 +39,54 @@ export interface QueueEntry extends RoomTrack {
   /** Tells two copies of one song apart. */
   entryId: number;
   addedBy: number;
+  /** Kept on the entry, so the queue still shows whose song it is after they leave (A256). */
+  addedByName: string;
+  addedByAvatarId: string | null;
+}
+
+/**
+ * What the host decides for the room (A253). The host is never held back by these; `'host'` means only the host.
+ * `editQueue` is moving or removing other people's songs: your own you can always move or remove.
+ */
+export interface RoomSettings {
+  shuffle: boolean;
+  repeat: 'off' | 'all' | 'one';
+  /** Upcoming songs take turns by who added them, one each in rotation. */
+  turns: boolean;
+  /** `vote`: the song's adder skips at once, anyone else votes (A254). */
+  skip: 'vote' | 'everyone' | 'host';
+  playback: 'everyone' | 'host';
+  add: 'everyone' | 'host';
+  editQueue: 'everyone' | 'host';
+  invite: 'everyone' | 'host';
+}
+
+export const DEFAULT_SETTINGS: RoomSettings = {
+  shuffle: false,
+  repeat: 'off',
+  turns: false,
+  skip: 'vote',
+  playback: 'everyone',
+  add: 'everyone',
+  editQueue: 'everyone',
+  invite: 'everyone',
+};
+
+/** The values each setting accepts, which is also how a `settings` command is checked. */
+const SETTING_VALUES: { [K in keyof RoomSettings]: readonly RoomSettings[K][] } = {
+  shuffle: [true, false],
+  repeat: ['off', 'all', 'one'],
+  turns: [true, false],
+  skip: ['vote', 'everyone', 'host'],
+  playback: ['everyone', 'host'],
+  add: ['everyone', 'host'],
+  editQueue: ['everyone', 'host'],
+  invite: ['everyone', 'host'],
+};
+
+/** Votes needed to skip: more than half of the people connected, but one when there are only two (A254). */
+export function votesNeeded(connected: number): number {
+  return connected <= 2 ? 1 : Math.floor(connected / 2) + 1;
 }
 
 export interface MemberInfo {
@@ -78,6 +130,9 @@ interface Room {
   nextEntryId: number;
   songTimer: unknown;
   createdAt: number;
+  settings: RoomSettings;
+  /** Votes to skip the song with this entry id; cleared when the song changes. */
+  skipVote: { entryId: number; voters: Set<number> } | null;
 }
 
 export interface RoomSnapshot {
@@ -88,6 +143,8 @@ export interface RoomSnapshot {
   queue: QueueEntry[];
   current: number;
   playback: Playback;
+  settings: RoomSettings;
+  skipVote: { entryId: number; votes: number[]; needed: number } | null;
 }
 
 export interface RoomOverview extends Omit<RoomSnapshot, 'members'> {
@@ -106,9 +163,16 @@ export type Command =
   | { op: 'remove'; entryId: number }
   | { op: 'move'; entryId: number; toIndex: number }
   | { op: 'end' }
-  | { op: 'kick'; userId: number };
+  | { op: 'kick'; userId: number }
+  | { op: 'settings'; settings: Partial<RoomSettings> };
 
 export type CommandResult = { ok: true } | { ok: false; reason: string };
+
+export interface RoomInvite {
+  code: string;
+  fromUserId: number;
+  expiresAt: number;
+}
 
 export interface RegistryDeps {
   now(): number;
@@ -116,12 +180,24 @@ export interface RegistryDeps {
   clearTimer(handle: unknown): void;
   /** Playable tracks only: hidden, missing and duration-less ones come back undefined. */
   lookupTracks(ids: number[]): Map<number, RoomTrack>;
+  /** Shuffle's dice, in [0, 1); `Math.random` unless a test needs a fixed order. */
+  random?(): number;
 }
 
 export function createRoomRegistry(deps: RegistryDeps) {
   const rooms = new Map<string, Room>();
   /** Which room each user is in; one room per user. */
   const roomOfUser = new Map<number, string>();
+  const random = deps.random ?? Math.random;
+  /** Room invites waiting for an answer, by the invited user and then room code (A255). In memory, like rooms. */
+  const invites = new Map<number, Map<string, RoomInvite>>();
+
+  function dropInvitesTo(code: string): void {
+    for (const [userId, mine] of invites) {
+      mine.delete(code);
+      if (mine.size === 0) invites.delete(userId);
+    }
+  }
 
   function newCode(): string {
     for (;;) {
@@ -150,7 +226,115 @@ export function createRoomRegistry(deps: RegistryDeps) {
       queue: room.queue,
       current: room.current,
       playback: { ...room.playback },
+      settings: { ...room.settings },
+      skipVote: room.skipVote
+        ? {
+            entryId: room.skipVote.entryId,
+            votes: [...room.skipVote.voters].filter((id) => room.members.get(id)?.connection),
+            needed: votesNeeded(connectedCount(room)),
+          }
+        : null,
     };
+  }
+
+  function connectedCount(room: Room): number {
+    let count = 0;
+    for (const member of room.members.values()) if (member.connection) count += 1;
+    return count;
+  }
+
+  /** The host does anything; everyone else what the room's settings allow. */
+  function allowed(room: Room, userId: number, area: 'playback' | 'add' | 'editQueue' | 'invite'): boolean {
+    return room.hostUserId === userId || room.settings[area] === 'everyone';
+  }
+
+  /**
+   * To the next song, or round to the first with repeat all. False at the end of the queue, which is left alone.
+   */
+  function advance(room: Room, playing: boolean): boolean {
+    if (room.current + 1 < room.queue.length) startSong(room, room.current + 1, playing);
+    else if (room.settings.repeat === 'all' && room.queue.length > 0) startSong(room, 0, playing);
+    else return false;
+    return true;
+  }
+
+  /** Skips once enough of the people connected have voted. Run after a vote and whenever someone drops. */
+  function settleSkipVote(room: Room): boolean {
+    const vote = room.skipVote;
+    if (!vote) return false;
+    if (!isCurrent(room, vote.entryId)) {
+      room.skipVote = null;
+      return false;
+    }
+    const votes = [...vote.voters].filter((id) => room.members.get(id)?.connection).length;
+    if (votes < votesNeeded(connectedCount(room))) return false;
+    room.skipVote = null;
+    if (!advance(room, room.playback.playing)) return false;
+    scheduleSongEnd(room);
+    return true;
+  }
+
+  /** In place, so callers can shuffle a slice of the queue by passing a copy and writing it back. */
+  function shuffleInPlace<T>(items: T[]): void {
+    for (let i = items.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(random() * (i + 1));
+      [items[i], items[j]] = [items[j], items[i]];
+    }
+  }
+
+  /** Sets the songs after the current one back in their place, keeping the current song where it is. */
+  function setUpcoming(room: Room, upcoming: QueueEntry[]): void {
+    room.queue.splice(room.current + 1, upcoming.length, ...upcoming);
+  }
+
+  /**
+   * Take turns: the songs after the current one go one per person in rotation, each person's own songs in the order
+   * they are already in. The rotation follows join order and starts after the person whose song is playing.
+   */
+  function arrangeTurns(room: Room): void {
+    const upcoming = room.queue.slice(room.current + 1);
+    const byPerson = new Map<number, QueueEntry[]>();
+    for (const entry of upcoming) {
+      const list = byPerson.get(entry.addedBy);
+      if (list) list.push(entry);
+      else byPerson.set(entry.addedBy, [entry]);
+    }
+    // Members in join order, then anyone who has left but still has songs waiting.
+    const people = [...room.members.keys(), ...byPerson.keys()].filter((id, i, all) => all.indexOf(id) === i);
+    const playingAdder = room.queue[room.current]?.addedBy;
+    const start = playingAdder === undefined ? 0 : people.indexOf(playingAdder) + 1;
+    const order = [...people.slice(start), ...people.slice(0, start)].filter((id) => byPerson.has(id));
+
+    const arranged: QueueEntry[] = [];
+    while (arranged.length < upcoming.length) {
+      for (const id of order) {
+        const next = byPerson.get(id)!.shift();
+        if (next) arranged.push(next);
+      }
+    }
+    setUpcoming(room, arranged);
+  }
+
+  function applySettings(room: Room, change: unknown): CommandResult {
+    if (!change || typeof change !== 'object' || Array.isArray(change)) return { ok: false, reason: 'bad-settings' };
+    const entries = Object.entries(change);
+    if (entries.length === 0) return { ok: false, reason: 'bad-settings' };
+    for (const [key, value] of entries) {
+      const values = SETTING_VALUES[key as keyof RoomSettings] as readonly unknown[] | undefined;
+      if (!values || !values.includes(value)) return { ok: false, reason: 'bad-settings' };
+    }
+    const before = room.settings;
+    room.settings = { ...before, ...(change as Partial<RoomSettings>) };
+    // Shuffling once when it's turned on (Q259: turning it off keeps that order).
+    if (room.settings.shuffle && !before.shuffle) {
+      const upcoming = room.queue.slice(room.current + 1);
+      shuffleInPlace(upcoming);
+      setUpcoming(room, upcoming);
+    }
+    if (room.settings.turns && (!before.turns || (room.settings.shuffle && !before.shuffle))) arrangeTurns(room);
+    // A vote taken under the old rule doesn't carry over to a new one.
+    if (room.settings.skip !== 'vote') room.skipVote = null;
+    return { ok: true };
   }
 
   /** `skip`: a socket that gets this state another way (a newcomer's `welcome`), so it doesn't arrive twice. */
@@ -174,10 +358,10 @@ export function createRoomRegistry(deps: RegistryDeps) {
     const remaining = anchorMs + (entry.durationMs - positionMs) - deps.now();
     room.songTimer = deps.setTimer(() => {
       room.songTimer = null;
-      if (room.current + 1 < room.queue.length) {
-        startSong(room, room.current + 1, true);
-      } else {
-        // End of the queue: pause at the end of the last song. Nothing auto-plays.
+      if (room.settings.repeat === 'one') {
+        startSong(room, room.current, true);
+      } else if (!advance(room, true)) {
+        // End of the queue: pause at the end of the last song. Nothing auto-plays, unless repeat all went round.
         room.playback = { playing: false, positionMs: entry.durationMs, anchorMs: deps.now() };
       }
       scheduleSongEnd(room);
@@ -188,6 +372,7 @@ export function createRoomRegistry(deps: RegistryDeps) {
   function startSong(room: Room, index: number, playing: boolean): void {
     room.current = index;
     room.playback = { playing, positionMs: 0, anchorMs: deps.now() + (playing ? SONG_LEAD_MS : 0) };
+    room.skipVote = null;
   }
 
   /** Paused at the end of the last song, the same state a finished queue is left in. */
@@ -205,6 +390,7 @@ export function createRoomRegistry(deps: RegistryDeps) {
       roomOfUser.delete(member.userId);
     }
     rooms.delete(room.code);
+    dropInvitesTo(room.code);
   }
 
   /** Removes a member; hands the host role to the longest-present member, and deletes a room left empty. */
@@ -221,6 +407,7 @@ export function createRoomRegistry(deps: RegistryDeps) {
       return;
     }
     if (room.hostUserId === userId) room.hostUserId = room.members.keys().next().value!;
+    settleSkipVote(room);
     broadcast(room);
   }
 
@@ -239,13 +426,19 @@ export function createRoomRegistry(deps: RegistryDeps) {
     if (room) removeMember(room, userId, 'replaced');
   }
 
-  function toEntries(room: Room, trackIds: number[], addedBy: number): QueueEntry[] | string {
+  function toEntries(room: Room, trackIds: number[], adder: MemberInfo): QueueEntry[] | string {
     const found = deps.lookupTracks(trackIds);
     const entries: QueueEntry[] = [];
     for (const id of trackIds) {
       const track = found.get(id);
       if (!track) return `track ${id} can't be played`;
-      entries.push({ ...track, entryId: room.nextEntryId++, addedBy });
+      entries.push({
+        ...track,
+        entryId: room.nextEntryId++,
+        addedBy: adder.userId,
+        addedByName: adder.name,
+        addedByAvatarId: adder.avatarId ?? null,
+      });
     }
     return entries;
   }
@@ -261,6 +454,9 @@ export function createRoomRegistry(deps: RegistryDeps) {
   function apply(room: Room, userId: number, cmd: Command): CommandResult {
     const now = deps.now();
     const current = room.queue[room.current];
+    const isHost = room.hostUserId === userId;
+    const playbackOps = ['play', 'pause', 'seek', 'previous', 'jump'];
+    if (playbackOps.includes(cmd.op) && !allowed(room, userId, 'playback')) return { ok: false, reason: 'not-allowed' };
 
     switch (cmd.op) {
       case 'play': {
@@ -288,8 +484,18 @@ export function createRoomRegistry(deps: RegistryDeps) {
       case 'next': {
         // Names the song the sender saw, so two skips pressed at once count as one.
         if (!isCurrent(room, cmd.entryId)) return { ok: false, reason: 'stale' };
-        if (room.current + 1 >= room.queue.length) return { ok: false, reason: 'end-of-queue' };
-        startSong(room, room.current + 1, room.playback.playing);
+        const atEnd = room.current + 1 >= room.queue.length && room.settings.repeat !== 'all';
+        if (atEnd) return { ok: false, reason: 'end-of-queue' };
+        const { skip } = room.settings;
+        // Q257: the host skips at once too.
+        if (isHost || skip === 'everyone' || current!.addedBy === userId) {
+          advance(room, room.playback.playing);
+          return { ok: true };
+        }
+        if (skip === 'host') return { ok: false, reason: 'not-allowed' };
+        if (room.skipVote?.entryId !== current!.entryId) room.skipVote = { entryId: current!.entryId, voters: new Set() };
+        room.skipVote.voters.add(userId);
+        settleSkipVote(room);
         return { ok: true };
       }
       case 'previous': {
@@ -307,6 +513,7 @@ export function createRoomRegistry(deps: RegistryDeps) {
       case 'add': {
         if (!Array.isArray(cmd.trackIds) || cmd.trackIds.length === 0) return { ok: false, reason: 'invalid' };
         if (!cmd.trackIds.every((id) => Number.isInteger(id) && id > 0)) return { ok: false, reason: 'invalid' };
+        if (!allowed(room, userId, 'add')) return { ok: false, reason: 'not-allowed' };
         if (room.queue.length + cmd.trackIds.length > MAX_QUEUE) return { ok: false, reason: 'queue-full' };
         let at = room.queue.length;
         if (cmd.after !== undefined) {
@@ -314,16 +521,29 @@ export function createRoomRegistry(deps: RegistryDeps) {
           if (afterIndex < 0) return { ok: false, reason: 'gone' };
           at = afterIndex + 1;
         }
-        const entries = toEntries(room, cmd.trackIds, userId);
+        const entries = toEntries(room, cmd.trackIds, room.members.get(userId)!);
         if (typeof entries === 'string') return { ok: false, reason: 'unplayable' };
-        room.queue.splice(at, 0, ...entries);
+        if (room.settings.shuffle && cmd.after === undefined && room.current >= 0) {
+          // Each new song lands at a random spot among the songs still to come.
+          for (const entry of entries) {
+            const spot = room.current + 1 + Math.floor(random() * (room.queue.length - room.current));
+            room.queue.splice(spot, 0, entry);
+          }
+        } else {
+          room.queue.splice(at, 0, ...entries);
+          if (room.current >= 0 && at <= room.current) room.current += entries.length;
+        }
         if (room.current < 0) startSong(room, 0, false);
-        else if (at <= room.current) room.current += entries.length;
+        // Turns decides the order of what's to come, a "play next" included.
+        if (room.settings.turns) arrangeTurns(room);
         return { ok: true };
       }
       case 'remove': {
         const index = indexOfEntry(room, cmd.entryId);
         if (index < 0) return { ok: false, reason: 'gone' };
+        if (room.queue[index].addedBy !== userId && !allowed(room, userId, 'editQueue')) {
+          return { ok: false, reason: 'not-allowed' };
+        }
         room.queue.splice(index, 1);
         if (index < room.current) {
           room.current -= 1;
@@ -338,11 +558,16 @@ export function createRoomRegistry(deps: RegistryDeps) {
             stopAtEnd(room);
           }
         }
+        if (room.settings.turns) arrangeTurns(room);
         return { ok: true };
       }
       case 'move': {
         const index = indexOfEntry(room, cmd.entryId);
         if (index < 0) return { ok: false, reason: 'gone' };
+        if (room.queue[index].addedBy !== userId && !allowed(room, userId, 'editQueue')) {
+          return { ok: false, reason: 'not-allowed' };
+        }
+        if (room.settings.turns) return { ok: false, reason: 'turns-on' };
         if (!Number.isInteger(cmd.toIndex) || cmd.toIndex < 0 || cmd.toIndex >= room.queue.length) {
           return { ok: false, reason: 'invalid' };
         }
@@ -362,6 +587,10 @@ export function createRoomRegistry(deps: RegistryDeps) {
         if (cmd.userId === userId || !room.members.has(cmd.userId)) return { ok: false, reason: 'invalid' };
         removeMember(room, cmd.userId, 'kicked');
         return { ok: true };
+      }
+      case 'settings': {
+        if (!isHost) return { ok: false, reason: 'host-only' };
+        return applySettings(room, cmd.settings);
       }
       default:
         return { ok: false, reason: 'unknown-op' };
@@ -391,8 +620,10 @@ export function createRoomRegistry(deps: RegistryDeps) {
         nextEntryId: 1,
         songTimer: null,
         createdAt: deps.now(),
+        settings: { ...DEFAULT_SETTINGS },
+        skipVote: null,
       };
-      const entries = toEntries(room, start.trackIds, creator.userId);
+      const entries = toEntries(room, start.trackIds, creator);
       if (typeof entries === 'string') return { ok: false, reason: entries };
       // Only once the new room is known to be valid, so a bad request doesn't cost the user their current room.
       leaveCurrentRoom(creator.userId);
@@ -433,6 +664,7 @@ export function createRoomRegistry(deps: RegistryDeps) {
         member = { ...info, connection: null, awayTimer: null, driftMs: null, buffering: false };
         room.members.set(info.userId, member);
         roomOfUser.set(info.userId, room.code);
+        invites.get(info.userId)?.delete(room.code);
       }
       deps.clearTimer(member.awayTimer);
       member.awayTimer = null;
@@ -452,6 +684,8 @@ export function createRoomRegistry(deps: RegistryDeps) {
       member.connection = null;
       member.driftMs = null;
       startAwayTimer(room, member);
+      // One fewer person connected can be enough for the votes already in.
+      settleSkipVote(room);
       broadcast(room);
     },
 
@@ -488,6 +722,54 @@ export function createRoomRegistry(deps: RegistryDeps) {
       return roomOfUser.get(userId);
     },
 
+    /** The song a room is playing and how far in, for friends' now playing; undefined while paused or empty. */
+    playingIn(code: string): { trackId: number; positionMs: number } | undefined {
+      const room = rooms.get(code);
+      const entry = room?.queue[room.current];
+      if (!room || !entry || !room.playback.playing) return undefined;
+      return { trackId: entry.trackId, positionMs: Math.min(positionNow(room), entry.durationMs) };
+    },
+
+    /**
+     * Invites people to the sender's room. Who may be invited (accounts only) is the caller's check; here: the
+     * sender is in a room the settings let them invite from, and nobody already in it or already invited is asked
+     * twice. Returns how many new invites went out.
+     */
+    invite(fromUserId: number, toUserIds: number[]): { ok: true; invited: number } | { ok: false; reason: string } {
+      const code = roomOfUser.get(fromUserId);
+      const room = code ? rooms.get(code) : undefined;
+      if (!room) return { ok: false, reason: 'not-in-room' };
+      if (!allowed(room, fromUserId, 'invite')) return { ok: false, reason: 'not-allowed' };
+      let invited = 0;
+      const expiresAt = deps.now() + INVITE_TTL_MS;
+      for (const userId of new Set(toUserIds)) {
+        if (room.members.has(userId)) continue;
+        const mine = invites.get(userId) ?? new Map<string, RoomInvite>();
+        const pending = mine.get(room.code);
+        if (pending && pending.expiresAt > deps.now()) continue;
+        mine.set(room.code, { code: room.code, fromUserId, expiresAt });
+        invites.set(userId, mine);
+        invited += 1;
+      }
+      return { ok: true, invited };
+    },
+
+    /** A user's open invites, newest first, with lapsed ones and ones to rooms they're already in left out. */
+    invitesFor(userId: number): RoomInvite[] {
+      const mine = invites.get(userId);
+      if (!mine) return [];
+      for (const [code, invite] of mine) {
+        if (invite.expiresAt <= deps.now() || !rooms.has(code)) mine.delete(code);
+      }
+      return [...mine.values()]
+        .filter((invite) => roomOfUser.get(userId) !== invite.code)
+        .sort((a, b) => b.expiresAt - a.expiresAt);
+    },
+
+    declineInvite(userId: number, code: string): void {
+      invites.get(userId)?.delete(code.toUpperCase());
+    },
+
     /** For the Control Center monitor. */
     overview(): RoomOverview[] {
       return [...rooms.values()].map((room) => ({
@@ -508,6 +790,7 @@ export function createRoomRegistry(deps: RegistryDeps) {
     /** Tests only. */
     reset(): void {
       for (const room of [...rooms.values()]) deleteRoom(room, 'ended');
+      invites.clear();
     },
   };
 }

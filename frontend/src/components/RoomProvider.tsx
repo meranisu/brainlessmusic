@@ -57,7 +57,21 @@ const REJECTION_MESSAGES: Record<string, string> = {
   'queue-full': 'The room queue is full (500 songs).',
   'host-only': 'Only the host can do that.',
   'end-of-queue': "That's the last song in the queue.",
+  'not-allowed': 'The host has kept that for themselves in this room.',
+  'turns-on': "Take turns sets the order, so songs can't be moved while it's on.",
+  'bad-settings': "That setting didn't save. Try again.",
 };
+
+/** A new vote to skip, said once as a toast to everyone in the room: "bob voted to skip (1 of 2)" (A254). */
+function voteMessage(before: RoomState | null, after: RoomState, you: number | null): string | null {
+  const vote = after.skipVote;
+  if (!vote || !before) return null;
+  const earlier = before.skipVote?.entryId === vote.entryId ? before.skipVote.votes : [];
+  const voter = vote.votes.find((id) => !earlier.includes(id));
+  if (voter === undefined) return null;
+  const name = voter === you ? 'You' : (after.members.find((m) => m.userId === voter)?.name ?? 'Someone');
+  return `${name} voted to skip (${vote.votes.length} of ${vote.needed}).`;
+}
 
 export function RoomProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -73,6 +87,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   const [connection, setConnection] = useState<Connection>('connecting');
   const [isJoining, setIsJoining] = useState(false);
   const clientRef = useRef<RoomClient | null>(null);
+  const lastStateRef = useRef<RoomState | null>(null);
 
   // Cleared, not just hidden: signing back in as the same account would otherwise show the old room until a new
   // state arrives. Set during render, so there is no frame with the old room.
@@ -91,6 +106,9 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       const client = new RoomClient(code.trim().toUpperCase(), {
         onState(next, yourId) {
           if (clientRef.current !== client) return;
+          const voted = voteMessage(lastStateRef.current, next, yourId ?? userIdRef.current);
+          if (voted) showToast(voted);
+          lastStateRef.current = next;
           setRoom(next);
           setRoomFor(userIdRef.current);
           if (yourId !== undefined) setYou(yourId);
@@ -102,6 +120,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
         onClosed(reason) {
           if (clientRef.current !== client) return;
           clientRef.current = null;
+          lastStateRef.current = null;
           setRoom(null);
           setYou(null);
           setIsJoining(false);

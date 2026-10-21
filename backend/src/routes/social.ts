@@ -3,6 +3,7 @@ import { findTrackById } from '../db/library.js';
 import { getTrackSummariesByIds } from '../db/browse.js';
 import { encodeFeedCursor, listFeed, parseFeedCursor, setHideActivity, visiblePeople } from '../db/social.js';
 import { listListeners } from '../services/streamMonitor.js';
+import { rooms } from './rooms.js';
 
 const FEED_LIMIT = 30;
 const MAX_FEED_LIMIT = 100;
@@ -19,9 +20,18 @@ const socialRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get('/social/now-playing', accountsOnly, async (request, reply) => {
     const people = visiblePeople(request.user!.id);
     // One line per person: the device heard from most recently wins when they play on two.
-    const latest = new Map<number, ReturnType<typeof listListeners>[number]>();
+    type Line = { userId: number; trackId: number; positionSeconds: number; since: string };
+    const latest = new Map<number, Line>();
     for (const listener of listListeners()) {
       if (people.has(listener.userId)) latest.set(listener.userId, listener);
+    }
+    // A room's players don't check in (the queue is the room's), so the room says what they're hearing (A255).
+    for (const id of people.keys()) {
+      const code = rooms.codeOfUser(id);
+      const playing = code ? rooms.playingIn(code) : undefined;
+      if (!playing || latest.has(id)) continue;
+      const since = new Date(Date.now() - playing.positionMs).toISOString();
+      latest.set(id, { userId: id, trackId: playing.trackId, positionSeconds: playing.positionMs / 1000, since });
     }
     const visible = [...latest.values()].filter((l) => findTrackById(l.trackId)?.hidden === 0);
     const tracks = new Map(getTrackSummariesByIds(visible.map((l) => l.trackId)).map((t) => [t.id, t]));
@@ -29,7 +39,16 @@ const socialRoute: FastifyPluginAsync = async (fastify) => {
       listening: visible.flatMap((l) => {
         const track = tracks.get(l.trackId);
         return track
-          ? [{ person: people.get(l.userId)!, track, positionSeconds: l.positionSeconds, since: l.since }]
+          ? [
+              {
+                person: people.get(l.userId)!,
+                track,
+                positionSeconds: l.positionSeconds,
+                since: l.since,
+                // So a friend's card can offer Join (A255).
+                roomCode: rooms.codeOfUser(l.userId) ?? null,
+              },
+            ]
           : [];
       }),
     });

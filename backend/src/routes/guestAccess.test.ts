@@ -81,6 +81,11 @@ const EXPECTED: Record<string, Gate> = {
   'GET /social/now-playing': 'account',
   'GET /social/feed': 'account',
   'PUT /me/activity-visibility': 'account',
+  // Room invites (A255): accounts only, both ways.
+  'GET /rooms/invitable': 'account',
+  'POST /rooms/invites': 'account',
+  'GET /rooms/invites': 'account',
+  'DELETE /rooms/invites/:code': 'account',
   'GET /me/favorites': 'account',
   'GET /me/favorites/ids': 'account',
   'GET /me/less-often/ids': 'account',

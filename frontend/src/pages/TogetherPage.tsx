@@ -1,3 +1,4 @@
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
@@ -7,13 +8,16 @@ import { useToast } from '../components/ToastProvider';
 import { ArrowUpIcon, CloseIcon, PlayIcon } from '../components/icons';
 import { ApiError, apiClient } from '../lib/apiClient';
 import { copyText } from '../lib/copyText';
-import type { RoomState } from '../lib/roomClient';
+import { roomAllows, type RoomSettings, type RoomState } from '../lib/roomClient';
+import type { SocialPerson } from '../types/api';
+import { AddedBy } from '../components/AddedBy';
 import { ROOM_CODE_CHARS, ROOM_CODE_LENGTH, clearRoomLink, pendingRoomLink, roomLinkFor } from '../lib/roomLink';
 import { Avatar } from '../components/Avatar';
 
 /**
- * "Listen together" (A102): start or join a room, then see who's in it and the shared queue. Everyone controls
- * everything; only the host ends the room or removes people (A101). Guests join with full controls (A100).
+ * "Listen together" (A102): start or join a room, then see who's in it and the shared queue. Everyone controls what
+ * the host's room settings allow (A253, narrowing A101); only the host ends the room or removes people. Guests join
+ * with the same controls as anyone else (A100).
  */
 
 const CODE_LENGTH = ROOM_CODE_LENGTH;
@@ -150,11 +154,198 @@ function OutsideRoom({ linked }: { linked: string | null }) {
   );
 }
 
+type Choice<K extends keyof RoomSettings> = { value: RoomSettings[K]; label: string };
+
+/** Each setting, its choices in the order shown, and what the first line of the card says about it. */
+const SETTING_ROWS: { [K in keyof RoomSettings]: { label: string; choices: Choice<K>[] } } = {
+  turns: { label: 'Order', choices: [{ value: false, label: 'As added' }, { value: true, label: 'Take turns' }] },
+  shuffle: { label: 'Shuffle', choices: [{ value: false, label: 'Off' }, { value: true, label: 'On' }] },
+  repeat: {
+    label: 'Repeat',
+    choices: [
+      { value: 'off', label: 'Off' },
+      { value: 'all', label: 'Queue' },
+      { value: 'one', label: 'Song' },
+    ],
+  },
+  skip: {
+    label: 'Skipping',
+    choices: [
+      { value: 'vote', label: 'Vote' },
+      { value: 'everyone', label: 'Anyone' },
+      { value: 'host', label: 'Host only' },
+    ],
+  },
+  playback: { label: 'Play, pause, seek', choices: [{ value: 'everyone', label: 'Anyone' }, { value: 'host', label: 'Host only' }] },
+  add: { label: 'Add songs', choices: [{ value: 'everyone', label: 'Anyone' }, { value: 'host', label: 'Host only' }] },
+  editQueue: {
+    label: "Move or remove others' songs",
+    choices: [
+      { value: 'everyone', label: 'Anyone' },
+      { value: 'host', label: 'Host only' },
+    ],
+  },
+  invite: { label: 'Invite people', choices: [{ value: 'everyone', label: 'Anyone' }, { value: 'host', label: 'Host only' }] },
+};
+
+/** The host picks; everyone else sees the same rows, read-only, so they know why a control is off (A253). */
+function RoomSettingsCard({ settings, isHost, onChange }: {
+  settings: RoomSettings;
+  isHost: boolean;
+  onChange: (change: Partial<RoomSettings>) => void;
+}) {
+  return (
+    <section className="flex flex-col gap-3" aria-labelledby="room-settings-heading">
+      <h2 id="room-settings-heading" className="text-sm font-semibold text-blue-200">
+        Room settings{isHost ? '' : ' (the host sets these)'}
+      </h2>
+      <dl className="card flex flex-col divide-y divide-blue-800/60">
+        {(Object.keys(SETTING_ROWS) as (keyof RoomSettings)[]).map((key) => {
+          const row = SETTING_ROWS[key] as { label: string; choices: { value: unknown; label: string }[] };
+          const current = row.choices.find((c) => c.value === settings[key]);
+          return (
+            <div key={key} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
+              <dt className="text-sm text-white">{row.label}</dt>
+              <dd>
+                {isHost ? (
+                  <div role="group" aria-label={row.label} className="flex flex-wrap gap-1">
+                    {row.choices.map((choice) => {
+                      const active = choice.value === settings[key];
+                      return (
+                        <button
+                          key={String(choice.value)}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() => !active && onChange({ [key]: choice.value } as Partial<RoomSettings>)}
+                          className={`rounded-md border px-2.5 py-1 text-sm transition-colors ${
+                            active
+                              ? 'border-orange-600 bg-blue-800 text-white'
+                              : 'border-blue-700 text-blue-300 hover:border-blue-500 hover:text-white'
+                          }`}
+                        >
+                          {choice.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <span className="text-sm text-blue-200">{current?.label}</span>
+                )}
+              </dd>
+            </div>
+          );
+        })}
+      </dl>
+      <p className="text-xs text-blue-400">
+        {settings.skip === 'vote'
+          ? "Vote: whoever added the song, and the host, skip at once. Anyone else's Next is a vote; more than half of the people here skips it (with two of you, one vote)."
+          : settings.skip === 'everyone'
+            ? 'Anyone: Next skips at once, whoever presses it.'
+            : 'Host only: only the host can skip.'}
+        {settings.turns ? " Take turns plays one song from each person in turn, so songs can't be moved by hand." : ''}
+      </p>
+    </section>
+  );
+}
+
+/** Pick accounts to invite. They get a banner on the web and a notification on Android (A255). */
+function InvitePanel({ onClose }: { onClose: () => void }) {
+  const { showToast } = useToast();
+  const [picked, setPicked] = useState<Set<number>>(new Set());
+  const people = useQuery({
+    queryKey: ['rooms', 'invitable'],
+    queryFn: () => apiClient.get<{ people: SocialPerson[] }>('/rooms/invitable'),
+  });
+  const send = useMutation({
+    mutationFn: (userIds: number[]) => apiClient.post<{ invited: number }>('/rooms/invites', { userIds }),
+    onSuccess: ({ invited }, userIds) => {
+      showToast(
+        invited === 0
+          ? 'They already have an invite.'
+          : `Invite sent to ${invited === 1 && userIds.length === 1 ? 'them' : `${invited} people`}.`,
+      );
+      onClose();
+    },
+    onError: (error) => showToast(error instanceof ApiError ? error.message : "Couldn't send the invite.", 'error'),
+  });
+
+  function toggle(id: number) {
+    setPicked((now) => {
+      const next = new Set(now);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const list = people.data?.people ?? [];
+  return (
+    <section className="card flex flex-col gap-3 p-5" aria-labelledby="invite-heading">
+      <div className="flex items-center justify-between gap-2">
+        <h2 id="invite-heading" className="text-base font-semibold text-white">
+          Invite people
+        </h2>
+        <button onClick={onClose} className="btn-ghost btn-sm" aria-label="Close invites">
+          <CloseIcon className="h-4 w-4" />
+        </button>
+      </div>
+      {people.isPending ? (
+        <p className="text-sm text-blue-300">Loading people…</p>
+      ) : people.isError ? (
+        <p className="text-sm text-blue-200">
+          Couldn't load the list.{' '}
+          <button onClick={() => void people.refetch()} className="underline underline-offset-2">
+            Try again
+          </button>
+        </p>
+      ) : list.length === 0 ? (
+        <p className="text-sm text-blue-300">
+          Everyone with an account is already here. Guests join with the code or the link.
+        </p>
+      ) : (
+        <ul className="flex max-h-72 flex-col overflow-y-auto">
+          {list.map((person) => (
+            <li key={person.id}>
+              <label className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 hover:bg-blue-900">
+                <input
+                  type="checkbox"
+                  checked={picked.has(person.id)}
+                  onChange={() => toggle(person.id)}
+                  className="h-4 w-4 accent-orange-600"
+                />
+                <Avatar userId={person.id} name={person.name} avatarId={person.avatarId} size="xs" />
+                <span className="min-w-0 flex-1 truncate text-sm text-white">{person.name}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          onClick={() => send.mutate([...picked])}
+          disabled={picked.size === 0 || picked.size > 8 || send.isPending}
+          className="btn-primary btn-md"
+        >
+          {send.isPending ? 'Sending…' : picked.size > 1 ? `Invite ${picked.size} people` : 'Send invite'}
+        </button>
+        <p className="text-xs text-blue-400">Guests aren't listed: send them the link.</p>
+      </div>
+    </section>
+  );
+}
+
 function InsideRoom({ room }: { room: RoomState }) {
   const { you, connection, send, leave } = useRoom();
+  const { user } = useAuth();
   const { showToast } = useToast();
   const [confirmEnd, setConfirmEnd] = useState(false);
+  const [inviting, setInviting] = useState(false);
   const isHost = room.hostUserId === you;
+  const canPlayback = roomAllows(room, you, 'playback');
+  const canEdit = (entry: { addedBy: number }) => entry.addedBy === you || roomAllows(room, you, 'editQueue');
+  const canInvite = !user?.isGuest && roomAllows(room, you, 'invite');
+  const turns = room.settings?.turns ?? false;
+  const vote = room.skipVote;
   const playing = room.queue[room.current];
   const upNext = room.queue.slice(room.current + 1);
   const played = room.current > 0 ? room.current : 0;
@@ -184,6 +375,11 @@ function InsideRoom({ room }: { room: RoomState }) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2 sm:flex-col sm:items-end">
+          {canInvite && (
+            <button onClick={() => setInviting((v) => !v)} aria-expanded={inviting} className="btn-primary btn-md">
+              Invite people
+            </button>
+          )}
           <button onClick={() => void copyLink()} className="btn-secondary btn-md">
             Copy link
           </button>
@@ -208,16 +404,33 @@ function InsideRoom({ room }: { room: RoomState }) {
         </div>
       </section>
 
+      {inviting && <InvitePanel onClose={() => setInviting(false)} />}
+
       <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
         <section className="flex min-w-0 flex-col gap-3">
           <h2 className="text-sm font-semibold text-blue-200">Now playing</h2>
           {playing ? (
-            <div className="card flex flex-col gap-1 border-orange-600 p-4">
-              <span className="font-display truncate text-3xl font-extrabold text-white">{playing.title}</span>
-              <span className="truncate text-sm text-blue-200">
-                {playing.artist ?? 'Unknown Artist'}
-                {room.playback.playing ? '' : ' · paused'}
-              </span>
+            <div className="card flex items-center gap-3 border-orange-600 p-4">
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <span className="font-display truncate text-3xl font-extrabold text-white">{playing.title}</span>
+                <span className="truncate text-sm text-blue-200">
+                  {playing.artist ?? 'Unknown Artist'}
+                  {room.playback.playing ? '' : ' · paused'}
+                </span>
+                {vote && vote.entryId === playing.entryId && vote.votes.length > 0 && (
+                  <span className="text-sm text-accent-ink" aria-live="polite">
+                    {vote.votes.length} of {vote.needed} {vote.needed === 1 ? 'vote' : 'votes'} to skip
+                    {you !== null && vote.votes.includes(you) ? ', yours included' : ''}
+                  </span>
+                )}
+              </div>
+              <AddedBy
+                person={{
+                  userId: playing.addedBy,
+                  name: playing.addedByName ?? '',
+                  avatarId: playing.addedByAvatarId ?? null,
+                }}
+              />
             </div>
           ) : (
             <p className="card p-4 text-sm text-blue-200">
@@ -235,13 +448,17 @@ function InsideRoom({ room }: { room: RoomState }) {
               {upNext.map((entry, i) => {
                 const at = room.current + 1 + i;
                 return (
-                  <li key={entry.entryId} className="flex items-center gap-2 py-1.5 pl-4 pr-2">
+                  <li key={entry.entryId} className="flex items-center gap-2 py-1.5 pl-3 pr-2">
+                    <AddedBy
+                      person={{ userId: entry.addedBy, name: entry.addedByName ?? '', avatarId: entry.addedByAvatarId ?? null }}
+                    />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm text-white">{entry.title}</span>
                       <span className="block truncate text-xs text-blue-300">{entry.artist ?? 'Unknown Artist'}</span>
                     </span>
                     <button
                       onClick={() => send({ op: 'jump', entryId: entry.entryId })}
+                      disabled={!canPlayback}
                       className="btn-ghost btn-sm"
                       aria-label={`Play "${entry.title}" now, for everyone`}
                       title="Play now"
@@ -250,7 +467,7 @@ function InsideRoom({ room }: { room: RoomState }) {
                     </button>
                     <button
                       onClick={() => send({ op: 'move', entryId: entry.entryId, toIndex: at - 1 })}
-                      disabled={i === 0}
+                      disabled={i === 0 || turns || !canEdit(entry)}
                       className="btn-ghost btn-sm"
                       aria-label={`Move "${entry.title}" up`}
                       title="Move up"
@@ -259,7 +476,7 @@ function InsideRoom({ room }: { room: RoomState }) {
                     </button>
                     <button
                       onClick={() => send({ op: 'move', entryId: entry.entryId, toIndex: at + 1 })}
-                      disabled={i === upNext.length - 1}
+                      disabled={i === upNext.length - 1 || turns || !canEdit(entry)}
                       className="btn-ghost btn-sm"
                       aria-label={`Move "${entry.title}" down`}
                       title="Move down"
@@ -268,6 +485,7 @@ function InsideRoom({ room }: { room: RoomState }) {
                     </button>
                     <button
                       onClick={() => send({ op: 'remove', entryId: entry.entryId })}
+                      disabled={!canEdit(entry)}
                       className="btn-ghost btn-sm"
                       aria-label={`Remove "${entry.title}" from the queue`}
                       title="Remove"
@@ -321,9 +539,16 @@ function InsideRoom({ room }: { room: RoomState }) {
             ))}
           </ul>
           <p className="text-xs text-blue-400">
-            Anyone here can pause, skip and change the queue. Away means their connection dropped; they're kept for 2
-            minutes.
+            Away means their connection dropped; they're kept for 2 minutes.
           </p>
+
+          {room.settings && (
+            <RoomSettingsCard
+              settings={room.settings}
+              isHost={isHost}
+              onChange={(change) => send({ op: 'settings', settings: change })}
+            />
+          )}
         </section>
       </div>
     </div>
@@ -344,7 +569,7 @@ export function TogetherPage() {
         <h1 className="text-xl font-semibold text-white">Listen together</h1>
         <p className="text-sm text-blue-300">
           Everyone in a room hears the same song at the same moment, wherever they are.
-          {user?.isGuest ? ' Guests can join and use every control.' : ''}
+          {user?.isGuest ? " Guests can join and use the room's controls." : ''}
         </p>
       </div>
       {switchTo && (

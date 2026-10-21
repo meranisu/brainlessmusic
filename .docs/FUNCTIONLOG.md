@@ -4,6 +4,47 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `applySettings()`, `allowed()`, `advance()`, `settleSkipVote()`, `arrangeTurns()`, `votesNeeded()` — `backend/src/services/rooms.ts`
+**Date:** 2026-10-21
+**How added:** new feature
+**Purpose:** host room settings (A253) and vote to skip (A254): check and apply a `settings` command, gate commands by
+setting, move on with repeat all, skip once enough connected people voted, order upcoming songs by turns.
+**Side effects:** change the in-memory room; `settleSkipVote()` may start the next song and reschedule its end.
+**Before:** no settings; anyone's Next skipped at once; the queue played in added order and stopped at its end.
+**After:** settings in the snapshot, votes in `skipVote`, shuffle/turns/repeat change what plays next.
+
+**Function:** `invite()`, `invitesFor()`, `declineInvite()`, `playingIn()` — `backend/src/services/rooms.ts`; `invitablePeople()` — `backend/src/db/social.ts`
+**Date:** 2026-10-21
+**How added:** new feature
+**Purpose:** in-memory room invites (A255) and the song a room is on, for friends' now playing.
+**Side effects:** in-memory invites map; `invitablePeople()` reads `users`.
+**Before:** nothing; new functions.
+**After:** back `GET/POST /rooms/invites`, `DELETE /rooms/invites/:code`, `GET /rooms/invitable` and `roomCode` in `/social/now-playing`.
+
+**Function:** `toEntries()` — `backend/src/services/rooms.ts`
+**Date:** 2026-10-21
+**How added:** changed
+**Purpose:** queue entries keep who added them by name and picture (A256).
+**Side effects:** none.
+**Before:** only `addedBy` (a user id).
+**After:** also `addedByName` and `addedByAvatarId`, so the picture shows after they leave.
+
+**Function:** `roomAllows()`, `roomNextAction()`, `roomNextLabel()` — `frontend/src/lib/roomClient.ts`; `voteMessage()` — `frontend/src/components/RoomProvider.tsx`
+**Date:** 2026-10-21
+**How added:** new feature
+**Purpose:** what the room's settings let you do, what Next does for you ("Vote to skip (1 of 2)"), and the toast when someone votes.
+**Side effects:** none (pure); the toast is shown by the caller.
+**Before:** nothing; new functions.
+**After:** used by the Listen together page, the player bar and Now Playing.
+
+**Function:** `RoomSettingsCard()`, `InvitePanel()` — `frontend/src/pages/TogetherPage.tsx`; `InviteBanner()` — `frontend/src/components/InviteBanner.tsx`; `AddedBy()` — `frontend/src/components/AddedBy.tsx`
+**Date:** 2026-10-21
+**How added:** new feature
+**Purpose:** host settings card, invite picker, invite banner (polls every 15 s), and the adder's picture on queue rows.
+**Side effects:** `POST /rooms/invites`, `GET /rooms/invites`, `DELETE /rooms/invites/:code`; the `settings` room command.
+**Before:** nothing; new components.
+**After:** shown on Listen together, app-wide (banner), and in Now Playing queues in a room.
+
 **Function:** `ScrollToTopButton()` — `android/.../ui/common/ScrollToTopButton.kt`
 **Date:** 2026-10-21
 **How added:** new feature

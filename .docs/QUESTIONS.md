@@ -35,6 +35,9 @@ is never asked twice.
 | [Q221](#q221--304-nothing-changed-check) | Build the 304 "nothing changed" check? | 2026-10-20 | No |
 | [Q229](#q229--bluetooth-codec-show-only) | Bluetooth codec: show it, not choose it? | 2026-10-21 | No |
 | [Q230](#q230--rescan-for-bit-depth-on-smol) | Rescan smol for bit depth after the audio pass? | 2026-10-21 | No |
+| [Q257](#q257--host-skips-at-once) | Listen together: does the host's Next skip at once? | 2026-10-21 | No |
+| [Q258](#q258--who-invites-by-default) | Listen together: who can invite by default? | 2026-10-21 | No |
+| [Q259](#q259--shuffle-off-restores-order) | Listen together: does Shuffle off restore the old order? | 2026-10-21 | No |
 
 ### Q5 — Tag-editing scope
 **Asked:** 2026-09-09 · **Blocking:** no
@@ -53,6 +56,21 @@ the active codec and warns when it is lossy (SBC). Is that enough?
 
 Bit depth needs a new column and a `SCANNER_VERSION` bump, so smol rescans every song. That queues behind the
 ~3.7 h audio pass from the unpushed smart auto-mix commit. Fine?
+
+### Q257 — Host skips at once?
+**Asked:** 2026-10-21 · **Blocking:** no ([A254](#a254--vote-to-skip-the-adder-skips-at-once-others-vote-asked-in-chat))
+
+With vote to skip on, should the host's Next skip at once, like the song's adder? **Assumption built on:** yes.
+
+### Q258 — Who invites by default?
+**Asked:** 2026-10-21 · **Blocking:** no ([A255](#a255--invite-friends-an-in-app-invite-list-and-join-on-now-playing-asked-in-chat))
+
+**Assumption built on:** everyone in the room can invite; the host can limit it to the host in Room settings.
+
+### Q259 — Shuffle off restores the old order?
+**Asked:** 2026-10-21 · **Blocking:** no
+
+**Assumption built on:** no. Turning Shuffle off keeps the shuffled order; songs added later go to the end.
 
 ### Q77 — How does the Android app get past Cloudflare Access?
 **Asked:** 2026-10-11 · **Blocking:** yes, before Access goes on ([A74](#a74--cloudflare-access-goes-in-front-of-the-public-hostname-was-q30))
@@ -94,6 +112,36 @@ A 304 still makes the 0.2 to 1 s tunnel trip, so it saves data, not time; pages 
 - **B. Skip it (recommended)** unless Q220 is A.
 
 ## Answered
+
+### A256 — Room queue shows who added each song *(owner request)*
+**Answered:** 2026-10-21, in chat. Each song in a Listen together queue shows the profile picture of the person who
+added it (initial for guests and accounts without one), so it is easy to see whose song is whose.
+
+### A255 — Invite friends: an in-app invite list and Join on now playing *(asked in chat)*
+**Answered:** 2026-10-21, in chat: "c". Both: an Invite list of accounts on the server, sent in-app (banner on web,
+notification on Android), and a Join button on a friend's now playing card while they are in a room. Guests stay on
+the code and `/join` link.
+
+### A254 — Vote to skip: the adder skips at once, others vote *(asked in chat)*
+**Answered:** 2026-10-21, in chat: "b". The person who added the song skips it at once; anyone else's Next is a vote.
+A song skips once more than half of the people connected have voted; with two people, one vote skips (asked in
+chat, 2026-10-21).
+
+### A253 — The host gets finer room settings *(asked in chat)*
+**Answered:** 2026-10-21, in chat. The host controls more of the room: shuffle, repeat and finer settings (such as
+who may skip, add or reorder, and take-turns order). Narrows A101's "everyone can do everything" to what the host's
+settings allow; the defaults are for the plan. Only the host changes these settings, during the room too (asked in
+chat, 2026-10-21).
+
+### A252 — Starting a room stays in the lobby *(asked in chat)*
+**Answered:** 2026-10-21, in chat: "stay in the lobby first". Start keeps you on the Listen together room page; it does
+not jump to the Library.
+
+### A251 — Home and listening-card tidy-up, and a back-to-top button *(asked in chat)*
+**Answered:** 2026-10-21, in chat. Android: Home drops "See all your stats" and "See what friends are playing" (the
+profile tabs stay). The Library's two buttons go back to 56dp, reversing A249's size. The listening card's "X less than
+the 7 days before" becomes a short note under the hours ("↓ 2.1 h"). Home and the profile get a back-to-top button
+("up button"; read as scroll-to-top since the profile already had Back).
 
 ### A250 — Mixes get a cover grid, their own page, and a full 30 songs *(asked in chat)*
 **Answered:** 2026-10-21, in chat. A mix's picture is four of its covers with a radio mark at the bottom left (as

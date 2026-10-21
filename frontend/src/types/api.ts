@@ -700,6 +700,17 @@ export interface FriendListening {
   positionSeconds: number;
   /** When they started this song, ISO. */
   since: string;
+  /** The Listen together room they're in, so their card can offer Join (A255). Missing from an older server. */
+  roomCode?: string | null;
+}
+
+/** `GET /rooms/invites`: an invite to a room, answered by joining it or declining (A255). */
+export interface RoomInvite {
+  code: string;
+  from: SocialPerson;
+  members: string[];
+  nowPlaying: { title: string; artist: string | null } | null;
+  expiresAt: number;
 }
 
 /** `GET /social/feed`: plays (one per person per song per day), likes, playlists made public. `at` is SQLite UTC. */

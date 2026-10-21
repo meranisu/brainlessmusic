@@ -8,6 +8,7 @@ import { arrivalDuration, interstitialDuration } from '../lib/interstitial';
 import { BrandMark, Wordmark } from './BrandLockup';
 import { GlobalSearch } from './GlobalSearch';
 import { EmailPrompt } from './EmailPrompt';
+import { InviteBanner } from './InviteBanner';
 import { HandoffDialog } from './HandoffDialog';
 import { ArcadeInterstitial, ArrivalVeil } from './ArcadeInterstitial';
 import { ShellBackdrop } from './BackdropDepth';
@@ -409,6 +410,8 @@ export function AppShell() {
       <Presence value={showHandoff || null}>{() => <HandoffDialog onClose={() => setShowHandoff(false)} />}</Presence>
 
       {!isBooting && <EmailPrompt />}
+
+      {!isBooting && <InviteBanner />}
 
       {/* Above the player bar too: the cabinet changing screens. */}
       {leaving && <ArcadeInterstitial text={leaving.text} detail={leaving.detail} />}

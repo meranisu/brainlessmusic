@@ -26,6 +26,16 @@ export function visiblePeople(viewerId: number): Map<number, SocialPerson> {
   return new Map(rows.map((row) => [row.id, row]));
 }
 
+/** Accounts someone can invite to a room (A255): every other account, hidden activity or not. Guests can't be. */
+export function invitablePeople(viewerId: number): SocialPerson[] {
+  return db
+    .prepare(
+      `SELECT id, COALESCE(display_name, username) AS name, avatar_id AS avatarId
+       FROM users WHERE kind = 'account' AND id != ? ORDER BY name COLLATE NOCASE`,
+    )
+    .all(viewerId) as SocialPerson[];
+}
+
 export function setHideActivity(userId: number, hidden: boolean): void {
   db.prepare('UPDATE users SET hide_activity = ? WHERE id = ?').run(hidden ? 1 : 0, userId);
 }

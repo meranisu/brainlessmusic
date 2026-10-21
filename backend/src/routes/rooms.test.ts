@@ -18,6 +18,7 @@ let aliceToken: string;
 let bobId: number;
 let bobToken: string;
 let guestToken: string;
+let guestId: number;
 let trackIds: number[];
 
 before(async () => {
@@ -42,6 +43,7 @@ beforeEach(() => {
   aliceToken = signToken({ id: alice.id, username: alice.username });
   bobToken = signToken({ id: bob.id, username: bob.username });
   guestToken = signToken({ id: guest.id, username: guest.username });
+  guestId = guest.id;
 
   const rootId = insertLibraryRoot('/library', null).id;
   trackIds = [1, 2, 3].map(
@@ -292,5 +294,103 @@ describe('rooms WebSocket', () => {
     assert.equal((await bob.ofType('closed')).reason, 'ended');
     assert.equal((await alice.ofType('closed')).reason, 'ended');
     assert.equal(rooms.snapshot(code), undefined);
+  });
+});
+
+describe('room invites (A255)', () => {
+  const auth = (token: string) => ({ authorization: `Bearer ${token}` });
+
+  it('invites an account, lists it for them, and drops it once they join', async () => {
+    const { code } = (await createRoom(aliceToken)).json();
+    const alice = await join(aliceToken, code);
+
+    const invitable = await app.inject({ method: 'GET', url: '/api/rooms/invitable', headers: auth(aliceToken) });
+    assert.deepEqual(
+      invitable.json().people.map((p: { id: number }) => p.id),
+      [bobId],
+    );
+
+    const sent = await app.inject({
+      method: 'POST',
+      url: '/api/rooms/invites',
+      headers: auth(aliceToken),
+      payload: { userIds: [bobId] },
+    });
+    assert.deepEqual(sent.json(), { invited: 1 });
+    // Asking twice doesn't send a second one.
+    const again = await app.inject({
+      method: 'POST',
+      url: '/api/rooms/invites',
+      headers: auth(aliceToken),
+      payload: { userIds: [bobId] },
+    });
+    assert.deepEqual(again.json(), { invited: 0 });
+
+    const mine = (await app.inject({ method: 'GET', url: '/api/rooms/invites', headers: auth(bobToken) })).json();
+    assert.equal(mine.invites.length, 1);
+    assert.equal(mine.invites[0].code, code);
+    assert.equal(mine.invites[0].from.id, aliceId);
+
+    const bob = await join(bobToken, code);
+    const after = (await app.inject({ method: 'GET', url: '/api/rooms/invites', headers: auth(bobToken) })).json();
+    assert.deepEqual(after.invites, []);
+    alice.ws.close();
+    bob.ws.close();
+  });
+
+  it('refuses a sender outside a room, a guest as invitee, and a non-host when the host limits it', async () => {
+    const outside = await app.inject({
+      method: 'POST',
+      url: '/api/rooms/invites',
+      headers: auth(aliceToken),
+      payload: { userIds: [bobId] },
+    });
+    assert.equal(outside.statusCode, 409);
+
+    const { code } = (await createRoom(aliceToken)).json();
+    const alice = await join(aliceToken, code);
+    const toGuest = await app.inject({
+      method: 'POST',
+      url: '/api/rooms/invites',
+      headers: auth(aliceToken),
+      payload: { userIds: [guestId] },
+    });
+    assert.equal(toGuest.statusCode, 400);
+
+    const bob = await join(bobToken, code);
+    alice.send({ type: 'cmd', clientCmdId: 1, op: 'settings', settings: { invite: 'host' } });
+    await bob.next((m) => m.type === 'state' && (m.room as { settings: { invite: string } }).settings.invite === 'host');
+    const carol = insertUser('carol', 'hash');
+    const limited = await app.inject({
+      method: 'POST',
+      url: '/api/rooms/invites',
+      headers: auth(bobToken),
+      payload: { userIds: [carol.id] },
+    });
+    assert.equal(limited.statusCode, 403);
+    alice.ws.close();
+    bob.ws.close();
+  });
+
+  it('a declined invite is gone', async () => {
+    const { code } = (await createRoom(aliceToken)).json();
+    const alice = await join(aliceToken, code);
+    await app.inject({ method: 'POST', url: '/api/rooms/invites', headers: auth(aliceToken), payload: { userIds: [bobId] } });
+    const declined = await app.inject({ method: 'DELETE', url: `/api/rooms/invites/${code}`, headers: auth(bobToken) });
+    assert.equal(declined.statusCode, 204);
+    const mine = (await app.inject({ method: 'GET', url: '/api/rooms/invites', headers: auth(bobToken) })).json();
+    assert.deepEqual(mine.invites, []);
+    alice.ws.close();
+  });
+
+  it("friends' now playing carries the room code of someone in a playing room", async () => {
+    const { code } = (await createRoom(aliceToken, { trackIds, current: 0, positionMs: 0, playing: true })).json();
+    const alice = await join(aliceToken, code);
+    const listening = (await app.inject({ method: 'GET', url: '/api/social/now-playing', headers: auth(bobToken) })).json()
+      .listening;
+    assert.equal(listening.length, 1);
+    assert.equal(listening[0].person.id, aliceId);
+    assert.equal(listening[0].roomCode, code);
+    alice.ws.close();
   });
 });

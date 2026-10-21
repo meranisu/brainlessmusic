@@ -1,10 +1,12 @@
 import type { FastifyPluginAsync } from 'fastify';
 import type { WebSocket } from 'ws';
 import { getTrackSummariesByIds } from '../db/browse.js';
+import { invitablePeople } from '../db/social.js';
 import { type UserRow, findUserById, nameOf } from '../db/users.js';
 import {
   type Command,
   type Connection,
+  MAX_INVITES_PER_CALL,
   type MemberInfo,
   type RoomTrack,
   createRoomRegistry,
@@ -124,6 +126,62 @@ const roomsRoute: FastifyPluginAsync = async (fastify) => {
   fastify.post('/rooms/leave', { preHandler: fastify.authenticate }, async (request, reply) => {
     const code = rooms.codeOfUser(request.user!.id);
     if (code) rooms.leave(code, request.user!.id);
+    return reply.code(204).send();
+  });
+
+  // Invites (A255). Accounts only, both ways: guests aren't listed anywhere social (A239-A241), so they can't be
+  // picked, and don't get a list of everyone to pick from.
+  const accountsOnly = { preHandler: [fastify.authenticate, fastify.requireAccount] };
+
+  // Everyone the sender could invite: other accounts not already in their room.
+  fastify.get('/rooms/invitable', accountsOnly, async (request) => {
+    const code = rooms.codeOfUser(request.user!.id);
+    const inRoom = new Set(code ? rooms.snapshot(code)?.members.map((m) => m.userId) : []);
+    return { people: invitablePeople(request.user!.id).filter((p) => !inRoom.has(p.id)) };
+  });
+
+  fastify.post<{ Body: { userIds?: unknown } }>('/rooms/invites', accountsOnly, async (request, reply) => {
+    const userIds = request.body?.userIds;
+    if (
+      !Array.isArray(userIds) ||
+      userIds.length === 0 ||
+      userIds.length > MAX_INVITES_PER_CALL ||
+      !userIds.every((id) => Number.isInteger(id) && id > 0)
+    ) {
+      return reply.code(400).send({ error: `userIds must be 1 to ${MAX_INVITES_PER_CALL} user ids` });
+    }
+    const accounts = new Set(invitablePeople(request.user!.id).map((p) => p.id));
+    if (!userIds.every((id) => accounts.has(id))) return reply.code(400).send({ error: 'Only other accounts can be invited' });
+    const result = rooms.invite(request.user!.id, userIds as number[]);
+    if (!result.ok) {
+      return result.reason === 'not-allowed'
+        ? reply.code(403).send({ error: 'Only the host can invite people to this room' })
+        : reply.code(409).send({ error: 'You are not in a room' });
+    }
+    return { invited: result.invited };
+  });
+
+  // Polled by both clients; accepting is the ordinary join with the invite's code.
+  fastify.get('/rooms/invites', accountsOnly, async (request) => ({
+    invites: rooms.invitesFor(request.user!.id).flatMap((invite) => {
+      const room = rooms.snapshot(invite.code);
+      const from = findUserById(invite.fromUserId);
+      if (!room || !from) return [];
+      const playing = room.queue[room.current];
+      return [
+        {
+          code: invite.code,
+          from: { id: from.id, name: nameOf(from), avatarId: from.avatar_id },
+          members: room.members.map((m) => m.name),
+          nowPlaying: playing ? { title: playing.title, artist: playing.artist } : null,
+          expiresAt: invite.expiresAt,
+        },
+      ];
+    }),
+  }));
+
+  fastify.delete<{ Params: { code: string } }>('/rooms/invites/:code', accountsOnly, async (request, reply) => {
+    rooms.declineInvite(request.user!.id, request.params.code);
     return reply.code(204).send();
   });
 

@@ -4,6 +4,32 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-21: Listen together v2: host settings, vote to skip, invites, adder pictures (backend + web)
+
+- Why: owner request in chat (A252-A256). Plan: `.docs/features/listen-together-v2/planning.md`.
+- Backend (`services/rooms.ts`): rooms carry `settings` (shuffle, repeat off/all/one, take turns, and who may skip,
+  play/pause/seek, add, move or remove others' songs, invite) and `skipVote`, both in the snapshot. New `settings` op,
+  host-only. Next is a vote unless you are the host or added the song: it skips once more than half of the people
+  connected have voted, one vote with two people (`votesNeeded()`); a drop-out can complete a vote. Shuffle shuffles
+  what's to come once and drops new songs at random spots; take turns orders what's to come round-robin by adder and
+  refuses `move`; repeat one replays at the end, repeat all wraps. Queue entries carry `addedByName` and
+  `addedByAvatarId`. Defaults keep today's behaviour except skipping, which is a vote.
+- Backend invites (in memory, no migration): `GET /rooms/invitable`, `POST /rooms/invites`, `GET /rooms/invites`,
+  `DELETE /rooms/invites/:code`, accounts only, 10-minute expiry, one per room and person, gone once they join or
+  the room ends. `/social/now-playing` adds `roomCode`, and lists people in a playing room who don't check in.
+- Web: Listen together page gets a Room settings card (pickers for the host, read-only for everyone else), an Invite
+  people picker, the adder's picture on every queue row and on Now playing, a "1 of 2 votes to skip" line, and queue
+  controls disabled where the settings say no. An invite banner (`InviteBanner`) polls every 15 s and offers Join or
+  Not now. Next buttons read "Vote to skip (1 of 2)" when they vote; a toast says who voted. Friends' now playing
+  shows Join for someone in a room. The Now Playing queues show the adder's picture in a room.
+- Verified: `cd backend && npm test` 775/775 (new tests in `services/rooms.test.ts`, `routes/rooms.test.ts`,
+  `guestAccess.test.ts`); `cd frontend && npm run build` and `npm run lint` clean (only the warnings already there).
+  Browser run with Playwright against an isolated backend (temp DB, six generated tones, three accounts): alice
+  invites bob and carol; both get the banner (carol at 390 px wide) and join; the host turns on Take turns and bob
+  sees it read-only; carol's Next votes (alice sees "1 of 2 votes to skip" and the toast), bob's vote skips Tone 1 to
+  Tone 2; with "Move or remove others' songs" host-only, bob's remove buttons on alice's songs are disabled. Join
+  from friends' now playing was checked by the API test only, not in the browser.
+
 ## 2026-10-21: Home's stats and friends links gone, Library buttons back to 56dp, short radar delta, back to top (Android)
 
 - Why: owner request in chat. Home (`YouScreen`) no longer shows "See all your stats" or "See what friends are

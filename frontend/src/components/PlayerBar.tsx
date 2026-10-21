@@ -50,7 +50,7 @@ import {
 import { DesktopNowPlaying } from './DesktopNowPlaying';
 import { NowPlaying } from './NowPlaying';
 import { useRoom } from './RoomProvider';
-import { expectedPositionMs, type RoomState } from '../lib/roomClient';
+import { expectedPositionMs, roomNextLabel, type RoomState } from '../lib/roomClient';
 import { applyLevel, levelFactor, resumeLevelling } from '../lib/levelling';
 import {
   createPressCounter,
@@ -63,7 +63,10 @@ import { useToast } from './ToastProvider';
 import { loadEndlessPreference, radioSource, saveEndlessPreference } from '../lib/mix';
 
 export type QueueTrack = Pick<TrackSummary, 'id' | 'title' | 'artist' | 'duration'> &
-  Partial<Pick<TrackSummary, 'format' | 'albumId' | 'trackNumber' | 'gainDb'>>;
+  Partial<Pick<TrackSummary, 'format' | 'albumId' | 'trackNumber' | 'gainDb'>> & {
+    /** In a room: who added it, so queue rows can show their picture (A256). */
+    addedBy?: { userId: number; name: string; avatarId: string | null };
+  };
 
 export type RepeatMode = 'off' | 'all' | 'one';
 /** Fetches the next batch of songs for a running queue; an empty list means the source is used up. */
@@ -1589,6 +1592,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       duration: e.durationMs / 1000,
       albumId: e.albumId,
       gainDb: e.gainDb,
+      addedBy: { userId: e.addedBy, name: e.addedByName ?? '', avatarId: e.addedByAvatarId ?? null },
     }));
   }
 
@@ -2091,8 +2095,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               <button
                 onClick={next}
                 className="player-transport-btn h-9 w-9"
-                aria-label="Next track"
-                title="Next (N)"
+                aria-label={roomCtx.room ? roomNextLabel(roomCtx.room, roomCtx.you) : 'Next track'}
+                title={roomCtx.room ? `${roomNextLabel(roomCtx.room, roomCtx.you)} (N)` : 'Next (N)'}
               >
                 <SkipForwardIcon className="h-4 w-4" />
               </button>

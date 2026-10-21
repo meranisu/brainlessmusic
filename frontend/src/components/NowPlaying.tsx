@@ -26,6 +26,8 @@ import { useScrollLock } from '../hooks/useScrollLock';
 import type { PlayerContextValue } from './PlayerBar';
 import { Link } from 'react-router-dom';
 import { useRoom } from './RoomProvider';
+import { AddedBy } from './AddedBy';
+import { roomNextLabel } from '../lib/roomClient';
 import { Presence } from './Presence';
 import { useSwapClass } from '../hooks/useSwapClass';
 import { useFoldRemove } from '../hooks/useFoldRemove';
@@ -112,7 +114,7 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
   const sheetRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number; t: number; active: boolean; dy: number } | null>(null);
   const favoriteIds = useFavoriteIds();
-  const { room, connection } = useRoom();
+  const { room, connection, you } = useRoom();
   // Set only mid-drag. Seeking on every tick would fire a range request each time; seek once on release.
   const [scrubTime, setScrubTime] = useState<number | null>(null);
   const [addingToPlaylist, setAddingToPlaylist] = useState(false);
@@ -354,7 +356,12 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
             </span>
           )}
         </button>
-        <button onClick={next} className="btn-ghost btn-sm h-11 w-11 !px-0" aria-label="Next track">
+        <button
+          onClick={next}
+          className="btn-ghost btn-sm h-11 w-11 !px-0"
+          aria-label={room ? roomNextLabel(room, you) : 'Next track'}
+          title={room ? roomNextLabel(room, you) : undefined}
+        >
           <SkipForwardIcon className="h-6 w-6" />
         </button>
       </div>
@@ -488,6 +495,7 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
                             <span className="block truncate text-sm font-semibold text-white">{track.title}</span>
                             <span className="block truncate text-xs text-blue-400">{track.artist ?? 'Unknown Artist'}</span>
                           </span>
+                          {room && track.addedBy && <AddedBy person={track.addedBy} />}
                           {i === 0 && (
                             <span className="font-display shrink-0 border border-orange-600 px-1.5 py-0.5 text-[0.65rem] font-extrabold uppercase tracking-[0.14em] text-accent-ink">
                               Next

@@ -1,9 +1,10 @@
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { Avatar } from '../components/Avatar';
 import { CoverArt } from '../components/CoverArt';
 import { usePlayer } from '../components/PlayerBar';
+import { useRoom } from '../components/RoomProvider';
 import { Skeleton, SkeletonListRows } from '../components/Skeleton';
 import { apiClient } from '../lib/apiClient';
 import { formatSince } from '../lib/format';
@@ -20,6 +21,8 @@ const NOW_PLAYING_POLL_MS = 15_000;
 export function FriendsPanel() {
   const { user, refreshUser } = useAuth();
   const { playTrack } = usePlayer();
+  const { room, join } = useRoom();
+  const navigate = useNavigate();
 
   const nowPlaying = useQuery({
     queryKey: ['social', 'now-playing'],
@@ -91,6 +94,19 @@ export function FriendsPanel() {
                     </span>
                   ) : null}
                 </span>
+                {/* They're in a Listen together room: join it, like a room link (A255). */}
+                {l.roomCode && l.roomCode !== room?.code && (
+                  <button
+                    onClick={() => {
+                      join(l.roomCode!);
+                      navigate('/together');
+                    }}
+                    className="btn-secondary btn-sm shrink-0"
+                    aria-label={`Join ${l.person.name}'s room${room ? ', leaving yours' : ''}`}
+                  >
+                    Join
+                  </button>
+                )}
               </li>
             ))}
           </ul>
