@@ -1,5 +1,7 @@
 package com.brainlessmusic.app.rooms
 
+import com.brainlessmusic.app.playback.Repeat
+
 /**
  * "Listen together" (A102): the room as the server sends it. Field names match the JSON from
  * `backend/src/services/rooms.ts` (`snapshot`). Spec: `.docs/specs/room-sync.md`.
@@ -40,7 +42,24 @@ data class RoomSettings(
     val add: String? = "everyone",
     val editQueue: String? = "everyone",
     val invite: String? = "host",
-)
+) {
+    /** [repeat] as the player shows it. */
+    val repeatMode: Repeat get() = when (repeat) { "all" -> Repeat.ALL; "one" -> Repeat.ONE; else -> Repeat.OFF }
+
+    /** The repeat after [repeat] when the repeat button is tapped, in the order the settings sheet lists them (A268). */
+    fun nextRepeat(): String = REPEATS[(REPEATS.indexOf(repeat ?: "off") + 1) % REPEATS.size]
+
+    /** The fields of a `settings` command that turn these settings into [next]; only what differs (A269). */
+    fun orderChangesTo(next: RoomSettings): Map<String, Any> = buildMap {
+        if (next.shuffle != shuffle) put("shuffle", next.shuffle)
+        if (next.repeat != repeat) put("repeat", next.repeat ?: "off")
+    }
+
+    companion object {
+        /** The wire values of [repeat], in the order the settings sheet shows them. */
+        val REPEATS = listOf("off", "all", "one")
+    }
+}
 
 /** Votes to skip the song with [entryId]: it skips at [needed] (A254). */
 data class RoomSkipVote(val entryId: Int, val votes: List<Int>, val needed: Int)
@@ -73,6 +92,12 @@ data class RoomState(
     val votedOff: Int? = null,
 ) {
     val currentEntry: RoomEntry? get() = queue.getOrNull(current)
+
+    /** Whether Next has somewhere to go: a later song, or round to the first with repeat all, as the server's `next` does. */
+    val hasNext: Boolean get() = current + 1 < queue.size || (settings?.repeat == "all" && queue.isNotEmpty())
+
+    /** Whether [you] may change shuffle and repeat from Now Playing: the host, connected, with the settings known (A268). */
+    fun canChangeOrder(you: Int?, live: Boolean): Boolean = live && settings != null && hostUserId == you
 
     /** Whether [you] may do something the settings can limit (`playback`, `add`, `editQueue`, `invite`). */
     fun allows(you: Int?, area: String): Boolean {

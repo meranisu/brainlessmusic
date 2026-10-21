@@ -44,7 +44,7 @@ private val ANYONE_OR_HOST = listOf<Pair<Any, String>>("everyone" to "Anyone", "
 private val SETTING_ROWS = listOf(
     SettingRow("turns", "Order", listOf(false to "As added", true to "Take turns")) { it.turns },
     SettingRow("shuffle", "Shuffle", listOf(false to "Off", true to "On")) { it.shuffle },
-    SettingRow("repeat", "Repeat", listOf("off" to "Off", "all" to "Queue", "one" to "Song")) { it.repeat },
+    SettingRow("repeat", "Repeat", RoomSettings.REPEATS.zip(listOf("Off", "Queue", "Song"))) { it.repeat },
     SettingRow("skip", "Skipping", listOf("vote" to "Vote", "everyone" to "Anyone", "host" to "Host only")) { it.skip },
     SettingRow("playback", "Play, pause, seek", ANYONE_OR_HOST) { it.playback },
     SettingRow("add", "Add songs", ANYONE_OR_HOST) { it.add },

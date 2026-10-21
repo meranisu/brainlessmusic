@@ -39,6 +39,7 @@ import com.brainlessmusic.app.downloads.DownloadRepository
 import com.brainlessmusic.app.downloads.TrackCacheKey
 import com.brainlessmusic.app.rooms.RoomCommand
 import com.brainlessmusic.app.rooms.RoomEntry
+import com.brainlessmusic.app.rooms.RoomSettings
 import com.brainlessmusic.app.rooms.RoomState
 import com.google.common.util.concurrent.ListenableFuture
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -740,8 +741,9 @@ class PlaybackController @Inject constructor(
 
     /** Off, then Shuffle, Rediscover and Albums (A77). */
     fun cycleShuffle() {
-        // A room plays its queue once, in order, the same for everyone.
-        if (!inRoom) setShuffleMode(wantMode.next())
+        // In a room it is the room's setting, which the host changes for everyone (A268).
+        if (inRoom) return changeRoomOrder { it.copy(shuffle = !it.shuffle) }
+        setShuffleMode(wantMode.next())
     }
 
     /**
@@ -749,6 +751,8 @@ class PlaybackController @Inject constructor(
      * picked, not ExoPlayer's own random order.
      */
     private fun setShuffleFromSession(enabled: Boolean) {
+        // In a room the session sees the phone's player, whose shuffle is always off there, so it would only ever ask
+        // for on; the room's shuffle is changed from the app.
         if (enabled == wantShuffle || inRoom) return
         setShuffleMode(if (enabled) libraryShuffleMode() else ShuffleMode.OFF)
     }
@@ -815,7 +819,7 @@ class PlaybackController @Inject constructor(
 
     /** Off, then repeat the whole queue, then repeat the current track. */
     fun cycleRepeat() {
-        if (inRoom) return
+        if (inRoom) return changeRoomOrder { it.copy(repeat = it.nextRepeat()) }
         wantRepeat = when (wantRepeat) {
             Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
             Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
@@ -1428,6 +1432,10 @@ class PlaybackController @Inject constructor(
     }
 
     private fun publish() {
+        // In a room, shuffle, repeat and what comes next are the room's, not this player's (A268): the player itself
+        // plays one song at a time in the server's order.
+        val joined = room
+        val roomSettings = joined?.settings
         val duration = player.duration.takeIf { it != C.TIME_UNSET && it > 0 }
             ?: queue.getOrNull(player.currentMediaItemIndex)?.durationSec?.let { (it * 1000).toLong() }
             ?: 0L
@@ -1440,14 +1448,18 @@ class PlaybackController @Inject constructor(
             positionMs = player.currentPosition.coerceAtLeast(0),
             durationMs = duration,
             error = errorMessage,
-            hasNext = player.hasNextMediaItem(),
+            hasNext = joined?.hasNext ?: player.hasNextMediaItem(),
             hasPrevious = player.hasPreviousMediaItem(),
             nextIndex = player.nextMediaItemIndex.takeIf { it != C.INDEX_UNSET } ?: -1,
             playOrder = if (player.shuffleModeEnabled && queue.isNotEmpty()) shuffledSequence() else emptyList(),
-            shuffle = player.shuffleModeEnabled,
-            shuffleMode = if (player.shuffleModeEnabled) libraryShuffleMode() else ShuffleMode.OFF,
+            shuffle = if (inRoom) roomSettings?.shuffle == true else player.shuffleModeEnabled,
+            shuffleMode = when {
+                inRoom -> if (roomSettings?.shuffle == true) ShuffleMode.SHUFFLE else ShuffleMode.OFF
+                player.shuffleModeEnabled -> libraryShuffleMode()
+                else -> ShuffleMode.OFF
+            },
             fromLibrary = source is QueueSource.Shuffled,
-            repeat = when (player.repeatMode) {
+            repeat = if (inRoom) roomSettings?.repeatMode ?: Repeat.OFF else when (player.repeatMode) {
                 Player.REPEAT_MODE_ALL -> Repeat.ALL
                 Player.REPEAT_MODE_ONE -> Repeat.ONE
                 else -> Repeat.OFF
@@ -1455,6 +1467,7 @@ class PlaybackController @Inject constructor(
             stream = if (queue.isEmpty()) null else streamInfo(),
             queueStreams = queue.any { !onPhone(it.trackId) },
             inRoom = inRoom,
+            canChangeOrder = !inRoom || canChangeRoomOrder(),
             chain = chain,
         )
     }
@@ -1560,9 +1573,14 @@ class PlaybackController @Inject constructor(
         // Once a second for drift, reported every 5 s for the Control Center monitor.
         roomTickJob = scope.launch {
             var ticks = 0
+            var wasLive = roomLink?.live
             while (isActive) {
                 delay(ROOM_TICK_MS)
                 syncToRoom()
+                // The clock settles a moment after the connection does; the host's shuffle and repeat wait for it.
+                val live = roomLink?.live
+                if (live != wasLive) publish()
+                wasLive = live
                 if (++ticks % ROOM_STATUS_EVERY == 0) {
                     roomLink?.status(lastDriftMs, player.playbackState == Player.STATE_BUFFERING)
                 }
@@ -1576,6 +1594,8 @@ class PlaybackController @Inject constructor(
         if (!inRoom) return
         room = state
         syncToRoom()
+        // A settings change or a dropped connection moves nothing in the player, so syncToRoom may not publish.
+        publish()
     }
 
     /**
@@ -1598,6 +1618,29 @@ class PlaybackController @Inject constructor(
             player.shuffleModeEnabled = wantShuffle
             if (wantShuffle) applyShuffleOrder(first = player.currentMediaItemIndex)
         }
+        publish()
+    }
+
+    /** The host, connected, with the room's settings in hand: shuffle and repeat are theirs to change (A268). */
+    private fun canChangeRoomOrder(): Boolean {
+        val link = roomLink ?: return false
+        return room?.canChangeOrder(link.you, link.live) == true
+    }
+
+    /**
+     * A host's shuffle or repeat tap in a room. Shown at once, before the server echoes it, so a quick second tap
+     * builds on the first rather than repeating it; the next room state replaces the guess either way.
+     */
+    private fun changeRoomOrder(change: (RoomSettings) -> RoomSettings) {
+        if (!canChangeRoomOrder()) return
+        val state = room ?: return
+        val settings = state.settings ?: return
+        val next = change(settings)
+        // Only what changed, so a stale value never undoes a change the host made from another device.
+        val changes = settings.orderChangesTo(next)
+        if (changes.isEmpty()) return
+        roomSend(RoomCommand.Settings(changes))
+        room = state.copy(settings = next)
         publish()
     }
 

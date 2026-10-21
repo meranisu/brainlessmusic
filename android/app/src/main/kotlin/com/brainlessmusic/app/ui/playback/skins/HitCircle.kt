@@ -62,6 +62,7 @@ import com.brainlessmusic.app.ui.theme.AppIcons
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.CoroutineScope
@@ -131,15 +132,15 @@ fun ColumnScope.HitCircleDeck(
     // Like and add to a playlist (A220) sit beside the title.
     Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
+            // One line that scrolls when it doesn't fit, like Standard (A268).
             Text(
                 item.title,
                 style = MaterialTheme.typography.headlineSmall,
                 fontFamily = BrandFontFamily,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth(),
+                maxLines = 1,
+                modifier = Modifier.fillMaxWidth().basicMarquee(iterations = Int.MAX_VALUE),
             )
             Text(
                 item.artist ?: "Unknown artist",

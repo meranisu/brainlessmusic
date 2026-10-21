@@ -32,7 +32,7 @@ class PlaybackViewModel @Inject constructor(
     private val libraryRepository: LibraryRepository,
     private val profileRepository: com.brainlessmusic.app.data.repository.ProfileRepository,
     authRepository: AuthRepository,
-    private val roomSession: RoomSession,
+    roomSession: RoomSession,
     private val sleepTimer: SleepTimer,
 ) : ViewModel() {
 
@@ -79,22 +79,9 @@ class PlaybackViewModel @Inject constructor(
     fun previous() = controller.skipToPrevious()
     fun previousTrack() = controller.skipToPreviousTrack()
     fun skipTo(index: Int) = controller.skipToIndex(index)
-
-    // In a room these change the room's settings, which only the host may do (A268).
-    fun cycleShuffle() {
-        val room = roomSession.state.value
-        val joined = room.room ?: return controller.cycleShuffle()
-        val settings = joined.settings ?: return
-        if (room.isHost) roomSession.updateSettings(mapOf("shuffle" to !settings.shuffle))
-    }
-
-    fun cycleRepeat() {
-        val room = roomSession.state.value
-        val joined = room.room ?: return controller.cycleRepeat()
-        val settings = joined.settings ?: return
-        val next = when (settings.repeat) { "all" -> "one"; "one" -> "off"; else -> "all" }
-        if (room.isHost) roomSession.updateSettings(mapOf("repeat" to next))
-    }
+    // In a room these change the room's settings, for the host only; the controller sorts that out (A268).
+    fun cycleShuffle() = controller.cycleShuffle()
+    fun cycleRepeat() = controller.cycleRepeat()
 
     fun removeFromQueue(index: Int): RemovedEntry? = controller.removeAt(index)
     fun moveInQueue(from: Int, to: Int) = controller.move(from, to)

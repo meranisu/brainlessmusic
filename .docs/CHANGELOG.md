@@ -4,6 +4,27 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-22: Now Playing tidy-up review fixes (A269)
+
+- Why: two code reviews of A268 (83efcfb) found that the room's shuffle and repeat were mapped only inside the
+  Composable, so Next stayed greyed out on the last song with room repeat "all", taps while reconnecting were lost,
+  a quick double tap repeated itself, and the rhythm skins still wrapped the title onto two lines.
+- Android `PlaybackController`: in a room, `publish()` takes shuffle, repeat and `hasNext` from the room's state
+  (`hasNext` is true at the end of the queue when repeat is "all", as the server's `next` wraps there), and sets
+  `canChangeOrder` only for the host while the connection is live. `cycleShuffle` and `cycleRepeat` go through the new
+  `changeRoomOrder`, which sends only the changed field in the room's `settings` command and shows the change at once, so a second quick tap builds on the first. `followRoom` and the room tick publish when only the
+  settings or the connection changed.
+- `PlaybackViewModel` goes back to calling the controller; `NowPlayingScreen` no longer copies the room's settings into
+  the state. `RoomSettings` gains `repeatMode`, `nextRepeat()` and `REPEATS`, which the room settings sheet now uses too.
+  `RoomState.hasNext`, `RoomState.canChangeOrder()` and `RoomSettings.orderChangesTo()` hold the rules the controller
+  uses, so they are unit-tested (`RoomOrderTest`).
+- Titles: `basicMarquee(iterations = Int.MAX_VALUE)` so a long title keeps scrolling rather than stopping clipped
+  after three passes; HitCircle, Lane, Gear and Ring get the same one-line title as Standard. A stale comment about the
+  room's name sitting above the cover is gone.
+- Verified: Android `compileDebugKotlin` passes; `testDebugUnitTest` for `rooms.*` and `playback.*` passes, including the new
+  `RoomOrderTest` (5) and `RoomSettingsRepeatTest` (3). Swapping `||` for `&&` in `hasNext` fails 2 of them. Not run
+  on a phone or emulator.
+
 ## 2026-10-21: Android Now Playing tidy-up (A268)
 
 - Why: owner review of a Now Playing screenshot in a room: the title broke at "(feat.", "Unknown album" said nothing,

@@ -16,6 +16,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -214,7 +215,13 @@ fun ColumnScope.GearDeck(
             }
         }
         Column(Modifier.weight(1f).padding(start = 14.dp)) {
-            Text(item.title, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            // One line that scrolls when it doesn't fit, like Standard (A268).
+            Text(
+                item.title,
+                style = MaterialTheme.typography.titleLarge,
+                maxLines = 1,
+                modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE),
+            )
             Text(
                 item.artist ?: "Unknown artist",
                 style = MaterialTheme.typography.bodyMedium,

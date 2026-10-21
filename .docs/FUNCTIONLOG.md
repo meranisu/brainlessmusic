@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `PlaybackController.publish()`, `cycleShuffle()`, `cycleRepeat()`, `followRoom()`, new `changeRoomOrder()` and `canChangeRoomOrder()` — `android/.../playback/PlaybackController.kt`; `RoomSettings.repeatMode`, `nextRepeat()`, `orderChangesTo()`, `REPEATS`, `RoomState.hasNext`, `canChangeOrder()` — `android/.../rooms/RoomModels.kt`
+**Date:** 2026-10-22
+**How added:** bug fix
+**Purpose:** the room's shuffle, repeat and Next state are worked out in one place, the controller, so every screen and the media session see the same thing (A269).
+**Side effects:** a host's tap sends a `settings` command with only the field that changed, and the change shows before the server echoes it; nothing is sent while reconnecting.
+**Before:** `NowPlayingScreen` copied the room's settings into its own state and `PlaybackViewModel` sent the command; `hasNext` came from the phone's player, which is set to repeat off in a room.
+**After:** `PlaybackUiState` from the controller carries the room's values; `PlaybackViewModel.cycleShuffle`/`cycleRepeat` call the controller again.
+
 **Function:** `PlaybackViewModel.cycleShuffle()`, `cycleRepeat()` — `android/.../ui/playback/PlaybackViewModel.kt`; `PlaybackUiState.canChangeOrder` — `android/.../playback/PlaybackState.kt`
 **Date:** 2026-10-21
 **How added:** new feature

@@ -121,18 +121,8 @@ fun NowPlayingScreen(
     val pills = skin == Skin.STANDARD && viewModel.playerButtons.collectAsStateWithLifecycle().value == PlayerButtons.PILLS
     val dataSaver by viewModel.dataSaver.collectAsStateWithLifecycle()
     val room by viewModel.room.collectAsStateWithLifecycle()
-    // In a room Next may be a vote, so its label says so (A263). Shuffle and repeat show the room's settings, and
-    // only the host can change them (A268).
-    val state = room.room?.let {
-        val settings = it.settings
-        playerState.copy(
-            nextLabel = it.nextLabel(room.you),
-            shuffle = settings?.shuffle == true,
-            shuffleMode = if (settings?.shuffle == true) ShuffleMode.SHUFFLE else ShuffleMode.OFF,
-            repeat = when (settings?.repeat) { "all" -> Repeat.ALL; "one" -> Repeat.ONE; else -> Repeat.OFF },
-            canChangeOrder = room.isHost && settings != null,
-        )
-    } ?: playerState
+    // In a room Next may be a vote, so its label says so (A263). The room's shuffle and repeat come from the controller (A268).
+    val state = room.room?.let { playerState.copy(nextLabel = it.nextLabel(room.you)) } ?: playerState
     val sleep by viewModel.sleep.collectAsStateWithLifecycle()
     var showSleep by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -171,7 +161,6 @@ fun NowPlayingScreen(
             ),
         topBar = {
             TopAppBar(
-                // The room's name sits above the cover, not up here (A262).
                 title = { Text("Now playing", maxLines = 1) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -376,7 +365,7 @@ fun NowPlayingScreen(
                                 current.title,
                                 style = MaterialTheme.typography.headlineMedium,
                                 maxLines = 1,
-                                modifier = Modifier.basicMarquee(),
+                                modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE),
                             )
                             Text(
                                 current.artist ?: "Unknown artist",
