@@ -1,5 +1,39 @@
 [
   {
+    "version": "0.4.24",
+    "date": "2026-10-21",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "stats: a new listening stats page. top songs, artists and albums, plus how much you've listened",
+              "smart mixes: \"Start radio\" on any song, up to 6 daily mixes, and \"Keep playing\" keeps the queue going when it runs out (on by default)",
+              "friends: see what your friends are playing right now, and a feed of their plays, likes and public playlists. one \"Hide my activity\" switch if you'd rather not show up",
+              "on this day: a row on You with what you played on today's date in past years",
+              "library lists open at once from the saved copy, then refresh with an \"Updating…\" note",
+              "album art has its own cache with a size limit and a clear button in Settings",
+              "the app checks for updates every hour and can notify you in the background. the update sheet waits until intros are done",
+              "when nothing is fetching ahead, the app asks the server to get the next song ready early",
+              "fixed: a restarted download service could lose its login"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it. the server needs the latest update too (it deploys on its own)"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.4.23",
     "date": "2026-10-18",
     "sections": [
