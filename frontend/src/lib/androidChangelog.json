@@ -1,5 +1,36 @@
 [
   {
+    "version": "0.4.25",
+    "date": "2026-10-21",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "your profile now has tabs: Profile, Stats and Friends. stats and the friends feed moved there from their own pages",
+              "the Standard skin finally gets the listening radar too, in a plain style",
+              "Listen together moved off Home into the Library, as a button above Shuffle. both buttons are a bit bigger now",
+              "mixes have a proper cover now, a grid of their songs with a little radio badge",
+              "tapping a mix opens it so you can see what's in it, with Play and Shuffle. mixes also fill up to 30 songs now",
+              "fixed: the big letter bubble on the library's letter rail disappeared as soon as you started dragging"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it. the server needs the latest update too (it deploys on its own)"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.4.24",
     "date": "2026-10-21",
     "sections": [
