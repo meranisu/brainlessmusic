@@ -1,5 +1,32 @@
 [
   {
+    "version": "0.4.28",
+    "date": "2026-10-21",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "Listen together works again. v0.4.27 couldn't read the room from the server, so making a room failed and the queue showed a \"?\" instead of who added each song",
+              "Now Playing: the room code sits next to \"Now playing\" with a little divider, instead of squeezed under it"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it. the server doesn't need anything new this time"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.4.27",
     "date": "2026-10-21",
     "sections": [
