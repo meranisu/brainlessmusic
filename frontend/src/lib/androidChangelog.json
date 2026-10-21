@@ -21,6 +21,17 @@
         ]
       },
       {
+        "title": "also",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "new \"Add to queue\" in a song's menu, under Play next. Play next puts it right after the current song, Add to queue puts it at the end. works in a room too"
+            ]
+          }
+        ]
+      },
+      {
         "title": "heads up",
         "blocks": [
           {
