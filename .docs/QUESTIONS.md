@@ -36,6 +36,7 @@ is never asked twice.
 | [Q229](#q229--bluetooth-codec-show-only) | Bluetooth codec: show it, not choose it? | 2026-10-21 | No |
 | [Q230](#q230--rescan-for-bit-depth-on-smol) | Rescan smol for bit depth after the audio pass? | 2026-10-21 | No |
 | [Q261](#q261--why-does-the-invite-list-fail-on-the-phone) | Why does the invite list fail on the phone? | 2026-10-21 | Yes, for that fix |
+| [Q266](#q266--which-server-does-the-emulator-sign-in-to) | Which server does the emulator sign in to? | 2026-10-22 | Yes, for emulator walkthroughs |
 
 ### Q5 — Tag-editing scope
 **Asked:** 2026-09-09 · **Blocking:** no
@@ -54,6 +55,16 @@ the active codec and warns when it is lossy (SBC). Is that enough?
 
 Bit depth needs a new column and a `SCANNER_VERSION` bump, so smol rescans every song. That queues behind the
 ~3.7 h audio pass from the unpushed smart auto-mix commit. Fine?
+
+### Q266 — Which server does the emulator sign in to?
+**Asked:** 2026-10-22 · **Blocking:** yes, for emulator walkthroughs
+
+The emulator (`scripts/emulator.sh`, `brainless_2g`) boots. To walk through the app on it, it has to sign in somewhere:
+1. **Production (smol)** with the release APK and a test account the owner makes. No local build needed, so it fits
+   in RAM, but rooms made there are real rooms on the live server.
+2. **A throwaway local backend** (copy of the real library, port 3100) and a debug APK built with
+   `-PserverUrl=http://10.0.2.2:3100`. Nothing touches production, but the Gradle build next to the emulator needs
+   about 2 GB more free RAM than this machine had on 2026-10-22 (1.7 GB available with the emulator up).
 
 ### Q261 — Why does the invite list fail on the phone?
 **Asked:** 2026-10-21 · **Blocking:** yes, for that fix
@@ -103,6 +114,10 @@ A 304 still makes the 0.2 to 1 s tunnel trip, so it saves data, not time; pages 
 - **B. Skip it (recommended)** unless Q220 is A.
 
 ## Answered
+
+### A269 — Fix all review findings on the Now Playing tidy-up, with tests, as v0.4.32 *(asked in chat)*
+**Answered:** 2026-10-22, in chat ("proceed", then "test it then" and "sure"): fix all 8 findings of the two reviews of
+83efcfb, unit-test the controller's room rules, and release as v0.4.32. Landed in 973f504.
 
 ### A268 — Now Playing: scrolling title, no empty album, room chip up top, host-set shuffle and repeat *(asked in chat)*
 **Answered:** 2026-10-21, in chat, on a Now Playing screenshot: the title scrolls on one line instead of wrapping; no

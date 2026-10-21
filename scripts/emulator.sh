@@ -46,10 +46,24 @@ else
   exit 1
 fi
 
+# WSL does not always create /run/user/<uid>, and the emulator dies ("Failed to create jwk directory") without it.
+if [ ! -w "${XDG_RUNTIME_DIR:-/nonexistent}" ]; then
+  export XDG_RUNTIME_DIR="$HOME/.cache/xdg-runtime"
+  mkdir -p -m 700 "$XDG_RUNTIME_DIR"
+fi
+
 echo "Starting $AVD."
 nohup "$EMU" -avd "$AVD" -no-window -no-audio -no-boot-anim -no-snapshot-save \
   -gpu swiftshader_indirect >"/tmp/$AVD.log" 2>&1 &
+EMU_PID=$!
 
-"$ADB" wait-for-device
-until [ "$("$ADB" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do sleep 2; done
+# Fail fast if the emulator exits, rather than waiting for a device that never comes.
+until [ "$("$ADB" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do
+  if ! kill -0 "$EMU_PID" 2>/dev/null; then
+    echo "The emulator exited. Last lines of /tmp/$AVD.log:" >&2
+    tail -5 "/tmp/$AVD.log" >&2
+    exit 1
+  fi
+  sleep 2
+done
 echo "Booted. Log: /tmp/$AVD.log"
