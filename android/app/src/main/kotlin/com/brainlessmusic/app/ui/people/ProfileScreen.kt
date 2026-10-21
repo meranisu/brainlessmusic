@@ -3,6 +3,7 @@ package com.brainlessmusic.app.ui.people
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableIntStateOf
 import com.brainlessmusic.app.ui.common.SkinTabBar
+import com.brainlessmusic.app.ui.common.ScrollToTopButton
 import com.brainlessmusic.app.ui.common.dockedHeader
 import com.brainlessmusic.app.ui.stats.StatsContent
 import android.content.Context
@@ -28,6 +29,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -164,7 +166,7 @@ class ProfileViewModel @Inject constructor(
 
     val userId: Int = checkNotNull(savedStateHandle.get<Int>(Routes.ARG_USER_ID))
 
-    /** The tab a link asked for (Home's "See all your stats"), read once; only your own profile has tabs. */
+    /** The tab a link asked for (`people/{userId}?tab=`), read once; only your own profile has tabs. */
     val startTab: String? = savedStateHandle.get<String>(Routes.ARG_PROFILE_TAB)
 
     private val _range = MutableStateFlow(StatsRange.MONTH)
@@ -449,8 +451,9 @@ fun ProfileScreen(
                     ProfileTab.STATS -> StatsContent(onOpenArtist, onOpenAlbum, Modifier.weight(1f))
                     ProfileTab.FRIENDS -> FriendsContent(onOpenProfile, onOpenPlaylist, Modifier.weight(1f))
                     ProfileTab.PROFILE -> {
+                        val listState = rememberLazyListState()
                         PullToRefreshBox(isRefreshing = refreshing, onRefresh = viewModel::refresh, modifier = Modifier.weight(1f)) {
-                            LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 16.dp)) {
+                            LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 16.dp)) {
                                 item(key = "header") {
                                     ProfileHeader(
                                         p = p,
@@ -580,6 +583,7 @@ fun ProfileScreen(
                                     }
                                 }
                             }
+                            ScrollToTopButton(listState, Modifier.align(Alignment.BottomEnd).padding(16.dp))
                         }
                     }
                 }

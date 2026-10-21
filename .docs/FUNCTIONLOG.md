@@ -4,6 +4,30 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `ScrollToTopButton()` — `android/.../ui/common/ScrollToTopButton.kt`
+**Date:** 2026-10-21
+**How added:** new feature
+**Purpose:** take a long list back to its top (owner request); used on Home (`YouScreen`) and the profile's Profile tab.
+**Side effects:** none; scrolls the `LazyListState` it is given.
+**Before:** no way back up but scrolling.
+**After:** a small `SkinFab` appears bottom right once past the second row.
+
+**Function:** `listenedDeltaShort()` — `android/.../ui/profile/ProfileFormat.kt`; `ListeningTotals()` — `ListeningCards.kt`
+**Date:** 2026-10-21
+**How added:** new / changed
+**Purpose:** the change in listening time as a short note under the hours figure (owner: the full line was too long).
+**Side effects:** none; `listenedDelta()` still feeds the Stats tab and the note's screen-reader text.
+**Before:** a centred "X less than the 7 days before" line under the hours, plays and songs row.
+**After:** "↑ 2.1 h" / "↓ 45 min" / "≈ same" under the hours.
+
+**Function:** `SkinFab()` — `android/.../ui/common/SkinFab.kt`
+**Date:** 2026-10-21
+**How added:** changed
+**Purpose:** drop the 64dp `large` face (owner asked for the Library's buttons back at their old size).
+**Side effects:** none; the Library was its only user.
+**Before:** `large = true` drew a 64dp face; `LargeFace` exported.
+**After:** 56dp, or 40dp when `small`, as before 0669c29.
+
 **Function:** `getDailyMixes()` — `backend/src/services/mix.ts`
 **Date:** 2026-10-21
 **How added:** changed

@@ -4,6 +4,18 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-21: Home's stats and friends links gone, Library buttons back to 56dp, short radar delta, back to top (Android)
+
+- Why: owner request in chat. Home (`YouScreen`) no longer shows "See all your stats" or "See what friends are
+  playing"; both tabs are still on your profile. The Library's Listen together and Shuffle all are back to the usual
+  56dp `SkinFab`; its `large` option and `LargeFace` are removed, nothing else used them.
+- The listening cards' "2 h less than the 7 days before" line is now a short note under the hours figure: "↑ 2.1 h",
+  "↓ 45 min" or "≈ same" (`listenedDeltaShort()`), with the full sentence for screen readers. The Stats tab keeps
+  the full line.
+- A "Back to top" button (`ScrollToTopButton`, `ui/common/ScrollToTopButton.kt`) on Home and the profile's Profile
+  tab: a small skin button, bottom right, shown once the first rows scroll away. The skins have no up arrow, so it is
+  their down chevron turned over.
+
 ## 2026-10-21: Web version 0.4.0 and its What's new entry
 
 - Why: owner asked for the web changelog to show the recent changes. `frontend/package.json` 0.3.1 to 0.4.0, entry in

@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -85,28 +86,30 @@ private fun totalsSpoken(stats: UserStatsDto): String {
 
 /**
  * The range's raw numbers inside the listening card (owner, 2026-10-12): hours, plays and songs side by side, and how
- * the time compares with the window before. They were the player card's, which Home no longer has.
+ * the time compares with the window before, short, under the hours (owner, 2026-10-21). They were the player card's,
+ * which Home no longer has.
  */
 @Composable
 internal fun ListeningTotals(stats: UserStatsDto, range: StatsRange, modifier: Modifier = Modifier) {
     val (listenedValue, listenedLabel) = listenedHeadline(stats.totals.msListened)
-    Column(modifier) {
-        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
-            BigStat(listenedValue, listenedLabel, Modifier.weight(1f))
-            VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.fillMaxHeight())
-            BigStat("%,d".format(stats.totals.plays), if (stats.totals.plays == 1) "play" else "plays", Modifier.weight(1f))
-            VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.fillMaxHeight())
-            BigStat("%,d".format(stats.totals.tracks), if (stats.totals.tracks == 1) "song" else "songs", Modifier.weight(1f))
+    val delta = listenedDeltaShort(stats, range)
+    Row(modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+            BigStat(listenedValue, listenedLabel, Modifier)
+            delta?.let { (short, spoken) ->
+                Text(
+                    short,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    modifier = Modifier.padding(top = 2.dp).semantics { contentDescription = spoken },
+                )
+            }
         }
-        listenedDelta(stats, range)?.let {
-            Text(
-                it,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-            )
-        }
+        VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.fillMaxHeight())
+        BigStat("%,d".format(stats.totals.plays), if (stats.totals.plays == 1) "play" else "plays", Modifier.weight(1f))
+        VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.fillMaxHeight())
+        BigStat("%,d".format(stats.totals.tracks), if (stats.totals.tracks == 1) "song" else "songs", Modifier.weight(1f))
     }
 }
 

@@ -3,7 +3,6 @@ package com.brainlessmusic.app.ui.library
 import com.brainlessmusic.app.ui.common.AlbumCard
 import com.brainlessmusic.app.ui.common.SongListItem
 import com.brainlessmusic.app.ui.common.Notices
-import com.brainlessmusic.app.ui.common.LargeFace
 import com.brainlessmusic.app.ui.common.SkinFab
 import com.brainlessmusic.app.ui.common.SkinTabBar
 import com.brainlessmusic.app.ui.profile.SongListKind
@@ -225,7 +224,6 @@ fun LibraryScreen(
                     icon = AppIcons.headphones,
                     description = "Listen together",
                     onClick = { navController.navigate(Routes.TOGETHER) { launchSingleTop = true } },
-                    large = true,
                 )
                 if (tab == LibraryTab.SONGS) {
                     // Plays everything, not just what is on screen: the server shuffles the whole library.
@@ -233,7 +231,6 @@ fun LibraryScreen(
                         icon = AppIcons.shuffle,
                         description = "Shuffle all",
                         onClick = { viewModel.shuffleAll { Notices.show(it) } },
-                        large = true,
                     )
                 }
             }
@@ -243,11 +240,12 @@ fun LibraryScreen(
 
 private val FabGap = 12.dp
 private val FabBottom = 16.dp
+private val FabFace = 56.dp
 
 /** Room under a tab's last row for the buttons over it: one on most tabs, two on Songs, and a gap. */
 private fun fabClearance(tab: LibraryTab): Dp {
     val buttons = if (tab == LibraryTab.SONGS) 2 else 1
-    return FabBottom + LargeFace * buttons + FabGap * (buttons - 1) + 8.dp
+    return FabBottom + FabFace * buttons + FabGap * (buttons - 1) + 8.dp
 }
 
 // From deep in a long list, jump most of the way first so the animation is a short glide, not a long scroll.

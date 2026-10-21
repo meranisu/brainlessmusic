@@ -2,6 +2,7 @@ package com.brainlessmusic.app.ui.profile
 
 import com.brainlessmusic.app.ui.common.EmptyText
 import com.brainlessmusic.app.ui.common.SectionHeading
+import com.brainlessmusic.app.ui.common.ScrollToTopButton
 import com.brainlessmusic.app.data.local.Skin
 import com.brainlessmusic.app.ui.theme.LocalSkin
 import androidx.compose.animation.core.animateFloatAsState
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,7 +43,6 @@ import com.brainlessmusic.app.ui.common.segmentShape
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -162,8 +163,10 @@ fun YouScreen(
                 val compared = (stats.previousTotals?.plays ?: 0) > 0
                 val ofRange = Modifier.graphicsLayer { alpha = rangeAlpha }
                 val skin = LocalSkin.current
+                val listState = rememberLazyListState()
                 PullToRefreshBox(isRefreshing = refreshing, onRefresh = viewModel::refresh) {
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = ListBottom),
                     ) {
@@ -183,23 +186,6 @@ fun YouScreen(
                                     Skin.RING -> RingListening(stats, range)
                                     Skin.STANDARD -> StandardListening(stats, range)
                                 }
-                            }
-                        }
-                        // The full picture (A228) and what everyone else is playing (A239), both tabs on your profile
-                        // now (owner, 2026-10-21). Inside the stats block, which guests never reach; hidden until we
-                        // know whose profile that is.
-                        me?.let { person ->
-                            item {
-                                TextButton(
-                                    onClick = { navController.navigate(Routes.profile(person.id, "stats")) { launchSingleTop = true } },
-                                    modifier = Modifier.padding(horizontal = 8.dp),
-                                ) { Text("See all your stats") }
-                            }
-                            item {
-                                TextButton(
-                                    onClick = { navController.navigate(Routes.profile(person.id, "friends")) { launchSingleTop = true } },
-                                    modifier = Modifier.padding(horizontal = 8.dp),
-                                ) { Text("See what friends are playing") }
                             }
                         }
 
@@ -311,6 +297,7 @@ fun YouScreen(
                             }
                         }
                     }
+                    ScrollToTopButton(listState, Modifier.align(Alignment.BottomEnd).padding(16.dp))
                 }
             }
         }

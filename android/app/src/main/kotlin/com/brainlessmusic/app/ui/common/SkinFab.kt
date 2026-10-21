@@ -37,25 +37,13 @@ import com.brainlessmusic.app.ui.theme.SlantShape
  * A floating action button in the skin's form (owner, 2026-10-12: the plain Material circle didn't match): Standard's
  * Material button, Hit circle's hit circle (the accent ringed in the ink), Lane's accent diamond, Gear's console keys
  * (an orange FX key, or a white BT key when [small]), Ring's lit cabinet button with its pale rim. Flat, no shadow,
- * like the rest of the skins. [small] is the secondary one stacked above, as Downloads' Play all. [large] is a step up,
- * 64dp, for the Library's pair where icons alone carry the actions (owner, 2026-10-21).
+ * like the rest of the skins. [small] is the secondary one stacked above, as Downloads' Play all.
  */
 @Composable
-fun SkinFab(
-    icon: ImageVector,
-    description: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    small: Boolean = false,
-    large: Boolean = false,
-) {
+fun SkinFab(icon: ImageVector, description: String, onClick: () -> Unit, modifier: Modifier = Modifier, small: Boolean = false) {
     val skin = LocalSkin.current
     if (skin == Skin.STANDARD) {
-        if (large) {
-            FloatingActionButton(onClick = onClick, shape = CircleShape, modifier = modifier.size(LargeFace)) {
-                Icon(icon, contentDescription = description, modifier = Modifier.size(28.dp))
-            }
-        } else if (small) {
+        if (small) {
             SmallFloatingActionButton(onClick = onClick, shape = CircleShape, modifier = modifier) {
                 Icon(icon, contentDescription = description)
             }
@@ -67,8 +55,8 @@ fun SkinFab(
         return
     }
     val scheme = MaterialTheme.colorScheme
-    val face = if (large) LargeFace else if (small) 40.dp else 56.dp
-    val glyph = if (large) 28.dp else if (small) 18.dp else 24.dp
+    val face = if (small) 40.dp else 56.dp
+    val glyph = if (small) 18.dp else 24.dp
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
@@ -99,9 +87,6 @@ fun SkinFab(
         Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(glyph))
     }
 }
-
-/** [SkinFab]'s large face: 8dp over the usual 56dp, a bit bigger without crowding the list. */
-val LargeFace = 64.dp
 
 /**
  * [SkinFab] with its words beside the icon, for an action that should be found without guessing (Listen together on

@@ -85,3 +85,23 @@ fun listenedDelta(stats: UserStatsDto, range: StatsRange): String? {
         else -> "${formatListened(-diff)} less than $before"
     }
 }
+
+/**
+ * [listenedDelta] cut down for the listening cards, under the hours figure (owner, 2026-10-21: the full line was too
+ * long): "↑ 2.1 h", "↓ 45 min", "≈ same". The range picker above says what it is compared with; the second value is
+ * the full sentence for a screen reader.
+ */
+fun listenedDeltaShort(stats: UserStatsDto, range: StatsRange): Pair<String, String>? {
+    val spoken = listenedDelta(stats, range) ?: return null
+    val diff = stats.totals.msListened - (stats.previousTotals ?: return null).msListened
+    val amount = kotlin.math.abs(diff)
+    val short = when {
+        amount < 60_000 -> "≈ same"
+        else -> {
+            val hours = amount / 3_600_000.0
+            val size = if (amount < 3_600_000) "${amount / 60_000} min" else "%.1f h".format(Locale.ENGLISH, hours).replace(".0 h", " h")
+            (if (diff > 0) "↑ " else "↓ ") + size
+        }
+    }
+    return short to spoken
+}
