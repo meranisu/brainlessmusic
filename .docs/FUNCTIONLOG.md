@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `RoomState.nextIndex`, `RoomEntry.album` — `android/.../rooms/RoomModels.kt`; `PlaybackController.publish()`, `roomQueueItem()` — `android/.../playback/PlaybackController.kt`; `RoomTrack.album`, `lookupTracks()` — `backend/src/services/rooms.ts`, `backend/src/routes/rooms.ts`
+**Date:** 2026-10-22
+**How added:** bug fix
+**Purpose:** in a room, the album line and Up next match the song (A271).
+**Side effects:** the room snapshot carries one more field per entry.
+**Before:** room entries had no album name, so the album line was hidden for every room song; `nextIndex` came from the phone's player, which is set to repeat off in a room.
+**After:** the album shows when the file has one; Up next names the first song when repeat all goes round.
+
 **Function:** `PlaybackController.publish()`, `cycleShuffle()`, `cycleRepeat()`, `followRoom()`, new `changeRoomOrder()` and `canChangeRoomOrder()` — `android/.../playback/PlaybackController.kt`; `RoomSettings.repeatMode`, `nextRepeat()`, `orderChangesTo()`, `REPEATS`, `RoomState.hasNext`, `canChangeOrder()` — `android/.../rooms/RoomModels.kt`
 **Date:** 2026-10-22
 **How added:** bug fix

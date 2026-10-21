@@ -11,6 +11,8 @@ data class RoomEntry(
     val trackId: Int,
     val title: String,
     val artist: String?,
+    /** The album's name for the player's album line (A271). Null without an album tag, and from an older server. */
+    val album: String? = null,
     val albumId: Int?,
     val durationMs: Long,
     val addedBy: Int,
@@ -93,8 +95,17 @@ data class RoomState(
 ) {
     val currentEntry: RoomEntry? get() = queue.getOrNull(current)
 
-    /** Whether Next has somewhere to go: a later song, or round to the first with repeat all, as the server's `next` does. */
-    val hasNext: Boolean get() = current + 1 < queue.size || (settings?.repeat == "all" && queue.isNotEmpty())
+    /**
+     * Where Next goes: the following song, or round to the first with repeat all, as the server's `next` does; -1 at the
+     * end of the queue. Up next shows the same song (A271).
+     */
+    val nextIndex: Int get() = when {
+        current + 1 < queue.size -> current + 1
+        settings?.repeat == "all" && queue.isNotEmpty() -> 0
+        else -> -1
+    }
+
+    val hasNext: Boolean get() = nextIndex >= 0
 
     /** Whether [you] may change shuffle and repeat from Now Playing: the host, connected, with the settings known (A268). */
     fun canChangeOrder(you: Int?, live: Boolean): Boolean = live && settings != null && hostUserId == you

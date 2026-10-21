@@ -37,6 +37,13 @@ class RoomOrderTest {
     }
 
     @Test
+    fun `Up next names the song Next goes to`() {
+        assertEquals(2, room(size = 3, current = 1).nextIndex)
+        assertEquals(-1, room(size = 3, current = 2).nextIndex)
+        assertEquals(0, room(size = 3, current = 2, RoomSettings(repeat = "all")).nextIndex)
+    }
+
+    @Test
     fun `an empty queue has no Next, even with repeat all`() {
         assertFalse(room(size = 0, current = -1, RoomSettings(repeat = "all")).hasNext)
     }

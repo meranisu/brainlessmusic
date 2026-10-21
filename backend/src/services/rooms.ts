@@ -29,6 +29,8 @@ export interface RoomTrack {
   trackId: number;
   title: string;
   artist: string | null;
+  /** The album's name, for the player's album line; null when the file has no album tag (A271). */
+  album: string | null;
   albumId: number | null;
   durationMs: number;
   /** Levelling gain in dB for each listener's own player; null until measured. */

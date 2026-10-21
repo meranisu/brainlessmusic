@@ -1450,7 +1450,7 @@ class PlaybackController @Inject constructor(
             error = errorMessage,
             hasNext = joined?.hasNext ?: player.hasNextMediaItem(),
             hasPrevious = player.hasPreviousMediaItem(),
-            nextIndex = player.nextMediaItemIndex.takeIf { it != C.INDEX_UNSET } ?: -1,
+            nextIndex = joined?.nextIndex ?: player.nextMediaItemIndex.takeIf { it != C.INDEX_UNSET } ?: -1,
             playOrder = if (player.shuffleModeEnabled && queue.isNotEmpty()) shuffledSequence() else emptyList(),
             shuffle = if (inRoom) roomSettings?.shuffle == true else player.shuffleModeEnabled,
             shuffleMode = when {
@@ -1696,7 +1696,7 @@ class PlaybackController @Inject constructor(
         trackId = entry.trackId,
         title = entry.title,
         artist = entry.artist,
-        album = null,
+        album = entry.album,
         durationSec = entry.durationMs / 1000.0,
         coverUrl = libraryRepository.trackCoverUrl(entry.trackId),
         albumId = entry.albumId,

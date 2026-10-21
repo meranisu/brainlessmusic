@@ -1,5 +1,32 @@
 [
   {
+    "version": "0.4.33",
+    "date": "2026-10-22",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "in a room, Now Playing shows the album again. v0.4.31 hid the album line when there wasn't one, and room songs never told the app their album, so it was always gone. my bad",
+              "in a room with repeat on \"queue\", up next on the last song now shows the first song instead of \"end of the queue\", since that's where next takes you"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it. the album fix needs the server update too, which goes out with this one"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.4.32",
     "date": "2026-10-22",
     "sections": [

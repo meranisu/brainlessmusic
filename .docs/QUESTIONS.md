@@ -104,6 +104,10 @@ A 304 still makes the 0.2 to 1 s tunnel trip, so it saves data, not time; pages 
 
 ## Answered
 
+### A271 — Fix the room album line and Up next at the end of the queue *(asked in chat)*
+**Answered:** 2026-10-22, in chat ("continue"): fix both gaps the v0.4.32 emulator walkthrough found, as v0.4.33. The
+owner also gave a production test account in chat for the next walkthrough on smol.
+
 ### A270 — The emulator may sign in to either server *(was Q266)*
 **Answered:** 2026-10-22, in chat ("1. yes 2. sure"): both are fine. Production needs a test account from the owner,
 so the first walkthrough (v0.4.32 room fixes) ran on a throwaway local server on port 3100, with a debug APK built

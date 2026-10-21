@@ -53,6 +53,7 @@ export const rooms = createRoomRegistry({
         trackId: t.id,
         title: t.title,
         artist: t.artist,
+        album: t.album,
         albumId: t.albumId,
         durationMs: Math.round(t.duration * 1000),
         gainDb: t.gainDb,

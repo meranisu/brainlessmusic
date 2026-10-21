@@ -4,6 +4,19 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-22: Room album line and Up next at the end of the queue (A271)
+
+- Why: the emulator walkthrough of v0.4.32 (A270) found that in a room the album line was always gone, because room
+  entries carry no album name and A268 hides the line when there is none; and that Up next said "End of the queue" on
+  the last song with repeat all, although Next goes round to the first song.
+- Backend `services/rooms.ts` / `routes/rooms.ts`: `RoomTrack` gains `album`, filled from the track summary, so every
+  room entry in the snapshot carries its album name. Web ignores it for now.
+- Android: `RoomEntry.album` (null from an older server) feeds `roomQueueItem`; new `RoomState.nextIndex` (the
+  following song, the first with repeat all, else -1) drives both `hasNext` and `PlaybackUiState.nextIndex` in a room,
+  so Up next names the song Next will play.
+- Verified: backend `tsc --noEmit` clean and `npm test` 784/784; Android `rooms.*` and `playback.*` unit tests pass
+  (`RoomOrderTest` 6, new case for `nextIndex`). Device check on production after deploy: see A271 follow-up.
+
 ## 2026-10-22: Now Playing tidy-up review fixes (A269)
 
 - Why: two code reviews of A268 (83efcfb) found that the room's shuffle and repeat were mapped only inside the
