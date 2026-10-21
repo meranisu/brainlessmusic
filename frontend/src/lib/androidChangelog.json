@@ -1,5 +1,34 @@
 [
   {
+    "version": "0.4.26",
+    "date": "2026-10-21",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "Home no longer has the \"see all your stats\" and \"see what friends are playing\" buttons. both are still tabs on your profile",
+              "the Library's Listen together and Shuffle buttons are back to their normal size",
+              "the listening card now says how your time compares with the last week/month/year as a short note under the hours, like \"↓ 2.1 h\", instead of a long sentence",
+              "Home and your profile have a back-to-top button once you scroll down a bit"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it. nothing to do on the server this time"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.4.25",
     "date": "2026-10-21",
     "sections": [
