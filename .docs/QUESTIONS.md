@@ -35,9 +35,6 @@ is never asked twice.
 | [Q221](#q221--304-nothing-changed-check) | Build the 304 "nothing changed" check? | 2026-10-20 | No |
 | [Q229](#q229--bluetooth-codec-show-only) | Bluetooth codec: show it, not choose it? | 2026-10-21 | No |
 | [Q230](#q230--rescan-for-bit-depth-on-smol) | Rescan smol for bit depth after the audio pass? | 2026-10-21 | No |
-| [Q257](#q257--host-skips-at-once) | Listen together: does the host's Next skip at once? | 2026-10-21 | No |
-| [Q258](#q258--who-invites-by-default) | Listen together: who can invite by default? | 2026-10-21 | No |
-| [Q259](#q259--shuffle-off-restores-order) | Listen together: does Shuffle off restore the old order? | 2026-10-21 | No |
 
 ### Q5 — Tag-editing scope
 **Asked:** 2026-09-09 · **Blocking:** no
@@ -56,21 +53,6 @@ the active codec and warns when it is lossy (SBC). Is that enough?
 
 Bit depth needs a new column and a `SCANNER_VERSION` bump, so smol rescans every song. That queues behind the
 ~3.7 h audio pass from the unpushed smart auto-mix commit. Fine?
-
-### Q257 — Host skips at once?
-**Asked:** 2026-10-21 · **Blocking:** no ([A254](#a254--vote-to-skip-the-adder-skips-at-once-others-vote-asked-in-chat))
-
-With vote to skip on, should the host's Next skip at once, like the song's adder? **Assumption built on:** yes.
-
-### Q258 — Who invites by default?
-**Asked:** 2026-10-21 · **Blocking:** no ([A255](#a255--invite-friends-an-in-app-invite-list-and-join-on-now-playing-asked-in-chat))
-
-**Assumption built on:** everyone in the room can invite; the host can limit it to the host in Room settings.
-
-### Q259 — Shuffle off restores the old order?
-**Asked:** 2026-10-21 · **Blocking:** no
-
-**Assumption built on:** no. Turning Shuffle off keeps the shuffled order; songs added later go to the end.
 
 ### Q77 — How does the Android app get past Cloudflare Access?
 **Asked:** 2026-10-11 · **Blocking:** yes, before Access goes on ([A74](#a74--cloudflare-access-goes-in-front-of-the-public-hostname-was-q30))
@@ -112,6 +94,22 @@ A 304 still makes the 0.2 to 1 s tunnel trip, so it saves data, not time; pages 
 - **B. Skip it (recommended)** unless Q220 is A.
 
 ## Answered
+
+### A260 — Add to queue adds at the end; Play next stays *(owner request)*
+**Answered:** 2026-10-21, in chat. A song's menu gets "Add to queue" (end of the queue) next to "Play next" (after the
+current song), on Android and on the web, where both are new: the Library's Full view, album, playlist and search
+rows ("sure then" to adding it beyond the Library). In a room both go to the room's queue.
+
+### A259 — Shuffle off keeps the shuffled order *(was Q259)*
+**Answered:** 2026-10-21, in chat: "it keep the shuffle". As built: turning Shuffle off in a room keeps the order it
+left; songs added later go to the end.
+
+### A258 — Only the host invites, unless they allow others *(was Q258)*
+**Answered:** 2026-10-21, in chat: "the host can set to allow other people to invite". The room's `invite` setting
+starts at host only; the host can switch it to anyone. Replaces the built default (anyone).
+
+### A257 — The host's Next skips at once *(was Q257)*
+**Answered:** 2026-10-21, in chat: "yes". As built: the host, like the song's adder, skips without a vote.
 
 ### A256 — Room queue shows who added each song *(owner request)*
 **Answered:** 2026-10-21, in chat. Each song in a Listen together queue shows the profile picture of the person who

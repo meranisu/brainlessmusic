@@ -6,6 +6,7 @@ import { Avatar } from '../components/Avatar';
 import { CoverArt } from '../components/CoverArt';
 import { FavoriteButton, useFavoriteIds } from '../components/FavoriteButton';
 import { PlaylistListItem } from '../components/PlaylistListItem';
+import { QueueMenu } from '../components/QueueMenu';
 import { usePlayer, type QueueTrack } from '../components/PlayerBar';
 import { useToast } from '../components/ToastProvider';
 import { PlayIcon } from '../components/icons';
@@ -478,8 +479,11 @@ function TrackTable({ tracks, query }: { tracks: TrackSummary[]; query: string }
                 <Highlight text={track.album ?? '—'} query={query} />
               </td>
               <td className="py-2.5 pr-3 text-right tabular-nums text-blue-200">{formatDuration(track.duration)}</td>
-              <td className="w-10 py-2.5 pr-4" onClick={(e) => e.stopPropagation()}>
+              <td className="w-10 py-2.5" onClick={(e) => e.stopPropagation()}>
                 <FavoriteButton trackId={track.id} isFavorited={favoriteIds.has(track.id)} />
+              </td>
+              <td className="w-10 py-2.5 pr-3">
+                <QueueMenu track={queue[i]} />
               </td>
             </tr>
           ))}

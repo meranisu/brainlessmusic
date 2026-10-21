@@ -115,6 +115,10 @@ fun SongMenuSheet(
                     toast(viewModel.playNext(item))
                     onDismiss()
                 }
+                MenuRow(AppIcons.queue, "Add to queue", detail = "At the end") {
+                    toast(viewModel.addToQueue(item))
+                    onDismiss()
+                }
             }
             if (!viewModel.inRoom) {
                 MenuRow(AppIcons.playCircle, "Start radio", detail = "Play songs like this one") {

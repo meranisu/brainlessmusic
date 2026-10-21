@@ -338,7 +338,7 @@ describe('room invites (A255)', () => {
     bob.ws.close();
   });
 
-  it('refuses a sender outside a room, a guest as invitee, and a non-host when the host limits it', async () => {
+  it('refuses a sender outside a room, a guest as invitee, and a non-host by default (A258)', async () => {
     const outside = await app.inject({
       method: 'POST',
       url: '/api/rooms/invites',
@@ -357,9 +357,8 @@ describe('room invites (A255)', () => {
     });
     assert.equal(toGuest.statusCode, 400);
 
+    // Host only by default (A258).
     const bob = await join(bobToken, code);
-    alice.send({ type: 'cmd', clientCmdId: 1, op: 'settings', settings: { invite: 'host' } });
-    await bob.next((m) => m.type === 'state' && (m.room as { settings: { invite: string } }).settings.invite === 'host');
     const carol = insertUser('carol', 'hash');
     const limited = await app.inject({
       method: 'POST',
@@ -368,6 +367,15 @@ describe('room invites (A255)', () => {
       payload: { userIds: [carol.id] },
     });
     assert.equal(limited.statusCode, 403);
+    alice.send({ type: 'cmd', clientCmdId: 1, op: 'settings', settings: { invite: 'everyone' } });
+    await bob.next((m) => m.type === 'state' && (m.room as { settings: { invite: string } }).settings.invite === 'everyone');
+    const allowed = await app.inject({
+      method: 'POST',
+      url: '/api/rooms/invites',
+      headers: auth(bobToken),
+      payload: { userIds: [carol.id] },
+    });
+    assert.deepEqual(allowed.json(), { invited: 1 });
     alice.ws.close();
     bob.ws.close();
   });

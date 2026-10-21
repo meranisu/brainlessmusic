@@ -69,7 +69,8 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   playback: 'everyone',
   add: 'everyone',
   editQueue: 'everyone',
-  invite: 'everyone',
+  // A258: only the host invites until they let others.
+  invite: 'host',
 };
 
 /** The values each setting accepts, which is also how a `settings` command is checked. */
@@ -325,7 +326,7 @@ export function createRoomRegistry(deps: RegistryDeps) {
     }
     const before = room.settings;
     room.settings = { ...before, ...(change as Partial<RoomSettings>) };
-    // Shuffling once when it's turned on (Q259: turning it off keeps that order).
+    // Shuffling once when it's turned on (A259: turning it off keeps that order).
     if (room.settings.shuffle && !before.shuffle) {
       const upcoming = room.queue.slice(room.current + 1);
       shuffleInPlace(upcoming);
@@ -487,7 +488,7 @@ export function createRoomRegistry(deps: RegistryDeps) {
         const atEnd = room.current + 1 >= room.queue.length && room.settings.repeat !== 'all';
         if (atEnd) return { ok: false, reason: 'end-of-queue' };
         const { skip } = room.settings;
-        // Q257: the host skips at once too.
+        // A257: the host skips at once too.
         if (isHost || skip === 'everyone' || current!.addedBy === userId) {
           advance(room, room.playback.playing);
           return { ok: true };

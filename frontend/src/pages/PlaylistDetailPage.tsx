@@ -6,6 +6,7 @@ import { CoverArt } from '../components/CoverArt';
 import { FavoriteButton, useFavoriteIds } from '../components/FavoriteButton';
 import { PlaylistNameField } from '../components/PlaylistNameField';
 import { SmartPlaylistEditor } from '../components/SmartPlaylistEditor';
+import { QueueMenu } from '../components/QueueMenu';
 import { usePlayer, type QueueTrack } from '../components/PlayerBar';
 import { useToast } from '../components/ToastProvider';
 import { useScrollLock } from '../hooks/useScrollLock';
@@ -447,6 +448,9 @@ export function PlaylistDetailPage() {
                 <th className="py-2.5 pr-3">Artist</th>
                 <th className="py-2.5 pr-4 text-right">Duration</th>
                 <th className="w-10 py-2.5"></th>
+                <th className="w-10 py-2.5 pr-1">
+                  <span className="sr-only">Queue</span>
+                </th>
                 <th className="w-10 py-2.5 pr-4"></th>
               </tr>
             </thead>
@@ -491,6 +495,9 @@ export function PlaylistDetailPage() {
                   </td>
                   <td className="py-2.5" onClick={(e) => e.stopPropagation()}>
                     <FavoriteButton trackId={track.id} isFavorited={favoriteIds.has(track.id)} />
+                  </td>
+                  <td className="py-2.5 pr-1">
+                    <QueueMenu track={queue[i]} />
                   </td>
                   <td className="py-2.5 pr-4" onClick={(e) => e.stopPropagation()}>
                     {canEditTracks && (

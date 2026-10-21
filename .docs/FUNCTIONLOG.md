@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `playNext()`, `addToQueue()`, `insertTrack()` — `frontend/src/components/PlayerBar.tsx`; `QueueMenu()` — `frontend/src/components/QueueMenu.tsx`
+**Date:** 2026-10-21
+**How added:** new feature
+**Purpose:** Play next and Add to queue on the web (A260), outside and inside a room.
+**Side effects:** player queue state; in a room, the `add` room command.
+**Before:** the web could only replace the queue (or, in a room, add after the current song and jump to it).
+**After:** both actions in the song menus of the Library, albums, playlists and search.
+
+**Function:** `addToQueue()`, `placeLastInShuffleOrder()` — `android/.../playback/PlaybackController.kt`; `addToQueue()` — `ui/profile/SongActions.kt`
+**Date:** 2026-10-21
+**How added:** new feature
+**Purpose:** Add to queue on Android (A260): end of the queue, last in the shuffle order, or the end of a room's queue.
+**Side effects:** ExoPlayer queue and shuffle order; in a room, the `add` room command.
+**Before:** only Play next.
+**After:** "Add to queue" in the song menu.
+
 **Function:** `RoomInvites` (`acquire()`, `release()`, `send()`, `invitable()`) — `android/.../rooms/RoomInvites.kt`
 **Date:** 2026-10-21
 **How added:** new feature

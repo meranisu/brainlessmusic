@@ -412,6 +412,29 @@ class PlaybackController @Inject constructor(
         publish()
     }
 
+    /** Adds at the end of the queue (A260); in a room, at the end of the room's. Starts playing if nothing is queued. */
+    fun addToQueue(item: QueueItem) {
+        if (inRoom) return roomSend(RoomCommand.Add(listOf(item.trackId), after = null))
+        if (queue.isEmpty()) {
+            playQueue(listOf(item), 0, shuffle = wantShuffle)
+            return
+        }
+        val mediaItem = toMediaItem(item) ?: return
+        queue.add(item)
+        keys.add(nextKey++)
+        player.addMediaItem(mediaItem)
+        if (player.shuffleModeEnabled) placeLastInShuffleOrder(queue.size - 1)
+        publish()
+    }
+
+    /** ExoPlayer shuffles an added track in at random; Add to queue means after everything else, so it goes last. */
+    private fun placeLastInShuffleOrder(inserted: Int) {
+        val sequence = shuffledSequence().toMutableList()
+        sequence.remove(inserted)
+        sequence.add(inserted)
+        player.setShuffleOrder(DefaultShuffleOrder(sequence.toIntArray(), System.nanoTime()))
+    }
+
     /** ExoPlayer shuffles an inserted track in at random; this moves it to play next, after earlier "Play next" tracks. */
     private fun placeNextInShuffleOrder(inserted: Int) {
         val sequence = shuffledSequence().toMutableList()

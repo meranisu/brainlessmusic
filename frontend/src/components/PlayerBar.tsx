@@ -260,6 +260,10 @@ export interface PlayerContextValue {
    */
   playQueue: (tracks: QueueTrack[], startIndex: number, loadMore?: LoadMore) => void;
   playTrack: (track: QueueTrack) => void;
+  /** After the current song, and after anything already put there with Play next. In a room, for everyone. */
+  playNext: (track: QueueTrack) => void;
+  /** At the end of the queue (A260). In a room, at the end of the room's queue. */
+  addToQueue: (track: QueueTrack) => void;
   /** Plays [tracks] (default just [track]), then keeps going with songs like [track] (A234). */
   startRadio: (track: QueueTrack, tracks?: QueueTrack[]) => void;
   /** When the queue runs out, keep playing songs like its last one (A235). Per device. */
@@ -366,6 +370,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // The pre-shuffle order, so turning shuffle off restores it rather than
   // leaving the queue permanently scrambled.
   const originalQueueRef = useRef<QueueTrack[] | null>(null);
+  // Songs put after the current one with Play next that haven't started, so a second lands after the first.
+  const playNextPendingRef = useRef(0);
   // The current queue's source of more songs, if it has one. Replaced or cleared whenever the queue is.
   // `radio`: the endless queue's own source, which is never replaced by another radio once it runs dry.
   const moreRef = useRef<{ fetch: LoadMore; busy: boolean; done: boolean; radio?: boolean } | null>(null);
@@ -975,6 +981,49 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   function playTrack(track: QueueTrack) {
     playQueue([track], 0);
+  }
+
+  // A new song playing ends the Play next run: the next one goes straight after it again.
+  const queueEmpty = queue.length === 0;
+  useEffect(() => {
+    playNextPendingRef.current = 0;
+  }, [index, queueEmpty]);
+
+  /** Puts [track] at [at] in the queue, and where it belongs in the unshuffled order so shuffle off keeps it. */
+  function insertTrack(track: QueueTrack, at: number, next: boolean) {
+    const updated = [...queue.slice(0, at), track, ...queue.slice(at)];
+    setQueue(updated);
+    const original = originalQueueRef.current;
+    if (isShuffled && original) {
+      const currentAt = current ? original.findIndex((t) => t.id === current.id) : -1;
+      const spot = next ? Math.min(currentAt + 1 + playNextPendingRef.current, original.length) : original.length;
+      originalQueueRef.current = [...original.slice(0, spot), track, ...original.slice(spot)];
+    } else {
+      originalQueueRef.current = updated;
+    }
+  }
+
+  function playNext(track: QueueTrack) {
+    if (roomRef.current.room) {
+      roomRef.current.send({ op: 'add', trackIds: [track.id], after: roomCurrentEntry()?.entryId });
+      showToast(`"${track.title}" plays next, for everyone.`);
+      return;
+    }
+    if (queue.length === 0) return playTrack(track);
+    insertTrack(track, Math.min(index + 1 + playNextPendingRef.current, queue.length), true);
+    playNextPendingRef.current += 1;
+    showToast(`"${track.title}" plays next.`);
+  }
+
+  function addToQueue(track: QueueTrack) {
+    if (roomRef.current.room) {
+      roomRef.current.send({ op: 'add', trackIds: [track.id] });
+      showToast(`"${track.title}" added to the room's queue.`);
+      return;
+    }
+    if (queue.length === 0) return playTrack(track);
+    insertTrack(track, queue.length, false);
+    showToast(`"${track.title}" added to the queue.`);
   }
 
   function startRadio(track: QueueTrack, tracks: QueueTrack[] = [track]) {
@@ -1985,6 +2034,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     servedLabel,
     playQueue,
     playTrack,
+    playNext,
+    addToQueue,
     startRadio,
     endless,
     setEndless,

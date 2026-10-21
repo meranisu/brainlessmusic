@@ -33,7 +33,7 @@ data class RoomSettings(
     val playback: String? = "everyone",
     val add: String? = "everyone",
     val editQueue: String? = "everyone",
-    val invite: String? = "everyone",
+    val invite: String? = "host",
 )
 
 /** Votes to skip the song with [entryId]: it skips at [needed] (A254). */

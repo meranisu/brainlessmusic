@@ -166,10 +166,11 @@ carries `settings` and `skipVote`; queue entries carry `addedByName` and `addedB
 | Setting | Values (default first, except `skip`) | Effect |
 |---|---|---|
 | `turns` | `false`, `true` | Upcoming songs go one per person in rotation, by join order, starting after the playing song's adder |
-| `shuffle` | `false`, `true` | Turning it on shuffles what's to come once; new songs land at random spots. Off keeps the order (Q259) |
+| `shuffle` | `false`, `true` | Turning it on shuffles what's to come once; new songs land at random spots. Off keeps the order (A259) |
 | `repeat` | `off`, `all`, `one` | `one` replays the song at its end; `all` wraps to the first song |
-| `skip` | `vote` (default), `everyone`, `host` | `vote`: the host and the song's adder skip at once (Q257), anyone else adds a vote |
-| `playback`, `add`, `editQueue`, `invite` | `everyone`, `host` | `editQueue` is other people's songs; your own you can always move or remove |
+| `skip` | `vote` (default), `everyone`, `host` | `vote`: the host and the song's adder skip at once (A257), anyone else adds a vote |
+| `playback`, `add`, `editQueue` | `everyone`, `host` | `editQueue` is other people's songs; your own you can always move or remove |
+| `invite` | `host`, `everyone` | Only the host invites until they let others (A258) |
 
 A vote skips once more than half of the people connected have voted, or one vote with two people (`votesNeeded()`).
 Votes are counted again when someone drops, and cleared whenever the song changes.

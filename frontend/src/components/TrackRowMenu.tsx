@@ -26,7 +26,8 @@ export function TrackRowMenu({
   onDelete,
 }: TrackRowMenuProps) {
   const [open, setOpen] = useState(false);
-  const { startRadio, inRoom } = usePlayer();
+  const { startRadio, inRoom, playNext, addToQueue, current } = usePlayer();
+  const queueable = !track.missing && current?.id !== track.id;
   const menu = usePresence(open || null, 120);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -61,6 +62,8 @@ export function TrackRowMenu({
       </button>
       {menu.item && (
         <div data-state={menu.state} className="motion-menu absolute right-0 z-20 mt-1 w-48 rounded-lg border border-blue-700 bg-blue-800 py-1 text-sm">
+          {queueable && <MenuItem onClick={runAndClose(() => playNext(track))}>Play next</MenuItem>}
+          {queueable && <MenuItem onClick={runAndClose(() => addToQueue(track))}>Add to queue</MenuItem>}
           {!inRoom && !track.missing && <MenuItem onClick={runAndClose(() => startRadio(track))}>Start radio</MenuItem>}
           {onAddToPlaylist && <MenuItem onClick={runAndClose(onAddToPlaylist)}>Add to playlist</MenuItem>}
           <MenuItem onClick={runAndClose(onEdit)}>Edit tags</MenuItem>

@@ -14,7 +14,7 @@
               "skipping is a vote by default. if you added the song (or you're the host) Next skips straight away. anyone else's Next is a vote, and more than half the room skips it. with just two of you, one vote does it",
               "you see who voted as a little message, and the room card shows \"1 of 2 votes to skip\"",
               "every song in the room queue shows the picture of whoever added it",
-              "Invite people button in the room: pick accounts and they get a notification. tapping it opens the room's join screen",
+              "Invite people button in the room: pick accounts and they get a notification. tapping it opens the room's join screen. only the host can invite at first, they can let everyone invite in the settings",
               "Friends: if someone's in a room, their row has a Join button"
             ]
           }

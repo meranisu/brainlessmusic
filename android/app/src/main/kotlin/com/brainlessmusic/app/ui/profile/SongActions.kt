@@ -149,6 +149,13 @@ class SongActionsViewModel @Inject constructor(
         return if (wasEmpty) "Playing \"${item.title}\"" else "\"${item.title}\" plays next"
     }
 
+    /** At the end of the queue (A260). Returns the line to show. */
+    fun addToQueue(item: QueueItem): String {
+        val wasEmpty = playback.state.value.queue.isEmpty()
+        playback.addToQueue(item)
+        return if (wasEmpty) "Playing \"${item.title}\"" else "\"${item.title}\" added to the queue"
+    }
+
     /**
      * Holding the heart, or the menu's Dislike (A153): dislikes the song, or takes the dislike back. Shuffle picks a
      * disliked song about one pass in four (A60), the same mark as a right swipe in the queue. [onDone] gets a line

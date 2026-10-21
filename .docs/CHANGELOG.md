@@ -4,6 +4,30 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-21: Add to queue, and Play next on the web (A260)
+
+- Why: owner request in chat. "Add to queue" puts a song at the end of the queue; "Play next" stays (after the
+  current song, after earlier Play next songs).
+- Web: `playNext()` and `addToQueue()` on the player (`PlayerBar.tsx`); both keep the song in the unshuffled order
+  so shuffle off keeps it, and in a room send `add` (with `after` the current entry for Play next, none for Add to
+  queue). Shown in the Library Full view's `TrackRowMenu` and, through the new `QueueMenu`, on album, playlist and
+  search rows; hidden for the song that is playing.
+- Android: `PlaybackController.addToQueue()` appends, and with shuffle on puts it last in the shuffle order
+  (`placeLastInShuffleOrder()`); "Add to queue" row under "Play next" in the song menu.
+- Verified: `cd frontend && npm run build` and `npm run lint` (no new warnings); `cd android && ./gradlew
+  assembleDebug` passes; `cd backend && npm test` 775/775 (with the A258 change below). Browser run with Playwright
+  on the isolated backend: playing album Tones from Tone 1, Play next on Tone 3 and Add to queue on Tone 2 give the
+  Up next list Tone 3, Tone 2, Tone 3, Tone 4, Tone 5, Tone 6, Tone 2 (1/8), with both toasts; the playing row shows
+  no menu. In a room, bob's Add to queue on Tone 6 put it last in the room queue (read from `/admin/rooms`). Android
+  not run on a device or emulator.
+
+## 2026-10-21: Room invites start host-only (A258)
+
+- Why: owner answer to Q258. `DEFAULT_SETTINGS.invite` is now `'host'` (`backend/src/services/rooms.ts`), the host can
+  switch it to anyone; Android's fallback default follows. A257 and A259 confirmed what was built. Tests updated in
+  `services/rooms.test.ts` and `routes/rooms.test.ts` (a non-host is refused by default, then allowed once the host
+  opens it).
+
 ## 2026-10-21: Listen together v2 on Android, web 0.4.1, Android v0.4.27 notes
 
 - Why: the Android half of A252-A256. Plan: `.docs/features/listen-together-v2/planning.md`.

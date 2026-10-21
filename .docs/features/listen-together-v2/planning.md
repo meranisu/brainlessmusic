@@ -20,8 +20,8 @@ the second vote skips, and every queue row shows the adder's picture.
 
 - A252 (Start stays in the lobby), A253 (host gets finer settings; only the host changes them), A254 (vote to skip:
   adder at once, more than half, one vote with two), A255 (invites: in-app list and Join on now playing), A256 (adder
-  pictures in the queue). Open, built on a stated default: Q257 (host skips at once), Q258 (anyone invites by
-  default), Q259 (Shuffle off keeps the order).
+  pictures in the queue). Then A257 (host skips at once), A258 (only the host invites until they allow
+  others), A259 (Shuffle off keeps the order).
 
 ## Phase Overview
 
@@ -37,7 +37,7 @@ the second vote skips, and every queue row shows the adder's picture.
 
 ## Phase 1: Plan
 
-- [x] Owner answers recorded (A252-A256), open defaults logged (Q257-Q259)
+- [x] Owner answers recorded (A252-A256), then A257-A259
 - [x] `RoomSettings` shape and defaults: everything as before, except skipping is a vote
 - [x] Invites in memory in the room registry; no migration
 

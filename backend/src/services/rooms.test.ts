@@ -407,7 +407,7 @@ function trackOrder(code: string): number[] {
 }
 
 describe('room registry: host settings (A253)', () => {
-  it('starts with vote to skip and everything else open to everyone', () => {
+  it('starts with vote to skip, host-only invites (A258), and everything else open to everyone', () => {
     const code = roomWith([alice]);
     assert.deepEqual(rooms.snapshot(code)!.settings, {
       shuffle: false,
@@ -417,7 +417,7 @@ describe('room registry: host settings (A253)', () => {
       playback: 'everyone',
       add: 'everyone',
       editQueue: 'everyone',
-      invite: 'everyone',
+      invite: 'host',
     });
   });
 

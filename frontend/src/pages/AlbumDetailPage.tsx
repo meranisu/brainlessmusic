@@ -4,6 +4,7 @@ import { Fragment, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { CoverArt } from '../components/CoverArt';
 import { FavoriteButton, useFavoriteIds } from '../components/FavoriteButton';
+import { QueueMenu } from '../components/QueueMenu';
 import { usePlayer, type QueueTrack } from '../components/PlayerBar';
 import { apiClient } from '../lib/apiClient';
 import type { AlbumDetail } from '../types/api';
@@ -100,7 +101,10 @@ export function AlbumDetailPage() {
               <th className="py-2.5 pr-3">Title</th>
               <th className="py-2.5 pr-4 text-right">Duration</th>
               <th className="w-32 py-2.5 pr-4">Format</th>
-              <th className="w-10 py-2.5 pr-4"></th>
+              <th className="w-10 py-2.5"></th>
+              <th className="w-10 py-2.5 pr-3">
+                <span className="sr-only">Queue</span>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-blue-800/60">
@@ -109,7 +113,7 @@ export function AlbumDetailPage() {
               {multiDisc && (i === 0 || discOf(data.tracks[i - 1]) !== discOf(track)) && (
                 <tr>
                   <th
-                    colSpan={5}
+                    colSpan={6}
                     scope="rowgroup"
                     className="bg-blue-900/50 py-2 pl-4 text-left font-mono text-xs uppercase tracking-wider text-blue-400"
                   >
@@ -144,8 +148,11 @@ export function AlbumDetailPage() {
                   {formatDuration(track.duration)}
                 </td>
                 <td className="py-2.5 pr-4 whitespace-nowrap text-blue-300">{track.format ?? '—'}</td>
-                <td className="py-2.5 pr-4" onClick={(e) => e.stopPropagation()}>
+                <td className="py-2.5" onClick={(e) => e.stopPropagation()}>
                   <FavoriteButton trackId={track.id} isFavorited={favoriteIds.has(track.id)} />
+                </td>
+                <td className="py-2.5 pr-3">
+                  <QueueMenu track={queue[i]} />
                 </td>
               </tr>
               </Fragment>
