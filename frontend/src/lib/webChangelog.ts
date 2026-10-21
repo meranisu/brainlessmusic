@@ -16,6 +16,17 @@ export interface WebRelease {
 
 export const WEB_CHANGELOG: WebRelease[] = [
   {
+    version: '0.4.1',
+    date: '2026-10-21',
+    changes: [
+      'Listen together: the host has room settings for shuffle, repeat, take turns (one song from each person in rotation), and who may skip, play and pause, add songs, move or remove other people\'s songs, and invite.',
+      'Skipping in a room is a vote by default. Whoever added the song, and the host, skip at once; anyone else\'s Next is a vote, and more than half of the room skips it (one vote with two of you).',
+      'Every song in a room queue shows the picture of whoever added it.',
+      'Invite people from the room. Invites show up as a banner with Join and Not now.',
+      'Friends: someone in a room has a Join button next to what they\'re playing.',
+    ],
+  },
+  {
     version: '0.4.0',
     date: '2026-10-21',
     changes: [

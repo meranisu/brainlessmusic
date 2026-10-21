@@ -36,6 +36,7 @@ import com.brainlessmusic.app.playback.PlaybackController
 import com.brainlessmusic.app.playback.PlaybackResume
 import com.brainlessmusic.app.invites.InviteLinks
 import com.brainlessmusic.app.rooms.RoomLinks
+import com.brainlessmusic.app.rooms.RoomInvites
 import com.brainlessmusic.app.rooms.RoomSession
 import com.brainlessmusic.app.ui.navigation.BrainlessNavGraph
 import com.brainlessmusic.app.ui.splash.StartViewModel
@@ -62,6 +63,7 @@ class MainActivity : ComponentActivity() {
     // From launch too, so a restarted app gets back into the room it was in.
     @Inject lateinit var roomSession: RoomSession
     @Inject lateinit var roomLinks: RoomLinks
+    @Inject lateinit var roomInvites: RoomInvites
     @Inject lateinit var inviteLinks: InviteLinks
     @Inject lateinit var updates: UpdateRepository
     @Inject lateinit var playbackSettings: PlaybackSettings
@@ -174,7 +176,9 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         updates.checkOnLaunch()
+        roomInvites.acquire()
     }
+
 
     /** The "Update available" notification was tapped: show the sheet. */
     private fun openUpdateFrom(intent: Intent?) {
@@ -198,6 +202,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
+        roomInvites.release()
         super.onStop()
         playbackResume.flush()
     }

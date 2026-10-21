@@ -4,6 +4,25 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-21: Listen together v2 on Android, web 0.4.1, Android v0.4.27 notes
+
+- Why: the Android half of A252-A256. Plan: `.docs/features/listen-together-v2/planning.md`.
+- Android: `RoomSettings`, `RoomSkipVote` and the adder fields in `RoomModels.kt`, with `allows()`, `canEdit()`,
+  `nextIsVote()`, `nextLabel()`; `RoomCommand.Settings` sent by `RoomSocket`; the vote toast through
+  `RoomSession.messages`. Together screen: Invite people button and picker, Room settings panel (chips for the host,
+  read-only rows for others), "1 of 2 votes to skip" and the adder's picture on the now playing card.
+  `QueueSheet` rows show the adder's picture in a room. Friends' now playing rows show Join for someone in a room
+  (`RoomLinks.open()` opens the join screen, as a link would).
+- Android invites: `RoomInvites` polls `GET /rooms/invites` every 15 s while `MainActivity` is started or
+  `PlaybackService` runs, and posts one notification per invite on a new `invites` channel; tapping it opens the
+  room's `/join/<code>` link. No push service, so a closed app gets nothing until it opens.
+- Not done on Android: the Next buttons in the player skins still say "Next"; the vote shows as the toast and on the
+  Together card.
+- Web 0.4.1 with its What's new entry; `android/release-notes/v0.4.27.md` written; `.docs/specs/room-sync.md` updated.
+- Verified: `cd android && ./gradlew assembleDebug` passes (after adding a missing `@OptIn` for `FlowRow`); `cd frontend
+  && npm run build` passes with 0.4.1. Not run: the emulator and a phone. RAM was down to about 2.5 GB free, too
+  little for the emulator next to Gradle, so the Android screens and the invite notification haven't been seen yet.
+
 ## 2026-10-21: Listen together v2: host settings, vote to skip, invites, adder pictures (backend + web)
 
 - Why: owner request in chat (A252-A256). Plan: `.docs/features/listen-together-v2/planning.md`.

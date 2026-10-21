@@ -18,3 +18,21 @@ data class RoomLookupDto(
     val members: List<String>,
     val nowPlaying: RoomNowPlayingDto?,
 )
+
+/** `GET /rooms/invites`: an invite to a room (A255), answered by joining it or declining. */
+data class RoomInviteDto(
+    val code: String,
+    val from: SocialPersonDto,
+    val members: List<String>,
+    val nowPlaying: RoomNowPlayingDto?,
+    val expiresAt: Long,
+)
+
+data class RoomInvitesResponse(val invites: List<RoomInviteDto>)
+
+/** `GET /rooms/invitable`: accounts that can be invited to your room. */
+data class InvitablePeopleResponse(val people: List<SocialPersonDto>)
+
+data class SendInvitesRequest(val userIds: List<Int>)
+
+data class SendInvitesResponse(val invited: Int)

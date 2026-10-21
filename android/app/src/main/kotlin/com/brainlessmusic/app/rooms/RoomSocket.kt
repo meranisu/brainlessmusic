@@ -92,6 +92,14 @@ class RoomSocket(
                 is RoomCommand.Remove -> addProperty("entryId", command.entryId)
                 is RoomCommand.Move -> { addProperty("entryId", command.entryId); addProperty("toIndex", command.toIndex) }
                 is RoomCommand.Kick -> addProperty("userId", command.userId)
+                is RoomCommand.Settings -> add("settings", JsonObject().apply {
+                    command.changes.forEach { (key, value) ->
+                        when (value) {
+                            is Boolean -> addProperty(key, value)
+                            else -> addProperty(key, value.toString())
+                        }
+                    }
+                })
                 RoomCommand.Play, RoomCommand.Pause, RoomCommand.End -> Unit
             }
         }

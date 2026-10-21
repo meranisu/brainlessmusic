@@ -43,7 +43,8 @@ hearing the same moment of the same song, anyone able to pause or skip. No refer
 1. Make a room from the web or the phone; it starts from the creator's current queue and position.
 2. Others join by typing a short room code. One room per person at a time.
 3. One shared queue and one shared playback state. Anyone in the room can play, pause, seek, skip, go back, jump to a
-   song, and add, remove or reorder songs (A101).
+   song, and add, remove or reorder songs (A101), as far as the host's room settings allow (A253, see
+   [Room settings and votes](#room-settings-and-votes)).
 4. Every member hears the same position within about 0.3 s (see [Drift](#drift)).
 5. Losing the connection doesn't stop the music; coming back puts you back in step.
 6. Presence: who's in the room and who has dropped out.
@@ -52,7 +53,7 @@ hearing the same moment of the same song, anyone able to pause or skip. No refer
 **Out:**
 - **Share links.** Sharing links are out of scope (decided); the code is read out or pasted in a chat.
 - Same-room listening (two phones on one table). That needs drift in the tens of milliseconds, a different problem.
-- Chat, reactions, votes to skip.
+- Chat and reactions. (Votes to skip came in with v2, A254.)
 - Rooms that survive a server restart (in memory, decided; Redis is the noted future option).
 - Crossfade inside a room. It is switched off while in a room; gapless preload stays. Two crossfading players
   behind a moving target is where the drift maths gets hard, and it can come back later.
@@ -152,6 +153,31 @@ not two:
 | `add {trackIds[], after?}` | — | queue would pass 500 songs, or any song is hidden, missing or has no known length (the server can't end a song it can't time); none of the batch is added |
 | `remove {entryId}`, `move {entryId, toIndex}` | — | entry is gone |
 | `end`, `kick {userId}` | — | sender isn't the host |
+| `settings {settings}` | — | sender isn't the host (`host-only`), or an unknown setting or value (`bad-settings`) |
+
+Any command the room's settings keep for the host is refused with `not-allowed`; `move` while take turns is on with
+`turns-on`.
+
+### Room settings and votes
+
+Added 2026-10-21 (A252-A256, plan: [listen-together-v2](../features/listen-together-v2/planning.md)). The snapshot
+carries `settings` and `skipVote`; queue entries carry `addedByName` and `addedByAvatarId` next to `addedBy`.
+
+| Setting | Values (default first, except `skip`) | Effect |
+|---|---|---|
+| `turns` | `false`, `true` | Upcoming songs go one per person in rotation, by join order, starting after the playing song's adder |
+| `shuffle` | `false`, `true` | Turning it on shuffles what's to come once; new songs land at random spots. Off keeps the order (Q259) |
+| `repeat` | `off`, `all`, `one` | `one` replays the song at its end; `all` wraps to the first song |
+| `skip` | `vote` (default), `everyone`, `host` | `vote`: the host and the song's adder skip at once (Q257), anyone else adds a vote |
+| `playback`, `add`, `editQueue`, `invite` | `everyone`, `host` | `editQueue` is other people's songs; your own you can always move or remove |
+
+A vote skips once more than half of the people connected have voted, or one vote with two people (`votesNeeded()`).
+Votes are counted again when someone drops, and cleared whenever the song changes.
+
+**Invites** (A255), in memory like rooms: `GET /api/rooms/invitable`, `POST /api/rooms/invites {userIds}`,
+`GET /api/rooms/invites`, `DELETE /api/rooms/invites/:code`. Accounts only, both ways. One per room and person,
+10-minute expiry, dropped when they join or the room ends. Clients poll every 15 s (web banner; Android notification
+while the app or its playback service runs). `/api/social/now-playing` carries `roomCode` for Join.
 
 An ignored command gets `rejected {clientCmdId, reason}` back so the client can undo any optimistic display.
 Otherwise there is no locking: last command wins, which matches what people expect from a shared remote.
@@ -250,7 +276,8 @@ Both clients get a "room mode" in the player they already have, not a second pla
 ## Decisions
 
 A100 (guests join with full controls, no plays recorded), A101 (everyone does everything; host ends the room and
-removes people), A102 ("Listen together" in the UI), A103 (this spec replaces Q4), all in
+removes people; narrowed by A253's host settings), A252-A256 (v2: lobby, host settings, vote to skip, invites, adder
+pictures), A102 ("Listen together" in the UI), A103 (this spec replaces Q4), all in
 [QUESTIONS.md](../QUESTIONS.md#answered).
 
 ## Related

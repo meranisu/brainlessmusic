@@ -150,6 +150,9 @@ class RoomSession @Inject constructor(
     /** Host only: takes someone out of the room. */
     fun kick(userId: Int) = socket?.send(RoomCommand.Kick(userId))
 
+    /** Host only: changes the room's settings (A253). */
+    fun updateSettings(changes: Map<String, Any>) = socket?.send(RoomCommand.Settings(changes))
+
     private fun connect(code: String, quietIfGone: Boolean) {
         socket?.stop()
         _state.value = RoomUiState(joining = true)
@@ -164,6 +167,7 @@ class RoomSession @Inject constructor(
                 override fun onState(room: RoomState, you: Int?) {
                     if (socket !== created) return
                     val first = _state.value.room == null
+                    voteMessage(_state.value.room, room, you ?: _state.value.you)?.let(_messages::tryEmit)
                     _state.value = _state.value.copy(room = room, you = you ?: _state.value.you, joining = false)
                     if (first) controller.enterRoom(link)
                     controller.followRoom(room)

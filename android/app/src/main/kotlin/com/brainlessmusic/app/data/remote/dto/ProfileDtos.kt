@@ -271,6 +271,8 @@ data class FriendListeningDto(
     val track: TrackSummaryDto,
     val positionSeconds: Double,
     val since: String,
+    /** Their Listen together room, so the row can offer Join (A255). Null when not in one, and from older servers. */
+    val roomCode: String? = null,
 )
 
 data class NowPlayingDto(val listening: List<FriendListeningDto>)

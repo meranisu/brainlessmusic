@@ -30,8 +30,8 @@ the second vote skips, and every queue row shows the adder's picture.
 | 1. Plan | Owner picks, protocol shape | Done | [Phase 1](#phase-1-plan) |
 | 2. Structure | Room engine settings and votes, invites, now playing room code | Done | [Phase 2](#phase-2-structure) |
 | 3. Interior (web) | Settings card, invite picker and banner, queue pictures, vote labels | Done | [Phase 3 web](#phase-3-interior-web) |
-| 3. Interior (Android) | Same on Android, invite notification | In progress | [Phase 3 Android](#phase-3-interior-android) |
-| 4. Walkthrough | Docs, release, device checks | Not started | [Phase 4](#phase-4-walkthrough) |
+| 3. Interior (Android) | Same on Android, invite notification | Built, not seen on a device | [Phase 3 Android](#phase-3-interior-android) |
+| 4. Walkthrough | Docs, release, device checks | In progress | [Phase 4](#phase-4-walkthrough) |
 
 ---
 
@@ -62,18 +62,19 @@ the second vote skips, and every queue row shows the adder's picture.
 
 ## Phase 3: Interior (Android)
 
-- [ ] Room models, socket `Settings` command, session state
-- [ ] Settings section and Invite sheet on the Together screen
-- [ ] Adder picture in `QueueSheet` rows
-- [ ] Next label with the vote count
-- [ ] Invite polling and notification (`invites` channel), opens the join
-- [ ] Join on `FriendsScreen` rows
-- [ ] `./gradlew assembleDebug`; emulator check
+- [x] Room models, socket `Settings` command, session state
+- [x] Settings section and Invite panel on the Together screen
+- [x] Adder picture in `QueueSheet` rows and on the now playing card
+- [ ] Next label with the vote count (not done: skins keep "Next"; the vote shows as a toast and on the Together card)
+- [x] Invite polling and notification (`invites` channel), opens the join
+- [x] Join on `FriendsScreen` rows
+- [x] `./gradlew assembleDebug`
+- [ ] Emulator check (not run: low RAM)
 
 ## Phase 4: Walkthrough
 
-- [ ] `.docs/specs/room-sync.md` updated (scope, commands, protocol, decisions)
-- [ ] Web version and What's new; Android release notes and version
+- [x] `.docs/specs/room-sync.md` updated (scope, commands, protocol, decisions)
+- [x] Web 0.4.1 and What's new; `android/release-notes/v0.4.27.md` (tag on push)
 - [ ] Owner phone check with two or three people
 
 ## Change log

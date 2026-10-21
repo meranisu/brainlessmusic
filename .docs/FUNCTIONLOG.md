@@ -4,6 +4,30 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `RoomInvites` (`acquire()`, `release()`, `send()`, `invitable()`) — `android/.../rooms/RoomInvites.kt`
+**Date:** 2026-10-21
+**How added:** new feature
+**Purpose:** send room invites and notice ones sent to us (A255): polls every 15 s while held by the activity or the playback service.
+**Side effects:** network calls; posts notifications on the `invites` channel.
+**Before:** nothing; new class.
+**After:** an invite rings once as a notification that opens the room's join screen.
+
+**Function:** `RoomState.allows()`, `canEdit()`, `nextIsVote()`, `nextLabel()`, `voteMessage()` — `android/.../rooms/RoomModels.kt`
+**Date:** 2026-10-21
+**How added:** new feature
+**Purpose:** Android mirror of the web room helpers: what the settings allow you, what Next does, the vote toast.
+**Side effects:** none (pure).
+**Before:** nothing; new functions.
+**After:** used by the Together screen and `RoomSession`.
+
+**Function:** `RoomSettingsPanel()`, `InvitePanel()`, `AddedByAvatar()` — `android/.../ui/together/RoomSettingsPanel.kt`
+**Date:** 2026-10-21
+**How added:** new feature
+**Purpose:** host settings chips, invite picker, and the adder's picture (also used by `QueueSheet`).
+**Side effects:** the `settings` room command; `POST /rooms/invites`.
+**Before:** nothing; new composables.
+**After:** shown on the Together screen and queue rows in a room.
+
 **Function:** `applySettings()`, `allowed()`, `advance()`, `settleSkipVote()`, `arrangeTurns()`, `votesNeeded()` — `backend/src/services/rooms.ts`
 **Date:** 2026-10-21
 **How added:** new feature

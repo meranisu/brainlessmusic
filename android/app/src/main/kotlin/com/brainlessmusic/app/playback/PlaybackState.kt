@@ -15,6 +15,10 @@ data class QueueItem(
     val trackNumber: Int? = null,
     /** dB that levels this song's loudness (A3); null until the server has measured it, or from an older server. */
     val gainDb: Double? = null,
+    /** In a room: who added it, for the queue's picture (A256). Null outside a room. */
+    val addedById: Int? = null,
+    val addedByName: String? = null,
+    val addedByAvatarId: String? = null,
 )
 
 enum class Repeat { OFF, ALL, ONE }

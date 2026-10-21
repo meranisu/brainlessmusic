@@ -42,6 +42,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.delay
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -120,7 +122,7 @@ fun TogetherScreen(
         ) {
             Text(
                 "Everyone in a room hears the same song at the same moment, wherever they are." +
-                    if (viewModel.isGuest) " Guests can join and use every control." else "",
+                    if (viewModel.isGuest) " Guests can join and use the room's controls." else "",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -135,7 +137,7 @@ fun TogetherScreen(
 }
 
 @Composable
-private fun Panel(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+internal fun Panel(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Surface(
         shape = tileShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
@@ -325,6 +327,9 @@ private fun InsideRoom(
     val context = LocalContext.current
     var confirmEnd by remember { mutableStateOf(false) }
     val switchTo by viewModel.switchTo.collectAsStateWithLifecycle()
+    val invitable by viewModel.invitable.collectAsStateWithLifecycle()
+    val inviteMessage by viewModel.inviteMessage.collectAsStateWithLifecycle()
+    val canInvite = !viewModel.isGuest && room.allows(state.you, "invite")
 
     switchTo?.let { code ->
         // Already in a room: the link's room is offered, not joined, so nobody is pulled out of one unasked.
@@ -353,7 +358,12 @@ private fun InsideRoom(
             modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
         )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Button(onClick = {
+            if (canInvite) {
+                Button(onClick = { if (invitable == InviteList.Closed) viewModel.openInvites() else viewModel.closeInvites() }) {
+                    Text("Invite people")
+                }
+            }
+            OutlinedButton(onClick = {
                 val send = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
                     // The link opens the app where it's installed and the web player's join page where it isn't.
@@ -371,6 +381,29 @@ private fun InsideRoom(
                 ) { Text("End room") }
             }
         }
+    }
+
+    inviteMessage?.let { message ->
+        Text(
+            message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.accentInk,
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+        )
+        LaunchedEffect(message) {
+            delay(4000)
+            viewModel.inviteMessageShown()
+        }
+    }
+
+    if (invitable != InviteList.Closed) {
+        InvitePanel(
+            list = invitable,
+            pictureUrl = viewModel::avatarUrl,
+            onRetry = viewModel::openInvites,
+            onSend = viewModel::sendInvites,
+            onClose = viewModel::closeInvites,
+        )
     }
 
     NowPlayingCard(state, viewModel, canOpen = playback.hasQueue, onOpen = onOpenNowPlaying)
@@ -397,10 +430,14 @@ private fun InsideRoom(
             )
         }
         Text(
-            "Anyone here can pause, skip and change the queue. Away means their connection dropped; they're kept for 2 minutes.",
+            "Away means their connection dropped; they're kept for 2 minutes.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+
+    room.settings?.let { settings ->
+        RoomSettingsPanel(settings = settings, isHost = state.isHost, onChange = viewModel::updateSetting)
     }
 
     if (confirmEnd) {
@@ -450,6 +487,16 @@ private fun NowPlayingCard(state: RoomUiState, viewModel: TogetherViewModel, can
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
+                    room.skipVote?.takeIf { it.entryId == entry.entryId && it.votes.isNotEmpty() }?.let { vote ->
+                        val yours = state.you != null && state.you in vote.votes
+                        Text(
+                            "${vote.votes.size} of ${vote.needed} ${if (vote.needed == 1) "vote" else "votes"} to skip" +
+                                if (yours) ", yours included" else "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.accentInk,
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                        )
+                    }
                     Text(
                         when (after) {
                             0 -> "Nothing after this. Play on any song adds it after the current one."
@@ -460,6 +507,9 @@ private fun NowPlayingCard(state: RoomUiState, viewModel: TogetherViewModel, can
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+            if (entry != null) {
+                AddedByAvatar(entry.addedByName, viewModel.avatarUrl(entry.addedBy, entry.addedByAvatarId))
             }
             if (canOpen) Icon(AppIcons.queue, contentDescription = null, tint = MaterialTheme.accentInk)
         }

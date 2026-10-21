@@ -1,5 +1,9 @@
 package com.brainlessmusic.app.ui.people
 
+import com.brainlessmusic.app.rooms.RoomLinks
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -78,7 +82,11 @@ class FriendsViewModel @Inject constructor(
     private val profile: ProfileRepository,
     private val library: LibraryRepository,
     private val playback: PlaybackController,
+    private val roomLinks: RoomLinks,
 ) : ViewModel() {
+    /** A friend's Listen together room: opens its join screen, like a room link (A255). */
+    fun joinRoom(code: String) = roomLinks.open(code)
+
     private val _state = MutableStateFlow(FriendsState())
     val state: StateFlow<FriendsState> = _state.asStateFlow()
     private var polling: Job? = null
@@ -187,6 +195,7 @@ fun FriendsContent(
                             progress = l.track.duration?.takeIf { it > 0 }?.let { (l.positionSeconds / it).toFloat().coerceIn(0f, 1f) },
                             onOpenProfile = onOpenProfile,
                             onClick = { viewModel.play(l.track) },
+                            onJoin = l.roomCode?.let { code -> { viewModel.joinRoom(code) } },
                         )
                     }
                 }
@@ -281,6 +290,8 @@ private fun ActivityRow(
     progress: Float?,
     onOpenProfile: (Int) -> Unit,
     onClick: () -> Unit,
+    /** Set when they're in a Listen together room. */
+    onJoin: (() -> Unit)? = null,
 ) {
     ListItem(
         leadingContent = {
@@ -294,7 +305,15 @@ private fun ActivityRow(
                 LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().padding(top = 22.dp))
             }
         },
-        trailingContent = { CoverImage(url = coverUrl, contentDescription = null, modifier = Modifier.size(40.dp)) },
+        trailingContent = {
+            if (onJoin != null) {
+                OutlinedButton(onClick = onJoin, modifier = Modifier.semantics { contentDescription = "Join ${person.name}'s room" }) {
+                    Text("Join")
+                }
+            } else {
+                CoverImage(url = coverUrl, contentDescription = null, modifier = Modifier.size(40.dp))
+            }
+        },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier = Modifier.clickable(onClick = onClick),
     )

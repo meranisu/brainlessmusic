@@ -1,5 +1,8 @@
 package com.brainlessmusic.app.ui.playback
 
+import com.brainlessmusic.app.ui.together.AddedByAvatar
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -97,6 +100,8 @@ fun QueueSheet(
     onUndo: (RemovedEntry, lessOften: Boolean) -> Unit,
     onMove: (from: Int, to: Int) -> Unit,
     onDismiss: () -> Unit,
+    /** In a room, the picture of whoever added a song (A256); null shows their initial. */
+    adderPicture: (userId: Int, avatarId: String?) -> String? = { _, _ -> null },
 ) {
     val sheetState = rememberModalBottomSheetState()
     val snackbar = remember { SnackbarHostState() }
@@ -238,6 +243,7 @@ fun QueueSheet(
                                 onClick = { onSkipTo(row.queueIndex) },
                                 onRemove = { act(row.key, lessOften = false) },
                                 onPlayLessOften = { act(row.key, lessOften = true) },
+                                adderPicture = adderPicture,
                                 handle = if (searching) {
                                     null
                                 } else {
@@ -279,6 +285,7 @@ private fun QueueRowItem(
     onClick: () -> Unit,
     onRemove: () -> Unit,
     onPlayLessOften: () -> Unit,
+    adderPicture: (Int, String?) -> String?,
     handle: (@Composable () -> Unit)?,
 ) {
     val swipe = rememberSwipeToDismissBoxState(
@@ -335,6 +342,10 @@ private fun QueueRowItem(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
+                }
+                row.item.addedById?.let { adder ->
+                    AddedByAvatar(row.item.addedByName, adderPicture(adder, row.item.addedByAvatarId), size = 28.dp)
+                    Spacer(Modifier.width(8.dp))
                 }
                 Text(
                     formatDuration(row.item.durationSec),

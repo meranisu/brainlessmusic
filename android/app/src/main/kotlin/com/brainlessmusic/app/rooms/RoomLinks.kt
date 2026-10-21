@@ -29,6 +29,11 @@ class RoomLinks @Inject constructor() {
 
     fun take(): String? = _pending.value.also { _pending.value = null }
 
+    /** A room picked in the app (Join on a friend's now playing, A255): opens its join screen, like a link. */
+    fun open(code: String) {
+        _pending.value = code
+    }
+
     companion object {
         /** `CODE_ALPHABET` in `backend/src/services/rooms.ts`: no I or O, which read as 1 and 0. */
         const val CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ"

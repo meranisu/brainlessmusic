@@ -14,7 +14,30 @@ data class RoomEntry(
     val addedBy: Int,
     /** Null until measured, and from servers before levelling. */
     val gainDb: Double? = null,
+    /** Who added it, kept on the entry so it still shows after they leave (A256). Null from an older server. */
+    val addedByName: String? = null,
+    val addedByAvatarId: String? = null,
 )
+
+/**
+ * The host's choices for the room (A253). The host is never held back; `host` means only the host. `editQueue` is
+ * moving or removing other people's songs; your own you always can. Gson leaves a missing field null, hence the nulls.
+ */
+data class RoomSettings(
+    val shuffle: Boolean = false,
+    /** `off`, `all` or `one`. */
+    val repeat: String? = "off",
+    val turns: Boolean = false,
+    /** `vote`, `everyone` or `host`. */
+    val skip: String? = "vote",
+    val playback: String? = "everyone",
+    val add: String? = "everyone",
+    val editQueue: String? = "everyone",
+    val invite: String? = "everyone",
+)
+
+/** Votes to skip the song with [entryId]: it skips at [needed] (A254). */
+data class RoomSkipVote(val entryId: Int, val votes: List<Int>, val needed: Int)
 
 data class RoomMember(
     val userId: Int,
@@ -37,8 +60,41 @@ data class RoomState(
     val queue: List<RoomEntry>,
     val current: Int,
     val playback: RoomPlayback,
+    /** Null from a server older than them. */
+    val settings: RoomSettings? = null,
+    val skipVote: RoomSkipVote? = null,
 ) {
     val currentEntry: RoomEntry? get() = queue.getOrNull(current)
+
+    /** Whether [you] may do something the settings can limit (`playback`, `add`, `editQueue`, `invite`). */
+    fun allows(you: Int?, area: String): Boolean {
+        if (hostUserId == you || settings == null) return true
+        val rule = when (area) {
+            "playback" -> settings.playback
+            "add" -> settings.add
+            "editQueue" -> settings.editQueue
+            "invite" -> settings.invite
+            else -> "everyone"
+        }
+        return rule != "host"
+    }
+
+    /** Your own songs you can always move or remove; other people's as the settings say. */
+    fun canEdit(entry: RoomEntry, you: Int?): Boolean = entry.addedBy == you || allows(you, "editQueue")
+
+    /** True when [you]'s Next is a vote rather than a skip (A254). */
+    fun nextIsVote(you: Int?): Boolean =
+        hostUserId != you && currentEntry?.addedBy != you && (settings?.skip ?: "everyone") == "vote"
+
+    /** The Next button's label: "Vote to skip (1 of 2)" while a vote is going. */
+    fun nextLabel(you: Int?): String {
+        val skip = settings?.skip ?: "everyone"
+        if (hostUserId == you || skip == "everyone" || currentEntry?.addedBy == you) return "Next"
+        if (skip == "host") return "Only the host can skip"
+        val vote = skipVote?.takeIf { it.entryId == currentEntry?.entryId } ?: return "Vote to skip"
+        val voted = you != null && you in vote.votes
+        return "${if (voted) "You voted to skip" else "Vote to skip"} (${vote.votes.size} of ${vote.needed})"
+    }
 
     /** Where the song is now on the server clock; negative before a new song's start time. */
     fun expectedPositionMs(serverNow: Long): Long =
@@ -58,6 +114,8 @@ sealed class RoomCommand(val op: String) {
     data class Move(val entryId: Int, val toIndex: Int) : RoomCommand("move")
     data object End : RoomCommand("end")
     data class Kick(val userId: Int) : RoomCommand("kick")
+    /** Host only (A253). Values are `Boolean` or `String`, by setting name. */
+    data class Settings(val changes: Map<String, Any>) : RoomCommand("settings")
 }
 
 /** `LIVE`: in step. `CONNECTING`: first connect or a reconnect after a drop; the music carries on meanwhile. */
@@ -85,5 +143,18 @@ fun rejectionMessage(reason: String): String? = when (reason) {
     "queue-full" -> "The room queue is full (500 songs)."
     "host-only" -> "Only the host can do that."
     "end-of-queue" -> "That's the last song in the queue."
+    "not-allowed" -> "The host has kept that for themselves in this room."
+    "turns-on" -> "Take turns sets the order, so songs can't be moved while it's on."
+    "bad-settings" -> "That setting didn't save. Try again."
     else -> null
+}
+
+/** A new vote to skip, said once to everyone in the room: "bob voted to skip (1 of 2)" (A254). */
+fun voteMessage(before: RoomState?, after: RoomState, you: Int?): String? {
+    val vote = after.skipVote ?: return null
+    if (before == null) return null
+    val earlier = before.skipVote?.takeIf { it.entryId == vote.entryId }?.votes.orEmpty()
+    val voter = vote.votes.firstOrNull { it !in earlier } ?: return null
+    val name = if (voter == you) "You" else after.members.firstOrNull { it.userId == voter }?.name ?: "Someone"
+    return "$name voted to skip (${vote.votes.size} of ${vote.needed})."
 }

@@ -1,5 +1,6 @@
 package com.brainlessmusic.app.playback
 
+import com.brainlessmusic.app.rooms.RoomInvites
 import android.app.PendingIntent
 import android.content.Intent
 import android.os.Handler
@@ -40,6 +41,7 @@ class PlaybackService : MediaSessionService() {
     @Inject lateinit var controller: PlaybackController
     @Inject lateinit var okHttpClient: OkHttpClient
     @Inject lateinit var settings: PlaybackSettings
+    @Inject lateinit var roomInvites: RoomInvites
 
     private var session: MediaSession? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -68,6 +70,8 @@ class PlaybackService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
+        // Music in the background keeps invites coming in, not only the app on screen (A255).
+        roomInvites.acquire()
         val openApp = PendingIntent.getActivity(
             this,
             0,
@@ -170,6 +174,7 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        roomInvites.release()
         headsetPresses.cancel()
         scope.cancel()
         // Release the session but never the player: it belongs to PlaybackController.

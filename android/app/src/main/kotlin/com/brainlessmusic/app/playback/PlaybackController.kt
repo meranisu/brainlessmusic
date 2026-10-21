@@ -1635,6 +1635,9 @@ class PlaybackController @Inject constructor(
         coverUrl = libraryRepository.trackCoverUrl(entry.trackId),
         albumId = entry.albumId,
         gainDb = entry.gainDb,
+        addedById = entry.addedBy,
+        addedByName = entry.addedByName,
+        addedByAvatarId = entry.addedByAvatarId,
     )
 
     /**

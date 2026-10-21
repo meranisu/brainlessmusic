@@ -1,5 +1,7 @@
 package com.brainlessmusic.app.ui.together
 
+import com.brainlessmusic.app.data.remote.dto.SocialPersonDto
+import com.brainlessmusic.app.rooms.RoomInvites
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.brainlessmusic.app.data.remote.TokenProvider
@@ -31,6 +33,14 @@ sealed interface RoomLookup {
     data class Found(val room: RoomLookupDto) : RoomLookup
 }
 
+/** The invite picker's list (A255). */
+sealed interface InviteList {
+    data object Closed : InviteList
+    data object Loading : InviteList
+    data object Failed : InviteList
+    data class Ready(val people: List<SocialPersonDto>) : InviteList
+}
+
 @HiltViewModel
 class TogetherViewModel @Inject constructor(
     private val session: RoomSession,
@@ -39,6 +49,7 @@ class TogetherViewModel @Inject constructor(
     links: RoomLinks,
     private val library: LibraryRepository,
     private val profiles: ProfileRepository,
+    private val invites: RoomInvites,
 ) : ViewModel() {
     val room: StateFlow<RoomUiState> = session.state
     val playback: StateFlow<PlaybackUiState> = controller.state
@@ -46,6 +57,56 @@ class TogetherViewModel @Inject constructor(
 
     /** A member's picture for the members list, or null to show their initial. */
     fun avatarUrl(member: RoomMember): String? = profiles.avatarUrl(member.userId, member.avatarId)
+
+    /** Anyone's picture by id, for whoever added a song (A256); they may have left the room since. */
+    fun avatarUrl(userId: Int, avatarId: String?): String? = profiles.avatarUrl(userId, avatarId)
+
+    /** Host only: one room setting (A253). */
+    fun updateSetting(key: String, value: Any) {
+        session.updateSettings(mapOf(key to value))
+    }
+
+    private val _invitable = MutableStateFlow<InviteList>(InviteList.Closed)
+
+    /** The invite picker (A255): closed, loading, failed, or the accounts that can be invited. */
+    val invitable: StateFlow<InviteList> = _invitable.asStateFlow()
+
+    fun openInvites() {
+        _invitable.value = InviteList.Loading
+        viewModelScope.launch {
+            _invitable.value = invites.invitable().fold(
+                onSuccess = { InviteList.Ready(it) },
+                onFailure = { InviteList.Failed },
+            )
+        }
+    }
+
+    fun closeInvites() {
+        _invitable.value = InviteList.Closed
+    }
+
+    private val _inviteMessage = MutableStateFlow<String?>(null)
+    val inviteMessage: StateFlow<String?> = _inviteMessage.asStateFlow()
+
+    fun sendInvites(userIds: List<Int>) {
+        viewModelScope.launch {
+            invites.send(userIds).fold(
+                onSuccess = { sent ->
+                    _inviteMessage.value = when {
+                        sent == 0 -> "They already have an invite."
+                        sent == 1 && userIds.size == 1 -> "Invite sent."
+                        else -> "Invite sent to $sent people."
+                    }
+                    _invitable.value = InviteList.Closed
+                },
+                onFailure = { _inviteMessage.value = it.message ?: "Couldn't send the invite." },
+            )
+        }
+    }
+
+    fun inviteMessageShown() {
+        _inviteMessage.value = null
+    }
 
     private val _code = MutableStateFlow("")
     val code: StateFlow<String> = _code.asStateFlow()

@@ -63,6 +63,10 @@ import com.brainlessmusic.app.data.remote.dto.ListeningPatternsDto
 import com.brainlessmusic.app.data.remote.dto.CreateRoomRequest
 import com.brainlessmusic.app.data.remote.dto.RoomCodeResponse
 import com.brainlessmusic.app.data.remote.dto.RoomLookupDto
+import com.brainlessmusic.app.data.remote.dto.InvitablePeopleResponse
+import com.brainlessmusic.app.data.remote.dto.RoomInvitesResponse
+import com.brainlessmusic.app.data.remote.dto.SendInvitesRequest
+import com.brainlessmusic.app.data.remote.dto.SendInvitesResponse
 import com.brainlessmusic.app.data.remote.dto.AvatarDto
 import com.brainlessmusic.app.data.remote.dto.PeopleDto
 import com.brainlessmusic.app.data.remote.dto.ProfileDto
@@ -333,6 +337,19 @@ interface ApiService {
     // Answers 204 with no body. For a Leave pressed while the socket is reconnecting.
     @POST("rooms/leave")
     suspend fun leaveRoom()
+
+    // Invites (A255). Declared before `rooms/{code}` for reading order only; Retrofit matches whole paths.
+    @GET("rooms/invitable")
+    suspend fun invitablePeople(): InvitablePeopleResponse
+
+    @POST("rooms/invites")
+    suspend fun sendInvites(@Body body: SendInvitesRequest): SendInvitesResponse
+
+    @GET("rooms/invites")
+    suspend fun roomInvites(): RoomInvitesResponse
+
+    @DELETE("rooms/invites/{code}")
+    suspend fun declineInvite(@Path("code") code: String)
 
     @GET("rooms/{code}")
     suspend fun lookupRoom(@Path("code") code: String): RoomLookupDto

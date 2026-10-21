@@ -489,6 +489,7 @@ fun NowPlayingScreen(
             onUndo = viewModel::undoRemove,
             onMove = viewModel::moveInQueue,
             onDismiss = { showQueue = false },
+            adderPicture = viewModel::avatarUrl,
         )
     }
 }

@@ -36,6 +36,9 @@ class PlaybackViewModel @Inject constructor(
     private val sleepTimer: SleepTimer,
 ) : ViewModel() {
 
+    /** Someone's picture, for whoever added a room song (A256). */
+    fun avatarUrl(userId: Int, avatarId: String?): String? = profileRepository.avatarUrl(userId, avatarId)
+
     /** The "Listen together" room, if one is joined: the player names it and opens it. */
     val room: StateFlow<RoomUiState> = roomSession.state
 
