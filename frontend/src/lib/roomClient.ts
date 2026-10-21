@@ -17,9 +17,11 @@ export interface RoomEntry {
   /** Who added it, kept on the entry so it still shows after they leave (A256). Missing from an older server. */
   addedByName?: string;
   addedByAvatarId?: string | null;
+  /** In the queue the room started with: nobody's song, so skipping it is always a vote (A263). */
+  seed?: true;
 }
 
-/** The host's choices for the room (A253). The host is never held back; `'host'` means only the host. */
+/** The host's choices for the room (A253). The host is never held back, except that their Next is a vote too (A263); `'host'` means only the host. */
 export interface RoomSettings {
   shuffle: boolean;
   repeat: 'off' | 'all' | 'one';
@@ -53,6 +55,8 @@ export interface RoomState {
   /** Missing from a server older than them. */
   settings?: RoomSettings;
   skipVote?: { entryId: number; votes: number[]; needed: number } | null;
+  /** The last song a vote skipped. Missing from a server older than it. */
+  votedOff?: number | null;
 }
 
 /** Whether `you` may do something the room's settings can limit. Fine on an older server, which has no settings. */
@@ -64,12 +68,14 @@ export function roomAllows(
   return room.hostUserId === you || !room.settings || room.settings[area] === 'everyone';
 }
 
-/** What Next does for `you` right now: skip at once, add a vote, or nothing (A254). */
+/** What Next does for `you` right now: skip at once, add a vote, or nothing (A254, A263). */
 export function roomNextAction(room: RoomState, you: number | null): 'skip' | 'vote' | 'blocked' {
   const playing = room.queue[room.current];
   const skip = room.settings?.skip ?? 'everyone';
-  if (room.hostUserId === you || skip === 'everyone' || playing?.addedBy === you) return 'skip';
-  return skip === 'vote' ? 'vote' : 'blocked';
+  const ownSong = !!playing && !playing.seed && playing.addedBy === you;
+  if (skip === 'everyone' || ownSong) return 'skip';
+  if (skip === 'host') return room.hostUserId === you ? 'skip' : 'blocked';
+  return 'vote';
 }
 
 /** The Next button's label in a room: "Vote to skip (1 of 2)" while a vote is going. */

@@ -51,6 +51,8 @@ data class PlaybackUiState(
     val error: String? = null,
     // Asked of the player rather than derived from the index: with shuffle or repeat on, "next" is not index + 1.
     val hasNext: Boolean = false,
+    /** What Next does, for its label: "Vote to skip (1 of 2)" in a room where it is a vote (A263). */
+    val nextLabel: String = "Next",
     val hasPrevious: Boolean = false,
     /** Index in [queue] of what plays after the current track (shuffle- and repeat-aware), or -1. */
     val nextIndex: Int = -1,

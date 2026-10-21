@@ -16,8 +16,8 @@ export const RESUME_LEAD_MS = 300;
 export const AWAY_GRACE_MS = 2 * 60 * 1000;
 /** "Previous" past this point restarts the song instead of going back one. */
 export const RESTART_THRESHOLD_MS = 3000;
-/** An invite to a room nobody answers lapses after this (A255). */
-export const INVITE_TTL_MS = 10 * 60 * 1000;
+/** An invite to a room nobody answers lapses after this (A255; 30 min since A264). */
+export const INVITE_TTL_MS = 30 * 60 * 1000;
 /** People one invite call may name: as many as a room can hold. */
 export const MAX_INVITES_PER_CALL = MAX_MEMBERS;
 
@@ -42,10 +42,13 @@ export interface QueueEntry extends RoomTrack {
   /** Kept on the entry, so the queue still shows whose song it is after they leave (A256). */
   addedByName: string;
   addedByAvatarId: string | null;
+  /** In the queue the room started with: the room's song, not the host's, so skipping it takes a vote (A263). */
+  seed?: true;
 }
 
 /**
- * What the host decides for the room (A253). The host is never held back by these; `'host'` means only the host.
+ * What the host decides for the room (A253). The host is never held back by these, except that the host's Next is a
+ * vote like anyone's (A263); `'host'` means only the host.
  * `editQueue` is moving or removing other people's songs: your own you can always move or remove.
  */
 export interface RoomSettings {
@@ -53,7 +56,7 @@ export interface RoomSettings {
   repeat: 'off' | 'all' | 'one';
   /** Upcoming songs take turns by who added them, one each in rotation. */
   turns: boolean;
-  /** `vote`: the song's adder skips at once, anyone else votes (A254). */
+  /** `vote`: the song's adder skips at once, anyone else votes, the host too (A254, A263). */
   skip: 'vote' | 'everyone' | 'host';
   playback: 'everyone' | 'host';
   add: 'everyone' | 'host';
@@ -134,6 +137,8 @@ interface Room {
   settings: RoomSettings;
   /** Votes to skip the song with this entry id; cleared when the song changes. */
   skipVote: { entryId: number; voters: Set<number> } | null;
+  /** The last song a vote skipped, so clients can say so even when one vote was enough (A263). */
+  votedOff: number | null;
 }
 
 export interface RoomSnapshot {
@@ -146,6 +151,7 @@ export interface RoomSnapshot {
   playback: Playback;
   settings: RoomSettings;
   skipVote: { entryId: number; votes: number[]; needed: number } | null;
+  votedOff: number | null;
 }
 
 export interface RoomOverview extends Omit<RoomSnapshot, 'members'> {
@@ -235,6 +241,7 @@ export function createRoomRegistry(deps: RegistryDeps) {
             needed: votesNeeded(connectedCount(room)),
           }
         : null,
+      votedOff: room.votedOff,
     };
   }
 
@@ -271,6 +278,7 @@ export function createRoomRegistry(deps: RegistryDeps) {
     if (votes < votesNeeded(connectedCount(room))) return false;
     room.skipVote = null;
     if (!advance(room, room.playback.playing)) return false;
+    room.votedOff = vote.entryId;
     scheduleSongEnd(room);
     return true;
   }
@@ -488,8 +496,9 @@ export function createRoomRegistry(deps: RegistryDeps) {
         const atEnd = room.current + 1 >= room.queue.length && room.settings.repeat !== 'all';
         if (atEnd) return { ok: false, reason: 'end-of-queue' };
         const { skip } = room.settings;
-        // A257: the host skips at once too.
-        if (isHost || skip === 'everyone' || current!.addedBy === userId) {
+        // A263: the host votes like anyone else, unless only the host may skip. The starting queue has no adder.
+        const ownSong = !current!.seed && current!.addedBy === userId;
+        if (skip === 'everyone' || ownSong || (skip === 'host' && isHost)) {
           advance(room, room.playback.playing);
           return { ok: true };
         }
@@ -623,9 +632,11 @@ export function createRoomRegistry(deps: RegistryDeps) {
         createdAt: deps.now(),
         settings: { ...DEFAULT_SETTINGS },
         skipVote: null,
+        votedOff: null,
       };
       const entries = toEntries(room, start.trackIds, creator);
       if (typeof entries === 'string') return { ok: false, reason: entries };
+      for (const entry of entries) entry.seed = true;
       // Only once the new room is known to be valid, so a bad request doesn't cost the user their current room.
       leaveCurrentRoom(creator.userId);
       room.queue = entries;

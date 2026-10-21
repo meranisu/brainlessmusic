@@ -281,7 +281,7 @@ fun ColumnScope.GearDeck(
             )
             BtKey(AppIcons.previous, "Previous", enabled = state.hasPrevious || state.positionMs > 3_000, onClick = onPrevious)
             PlayKey(state, onPlayPause)
-            BtKey(AppIcons.next, "Next", enabled = state.hasNext, onClick = onNext)
+            BtKey(AppIcons.next, state.nextLabel, enabled = state.hasNext, onClick = onNext)
             Knob(
                 laser = GearLaserRight,
                 notch = state.repeat.ordinal,

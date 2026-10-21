@@ -2936,3 +2936,16 @@
   .motion-view, [data-presence='closing'] .motion-view, .np-eq.is-playing i { animation: none !important; }
   .np-desktop, .np-tab-underline, .np-row-wrap, .np-row-inner { transition: none; }
 }
+
+/* A title too long for its line scrolls by (`MarqueeText`, A265): it holds still, then slides one copy's width. The
+   owner asked for this on the room's now playing card, so it loops while the title is on screen. */
+.marquee { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.marquee-track { display: inline-flex; animation: marquee-crawl var(--marquee-duration, 10s) linear infinite; }
+.marquee-copy { flex-shrink: 0; padding-right: 3rem; }
+@keyframes marquee-crawl { 0%, 20% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track { display: inline; animation: none; }
+  .marquee-copy { padding-right: 0; }
+  .marquee-copy + .marquee-copy { display: none; }
+}

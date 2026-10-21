@@ -1,5 +1,37 @@
 [
   {
+    "version": "0.4.30",
+    "date": "2026-10-21",
+    "sections": [
+      {
+        "title": "what changed",
+        "blocks": [
+          {
+            "type": "ul",
+            "items": [
+              "Now Playing: the room name moved off the top bar and sits as a little \"Room ABCD\" chip above the cover. tap it to open the room",
+              "vote to skip actually feels like a vote now. the host's Next counts as one vote like everyone else's, and the songs a room started with belong to nobody, so they always need a vote. the song you added yourself still skips straight away. the Next button says \"Vote to skip\" when that's what it does, and you get a \"Skipped by vote\" note when a vote does it",
+              "Listen together lobby: Start a room is one big button at the bottom",
+              "room settings moved behind the gear in the top bar, so they're a tap away instead of at the very bottom",
+              "the room's now playing card dropped the profile picture, and long titles scroll instead of getting cut off",
+              "invites: the notification has Join and Reject buttons, and an invite banner shows above the mini player while the app is open. invites last 30 minutes now instead of 10",
+              "heads up: a fully closed app still only hears about an invite once you open it. there's no push service yet"
+            ]
+          }
+        ]
+      },
+      {
+        "title": "upgrading",
+        "blocks": [
+          {
+            "type": "p",
+            "text": "the update sheet will offer it. the server side ships at the same time, and it's needed for the vote and invite changes"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.4.29",
     "date": "2026-10-21",
     "sections": [

@@ -5,7 +5,10 @@ import { useAuth } from '../auth/AuthContext';
 import { usePlayer } from '../components/PlayerBar';
 import { useRoom } from '../components/RoomProvider';
 import { useToast } from '../components/ToastProvider';
-import { ArrowUpIcon, CloseIcon, PlayIcon } from '../components/icons';
+import { ArrowUpIcon, CloseIcon, GearIcon, PlayIcon } from '../components/icons';
+import { MarqueeText } from '../components/MarqueeText';
+import { useDialogA11y } from '../hooks/useDialogA11y';
+import { useScrollLock } from '../hooks/useScrollLock';
 import { ApiError, apiClient, reportRoomIssue } from '../lib/apiClient';
 import { copyText } from '../lib/copyText';
 import { roomAllows, type RoomSettings, type RoomState } from '../lib/roomClient';
@@ -112,7 +115,7 @@ function OutsideRoom({ linked }: { linked: string | null }) {
             ? `Starts from what you're playing: "${player.current.title}", ${songs === 1 ? 'one song' : `${songs} songs`} in the queue.`
             : "Starts with an empty queue. Once you're in, Play on any song adds it."}
         </p>
-        <button onClick={() => void start()} disabled={isStarting || isJoining} className="btn-primary btn-md mt-auto self-start">
+        <button onClick={() => void start()} disabled={isStarting || isJoining} className="btn-primary btn-md mt-auto w-full">
           {isStarting ? 'Starting…' : 'Start a room'}
         </button>
       </section>
@@ -190,63 +193,84 @@ const SETTING_ROWS: { [K in keyof RoomSettings]: { label: string; choices: Choic
   invite: { label: 'Invite people', choices: [{ value: 'everyone', label: 'Anyone' }, { value: 'host', label: 'Host only' }] },
 };
 
-/** The host picks; everyone else sees the same rows, read-only, so they know why a control is off (A253). */
-function RoomSettingsCard({ settings, isHost, onChange }: {
+/**
+ * The room's settings, opened from the button by the room code. The host picks; everyone else sees the same rows,
+ * read-only, so they know why a control is off (A253).
+ */
+function RoomSettingsDialog({ settings, isHost, onChange, onClose }: {
   settings: RoomSettings;
   isHost: boolean;
   onChange: (change: Partial<RoomSettings>) => void;
+  onClose: () => void;
 }) {
+  useScrollLock();
+  const dialogRef = useDialogA11y<HTMLDivElement>(onClose);
   return (
-    <section className="flex flex-col gap-3" aria-labelledby="room-settings-heading">
-      <h2 id="room-settings-heading" className="text-sm font-semibold text-blue-200">
-        Room settings{isHost ? '' : ' (the host sets these)'}
-      </h2>
-      <dl className="card flex flex-col divide-y divide-blue-800/60">
-        {(Object.keys(SETTING_ROWS) as (keyof RoomSettings)[]).map((key) => {
-          const row = SETTING_ROWS[key] as { label: string; choices: { value: unknown; label: string }[] };
-          const current = row.choices.find((c) => c.value === settings[key]);
-          return (
-            <div key={key} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
-              <dt className="text-sm text-white">{row.label}</dt>
-              <dd>
-                {isHost ? (
-                  <div role="group" aria-label={row.label} className="flex flex-wrap gap-1">
-                    {row.choices.map((choice) => {
-                      const active = choice.value === settings[key];
-                      return (
-                        <button
-                          key={String(choice.value)}
-                          type="button"
-                          aria-pressed={active}
-                          onClick={() => !active && onChange({ [key]: choice.value } as Partial<RoomSettings>)}
-                          className={`rounded-md border px-2.5 py-1 text-sm transition-colors ${
-                            active
-                              ? 'border-orange-600 bg-blue-800 text-white'
-                              : 'border-blue-700 text-blue-300 hover:border-blue-500 hover:text-white'
-                          }`}
-                        >
-                          {choice.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <span className="text-sm text-blue-200">{current?.label}</span>
-                )}
-              </dd>
-            </div>
-          );
-        })}
-      </dl>
-      <p className="text-xs text-blue-400">
-        {settings.skip === 'vote'
-          ? "Vote: whoever added the song, and the host, skip at once. Anyone else's Next is a vote; more than half of the people here skips it (with two of you, one vote)."
-          : settings.skip === 'everyone'
-            ? 'Anyone: Next skips at once, whoever presses it.'
-            : 'Host only: only the host can skip.'}
-        {settings.turns ? " Take turns plays one song from each person in turn, so songs can't be moved by hand." : ''}
-      </p>
-    </section>
+    <div className="motion-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+        aria-labelledby="room-settings-heading"
+        className="motion-pop card flex max-h-full w-full max-w-lg flex-col gap-3 overflow-y-auto p-5 outline-none"
+        onClick={(e) => e.stopPropagation()}
+      >
+          <div className="flex items-center justify-between gap-3">
+            <h2 id="room-settings-heading" className="text-base font-semibold text-white">
+              Room settings{isHost ? '' : ' (the host sets these)'}
+            </h2>
+            <button onClick={onClose} className="btn-ghost btn-sm h-9 w-9 !px-0" aria-label="Close room settings">
+              <CloseIcon className="h-4 w-4" />
+            </button>
+          </div>
+          <dl className="flex flex-col divide-y divide-blue-800/60 rounded-md border border-blue-800">
+            {(Object.keys(SETTING_ROWS) as (keyof RoomSettings)[]).map((key) => {
+              const row = SETTING_ROWS[key] as { label: string; choices: { value: unknown; label: string }[] };
+              const current = row.choices.find((c) => c.value === settings[key]);
+              return (
+                <div key={key} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
+                  <dt className="text-sm text-white">{row.label}</dt>
+                  <dd>
+                    {isHost ? (
+                      <div role="group" aria-label={row.label} className="flex flex-wrap gap-1">
+                        {row.choices.map((choice) => {
+                          const active = choice.value === settings[key];
+                          return (
+                            <button
+                              key={String(choice.value)}
+                              type="button"
+                              aria-pressed={active}
+                              onClick={() => !active && onChange({ [key]: choice.value } as Partial<RoomSettings>)}
+                              className={`rounded-md border px-2.5 py-1 text-sm transition-colors ${
+                                active
+                                  ? 'border-orange-600 bg-blue-800 text-white'
+                                  : 'border-blue-700 text-blue-300 hover:border-blue-500 hover:text-white'
+                              }`}
+                            >
+                              {choice.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-blue-200">{current?.label}</span>
+                    )}
+                  </dd>
+                </div>
+              );
+            })}
+          </dl>
+          <p className="text-xs text-blue-400">
+            {settings.skip === 'vote'
+              ? "Vote: whoever added a song skips it at once. Anyone else's Next is a vote, the host's too, and the songs the room started with always take one; more than half of the people here skips it (with two of you, one vote)."
+              : settings.skip === 'everyone'
+                ? 'Anyone: Next skips at once, whoever presses it.'
+                : 'Host only: only the host can skip.'}
+            {settings.turns ? " Take turns plays one song from each person in turn, so songs can't be moved by hand." : ''}
+          </p>
+      </div>
+    </div>
   );
 }
 
@@ -349,6 +373,7 @@ function InsideRoom({ room }: { room: RoomState }) {
   const { showToast } = useToast();
   const [confirmEnd, setConfirmEnd] = useState(false);
   const [inviting, setInviting] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const isHost = room.hostUserId === you;
   const canPlayback = roomAllows(room, you, 'playback');
   const canEdit = (entry: { addedBy: number }) => entry.addedBy === you || roomAllows(room, you, 'editQueue');
@@ -392,6 +417,12 @@ function InsideRoom({ room }: { room: RoomState }) {
           <button onClick={() => void copyLink()} className="btn-secondary btn-md">
             Copy link
           </button>
+          {room.settings && (
+            <button onClick={() => setShowSettings(true)} className="btn-secondary btn-md inline-flex items-center gap-2">
+              <GearIcon className="h-4 w-4" />
+              Room settings
+            </button>
+          )}
           <button onClick={leave} className="btn-ghost btn-md">
             Leave room
           </button>
@@ -414,6 +445,14 @@ function InsideRoom({ room }: { room: RoomState }) {
       </section>
 
       {inviting && <InvitePanel onClose={() => setInviting(false)} />}
+      {showSettings && room.settings && (
+        <RoomSettingsDialog
+          settings={room.settings}
+          isHost={isHost}
+          onChange={(change) => send({ op: 'settings', settings: change })}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
 
       <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
         <section className="flex min-w-0 flex-col gap-3">
@@ -421,7 +460,7 @@ function InsideRoom({ room }: { room: RoomState }) {
           {playing ? (
             <div className="card flex items-center gap-3 border-orange-600 p-4">
               <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <span className="font-display truncate text-3xl font-extrabold text-white">{playing.title}</span>
+                <MarqueeText key={playing.entryId} text={playing.title} className="font-display text-3xl font-extrabold text-white" />
                 <span className="truncate text-sm text-blue-200">
                   {playing.artist ?? 'Unknown Artist'}
                   {room.playback.playing ? '' : ' · paused'}
@@ -433,13 +472,6 @@ function InsideRoom({ room }: { room: RoomState }) {
                   </span>
                 )}
               </div>
-              <AddedBy
-                person={{
-                  userId: playing.addedBy,
-                  name: playing.addedByName ?? '',
-                  avatarId: playing.addedByAvatarId ?? null,
-                }}
-              />
             </div>
           ) : (
             <p className="card p-4 text-sm text-blue-200">
@@ -551,13 +583,6 @@ function InsideRoom({ room }: { room: RoomState }) {
             Away means their connection dropped; they're kept for 2 minutes.
           </p>
 
-          {room.settings && (
-            <RoomSettingsCard
-              settings={room.settings}
-              isHost={isHost}
-              onChange={(change) => send({ op: 'settings', settings: change })}
-            />
-          )}
         </section>
       </div>
     </div>

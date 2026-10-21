@@ -104,6 +104,33 @@ A 304 still makes the 0.2 to 1 s tunnel trip, so it saves data, not time; pages 
 
 ## Answered
 
+### A267 — The invite banner shows on the main tabs only *(asked in chat)*
+**Answered:** 2026-10-21, in chat: "sure". Android's in-app invite banner sits above the mini player on the tab
+screens (Home, Library and the rest), not on every screen.
+
+### A266 — Host-only skipping keeps the host's Next instant *(asked in chat)*
+**Answered:** 2026-10-21, in chat: "keep it instant". With the room's skip setting on "host only", the host's Next
+skips at once; A263's vote applies only under "vote".
+
+### A265 — Lobby changes go to web and Android both *(was Q265)*
+**Answered:** 2026-10-21, in chat. The full-width Start, the room settings button and the plainer now playing card in
+the Listen together lobby apply to both clients.
+
+### A264 — No push service yet; invites get Join and Reject *(was Q264)*
+**Answered:** 2026-10-21, in chat: "Skip push for now". A closed app still hears of an invite only once it opens (no
+FCM or ntfy). The Android notification gets Join and Reject buttons, Android gets an in-app invite banner like the
+web's, and an invite lasts 30 minutes in place of 10.
+
+### A263 — The host votes to skip like everyone else *(was Q263; replaces A257)*
+**Answered:** 2026-10-21, in chat. Owner report: "vote to skip doesn't seem to work, it skips instantly". It worked as
+built: the host skipped at once (A257), and the starting queue counted as the host's songs. Now the host's Next is a
+vote too, unless the room's skip setting is "host only". The person who added a song still skips it at once, but the
+songs a room starts with belong to no one, so they always take a vote. With two people one vote still skips (A254).
+
+### A262 — The room name sits above the cover on Now Playing *(was Q262)*
+**Answered:** 2026-10-21, in chat. Owner: "i still dont like the position of the room name in the now playing". It
+leaves the top bar and becomes a small "Room ABCD" chip centred above the cover; tapping it opens the room.
+
 ### A260 — Add to queue adds at the end; Play next stays *(owner request)*
 **Answered:** 2026-10-21, in chat. A song's menu gets "Add to queue" (end of the queue) next to "Play next" (after the
 current song), on Android and on the web, where both are new: the Library's Full view, album, playlist and search
@@ -117,7 +144,7 @@ left; songs added later go to the end.
 **Answered:** 2026-10-21, in chat: "the host can set to allow other people to invite". The room's `invite` setting
 starts at host only; the host can switch it to anyone. Replaces the built default (anyone).
 
-### A257 — The host's Next skips at once *(was Q257)*
+### A257 — The host's Next skips at once *(was Q257; replaced by A263 on 2026-10-21)*
 **Answered:** 2026-10-21, in chat: "yes". As built: the host, like the song's adder, skips without a vote.
 
 ### A256 — Room queue shows who added each song *(owner request)*

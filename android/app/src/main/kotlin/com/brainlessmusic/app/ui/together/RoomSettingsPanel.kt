@@ -8,6 +8,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -29,6 +33,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.brainlessmusic.app.rooms.RoomSettings
 import com.brainlessmusic.app.ui.common.Avatar
+import com.brainlessmusic.app.ui.common.SkinSheet
+import com.brainlessmusic.app.ui.theme.SheetStatusBarFollowsApp
 
 /** One setting: the wire name, its label, and its choices as (value, label) in the order shown. */
 private data class SettingRow(val key: String, val label: String, val choices: List<Pair<Any, String>>, val read: (RoomSettings) -> Any?)
@@ -46,11 +52,30 @@ private val SETTING_ROWS = listOf(
     SettingRow("invite", "Invite people", ANYONE_OR_HOST) { it.invite },
 )
 
-/** The host picks; everyone else sees the same rows read-only, so they know why a control is off (A253). */
+/**
+ * The room's settings in a sheet, opened from the gear in the lobby's top bar. The host picks; everyone else sees the
+ * same rows read-only, so they know why a control is off (A253).
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+internal fun RoomSettingsSheet(settings: RoomSettings, isHost: Boolean, onChange: (String, Any) -> Unit, onDismiss: () -> Unit) {
+    SkinSheet(onDismissRequest = onDismiss) {
+        SheetStatusBarFollowsApp()
+        Column(
+            modifier = Modifier
+                .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(start = 24.dp, end = 24.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            RoomSettingsRows(settings, isHost, onChange)
+        }
+    }
+}
+
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-internal fun RoomSettingsPanel(settings: RoomSettings, isHost: Boolean, onChange: (String, Any) -> Unit) {
-    Panel {
+private fun RoomSettingsRows(settings: RoomSettings, isHost: Boolean, onChange: (String, Any) -> Unit) {
         Text(
             if (isHost) "Room settings" else "Room settings (the host sets these)",
             style = MaterialTheme.typography.titleMedium,
@@ -85,13 +110,13 @@ internal fun RoomSettingsPanel(settings: RoomSettings, isHost: Boolean, onChange
             when (settings.skip) {
                 "everyone" -> "Anyone: Next skips at once, whoever presses it."
                 "host" -> "Host only: only the host can skip."
-                else -> "Vote: whoever added the song, and the host, skip at once. Anyone else's Next is a vote; " +
-                    "more than half of the people here skips it (with two of you, one vote)."
+                else -> "Vote: whoever added a song skips it at once. Anyone else's Next is a vote, the host's too, " +
+                    "and the songs the room started with always take one; more than half of the people here skips it " +
+                    "(with two of you, one vote)."
             } + if (settings.turns) " Take turns plays one song from each person in turn, so songs can't be moved by hand." else "",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-    }
 }
 
 /** Pick accounts to invite; they get a notification (A255). Guests aren't listed: they get the link. */

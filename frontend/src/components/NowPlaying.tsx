@@ -24,8 +24,8 @@ import {
 } from './icons';
 import { useScrollLock } from '../hooks/useScrollLock';
 import type { PlayerContextValue } from './PlayerBar';
-import { Link } from 'react-router-dom';
 import { useRoom } from './RoomProvider';
+import { RoomPill } from './RoomPill';
 import { AddedBy } from './AddedBy';
 import { roomNextLabel } from '../lib/roomClient';
 import { Presence } from './Presence';
@@ -114,7 +114,7 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
   const sheetRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; y: number; t: number; active: boolean; dy: number } | null>(null);
   const favoriteIds = useFavoriteIds();
-  const { room, connection, you } = useRoom();
+  const { room, you } = useRoom();
   // Set only mid-drag. Seeking on every tick would fire a range request each time; seek once on release.
   const [scrubTime, setScrubTime] = useState<number | null>(null);
   const [addingToPlaylist, setAddingToPlaylist] = useState(false);
@@ -227,27 +227,20 @@ export function NowPlaying({ player, onCollapse }: { player: PlayerContextValue;
         <button onClick={onCollapse} className="btn-ghost btn-sm h-9 w-9 !px-0" aria-label="Close now playing">
           <ChevronDownIcon className="h-5 w-5" />
         </button>
-        {room ? (
-          <Link
-            to="/together"
-            onClick={onCollapse}
-            className={`font-display text-xs font-extrabold uppercase tracking-[0.22em] ${
-              connection === 'live' ? 'text-orange-400' : 'text-blue-400'
-            }`}
-          >
-            {connection === 'live' ? `Playing in room ${room.code}` : 'Reconnecting to the room'}
-          </Link>
-        ) : (
-          <span className="font-display text-xs font-extrabold uppercase tracking-[0.22em] text-blue-400">
-            Playing from library
-          </span>
-        )}
+        <span className="font-display text-xs font-extrabold uppercase tracking-[0.22em] text-blue-400">
+          {room ? 'Now playing' : 'Playing from library'}
+        </span>
         <span className="w-9 text-right font-mono text-xs tabular-nums text-blue-400">
           <span key={index} className="motion-bump">{index + 1}</span>/{queue.length}
         </span>
       </div>
 
       <div className="px-5 pt-2">
+        {room && (
+          <div className="flex justify-center pb-3">
+            <RoomPill onOpen={onCollapse} />
+          </div>
+        )}
         <div key={current.id} className="np-art relative aspect-square w-full overflow-hidden rounded-2xl border-2 border-orange-600">
           <CoverArt kind="tracks" id={current.id} className="h-full w-full" alt="" />
           {current.format && (

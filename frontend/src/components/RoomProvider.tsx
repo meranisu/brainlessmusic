@@ -62,10 +62,15 @@ const REJECTION_MESSAGES: Record<string, string> = {
   'bad-settings': "That setting didn't save. Try again.",
 };
 
-/** A new vote to skip, said once as a toast to everyone in the room: "bob voted to skip (1 of 2)" (A254). */
+/**
+ * A new vote to skip, said once as a toast to everyone in the room: "bob voted to skip (1 of 2)" (A254). A vote that
+ * skips at once never shows as pending, so the skip itself is said too (A263).
+ */
 function voteMessage(before: RoomState | null, after: RoomState, you: number | null): string | null {
+  if (!before) return null;
+  if (after.votedOff != null && after.votedOff !== before.votedOff) return 'Skipped by vote.';
   const vote = after.skipVote;
-  if (!vote || !before) return null;
+  if (!vote) return null;
   const earlier = before.skipVote?.entryId === vote.entryId ? before.skipVote.votes : [];
   const voter = vote.votes.find((id) => !earlier.includes(id));
   if (voter === undefined) return null;

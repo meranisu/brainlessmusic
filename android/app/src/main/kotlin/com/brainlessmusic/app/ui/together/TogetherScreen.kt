@@ -18,10 +18,12 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -95,6 +97,8 @@ fun TogetherScreen(
 ) {
     val room by viewModel.room.collectAsStateWithLifecycle()
     val playback by viewModel.playback.collectAsStateWithLifecycle()
+    var showSettings by remember { mutableStateOf(false) }
+    val outside = room.room == null && !room.joining
 
     Scaffold(
         topBar = {
@@ -107,10 +111,16 @@ fun TogetherScreen(
                 },
                 // Everyone on the server, from the one screen that's about other people (owner, 2026-10-13).
                 actions = {
+                    // The room's settings, for everyone to read and the host to change, a tap away (owner, 2026-10-21).
+                    if (room.room?.settings != null) {
+                        IconButton(onClick = { showSettings = true }) { Icon(AppIcons.settings, contentDescription = "Room settings") }
+                    }
                     IconButton(onClick = onOpenPeople) { Icon(AppIcons.person, contentDescription = "People") }
                 },
             )
         },
+        // Starting a room is one full-width button at the bottom, under the thumb (owner, 2026-10-21).
+        bottomBar = { if (outside) StartBar(viewModel) },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -132,6 +142,31 @@ fun TogetherScreen(
                 room.joining -> Joining(onStop = viewModel::leave)
                 else -> OutsideRoom(playback, viewModel)
             }
+        }
+    }
+
+    val settings = room.room?.settings
+    if (showSettings && settings != null) {
+        RoomSettingsSheet(
+            settings = settings,
+            isHost = room.isHost,
+            onChange = viewModel::updateSetting,
+            onDismiss = { showSettings = false },
+        )
+    }
+}
+
+@Composable
+private fun StartBar(viewModel: TogetherViewModel) {
+    val starting by viewModel.starting.collectAsStateWithLifecycle()
+    val startError by viewModel.startError.collectAsStateWithLifecycle()
+    Column(
+        modifier = Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        startError?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error) }
+        Button(onClick = viewModel::start, enabled = !starting, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+            Text(if (starting) "Starting…" else "Start a room")
         }
     }
 }
@@ -242,8 +277,6 @@ private fun Joining(onStop: () -> Unit) {
 private fun OutsideRoom(playback: PlaybackUiState, viewModel: TogetherViewModel) {
     val code by viewModel.code.collectAsStateWithLifecycle()
     val lookup by viewModel.lookup.collectAsStateWithLifecycle()
-    val starting by viewModel.starting.collectAsStateWithLifecycle()
-    val startError by viewModel.startError.collectAsStateWithLifecycle()
 
     // Joining first, and the larger panel: it's what everyone but the host does.
     Panel {
@@ -274,7 +307,7 @@ private fun OutsideRoom(playback: PlaybackUiState, viewModel: TogetherViewModel)
         }
     }
 
-    // Starting is the smaller act: one row with what the room would start from, not a second panel like the first.
+    // Starting is the smaller act: one row with what the room would start from; its button sits at the bottom.
     val current = playback.current
     val songs = playback.queue.size
     Surface(
@@ -287,7 +320,7 @@ private fun OutsideRoom(playback: PlaybackUiState, viewModel: TogetherViewModel)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (current != null) CoverImage(current.coverUrl, contentDescription = null, modifier = Modifier.size(48.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Start a room", style = MaterialTheme.typography.titleSmall)
+                    Text("A new room", style = MaterialTheme.typography.titleSmall)
                     Text(
                         if (current != null) {
                             "From \"${current.title}\", ${if (songs == 1) "one song" else "$songs songs"} in the queue."
@@ -300,11 +333,7 @@ private fun OutsideRoom(playback: PlaybackUiState, viewModel: TogetherViewModel)
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                OutlinedButton(onClick = viewModel::start, enabled = !starting) {
-                    Text(if (starting) "Starting…" else "Start")
-                }
             }
-            startError?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error) }
         }
     }
 }
@@ -436,10 +465,6 @@ private fun InsideRoom(
         )
     }
 
-    room.settings?.let { settings ->
-        RoomSettingsPanel(settings = settings, isHost = state.isHost, onChange = viewModel::updateSetting)
-    }
-
     if (confirmEnd) {
         AlertDialog(
             onDismissRequest = { confirmEnd = false },
@@ -460,6 +485,7 @@ private fun InsideRoom(
 }
 
 /** What the room is on, with its cover; the whole card opens the player, where the room's queue is edited. */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun NowPlayingCard(state: RoomUiState, viewModel: TogetherViewModel, canOpen: Boolean, onOpen: () -> Unit) {
     val room = state.room ?: return
@@ -479,7 +505,8 @@ private fun NowPlayingCard(state: RoomUiState, viewModel: TogetherViewModel, can
                 if (entry == null) {
                     Text("Nothing yet. Play on any song adds it to the room.", style = MaterialTheme.typography.bodyMedium)
                 } else {
-                    Text(entry.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    // A long title scrolls by rather than being cut off (owner, 2026-10-21).
+                    Text(entry.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, modifier = Modifier.basicMarquee())
                     Text(
                         entry.artist ?: "Unknown Artist",
                         style = MaterialTheme.typography.bodyMedium,
@@ -507,9 +534,6 @@ private fun NowPlayingCard(state: RoomUiState, viewModel: TogetherViewModel, can
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-            }
-            if (entry != null) {
-                AddedByAvatar(entry.addedByName, viewModel.avatarUrl(entry.addedBy, entry.addedByAvatarId))
             }
             if (canOpen) Icon(AppIcons.queue, contentDescription = null, tint = MaterialTheme.accentInk)
         }

@@ -16,6 +16,7 @@ import { ChevronDownIcon, CloseIcon, PauseIcon, PlayIcon, PlusIcon, RadioIcon } 
 import type { PlayerContextValue } from './PlayerBar';
 import { Presence } from './Presence';
 import { RelatedTab } from './RelatedTab';
+import { RoomPill } from './RoomPill';
 
 type Tab = 'queue' | 'related';
 
@@ -101,6 +102,7 @@ export function DesktopNowPlaying({ player, onClose }: { player: PlayerContextVa
 
       <div className="mx-auto grid min-h-0 w-full max-w-6xl flex-1 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-12 px-8 pb-6 pt-4">
         <section className="flex min-h-0 flex-col items-center justify-center gap-5">
+          {inRoom && <RoomPill onOpen={onClose} />}
           <div
             key={current.id}
             className="np-art relative aspect-square overflow-hidden rounded-2xl border-2 border-orange-600"

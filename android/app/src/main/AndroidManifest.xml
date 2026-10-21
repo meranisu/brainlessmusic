@@ -97,6 +97,10 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/update_paths" />
         </provider>
+        <!-- Reject on a Listen together invite's notification; only our own PendingIntent sends it. -->
+        <receiver
+            android:name=".rooms.InviteActionReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

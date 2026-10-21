@@ -4,6 +4,33 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-21: Listen together fixes, round 1 (A262-A265)
+
+- Why: owner report in chat after v0.4.29: room name placement, "vote to skip ... skips instantly", a small Start
+  button, settings buried at the bottom of the lobby, the now playing card's avatar and cut titles, and invites that
+  can't be turned down from the notification. Plan: `features/listen-together-v2/fixes-round1.md`.
+- Vote to skip (A263, replaces A257): it was working as built. The host's Next skipped at once, and the starting
+  queue was the host's songs, so as host every Next was instant. Backend `services/rooms.ts`: the host's Next is a vote
+  unless `skip` is `host`; entries from `create()` carry `seed: true` and never count as anyone's own song; the
+  snapshot gains `votedOff` (the last entry a vote skipped). Web `roomNextAction` and Android `nextIsVote`/`nextLabel`
+  follow. Both clients toast "Skipped by vote." when `votedOff` changes, since a one-vote skip never shows as pending.
+  Android's Next buttons (Standard and all four skins) now use `nextLabel` for their label (it was never wired up).
+- Room name (A262): a "Room ABCD" chip centred above the cover. Android `RoomChip` in `NowPlayingScreen.kt` (all
+  skins), web `RoomPill` on mobile and desktop Now Playing; the top bars go back to a plain title.
+- Lobby (A265, both clients): Start a room is a full-width button (Android: the screen's bottom bar; web: the bottom
+  of its card). Room settings open from a gear (Android top bar, `RoomSettingsSheet` via `SkinSheet`; web "Room
+  settings" button by the code, `RoomSettingsDialog`) instead of sitting inline. The now playing card drops the
+  adder's avatar and scrolls a long title (Android `basicMarquee`, web new `MarqueeText`, truncated under reduced
+  motion).
+- Invites (A264): `INVITE_TTL_MS` 10 min to 30 min. Android notification gets Join and Reject; Reject goes to the new
+  `InviteActionReceiver` (not exported), which calls the existing `DELETE /rooms/invites/:code`. New in-app
+  `InviteBanner` above the mini player on the tabs (Join/Switch, Not now). Still no push: a closed app hears of an
+  invite once it opens.
+- Verified: `cd backend && npm test` 784/784 (updated and new cases in `services/rooms.test.ts`). `cd frontend &&
+  npm run build` and `npm run lint` (no new warnings). Android `assembleDebug` and `testDebugUnitTest --tests
+  'com.brainlessmusic.app.rooms.*'` (new `RoomSkipLabelTest`, 4 tests) pass. Not checked: a browser walkthrough, the
+  emulator or a phone.
+
 ## 2026-10-21: Room issue log
 
 - Why: owner request after v0.4.27's rooms broke on phones with nothing recorded (`RoomSocket.parseRoom()` swallowed

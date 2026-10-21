@@ -202,8 +202,7 @@ describe('room registry: playback', () => {
   });
 
   it('two skips pressed at once move one song, not two', () => {
-    const code = makeRoom([1, 2, 3], true);
-    rooms.connect(code, bob, fakeSocket().connection);
+    const code = roomWith([alice, bob]);
     const seen = entry(code, 0);
     assert.deepEqual(rooms.command(code, alice.userId, { op: 'next', entryId: seen }), { ok: true });
     assert.deepEqual(rooms.command(code, bob.userId, { op: 'next', entryId: seen }), { ok: false, reason: 'stale' });
@@ -212,6 +211,7 @@ describe('room registry: playback', () => {
 
   it('previous restarts the song after 3 s, and goes back one before that', () => {
     const code = makeRoom([1, 2], true);
+    rooms.connect(code, alice, fakeSocket().connection);
     rooms.command(code, alice.userId, { op: 'next', entryId: entry(code, 0) });
     clock.advance(SONG_LEAD_MS + 5000);
     rooms.command(code, alice.userId, { op: 'previous', entryId: entry(code, 1) });
@@ -232,6 +232,7 @@ describe('room registry: playback', () => {
 describe('room registry: the queue', () => {
   it('adding before the playing song keeps the same song playing', () => {
     const code = makeRoom([1, 2]);
+    rooms.connect(code, alice, fakeSocket().connection);
     rooms.command(code, alice.userId, { op: 'next', entryId: entry(code, 0) });
     rooms.command(code, alice.userId, { op: 'add', trackIds: [5, 6], after: entry(code, 0) });
     const room = rooms.snapshot(code)!;
@@ -505,18 +506,47 @@ describe('room registry: host settings (A253)', () => {
   });
 });
 
-describe('room registry: vote to skip (A254)', () => {
+describe('room registry: vote to skip (A254, A263)', () => {
   it('needs more than half, but one vote with two people', () => {
     assert.deepEqual([1, 2, 3, 4, 5, 8].map(votesNeeded), [1, 1, 2, 3, 3, 5]);
   });
 
-  it("the song's adder and the host skip at once", () => {
+  it("the song's adder skips at once", () => {
     const code = roomWith([alice, bob, carol]);
     rooms.command(code, bob.userId, { op: 'add', trackIds: [5], after: entry(code, 0) });
     rooms.command(code, alice.userId, { op: 'next', entryId: entry(code, 0) });
+    rooms.command(code, carol.userId, { op: 'next', entryId: entry(code, 0) });
     assert.equal(rooms.snapshot(code)!.queue[rooms.snapshot(code)!.current].trackId, 5);
     rooms.command(code, bob.userId, { op: 'next', entryId: entry(code, 1) });
     assert.equal(rooms.snapshot(code)!.current, 2);
+  });
+
+  it("the host's Next is a vote too, even on the songs the room started with (A263)", () => {
+    const code = roomWith([alice, bob, carol]);
+    assert.deepEqual(rooms.command(code, alice.userId, { op: 'next', entryId: entry(code, 0) }), { ok: true });
+    let room = rooms.snapshot(code)!;
+    assert.equal(room.current, 0);
+    assert.deepEqual(room.skipVote, { entryId: entry(code, 0), votes: [alice.userId], needed: 2 });
+    const votedOn = entry(code, 0);
+    rooms.command(code, bob.userId, { op: 'next', entryId: votedOn });
+    room = rooms.snapshot(code)!;
+    assert.equal(room.current, 1);
+    assert.equal(room.votedOff, votedOn);
+  });
+
+  it("the host's own added song still skips at once", () => {
+    const code = roomWith([alice, bob, carol]);
+    rooms.command(code, alice.userId, { op: 'add', trackIds: [5], after: entry(code, 0) });
+    rooms.command(code, bob.userId, { op: 'next', entryId: entry(code, 0) });
+    rooms.command(code, carol.userId, { op: 'next', entryId: entry(code, 0) });
+    assert.equal(rooms.snapshot(code)!.queue[rooms.snapshot(code)!.current].trackId, 5);
+    rooms.command(code, alice.userId, { op: 'next', entryId: entry(code, 1) });
+    assert.equal(rooms.snapshot(code)!.current, 2);
+  });
+
+  it('marks the starting queue as the room\'s songs', () => {
+    const code = roomWith([alice, bob]);
+    assert.ok(rooms.snapshot(code)!.queue.every((song) => song.seed === true));
   });
 
   it('with three people, one vote waits and a second one skips', () => {
@@ -556,5 +586,8 @@ describe('room registry: vote to skip (A254)', () => {
       ok: false,
       reason: 'not-allowed',
     });
+
+    rooms.command(code, alice.userId, { op: 'next', entryId: entry(code, 0) });
+    assert.equal(rooms.snapshot(code)!.current, 1);
   });
 });

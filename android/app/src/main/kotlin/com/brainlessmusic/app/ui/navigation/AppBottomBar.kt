@@ -32,6 +32,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.brainlessmusic.app.data.remote.NetworkMonitor
 import com.brainlessmusic.app.ui.playback.MiniPlayer
+import com.brainlessmusic.app.ui.together.InviteBanner
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
@@ -78,7 +79,7 @@ fun SharedTabBar(navController: NavHostController, onHeight: (Dp) -> Unit, modif
 
 /**
  * The mini player stacked on the navigation bar, for the top-level tabs. [onReselect]: the current tab tapped again.
- * With no signal an offline line sits on top, pointing at Downloads from every other tab.
+ * With no signal an offline line sits on top, pointing at Downloads from every other tab; a room invite sits under it.
  */
 @Composable
 fun AppBottomBar(
@@ -96,6 +97,7 @@ fun AppBottomBar(
                 },
             )
         }
+        InviteBanner()
         MiniPlayer(onClick = { navController.openNowPlaying() }, extendUnderSystemBar = false)
         LibraryBottomBar(navController, onReselect)
     }

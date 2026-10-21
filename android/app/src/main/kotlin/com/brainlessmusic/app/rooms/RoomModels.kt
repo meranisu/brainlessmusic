@@ -17,10 +17,16 @@ data class RoomEntry(
     /** Who added it, kept on the entry so it still shows after they leave (A256). Null from an older server. */
     val addedByName: String? = null,
     val addedByAvatarId: String? = null,
-)
+    /** In the queue the room started with: nobody's song, so skipping it is always a vote (A263). */
+    val seed: Boolean? = null,
+) {
+    /** Whether [you] added this song yourself after the room started, so your Next skips it at once. */
+    fun isOwnedBy(you: Int?): Boolean = seed != true && addedBy == you
+}
 
 /**
- * The host's choices for the room (A253). The host is never held back; `host` means only the host. `editQueue` is
+ * The host's choices for the room (A253). The host is never held back, except that their Next is a vote too (A263);
+ * `host` means only the host. `editQueue` is
  * moving or removing other people's songs; your own you always can. Gson leaves a missing field null, hence the nulls.
  */
 data class RoomSettings(
@@ -63,6 +69,8 @@ data class RoomState(
     /** Null from a server older than them. */
     val settings: RoomSettings? = null,
     val skipVote: RoomSkipVote? = null,
+    /** The last song a vote skipped. Null from a server older than it. */
+    val votedOff: Int? = null,
 ) {
     val currentEntry: RoomEntry? get() = queue.getOrNull(current)
 
@@ -82,15 +90,15 @@ data class RoomState(
     /** Your own songs you can always move or remove; other people's as the settings say. */
     fun canEdit(entry: RoomEntry, you: Int?): Boolean = entry.addedBy == you || allows(you, "editQueue")
 
-    /** True when [you]'s Next is a vote rather than a skip (A254). */
+    /** True when [you]'s Next is a vote rather than a skip (A254, A263: the host's too). */
     fun nextIsVote(you: Int?): Boolean =
-        hostUserId != you && currentEntry?.addedBy != you && (settings?.skip ?: "everyone") == "vote"
+        currentEntry?.isOwnedBy(you) != true && (settings?.skip ?: "everyone") == "vote"
 
     /** The Next button's label: "Vote to skip (1 of 2)" while a vote is going. */
     fun nextLabel(you: Int?): String {
         val skip = settings?.skip ?: "everyone"
-        if (hostUserId == you || skip == "everyone" || currentEntry?.addedBy == you) return "Next"
-        if (skip == "host") return "Only the host can skip"
+        if (skip == "everyone" || currentEntry?.isOwnedBy(you) == true) return "Next"
+        if (skip == "host") return if (hostUserId == you) "Next" else "Only the host can skip"
         val vote = skipVote?.takeIf { it.entryId == currentEntry?.entryId } ?: return "Vote to skip"
         val voted = you != null && you in vote.votes
         return "${if (voted) "You voted to skip" else "Vote to skip"} (${vote.votes.size} of ${vote.needed})"
@@ -149,10 +157,14 @@ fun rejectionMessage(reason: String): String? = when (reason) {
     else -> null
 }
 
-/** A new vote to skip, said once to everyone in the room: "bob voted to skip (1 of 2)" (A254). */
+/**
+ * A new vote to skip, said once to everyone in the room: "bob voted to skip (1 of 2)" (A254). A vote that skips at once
+ * never shows as pending, so the skip itself is said too (A263).
+ */
 fun voteMessage(before: RoomState?, after: RoomState, you: Int?): String? {
-    val vote = after.skipVote ?: return null
     if (before == null) return null
+    if (after.votedOff != null && after.votedOff != before.votedOff) return "Skipped by vote."
+    val vote = after.skipVote ?: return null
     val earlier = before.skipVote?.takeIf { it.entryId == vote.entryId }?.votes.orEmpty()
     val voter = vote.votes.firstOrNull { it !in earlier } ?: return null
     val name = if (voter == you) "You" else after.members.firstOrNull { it.userId == voter }?.name ?: "Someone"

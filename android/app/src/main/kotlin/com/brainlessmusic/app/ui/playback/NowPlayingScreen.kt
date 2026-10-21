@@ -114,12 +114,14 @@ fun NowPlayingScreen(
     viewModel: PlaybackViewModel = hiltViewModel(),
     songActions: SongActionsViewModel = hiltViewModel(),
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val playerState by viewModel.state.collectAsStateWithLifecycle()
     val seekStyle by viewModel.seekStyle.collectAsStateWithLifecycle()
     val skin by viewModel.skin.collectAsStateWithLifecycle()
     val pills = skin == Skin.STANDARD && viewModel.playerButtons.collectAsStateWithLifecycle().value == PlayerButtons.PILLS
     val dataSaver by viewModel.dataSaver.collectAsStateWithLifecycle()
     val room by viewModel.room.collectAsStateWithLifecycle()
+    // In a room Next may be a vote, so its label says so (A263).
+    val state = room.room?.let { playerState.copy(nextLabel = it.nextLabel(room.you)) } ?: playerState
     val sleep by viewModel.sleep.collectAsStateWithLifecycle()
     var showSleep by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -158,26 +160,8 @@ fun NowPlayingScreen(
             ),
         topBar = {
             TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Now playing", maxLines = 1)
-                        // In a room: which one, or that it's reconnecting while the music carries on. Beside the title
-                        // behind a divider rather than under it, so the bar stays one line (owner, 2026-10-21).
-                        room.room?.let {
-                            VerticalDivider(
-                                color = MaterialTheme.colorScheme.outlineVariant,
-                                modifier = Modifier.padding(horizontal = 12.dp).height(20.dp),
-                            )
-                            Text(
-                                if (room.connection == RoomConnection.LIVE) "Room ${it.code}" else "Reconnecting…",
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.accentInk,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                },
+                // The room's name sits above the cover, not up here (A262).
+                title = { Text("Now playing", maxLines = 1) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(AppIcons.arrowDown, contentDescription = "Close")
@@ -265,6 +249,7 @@ fun NowPlayingScreen(
                 .padding(padding)
                 .padding(horizontal = 24.dp),
         ) {
+            room.room?.let { RoomChip(it.code, live = room.connection == RoomConnection.LIVE, onClick = onOpenTogether) }
             when (skin) {
                 Skin.HIT_CIRCLE -> HitCircleDeck(
                     state = state,
@@ -517,7 +502,7 @@ private fun TransportRow(state: PlaybackUiState, viewModel: PlaybackViewModel, p
             }
             RingPlayButton(state, onClick = viewModel::togglePlayPause)
             IconButton(onClick = viewModel::next, enabled = state.hasNext) {
-                Icon(AppIcons.next, contentDescription = "Next", modifier = Modifier.size(32.dp))
+                Icon(AppIcons.next, contentDescription = state.nextLabel, modifier = Modifier.size(32.dp))
             }
         }
         return
@@ -555,7 +540,7 @@ private fun TransportRow(state: PlaybackUiState, viewModel: PlaybackViewModel, p
             }
         }
         IconButton(onClick = viewModel::next, enabled = state.hasNext) {
-            Icon(AppIcons.next, contentDescription = "Next", modifier = Modifier.size(36.dp))
+            Icon(AppIcons.next, contentDescription = state.nextLabel, modifier = Modifier.size(36.dp))
         }
         IconButton(
             onClick = viewModel::cycleRepeat,
@@ -906,5 +891,33 @@ private fun SongHeaderActions(trackId: Int, songActions: SongActionsViewModel, o
     LikeButton(trackId, viewModel = songActions)
     IconButton(onClick = onAddToPlaylist) {
         Icon(AppIcons.playlistAdd, contentDescription = "Add to playlist")
+    }
+}
+
+/** "Room ABCD" centred above the cover while in a room, or that it's reconnecting (A262). Tapping it opens the room. */
+@Composable
+private fun RoomChip(code: String, live: Boolean, onClick: () -> Unit) {
+    val ink = if (live) MaterialTheme.accentInk else MaterialTheme.colorScheme.onSurfaceVariant
+    Box(Modifier.fillMaxWidth().padding(bottom = 4.dp), contentAlignment = Alignment.Center) {
+        Surface(
+            onClick = onClick,
+            shape = CircleShape,
+            color = Color.Transparent,
+            border = BorderStroke(1.dp, if (live) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(AppIcons.headphones, contentDescription = null, tint = ink, modifier = Modifier.size(16.dp))
+                Text(
+                    if (live) "Room $code" else "Reconnecting…",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = ink,
+                    maxLines = 1,
+                )
+            }
+        }
     }
 }

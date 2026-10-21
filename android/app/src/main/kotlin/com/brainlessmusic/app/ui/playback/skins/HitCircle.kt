@@ -221,7 +221,7 @@ fun ColumnScope.HitCircleDeck(
         HitButton(shuffleIcon(state.shuffleMode), shuffleLabel(state.shuffleMode), number = 1, lit = state.shuffle, enabled = !state.inRoom, onClick = onShuffle)
         HitButton(AppIcons.previous, "Previous", number = 2, enabled = state.hasPrevious || state.positionMs > 3_000, onClick = onPrevious)
         PlayCircle(state, onPlayPause)
-        HitButton(AppIcons.next, "Next", number = 3, enabled = state.hasNext, onClick = onNext)
+        HitButton(AppIcons.next, state.nextLabel, number = 3, enabled = state.hasNext, onClick = onNext)
         HitButton(repeatIcon(state.repeat), repeatLabel(state.repeat), number = 4, lit = state.repeat != Repeat.OFF, enabled = !state.inRoom, onClick = onRepeat)
     }
 }

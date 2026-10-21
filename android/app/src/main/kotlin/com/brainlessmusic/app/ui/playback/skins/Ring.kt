@@ -414,7 +414,7 @@ private fun Cabinet(
         RimButton(side, radius, 2, button, scheme.primary, scheme.onPrimary, lit = false, icon = AppIcons.playlistAdd,
             label = "Add to playlist", enabled = canEdit, rim = rim, onClick = onAddToPlaylist)
         RimButton(side, radius, 3, button, RingSky, Color.White, lit = true, icon = AppIcons.next,
-            label = "Next", enabled = state.hasNext, rim = rim, onClick = onNext)
+            label = state.nextLabel, enabled = state.hasNext, rim = rim, onClick = onNext)
         PlayButton(side, state, rim, onPlayPause)
         RimButton(side, radius, 5, button, scheme.secondary, scheme.onSecondary, lit = true, icon = AppIcons.queue,
             label = "Queue", enabled = true, rim = rim, onClick = onQueue)

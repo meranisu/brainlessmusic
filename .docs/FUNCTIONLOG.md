@@ -4,6 +4,46 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `command()` `next` case, `settleSkipVote()`, `snapshot()`, `create()` — `backend/src/services/rooms.ts`
+**Date:** 2026-10-21
+**How added:** bug fix
+**Purpose:** vote to skip as A263 has it: the host's Next is a vote unless only the host may skip; the room's starting queue is nobody's song.
+**Side effects:** none outside the in-memory room; `INVITE_TTL_MS` is now 30 min.
+**Before:** the host and the adder skipped at once, and every starting song counted as the host's, so the host's Next never voted.
+**After:** entries from `create()` carry `seed: true`; only a non-seed song's adder skips at once; a vote that settles sets `votedOff`, sent in the snapshot.
+
+**Function:** `roomNextAction()` — `frontend/src/lib/roomClient.ts`; `voteMessage()` — `frontend/src/components/RoomProvider.tsx`; `RoomState.nextIsVote()`, `nextLabel()`, `RoomEntry.isOwnedBy()`, `voteMessage()` — `android/.../rooms/RoomModels.kt`
+**Date:** 2026-10-21
+**How added:** bug fix
+**Purpose:** clients label Next and announce votes by the A263 rules.
+**Side effects:** a "Skipped by vote." toast when `votedOff` changes.
+**Before:** the host was always "Next"; a one-vote skip said nothing; Android's labels were never shown.
+**After:** labels follow `seed` and the host rule; Android's Next buttons (Standard and skins) use `nextLabel` via `PlaybackUiState.nextLabel`.
+
+**Function:** `RoomPill` — `frontend/src/components/RoomPill.tsx`; `RoomChip()` — `android/.../ui/playback/NowPlayingScreen.kt`
+**Date:** 2026-10-21
+**How added:** new feature
+**Purpose:** "Room ABCD" above the cover on Now Playing (A262); opens the room.
+**Side effects:** none.
+**Before:** the room name sat in the top bar (Android beside the title, web mobile in the header, web desktop not at all).
+**After:** one chip above the cover on all three layouts and every Android skin.
+
+**Function:** `MarqueeText` — `frontend/src/components/MarqueeText.tsx`; `RoomSettingsDialog` — `frontend/src/pages/TogetherPage.tsx`; `RoomSettingsSheet()`, `StartBar()` — `android/.../ui/together/`
+**Date:** 2026-10-21
+**How added:** refactor
+**Purpose:** the lobby changes (A265): scrolling long titles, settings behind a gear, a full-width Start.
+**Side effects:** none.
+**Before:** inline settings card/panel at the bottom; a small Start button; titles truncated; adder avatar on the now playing card.
+**After:** settings in a dialog (web) or `SkinSheet` (Android); Start full width; title scrolls only when it overflows (truncated under reduced motion); no avatar.
+
+**Function:** `RoomInvites.decline()`, `cancelNotification()`, `pending` — `android/.../rooms/RoomInvites.kt`; `InviteActionReceiver` — `android/.../rooms/InviteActionReceiver.kt`; `InviteBanner()`, `InviteBannerViewModel` — `android/.../ui/together/InviteBanner.kt`
+**Date:** 2026-10-21
+**How added:** new feature
+**Purpose:** answer an invite from the notification or inside the app (A264).
+**Side effects:** `DELETE /rooms/invites/:code`; cancels the invite notification.
+**Before:** the notification only opened the join screen; Android had no way to turn an invite down.
+**After:** Join and Reject actions; a banner above the mini player on the tabs; joining another way clears the notification.
+
 **Function:** `recordRoomIssue()`, `countRoomIssues()`, `listRecentRoomIssues()` — `backend/src/db/roomIssues.ts`; `POST /rooms/issues`, WS `logIssue()` — `backend/src/routes/rooms.ts`; `GET /admin/room-issues` — `backend/src/routes/health.ts`
 **Date:** 2026-10-21
 **How added:** new feature
