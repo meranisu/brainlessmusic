@@ -4,6 +4,18 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-21: Android room settings survive R8; room code beside "Now playing"
+
+- Why: owner report in chat (adder pictures in the queue and the invite list not loading, room label tidy-up).
+- R8 turned `RoomSettings` and `RoomSkipVote` into empty abstract classes in release builds (v0.4.27's dex: `Q3/D`
+  and `Q3/E`, flags `PUBLIC ABSTRACT`, no fields), since only Gson creates them. Gson can't instantiate an abstract
+  class, so every `welcome`/`state` failed to parse and `RoomSocket.parseRoom()` dropped it silently: on v0.4.27 the
+  phone never got a room's state (owner: can't create a room; adder shows "?"). Keep rules added in
+  `android/app/proguard-rules.pro`. The invite list failure is not explained by this yet.
+- Now Playing top bar (`NowPlayingScreen.kt`): "Room CODE" (or "Reconnecting…") now sits on the same line as "Now
+  playing", after a `VerticalDivider`, instead of under it.
+- Verified: `cd android && ./gradlew compileDebugKotlin` passes. Release build not made; not run on a device.
+
 ## 2026-10-21: Add to queue, and Play next on the web (A260)
 
 - Why: owner request in chat. "Add to queue" puts a song at the end of the queue; "Play next" stays (after the

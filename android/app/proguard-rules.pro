@@ -7,6 +7,8 @@
 -keep class com.brainlessmusic.app.rooms.RoomEntry { *; }
 -keep class com.brainlessmusic.app.rooms.RoomMember { *; }
 -keep class com.brainlessmusic.app.rooms.RoomPlayback { *; }
+-keep class com.brainlessmusic.app.rooms.RoomSettings { *; }
+-keep class com.brainlessmusic.app.rooms.RoomSkipVote { *; }
 # GitHub's releases JSON for the in-app updater, parsed the same way.
 -keep class com.brainlessmusic.app.update.GithubRelease { *; }
 -keep class com.brainlessmusic.app.update.GithubAsset { *; }

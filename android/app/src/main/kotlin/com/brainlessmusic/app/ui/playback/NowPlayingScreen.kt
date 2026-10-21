@@ -41,6 +41,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -158,14 +159,21 @@ fun NowPlayingScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text("Now playing", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        // In a room: which one, or that it's reconnecting while the music carries on.
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Now playing", maxLines = 1)
+                        // In a room: which one, or that it's reconnecting while the music carries on. Beside the title
+                        // behind a divider rather than under it, so the bar stays one line (owner, 2026-10-21).
                         room.room?.let {
+                            VerticalDivider(
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                                modifier = Modifier.padding(horizontal = 12.dp).height(20.dp),
+                            )
                             Text(
                                 if (room.connection == RoomConnection.LIVE) "Room ${it.code}" else "Reconnecting…",
-                                style = MaterialTheme.typography.labelMedium,
+                                style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.accentInk,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                     }

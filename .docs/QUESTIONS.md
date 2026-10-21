@@ -35,6 +35,7 @@ is never asked twice.
 | [Q221](#q221--304-nothing-changed-check) | Build the 304 "nothing changed" check? | 2026-10-20 | No |
 | [Q229](#q229--bluetooth-codec-show-only) | Bluetooth codec: show it, not choose it? | 2026-10-21 | No |
 | [Q230](#q230--rescan-for-bit-depth-on-smol) | Rescan smol for bit depth after the audio pass? | 2026-10-21 | No |
+| [Q261](#q261--where-do-adder-pictures-and-the-invite-list-fail) | Where do adder pictures and the invite list fail? | 2026-10-21 | Yes, for that fix |
 
 ### Q5 — Tag-editing scope
 **Asked:** 2026-09-09 · **Blocking:** no
@@ -53,6 +54,14 @@ the active codec and warns when it is lossy (SBC). Is that enough?
 
 Bit depth needs a new column and a `SCANNER_VERSION` bump, so smol rescans every song. That queues behind the
 ~3.7 h audio pass from the unpushed smart auto-mix commit. Fine?
+
+### Q261 — Where do adder pictures and the invite list fail?
+**Asked:** 2026-10-21 · **Blocking:** yes, for that fix
+
+Owner report: in Listen together, the adder's picture in the queue doesn't load and the invite list fails. The code
+and backend tests look right on both clients, so the cause needs a live look. Phone app or web? Does the queue show a
+letter tile where the picture should be? Can the phone be plugged in over USB so `adb logcat` shows the error?
+Assumption meanwhile: Android release build (v0.4.27), since the room label request is Android-only.
 
 ### Q77 — How does the Android app get past Cloudflare Access?
 **Asked:** 2026-10-11 · **Blocking:** yes, before Access goes on ([A74](#a74--cloudflare-access-goes-in-front-of-the-public-hostname-was-q30))
