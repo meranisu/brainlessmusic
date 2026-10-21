@@ -182,11 +182,8 @@ class YouViewModel @Inject constructor(
         if (items.isNotEmpty()) playbackController.playQueue(items, 0)
     }
 
-    /** Plays a mix, then keeps going as a radio from its first song. */
-    fun playMix(mix: DailyMixDto) {
-        val items = mix.tracks.map { libraryRepository.queueItem(it) }
-        if (items.isNotEmpty()) playbackController.startRadio(items.first(), items)
-    }
+    /** A mix card's picture: its songs' covers (owner, 2026-10-21). Tapping the card opens the mix's page. */
+    fun mixCovers(mix: DailyMixDto): List<String?> = mixCovers(mix, libraryRepository)
 
     private fun loadRecent() {
         recentJob?.cancel()

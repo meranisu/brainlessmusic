@@ -210,6 +210,7 @@ class PlaylistsViewModel @Inject constructor(
 @Composable
 fun PlaylistsTab(
     topInset: Dp,
+    bottomInset: Dp,
     onOpenLiked: () -> Unit,
     onOpenDisliked: () -> Unit,
     onOpenPlaylist: (Int) -> Unit,
@@ -271,7 +272,7 @@ fun PlaylistsTab(
     ) { home ->
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topInset + 8.dp, bottom = 24.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topInset + 8.dp, bottom = bottomInset),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxSize(),

@@ -3,8 +3,8 @@ package com.brainlessmusic.app.ui.library
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -138,23 +138,26 @@ private fun Rail(
                 .fillMaxHeight()
                 .width(RailWidth)
                 .onSizeChanged { heightPx = it.height.coerceAtLeast(1) }
+                // One detector for press and drag. With a tap detector and a drag detector side by side, the drag took
+                // the touch past slop, the tap's press ended and cleared `pressed`, and the letter bubble vanished for
+                // the rest of the drag (owner, 2026-10-21).
                 .pointerInput(segments) {
-                    detectTapGestures(onPress = { offset ->
+                    awaitEachGesture {
+                        val down = awaitFirstDown()
+                        down.consume()
                         pressed = true
-                        jumpTo(offset.y)
-                        tryAwaitRelease()
-                        release()
-                    })
-                }
-                .pointerInput(segments) {
-                    detectVerticalDragGestures(
-                        onDragStart = {
-                            pressed = true
-                            jumpTo(it.y)
-                        },
-                        onDragEnd = ::release,
-                        onDragCancel = ::release,
-                    ) { change, _ -> jumpTo(change.position.y) }
+                        jumpTo(down.position.y)
+                        try {
+                            while (true) {
+                                val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id } ?: break
+                                if (!change.pressed) break
+                                jumpTo(change.position.y)
+                                change.consume()
+                            }
+                        } finally {
+                            release()
+                        }
+                    }
                 },
         ) {
             if (visible < total) {

@@ -98,20 +98,6 @@ internal fun listeningOverall(values: List<Float>): Float = if (values.isEmpty()
 @Composable
 fun ListeningRadar(stats: UserStatsDto, range: StatsRange, modifier: Modifier = Modifier, owner: String? = null) {
     val scheme = MaterialTheme.colorScheme
-    val dark = LocalDarkTheme.current
-    val values = remember(stats, range) { radarValues(stats, rangeDays(range, stats.memberSince)) }
-    val animate = rememberAnimationsOn()
-    val grow = remember { Animatable(if (animate) 0f else 1f) }
-    LaunchedEffect(values) {
-        if (animate) {
-            grow.snapTo(0f)
-            grow.animateTo(1f, tween(600, easing = FastOutSlowInEasing))
-        }
-    }
-    val measurer = rememberTextMeasurer()
-    val labelStyle = MaterialTheme.typography.labelSmall
-    val described = Axes.indices.joinToString { "${Axes[it].name.lowercase()} ${(values[it] * 100).toInt()}%" }
-
     Surface(
         shape = MaterialTheme.cardShape,
         color = scheme.surfaceContainer,
@@ -126,47 +112,80 @@ fun ListeningRadar(stats: UserStatsDto, range: StatsRange, modifier: Modifier = 
                 color = scheme.onSurfaceVariant,
             )
             ListeningTotals(stats, range, Modifier.padding(top = 12.dp))
-            Canvas(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp)
-                    .aspectRatio(1.25f)
-                    .semantics { contentDescription = "Listening radar: $described" },
-            ) {
-                val c = Offset(size.width / 2, size.height / 2)
-                val r = size.height * 0.36f
-                fun at(i: Int, k: Float): Offset {
-                    val a = -PI / 2 + i * PI / 3
-                    return Offset(c.x + (r * k * cos(a)).toFloat(), c.y + (r * k * sin(a)).toFloat())
-                }
-                fun ring(k: Float) = Path().apply {
-                    moveTo(at(0, k).x, at(0, k).y)
-                    for (i in 1..5) lineTo(at(i, k).x, at(i, k).y)
-                    close()
-                }
-                for (k in listOf(1f / 3, 2f / 3, 1f)) drawPath(ring(k), scheme.outlineVariant, style = Stroke(1.dp.toPx()))
-                for (i in 0..5) drawLine(scheme.outlineVariant, c, at(i, 1f), 1.dp.toPx())
-
-                val g = grow.value
-                val shape = Path().apply {
-                    values.forEachIndexed { i, v ->
-                        val p = at(i, (0.04f + 0.96f * v) * g)
-                        if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y)
-                    }
-                    close()
-                }
-                drawPath(shape, scheme.primary.copy(alpha = 0.22f))
-                drawPath(shape, scheme.primary, style = Stroke(2.dp.toPx()))
-
-                Axes.forEachIndexed { i, axis ->
-                    drawCircle(axis.color, radius = 4.dp.toPx(), center = at(i, (0.04f + 0.96f * values[i]) * g))
-                    // The names in their axis colours on the dark grounds; on a light one the ink, its colour as a mark.
-                    val label = measurer.measure(axis.name, TextStyle(fontFamily = labelStyle.fontFamily, fontWeight = labelStyle.fontWeight, fontSize = labelStyle.fontSize, color = if (dark) axis.color else scheme.onSurface))
-                    val p = at(i, 1.22f)
-                    drawText(label, topLeft = Offset(p.x - label.size.width / 2f, p.y - label.size.height / 2f))
-                    if (!dark) drawCircle(axis.color, radius = 3.dp.toPx(), center = Offset(p.x - label.size.width / 2f - 6.dp.toPx(), p.y))
-                }
-            }
+            RadarChart(stats, range, Modifier.padding(top = 8.dp))
         }
     }
 }
+
+/**
+ * The hexagon itself, six coloured axes with the range's readings as a translucent shape. Gear's card and Standard's
+ * plain one both draw it (A245). [plain] is Standard's: sentence-case names and the accent on every axis, in place of
+ * the game's six colours. It grows in when the numbers arrive, unless animations are off.
+ */
+@Composable
+internal fun RadarChart(stats: UserStatsDto, range: StatsRange, modifier: Modifier = Modifier, plain: Boolean = false) {
+    val scheme = MaterialTheme.colorScheme
+    val dark = LocalDarkTheme.current
+    val values = remember(stats, range) { radarValues(stats, rangeDays(range, stats.memberSince)) }
+    val animate = rememberAnimationsOn()
+    val grow = remember { Animatable(if (animate) 0f else 1f) }
+    LaunchedEffect(values) {
+        if (animate) {
+            grow.snapTo(0f)
+            grow.animateTo(1f, tween(600, easing = FastOutSlowInEasing))
+        }
+    }
+    val measurer = rememberTextMeasurer()
+    val labelStyle = MaterialTheme.typography.labelSmall
+    val described = Axes.indices.joinToString { "${Axes[it].name.lowercase()} ${(values[it] * 100).toInt()}%" }
+
+    Canvas(
+        modifier
+            .fillMaxWidth()
+            .aspectRatio(1.25f)
+            .semantics { contentDescription = "Listening radar: $described" },
+    ) {
+        val c = Offset(size.width / 2, size.height / 2)
+        val r = size.height * 0.36f
+        fun at(i: Int, k: Float): Offset {
+            val a = -PI / 2 + i * PI / 3
+            return Offset(c.x + (r * k * cos(a)).toFloat(), c.y + (r * k * sin(a)).toFloat())
+        }
+        fun ring(k: Float) = Path().apply {
+            moveTo(at(0, k).x, at(0, k).y)
+            for (i in 1..5) lineTo(at(i, k).x, at(i, k).y)
+            close()
+        }
+        for (k in listOf(1f / 3, 2f / 3, 1f)) drawPath(ring(k), scheme.outlineVariant, style = Stroke(1.dp.toPx()))
+        for (i in 0..5) drawLine(scheme.outlineVariant, c, at(i, 1f), 1.dp.toPx())
+
+        val g = grow.value
+        val shape = Path().apply {
+            values.forEachIndexed { i, v ->
+                val p = at(i, (0.04f + 0.96f * v) * g)
+                if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y)
+            }
+            close()
+        }
+        drawPath(shape, scheme.primary.copy(alpha = 0.22f))
+        drawPath(shape, scheme.primary, style = Stroke(2.dp.toPx()))
+
+        Axes.forEachIndexed { i, axis ->
+            if (plain) {
+                drawCircle(scheme.primary, radius = 4.dp.toPx(), center = at(i, (0.04f + 0.96f * values[i]) * g))
+                val name = axis.name.lowercase().replaceFirstChar { it.uppercase() }
+                val label = measurer.measure(name, TextStyle(fontFamily = labelStyle.fontFamily, fontWeight = labelStyle.fontWeight, fontSize = labelStyle.fontSize, color = scheme.onSurfaceVariant))
+                val p = at(i, 1.22f)
+                drawText(label, topLeft = Offset(p.x - label.size.width / 2f, p.y - label.size.height / 2f))
+                return@forEachIndexed
+            }
+            drawCircle(axis.color, radius = 4.dp.toPx(), center = at(i, (0.04f + 0.96f * values[i]) * g))
+            // The names in their axis colours on the dark grounds; on a light one the ink, its colour as a mark.
+            val label = measurer.measure(axis.name, TextStyle(fontFamily = labelStyle.fontFamily, fontWeight = labelStyle.fontWeight, fontSize = labelStyle.fontSize, color = if (dark) axis.color else scheme.onSurface))
+            val p = at(i, 1.22f)
+            drawText(label, topLeft = Offset(p.x - label.size.width / 2f, p.y - label.size.height / 2f))
+            if (!dark) drawCircle(axis.color, radius = 3.dp.toPx(), center = Offset(p.x - label.size.width / 2f - 6.dp.toPx(), p.y))
+        }
+    }
+}
+

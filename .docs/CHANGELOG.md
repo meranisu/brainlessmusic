@@ -4,6 +4,32 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-21: Mix pages, mix covers, mixes filled to 30
+
+- Why: owner request in chat (A250). Plan: `.docs/features/mix-pages/planning.md`.
+- Backend: `getDailyMixes()` (`services/mix.ts`) tops a mix up when its seeds' radios overlap, asking again with what
+  is already in, until 30 songs or the radios run dry. Test added in `mix.test.ts`.
+- Android: mix cards on Home show `MixCover` (four covers and a radio badge) and open the new `MixScreen`
+  (`mix/{mixId}`): the cover, the song count, Play and Shuffle, and the songs. A row plays the mix from that song. All
+  of them go on as a radio after the mix, as the card used to.
+- Web: the Mixes menu shows `MixCover` and links to the new `MixPage` (`/mixes/:id`) with Play, Shuffle and the songs.
+
+## 2026-10-21: Profile tabs, Standard radar, Listen together in the Library, letter rail bubble
+
+- Why: owner request in chat (A245-A249). Plan: `.docs/features/profile-tabs/planning.md`.
+- Android:
+  - Your own profile has Profile, Stats and Friends tabs, in the skin's tab style (`ui/common/SkinTabBar.kt`, moved
+    out of the Library and shared). `StatsScreen` and `FriendsScreen` became `StatsContent` and `FriendsContent`;
+    the `stats` and `friends` routes are gone, and `people/{userId}?tab=` opens a tab. Home's "See all your stats"
+    and "See what friends are playing" open those tabs.
+  - Standard's listening card on Home and profiles shows the radar too, styled plainly (`RadarChart(plain = true)`).
+  - Listen together left Home for the Library: an icon button on top of Shuffle on Songs, alone on the other tabs.
+    Both are 64dp (`SkinFab(large = true)`), and the lists leave room under them.
+  - Letter rail: the letter bubble now stays up while dragging. The tap and drag detectors were fighting; the tap
+    detector's release cleared the press as soon as the drag took over. One detector handles both now.
+- Web: your own profile has Profile, Stats and Friends tabs (`?tab=`, arrow keys move between them). The Stats and
+  Friends pages became `StatsPanel` and `FriendsPanel`; More no longer lists them; `/stats` and `/friends` redirect.
+
 ## 2026-10-21: On this day (all three clients)
 
 - Why: brainstorm row "On this day" was Partial (only Rediscover shuffle). Plan: `.docs/features/on-this-day/planning.md`.

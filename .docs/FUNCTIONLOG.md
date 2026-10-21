@@ -4,6 +4,78 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `getDailyMixes()` — `backend/src/services/mix.ts`
+**Date:** 2026-10-21
+**How added:** changed
+**Purpose:** fill each daily mix to 30 songs (A250).
+**Side effects:** more `buildRadio` calls on a short mix, once a day per user (cached).
+**Before:** one round-robin pass over the seeds' radios; overlapping seeds left mixes short.
+**After:** further passes with what is chosen excluded, until 30 or nothing new comes back.
+
+**Function:** `MixCover()`, `MixScreen()`, `MixViewModel`, `mixCovers()` — `android/.../ui/profile/MixScreen.kt`
+**Date:** 2026-10-21
+**How added:** new feature
+**Purpose:** a mix's grid picture with a radio badge, and a page per mix listing its songs (A250).
+**Side effects:** `MixViewModel.play()` starts the queue with a radio source after the mix.
+**Before:** Home's card played the mix at once (`YouViewModel.playMix`, removed).
+**After:** the card opens `mix/{mixId}`.
+
+**Function:** `MixCover()`, `MixPage()` — `frontend/src/components/MixCover.tsx`, `frontend/src/pages/MixPage.tsx`
+**Date:** 2026-10-21
+**How added:** new feature
+**Purpose:** the same on the web, at `/mixes/:id`; `toQueue()` in `ListeningParts.tsx` is exported for it.
+**Side effects:** none.
+**Before:** a pick in the Mixes menu started the radio.
+**After:** a pick opens the mix's page.
+
+**Function:** `SkinTabBar()` — `android/app/src/main/kotlin/com/brainlessmusic/app/ui/common/SkinTabBar.kt`
+**Date:** 2026-10-21
+**How added:** moved from `LibraryScreen.kt` (`LibraryTabBar` and its skin variants) and made generic
+**Purpose:** tabs in the skin's form for the Library and your own profile.
+**Side effects:** none.
+**Before:** private to the Library, typed to `LibraryTab`.
+**After:** takes `labels`, a `selected` index and `onSelect(index)`.
+
+**Function:** `RadarChart()` — `android/app/src/main/kotlin/com/brainlessmusic/app/ui/profile/ListeningRadar.kt`
+**Date:** 2026-10-21
+**How added:** split out of `ListeningRadar()`
+**Purpose:** the hexagon alone, for Gear's card and Standard's (`plain = true`: sentence-case names, accent on every axis).
+**Side effects:** none.
+**Before:** drawn inline in `ListeningRadar()`.
+**After:** shared; `StandardListening()` now draws it under its numbers.
+
+**Function:** `StatsContent()`, `FriendsContent()`, `ProfileScreen()` — `android/.../ui/stats/StatsScreen.kt`, `ui/people/FriendsScreen.kt`, `ui/people/ProfileScreen.kt`
+**Date:** 2026-10-21
+**How added:** `StatsScreen()` and `FriendsScreen()` lost their Scaffold and became tab content
+**Purpose:** Stats and Friends as tabs on your own profile (A245).
+**Side effects:** Friends polls only while its tab shows.
+**Before:** separate screens on the `stats` and `friends` routes.
+**After:** `ProfileScreen` shows `ProfileTab` tabs when `isSelf`, starting on the route's `tab` argument.
+
+**Function:** `SkinFab(large)` — `android/.../ui/common/SkinFab.kt`
+**Date:** 2026-10-21
+**How added:** new parameter
+**Purpose:** a 64dp button for the Library's Listen together and Shuffle (A249).
+**Side effects:** none.
+**Before:** 56dp or `small` 40dp.
+**After:** `large = true` gives 64dp with a 28dp icon.
+
+**Function:** `Rail()` gesture handling — `android/.../ui/library/AlphabetRail.kt`
+**Date:** 2026-10-21
+**How added:** bug fix
+**Purpose:** keep the letter bubble up while dragging the rail.
+**Side effects:** none.
+**Before:** `detectTapGestures` and `detectVerticalDragGestures` side by side; the tap's release cleared `pressed` once a drag began.
+**After:** one `awaitEachGesture` loop handles press and drag, and releases at the end.
+
+**Function:** `StatsPanel()`, `FriendsPanel()`, `ProfileTabs()`, `OwnProfileTab()` — `frontend/src/pages/StatsPage.tsx`, `FriendsPage.tsx`, `ProfilePage.tsx`, `App.tsx`
+**Date:** 2026-10-21
+**How added:** pages turned into panels; new tab bar and redirect
+**Purpose:** Stats and Friends as tabs on your own profile on the web (A245).
+**Side effects:** none.
+**Before:** `StatsPage` at `/stats`, `FriendsPage` at `/friends`, both in More.
+**After:** panels on `/people/:id?tab=stats|friends`; the old paths redirect there.
+
 **Function:** `getOnThisDay()` — `backend/src/db/onThisDay.ts`
 **Date:** 2026-10-21
 **How added:** new feature

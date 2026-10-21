@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { RequireAdmin } from './auth/RequireAdmin';
+import { useAuth } from './auth/AuthContext';
 import { RequireAccount } from './auth/RequireAccount';
 import { RequireAuth } from './auth/RequireAuth';
 import { AppShell } from './components/AppShell';
@@ -34,9 +35,8 @@ const OptionsPage = lazyPage(() => import('./pages/OptionsPage').then((m) => ({ 
 const TogetherPage = lazyPage(() => import('./pages/TogetherPage').then((m) => ({ default: m.TogetherPage })));
 const UploadPage = lazyPage(() => import('./pages/UploadPage').then((m) => ({ default: m.UploadPage })));
 const UsersPage = lazyPage(() => import('./pages/UsersPage').then((m) => ({ default: m.UsersPage })));
-const FriendsPage = lazyPage(() => import('./pages/FriendsPage').then((m) => ({ default: m.FriendsPage })));
 const PeoplePage = lazyPage(() => import('./pages/PeoplePage').then((m) => ({ default: m.PeoplePage })));
-const StatsPage = lazyPage(() => import('./pages/StatsPage').then((m) => ({ default: m.StatsPage })));
+const MixPage = lazyPage(() => import('./pages/MixPage').then((m) => ({ default: m.MixPage })));
 const ProfilePage = lazyPage(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
 const LogsPage = lazyPage(() => import('./pages/LogsPage').then((m) => ({ default: m.LogsPage })));
 const LevellingPage = lazyPage(() => import('./pages/LevellingPage').then((m) => ({ default: m.LevellingPage })));
@@ -73,14 +73,16 @@ export function App() {
             <Route path="/genres/:id" element={<GenreDetailPage />} />
             <Route element={<RequireAccount />}>
               <Route path="/favorites" element={<FavoritesPage />} />
-              {/* Your own listening only (A230); guests have no history (A37). */}
-              <Route path="/stats" element={<StatsPage />} />
+              {/* Stats and Friends are tabs on your own profile now (owner, 2026-10-21); old links land there. */}
+              <Route path="/stats" element={<OwnProfileTab tab="stats" />} />
+              <Route path="/friends" element={<OwnProfileTab tab="friends" />} />
+              {/* Today's mixes are built from your plays (A234); guests have none. */}
+              <Route path="/mixes/:id" element={<MixPage />} />
             </Route>
             {/* Guests too: they see and play public playlists, and have none of their own (A163). */}
             <Route path="/playlists" element={<PlaylistsPage />} />
             <Route path="/playlists/:id" element={<PlaylistDetailPage />} />
             {/* Everyone signed in sees everyone's profile, guests included (A167). */}
-            <Route path="/friends" element={<FriendsPage />} />
             <Route path="/people" element={<PeoplePage />} />
             <Route path="/people/:id" element={<ProfilePage />} />
             <Route path="/search" element={<SearchPage />} />
@@ -116,4 +118,11 @@ export function App() {
 function Moved({ to }: { to: string }) {
   const { search, hash } = useLocation();
   return <Navigate to={{ pathname: to, search, hash }} replace />;
+}
+
+/** `/stats` and `/friends`, from before they were tabs on your profile: open that tab there. */
+function OwnProfileTab({ tab }: { tab: 'stats' | 'friends' }) {
+  const { user } = useAuth();
+  if (!user) return null;
+  return <Navigate to={`/people/${user.id}?tab=${tab}`} replace />;
 }

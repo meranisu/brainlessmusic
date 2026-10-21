@@ -43,9 +43,8 @@ import com.brainlessmusic.app.ui.playback.NowPlayingScreen
 import com.brainlessmusic.app.ui.profile.PlaylistDetailScreen
 import com.brainlessmusic.app.ui.profile.SongListKind
 import com.brainlessmusic.app.ui.profile.SongListScreen
+import com.brainlessmusic.app.ui.profile.MixScreen
 import com.brainlessmusic.app.ui.profile.YouScreen
-import com.brainlessmusic.app.ui.stats.StatsScreen
-import com.brainlessmusic.app.ui.people.FriendsScreen
 import com.brainlessmusic.app.ui.search.SearchScreen
 import com.brainlessmusic.app.ui.settings.SettingsPage
 import com.brainlessmusic.app.ui.settings.SettingsPageScreen
@@ -276,12 +275,12 @@ fun BrainlessNavGraph(
                         onOpenAlbum = { navController.navigate(Routes.albumDetail(it)) },
                     )
                 }
-                screen(Routes.STATS) { entry ->
-                    StatsScreen(
+                screen(Routes.MIX, arguments = listOf(intArg(Routes.ARG_MIX_ID))) { entry ->
+                    MixScreen(
                         onBack = { navController.popFrom(entry) },
                         onOpenNowPlaying = { navController.openNowPlaying() },
-                        onOpenArtist = { navController.navigate(Routes.artistDetail(it)) },
                         onOpenAlbum = { navController.navigate(Routes.albumDetail(it)) },
+                        onOpenArtist = { navController.navigate(Routes.artistDetail(it)) },
                     )
                 }
                 screen(
@@ -316,17 +315,20 @@ fun BrainlessNavGraph(
                         onOpenProfile = { navController.navigate(Routes.profile(it)) },
                     )
                 }
-                // Friends' now playing and activity (A239-A241). Accounts only; the entry on You is hidden for guests.
-                screen(Routes.FRIENDS) { entry ->
-                    FriendsScreen(
-                        onBack = { navController.popFrom(entry) },
-                        onOpenNowPlaying = { navController.openNowPlaying() },
-                        onOpenProfile = { navController.navigate(Routes.profile(it)) },
-                        onOpenPlaylist = { navController.navigate(Routes.playlistDetail(it)) },
-                    )
-                }
-                screen(Routes.PROFILE, arguments = listOf(intArg(Routes.ARG_USER_ID))) { entry ->
+                // Stats and Friends (A228, A239-A241) are tabs on your own profile (owner, 2026-10-21).
+                screen(
+                    Routes.PROFILE,
+                    arguments = listOf(
+                        intArg(Routes.ARG_USER_ID),
+                        navArgument(Routes.ARG_PROFILE_TAB) {
+                            type = NavType.StringType
+                            nullable = true
+                            defaultValue = null
+                        },
+                    ),
+                ) { entry ->
                     ProfileScreen(
+                        onOpenProfile = { navController.navigate(Routes.profile(it)) },
                         onBack = { navController.popFrom(entry) },
                         onOpenNowPlaying = { navController.openNowPlaying() },
                         onOpenArtist = { navController.navigate(Routes.artistDetail(it)) },

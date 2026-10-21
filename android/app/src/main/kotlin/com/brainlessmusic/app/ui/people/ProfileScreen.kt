@@ -1,5 +1,10 @@
 package com.brainlessmusic.app.ui.people
 
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableIntStateOf
+import com.brainlessmusic.app.ui.common.SkinTabBar
+import com.brainlessmusic.app.ui.common.dockedHeader
+import com.brainlessmusic.app.ui.stats.StatsContent
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
@@ -129,6 +134,18 @@ import kotlinx.coroutines.delay
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.draw.clip
 
+/** Your own profile's tabs (owner, 2026-10-21); [route] is the `tab` a link opens it on. */
+enum class ProfileTab(val label: String, val route: String) {
+    PROFILE("Profile", "profile"),
+    STATS("Stats", "stats"),
+    FRIENDS("Friends", "friends"),
+    ;
+
+    companion object {
+        fun from(route: String?): ProfileTab = entries.firstOrNull { it.route == route } ?: PROFILE
+    }
+}
+
 /** Liked or disliked songs shown before "Show all", as on the web. */
 private const val PREVIEW = 12
 
@@ -146,6 +163,9 @@ class ProfileViewModel @Inject constructor(
 ) : ViewModel() {
 
     val userId: Int = checkNotNull(savedStateHandle.get<Int>(Routes.ARG_USER_ID))
+
+    /** The tab a link asked for (Home's "See all your stats"), read once; only your own profile has tabs. */
+    val startTab: String? = savedStateHandle.get<String>(Routes.ARG_PROFILE_TAB)
 
     private val _range = MutableStateFlow(StatsRange.MONTH)
     val range: StateFlow<StatsRange> = _range.asStateFlow()
@@ -324,6 +344,7 @@ class ProfileViewModel @Inject constructor(
 @Composable
 fun ProfileScreen(
     onBack: () -> Unit,
+    onOpenProfile: (Int) -> Unit,
     onOpenNowPlaying: () -> Unit,
     onOpenArtist: (Int) -> Unit,
     onOpenAlbum: (Int) -> Unit,
@@ -343,6 +364,7 @@ fun ProfileScreen(
     var menuFor by remember { mutableStateOf<QueueItem?>(null) }
     var askRoom by remember { mutableStateOf<Triple<String, List<TrackSummaryDto>, Int>?>(null) }
     var editing by remember { mutableStateOf(false) }
+    var tabIndex by rememberSaveable { mutableIntStateOf(ProfileTab.from(viewModel.startTab).ordinal) }
 
     menuFor?.let { SongMenuSheet(item = it, onDismiss = { menuFor = null }, onOpenAlbum = onOpenAlbum, onOpenArtist = onOpenArtist) }
 
@@ -409,132 +431,153 @@ fun ProfileScreen(
                     onDismiss = { editing = false },
                 )
             }
-            PullToRefreshBox(isRefreshing = refreshing, onRefresh = viewModel::refresh) {
-                LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 16.dp)) {
-                    item(key = "header") {
-                        ProfileHeader(
-                            p = p,
-                            pictureUrl = viewModel.avatarUrl(p),
-                            onPlayFavorite = { p.favoriteTrack?.let { play(listOf(it), 0) } },
-                            onOpenArtist = onOpenArtist,
-                            onEdit = { editing = true },
-                        )
-                    }
-                    item(key = "range") { RangePicker(range, viewModel::setRange) }
-                    // What the range picks fades while another range loads.
-                    val ofRange = Modifier.graphicsLayer { alpha = rangeAlpha }
-                    // The same reading of the range as Home's, in the skin's game (owner, 2026-10-13): Gear's radar,
-                    // Hit circle's circles, Lane's potential, Ring's rating plate, Standard's plain numbers.
-                    item(key = "listening") {
-                        val stats = remember(p) { p.asListeningStats() }
-                        val owner = p.name.takeIf { !p.isSelf }
-                        Box(ofRange) {
-                            when (LocalSkin.current) {
-                                Skin.GEAR -> ListeningRadar(stats, range, owner = owner)
-                                Skin.HIT_CIRCLE -> HitCircleListening(stats, range, owner = owner)
-                                Skin.LANE -> LaneListening(stats, range, owner = owner)
-                                Skin.RING -> RingListening(stats, range, owner = owner)
-                                Skin.STANDARD -> StandardListening(stats, range)
-                            }
-                        }
-                    }
-
-                    item(key = "top-songs-title") { SectionTitle("Top songs") }
-                    item(key = "top-songs") { Box(ofRange) {
-                        ListCard {
-                            if (p.topTracks.isEmpty()) EmptyLine("Nothing played in this range.")
-                            val tracks = p.topTracks.map { it.track }
-                            p.topTracks.forEachIndexed { index, top ->
-                                RankedRow(
-                                    rank = index + 1,
-                                    coverUrl = viewModel.coverUrl(top.track),
-                                    title = top.track.title,
-                                    subtitle = top.track.artist ?: "Unknown artist",
-                                    plays = top.plays,
-                                    msListened = top.msListened,
-                                    movement = null,
-                                    onClick = { play(tracks, index) },
-                                    onLongClick = { menuFor = viewModel.queueItem(top.track) },
-                                )
-                            }
-                        }
-                    } }
-
-                    if (p.topArtists.isNotEmpty()) {
-                        item(key = "top-artists-title") { SectionTitle("Top artists") }
-                        item(key = "top-artists") { Box(ofRange) {
-                            ListCard {
-                                p.topArtists.forEachIndexed { index, artist ->
-                                    RankedRow(
-                                        rank = index + 1,
-                                        coverUrl = null,
-                                        title = artist.name,
-                                        subtitle = null,
-                                        plays = artist.plays,
-                                        msListened = artist.msListened,
-                                        movement = null,
-                                        onClick = { onOpenArtist(artist.id) },
+            // Your own profile holds Stats and Friends as tabs (owner, 2026-10-21); everyone else's is the one page.
+            val tab = if (p.isSelf) ProfileTab.entries[tabIndex] else ProfileTab.PROFILE
+            Column(Modifier.fillMaxSize()) {
+                if (p.isSelf) {
+                    val stretched = dockedHeader || LocalSkin.current == Skin.RING
+                    SkinTabBar(
+                        labels = ProfileTab.entries.map { it.label },
+                        selected = tabIndex,
+                        onSelect = { tabIndex = it },
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .then(if (stretched) Modifier.fillMaxWidth() else Modifier),
+                    )
+                }
+                when (tab) {
+                    ProfileTab.STATS -> StatsContent(onOpenArtist, onOpenAlbum, Modifier.weight(1f))
+                    ProfileTab.FRIENDS -> FriendsContent(onOpenProfile, onOpenPlaylist, Modifier.weight(1f))
+                    ProfileTab.PROFILE -> {
+                        PullToRefreshBox(isRefreshing = refreshing, onRefresh = viewModel::refresh, modifier = Modifier.weight(1f)) {
+                            LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 16.dp)) {
+                                item(key = "header") {
+                                    ProfileHeader(
+                                        p = p,
+                                        pictureUrl = viewModel.avatarUrl(p),
+                                        onPlayFavorite = { p.favoriteTrack?.let { play(listOf(it), 0) } },
+                                        onOpenArtist = onOpenArtist,
+                                        onEdit = { editing = true },
                                     )
                                 }
-                            }
-                        } }
-                    }
-
-                    val genres = p.topGenres.orEmpty()
-                    if (genres.isNotEmpty()) {
-                        item(key = "genres-title") { SectionTitle("Top genres") }
-                        item(key = "genres") { Box(ofRange) {
-                            ListCard {
-                                genres.forEach { genre ->
-                                    PlainRow(
-                                        title = genre.name,
-                                        detail = if (genre.plays == 1) "1 play" else "${genre.plays} plays",
-                                        onClick = { onOpenGenre(genre.id) },
-                                    )
+                                item(key = "range") { RangePicker(range, viewModel::setRange) }
+                                // What the range picks fades while another range loads.
+                                val ofRange = Modifier.graphicsLayer { alpha = rangeAlpha }
+                                // The same reading of the range as Home's, in the skin's game (owner, 2026-10-13): Gear's radar,
+                                // Hit circle's circles, Lane's potential, Ring's rating plate, Standard's plain numbers.
+                                item(key = "listening") {
+                                    val stats = remember(p) { p.asListeningStats() }
+                                    val owner = p.name.takeIf { !p.isSelf }
+                                    Box(ofRange) {
+                                        when (LocalSkin.current) {
+                                            Skin.GEAR -> ListeningRadar(stats, range, owner = owner)
+                                            Skin.HIT_CIRCLE -> HitCircleListening(stats, range, owner = owner)
+                                            Skin.LANE -> LaneListening(stats, range, owner = owner)
+                                            Skin.RING -> RingListening(stats, range, owner = owner)
+                                            Skin.STANDARD -> StandardListening(stats, range)
+                                        }
+                                    }
                                 }
-                            }
-                        } }
-                    }
 
-                    item(key = "playlists-title") { SectionTitle(if (p.isSelf) "Your playlists" else "Public playlists") }
-                    item(key = "playlists") {
-                        ListCard {
-                            if (p.playlists.isEmpty()) {
-                                EmptyLine(if (p.isSelf) "No playlists yet." else "No public playlists.")
-                            }
-                            p.playlists.forEach { playlist ->
-                                val count = if (playlist.trackCount == 1) "1 song" else "${playlist.trackCount} songs"
-                                PlainRow(
-                                    title = playlist.name,
-                                    detail = if (p.isSelf) "$count · ${if (playlist.isPublic) "Public" else "Only you"}" else count,
-                                    onClick = { onOpenPlaylist(playlist.id) },
-                                )
-                            }
-                        }
-                    }
+                                item(key = "top-songs-title") { SectionTitle("Top songs") }
+                                item(key = "top-songs") { Box(ofRange) {
+                                    ListCard {
+                                        if (p.topTracks.isEmpty()) EmptyLine("Nothing played in this range.")
+                                        val tracks = p.topTracks.map { it.track }
+                                        p.topTracks.forEachIndexed { index, top ->
+                                            RankedRow(
+                                                rank = index + 1,
+                                                coverUrl = viewModel.coverUrl(top.track),
+                                                title = top.track.title,
+                                                subtitle = top.track.artist ?: "Unknown artist",
+                                                plays = top.plays,
+                                                msListened = top.msListened,
+                                                movement = null,
+                                                onClick = { play(tracks, index) },
+                                                onLongClick = { menuFor = viewModel.queueItem(top.track) },
+                                            )
+                                        }
+                                    }
+                                } }
 
-                    listOf(true, false).forEach { liked ->
-                        val section = if (liked) p.liked else p.disliked
-                        val full = fullLists[liked]
-                        val tracks = full ?: section.tracks.take(PREVIEW)
-                        item(key = "songs-title-$liked") {
-                            SectionTitle("${if (liked) "Liked" else "Disliked"} songs · ${section.total}")
-                        }
-                        item(key = "songs-$liked") {
-                            ListCard {
-                                if (section.total == 0) EmptyLine(if (liked) "No liked songs yet." else "None.")
-                                tracks.forEachIndexed { index, track ->
-                                    SongRow(
-                                        track = track,
-                                        cover = viewModel.coverUrl(track),
-                                        onClick = { play(tracks, index) },
-                                    )
+                                if (p.topArtists.isNotEmpty()) {
+                                    item(key = "top-artists-title") { SectionTitle("Top artists") }
+                                    item(key = "top-artists") { Box(ofRange) {
+                                        ListCard {
+                                            p.topArtists.forEachIndexed { index, artist ->
+                                                RankedRow(
+                                                    rank = index + 1,
+                                                    coverUrl = null,
+                                                    title = artist.name,
+                                                    subtitle = null,
+                                                    plays = artist.plays,
+                                                    msListened = artist.msListened,
+                                                    movement = null,
+                                                    onClick = { onOpenArtist(artist.id) },
+                                                )
+                                            }
+                                        }
+                                    } }
                                 }
-                                if (full == null && section.total > tracks.size) {
-                                    TextButton(
-                                        onClick = { viewModel.showAll(liked) },
-                                        modifier = Modifier.padding(horizontal = 8.dp),
-                                    ) { Text("Show all ${section.total}") }
+
+                                val genres = p.topGenres.orEmpty()
+                                if (genres.isNotEmpty()) {
+                                    item(key = "genres-title") { SectionTitle("Top genres") }
+                                    item(key = "genres") { Box(ofRange) {
+                                        ListCard {
+                                            genres.forEach { genre ->
+                                                PlainRow(
+                                                    title = genre.name,
+                                                    detail = if (genre.plays == 1) "1 play" else "${genre.plays} plays",
+                                                    onClick = { onOpenGenre(genre.id) },
+                                                )
+                                            }
+                                        }
+                                    } }
+                                }
+
+                                item(key = "playlists-title") { SectionTitle(if (p.isSelf) "Your playlists" else "Public playlists") }
+                                item(key = "playlists") {
+                                    ListCard {
+                                        if (p.playlists.isEmpty()) {
+                                            EmptyLine(if (p.isSelf) "No playlists yet." else "No public playlists.")
+                                        }
+                                        p.playlists.forEach { playlist ->
+                                            val count = if (playlist.trackCount == 1) "1 song" else "${playlist.trackCount} songs"
+                                            PlainRow(
+                                                title = playlist.name,
+                                                detail = if (p.isSelf) "$count · ${if (playlist.isPublic) "Public" else "Only you"}" else count,
+                                                onClick = { onOpenPlaylist(playlist.id) },
+                                            )
+                                        }
+                                    }
+                                }
+
+                                listOf(true, false).forEach { liked ->
+                                    val section = if (liked) p.liked else p.disliked
+                                    val full = fullLists[liked]
+                                    val tracks = full ?: section.tracks.take(PREVIEW)
+                                    item(key = "songs-title-$liked") {
+                                        SectionTitle("${if (liked) "Liked" else "Disliked"} songs · ${section.total}")
+                                    }
+                                    item(key = "songs-$liked") {
+                                        ListCard {
+                                            if (section.total == 0) EmptyLine(if (liked) "No liked songs yet." else "None.")
+                                            tracks.forEachIndexed { index, track ->
+                                                SongRow(
+                                                    track = track,
+                                                    cover = viewModel.coverUrl(track),
+                                                    onClick = { play(tracks, index) },
+                                                )
+                                            }
+                                            if (full == null && section.total > tracks.size) {
+                                                TextButton(
+                                                    onClick = { viewModel.showAll(liked) },
+                                                    modifier = Modifier.padding(horizontal = 8.dp),
+                                                ) { Text("Show all ${section.total}") }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

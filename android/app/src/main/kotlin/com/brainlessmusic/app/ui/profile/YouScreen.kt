@@ -80,7 +80,6 @@ import com.brainlessmusic.app.data.repository.StatsRange
 import com.brainlessmusic.app.playback.QueueItem
 import com.brainlessmusic.app.ui.common.Avatar
 import com.brainlessmusic.app.ui.common.CoverImage
-import com.brainlessmusic.app.ui.common.SkinExtendedFab
 import com.brainlessmusic.app.ui.common.LoadStateContent
 import com.brainlessmusic.app.ui.common.SkeletonLead
 import com.brainlessmusic.app.ui.common.SkeletonListRows
@@ -121,7 +120,6 @@ fun YouScreen(
     menuFor?.let { item -> SongMenuSheet(item = item, onDismiss = { menuFor = null }, onOpenAlbum = onOpenAlbum, onOpenArtist = onOpenArtist) }
 
     val context = LocalContext.current
-    val together = { navController.navigate(Routes.TOGETHER) { launchSingleTop = true } }
 
     val title = greeting(Calendar.getInstance().get(Calendar.HOUR_OF_DAY), if (viewModel.isGuest) null else username)
     val me by viewModel.me.collectAsStateWithLifecycle()
@@ -130,7 +128,7 @@ fun YouScreen(
         topBar = {
             TopAppBar(
                 title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                // Listen together is the labelled button at the bottom (A183); People is in its top bar (A182).
+                // Listen together is a button in the Library now (owner, 2026-10-21); People is in its top bar (A182).
                 actions = {
                     // Your picture last, where Google's apps put your account (A178). Guests have none, so no button.
                     me?.let { person ->
@@ -145,8 +143,6 @@ fun YouScreen(
             )
         },
         bottomBar = { TabBarSpace() },
-        // With nothing playing, the player (its other door) can't open, so it's here for everyone, guests too (A136, A183).
-        floatingActionButton = { SkinExtendedFab(AppIcons.headphones, "Listen together", onClick = together) },
     ) { padding ->
         if (viewModel.isGuest) {
             // No stats for guests (A98), so the library and some random picks to start from.
@@ -169,11 +165,12 @@ fun YouScreen(
                 PullToRefreshBox(isRefreshing = refreshing, onRefresh = viewModel::refresh) {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = FabClearance),
+                        contentPadding = PaddingValues(bottom = ListBottom),
                     ) {
                         // The range first, then the skin's reading of it, which holds the range's hours, plays and songs
-                        // (owner, 2026-10-12). Shuffle is in the Library, Listen together in the top bar and the player,
-                        // liked songs and playlists in the Library's Playlists tab, Disliked songs there too (A134-A137, A153).
+                        // (owner, 2026-10-12). Shuffle and Listen together are in the Library (Listen together in the player
+                        // too), liked songs and playlists in the Library's Playlists tab, Disliked songs there too (A134-A137,
+                        // A153).
                         item { RangePicker(range, viewModel::setRange) }
                         // The game skins read the range in their game's manner: Gear as SOUND VOLTEX's EFFECT RADAR,
                         // Hit circle as numbered hit circles, Lane as Arcaea's potential, Ring as maimai's rating plate.
@@ -188,19 +185,22 @@ fun YouScreen(
                                 }
                             }
                         }
-                        // The full picture (A228): when you listen, the trend, the day combo, every play.
-                        item {
-                            TextButton(
-                                onClick = { navController.navigate(Routes.STATS) { launchSingleTop = true } },
-                                modifier = Modifier.padding(horizontal = 8.dp),
-                            ) { Text("See all your stats") }
-                        }
-                        // What everyone else is playing (A239). Inside the stats block, which guests never reach.
-                        item {
-                            TextButton(
-                                onClick = { navController.navigate(Routes.FRIENDS) { launchSingleTop = true } },
-                                modifier = Modifier.padding(horizontal = 8.dp),
-                            ) { Text("See what friends are playing") }
+                        // The full picture (A228) and what everyone else is playing (A239), both tabs on your profile
+                        // now (owner, 2026-10-21). Inside the stats block, which guests never reach; hidden until we
+                        // know whose profile that is.
+                        me?.let { person ->
+                            item {
+                                TextButton(
+                                    onClick = { navController.navigate(Routes.profile(person.id, "stats")) { launchSingleTop = true } },
+                                    modifier = Modifier.padding(horizontal = 8.dp),
+                                ) { Text("See all your stats") }
+                            }
+                            item {
+                                TextButton(
+                                    onClick = { navController.navigate(Routes.profile(person.id, "friends")) { launchSingleTop = true } },
+                                    modifier = Modifier.padding(horizontal = 8.dp),
+                                ) { Text("See what friends are playing") }
+                            }
                         }
 
                         if (mixes.isNotEmpty()) {
@@ -209,11 +209,12 @@ fun YouScreen(
                                 CoverRow(
                                     items = mixes,
                                     key = { it.id },
-                                    cover = { viewModel.trackCoverUrl(it.tracks.first().id) },
+                                    cover = { null },
+                                    coverContent = { mix -> MixCover(viewModel.mixCovers(mix), Modifier.size(112.dp)) },
                                     title = { "${it.name} mix" },
                                     subtitle = { mix -> mix.tracks.take(3).mapNotNull { it.artist }.distinct().joinToString(", ").ifEmpty { "${mix.tracks.size} songs" } },
-                                    onClick = { index -> mixes.getOrNull(index)?.let(viewModel::playMix) },
-                                    onClickLabel = "Play mix",
+                                    onClick = { index -> mixes.getOrNull(index)?.let { navController.navigate(Routes.mix(it.id)) } },
+                                    onClickLabel = "Open mix",
                                 )
                             }
                         }
@@ -335,7 +336,7 @@ private fun GuestHomeList(
         skeleton = { SkeletonListRows(lead = SkeletonLead.COVER) },
     ) { home: GuestHome ->
         PullToRefreshBox(isRefreshing = refreshing, onRefresh = viewModel::refresh) {
-            LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = FabClearance)) {
+            LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = ListBottom)) {
                 item { GuestCard(home) }
                 if (home.picks.isEmpty()) {
                     item { EmptyLine("Nothing in the library yet. Songs show up here once the server has some.") }
@@ -454,8 +455,8 @@ private fun CardActions(onPlay: () -> Unit, onShuffle: () -> Unit, what: String)
     }
 }
 
-/** Room under the lists for the Listen together button: its 56dp, the 16dp it floats above, and a gap. */
-private val FabClearance = 88.dp
+/** Room under the lists' last row. Listen together moved to the Library (owner, 2026-10-21), so nothing floats here. */
+private val ListBottom = 16.dp
 
 /** "Good morning" to "Good evening" by the phone's clock, with the name when there is one. */
 internal fun greeting(hour: Int, name: String?): String {
@@ -526,6 +527,8 @@ private fun <T> CoverRow(
     onClick: (Int) -> Unit,
     onClickLabel: String? = null,
     onLongClick: ((T) -> Unit)? = null,
+    /** In place of [cover]'s single picture, as the mixes' grid of covers. */
+    coverContent: (@Composable (T) -> Unit)? = null,
 ) {
     val haptics = LocalHapticFeedback.current
     LazyRow(
@@ -548,7 +551,11 @@ private fun <T> CoverRow(
                         },
                     ),
             ) {
-                CoverImage(url = cover(item), contentDescription = null, modifier = Modifier.size(112.dp))
+                if (coverContent != null) {
+                    coverContent(item)
+                } else {
+                    CoverImage(url = cover(item), contentDescription = null, modifier = Modifier.size(112.dp))
+                }
                 Text(
                     title(item),
                     style = MaterialTheme.typography.bodyMedium,

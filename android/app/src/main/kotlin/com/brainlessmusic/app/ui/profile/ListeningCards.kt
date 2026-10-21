@@ -110,7 +110,7 @@ internal fun ListeningTotals(stats: UserStatsDto, range: StatsRange, modifier: M
     }
 }
 
-/** Standard's listening on Home (A135): no game reading, just the range's numbers under a plain heading. */
+/** Standard's listening on Home and profiles: the range's numbers under a plain heading, then a plain radar (A245). */
 @Composable
 fun StandardListening(stats: UserStatsDto, range: StatsRange) {
     ListeningSurface {
@@ -122,6 +122,8 @@ fun StandardListening(stats: UserStatsDto, range: StatsRange) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             ListeningTotals(stats, range, Modifier.padding(top = 12.dp))
+            // The radar too, in plain dress (A245, replacing A135's numbers-only card).
+            RadarChart(stats, range, Modifier.padding(top = 8.dp), plain = true)
         }
     }
 }

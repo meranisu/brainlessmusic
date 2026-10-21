@@ -184,6 +184,22 @@ export function getDailyMixes(userId: number, now = Date.now()): DailyMix[] {
         if (i < list.length && chosen.size < DAILY_MIX_SIZE) chosen.add(list[i]);
       }
     }
+    // Seeds of one genre pick many of the same songs, so the first pass can fall short. Ask again with what is
+    // already in, until the mix is full or the radios run dry (owner, 2026-10-21: 30 songs a mix).
+    for (let added = true; added && chosen.size < DAILY_MIX_SIZE; ) {
+      added = false;
+      for (const seedTrackId of genre.trackIds) {
+        if (chosen.size >= DAILY_MIX_SIZE) break;
+        const more = buildRadio({ seedTrackId, userId, seed, exclude: [...chosen], limit: DAILY_MIX_SIZE - chosen.size }) ?? [];
+        for (const id of more) {
+          if (chosen.size >= DAILY_MIX_SIZE) break;
+          if (!chosen.has(id)) {
+            chosen.add(id);
+            added = true;
+          }
+        }
+      }
+    }
     if (chosen.size > 0) mixes.push({ id: genre.genreId, name: genre.name, trackIds: [...chosen] });
   }
 

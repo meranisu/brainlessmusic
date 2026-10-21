@@ -1,18 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { usePresence } from '../hooks/usePresence';
 import { useAuth } from '../auth/AuthContext';
 import { fetchDailyMixes } from '../lib/mix';
-import { CoverArt } from './CoverArt';
+import { MixCover } from './MixCover';
 import { RadioIcon } from './icons';
-import { usePlayer } from './PlayerBar';
 
 /**
- * Today's mixes (A234, A236): a toolbar button opening up to six, one per top genre. A pick plays the mix, then keeps
- * going as a radio from its first song. Hidden until the user has plays to build them from.
+ * Today's mixes (A234, A236): a toolbar button opening up to six, one per top genre. A pick opens the mix's page, which
+ * lists its songs and plays it (owner, 2026-10-21). Hidden until the user has plays to build them from.
  */
 export function DailyMixes() {
-  const { startRadio, inRoom } = usePlayer();
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const menu = usePresence(open || null, 120);
@@ -65,19 +64,14 @@ export function DailyMixes() {
             Today, from what you play
           </p>
           {list.map((mix) => {
-            const first = mix.tracks[0];
             return (
-              <button
+              <Link
                 key={mix.id}
-                type="button"
-                disabled={inRoom || !first}
-                onClick={() => {
-                  setOpen(false);
-                  startRadio(first, mix.tracks);
-                }}
-                className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-blue-700 disabled:opacity-40"
+                to={`/mixes/${mix.id}`}
+                onClick={() => setOpen(false)}
+                className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-blue-700 focus-visible:bg-blue-700"
               >
-                {first && <CoverArt kind="tracks" id={first.id} className="h-10 w-10" />}
+                <MixCover tracks={mix.tracks} />
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-semibold text-white">{mix.name} mix</span>
                   <span className="block truncate text-xs text-blue-300">
@@ -88,10 +82,9 @@ export function DailyMixes() {
                       .join(', ')}
                   </span>
                 </span>
-              </button>
+              </Link>
             );
           })}
-          {inRoom && <p className="px-3 py-2 text-xs text-blue-300">Mixes are off in a room.</p>}
         </div>
       )}
     </div>

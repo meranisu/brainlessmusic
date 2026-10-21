@@ -218,6 +218,14 @@ describe('daily mixes', () => {
     assert.notDeepEqual(getDailyMixes(alice, now + 24 * 3_600_000)[0].trackIds, morning[0].trackIds);
   });
 
+  it('fills a mix to 30 songs when the genre has enough', () => {
+    const rock = Array.from({ length: 60 }, (_, i) => addTrack(`Rock ${i % 20}`, 1990, ['Rock']));
+    for (const [i, id] of rock.slice(0, 3).entries()) for (let k = 0; k <= i; k += 1) play(alice, id, 60 * (i + 1) + k);
+    const [mix] = getDailyMixes(alice);
+    assert.equal(mix.trackIds.length, 30);
+    assert.equal(new Set(mix.trackIds).size, 30, 'no song twice in a mix');
+  });
+
   it('is empty for someone with no plays, and skips do not count', () => {
     const id = addTrack('X', 2000, ['Rock']);
     play(bob, id, 10, 1);

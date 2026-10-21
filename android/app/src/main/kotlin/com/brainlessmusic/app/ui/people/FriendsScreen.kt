@@ -145,15 +145,14 @@ class FriendsViewModel @Inject constructor(
 
 /**
  * Friends' now playing and the activity feed (A239-A241). Everyone on the server sees everyone; "Hide my activity"
- * takes you out of both. Accounts only: guests are not offered this screen.
+ * takes you out of both. A tab on your own profile (owner, 2026-10-21), so guests, who have none, never see it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FriendsScreen(
-    onBack: () -> Unit,
-    onOpenNowPlaying: () -> Unit,
+fun FriendsContent(
     onOpenProfile: (Int) -> Unit,
     onOpenPlaylist: (Int) -> Unit,
+    modifier: Modifier = Modifier,
     viewModel: FriendsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -161,99 +160,89 @@ fun FriendsScreen(
         viewModel.startPolling()
         onDispose { viewModel.stopPolling() }
     }
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Friends") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(AppIcons.back, contentDescription = "Back") } },
-            )
-        },
-        bottomBar = { MiniPlayer(onClick = onOpenNowPlaying) },
-    ) { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(vertical = 8.dp)) {
+    LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 8.dp)) {
+        item {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text("Hide my activity", style = MaterialTheme.typography.bodyLarge)
+                Switch(checked = state.hideActivity, onCheckedChange = viewModel::setHideActivity)
+            }
+        }
+        item { Section("Listening now") }
+        if (state.listening.isEmpty()) {
+            item { Hint("Nobody else is playing anything.") }
+        } else {
             item {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text("Hide my activity", style = MaterialTheme.typography.bodyLarge)
-                    Switch(checked = state.hideActivity, onCheckedChange = viewModel::setHideActivity)
-                }
-            }
-            item { Section("Listening now") }
-            if (state.listening.isEmpty()) {
-                item { Hint("Nobody else is playing anything.") }
-            } else {
-                item {
-                    ListCard {
-                        state.listening.forEach { l ->
-                            ActivityRow(
-                                person = l.person,
-                                avatarUrl = viewModel.avatarUrl(l.person),
-                                line = "${l.person.name} is playing",
-                                track = l.track,
-                                coverUrl = viewModel.coverUrl(l.track),
-                                progress = l.track.duration?.takeIf { it > 0 }?.let { (l.positionSeconds / it).toFloat().coerceIn(0f, 1f) },
-                                onOpenProfile = onOpenProfile,
-                                onClick = { viewModel.play(l.track) },
-                            )
-                        }
+                ListCard {
+                    state.listening.forEach { l ->
+                        ActivityRow(
+                            person = l.person,
+                            avatarUrl = viewModel.avatarUrl(l.person),
+                            line = "${l.person.name} is playing",
+                            track = l.track,
+                            coverUrl = viewModel.coverUrl(l.track),
+                            progress = l.track.duration?.takeIf { it > 0 }?.let { (l.positionSeconds / it).toFloat().coerceIn(0f, 1f) },
+                            onOpenProfile = onOpenProfile,
+                            onClick = { viewModel.play(l.track) },
+                        )
                     }
                 }
             }
-            item { Section("Recently") }
-            when {
-                state.loading -> item { Hint("Loading activity…") }
-                state.error != null -> item {
-                    Hint(state.error!!)
-                    TextButton(onClick = viewModel::load, modifier = Modifier.padding(horizontal = 8.dp)) { Text("Try again") }
-                }
-                state.feed.isEmpty() -> item { Hint("No activity in the last 30 days.") }
-                else -> {
-                    items(state.feed, key = { "${it.kind}:${it.person.id}:${it.track?.id ?: it.playlist?.id}:${it.at}" }) { item ->
-                        val verb = when (item.kind) {
-                            "play" -> "played"
-                            "like" -> "liked"
-                            else -> "shared a playlist"
-                        }
-                        val line = "${item.person.name} $verb · ${formatDay(item.at)}"
-                        val track = item.track
-                        val playlist = item.playlist
-                        if (track != null) {
-                            ActivityRow(
-                                person = item.person,
-                                avatarUrl = viewModel.avatarUrl(item.person),
-                                line = line,
-                                track = track,
-                                coverUrl = viewModel.coverUrl(track),
-                                progress = null,
-                                onOpenProfile = onOpenProfile,
-                                onClick = { viewModel.play(track) },
-                            )
-                        } else if (playlist != null) {
-                            ListItem(
-                                leadingContent = {
-                                    Avatar(
-                                        url = viewModel.avatarUrl(item.person),
-                                        name = item.person.name,
-                                        size = 44.dp,
-                                        modifier = Modifier.clickable { onOpenProfile(item.person.id) },
-                                    )
-                                },
-                                overlineContent = { Text(line, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                                headlineContent = { Text(playlist.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                                supportingContent = { Text(if (playlist.trackCount == 1) "1 song" else "${playlist.trackCount} songs") },
-                                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                                modifier = Modifier.clickable { onOpenPlaylist(playlist.id) },
-                            )
-                        }
+        }
+        item { Section("Recently") }
+        when {
+            state.loading -> item { Hint("Loading activity…") }
+            state.error != null -> item {
+                Hint(state.error!!)
+                TextButton(onClick = viewModel::load, modifier = Modifier.padding(horizontal = 8.dp)) { Text("Try again") }
+            }
+            state.feed.isEmpty() -> item { Hint("No activity in the last 30 days.") }
+            else -> {
+                items(state.feed, key = { "${it.kind}:${it.person.id}:${it.track?.id ?: it.playlist?.id}:${it.at}" }) { item ->
+                    val verb = when (item.kind) {
+                        "play" -> "played"
+                        "like" -> "liked"
+                        else -> "shared a playlist"
                     }
-                    if (state.nextBefore != null) {
-                        item {
-                            TextButton(onClick = viewModel::loadMore, modifier = Modifier.padding(horizontal = 8.dp)) {
-                                Text(if (state.loadingMore) "Loading…" else "Show older")
-                            }
+                    val line = "${item.person.name} $verb · ${formatDay(item.at)}"
+                    val track = item.track
+                    val playlist = item.playlist
+                    if (track != null) {
+                        ActivityRow(
+                            person = item.person,
+                            avatarUrl = viewModel.avatarUrl(item.person),
+                            line = line,
+                            track = track,
+                            coverUrl = viewModel.coverUrl(track),
+                            progress = null,
+                            onOpenProfile = onOpenProfile,
+                            onClick = { viewModel.play(track) },
+                        )
+                    } else if (playlist != null) {
+                        ListItem(
+                            leadingContent = {
+                                Avatar(
+                                    url = viewModel.avatarUrl(item.person),
+                                    name = item.person.name,
+                                    size = 44.dp,
+                                    modifier = Modifier.clickable { onOpenProfile(item.person.id) },
+                                )
+                            },
+                            overlineContent = { Text(line, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            headlineContent = { Text(playlist.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            supportingContent = { Text(if (playlist.trackCount == 1) "1 song" else "${playlist.trackCount} songs") },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                            modifier = Modifier.clickable { onOpenPlaylist(playlist.id) },
+                        )
+                    }
+                }
+                if (state.nextBefore != null) {
+                    item {
+                        TextButton(onClick = viewModel::loadMore, modifier = Modifier.padding(horizontal = 8.dp)) {
+                            Text(if (state.loadingMore) "Loading…" else "Show older")
                         }
                     }
                 }

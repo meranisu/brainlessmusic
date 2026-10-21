@@ -38,7 +38,7 @@ export function RangePicker({ value, onChange }: { value: StatsRange; onChange: 
   );
 }
 
-function toQueue(tracks: TrackSummary[]): QueueTrack[] {
+export function toQueue(tracks: TrackSummary[]): QueueTrack[] {
   return tracks.map((t) => ({
     id: t.id,
     title: t.title,

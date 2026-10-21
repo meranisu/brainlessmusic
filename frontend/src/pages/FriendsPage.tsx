@@ -14,9 +14,10 @@ const NOW_PLAYING_POLL_MS = 15_000;
 
 /**
  * Friends' now playing and the activity feed (A239-A243). Everyone on the server sees everyone (A240); "Hide my
- * activity" takes you out of both (A241). Accounts only: guests have no history, and this page is not in their nav.
+ * activity" takes you out of both (A241). A tab on your own profile (owner, 2026-10-21), so guests, who have none,
+ * never see it.
  */
-export function FriendsPage() {
+export function FriendsPanel() {
   const { user, refreshUser } = useAuth();
   const { playTrack } = usePlayer();
 
@@ -44,10 +45,7 @@ export function FriendsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-white">Friends</h1>
-          <p className="text-sm text-blue-300">What everyone on this server is playing and liking.</p>
-        </div>
+        <p className="text-sm text-blue-300">What everyone on this server is playing and liking.</p>
         {user && (
           <label className="flex items-center gap-2 text-sm text-blue-200">
             <input

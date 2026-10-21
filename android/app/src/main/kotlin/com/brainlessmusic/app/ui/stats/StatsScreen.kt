@@ -89,16 +89,16 @@ private fun rangeWindow(range: StatsRange) = when (range) {
 }
 
 /**
- * Your listening in full (A228), opened from Home's listening card: the record (time, plays, the day combo), plays
- * over the range, the hour and weekday you listen, the top lists, and every play so far. Hours are the phone's.
+ * Stats, your listening in full (A228), a tab on your own profile (owner, 2026-10-21): the record (time, plays, the
+ * day combo), plays over the range, the hour and weekday you listen, the top lists, and every play so far. Hours are
+ * the phone's.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun StatsScreen(
-    onBack: () -> Unit,
-    onOpenNowPlaying: () -> Unit,
+fun StatsContent(
     onOpenArtist: (Int) -> Unit,
     onOpenAlbum: (Int) -> Unit,
+    modifier: Modifier = Modifier,
     viewModel: StatsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -109,147 +109,137 @@ fun StatsScreen(
     var menuFor by remember { mutableStateOf<QueueItem?>(null) }
     menuFor?.let { SongMenuSheet(item = it, onDismiss = { menuFor = null }) }
 
-    androidx.compose.material3.Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Your listening") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(AppIcons.back, contentDescription = "Back") } },
-            )
-        },
-        bottomBar = { MiniPlayer(onClick = onOpenNowPlaying) },
-    ) { padding ->
-        LoadStateContent(
-            state = state,
-            onRetry = viewModel::load,
-            modifier = Modifier.padding(padding),
-            loadingLabel = "Loading your stats",
-            skeleton = { SkeletonListRows(trailing = true) },
-        ) { page ->
-            val stats = page.stats
-            val patterns = page.patterns
-            val ofRange = Modifier.graphicsLayer { alpha = rangeAlpha }
-            val nothing = if (range == StatsRange.ALL) "Nothing played yet." else "Nothing played in the ${rangeWindow(range)}."
-            LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 16.dp)) {
-                item(key = "range") { RangePicker(range, viewModel::setRange) }
-                item(key = "record") { Record(stats, patterns, range, ofRange) }
-                if (patterns != null) {
-                    item(key = "trend") { TrendCard(patterns, range, ofRange) }
-                    item(key = "when") { WhenCard(patterns, ofRange) }
-                } else {
-                    item(key = "no-patterns") { EmptyLine("Couldn't load when you listen. Go back and open Stats again.") }
-                }
+    LoadStateContent(
+        state = state,
+        onRetry = viewModel::load,
+        modifier = modifier,
+        loadingLabel = "Loading your stats",
+        skeleton = { SkeletonListRows(trailing = true) },
+    ) { page ->
+        val stats = page.stats
+        val patterns = page.patterns
+        val ofRange = Modifier.graphicsLayer { alpha = rangeAlpha }
+        val nothing = if (range == StatsRange.ALL) "Nothing played yet." else "Nothing played in the ${rangeWindow(range)}."
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 16.dp)) {
+            item(key = "range") { RangePicker(range, viewModel::setRange) }
+            item(key = "record") { Record(stats, patterns, range, ofRange) }
+            if (patterns != null) {
+                item(key = "trend") { TrendCard(patterns, range, ofRange) }
+                item(key = "when") { WhenCard(patterns, ofRange) }
+            } else {
+                item(key = "no-patterns") { EmptyLine("Couldn't load when you listen. Open another tab, then Stats again.") }
+            }
 
-                item(key = "top-songs-title") { SectionTitle("Top songs") }
-                item(key = "top-songs") {
+            item(key = "top-songs-title") { SectionTitle("Top songs") }
+            item(key = "top-songs") {
+                Column(ofRange) {
+                    ListCard {
+                        if (stats.topTracks.isEmpty()) EmptyLine(nothing)
+                        stats.topTracks.forEachIndexed { index, top ->
+                            RankedRow(
+                                rank = index + 1,
+                                coverUrl = viewModel.trackCoverUrl(top.track.id),
+                                title = top.track.title,
+                                subtitle = top.track.artist ?: "Unknown artist",
+                                plays = top.plays,
+                                msListened = top.msListened,
+                                movement = null,
+                                onClick = { viewModel.playTop(stats, index) },
+                                onLongClick = { menuFor = viewModel.queueItem(top.track) },
+                            )
+                        }
+                    }
+                }
+            }
+            if (stats.topArtists.isNotEmpty()) {
+                item(key = "top-artists-title") { SectionTitle("Top artists") }
+                item(key = "top-artists") {
                     Column(ofRange) {
                         ListCard {
-                            if (stats.topTracks.isEmpty()) EmptyLine(nothing)
-                            stats.topTracks.forEachIndexed { index, top ->
-                                RankedRow(
-                                    rank = index + 1,
-                                    coverUrl = viewModel.trackCoverUrl(top.track.id),
-                                    title = top.track.title,
-                                    subtitle = top.track.artist ?: "Unknown artist",
-                                    plays = top.plays,
-                                    msListened = top.msListened,
-                                    movement = null,
-                                    onClick = { viewModel.playTop(stats, index) },
-                                    onLongClick = { menuFor = viewModel.queueItem(top.track) },
+                            stats.topArtists.forEachIndexed { index, a ->
+                                RankedRow(index + 1, null, a.name, null, a.plays, a.msListened, null, onClick = { onOpenArtist(a.id) })
+                            }
+                        }
+                    }
+                }
+            }
+            if (stats.topAlbums.isNotEmpty()) {
+                item(key = "top-albums-title") { SectionTitle("Top albums") }
+                item(key = "top-albums") {
+                    Column(ofRange) {
+                        ListCard {
+                            stats.topAlbums.forEachIndexed { index, a ->
+                                RankedRow(index + 1, null, a.title, a.artist, a.plays, a.msListened, null, onClick = { onOpenAlbum(a.id) })
+                            }
+                        }
+                    }
+                }
+            }
+            if (stats.topGenres.isNotEmpty()) {
+                item(key = "top-genres-title") { SectionTitle("Top genres") }
+                item(key = "top-genres") {
+                    FlowRow(
+                        ofRange.padding(horizontal = 16.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        stats.topGenres.forEach { g ->
+                            Surface(
+                                shape = MaterialTheme.shapes.small,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                                color = MaterialTheme.colorScheme.surfaceContainer,
+                            ) {
+                                Text(
+                                    "${g.name}  ${g.plays}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                 )
                             }
                         }
                     }
                 }
-                if (stats.topArtists.isNotEmpty()) {
-                    item(key = "top-artists-title") { SectionTitle("Top artists") }
-                    item(key = "top-artists") {
-                        Column(ofRange) {
-                            ListCard {
-                                stats.topArtists.forEachIndexed { index, a ->
-                                    RankedRow(index + 1, null, a.name, null, a.plays, a.msListened, null, onClick = { onOpenArtist(a.id) })
-                                }
-                            }
-                        }
-                    }
-                }
-                if (stats.topAlbums.isNotEmpty()) {
-                    item(key = "top-albums-title") { SectionTitle("Top albums") }
-                    item(key = "top-albums") {
-                        Column(ofRange) {
-                            ListCard {
-                                stats.topAlbums.forEachIndexed { index, a ->
-                                    RankedRow(index + 1, null, a.title, a.artist, a.plays, a.msListened, null, onClick = { onOpenAlbum(a.id) })
-                                }
-                            }
-                        }
-                    }
-                }
-                if (stats.topGenres.isNotEmpty()) {
-                    item(key = "top-genres-title") { SectionTitle("Top genres") }
-                    item(key = "top-genres") {
-                        FlowRow(
-                            ofRange.padding(horizontal = 16.dp, vertical = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            stats.topGenres.forEach { g ->
-                                Surface(
-                                    shape = MaterialTheme.shapes.small,
-                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                                    color = MaterialTheme.colorScheme.surfaceContainer,
-                                ) {
-                                    Text(
-                                        "${g.name}  ${g.plays}",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+            }
 
-                item(key = "recent-title") { SectionTitle(if (history.total > 0) "Recently played · ${history.total}" else "Recently played") }
-                when {
-                    history.rows.isEmpty() && history.loading -> item(key = "recent-loading") { EmptyLine("Loading your recent plays…") }
-                    history.rows.isEmpty() && history.failed -> item(key = "recent-failed") { EmptyLine("Could not load your plays.") }
-                    history.rows.isEmpty() -> item(key = "recent-empty") { EmptyLine("No plays yet. Songs you play show up here.") }
-                }
-                itemsIndexed(history.rows, key = { _, r -> "play-${r.id}" }) { _, r ->
-                    val faded = r.skipped || r.missing
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                r.title,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                color = if (faded) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                            )
-                        },
-                        supportingContent = {
-                            val tags = listOfNotNull(r.artist ?: "Unknown artist", "skipped".takeIf { r.skipped }, "file missing".takeIf { r.missing })
-                            Text(tags.joinToString(" · "), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        },
-                        trailingContent = { Text(ago(r.playedAt), style = MaterialTheme.typography.labelSmall) },
-                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
-                        modifier = Modifier.clickable(enabled = !r.missing) { viewModel.playHistory(r) },
-                    )
-                }
-                if (history.failed || (history.rows.isNotEmpty() && history.rows.size < history.total)) {
-                    item(key = "recent-more") {
-                        OutlinedButton(
-                            onClick = viewModel::loadMoreHistory,
-                            enabled = !history.loading,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        ) {
-                            Text(
-                                when {
-                                    history.loading -> "Loading…"
-                                    history.failed -> "Couldn't load. Try again"
-                                    else -> "Show ${minOf(50, history.total - history.rows.size)} more"
-                                },
-                            )
-                        }
+            item(key = "recent-title") { SectionTitle(if (history.total > 0) "Recently played · ${history.total}" else "Recently played") }
+            when {
+                history.rows.isEmpty() && history.loading -> item(key = "recent-loading") { EmptyLine("Loading your recent plays…") }
+                history.rows.isEmpty() && history.failed -> item(key = "recent-failed") { EmptyLine("Could not load your plays.") }
+                history.rows.isEmpty() -> item(key = "recent-empty") { EmptyLine("No plays yet. Songs you play show up here.") }
+            }
+            itemsIndexed(history.rows, key = { _, r -> "play-${r.id}" }) { _, r ->
+                val faded = r.skipped || r.missing
+                ListItem(
+                    headlineContent = {
+                        Text(
+                            r.title,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = if (faded) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                        )
+                    },
+                    supportingContent = {
+                        val tags = listOfNotNull(r.artist ?: "Unknown artist", "skipped".takeIf { r.skipped }, "file missing".takeIf { r.missing })
+                        Text(tags.joinToString(" · "), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    },
+                    trailingContent = { Text(ago(r.playedAt), style = MaterialTheme.typography.labelSmall) },
+                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+                    modifier = Modifier.clickable(enabled = !r.missing) { viewModel.playHistory(r) },
+                )
+            }
+            if (history.failed || (history.rows.isNotEmpty() && history.rows.size < history.total)) {
+                item(key = "recent-more") {
+                    OutlinedButton(
+                        onClick = viewModel::loadMoreHistory,
+                        enabled = !history.loading,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    ) {
+                        Text(
+                            when {
+                                history.loading -> "Loading…"
+                                history.failed -> "Couldn't load. Try again"
+                                else -> "Show ${minOf(50, history.total - history.rows.size)} more"
+                            },
+                        )
                     }
                 }
             }

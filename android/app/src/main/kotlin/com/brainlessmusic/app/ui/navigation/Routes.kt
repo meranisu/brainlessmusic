@@ -24,10 +24,10 @@ object Routes {
     const val SONG_LIST = "you/{list}"
     const val TOGETHER = "together"
     const val PEOPLE = "people"
-    const val FRIENDS = "friends"
-    /** Your own listening in full (A228), opened from Home. */
-    const val STATS = "stats"
-    const val PROFILE = "people/{userId}"
+    /** A profile; your own has Profile, Stats and Friends tabs, and `tab` opens one (owner, 2026-10-21). */
+    const val PROFILE = "people/{userId}?tab={tab}"
+    /** One of today's mixes as a list of its songs (owner, 2026-10-21). */
+    const val MIX = "mix/{mixId}"
     const val SETUP = "setup"
     /** Sign up with an invite code (A189-A192); `code` is filled in from an invite link, else typed. */
     const val SIGNUP = "signup?code={code}"
@@ -40,6 +40,8 @@ object Routes {
     const val ARG_DOWNLOAD_GROUP = "groupId"
     const val ARG_SONG_LIST = "list"
     const val ARG_USER_ID = "userId"
+    const val ARG_PROFILE_TAB = "tab"
+    const val ARG_MIX_ID = "mixId"
     const val ARG_INVITE_CODE = "code"
 
     fun artistDetail(id: Int) = "artist/$id"
@@ -47,7 +49,8 @@ object Routes {
     fun genreDetail(id: Int) = "genre/$id"
     fun settingsPage(page: String) = "settings/$page"
     fun playlistDetail(id: Int) = "playlist/$id"
-    fun profile(userId: Int) = "people/$userId"
+    fun mix(id: Int) = "mix/$id"
+    fun profile(userId: Int, tab: String? = null) = if (tab == null) "people/$userId" else "people/$userId?tab=$tab"
     fun signup(code: String? = null) = if (code == null) "signup" else "signup?code=${android.net.Uri.encode(code)}"
 
     /** Group ids hold a colon (`album:5`); encoded so the route stays one segment. */

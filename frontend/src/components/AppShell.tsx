@@ -48,12 +48,9 @@ function navItemsFor(isGuest: boolean): { primary: NavItem[]; overflow: NavItem[
       { to: '/together', label: 'Listen together', detail: 'Same song, same moment' },
       // Behind More with Listen together: the bar is full (v0.4 box 28).
       { to: '/genres', label: 'Genres', detail: 'Albums by genre tag' },
-      // Everyone's profiles (A172), guests included: they can look, they just have none of their own.
-      // Friends' now playing and activity (A239, A243); guests neither see nor appear (A241).
-      ...(isGuest ? [] : [{ to: '/friends', label: 'Friends', detail: "What everyone's playing now" }]),
+      // Everyone's profiles (A172), guests included: they can look, they just have none of their own. Stats and
+      // Friends left this menu to be tabs on your own profile, behind your picture (owner, 2026-10-21).
       { to: '/people', label: 'People', detail: 'Who listens to what' },
-      // Your own listening (A227, A230); guests have no history (A37).
-      ...(isGuest ? [] : [{ to: '/stats', label: 'Stats', detail: 'When and what you play' }]),
     ],
   };
 }

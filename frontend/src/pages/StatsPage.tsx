@@ -288,7 +288,8 @@ function RecentlyPlayed() {
   );
 }
 
-export function StatsPage() {
+/** Stats, your listening in full (A228), shown as a tab on your own profile (owner, 2026-10-21). */
+export function StatsPanel() {
   const [range, setRange] = useState<StatsRange>('month');
   const stats = useQuery({
     queryKey: ['me', 'stats', range],
@@ -414,13 +415,10 @@ export function StatsPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="font-display text-3xl font-extrabold text-white sm:text-4xl">Your listening</h1>
-          <p className="text-xs text-blue-300">Times are in {TIME_ZONE.replace(/_/g, ' ')}.</p>
-        </div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <RangePicker value={range} onChange={setRange} />
-      </header>
+        <p className="text-xs text-blue-300">Times are in {TIME_ZONE.replace(/_/g, ' ')}.</p>
+      </div>
       {content}
       <RecentlyPlayed />
     </div>

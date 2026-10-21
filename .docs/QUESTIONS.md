@@ -95,6 +95,29 @@ A 304 still makes the 0.2 to 1 s tunnel trip, so it saves data, not time; pages 
 
 ## Answered
 
+### A250 — Mixes get a cover grid, their own page, and a full 30 songs *(asked in chat)*
+**Answered:** 2026-10-21, in chat. A mix's picture is four of its covers with a radio mark at the bottom left (as
+Spotify and YouTube Music). Tapping a mix opens a page listing its songs, with Play and Shuffle, in place of playing
+at once. Mixes fill to 30 songs when the genre has enough.
+
+### A249 — Listen together moves to the Library, as an icon *(asked in chat)*
+**Answered:** 2026-10-21, in chat. Android: off Home, into the Library as an icon-only button on top of Shuffle (alone
+on the other tabs). Both are a bit bigger, 64dp in place of 56dp. Replaces A183's labelled button on Home.
+
+### A248 — Standard gets the radar, on Home and profiles *(asked in chat)*
+**Answered:** 2026-10-21, in chat. Standard's listening card keeps its numbers and adds a plain radar: sentence-case
+axis names, the accent on every axis. Replaces A135's "Standard has no radar".
+
+### A247 — Profile tabs on your own profile only *(asked in chat)*
+**Answered:** 2026-10-21, in chat. Other people's profiles stay one page: full stats are yours only (A230).
+
+### A246 — "Your listening" is renamed Stats *(asked in chat)*
+**Answered:** 2026-10-21, in chat. Tabs read Profile · Stats · Friends.
+
+### A245 — Stats and Friends become tabs on your profile, Android and web *(asked in chat)*
+**Answered:** 2026-10-21, in chat. Both clients. Web drops Stats and Friends from More; `/stats` and `/friends`
+redirect to the tab. Replaces A243's separate Friends page in the nav.
+
 ### A244 — On this day: plays only, after Mixes, 20 a year *(asked in chat)*
 **Answered:** 2026-10-21, in chat. Plays only (not "added on this day"); web button after the daily mixes; up to 20 songs per year.
 

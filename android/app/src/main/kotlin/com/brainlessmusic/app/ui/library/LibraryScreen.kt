@@ -3,7 +3,9 @@ package com.brainlessmusic.app.ui.library
 import com.brainlessmusic.app.ui.common.AlbumCard
 import com.brainlessmusic.app.ui.common.SongListItem
 import com.brainlessmusic.app.ui.common.Notices
+import com.brainlessmusic.app.ui.common.LargeFace
 import com.brainlessmusic.app.ui.common.SkinFab
+import com.brainlessmusic.app.ui.common.SkinTabBar
 import com.brainlessmusic.app.ui.profile.SongListKind
 import com.brainlessmusic.app.ui.profile.PlaylistsTab
 import com.brainlessmusic.app.data.local.Skin
@@ -171,6 +173,7 @@ fun LibraryScreen(
                 LibraryTab.ARTISTS -> ArtistsTab(viewModel, navController, artistsState)
                 LibraryTab.PLAYLISTS -> PlaylistsTab(
                     topInset = TabBarClearance,
+                    bottomInset = fabClearance(LibraryTab.PLAYLISTS),
                     onOpenLiked = { navController.navigate(Routes.songList(SongListKind.LIKED.route)) { launchSingleTop = true } },
                     onOpenDisliked = { navController.navigate(Routes.songList(SongListKind.LESS_OFTEN.route)) { launchSingleTop = true } },
                     onOpenPlaylist = { id -> navController.navigate(Routes.playlistDetail(id)) { launchSingleTop = true } },
@@ -211,8 +214,40 @@ fun LibraryScreen(
                 },
                 modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp, start = 16.dp, end = 16.dp),
             )
+            // Listen together moved here from Home as an icon (owner, 2026-10-21), on top of Shuffle on the Songs tab
+            // and alone on the others.
+            Column(
+                verticalArrangement = Arrangement.spacedBy(FabGap),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = ListEndPadding + 8.dp, bottom = FabBottom),
+            ) {
+                SkinFab(
+                    icon = AppIcons.headphones,
+                    description = "Listen together",
+                    onClick = { navController.navigate(Routes.TOGETHER) { launchSingleTop = true } },
+                    large = true,
+                )
+                if (tab == LibraryTab.SONGS) {
+                    // Plays everything, not just what is on screen: the server shuffles the whole library.
+                    SkinFab(
+                        icon = AppIcons.shuffle,
+                        description = "Shuffle all",
+                        onClick = { viewModel.shuffleAll { Notices.show(it) } },
+                        large = true,
+                    )
+                }
+            }
         }
     }
+}
+
+private val FabGap = 12.dp
+private val FabBottom = 16.dp
+
+/** Room under a tab's last row for the buttons over it: one on most tabs, two on Songs, and a gap. */
+private fun fabClearance(tab: LibraryTab): Dp {
+    val buttons = if (tab == LibraryTab.SONGS) 2 else 1
+    return FabBottom + LargeFace * buttons + FabGap * (buttons - 1) + 8.dp
 }
 
 // From deep in a long list, jump most of the way first so the animation is a short glide, not a long scroll.
@@ -275,160 +310,15 @@ private fun HeaderButton(icon: ImageVector, description: String, onClick: () -> 
     }
 }
 
-/** A pill that floats over the list rather than sitting in the layout, so content scrolls under it. */
+/** The skin's tab bar over the list, floating rather than in the layout, so content scrolls under it. */
 @Composable
 private fun LibraryTabBar(selected: LibraryTab, onSelect: (LibraryTab) -> Unit, modifier: Modifier = Modifier) {
-    if (LocalSkin.current == Skin.GEAR) {
-        DifficultyTabs(selected, onSelect, modifier)
-        return
-    }
-    if (LocalSkin.current == Skin.RING) {
-        GenreChips(selected, onSelect, modifier)
-        return
-    }
-    if (dockedHeader) {
-        SlantTabs(selected, onSelect, modifier)
-        return
-    }
-    Surface(
-        modifier = modifier.height(HeaderHeight),
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-    ) {
-        Row(
-            modifier = Modifier.padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            LibraryTab.entries.forEach { tab ->
-                val isSelected = tab == selected
-                Surface(
-                    shape = CircleShape,
-                    color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                    contentColor = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .selectable(selected = isSelected, role = Role.Tab, onClick = { onSelect(tab) }),
-                ) {
-                    Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 14.dp)) {
-                        Text(text = tab.label, style = MaterialTheme.typography.labelLarge)
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
- * Lane's tabs: Arcaea's slanted segments side by side across the strip, the open one filled in the accent, the rest
- * outlined, as its difficulty selector reads.
- */
-@Composable
-private fun SlantTabs(selected: LibraryTab, onSelect: (LibraryTab) -> Unit, modifier: Modifier = Modifier) {
-    val scheme = MaterialTheme.colorScheme
-    val shape = MaterialTheme.rowShape
-    Row(
-        modifier = modifier.height(HeaderHeight),
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        LibraryTab.entries.forEach { tab ->
-            val isSelected = tab == selected
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(38.dp)
-                    .clip(shape)
-                    .background(if (isSelected) scheme.primary else scheme.surfaceContainerHigh)
-                    .border(1.dp, if (isSelected) scheme.primary else scheme.outline, shape)
-                    .selectable(selected = isSelected, role = Role.Tab, onClick = { onSelect(tab) }),
-            ) {
-                Text(
-                    tab.label,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (isSelected) scheme.onPrimary else scheme.onSurfaceVariant,
-                    maxLines = 1,
-                )
-            }
-        }
-    }
-}
-
-/**
- * Gear's tabs: the game's difficulty boxes side by side, each in its colour, the open one filled with it and the rest
- * outlined in it, as the song select shows NOV, ADV, EXH and MXM.
- */
-@Composable
-private fun DifficultyTabs(selected: LibraryTab, onSelect: (LibraryTab) -> Unit, modifier: Modifier = Modifier) {
-    val scheme = MaterialTheme.colorScheme
-    val shape = MaterialTheme.shapes.small
-    Row(
-        modifier = modifier.height(HeaderHeight),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        LibraryTab.entries.forEachIndexed { i, tab ->
-            val isSelected = tab == selected
-            val color = GearDifficultyColors[i % GearDifficultyColors.size]
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(38.dp)
-                    .clip(shape)
-                    .background(if (isSelected) color else scheme.surfaceContainerHigh)
-                    .border(2.dp, color, shape)
-                    .selectable(selected = isSelected, role = Role.Tab, onClick = { onSelect(tab) }),
-            ) {
-                Text(
-                    tab.label.uppercase(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (isSelected) GearInk else scheme.onSurfaceVariant,
-                    maxLines = 1,
-                )
-            }
-        }
-    }
-}
-
-/**
- * Ring's tabs: maimai's genre chips, a pill each in its own cabinet colour, the open one lit (filled, with a pale rim)
- * and the rest outlined in theirs.
- */
-@Composable
-private fun GenreChips(selected: LibraryTab, onSelect: (LibraryTab) -> Unit, modifier: Modifier = Modifier) {
-    val scheme = MaterialTheme.colorScheme
-    val colors = listOf(scheme.primary, RingSky, RingYellow, RingDifficulties[0].color)
-    val inks = listOf(scheme.onPrimary, Color.White, RingInk, Color.White)
-    Row(
-        modifier = modifier.height(HeaderHeight),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        LibraryTab.entries.forEachIndexed { i, tab ->
-            val isSelected = tab == selected
-            val color = colors[i % colors.size]
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(38.dp)
-                    .clip(CircleShape)
-                    .background(if (isSelected) color else scheme.surfaceContainerHigh)
-                    .border(if (isSelected) 3.dp else 2.dp, if (isSelected) scheme.surfaceContainerHigh else color, CircleShape)
-                    .selectable(selected = isSelected, role = Role.Tab, onClick = { onSelect(tab) }),
-            ) {
-                Text(
-                    tab.label,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = if (isSelected) inks[i % inks.size] else scheme.onSurface,
-                    maxLines = 1,
-                )
-            }
-        }
-    }
+    SkinTabBar(
+        labels = LibraryTab.entries.map { it.label },
+        selected = selected.ordinal,
+        onSelect = { onSelect(LibraryTab.entries[it]) },
+        modifier = modifier,
+    )
 }
 
 /**
@@ -548,7 +438,7 @@ private fun SongsTab(viewModel: LibraryViewModel, navController: NavHostControll
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = TabBarClearance, end = ListEndPadding),
+                contentPadding = PaddingValues(top = TabBarClearance, end = ListEndPadding, bottom = fabClearance(LibraryTab.SONGS)),
             ) {
                 items(count = items.itemCount, key = items.itemKey { it.track.id }) { index ->
                     val row = items[index]
@@ -570,13 +460,6 @@ private fun SongsTab(viewModel: LibraryViewModel, navController: NavHostControll
                 state = listState,
                 onJump = { scope.launch { listState.scrollToItem(it) } },
                 topInset = TabBarClearance,
-            )
-            // Plays everything, not just what is on screen: the server shuffles the whole library.
-            SkinFab(
-                icon = AppIcons.shuffle,
-                description = "Shuffle all",
-                onClick = { viewModel.shuffleAll { Notices.show(it) } },
-                modifier = Modifier.align(Alignment.BottomEnd).padding(end = ListEndPadding + 8.dp, bottom = 16.dp),
             )
         }
     }
@@ -706,7 +589,7 @@ private fun AlbumsTab(viewModel: LibraryViewModel, navController: NavHostControl
 }
 
 /** Shared by the grid and its skeleton, so the placeholder covers sit where the real ones will. */
-private val AlbumGridPadding = PaddingValues(start = 12.dp, end = 4.dp + ListEndPadding, top = TabBarClearance + 4.dp, bottom = 12.dp)
+private val AlbumGridPadding = PaddingValues(start = 12.dp, end = 4.dp + ListEndPadding, top = TabBarClearance + 4.dp, bottom = fabClearance(LibraryTab.ALBUMS))
 
 @Composable
 private fun ArtistsTab(viewModel: LibraryViewModel, navController: NavHostController, listState: LazyListState) {
@@ -726,7 +609,7 @@ private fun ArtistsTab(viewModel: LibraryViewModel, navController: NavHostContro
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = TabBarClearance, end = ListEndPadding),
+                contentPadding = PaddingValues(top = TabBarClearance, end = ListEndPadding, bottom = fabClearance(LibraryTab.ARTISTS)),
             ) {
                 items(count = items.itemCount, key = items.itemKey { it.id }) { index ->
                     val artist = items[index]
