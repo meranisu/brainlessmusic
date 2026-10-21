@@ -218,11 +218,11 @@ fun ColumnScope.HitCircleDeck(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        HitButton(shuffleIcon(state.shuffleMode), shuffleLabel(state.shuffleMode), number = 1, lit = state.shuffle, enabled = !state.inRoom, onClick = onShuffle)
+        HitButton(shuffleIcon(state.shuffleMode), shuffleLabel(state.shuffleMode), number = 1, lit = state.shuffle, enabled = state.canChangeOrder, onClick = onShuffle)
         HitButton(AppIcons.previous, "Previous", number = 2, enabled = state.hasPrevious || state.positionMs > 3_000, onClick = onPrevious)
         PlayCircle(state, onPlayPause)
         HitButton(AppIcons.next, state.nextLabel, number = 3, enabled = state.hasNext, onClick = onNext)
-        HitButton(repeatIcon(state.repeat), repeatLabel(state.repeat), number = 4, lit = state.repeat != Repeat.OFF, enabled = !state.inRoom, onClick = onRepeat)
+        HitButton(repeatIcon(state.repeat), repeatLabel(state.repeat), number = 4, lit = state.repeat != Repeat.OFF, enabled = state.canChangeOrder, onClick = onRepeat)
     }
 }
 

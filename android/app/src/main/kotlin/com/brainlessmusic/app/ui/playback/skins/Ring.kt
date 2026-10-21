@@ -410,7 +410,7 @@ private fun Cabinet(
         // hide for guests (A65); their buttons stay, unlit and dimmed, as a cabinet's buttons always do.
         val rim = bezel
         RimButton(side, radius, 1, button, RingYellow, RingInk, lit = state.repeat != Repeat.OFF, icon = repeatIcon(state.repeat),
-            label = repeatLabel(state.repeat), enabled = !state.inRoom, rim = rim, onClick = onRepeat)
+            label = repeatLabel(state.repeat), enabled = state.canChangeOrder, rim = rim, onClick = onRepeat)
         RimButton(side, radius, 2, button, scheme.primary, scheme.onPrimary, lit = false, icon = AppIcons.playlistAdd,
             label = "Add to playlist", enabled = canEdit, rim = rim, onClick = onAddToPlaylist)
         RimButton(side, radius, 3, button, RingSky, Color.White, lit = true, icon = AppIcons.next,
@@ -424,7 +424,7 @@ private fun Cabinet(
             icon = AppIcons.favorite, label = feeling.tapLabel(),
             enabled = canEdit, rim = rim, onClick = onLike, onLongClick = onDislike, heart = feeling)
         RimButton(side, radius, 8, button, RingYellow, RingInk, lit = state.shuffle, icon = shuffleIcon(state.shuffleMode),
-            label = shuffleLabel(state.shuffleMode), enabled = !state.inRoom, rim = rim, onClick = onShuffle)
+            label = shuffleLabel(state.shuffleMode), enabled = state.canChangeOrder, rim = rim, onClick = onShuffle)
     }
 }
 

@@ -67,8 +67,10 @@ data class PlaybackUiState(
     val stream: StreamInfo? = null,
     /** Some song in the queue would stream rather than play from the phone; data saver only matters then (A95). */
     val queueStreams: Boolean = true,
-    /** In a "Listen together" room: the transport drives the room for everyone, and shuffle and repeat are off. */
+    /** In a "Listen together" room: the transport drives the room for everyone, and shuffle and repeat are the room's. */
     val inRoom: Boolean = false,
+    /** Whether the shuffle and repeat buttons work: always out of a room, only for the host in one (A268). */
+    val canChangeOrder: Boolean = true,
     /**
      * Songs heard to the play threshold in a row since the app started, broken by one recorded as a skip (A113): SOUND
      * VOLTEX's CHAIN, which Gear shows on its lane. Kept on the phone only, for this run of the app.

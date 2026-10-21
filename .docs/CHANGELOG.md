@@ -4,6 +4,19 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-21: Android Now Playing tidy-up (A268)
+
+- Why: owner review of a Now Playing screenshot in a room: the title broke at "(feat.", "Unknown album" said nothing,
+  the room had two buttons, and shuffle and repeat were always off in a room although the host can set them.
+- Android `NowPlayingScreen.kt` (Standard skin layout): the title is one line that scrolls (`basicMarquee`) instead of
+  two that wrap; the album line is hidden when there is no album tag. While in a room the top bar's headphones icon
+  becomes the `RoomChip` ("Room ABCD"), and the chip above the cover is gone.
+- Shuffle and repeat in a room (Standard and all four skins): they show the room's `settings.shuffle` and
+  `settings.repeat`, and the host's taps change those settings (`PlaybackViewModel.cycleShuffle`/`cycleRepeat` send
+  `RoomSession.updateSettings`). For everyone else they are greyed out. New `PlaybackUiState.canChangeOrder` replaces
+  the `!inRoom` checks.
+- Verified: Android `compileDebugKotlin` passes. Not run on a phone or emulator.
+
 ## 2026-10-21: Listen together fixes, round 1 (A262-A265)
 
 - Why: owner report in chat after v0.4.29: room name placement, "vote to skip ... skips instantly", a small Start

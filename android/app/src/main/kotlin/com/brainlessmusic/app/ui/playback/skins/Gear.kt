@@ -276,7 +276,7 @@ fun ColumnScope.GearDeck(
                 lit = state.shuffle,
                 icon = shuffleIcon(state.shuffleMode),
                 label = shuffleLabel(state.shuffleMode),
-                enabled = !state.inRoom,
+                enabled = state.canChangeOrder,
                 onClick = onShuffle,
             )
             BtKey(AppIcons.previous, "Previous", enabled = state.hasPrevious || state.positionMs > 3_000, onClick = onPrevious)
@@ -289,7 +289,7 @@ fun ColumnScope.GearDeck(
                 lit = state.repeat != Repeat.OFF,
                 icon = repeatIcon(state.repeat),
                 label = repeatLabel(state.repeat),
-                enabled = !state.inRoom,
+                enabled = state.canChangeOrder,
                 onClick = onRepeat,
             )
         }

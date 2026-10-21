@@ -5,6 +5,12 @@ Newest first. Not maintained beyond moving text here; some entries say "not push
 
 ## Up to 2026-10-21 (moved 2026-10-21)
 
+2026-10-21: Listen together round 1 fixes pushed in ef01f64, tag v0.4.30, CI green, release build running at close, smol deploy not checked; not browser- or phone-checked
+
+2026-10-21: Room issue log pushed in ea1ff62, tag v0.4.29, release and CI green, live on smol; release APK checked with dexdump; not phone-checked.
+
+2026-10-21: Android rooms R8 fix and room code beside Now playing pushed in 9970910, tag v0.4.28, release green; regenerated `androidChangelog.json` pushed in 9931d72, CI was running at close, smol deploy not checked; not phone-checked
+
 2026-10-21: Listen together v2 and Add to queue pushed with tag v0.4.27 and web 0.4.1, CI green after 21e2e72, smol deploy not checked; v0.4.25 and v0.4.26 pushed; everything from e612988 to 8d08134 live on smol, Android v0.4.24 released; none of it phone-checked; rescan and audio analysis progress on smol not checked
 
 2026-10-21: Listen together v2 and Add to queue in 5a3fa4b, 3c79961, 6c09a53, pushed with tag v0.4.27 and web 0.4.1; CI and

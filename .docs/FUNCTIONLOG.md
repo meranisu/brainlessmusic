@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `PlaybackViewModel.cycleShuffle()`, `cycleRepeat()` — `android/.../ui/playback/PlaybackViewModel.kt`; `PlaybackUiState.canChangeOrder` — `android/.../playback/PlaybackState.kt`
+**Date:** 2026-10-21
+**How added:** new feature
+**Purpose:** in a room, shuffle and repeat show and change the room's settings (A268).
+**Side effects:** a host's tap sends a `settings` command to the room; the backend reshuffles the upcoming songs when shuffle turns on.
+**Before:** in a room both buttons were disabled for everyone and showed the phone's own shuffle and repeat.
+**After:** `NowPlayingScreen` maps `RoomState.settings` into the UI state; only the host can tap them; out of a room nothing changed.
+
 **Function:** `command()` `next` case, `settleSkipVote()`, `snapshot()`, `create()` — `backend/src/services/rooms.ts`
 **Date:** 2026-10-21
 **How added:** bug fix

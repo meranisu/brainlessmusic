@@ -199,11 +199,11 @@ fun ColumnScope.LaneDeck(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        LaneButton(shuffleIcon(state.shuffleMode), shuffleLabel(state.shuffleMode), lit = state.shuffle, enabled = !state.inRoom, onClick = onShuffle)
+        LaneButton(shuffleIcon(state.shuffleMode), shuffleLabel(state.shuffleMode), lit = state.shuffle, enabled = state.canChangeOrder, onClick = onShuffle)
         LaneButton(AppIcons.previous, "Previous", enabled = state.hasPrevious || state.positionMs > 3_000, onClick = onPrevious)
         PlayDiamond(state, onPlayPause)
         LaneButton(AppIcons.next, state.nextLabel, enabled = state.hasNext, onClick = onNext)
-        LaneButton(repeatIcon(state.repeat), repeatLabel(state.repeat), lit = state.repeat != Repeat.OFF, enabled = !state.inRoom, onClick = onRepeat)
+        LaneButton(repeatIcon(state.repeat), repeatLabel(state.repeat), lit = state.repeat != Repeat.OFF, enabled = state.canChangeOrder, onClick = onRepeat)
     }
 }
 

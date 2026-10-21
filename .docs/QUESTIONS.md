@@ -104,6 +104,11 @@ A 304 still makes the 0.2 to 1 s tunnel trip, so it saves data, not time; pages 
 
 ## Answered
 
+### A268 — Now Playing: scrolling title, no empty album, room chip up top, host-set shuffle and repeat *(asked in chat)*
+**Answered:** 2026-10-21, in chat, on a Now Playing screenshot: the title scrolls on one line instead of wrapping; no
+album line when there is no album; in a room the top-bar Listen together button becomes the room button; in a room
+shuffle and repeat follow the host's room settings, greyed out when the host turned them off (built: only the host can tap them).
+
 ### A267 — The invite banner shows on the main tabs only *(asked in chat)*
 **Answered:** 2026-10-21, in chat: "sure". Android's in-app invite banner sits above the mini player on the tab
 screens (Home, Library and the rest), not on every screen.

@@ -16,6 +16,7 @@ import com.brainlessmusic.app.ui.profile.Feeling
 import com.brainlessmusic.app.ui.common.Notices
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -120,8 +121,18 @@ fun NowPlayingScreen(
     val pills = skin == Skin.STANDARD && viewModel.playerButtons.collectAsStateWithLifecycle().value == PlayerButtons.PILLS
     val dataSaver by viewModel.dataSaver.collectAsStateWithLifecycle()
     val room by viewModel.room.collectAsStateWithLifecycle()
-    // In a room Next may be a vote, so its label says so (A263).
-    val state = room.room?.let { playerState.copy(nextLabel = it.nextLabel(room.you)) } ?: playerState
+    // In a room Next may be a vote, so its label says so (A263). Shuffle and repeat show the room's settings, and
+    // only the host can change them (A268).
+    val state = room.room?.let {
+        val settings = it.settings
+        playerState.copy(
+            nextLabel = it.nextLabel(room.you),
+            shuffle = settings?.shuffle == true,
+            shuffleMode = if (settings?.shuffle == true) ShuffleMode.SHUFFLE else ShuffleMode.OFF,
+            repeat = when (settings?.repeat) { "all" -> Repeat.ALL; "one" -> Repeat.ONE; else -> Repeat.OFF },
+            canChangeOrder = room.isHost && settings != null,
+        )
+    } ?: playerState
     val sleep by viewModel.sleep.collectAsStateWithLifecycle()
     var showSleep by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -168,15 +179,18 @@ fun NowPlayingScreen(
                     }
                 },
                 // Only the way into the room lives up here (A220). Like and add sit on the song's header, sleep and
-                // data saver in the readout under the controls.
+                // data saver in the readout under the controls. In a room it is the room's chip (A268).
                 actions = {
-                    IconButton(
+                    val joined = room.room
+                    if (joined != null) {
+                        RoomChip(joined.code, live = room.connection == RoomConnection.LIVE, onClick = onOpenTogether)
+                    } else IconButton(
                         onClick = onOpenTogether,
                         colors = IconButtonDefaults.iconButtonColors(
-                            contentColor = if (room.room != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         ),
                     ) {
-                        Icon(AppIcons.headphones, contentDescription = if (room.room != null) "Open the room" else "Listen together")
+                        Icon(AppIcons.headphones, contentDescription = "Listen together")
                     }
                 },
             )
@@ -249,7 +263,6 @@ fun NowPlayingScreen(
                 .padding(padding)
                 .padding(horizontal = 24.dp),
         ) {
-            room.room?.let { RoomChip(it.code, live = room.connection == RoomConnection.LIVE, onClick = onOpenTogether) }
             when (skin) {
                 Skin.HIT_CIRCLE -> HitCircleDeck(
                     state = state,
@@ -358,11 +371,12 @@ fun NowPlayingScreen(
                     // Three lines, left-aligned: what it is, who made it, what it came from.
                     Row(modifier = Modifier.fillMaxWidth().padding(top = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
+                            // One line that scrolls when it doesn't fit, so "(feat. X)" never breaks onto its own line (A268).
                             Text(
                                 current.title,
                                 style = MaterialTheme.typography.headlineMedium,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
+                                maxLines = 1,
+                                modifier = Modifier.basicMarquee(),
                             )
                             Text(
                                 current.artist ?: "Unknown artist",
@@ -370,13 +384,16 @@ fun NowPlayingScreen(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
-                            Text(
-                                current.album ?: "Unknown album",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
+                            // No album tag, no line (A268).
+                            current.album?.takeIf { it.isNotBlank() }?.let { album ->
+                                Text(
+                                    album,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
                         }
                         // The pills row below carries these already.
                         if (!pills) SongHeaderActions(current.trackId, songActions) { addingToPlaylist = true }
@@ -513,10 +530,10 @@ private fun TransportRow(state: PlaybackUiState, viewModel: PlaybackViewModel, p
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         // Lit while on, and the icon changes per mode, like repeat; the queue sheet names the mode in words.
-        // A room plays its queue once, in order, the same for everyone: shuffle and repeat are off there.
+        // In a room these are the room's settings, and only the host can change them (A268).
         IconButton(
             onClick = viewModel::cycleShuffle,
-            enabled = !state.inRoom,
+            enabled = state.canChangeOrder,
             colors = IconButtonDefaults.iconButtonColors(contentColor = litColor(state.shuffle)),
         ) {
             Icon(shuffleIcon(state.shuffleMode), contentDescription = shuffleLabel(state.shuffleMode))
@@ -544,7 +561,7 @@ private fun TransportRow(state: PlaybackUiState, viewModel: PlaybackViewModel, p
         }
         IconButton(
             onClick = viewModel::cycleRepeat,
-            enabled = !state.inRoom,
+            enabled = state.canChangeOrder,
             colors = IconButtonDefaults.iconButtonColors(contentColor = litColor(state.repeat != Repeat.OFF)),
         ) {
             Icon(repeatIcon(state.repeat), contentDescription = repeatLabel(state.repeat))
@@ -612,14 +629,14 @@ private fun PillRow(
             icon = shuffleIcon(state.shuffleMode),
             label = shuffleLabel(state.shuffleMode),
             lit = state.shuffle,
-            enabled = !state.inRoom,
+            enabled = state.canChangeOrder,
             onClick = viewModel::cycleShuffle,
         )
         Pill(
             icon = repeatIcon(state.repeat),
             label = repeatLabel(state.repeat),
             lit = state.repeat != Repeat.OFF,
-            enabled = !state.inRoom,
+            enabled = state.canChangeOrder,
             onClick = viewModel::cycleRepeat,
         )
         if (songActions.canEdit) {
@@ -894,11 +911,11 @@ private fun SongHeaderActions(trackId: Int, songActions: SongActionsViewModel, o
     }
 }
 
-/** "Room ABCD" centred above the cover while in a room, or that it's reconnecting (A262). Tapping it opens the room. */
+/** "Room ABCD" in the top bar while in a room, or that it's reconnecting (A262, A268). Tapping it opens the room. */
 @Composable
 private fun RoomChip(code: String, live: Boolean, onClick: () -> Unit) {
     val ink = if (live) MaterialTheme.accentInk else MaterialTheme.colorScheme.onSurfaceVariant
-    Box(Modifier.fillMaxWidth().padding(bottom = 4.dp), contentAlignment = Alignment.Center) {
+    Box(Modifier.padding(end = 8.dp)) {
         Surface(
             onClick = onClick,
             shape = CircleShape,
