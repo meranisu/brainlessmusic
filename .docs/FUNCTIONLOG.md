@@ -4,6 +4,22 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `AppShell()` (header) — `frontend/src/components/AppShell.tsx`
+**Date:** 2026-10-22
+**How added:** UI change
+**Purpose:** the search sits in the middle of the top bar (A292).
+**Side effects:** none.
+**Before:** search filled the space after the back button, up to 28rem, left-aligned.
+**After:** two `flex-1` sides (back button, account menu) around a 32rem search.
+
+**Function:** `goBack()`, `slideTo()`, `AppShell()` (header) — `frontend/src/components/AppShell.tsx`
+**Date:** 2026-10-22
+**How added:** UI change
+**Purpose:** a back button in the top bar on detail pages (A291).
+**Side effects:** none.
+**Before:** no back control in the app; `slideTo` took a path only.
+**After:** `goBack` slides one step back through history, or to the page's list (`BACK_FALLBACK`) when the tab has none; `slideTo` also takes a history delta.
+
 **Function:** `AccountMenu()` — `frontend/src/components/AccountMenu.tsx`; `AppShell()` (header) — `frontend/src/components/AppShell.tsx`; `SideNav()` — `frontend/src/components/SideNav.tsx`
 **Date:** 2026-10-22
 **How added:** UI change

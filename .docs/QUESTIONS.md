@@ -104,6 +104,15 @@ A 304 still makes the 0.2 to 1 s tunnel trip, so it saves data, not time; pages 
 
 ## Answered
 
+### A292 — The search bar sits in the middle of the top bar *(asked in chat)*
+**Answered:** 2026-10-22, in chat: "make the search bar in the middle like in yt music". Web from `md`; phones keep
+the search icon.
+
+### A291 — Detail pages get a back button *(asked in chat)*
+**Answered:** 2026-10-22, in chat: "no back button when inside of the element like the playlist mixes and everything
+related", so you can return to where you were. A back arrow in the top bar on album, artist, genre, playlist, person
+and mix pages.
+
 ### A290 — Profile, Control Center, Options and Exit go in an avatar menu *(was Q290)*
 **Answered:** 2026-10-22: only the avatar shows in the bar; its menu lists Profile, Control Center (admins), Options
 and Exit. Phones keep the tab bar's More sheet.

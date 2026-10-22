@@ -1,6 +1,6 @@
 # Project Status
 
-_Last updated: 2026-10-22 (pages slide instead of the card, A285; custom scrollbar app-wide, A286/A287; pushed bb23802) — live snapshot; older header text in [history/status-last-updated-log.md](history/status-last-updated-log.md), full history frozen in [history/status-archive.md](history/status-archive.md)._
+_Last updated: 2026-10-22 (pages slide, A285; custom scrollbar, A286/A287; top bar fixed, A288; flat full-width bar and avatar menu, A289/A290; back button on detail pages, A291; search centred, A292) — live snapshot; older header text in [history/status-last-updated-log.md](history/status-last-updated-log.md), full history frozen in [history/status-archive.md](history/status-archive.md)._
 
 **Keep this file short (target: under 150 lines).** It answers "where are we and what is next" and nothing else.
 When a feature ships, change its row in the table below and, if the next step moved, the *Next* section.

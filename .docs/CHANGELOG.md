@@ -4,6 +4,29 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-22: Search centred in the top bar (A292)
+
+- Why: the owner asked for the search bar in the middle, as in YouTube Music (A292).
+- `AppShell` header, from `md`: the back button and the account menu each sit in a `flex-1` side, with the search
+  (32rem, `md:w-lg`) between them, so it is centred over the page. The sides do not shrink below their content, so on
+  a tight bar the search narrows (and drifts off centre) instead of running under the account menu. The back button's
+  side keeps its width (`md:min-w-9`) with no button, so the search does not move on a detail page. Phones unchanged.
+- Checked in Chromium on a scratch copy of the dev DB: search centre equals the page's centre at 1440x800 (843px);
+  at 1024 (open sidebar) 34px left of it and at 800 (rail) 40px left, clear of the menu; same position on `/albums` and
+  an album page; no console errors.
+
+## 2026-10-22: Back button on detail pages (A291)
+
+- Why: the owner found no way back out of a playlist, mix or other detail page except the browser's own button (A291).
+- `AppShell` header: a back arrow (rotated `ChevronRightIcon`, "Back" tip) on `/albums/:id`, `/artists/:id`,
+  `/genres/:id`, `/playlists/:id`, `/people/:id` and `/mixes/:id`; left of search from `md`, left of the wordmark on
+  phones. It steps back through the tab's history, so the list keeps its scroll (A281), with the backward slide. With
+  no earlier page in the app (a pasted link, a reload) it goes to the page's list instead, Home for a mix.
+- `slideTo` takes a history delta as well as a path.
+- Checked in Chromium on a scratch copy of the dev DB, 1440x800 and 390x844: no button on `/albums`, shown on an album,
+  back returns to `/albums`; a direct `/albums/2` load goes to `/albums`; no console errors. The rig had 3 albums, so
+  the scroll return was not exercised.
+
 ## 2026-10-22: Flat full-width top bar and account menu (A289, A290)
 
 - Why: the owner asked for the top bar to be the same element as the sidebar, edge to edge (A289), and for profile,

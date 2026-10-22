@@ -14,7 +14,7 @@ import { InviteBanner } from './InviteBanner';
 import { HandoffDialog } from './HandoffDialog';
 import { ArcadeInterstitial, ArrivalVeil } from './ArcadeInterstitial';
 import { ShellBackdrop } from './BackdropDepth';
-import { CloseIcon, SearchIcon, SidebarIcon } from './icons';
+import { ChevronRightIcon, CloseIcon, SearchIcon, SidebarIcon } from './icons';
 import { AccountMenu } from './AccountMenu';
 import { activeIndex, navSectionsFor, type NavItem } from './navItems';
 import { PhoneTabBar } from './PhoneTabBar';
@@ -47,6 +47,19 @@ const OTHER_TITLES: Record<string, string> = {
   '/search': 'Search',
   '/control-center': 'Control Center',
 };
+
+/**
+ * Pages opened from somewhere else, which get a back button in the top bar (A291), and where it goes when the tab has
+ * no earlier page in the app (a pasted link or a reload). Mixes are opened from Home.
+ */
+const BACK_FALLBACK: [prefix: string, to: string][] = [
+  ['/albums/', '/albums'],
+  ['/artists/', '/artists'],
+  ['/genres/', '/genres'],
+  ['/playlists/', '/playlists'],
+  ['/people/', '/people'],
+  ['/mixes/', '/'],
+];
 
 function isTyping(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable="true"]') !== null;
@@ -135,7 +148,7 @@ export function AppShell() {
   // Read on the first render, so the boot classes are on the first paint and nothing flashes.
   const [isBooting, setIsBooting] = useState(consumeJustEntered);
 
-  const { pathname, search } = useLocation();
+  const { pathname, search, key: locationKey } = useLocation();
   const navigate = useNavigate();
   const sections = navSectionsFor(Boolean(user?.isGuest));
   const items = sections.flatMap((section) => section.items);
@@ -219,9 +232,10 @@ export function AppShell() {
    * callback waits for the commit instead. Without view transitions the new page just fades in (`route-in`).
    * `data-sliding` keeps `route-in` from fading the page a second time inside the slide.
    */
-  function slideTo(to: string) {
+  function slideTo(to: string | number) {
+    const go = () => (typeof to === 'number' ? navigate(to) : navigate(to));
     if (!document.startViewTransition || prefersReducedMotion()) {
-      navigate(to);
+      go();
       return;
     }
     const root = document.documentElement;
@@ -229,7 +243,7 @@ export function AppShell() {
       () =>
         new Promise<void>((resolve) => {
           slideCommitted.current = resolve;
-          navigate(to);
+          go();
         }),
     );
     root.dataset.sliding = '';
@@ -242,6 +256,19 @@ export function AppShell() {
     // oxlint-disable-next-line react/immutability
     document.documentElement.dataset.navDir = 'forward';
     slideTo(to);
+  }
+
+  const backFallback = BACK_FALLBACK.find(([prefix]) => pathname.startsWith(prefix))?.[1] ?? null;
+
+  /**
+   * The top bar's back button (A291): one step back through the tab's history, so the list it returns to gets its
+   * scroll back (A281). With no earlier page in the app ("default" key), the page's own list instead.
+   */
+  function goBack() {
+    if (backFallback === null) return;
+    // oxlint-disable-next-line react/immutability
+    document.documentElement.dataset.navDir = 'back';
+    slideTo(locationKey === 'default' ? backFallback : -1);
   }
 
   /** Records which way along the sidebar the click goes, before `startViewTransition` reads it. `forward` off-tab. */
@@ -333,16 +360,32 @@ export function AppShell() {
             )}
           </div>
 
+          {/* From `md`, one of two equal sides around the search, so it sits in the middle (A292). */}
+          <div className="contents md:flex md:min-w-9 md:flex-1">
+            {backFallback !== null && (
+              <button
+                type="button"
+                onClick={goBack}
+                aria-label="Back"
+                data-tip="Back"
+                className="tip btn-ghost btn-sm ml-2 shrink-0 px-2 md:ml-0"
+              >
+                <ChevronRightIcon className="h-5 w-5 rotate-180" />
+              </button>
+            )}
+          </div>
+
           {/* A phone has no sidebar, so the name sits here. */}
-          <Link to="/" className={`ml-3 flex shrink-0 items-center gap-2.5 md:hidden ${boot('boot-wordmark')}`}>
+          <Link to="/" className={`${backFallback !== null ? '' : 'ml-3'} flex shrink-0 items-center gap-2.5 md:hidden ${boot('boot-wordmark')}`}>
             <BrandMark className="h-8 w-8 border-2 border-blue-200" />
             <Wordmark className="text-base text-white" />
           </Link>
 
-          {/* From `md` the bar is search and nothing else: the pages moved to the sidebar (A273). */}
-          <div className={`hidden min-w-0 flex-1 py-3 md:flex ${boot('boot-search')}`}>
+          {/* From `md` the bar is search and nothing else: the pages moved to the sidebar (A273). Centred over the
+              page, as in YouTube Music (A292); it narrows before the sides do. */}
+          <div className={`hidden min-w-0 shrink py-3 md:flex md:w-lg ${boot('boot-search')}`}>
             <GlobalSearch
-              className="relative w-full max-w-md"
+              className="relative w-full"
               inputClassName="input w-full select-text py-2 pr-8 text-sm"
             />
           </div>
@@ -360,7 +403,9 @@ export function AppShell() {
             </button>
           </div>
 
-          <AccountMenu pathname={pathname} go={goTo} onExit={handleExit} />
+          <div className="contents md:flex md:flex-1 md:justify-end">
+            <AccountMenu pathname={pathname} go={goTo} onExit={handleExit} />
+          </div>
 
           {/* The accent line, on its own clipped layer: `overflow-hidden` on the bar would swallow its dropdowns. */}
           <span
