@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `AppShell()` (header) — `frontend/src/components/AppShell.tsx`
+**Date:** 2026-10-22
+**How added:** bug fix
+**Purpose:** keep the top bar pinned to the screen even while a scroll lock pins the body (A288).
+**Side effects:** none.
+**Before:** `sticky top-0` header in the column's flow; it moved off-screen with a pinned body.
+**After:** `fixed` header beside the sidebar; `.shell-column` reserves its height with `--shell-head-h`.
+
 **Function:** `slideTo()`, `goTo()`, `onNavClick()`, `leaveThrough()` — `frontend/src/components/AppShell.tsx`; `ShellActions()`, `PhoneTabBar()` (`go` prop)
 **Date:** 2026-10-22
 **How added:** UI change

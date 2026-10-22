@@ -308,9 +308,10 @@ export function AppShell() {
 
       {/* Everything right of the sidebar. The padding follows the sidebar's width as it folds. */}
       <div className="shell-column md:pl-(--side-w)">
-      {/* A floating panel pinned to the top while the page scrolls (A283). The gradient fades content scrolling through
-          the gap above it. */}
-      <header className="sticky top-0 z-30 select-none bg-linear-to-b from-blue-950 via-blue-950/90 to-transparent px-3 pb-4 pt-3 sm:px-4">
+      {/* A floating panel pinned to the top while the page scrolls (A283). Fixed, not sticky (A288): sticky moved with the
+          body, so a scroll lock (which pins the body at `top: -scrollY`) slid the bar off the top. `.shell-column`'s
+          top padding holds its place. The gradient fades content scrolling through the gap above it. */}
+      <header className="shell-head fixed inset-x-0 top-0 z-30 select-none md:left-(--side-w) bg-linear-to-b from-blue-950 via-blue-950/90 to-transparent px-3 pb-4 pt-3 sm:px-4">
         <div className="shell-bar page-shell relative flex items-center gap-3 rounded-xl border border-blue-700 bg-blue-950/92 px-3 sm:gap-5 sm:px-5">
           {/* The sidebar carries the name from `md`; a phone has only this. */}
           <Link to="/" className={`flex shrink-0 items-center gap-2.5 md:hidden ${boot('boot-wordmark')}`}>

@@ -3044,8 +3044,25 @@
   transition: width 240ms var(--ease-out-expo);
 }
 
+/* The fixed top bar's height: its padding (0.75rem + 1rem) plus `.shell-bar`'s min-height. Keep in step with both. */
+:root {
+  --shell-head-h: 5.75rem;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --shell-head-h: 6.25rem;
+  }
+}
+
 .shell-column {
+  padding-top: var(--shell-head-h);
   transition: padding-left 240ms var(--ease-out-expo);
+}
+
+/* Follows the sidebar as it folds, like the column. */
+.shell-head {
+  transition: left 240ms var(--ease-out-expo);
 }
 
 .side-toggle {
@@ -3299,7 +3316,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .side-nav, .shell-column { transition: none; }
+  .side-nav, .shell-column, .shell-head { transition: none; }
 }
 
 /* Home's shelves (A276): a row of cards that scrolls sideways and snaps to a card. The scrollbar is hidden; a phone

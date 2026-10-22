@@ -104,6 +104,9 @@ A 304 still makes the 0.2 to 1 s tunnel trip, so it saves data, not time; pages 
 
 ## Answered
 
+### A288 — The top bar must stay on screen *(asked in chat)*
+**Answered:** 2026-10-22, in chat, with screenshots: "the top bar still not persistent". Header made `fixed`.
+
 ### A287 — The custom scrollbar goes app-wide *(asked in chat)*
 **Answered:** 2026-10-22, in chat: "update the entire system using the custom scrollbar". Page and every scroll box.
 

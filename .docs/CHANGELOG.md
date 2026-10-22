@@ -4,6 +4,17 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-22: Top bar fixed instead of sticky (A288)
+
+- Why: the owner showed the top bar half off the top of Control Center on production (pre-bb23802 build), with no page
+  scrollbar in view. Likely cause: `useScrollLock` pins `body` at `top: -scrollY` while a dialog or Now Playing is
+  open, and a sticky header moves with the body. Not reproduced locally; the leaking lock, if any, is not found.
+- `AppShell` header: `fixed inset-x-0 top-0`, `md:left-(--side-w)`, class `shell-head` (follows the sidebar fold).
+  `index.css`: `--shell-head-h` (5.75rem, 6.25rem from `sm`) as `.shell-column`'s top padding in place of the header's
+  flow height.
+- Checked in Chromium on a scratch copy of the dev DB, 1850x900 and 390x844: header top 0 on load, after scrolling
+  1200px and with the body pinned at -1200px; height equals the padding (100px, 92px); folded sidebar moves it to 72px.
+
 ## 2026-10-22: Custom scrollbar everywhere (A286, A287)
 
 - Why: the owner asked for a custom scrollbar on the side menu (A286), then for the whole app (A287); the browser's grey
