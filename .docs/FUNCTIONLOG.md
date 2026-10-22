@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `ShellActions()` — `frontend/src/components/ShellActions.tsx`; `SideNav()` — `frontend/src/components/SideNav.tsx`; `AppShell()` — `frontend/src/components/AppShell.tsx`
+**Date:** 2026-10-22
+**How added:** UI change
+**Purpose:** account, Control Center, Options and Exit at the right end of the top bar (A283).
+**Side effects:** none.
+**Before:** the four sat in the sidebar's foot; `SideNav` took `go` and `onExit`.
+**After:** `ShellActions` renders them in the bar from `md`; `SideNav` lost the foot and both props.
+
 **Function:** `sourceForPath()`, `loadJumpEntries()`, `noteJump()`, `advanceJump()`, `forgetJump()` — `frontend/src/lib/jumpBackIn.ts`; `PlayerProvider()` (`sourceRef`, `playQueue`/`startRadio` `source`, `openPlayer`, tab title effect) — `frontend/src/components/PlayerBar.tsx`
 **Date:** 2026-10-22
 **How added:** new feature

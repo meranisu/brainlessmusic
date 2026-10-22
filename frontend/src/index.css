@@ -3106,6 +3106,41 @@
   border-color: var(--color-orange-600);
 }
 
+/* Account, Control Center, Options and Exit at the top bar's right end, styled like the sidebar's items. */
+.bar-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid transparent;
+  color: var(--color-blue-300);
+  transition: color 140ms ease-out, border-color 140ms ease-out, background-color 140ms ease-out;
+}
+
+.bar-action:hover,
+.bar-action:focus-visible {
+  color: var(--color-white);
+  border-color: var(--color-blue-600);
+}
+
+.bar-action.is-active {
+  color: var(--color-white);
+  background-color: var(--color-blue-900);
+  border-color: var(--color-orange-600);
+}
+
+.bar-exit {
+  color: var(--color-orange-400);
+}
+
+.bar-exit:hover,
+.bar-exit:focus-visible {
+  color: var(--color-orange-300);
+  border-color: var(--color-orange-600);
+}
+
 .side-playlist {
   display: flex;
   align-items: center;

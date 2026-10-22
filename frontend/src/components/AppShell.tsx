@@ -18,6 +18,7 @@ import { CloseIcon, SearchIcon } from './icons';
 import { activeIndex, navSectionsFor, type NavItem } from './navItems';
 import { PhoneTabBar } from './PhoneTabBar';
 import { ScrollTopButton } from './ScrollTopButton';
+import { ShellActions } from './ShellActions';
 import { SideNav } from './SideNav';
 import { Presence } from './Presence';
 
@@ -269,14 +270,13 @@ export function AppShell() {
         collapsed={collapsed}
         onToggle={toggleSidebar}
         onNavigate={onNavClick}
-        go={leaveThrough}
-        onExit={handleExit}
         bootClass={isBooting ? 'boot-nav' : ''}
       />
 
       {/* Everything right of the sidebar. The padding follows the sidebar's width as it folds. */}
       <div className="shell-column md:pl-(--side-w)">
-      {/* A floating, sticky panel. The gradient fades content scrolling through the gap above it. */}
+      {/* A floating panel pinned to the top while the page scrolls (A283). The gradient fades content scrolling through
+          the gap above it. */}
       <header className="sticky top-0 z-30 select-none bg-linear-to-b from-blue-950 via-blue-950/90 to-transparent px-3 pb-4 pt-3 sm:px-4">
         <div className="shell-bar page-shell relative flex items-center gap-3 rounded-xl border border-blue-700 bg-blue-950/92 px-3 sm:gap-5 sm:px-5">
           {/* The sidebar carries the name from `md`; a phone has only this. */}
@@ -305,6 +305,8 @@ export function AppShell() {
               <SearchIcon className="h-5 w-5" />
             </button>
           </div>
+
+          <ShellActions pathname={pathname} go={leaveThrough} onExit={handleExit} />
 
           {/* The accent line, on its own clipped layer: `overflow-hidden` on the bar would swallow its dropdowns. */}
           <span

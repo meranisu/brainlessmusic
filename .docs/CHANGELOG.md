@@ -4,6 +4,15 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-22: Account, Control Center, Options and Exit move to the top bar (A283)
+
+- Why: the owner asked for them at the right of the search bar, and for the bar to stay put and not move.
+- `components/ShellActions.tsx`: profile (avatar), Control Center (admins), Options and Exit as icon buttons with
+  tooltips at the right end of the top bar, from `md`. Same arcade cards as before; active page edged in orange.
+- `SideNav`: the foot block is gone, with its `go` and `onExit` props. Phones keep these in the tab bar's More sheet.
+- Top bar: already sticky; checked in Chromium that it stays at the top after scrolling. The orange sweep along its
+  bottom edge stays (the owner asked to keep it).
+
 ## 2026-10-22: Nine web UX ideas, Android theme ids, dev sign-in race (A280 to A282)
 
 - Why: the owner picked ideas 1-3 and 5-10 of the shell plan (A281), kept Home's order and the Library buttons (A280),

@@ -4,11 +4,10 @@ import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { apiClient } from '../lib/apiClient';
 import type { PlaylistSummary } from '../types/api';
-import { Avatar } from './Avatar';
 import { CoverArt } from './CoverArt';
 import { usePlayer } from './PlayerBar';
 import { BrandMark, Wordmark } from './BrandLockup';
-import { ExitIcon, FadersIcon, GearIcon, SidebarIcon } from './icons';
+import { SidebarIcon } from './icons';
 import { isItemActive, type NavItem, type NavSection } from './navItems';
 
 interface SideNavProps {
@@ -19,9 +18,6 @@ interface SideNavProps {
   onToggle: () => void;
   /** A plain click on an item: the shell plays the arcade card and navigates. */
   onNavigate: (event: MouseEvent<HTMLAnchorElement>, item: NavItem) => void;
-  /** Leaves through the arcade card to a page that has no item (profile, Options, Control Center). */
-  go: (card: { text: string; detail?: string }, to: string) => void;
-  onExit: () => void;
   /** Boot-stagger class for the item list, from the shell. */
   bootClass?: string;
 }
@@ -32,7 +28,7 @@ interface SideNavProps {
  * Folded, it is a rail of icons whose names show at once beside them (A275). That name is one fixed element placed
  * by the item's position, not a CSS tooltip, so the rail can scroll on a short window without clipping it.
  */
-export function SideNav({ sections, pathname, collapsed, onToggle, onNavigate, go, onExit, bootClass = '' }: SideNavProps) {
+export function SideNav({ sections, pathname, collapsed, onToggle, onNavigate, bootClass = '' }: SideNavProps) {
   const { user } = useAuth();
   const { current, isPlaying, openPlayer } = usePlayer();
   const isGuest = Boolean(user?.isGuest);
@@ -57,9 +53,6 @@ export function SideNav({ sections, pathname, collapsed, onToggle, onNavigate, g
     const hide = () => setTip(null);
     return { onMouseEnter: show, onFocus: show, onMouseLeave: hide, onBlur: hide };
   }
-
-  const onProfile = user != null && pathname === `/people/${user.id}`;
-  const onControlCenter = pathname.startsWith('/control-center');
 
   return (
     <aside
@@ -160,57 +153,6 @@ export function SideNav({ sections, pathname, collapsed, onToggle, onNavigate, g
         </div>
       )}
 
-      {/* The column ends above the desktop player deck while one shows (`:root[data-deck]` in `index.css`). */}
-      <div className="side-foot flex shrink-0 flex-col gap-1 border-t border-blue-800 px-3 py-3">
-        {user && !isGuest && (
-          <button
-            type="button"
-            onClick={() => go({ text: user.displayName, detail: 'Your profile' }, `/people/${user.id}`)}
-            aria-label="Your profile"
-            aria-current={onProfile ? 'page' : undefined}
-            {...tipFor('Your profile')}
-            className={`side-item ${onProfile ? 'is-active' : ''}`}
-          >
-            <Avatar userId={user.id} name={user.displayName} avatarId={user.avatarId} size="xs" />
-            {!collapsed && <span className="truncate">{user.displayName}</span>}
-          </button>
-        )}
-        {user?.isAdmin && (
-          <button
-            type="button"
-            onClick={() => go({ text: 'Control Center', detail: 'Health, logs, uploads and accounts' }, '/control-center')}
-            aria-label="Control Center"
-            aria-current={onControlCenter ? 'page' : undefined}
-            {...tipFor('Control Center')}
-            className={`side-item ${onControlCenter ? 'is-active' : ''}`}
-          >
-            <FadersIcon className="h-5 w-5 shrink-0" />
-            {!collapsed && <span className="truncate">Control Center</span>}
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={() => go({ text: 'Options', detail: 'Settings for this device' }, '/options')}
-          aria-label="Options"
-          aria-current={pathname === '/options' ? 'page' : undefined}
-          {...tipFor('Options')}
-          className={`side-item ${pathname === '/options' ? 'is-active' : ''}`}
-        >
-          <GearIcon className="h-5 w-5 shrink-0" />
-          {!collapsed && <span className="truncate">Options</span>}
-        </button>
-        {/* Back to the title screen, signed out. Orange, the title screen's colour. */}
-        <button
-          type="button"
-          onClick={onExit}
-          aria-label="Log out and exit to the title screen"
-          {...tipFor('Exit (signs you out)')}
-          className="side-item side-exit"
-        >
-          <ExitIcon className="h-5 w-5 shrink-0" />
-          {!collapsed && <span className="truncate">Exit</span>}
-        </button>
-      </div>
       {collapsed && tip && (
         <span role="tooltip" className="side-tip" style={{ top: tip.top, left: tip.left }}>
           {tip.text}

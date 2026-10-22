@@ -104,6 +104,14 @@ A 304 still makes the 0.2 to 1 s tunnel trip, so it saves data, not time; pages 
 
 ## Answered
 
+### A284 — Back to top button stays as it is *(was Q279)*
+**Answered:** 2026-10-22 ("no change"): `ScrollTopButton` keeps its 600 px threshold and bottom-right place; nothing in
+the top bar, nothing for the Library's own scroll boxes.
+
+### A283 — Account, Control Center, Options and Exit move to the top bar *(asked in chat)*
+**Answered:** 2026-10-22, in chat: the four sit at the right of the search bar from `md`; the bar stays sticky and keeps
+its orange sweep (owner asked to retain it).
+
 ### A282 — Android sends the three new themes to the profile *(asked in chat)*
 **Answered:** 2026-10-22, in chat ("yes"): Lavender, Voltage and Candy get web ids in Android's `ColorTheme`, so a pick
 on either side follows the profile (A279 left them phone-only there).
