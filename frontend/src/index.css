@@ -734,16 +734,20 @@
   }
 }
 
-/* The floating top bar. A minimum height keeps it steady with or without search; the inset light edge reads as a bevel. */
+/* The top bar (A289): the sidebar's flat panel, run edge to edge, its rule along the bottom. */
 .shell-bar {
-  min-height: 4rem;
-  box-shadow: inset 0 1px 0 var(--bar-sheen);
+  height: var(--shell-head-h);
+  background-color: var(--color-blue-950);
+  border-bottom: 1px solid var(--color-blue-700);
 }
 
-@media (min-width: 640px) {
-  .shell-bar {
-    min-height: 4.5rem;
-  }
+/* The sidebar's head inside the bar: its width, and its right edge, so the two read as one L-shaped frame. */
+.shell-brand {
+  align-self: stretch;
+  width: var(--side-w);
+  padding-inline: 0.75rem;
+  border-right: 1px solid var(--color-blue-700);
+  transition: width 240ms var(--ease-out-expo);
 }
 
 /* The More and Options menus, arriving like the numpad. */
@@ -3044,25 +3048,20 @@
   transition: width 240ms var(--ease-out-expo);
 }
 
-/* The fixed top bar's height: its padding (0.75rem + 1rem) plus `.shell-bar`'s min-height. Keep in step with both. */
+/* The fixed top bar's height. The sidebar starts below it and the column is padded by it. */
 :root {
-  --shell-head-h: 5.75rem;
+  --shell-head-h: 4rem;
 }
 
 @media (min-width: 640px) {
   :root {
-    --shell-head-h: 6.25rem;
+    --shell-head-h: 4.5rem;
   }
 }
 
 .shell-column {
   padding-top: var(--shell-head-h);
   transition: padding-left 240ms var(--ease-out-expo);
-}
-
-/* Follows the sidebar as it folds, like the column. */
-.shell-head {
-  transition: left 240ms var(--ease-out-expo);
 }
 
 .side-toggle {
@@ -3162,39 +3161,39 @@
   border-color: var(--color-orange-600);
 }
 
-/* Account, Control Center, Options and Exit at the top bar's right end, styled like the sidebar's items. */
-.bar-action {
+/* The avatar button that opens the account menu (A290), styled like the sidebar's items. */
+.account-trigger {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 2.75rem;
+  gap: 0.5rem;
   height: 2.75rem;
+  padding-inline: 0.4rem 0.6rem;
   border-radius: 0.5rem;
   border: 1px solid transparent;
-  color: var(--color-blue-300);
+  color: var(--color-blue-200);
+  font-size: 0.875rem;
+  font-weight: 500;
   transition: color 140ms ease-out, border-color 140ms ease-out, background-color 140ms ease-out;
 }
 
-.bar-action:hover,
-.bar-action:focus-visible {
+.account-trigger:hover,
+.account-trigger:focus-visible {
   color: var(--color-white);
   border-color: var(--color-blue-600);
 }
 
-.bar-action.is-active {
+.account-trigger.is-active {
   color: var(--color-white);
   background-color: var(--color-blue-900);
   border-color: var(--color-orange-600);
 }
 
-.bar-exit {
-  color: var(--color-orange-400);
+.account-chevron {
+  transition: transform 180ms var(--ease-out-expo);
 }
 
-.bar-exit:hover,
-.bar-exit:focus-visible {
-  color: var(--color-orange-300);
-  border-color: var(--color-orange-600);
+.account-chevron.is-open {
+  transform: rotate(180deg);
 }
 
 .side-playlist {
@@ -3316,7 +3315,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .side-nav, .shell-column, .shell-head { transition: none; }
+  .side-nav, .shell-column, .shell-brand { transition: none; }
 }
 
 /* Home's shelves (A276): a row of cards that scrolls sideways and snaps to a card. The scrollbar is hidden; a phone

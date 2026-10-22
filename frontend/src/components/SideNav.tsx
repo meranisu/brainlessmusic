@@ -6,8 +6,6 @@ import { apiClient } from '../lib/apiClient';
 import type { PlaylistSummary } from '../types/api';
 import { CoverArt } from './CoverArt';
 import { usePlayer } from './PlayerBar';
-import { BrandMark, Wordmark } from './BrandLockup';
-import { SidebarIcon } from './icons';
 import { isItemActive, type NavItem, type NavSection } from './navItems';
 
 interface SideNavProps {
@@ -15,7 +13,6 @@ interface SideNavProps {
   pathname: string;
   /** Folded to the icon rail (A275). */
   collapsed: boolean;
-  onToggle: () => void;
   /** A plain click on an item: the shell plays the arcade card and navigates. */
   onNavigate: (event: MouseEvent<HTMLAnchorElement>, item: NavItem) => void;
   /** Boot-stagger class for the item list, from the shell. */
@@ -28,7 +25,7 @@ interface SideNavProps {
  * Folded, it is a rail of icons whose names show at once beside them (A275). That name is one fixed element placed
  * by the item's position, not a CSS tooltip, so the rail can scroll on a short window without clipping it.
  */
-export function SideNav({ sections, pathname, collapsed, onToggle, onNavigate, bootClass = '' }: SideNavProps) {
+export function SideNav({ sections, pathname, collapsed, onNavigate, bootClass = '' }: SideNavProps) {
   const { user } = useAuth();
   const { current, isPlaying, openPlayer } = usePlayer();
   const isGuest = Boolean(user?.isGuest);
@@ -56,32 +53,12 @@ export function SideNav({ sections, pathname, collapsed, onToggle, onNavigate, b
 
   return (
     <aside
-      className={`side-nav fixed inset-y-0 left-0 z-30 hidden select-none flex-col md:flex ${
+      className={`side-nav fixed bottom-0 left-0 top-(--shell-head-h) z-30 hidden select-none flex-col md:flex ${
         collapsed ? 'is-rail' : ''
       }`}
       aria-label="Main"
     >
-      <div className="flex h-16 shrink-0 items-center gap-2 px-3 sm:h-[4.5rem]">
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-label={collapsed ? 'Open the sidebar' : 'Fold the sidebar'}
-          aria-keyshortcuts="["
-          aria-expanded={!collapsed}
-          data-tip={collapsed ? 'Open the sidebar  [' : 'Fold the sidebar  ['}
-          className="tip tip-right side-toggle"
-        >
-          <SidebarIcon className="h-5 w-5" />
-        </button>
-        {!collapsed && (
-          <Link to="/" className="flex min-w-0 items-center gap-2.5">
-            <BrandMark className="h-7 w-7 border-2 border-blue-200" />
-            <Wordmark className="truncate text-base text-white" />
-          </Link>
-        )}
-      </div>
-
-      <nav className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-3 pb-4" onScroll={() => setTip(null)}>
+      <nav className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-3 pb-4 pt-3" onScroll={() => setTip(null)}>
         {sections.map((section) => (
           <div key={section.title} className="side-section">
             {collapsed ? (

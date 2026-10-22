@@ -104,6 +104,14 @@ A 304 still makes the 0.2 to 1 s tunnel trip, so it saves data, not time; pages 
 
 ## Answered
 
+### A290 — Profile, Control Center, Options and Exit go in an avatar menu *(was Q290)*
+**Answered:** 2026-10-22: only the avatar shows in the bar; its menu lists Profile, Control Center (admins), Options
+and Exit. Phones keep the tab bar's More sheet.
+
+### A289 — The top bar spans the whole screen, flat like the sidebar *(was Q289)*
+**Answered:** 2026-10-22: full width, the logo and fold button move into it, the sidebar starts below it. Flat
+panel with a blue-700 rule, no rounded corners or gap (the owner: "same element as the side bar").
+
 ### A288 — The top bar must stay on screen *(asked in chat)*
 **Answered:** 2026-10-22, in chat, with screenshots: "the top bar still not persistent". Header made `fixed`.
 

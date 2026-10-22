@@ -4,6 +4,20 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-22: Flat full-width top bar and account menu (A289, A290)
+
+- Why: the owner asked for the top bar to be the same element as the sidebar, edge to edge (A289), and for profile,
+  Control Center, Options and Exit to move into an avatar menu (A290).
+- `AppShell` header: one flat blue-950 panel across the whole screen with a blue-700 rule along its bottom; the orange
+  sweep stays. From `md` its left end (`.shell-brand`) is the sidebar's head: fold button and wordmark, as wide as the
+  sidebar and carrying its right edge, so bar and sidebar read as one frame. `--shell-head-h` is 4rem, 4.5rem from `sm`.
+- `SideNav`: starts below the bar (`top-(--shell-head-h)`); its head row and `onToggle` prop moved to the shell.
+- `components/AccountMenu.tsx` (new) replaces `ShellActions.tsx`: avatar and name open a menu with Profile (not guests),
+  Control Center (admins), Options and Exit (orange, under a rule, "Signs you out"). Closes on outside click, Escape and
+  page change. Phones unchanged (tab bar More sheet).
+- Checked in Chromium on a scratch copy of the dev DB: 1440x800 open and folded (bar 72px, sidebar top 72px, head width
+  follows the sidebar 256/72px), menu open, Options from the menu navigates and closes it, 390px phone; no console errors.
+
 ## 2026-10-22: Top bar fixed instead of sticky (A288)
 
 - Why: the owner showed the top bar half off the top of Control Center on production (pre-bb23802 build), with no page

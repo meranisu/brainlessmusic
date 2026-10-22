@@ -14,11 +14,11 @@ import { InviteBanner } from './InviteBanner';
 import { HandoffDialog } from './HandoffDialog';
 import { ArcadeInterstitial, ArrivalVeil } from './ArcadeInterstitial';
 import { ShellBackdrop } from './BackdropDepth';
-import { CloseIcon, SearchIcon } from './icons';
+import { CloseIcon, SearchIcon, SidebarIcon } from './icons';
+import { AccountMenu } from './AccountMenu';
 import { activeIndex, navSectionsFor, type NavItem } from './navItems';
 import { PhoneTabBar } from './PhoneTabBar';
 import { ScrollTopButton } from './ScrollTopButton';
-import { ShellActions } from './ShellActions';
 import { SideNav } from './SideNav';
 import { Presence } from './Presence';
 
@@ -301,20 +301,40 @@ export function AppShell() {
         sections={sections}
         pathname={pathname}
         collapsed={collapsed}
-        onToggle={toggleSidebar}
         onNavigate={onNavClick}
         bootClass={isBooting ? 'boot-nav' : ''}
       />
 
       {/* Everything right of the sidebar. The padding follows the sidebar's width as it folds. */}
       <div className="shell-column md:pl-(--side-w)">
-      {/* A floating panel pinned to the top while the page scrolls (A283). Fixed, not sticky (A288): sticky moved with the
-          body, so a scroll lock (which pins the body at `top: -scrollY`) slid the bar off the top. `.shell-column`'s
-          top padding holds its place. The gradient fades content scrolling through the gap above it. */}
-      <header className="shell-head fixed inset-x-0 top-0 z-30 select-none md:left-(--side-w) bg-linear-to-b from-blue-950 via-blue-950/90 to-transparent px-3 pb-4 pt-3 sm:px-4">
-        <div className="shell-bar page-shell relative flex items-center gap-3 rounded-xl border border-blue-700 bg-blue-950/92 px-3 sm:gap-5 sm:px-5">
-          {/* The sidebar carries the name from `md`; a phone has only this. */}
-          <Link to="/" className={`flex shrink-0 items-center gap-2.5 md:hidden ${boot('boot-wordmark')}`}>
+      {/* One flat panel with the sidebar (A289): edge to edge across the top, the sidebar hanging below its left end.
+          Fixed, not sticky (A288): sticky moved with the body, so a scroll lock (which pins the body at
+          `top: -scrollY`) slid the bar off the top. `.shell-column`'s top padding holds its place. */}
+      <header className="fixed inset-x-0 top-0 z-30 select-none">
+        <div className="shell-bar relative flex items-center gap-3 pr-3 sm:gap-5 sm:pr-5">
+          {/* From `md`, the sidebar's head: as wide as the sidebar, its edge running up through the bar. */}
+          <div className="shell-brand hidden shrink-0 items-center gap-2 md:flex">
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              aria-label={collapsed ? 'Open the sidebar' : 'Fold the sidebar'}
+              aria-keyshortcuts="["
+              aria-expanded={!collapsed}
+              data-tip={collapsed ? 'Open the sidebar  [' : 'Fold the sidebar  ['}
+              className="tip tip-right side-toggle"
+            >
+              <SidebarIcon className="h-5 w-5" />
+            </button>
+            {!collapsed && (
+              <Link to="/" className="flex min-w-0 items-center gap-2.5">
+                <BrandMark className="h-7 w-7 border-2 border-blue-200" />
+                <Wordmark className="truncate text-base text-white" />
+              </Link>
+            )}
+          </div>
+
+          {/* A phone has no sidebar, so the name sits here. */}
+          <Link to="/" className={`ml-3 flex shrink-0 items-center gap-2.5 md:hidden ${boot('boot-wordmark')}`}>
             <BrandMark className="h-8 w-8 border-2 border-blue-200" />
             <Wordmark className="text-base text-white" />
           </Link>
@@ -340,12 +360,12 @@ export function AppShell() {
             </button>
           </div>
 
-          <ShellActions pathname={pathname} go={goTo} onExit={handleExit} />
+          <AccountMenu pathname={pathname} go={goTo} onExit={handleExit} />
 
           {/* The accent line, on its own clipped layer: `overflow-hidden` on the bar would swallow its dropdowns. */}
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-0 overflow-hidden rounded-xl"
+            className="pointer-events-none absolute inset-0 overflow-hidden"
           >
             <span className="band-sweep band-sweep-rail band-sweep-bottom" />
           </span>

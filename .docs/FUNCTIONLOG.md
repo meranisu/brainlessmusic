@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `AccountMenu()` — `frontend/src/components/AccountMenu.tsx`; `AppShell()` (header) — `frontend/src/components/AppShell.tsx`; `SideNav()` — `frontend/src/components/SideNav.tsx`
+**Date:** 2026-10-22
+**How added:** UI change
+**Purpose:** flat full-width top bar holding the sidebar's head, and an avatar menu for profile, Control Center, Options and Exit (A289, A290).
+**Side effects:** none.
+**Before:** a floating rounded bar right of the sidebar; `ShellActions` showed four icon buttons; `SideNav` drew the fold button and wordmark and took `onToggle`.
+**After:** `AccountMenu` replaces `ShellActions` (deleted); the shell draws the fold button and wordmark; `SideNav` starts below the bar and lost `onToggle`.
+
 **Function:** `AppShell()` (header) — `frontend/src/components/AppShell.tsx`
 **Date:** 2026-10-22
 **How added:** bug fix
