@@ -4,6 +4,83 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-22: Nine web UX ideas, Android theme ids, dev sign-in race (A280 to A282)
+
+- Why: the owner picked ideas 1-3 and 5-10 of the shell plan (A281), kept Home's order and the Library buttons (A280),
+  and asked for the three new themes to follow the profile from Android too (A282).
+- Quick picks: Home's first shelf, a grid of your six most played songs this month (`GET /me/stats?range=month`),
+  two columns on a phone; a tap plays all six from that one.
+- Jump back in: `PlayerProvider` notes the album, playlist or mix a queue was started from (`lib/jumpBackIn.ts`, from
+  the page's address or a card's explicit source) and follows the song; a song outside it drops the entry. Per device
+  and per account, newest 8. Home shows them; the card opens the page, its play key resumes at that song.
+- Play on hover: `ShelfCard` and `AlbumGrid` cards have a play key on the picture (always shown on touch); cards are
+  now a stretched link so the key can sit above it. `hooks/usePlayCollection.ts` (`playAlbum`, `playPlaylist`,
+  `albumQueue`, `playlistQueue`) shared with the album and playlist pages. `playQueue`/`startRadio` take an optional
+  source.
+- Keyboard: Ctrl+K / Cmd+K focuses search (also from a field; only the field on screen answers); `[` folds or opens the
+  sidebar from `md`. Space, `/`, n, p and the arrows already existed.
+- Scroll memory: Home, Albums, Artists, Genres, Playlists and People put the window scroll back on return (per address,
+  for the tab's life); every other page now opens at the top. Albums keeps its page in `?page=`. The Library's Simple
+  view keeps its selected song, the Full view its panel scroll per sort and filter.
+- Home tuning: Options, Home (accounts) shows, hides and reorders the nine shelves per device (`lib/homeShelves.ts`,
+  `HomeShelvesSettings`). "Because you played <song>": a radio shelf seeded from your last play, one pick a day.
+- Tab titles: `lib/documentTitle.ts` and `usePageTitle`: the song while playing, else the page ("Albums ·
+  brainlessmusic"), detail pages by name (album, artist, playlist, mix, genre, profile).
+- Rail: a now-playing cover on the folded sidebar, edged in the accent while playing, opens Now Playing
+  (`openPlayer` on the player context).
+- Android: `ColorTheme` gives Lavender, Voltage and Candy their web ids, so a pick on the phone reaches the profile and
+  the web's reaches the phone.
+- Fix (dev only): `AuthProvider`'s cancelled first StrictMode run ended `isLoading` before the live run set the user,
+  so a direct load of any address but `/` bounced to Home under `npm run dev`. Production runs effects once.
+- Verified: frontend `npm run build` clean, `npm run lint` no new warnings; Android `compileDebugKotlin` passes. In
+  headless Chromium on a scratch copy of the dev DB (19 songs, 6 plays moved to yesterday): Quick picks, Because you
+  played, Recently played and New shown; hover play key plays an album and the tab title becomes the song; reload shows
+  Jump back in; Ctrl+K focuses search; `[` folds; the rail cover opens Now Playing; Home scroll 400 restored after
+  Albums and back; album page title; Options Home hides Quick picks; Library selection kept; direct loads of
+  `/library`, `/artists`, `/albums`, `/genres` stay put. Not checked: Library Full view scroll (19 songs don't
+  scroll), Albums page 2 (one page), mixes and playlists shelves with data, a real phone, Android on a device.
+
+## 2026-10-22: Lavender, Voltage and Candy on the web (A279)
+
+- Why: the owner asked for the app's extra colour themes on the web; three existed only on Android.
+- `index.css`: `[data-theme='lavender' | 'voltage' | 'candy']` blocks built from `LavenderPalette`, `VoltagePalette`
+  and `CandyPalette` (`android/.../ui/theme/Color.kt`); steps Android has no token for are `color-mix` between
+  neighbours. Swatches for the Options picker. `lib/theme.ts` `THEMES` and the first-paint list in `index.html` gain
+  the three ids. The server checks only a theme id's shape, so no backend change.
+- Contrast checked from the hexes: accent on a `blue-900` card 6.41, 10.86 and 4.75 to 1; `blue-950` text on the
+  accent 7.46, 11.61, 5.51; so `--color-accent-ink` stays the accent.
+- Verified: `npm run build` clean, `npm run lint` no new warnings. Headless Chromium on a scratch copy of the dev DB:
+  each theme saved to the profile, `data-theme` applied on load, Home looked at in each; the Options picker shows all
+  nine. Title-screen cycle with nine themes not looked at. Android still sends no web id for these three (follow-up).
+
+## 2026-10-22: Web Home page and arcade sidebar (A273 to A276)
+
+- Why: the top bar had outgrown itself (five tabs, a More menu, Control Center, avatar, Options, Exit and search in one
+  row), and Daily mixes and On this day were buried as Library buttons. The owner asked for a YT Music style Home and a
+  collapsible sidebar.
+- Routes: `/` is the new `HomePage`; the Library moved to `/library` (`/manage` and the Control Center's missing-files
+  link follow). The vivid backdrop now belongs to Home.
+- Shell: `AppShell` drops the tab bar and `NavOverflow` (deleted). From `md` a fixed `SideNav` (Music: Home, Library,
+  Albums, Artists, Genres; Yours: Favorites, Playlists, Listen together, People; your playlists; profile, Control
+  Center, Options, Exit) with the active page lit by an orange key that keeps the `nav-underline` view transition.
+  It folds to an icon rail whose names show in a fixed tooltip; the choice is saved per device (`lib/sidebar.ts`),
+  and before one is made it is a rail below 1024px and open above. The top bar keeps only search from `md`. The
+  sidebar ends above the desktop deck while one shows (`data-deck` set by `PlayerProvider`).
+- Phones: `PhoneTabBar` (Home, Library, Together, You or More) docked at the bottom, the rest in a sheet behind the
+  last tab. `--tabbar-h` (set while the bar is mounted) lifts the player strip, toasts and Back to top above it.
+- Home: `Shelf` and `ShelfCard` (sideways snap rows, arrow buttons from `md`) for Today's mixes, Recently played (as
+  albums, newest first, each once), Your playlists, Friends listening (only while someone plays; Join their room),
+  On this day and New in your library; guests get New in your library and Public playlists. Each shelf has its own
+  loading and error state and is left out when empty. `MixCover` gains `fill`; `Avatar` gains a `tab` size.
+- Backend: `listAlbums` takes a sort, `added` ordering by each album's newest `tracks.date_added`;
+  `GET /albums?sort=added` (anything else keeps title order). No migration.
+- Verified: backend `npm test` 785/785 (new `browse.test.ts` case for the sort); frontend `npm run build` and
+  `npm run lint` clean (no warnings in new files). In headless Chromium on a scratch copy of the dev DB (19 songs, 6
+  plays), backend on :3100: 1440px open sidebar, fold, reload stays folded, rail tooltip, rail click to Albums; 900x700
+  rail scrolls; 375px tab bar, You sheet, sheet to Albums; a guest at 1440 and 375; Crimson theme. No page errors.
+  Not checked: mixes, playlists, friends and On this day shelves with data (the copy has none), a real phone, Firefox
+  or Safari, reduced motion, view-transition slide of the key.
+
 ## 2026-10-22: Room album line and Up next at the end of the queue (A271)
 
 - Why: the emulator walkthrough of v0.4.32 (A270) found that in a room the album line was always gone, because room

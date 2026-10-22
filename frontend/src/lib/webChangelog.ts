@@ -16,6 +16,20 @@ export interface WebRelease {
 
 export const WEB_CHANGELOG: WebRelease[] = [
   {
+    version: '0.5.0',
+    date: '2026-10-22',
+    changes: [
+      'A Home page: quick picks, where you left off, today\'s mixes, recently played, songs like your last one, your playlists, friends listening, on this day and new albums. Rearrange or hide the rows in Options, Home.',
+      'The top bar became a sidebar. Fold it to icons with the button at its top or the [ key; it remembers. On a phone, tabs along the bottom instead.',
+      'The Library moved to its own page (Library in the sidebar).',
+      'Albums and playlists have a play button on their cover: play without opening them.',
+      'Ctrl+K (Cmd+K on a Mac) jumps to search, as / already did.',
+      'Coming back to Home, Albums, Artists, Genres, Playlists, People or the Library puts you where you were.',
+      'The browser tab names the song that\'s playing, or the page you\'re on.',
+      'Three more colour themes from the Android app: Lavender, Voltage and Candy.',
+    ],
+  },
+  {
     version: '0.4.1',
     date: '2026-10-21',
     changes: [

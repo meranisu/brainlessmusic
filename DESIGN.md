@@ -31,10 +31,23 @@ Owner's picks (A35):
 
 ## Never
 
-- **A generic SaaS dashboard:** sidebar, row of stat cards, soft shadows, decorative gradients.
+- **A generic SaaS dashboard:** rows of stat cards, soft shadows, decorative gradients. (A sidebar was on this list
+  until [A273](.docs/QUESTIONS.md#answered) let the web have one, built as described under Web shell.)
 - **Glassy or neon-glow surfaces:** blur panels, glow rings, bloom.
 
 The owner chose no other bans (A35).
+
+## Web shell
+
+The web's pages live in a left sidebar from `md` (A273, `SideNav.tsx`), styled as a game's mode-select column, not a
+dashboard's: flat blocks on the ground colour, a solid right edge, group labels like a game menu's ("Music",
+"Yours"). The page you're on is lit by an orange key at its left, the one element that slides between items (the
+`nav-underline` view transition). Hover and focus swap the border colour; no shadow, no glow. It folds to an icon
+rail whose names show beside each icon (A275), remembered per device. Phones get a tab bar docked under the player
+strip instead (A274, `PhoneTabBar.tsx`), the same key along the top edge of the open tab.
+
+Home (A276, `HomePage.tsx`) is shelves of square cards that scroll sideways, like YT Music. A shelf with nothing to
+offer is left out rather than shown empty.
 
 ## Palette
 
@@ -49,7 +62,8 @@ theme (Q45, `frontend/src/index.css:3-6`). Accent-coloured text on a card uses `
 - **Default ("Deep blue", the original):** navy ground `#080e28`, blue backdrop, orange accent
   (`index.css:260-280`, `theme.ts:17`).
 - **Alternatives, chosen by the user:** Crimson (after IIDX RED), Void (near-black, accent only), Nord, Magenta (after
-  osu!), Pastel (Material tonal). Each names its source in `theme.ts:6-13`. That stated source is their purpose, so
+  osu!), Pastel (Material tonal), and since A279 the three that began on Android: Lavender (after Arcaea), Voltage
+  (after SOUND VOLTEX) and Candy (after maimai). Each names its source in `theme.ts:6-13`. That stated source is their purpose, so
   Magenta's vivid and Pastel's soft palettes are intentional, not defaults.
 - The chosen theme is saved on the profile and follows it across devices ([A55](.docs/QUESTIONS.md#a55--the-theme-follows-the-profile-was-q20)).
 - A theme controls **colour only** ([A48](.docs/QUESTIONS.md#a48--a-theme-controls-colour-only-was-q19)). On Android, type, shape and layout now belong to a separate **skin** (A117, see Android below); the web has no skins yet.
@@ -110,7 +124,7 @@ never its artwork, and stay flat: rings and borders, no glow.
   under an edge line), play a diamond, and a tap pops "PURE"; the track's far part shows the combo (songs played through in a row).
   Home gives your listening as Arcaea's potential (`LaneListening`): the six readings' mean on 0.00 to 13.00 in a diamond badge
   coloured by band, the six as slanted bars. The selected tab is a lit parallelogram key, names in Exo 2.
-  Lavender (phone-only) is its matching colour theme. Nothing floats in Lane: the mini player and tab bar dock (the tab
+  Lavender is its matching colour theme. Nothing floats in Lane: the mini player and tab bar dock (the tab
   bar under an edge line, `EdgeLine`, a shade up from the mini player, `tabBarColor`), the mini player's play is a small diamond (`MiniPlayButton`), the
   Library's tabs are a docked strip of slanted segments, and
   segmented pickers cut their outer ends (`segmentShape`).
@@ -129,7 +143,7 @@ never its artwork, and stay flat: rings and borders, no glow.
   dock under a cyan edge; tabs are BT keys, the open one lit; the mini player's progress is a laser with the critical
   line's red tick, its play a small white key; the Library's tabs are the game's difficulty boxes (`GearDifficultyColors`);
   the queue numbers coming tracks "01", "02" on keys; sheets open as a chamfered card in the middle of the screen.
-  Voltage (phone-only) is its matching colour theme. The lane shows the CHAIN (songs played through in a row since
+  Voltage is its matching colour theme. The lane shows the CHAIN (songs played through in a row since
   the app started, broken by a skip) as the game does, and Home adds a listening radar under the range picker, six
   axes in the EFFECT RADAR's colours (`ListeningRadar`).
 - **Ring** (after maimai DX, A129-A132; research in `.docs/features/player-skins/ring-research.md`, design canvas
@@ -149,7 +163,7 @@ never its artwork, and stay flat: rings and borders, no glow.
   in outlined gold, and the lamp (CLEAR, FC). The sky, yellow and navy are fixed in every theme (`RingSky`,
   `RingYellow`, `RingInk`, `RingDifficulties`). Tabs are round cabinet buttons, the open one lit; the mini player's
   progress is a rounded bar with the slide star at its head, its play a small lit button; the Library's tabs are
-  maimai's genre chips, a colour each; sheets open as a rounded card in the middle of the screen. Candy (phone-only,
+  maimai's genre chips, a colour each; sheets open as a rounded card in the middle of the screen. Candy (on the web too since A279,
   made for light as much as dark) is its matching colour theme. Home adds a DX RATING plate (`RingListening`): the
   six readings' overall on maimai's 0 to 16,750 scale in five digit boxes, the plate in its tier's colour (rainbow as
   flat bands).

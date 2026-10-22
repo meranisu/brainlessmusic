@@ -2,6 +2,8 @@ import { useMediaUrl } from '../hooks/useMediaUrl';
 import { buildAvatarUrl } from '../lib/apiClient';
 
 const SIZES = {
+  // The phone tab bar's last tab, the size of the icons beside it (A274).
+  tab: 'h-6 w-6 text-xs',
   xs: 'h-8 w-8 text-sm',
   sm: 'h-9 w-9 text-base',
   md: 'h-12 w-12 text-xl',

@@ -15,6 +15,7 @@ const AccountSelectPage = lazyPage(() =>
 const InvitePage = lazyPage(() => import('./pages/InvitePage').then((m) => ({ default: m.InvitePage })));
 const JoinPage = lazyPage(() => import('./pages/JoinPage').then((m) => ({ default: m.JoinPage })));
 const LibraryPage = lazyPage(() => import('./pages/LibraryPage').then((m) => ({ default: m.LibraryPage })));
+const HomePage = lazyPage(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })));
 const AlbumsPage = lazyPage(() => import('./pages/AlbumsPage').then((m) => ({ default: m.AlbumsPage })));
 const AlbumDetailPage = lazyPage(() => import('./pages/AlbumDetailPage').then((m) => ({ default: m.AlbumDetailPage })));
 const ArtistsPage = lazyPage(() => import('./pages/ArtistsPage').then((m) => ({ default: m.ArtistsPage })));
@@ -64,7 +65,9 @@ export function App() {
 
         <Route element={<RequireAuth />}>
           <Route element={<AppShell />}>
-            <Route path="/" element={<LibraryPage />} />
+            {/* Home offers your music (A276); the Library, every song, moved off `/` to make room for it. */}
+            <Route path="/" element={<HomePage />} />
+            <Route path="/library" element={<LibraryPage />} />
             <Route path="/albums" element={<AlbumsPage />} />
             <Route path="/albums/:id" element={<AlbumDetailPage />} />
             <Route path="/artists" element={<ArtistsPage />} />
@@ -90,7 +93,7 @@ export function App() {
             {/* Guests too: they join rooms with full controls (A100). */}
             <Route path="/together" element={<TogetherPage />} />
             {/* Now the Library's Full view; redirected for bookmarks and the old nav link. */}
-            <Route path="/manage" element={<Navigate to="/?view=full" replace />} />
+            <Route path="/manage" element={<Navigate to="/library?view=full" replace />} />
             <Route element={<RequireAdmin />}>
               {/* One dashboard with tabs (owner request, 2026-10-11): Overview, Logs (A158), Upload, Users, Levelling. */}
               <Route path="/control-center" element={<AdminDashboard />}>

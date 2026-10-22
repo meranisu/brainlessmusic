@@ -203,6 +203,103 @@
   --bar-sheen: oklch(89% 0.02 300 / 0.14);
 }
 
+/* The three Android-only themes, brought to the web (owner, 2026-10-22). Hexes are the phone's, so both match;
+   the steps Android has no token for (600, 500, 200 and the accent's lighter shades) are mixed between neighbours.
+   Each accent clears 4.5:1 on a blue-900 card, so `--color-accent-ink` stays the accent. Danger keeps the default red. */
+
+/* Lavender: Arcaea's lavender on plum, the Android Lane skin's match (A116), from `LavenderPalette` in `Color.kt`. */
+[data-theme='lavender'] {
+  --color-blue-950: #1b1229;
+  --color-blue-900: #2a1e3f;
+  --color-blue-800: #3b2c56;
+  --color-blue-700: #564375;
+  --color-blue-600: color-mix(in oklab, #564375 67%, #a18cd1);
+  --color-blue-500: color-mix(in oklab, #564375 33%, #a18cd1);
+  --color-blue-400: #a18cd1;
+  --color-blue-300: #c5b6ec;
+  --color-blue-200: color-mix(in oklab, #c5b6ec 50%, #eee9f7);
+  --color-blue-100: #eee9f7;
+
+  --color-orange-600: #b794ff;
+  --color-orange-500: color-mix(in oklab, #b794ff 82%, white);
+  --color-orange-400: color-mix(in oklab, #b794ff 64%, white);
+  --color-orange-300: color-mix(in oklab, #b794ff 46%, white);
+  --color-orange-200: color-mix(in oklab, #b794ff 30%, white);
+
+  --color-white: #fbf9ff;
+
+  --app-ground: #120c1c;
+  --backdrop-far: color-mix(in srgb, #b794ff 15%, transparent);
+  --backdrop-mid: color-mix(in srgb, #a18cd1 17%, transparent);
+  --backdrop-near: color-mix(in srgb, #b794ff 25%, transparent);
+  --backdrop-band: color-mix(in srgb, #b794ff 17%, transparent);
+  --backdrop-ring: 183 148 255;
+  --backdrop-mote: 197 182 236;
+  --bar-sheen: color-mix(in srgb, #c5b6ec 14%, transparent);
+}
+
+/* Voltage: SOUND VOLTEX's console, navy with the left laser's cyan, the Gear skin's match (A127), from `VoltagePalette`. */
+[data-theme='voltage'] {
+  --color-blue-950: #0e1438;
+  --color-blue-900: #121a44;
+  --color-blue-800: #1c2766;
+  --color-blue-700: #26306b;
+  --color-blue-600: color-mix(in oklab, #26306b 67%, #7d8fd8);
+  --color-blue-500: color-mix(in oklab, #26306b 33%, #7d8fd8);
+  --color-blue-400: #7d8fd8;
+  --color-blue-300: #aab8ee;
+  --color-blue-200: color-mix(in oklab, #aab8ee 50%, #e6ecff);
+  --color-blue-100: #e6ecff;
+
+  --color-orange-600: #00e5ff;
+  --color-orange-500: color-mix(in oklab, #00e5ff 82%, white);
+  --color-orange-400: color-mix(in oklab, #00e5ff 64%, white);
+  --color-orange-300: color-mix(in oklab, #00e5ff 46%, white);
+  --color-orange-200: color-mix(in oklab, #00e5ff 30%, white);
+
+  --color-white: #f7f9ff;
+
+  --app-ground: #0a0f2c;
+  --backdrop-far: color-mix(in srgb, #00e5ff 15%, transparent);
+  --backdrop-mid: color-mix(in srgb, #7d8fd8 17%, transparent);
+  --backdrop-near: color-mix(in srgb, #00e5ff 25%, transparent);
+  --backdrop-band: color-mix(in srgb, #00e5ff 17%, transparent);
+  --backdrop-ring: 0 229 255;
+  --backdrop-mote: 170 184 238;
+  --bar-sheen: color-mix(in srgb, #aab8ee 14%, transparent);
+}
+
+/* Candy: maimai's cabinet, pink buttons on navy ink, the Ring skin's match (A131), from `CandyPalette`. */
+[data-theme='candy'] {
+  --color-blue-950: #0f1a44;
+  --color-blue-900: #182657;
+  --color-blue-800: #23347a;
+  --color-blue-700: #3a4c9a;
+  --color-blue-600: color-mix(in oklab, #3a4c9a 67%, #8c9bd6);
+  --color-blue-500: color-mix(in oklab, #3a4c9a 33%, #8c9bd6);
+  --color-blue-400: #8c9bd6;
+  --color-blue-300: #b4c0e6;
+  --color-blue-200: color-mix(in oklab, #b4c0e6 50%, #f2f6fc);
+  --color-blue-100: #f2f6fc;
+
+  --color-orange-600: #ff4fa3;
+  --color-orange-500: color-mix(in oklab, #ff4fa3 82%, white);
+  --color-orange-400: color-mix(in oklab, #ff4fa3 64%, white);
+  --color-orange-300: color-mix(in oklab, #ff4fa3 46%, white);
+  --color-orange-200: color-mix(in oklab, #ff4fa3 30%, white);
+
+  --color-white: #ffffff;
+
+  --app-ground: #0a1033;
+  --backdrop-far: color-mix(in srgb, #ff4fa3 15%, transparent);
+  --backdrop-mid: color-mix(in srgb, #8c9bd6 17%, transparent);
+  --backdrop-near: color-mix(in srgb, #ff4fa3 25%, transparent);
+  --backdrop-band: color-mix(in srgb, #ff4fa3 17%, transparent);
+  --backdrop-ring: 255 79 163;
+  --backdrop-mote: 180 192 230;
+  --bar-sheen: color-mix(in srgb, #b4c0e6 14%, transparent);
+}
+
 /* Theme cycling (pre-login). `@property` registers each token as a `<color>` so `data-theme` changes can fade.
    `inherits: true` is required or tokens stop at `:root`; `initial-value` is the default theme and decides nothing. */
 @property --color-blue-950 { syntax: '<color>'; inherits: true; initial-value: oklch(28.2% .091 267.935); }
@@ -1271,6 +1368,27 @@
   --swatch-line: oklch(42% 0.04 300);
 }
 
+.theme-swatch[data-swatch='lavender'] {
+  --swatch-ground: #120c1c;
+  --swatch-accent: #b794ff;
+  --swatch-muted: #c5b6ec;
+  --swatch-line: #564375;
+}
+
+.theme-swatch[data-swatch='voltage'] {
+  --swatch-ground: #0a0f2c;
+  --swatch-accent: #00e5ff;
+  --swatch-muted: #aab8ee;
+  --swatch-line: #26306b;
+}
+
+.theme-swatch[data-swatch='candy'] {
+  --swatch-ground: #0a1033;
+  --swatch-accent: #ff4fa3;
+  --swatch-muted: #b4c0e6;
+  --swatch-line: #3a4c9a;
+}
+
 /* An instant tooltip; `title` takes about a second, leaving icon-only controls unlabelled. */
 .tip {
   position: relative;
@@ -1690,11 +1808,7 @@
 .boot-nav > *:nth-child(8) { animation-delay: 435ms; }
 
 .boot-wordmark { animation-delay: 40ms; }
-/* After the last tab (300ms) and before the search box, which is where it sits
-   on the bar. The staircase reads as left-to-right or it reads as nothing. */
-.boot-more { animation-delay: 355ms; }
 .boot-search { animation-delay: 420ms; }
-.boot-account { animation-delay: 460ms; }
 .boot-content { animation-delay: 480ms; }
 
 /* One lap of the frame. `pathLength: 1` sizes the dash by perimeter and the rect follows the corner radius. */
@@ -1740,69 +1854,7 @@
 
 /* Changing tabs, via `document.startViewTransition` (React Router's `viewTransition`). Chrome and Android only (A1). */
 
-/* The travelling underline. A `view-transition-name` must be unique, which is why it's an element, not `::after`. */
-/* One shape for the nav row: tabs and More share height, type, padding and hover. */
-.nav-tab {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  height: 2.5rem;
-  padding-inline: 0.9rem;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  white-space: nowrap;
-  color: var(--color-blue-300);
-  transition:
-    color 140ms ease-out,
-    background-color 140ms ease-out;
-}
-
-.nav-tab:hover,
-.nav-tab[aria-expanded='true'] {
-  color: var(--color-orange-300);
-  background-color: color-mix(in oklab, var(--color-orange-500) 12%, transparent);
-}
-
-/* The hover mark is the active tab's underline drawn from the middle, so it reads as "about to pick". Not on the active tab. */
-.nav-tab::after {
-  content: '';
-  position: absolute;
-  left: 0.9rem;
-  right: 0.9rem;
-  bottom: 0.3rem;
-  height: 2px;
-  border-radius: 9999px;
-  background-color: var(--color-orange-500);
-  transform: scaleX(0);
-  transition: transform 170ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.nav-tab:hover::after,
-.nav-tab[aria-expanded='true']::after {
-  transform: scaleX(1);
-}
-
-.nav-tab-active {
-  color: var(--color-white);
-}
-
-.nav-tab-active::after {
-  display: none;
-}
-
-.nav-underline {
-  position: absolute;
-  left: 0.9rem;
-  right: 0.9rem;
-  bottom: 0.3rem;
-  height: 2px;
-  border-radius: 9999px;
-  background-color: var(--color-orange-600);
-  view-transition-name: nav-underline;
-}
-
+/* The sidebar's lit key (`.side-key`) carries the `nav-underline` name, so it slides between items on a page change. */
 /* One element to the transition, so the browser tweens its position and width between tabs. */
 ::view-transition-group(nav-underline) {
   animation-duration: 260ms;
@@ -2088,12 +2140,6 @@
   }
 
   .tip::after {
-    transition: none;
-  }
-
-  /* The hover mark appears rather than grows. */
-  .nav-tab,
-  .nav-tab::after {
     transition: none;
   }
 
@@ -2948,4 +2994,458 @@
   .marquee-track { display: inline; animation: none; }
   .marquee-copy { padding-right: 0; }
   .marquee-copy + .marquee-copy { display: none; }
+}
+
+/* The arcade sidebar (A273): a game's mode-select column. Flat blocks on the ground colour and a solid edge; the page
+   you're on is lit by an orange key at its left, the one element that slides between items. Folds to a rail (A275). */
+.side-nav {
+  width: var(--side-w);
+  background-color: var(--color-blue-950);
+  border-right: 1px solid var(--color-blue-700);
+  transition: width 240ms var(--ease-out-expo);
+}
+
+.shell-column {
+  transition: padding-left 240ms var(--ease-out-expo);
+}
+
+.side-toggle {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid transparent;
+  color: var(--color-blue-300);
+  transition: color 140ms ease-out, border-color 140ms ease-out;
+}
+
+.side-toggle:hover,
+.side-toggle:focus-visible {
+  color: var(--color-white);
+  border-color: var(--color-blue-600);
+}
+
+.side-section + .side-section {
+  margin-top: 1rem;
+}
+
+/* A game menu's group label, small and spaced. */
+.side-heading {
+  padding: 0.25rem 0.75rem 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-blue-400);
+}
+
+.side-rule {
+  display: block;
+  height: 1px;
+  margin: 0.25rem 0.5rem 0.75rem;
+  background-color: var(--color-blue-800);
+}
+
+.side-item {
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.75rem;
+  height: 2.75rem;
+  padding-inline: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid transparent;
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--color-blue-300);
+  transition: color 140ms ease-out, border-color 140ms ease-out, background-color 140ms ease-out;
+}
+
+/* Elevation by border, never by shadow (DESIGN.md): hover and focus swap the edge colour. */
+.side-item:hover,
+.side-item:focus-visible {
+  color: var(--color-white);
+  border-color: var(--color-blue-600);
+}
+
+.side-item.is-active {
+  color: var(--color-white);
+  background-color: var(--color-blue-900);
+  border-color: var(--color-blue-700);
+}
+
+.is-rail .side-item {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+/* The lit key. An element, not `::before`, so it can carry a `view-transition-name` and slide between items. */
+.side-key {
+  position: absolute;
+  left: -1px;
+  top: 0.45rem;
+  bottom: 0.45rem;
+  width: 4px;
+  border-radius: 0 3px 3px 0;
+  background-color: var(--color-orange-600);
+  view-transition-name: nav-underline;
+}
+
+.side-exit {
+  color: var(--color-orange-400);
+}
+
+.side-exit:hover,
+.side-exit:focus-visible {
+  color: var(--color-orange-300);
+  border-color: var(--color-orange-600);
+}
+
+.side-playlist {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+  padding-inline: 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.8125rem;
+  color: var(--color-blue-300);
+  transition: color 140ms ease-out;
+}
+
+.side-playlist:hover,
+.side-playlist:focus-visible {
+  color: var(--color-white);
+}
+
+.side-playlist.is-active {
+  color: var(--color-accent-ink);
+}
+
+/* `.tip` opens below and right-aligned; the rail's open beside the icon, where the name would be. */
+.tip.tip-right::after {
+  top: 50%;
+  right: auto;
+  left: calc(100% + 0.6rem);
+  transform: translateY(-50%);
+  font-size: 0.75rem;
+  padding: 0.4rem 0.6rem;
+}
+
+/* The phone's tab bar (A274). The player strip, toasts and Back to top sit on it through `--tabbar-h`, which is
+   zero wherever the bar isn't showing. */
+:root {
+  --tabbar-h: 0px;
+}
+
+@media (max-width: 767px) {
+  :root[data-tabbar] {
+    --tabbar-h: calc(3.75rem + env(safe-area-inset-bottom));
+  }
+}
+
+.tab-bar {
+  height: var(--tabbar-h);
+  padding-bottom: env(safe-area-inset-bottom);
+  background-color: var(--color-blue-950);
+  border-top: 1px solid var(--color-blue-700);
+}
+
+.tab-bar-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--color-blue-300);
+  transition: color 140ms ease-out;
+}
+
+/* The lit key along the top edge, the sidebar's key turned on its side. */
+.tab-bar-item.is-active {
+  color: var(--color-white);
+}
+
+.tab-bar-item.is-active::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 28%;
+  right: 28%;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background-color: var(--color-orange-600);
+}
+
+/* The sheet behind the last tab, opening upward from it. */
+.tab-sheet {
+  bottom: calc(var(--tabbar-h) + 0.5rem);
+  transform-origin: bottom right;
+}
+
+.tab-sheet-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid transparent;
+  text-align: left;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-blue-200);
+}
+
+.tab-sheet-item:hover,
+.tab-sheet-item:focus-visible {
+  color: var(--color-white);
+  border-color: var(--color-blue-600);
+}
+
+/* Exit keeps the title screen's orange in the sheet too; `.tab-sheet-item`'s colour would win on order alone. */
+.tab-sheet-item.side-exit {
+  color: var(--color-orange-400);
+}
+
+.tab-sheet-item.is-active {
+  color: var(--color-white);
+  background-color: var(--color-blue-900);
+  border-color: var(--color-orange-600);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .side-nav, .shell-column { transition: none; }
+}
+
+/* Home's shelves (A276): a row of cards that scrolls sideways and snaps to a card. The scrollbar is hidden; a phone
+   swipes and a desktop has the arrow buttons. Cards bleed to the page edge on a phone so the next one peeks in. */
+.shelf-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 9.5rem;
+  gap: 0.75rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 0.25rem;
+  scrollbar-width: none;
+  margin-inline: -1.5rem;
+  padding-inline: 1.5rem;
+  padding-bottom: 0.25rem;
+}
+
+.shelf-row::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .shelf-row {
+    grid-auto-columns: 11rem;
+    gap: 1rem;
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+}
+
+.shelf-card {
+  scroll-snap-align: start;
+  min-width: 0;
+}
+
+/* The card's frame. Its link or button is stretched over it by `.shelf-card-target::after`, so the whole card is one
+   target and the play key can sit above it. */
+.shelf-card-hit {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 0.625rem;
+  border: 1px solid transparent;
+  text-align: left;
+  transition: border-color 140ms ease-out, background-color 140ms ease-out, transform 200ms var(--ease-spring);
+}
+
+.shelf-card-hit:hover,
+.shelf-card-hit:focus-within {
+  background-color: var(--color-blue-900);
+  border-color: var(--color-blue-700);
+}
+
+.shelf-card-hit:hover .shelf-card-target {
+  color: var(--color-orange-400);
+}
+
+.shelf-card-hit:has(.shelf-card-target:active) {
+  transform: scale(0.98);
+}
+
+.shelf-card-hit.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.shelf-card-target {
+  outline: none;
+}
+
+/* The card shows focus for its stretched link, which has no box of its own to draw it on. */
+.album-card:focus-within {
+  outline: 2px solid var(--color-orange-500);
+  outline-offset: 2px;
+}
+
+.shelf-card-target::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+/* The play key on a card's picture (A281): the accent, flat, edged in the ground. Shown on hover or focus where a
+   pointer can hover; always there on touch, which has no hover to find it with. */
+.shelf-play {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  border: 2px solid var(--color-blue-950);
+  background-color: var(--color-orange-600);
+  color: var(--color-on-accent);
+  transition: opacity 140ms ease-out, transform 200ms var(--ease-spring), background-color 140ms ease-out;
+}
+
+.shelf-play:hover {
+  background-color: var(--color-orange-500);
+}
+
+.shelf-play:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+@media (hover: hover) {
+  .shelf-play {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  .shelf-card-hit:hover .shelf-play,
+  .shelf-card-hit:focus-within .shelf-play,
+  .album-card:hover .shelf-play,
+  .album-card:focus-within .shelf-play {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.shelf-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  border: 1px solid var(--color-blue-700);
+  color: var(--color-blue-200);
+  transition: color 140ms ease-out, border-color 140ms ease-out;
+}
+
+.shelf-arrow:hover:not(:disabled) {
+  color: var(--color-white);
+  border-color: var(--color-orange-600);
+}
+
+.shelf-arrow:disabled {
+  opacity: 0.35;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shelf-card-hit, .shelf-play { transition: none; }
+}
+
+/* The rail's item name (A275): one fixed element placed beside the hovered or focused icon by `SideNav`. Fixed, so
+   the rail can scroll without clipping it. Looks like `.tip`. */
+.side-tip {
+  position: fixed;
+  z-index: 50;
+  transform: translateY(-50%);
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--color-blue-700);
+  background: var(--color-blue-950);
+  color: var(--color-blue-100);
+  font-size: 0.75rem;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* The desktop deck spans the full width; the sidebar stops at its top edge (4.5rem, as `DesktopNowPlaying`). */
+:root[data-deck] .side-nav {
+  bottom: 4.5rem;
+}
+
+/* The rail's now-playing cover (A281). Edged in the accent while the song plays, in muted blue when paused. */
+.rail-cover {
+  display: block;
+  width: 2.75rem;
+  height: 2.75rem;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  border: 2px solid var(--color-blue-700);
+  transition: border-color 140ms ease-out;
+}
+
+.rail-cover.is-playing {
+  border-color: var(--color-orange-600);
+}
+
+.rail-cover:hover,
+.rail-cover:focus-visible {
+  border-color: var(--color-blue-300);
+}
+
+/* Quick picks (A281): a tile per song, cover and names, in a grid at the top of Home like Spotify's. Flat; the edge
+   lights on hover and focus. */
+.quick-pick {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.375rem 0.75rem 0.375rem 0.375rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-blue-800);
+  background-color: color-mix(in oklab, var(--color-blue-900) 70%, transparent);
+  transition: border-color 140ms ease-out, background-color 140ms ease-out;
+}
+
+.quick-pick:hover,
+.quick-pick:focus-visible {
+  border-color: var(--color-blue-600);
+  background-color: var(--color-blue-900);
+}
+
+.quick-pick:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quick-pick { transition: none; }
 }

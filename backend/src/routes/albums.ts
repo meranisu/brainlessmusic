@@ -1,19 +1,21 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { config } from '../config.js';
 import { findAlbumArtworkId } from '../db/artwork.js';
-import { countAlbums, getAlbumDetail, listAlbums, resolveAlbumId } from '../db/browse.js';
+import { countAlbums, getAlbumDetail, listAlbums, resolveAlbumId, type AlbumSort } from '../db/browse.js';
 import { sendCover } from '../services/artwork.js';
 import { isAdminRequest } from '../utils/isAdmin.js';
 import { parsePagination } from '../utils/pagination.js';
 import { parseId } from '../utils/parseId.js';
 
 const albumsRoute: FastifyPluginAsync = async (fastify) => {
-  fastify.get<{ Querystring: { limit?: string; offset?: string } }>(
+  fastify.get<{ Querystring: { limit?: string; offset?: string; sort?: string } }>(
     '/albums',
     { preHandler: fastify.authenticate },
     async (request, reply) => {
       const { limit, offset } = parsePagination(request.query);
-      const albums = listAlbums(limit, offset);
+      // Anything but `added` keeps the old title order, as `/tracks` treats an unknown sort.
+      const sort: AlbumSort = request.query.sort === 'added' ? 'added' : 'title';
+      const albums = listAlbums(limit, offset, sort);
       return reply.send({ total: countAlbums(), limit, offset, albums });
     },
   );

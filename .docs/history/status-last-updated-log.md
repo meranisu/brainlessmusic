@@ -5,6 +5,7 @@ Newest first. Not maintained beyond moving text here; some entries say "not push
 
 ## Up to 2026-10-21 (moved 2026-10-21)
 
+2026-10-21: Android Now Playing tidy-up A268 built: scrolling title, no "Unknown album", room chip in the top bar, room shuffle/repeat for the host; compiles, uncommitted, not phone-checked
 2026-10-21: Listen together round 1 fixes pushed in ef01f64, tag v0.4.30, CI green, release build running at close, smol deploy not checked; not browser- or phone-checked
 
 2026-10-21: Room issue log pushed in ea1ff62, tag v0.4.29, release and CI green, live on smol; release APK checked with dexdump; not phone-checked.

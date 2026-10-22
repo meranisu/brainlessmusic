@@ -47,13 +47,21 @@ const pageQuery = (userId: number | undefined) => (page: number) => ({
 /** Kept outside the component so `useQueries` can reuse its answer while no page has changed. */
 const dataOf = (results: { data?: TrackListResponse }[]) => results.map((r) => r.data);
 
+/** The Simple view's selected song, outliving the page for this tab (A281). */
+let lastSelected = 0;
+
 /** The Simple view: just what you need to choose something to listen to. Sorting, filters and admin tools are in Full (A18). */
 function SimpleLibrary() {
   const { user } = useAuth();
   const { playQueue } = usePlayer();
   const { showToast } = useToast();
   const favoriteIds = useFavoriteIds();
-  const [selected, setSelected] = useState(0);
+  // Kept for this tab's life, so coming back to the Library lands on the song you left (A281).
+  const [selected, setSelected] = useState(() => lastSelected);
+  const select = (i: number) => {
+    lastSelected = i;
+    setSelected(i);
+  };
 
   // Admin only (it exposes filesystem paths). Polls only while a scan runs; an idle library fetches once.
   const { data: rootsData } = useQuery({
@@ -183,7 +191,7 @@ function SimpleLibrary() {
       letters={letterIndex.data?.letters}
       favoriteIds={favoriteIds}
       selected={shown}
-      onSelect={setSelected}
+      onSelect={select}
       onPlay={play}
       scanStatus={scanStatus || savedCopyNote}
     />

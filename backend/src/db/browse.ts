@@ -310,11 +310,20 @@ export function countAlbums(): number {
   ).count;
 }
 
-export function listAlbums(limit: number, offset: number): AlbumSummary[] {
+/** `added` puts the album whose newest song arrived last first, for Home's "New in your library" (A276). */
+export type AlbumSort = 'title' | 'added';
+
+const ALBUM_ORDER: Record<AlbumSort, string> = {
+  title: 'al.title COLLATE NOCASE',
+  // The newest track, not `albums.created_at`: 0030 rebuilt the table and copied one date onto every older album.
+  added: 'MAX(t.date_added) DESC, al.id DESC',
+};
+
+export function listAlbums(limit: number, offset: number, sort: AlbumSort = 'title'): AlbumSummary[] {
   return db
     .prepare(
       `${ALBUM_SUMMARY_SELECT} GROUP BY al.id ${HAS_PLAYABLE_TRACKS}
-       ORDER BY al.title COLLATE NOCASE LIMIT ? OFFSET ?`,
+       ORDER BY ${ALBUM_ORDER[sort]} LIMIT ? OFFSET ?`,
     )
     .all(limit, offset) as AlbumSummary[];
 }

@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { AlbumGrid } from '../components/AlbumGrid';
 import { LibraryEmptyState } from '../components/LibraryEmptyState';
 import { apiClient } from '../lib/apiClient';
@@ -10,7 +9,13 @@ import { Skeleton, SkeletonAlbumGrid } from '../components/Skeleton';
 const PAGE_SIZE = 50;
 
 export function AlbumsPage() {
-  const [page, setPage] = useState(0);
+  // The page is in the address (`?page=3`), so coming back to Albums lands on the page you left (A281).
+  const [params, setParams] = useSearchParams();
+  const page = Math.max(0, (Number.parseInt(params.get('page') ?? '1', 10) || 1) - 1);
+  const setPage = (update: (p: number) => number) => {
+    const next = update(page);
+    setParams(next === 0 ? {} : { page: String(next + 1) });
+  };
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['albums', page],

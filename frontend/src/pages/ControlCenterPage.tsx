@@ -379,7 +379,7 @@ export function ControlCenterPage() {
           readout: `${library.data.tracks.toLocaleString()} tracks, ${formatTotalLength(library.data.seconds)}, ${formatBytes(library.data.bytes)}${
             missing > 0 ? `; ${missing.toLocaleString()} missing from disk` : ''
           }${library.data.hidden ? `; ${library.data.hidden.toLocaleString()} hidden` : ''}`,
-          link: missing > 0 ? { to: '/?view=full', text: 'Library' } : undefined,
+          link: missing > 0 ? { to: '/library?view=full', text: 'Library' } : undefined,
         },
   );
 

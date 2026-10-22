@@ -122,6 +122,9 @@ const selectClass =
  * The album-grouped table: the Library's "Full" view. Non-admins see no admin controls, but the server is what
  * enforces it. Scrolls inside a fixed-height panel.
  */
+/** Where each Full list was scrolled to, for this tab's life (A281). */
+const fullScrollMemory = new Map<string, number>();
+
 export function LibraryFull() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
@@ -200,6 +203,17 @@ export function LibraryFull() {
   const groups = useMemo(() => (grouped ? groupByAlbum(tracks) : []), [grouped, tracks]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Scroll memory (A281): coming back to the same list puts the panel where you left it. The pages are still in the
+  // query cache, so the panel is tall enough at once. Per list, since a new sort or filter starts at the top.
+  const scrollKey = JSON.stringify(params);
+  const restoreRef = useRef(fullScrollMemory.get(scrollKey) ?? 0);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || restoreRef.current <= 0 || tracks.length === 0) return;
+    el.scrollTop = Math.min(restoreRef.current, el.scrollHeight - el.clientHeight);
+    restoreRef.current = 0;
+  }, [tracks.length]);
 
   const loadMoreIfNear = useCallback(() => {
     const el = scrollRef.current;
@@ -442,7 +456,14 @@ export function LibraryFull() {
         </div>
       )}
 
-      <div className="lf-scroll" ref={scrollRef} onScroll={loadMoreIfNear}>
+      <div
+        className="lf-scroll"
+        ref={scrollRef}
+        onScroll={(event) => {
+          fullScrollMemory.set(scrollKey, event.currentTarget.scrollTop);
+          loadMoreIfNear();
+        }}
+      >
         {isLoading && (
           <Skeleton label="Loading tracks…">
             <SkeletonTrackRows rows={14} bare />

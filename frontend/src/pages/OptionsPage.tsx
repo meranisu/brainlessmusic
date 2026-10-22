@@ -23,6 +23,7 @@ import {
 } from '../lib/headsetButtons';
 import type { AddLibraryRootResponse, LibraryRoot, LibraryRootListResponse, LibraryRootScanResult } from '../types/api';
 import { Presence } from '../components/Presence';
+import { HomeShelvesSettings } from '../components/HomeShelvesSettings';
 
 const BETWEEN_SONGS: { id: BetweenSongs; name: string; detail: string }[] = [
   { id: 'gapless', name: 'Gapless', detail: 'One song straight into the next' },
@@ -477,6 +478,14 @@ export function OptionsPage() {
           Saved to your profile, so it follows you to any device you sign in on.
         </p>
       </section>
+
+      {/* Guests' Home has only the new albums and public playlists, so there is nothing to arrange (A281). */}
+      {user && !user.isGuest && (
+        <section className="mt-7">
+          <h2 className="mb-3 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-blue-400">Home</h2>
+          <HomeShelvesSettings />
+        </section>
+      )}
 
       <section className="mt-7">
         <h2 className="mb-3 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-blue-400">

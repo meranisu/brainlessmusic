@@ -21,10 +21,20 @@ function coverSources(tracks: TrackSummary[]): { kind: 'tracks' | 'albums'; id: 
  * A mix's picture, as Spotify and YouTube Music draw theirs (owner, 2026-10-21): four of its covers in a grid, one
  * when there are fewer, and a radio mark at the bottom left saying it is a mix, not an album.
  */
-export function MixCover({ tracks, large = false }: { tracks: TrackSummary[]; large?: boolean }) {
+export function MixCover({
+  tracks,
+  large = false,
+  fill = false,
+}: {
+  tracks: TrackSummary[];
+  large?: boolean;
+  /** Fills its box as a square, for a Home shelf card (A276). Draws at `large`'s size. */
+  fill?: boolean;
+}) {
   const sources = coverSources(tracks);
-  const box = large ? 'h-48 w-48 sm:h-56 sm:w-56' : 'h-10 w-10';
-  const size = large ? 'full' : 'thumb';
+  const big = large || fill;
+  const box = fill ? 'aspect-square w-full' : large ? 'h-48 w-48 sm:h-56 sm:w-56' : 'h-10 w-10';
+  const size = big ? 'full' : 'thumb';
   return (
     <span className={`relative block shrink-0 overflow-hidden rounded-md border border-blue-800 ${box}`}>
       {sources.length === 4 ? (
@@ -38,10 +48,10 @@ export function MixCover({ tracks, large = false }: { tracks: TrackSummary[]; la
       )}
       <span
         className={`absolute flex items-center justify-center rounded-full border border-blue-950 bg-orange-600 text-on-accent ${
-          large ? 'bottom-2 left-2 h-9 w-9' : 'bottom-0.5 left-0.5 h-4 w-4'
+          big ? 'bottom-2 left-2 h-9 w-9' : 'bottom-0.5 left-0.5 h-4 w-4'
         }`}
       >
-        <RadioIcon className={large ? 'h-5 w-5' : 'h-2.5 w-2.5'} />
+        <RadioIcon className={big ? 'h-5 w-5' : 'h-2.5 w-2.5'} />
       </span>
     </span>
   );

@@ -4,6 +4,7 @@ import { AlbumGrid } from '../components/AlbumGrid';
 import { apiClient } from '../lib/apiClient';
 import type { ArtistDetail } from '../types/api';
 import { Skeleton, SkeletonAlbumGrid, SkeletonDetailHeader } from '../components/Skeleton';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export function ArtistDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -14,6 +15,7 @@ export function ArtistDetailPage() {
     queryFn: () => apiClient.get<ArtistDetail>(`/artists/${artistId}`),
     enabled: Number.isInteger(artistId),
   });
+  usePageTitle(data?.name);
 
   if (isLoading) {
     return (

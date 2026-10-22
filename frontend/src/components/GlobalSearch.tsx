@@ -41,9 +41,13 @@ export function GlobalSearch({
 
   useEffect(() => {
     function onKeyDown(ev: KeyboardEvent) {
-      if (ev.key !== '/') return;
+      // Ctrl+K (Cmd+K on a Mac) as well as `/` (A281); it works from inside a field, as the browser's own does.
+      const isCommand = (ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'k';
+      if (ev.key !== '/' && !isCommand) return;
       const target = ev.target as HTMLElement | null;
-      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if (!isCommand && target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      // The bar's field stays mounted while `md:` hides it on a phone; only a field on screen answers.
+      if (!inputRef.current || inputRef.current.offsetParent === null) return;
       ev.preventDefault();
       inputRef.current?.focus();
       inputRef.current?.select();

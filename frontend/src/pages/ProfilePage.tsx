@@ -17,6 +17,7 @@ import { RANGES, RangePicker, Section, SongRows } from '../components/ListeningP
 import { radarReadings } from '../lib/listeningRadar';
 import { FriendsPanel } from './FriendsPage';
 import { StatsPanel } from './StatsPage';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 /**
  * Someone's profile (A167-A170): picture, bio and pins, what they listen to most over a range, their playlists, and
@@ -129,6 +130,7 @@ export function ProfilePage() {
     enabled: Number.isInteger(userId),
     placeholderData: (prev) => (prev && prev.id === userId ? prev : undefined),
   });
+  usePageTitle(data?.name);
 
   if (isLoading) {
     return (

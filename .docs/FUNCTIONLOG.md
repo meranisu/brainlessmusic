@@ -4,6 +4,102 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `sourceForPath()`, `loadJumpEntries()`, `noteJump()`, `advanceJump()`, `forgetJump()` — `frontend/src/lib/jumpBackIn.ts`; `PlayerProvider()` (`sourceRef`, `playQueue`/`startRadio` `source`, `openPlayer`, tab title effect) — `frontend/src/components/PlayerBar.tsx`
+**Date:** 2026-10-22
+**How added:** new feature
+**Purpose:** Jump back in (A281): which album, playlist or mix a queue came from and the song reached; `openPlayer` for the rail's cover; the song as the tab title.
+**Side effects:** `localStorage` `brainlessmusic.jumpBackIn.<userId>`; sets `document.title`.
+**Before:** the server's saved queue had track ids only; nothing named where a queue came from.
+**After:** Home lists the last 8 left part way and resumes them.
+
+**Function:** `usePlayCollection()`, `albumQueue()`, `playlistQueue()` — `frontend/src/hooks/usePlayCollection.ts`; `ShelfCard()` — `frontend/src/components/Shelf.tsx`; `AlbumGrid()` — `frontend/src/components/AlbumGrid.tsx`
+**Date:** 2026-10-22
+**How added:** new feature
+**Purpose:** a play key on Home and album grid cards that plays without opening the page (A281); one queue builder for cards and pages.
+**Side effects:** fetches the album or playlist through its page's query key.
+**Before:** cards only opened pages; each detail page built its own queue.
+**After:** cards are a stretched link plus a play key; `AlbumDetailPage` and `PlaylistDetailPage` use the shared builders.
+
+**Function:** `loadHomeLayout()`, `saveHomeLayout()`, `defaultHomeLayout()` — `frontend/src/lib/homeShelves.ts`; `HomeShelvesSettings()` — `frontend/src/components/HomeShelvesSettings.tsx`; `HomePage()`, `JumpCard()` — `frontend/src/pages/HomePage.tsx`
+**Date:** 2026-10-22
+**How added:** new feature
+**Purpose:** Quick picks, Jump back in and "Because you played" shelves; Home's order and hidden shelves chosen in Options (A281).
+**Side effects:** `localStorage` `brainlessmusic.homeShelves`; reads `/me/stats?range=month`, `/mix/radio`.
+**Before:** six shelves in a fixed order.
+**After:** nine, ordered and hidden per device.
+
+**Function:** `setSectionTitle()`, `setDetailTitle()`, `setPlayingTitle()` — `frontend/src/lib/documentTitle.ts`; `usePageTitle()` — `frontend/src/hooks/usePageTitle.ts`; `AppShell()` (section title, `[` key, scroll memory) — `frontend/src/components/AppShell.tsx`; `GlobalSearch()` (Ctrl+K) — `frontend/src/components/GlobalSearch.tsx`
+**Date:** 2026-10-22
+**How added:** new feature
+**Purpose:** browser tab titles, keyboard shortcuts and scroll memory (A281).
+**Side effects:** sets `document.title`; scrolls the window on page changes.
+**Before:** the tab always read "brainlessmusic"; a new page kept the old scroll; only `/` focused search.
+**After:** named tabs; remembered lists come back where you left them, other pages open at the top; Ctrl+K and `[`.
+
+**Function:** `AlbumsPage()` — `frontend/src/pages/AlbumsPage.tsx`; `SimpleLibrary()` — `frontend/src/pages/LibraryPage.tsx`; `LibraryFull()` — `frontend/src/components/LibraryFull.tsx`
+**Date:** 2026-10-22
+**How added:** new feature
+**Purpose:** scroll memory for lists that don't scroll the window (A281).
+**Side effects:** Albums writes `?page=` to the address.
+**Before:** Albums' page and the Library's place reset on every visit.
+**After:** both come back as left, for the tab's life.
+
+**Function:** `AuthProvider()` start-up effect — `frontend/src/auth/AuthContext.tsx`
+**Date:** 2026-10-22
+**How added:** bug fix
+**Purpose:** only the live `/auth/me` run ends loading.
+**Side effects:** none.
+**Before:** in dev (StrictMode), a direct load of any address but `/` bounced to `/`.
+**After:** the address is kept.
+
+**Function:** `ColorTheme` — `android/.../data/local/AppearanceSettings.kt`
+**Date:** 2026-10-22
+**How added:** new feature
+**Purpose:** Lavender, Voltage and Candy get web ids (A282).
+**Side effects:** the phone saves these picks to the profile.
+**Before:** phone-only, never sent.
+**After:** they follow the profile both ways.
+
+**Function:** `THEMES` — `frontend/src/lib/theme.ts`
+**Date:** 2026-10-22
+**How added:** new feature
+**Purpose:** three more web themes, Lavender, Voltage and Candy, matching the Android palettes (A279).
+**Side effects:** a profile may now hold `lavender`, `voltage` or `candy` in `users.theme`.
+**Before:** six themes on the web; these three were phone-only.
+**After:** nine; Options, the title-screen cycle and first paint all take them.
+
+**Function:** `HomePage()` — `frontend/src/pages/HomePage.tsx`; `Shelf()`, `ShelfCard()` — `frontend/src/components/Shelf.tsx`
+**Date:** 2026-10-22
+**How added:** new feature
+**Purpose:** the web app's front page at `/` (A276): shelves of today's mixes, recently played albums, your playlists, friends playing now, On this day and new albums; guests get new albums and public playlists.
+**Side effects:** reads `/mix/daily`, `/me/history`, `/playlists`, `/playlists/public`, `/social/now-playing` (every 15 s), `/me/on-this-day`, `/albums?sort=added`; playing a friend's song or a past year starts playback.
+**Before:** nothing — `/` was the Library.
+**After:** `/` is Home; the Library is at `/library`.
+
+**Function:** `SideNav()` — `frontend/src/components/SideNav.tsx`; `PhoneTabBar()` — `frontend/src/components/PhoneTabBar.tsx`; `navSectionsFor()`, `isItemActive()`, `activeIndex()` — `frontend/src/components/navItems.tsx`; `loadSidebarCollapsed()`, `saveSidebarCollapsed()` — `frontend/src/lib/sidebar.ts`; `AppShell()` (`onNavClick`, `toggleSidebar`) — `frontend/src/components/AppShell.tsx`
+**Date:** 2026-10-22
+**How added:** new feature
+**Purpose:** the arcade sidebar and icon rail from `md` (A273, A275) and the phone tab bar below it (A274), all from one list of pages.
+**Side effects:** `localStorage` `brainlessmusic.sidebarCollapsed`; `data-tabbar` on the root while the tab bar is mounted.
+**Before:** a sticky top bar with five tabs and a More menu (`NavOverflow`, now deleted).
+**After:** pages live in the sidebar or tab bar; the top bar holds search only from `md`.
+
+**Function:** `PlayerProvider()` (`deckShown` effect) — `frontend/src/components/PlayerBar.tsx`; `MixCover()` `fill` — `frontend/src/components/MixCover.tsx`
+**Date:** 2026-10-22
+**How added:** new feature
+**Purpose:** `data-deck` on the root while the player deck shows, so the sidebar ends above it; a mix cover that fills a shelf card.
+**Side effects:** sets and clears a root data attribute.
+**Before:** no signal; `MixCover` had only small and large fixed sizes.
+**After:** the sidebar's bottom items are never under the deck; Home's mix cards use `fill`.
+
+**Function:** `listAlbums()` — `backend/src/db/browse.ts`; `GET /albums` — `backend/src/routes/albums.ts`
+**Date:** 2026-10-22
+**How added:** new feature
+**Purpose:** `sort: 'added'` orders albums by their newest track's `date_added`, for Home's "New in your library" (A276).
+**Side effects:** none.
+**Before:** title order only.
+**After:** `?sort=added` gives newest first; any other value keeps title order.
+
 **Function:** `RoomState.nextIndex`, `RoomEntry.album` — `android/.../rooms/RoomModels.kt`; `PlaybackController.publish()`, `roomQueueItem()` — `android/.../playback/PlaybackController.kt`; `RoomTrack.album`, `lookupTracks()` — `backend/src/services/rooms.ts`, `backend/src/routes/rooms.ts`
 **Date:** 2026-10-22
 **How added:** bug fix

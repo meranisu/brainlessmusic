@@ -11,6 +11,7 @@ import {
   listTracks,
   searchLibrary,
 } from './browse.js';
+import { db } from './connection.js';
 import { findTrackById, markTracksMissing, updateTrackFields, upsertTrack } from './library.js';
 import { insertLibraryRoot } from './libraryRoots.js';
 import { countTopTracks, listTopTracks, recordScrobble } from './plays.js';
@@ -88,6 +89,23 @@ describe('albums and artists', () => {
 
     assert.deepEqual(detail.tracks.map((t) => t.id), [present]);
     assert.equal(album.trackCount, 1, 'the count on the card must match what opening it shows');
+  });
+
+  it('sorts albums by their newest song when asked', () => {
+    // Inserted in this order, so title order (Alpha, Beta) and newest-first (Beta, Alpha) disagree.
+    const old = addTrack('Old Song', 'Someone', 'Alpha');
+    addTrack('Middle Song', 'Someone', 'Beta');
+    const fresh = addTrack('Fresh Song', 'Someone', 'Alpha');
+    db.prepare("UPDATE tracks SET date_added = '2020-01-01 00:00:00' WHERE id = ?").run(old.id);
+    db.prepare("UPDATE tracks SET date_added = '2024-01-01 00:00:00' WHERE id != ?").run(old.id);
+    db.prepare("UPDATE tracks SET date_added = '2026-01-01 00:00:00' WHERE id = ?").run(fresh.id);
+
+    assert.deepEqual(listAlbums(50, 0).map((a) => a.title), ['Alpha', 'Beta']);
+    // Alpha's newest song is the newest of all, though its first song is the oldest.
+    assert.deepEqual(listAlbums(50, 0, 'added').map((a) => a.title), ['Alpha', 'Beta']);
+
+    db.prepare("UPDATE tracks SET date_added = '2023-01-01 00:00:00' WHERE id = ?").run(fresh.id);
+    assert.deepEqual(listAlbums(50, 0, 'added').map((a) => a.title), ['Beta', 'Alpha']);
   });
 
   it('drops an album once every track under it is gone', () => {

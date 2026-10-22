@@ -10,6 +10,8 @@ import { apiClient } from '../lib/apiClient';
 import type { AlbumDetail } from '../types/api';
 import { PlayIcon } from '../components/icons';
 import { Skeleton, SkeletonDetailHeader, SkeletonTrackRows } from '../components/Skeleton';
+import { usePageTitle } from '../hooks/usePageTitle';
+import { albumQueue } from '../hooks/usePlayCollection';
 
 export function AlbumDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -23,6 +25,7 @@ export function AlbumDetailPage() {
     queryFn: () => apiClient.get<AlbumDetail>(`/albums/${albumId}`),
     enabled: Number.isInteger(albumId),
   });
+  usePageTitle(data?.title);
 
   // An old link to an album a rescan merged into this one: show the album's own address from now on.
   useEffect(() => {
@@ -30,18 +33,7 @@ export function AlbumDetailPage() {
   }, [data, albumId, navigate]);
 
   // Each song's own artist; a server before v0.4 sends none, so the album's.
-  const queue: QueueTrack[] =
-    data?.tracks.map((t) => ({
-      id: t.id,
-      title: t.title,
-      artist: t.artistName ?? data.artistName,
-      duration: t.duration,
-      gainDb: t.gainDb,
-      format: t.format,
-      // Lets the player keep joins inside the album gapless (A72).
-      albumId: data.id,
-      trackNumber: t.trackNumber,
-    })) ?? [];
+  const queue: QueueTrack[] = data ? albumQueue(data) : [];
 
   if (isLoading) {
     return (

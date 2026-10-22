@@ -37,9 +37,9 @@ export function ScrollTopButton() {
   return (
     <button
       onClick={toTop}
-      // The player strip is ~60px on a phone and the deck ~70px from `md`.
+      // The player strip is ~60px on a phone, over the tab bar (A274), and the deck ~70px from `md`.
       className={`fixed right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-blue-600 bg-blue-900 text-blue-100 transition-colors hover:border-orange-500 hover:text-white ${
-        current ? 'bottom-20 md:bottom-24' : 'bottom-6'
+        current ? 'bottom-[calc(5rem+var(--tabbar-h))] md:bottom-24' : 'bottom-[calc(1.5rem+var(--tabbar-h))] md:bottom-6'
       }`}
       aria-label="Back to top"
       title="Back to top"

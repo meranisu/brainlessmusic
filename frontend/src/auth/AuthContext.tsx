@@ -113,7 +113,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // A 401 has already cleared the token. Anything else (no signal, the server down) keeps it for the next load:
       // clearing it lost a guest's identity for good.
       .catch(() => {})
-      .finally(() => setIsLoading(false));
+      // Only the live run ends the loading: a cancelled one (StrictMode's first, in dev) finishing first left no user
+      // and no loading, so `RequireAuth` sent any address but `/` to `/`.
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
     return () => {
       cancelled = true;
     };

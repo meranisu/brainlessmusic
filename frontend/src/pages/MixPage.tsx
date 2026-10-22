@@ -6,6 +6,7 @@ import { MixCover } from '../components/MixCover';
 import { usePlayer } from '../components/PlayerBar';
 import { Skeleton, SkeletonDetailHeader, SkeletonTrackRows } from '../components/Skeleton';
 import { fetchDailyMixes } from '../lib/mix';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 /** A shuffled copy, for the Shuffle button. */
 function shuffled<T>(items: T[]): T[] {
@@ -32,6 +33,8 @@ export function MixPage() {
     staleTime: 30 * 60 * 1000,
     enabled: user != null && !user.isGuest,
   });
+  const mixName = mixes.data?.mixes.find((m) => m.id === Number(id))?.name;
+  usePageTitle(mixName ? `${mixName} mix` : null);
 
   if (mixes.isLoading) {
     return (
@@ -49,7 +52,7 @@ export function MixPage() {
       <p className="text-sm text-blue-200">
         This mix isn't in today's mixes any more; they change every day.{' '}
         <Link to="/" className="text-accent-ink underline-offset-2 hover:underline">
-          Open the library
+          Go Home
         </Link>{' '}
         for today's.
       </p>

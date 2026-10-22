@@ -104,6 +104,49 @@ A 304 still makes the 0.2 to 1 s tunnel trip, so it saves data, not time; pages 
 
 ## Answered
 
+### A282 — Android sends the three new themes to the profile *(asked in chat)*
+**Answered:** 2026-10-22, in chat ("yes"): Lavender, Voltage and Candy get web ids in Android's `ColorTheme`, so a pick
+on either side follows the profile (A279 left them phone-only there).
+
+### A281 — Nine of the ten web UX ideas go in *(was Q278)*
+**Answered:** 2026-10-22, in chat ("a, b, c, e, f, g, h, i, j"), read as ideas 1 to 10 in
+`.docs/features/web-shell-home/planning.md`: quick picks, jump back in, play on card hover, keyboard shortcuts,
+scroll memory, Home tuning, "Because you played", browser tab titles, now-playing chip in the rail. Not 4 (drag a song
+onto a sidebar playlist).
+
+### A280 — Home's shelf order stands, and the Library keeps its buttons *(was Q277)*
+**Answered:** 2026-10-22, in chat ("yes, let it stay"): Daily mixes, Recently played, Your playlists, Friends
+listening, On this day, New in your library; the Library's Mixes and On this day buttons stay.
+
+### A279 — The phone-only colour themes come to the web *(asked in chat)*
+**Answered:** 2026-10-22, in chat ("also add more color themes like in the app"): Lavender, Voltage and Candy, until
+now Android-only (A116, A127, A131), are web themes too, from the phone's hexes (`index.css`, `lib/theme.ts`). Not yet
+done: Android's `ColorTheme` still has `webId = null` for them, so a pick on the phone doesn't reach the profile.
+
+### A276 — What the web Home page shows *(asked in chat)*
+**Answered:** 2026-10-22, in the question picker: all four offered groups. Daily mixes, Recently played, Your playlists,
+On this day, Friends listening (with live rooms) and New in your library. Home becomes `/` and the Library moves to
+`/library`. "New in your library" needs `GET /albums?sort=added`. Plan: `.docs/features/web-shell-home/planning.md`.
+
+### A275 — The collapsed web sidebar is an icon rail *(asked in chat)*
+**Answered:** 2026-10-22, in the question picker: a narrow column of icons with tooltips, like YT Music, and not fully
+hidden. Each device remembers it.
+
+### A274 — Phones get a bottom tab bar *(asked in chat)*
+**Answered:** 2026-10-22, in the question picker: below 768px a docked tab bar (Home, Library, Search, Together, You)
+replaces the More dropdown. It sits under the phone player deck. A slide-in drawer was turned down.
+
+### A273 — The web header becomes an arcade sidebar *(asked in chat)*
+**Answered:** 2026-10-22, in the question picker. The top bar becomes a collapsible left sidebar, styled as a
+rhythm-game mode-select column: flat, solid borders, the active item lit in the accent. This lifts only the "sidebar"
+part of A35's ban. A SaaS look (stat-card rows, soft shadows, decorative gradients) stays banned. Recorded in `DESIGN.md`.
+
+### A272 — Trim Claude's skills and add a device-check skill *(asked in chat)*
+**Answered:** 2026-10-22, in chat ("sure", "yes, and sure"): no Headroom or CLI-Anything plugin (ponytail stays rejected).
+Build a project skill for emulator and phone walkthroughs (`.claude/skills/device-check/`, 4e7a217). Turn the
+`laravel@laravel` plugin off for this repo (gitignored `.claude/settings.local.json`) and move four gortex skills
+(guide, rename, pr-review, add-test) out of `~/.claude/skills` into `~/claude-backups/skills-2026-10-22/`.
+
 ### A271 — Fix the room album line and Up next at the end of the queue *(asked in chat)*
 **Answered:** 2026-10-22, in chat ("continue"): fix both gaps the v0.4.32 emulator walkthrough found, as v0.4.33. The
 owner also gave a production test account in chat for the next walkthrough on smol.

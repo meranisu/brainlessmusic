@@ -17,6 +17,8 @@ import type { PlaylistDetail, PlaylistSummary } from '../types/api';
 import { PlayIcon } from '../components/icons';
 import { Skeleton, SkeletonDetailHeader, SkeletonTrackRows } from '../components/Skeleton';
 import { Presence } from '../components/Presence';
+import { usePageTitle } from '../hooks/usePageTitle';
+import { playlistQueue } from '../hooks/usePlayCollection';
 
 /** A shuffled copy, for the Shuffle button: the queue starts at a random song and runs in random order. */
 function shuffled<T>(items: T[]): T[] {
@@ -77,6 +79,7 @@ export function PlaylistDetailPage() {
     queryFn: () => apiClient.get<PlaylistDetail>(`/playlists/${playlistId}`),
     enabled: Number.isInteger(playlistId),
   });
+  usePageTitle(data?.name);
 
   const renameMutation = useMutation({
     mutationFn: (name: string) => apiClient.patch(`/playlists/${playlistId}`, { name }),
@@ -199,16 +202,7 @@ export function PlaylistDetailPage() {
   const canEditTracks = isOwner && !isSmart;
   const descriptionLength = [...(describing ?? '').trim()].length;
 
-  const queue: QueueTrack[] = data.tracks.map((t) => ({
-    id: t.id,
-    title: t.title,
-    artist: t.artist,
-    duration: t.duration,
-    gainDb: t.gainDb,
-    format: t.format,
-    albumId: t.albumId,
-    trackNumber: t.trackNumber,
-  }));
+  const queue: QueueTrack[] = playlistQueue(data);
 
   function handleDrop(targetIndex: number) {
     setDragOverIndex(null);

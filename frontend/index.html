@@ -23,7 +23,7 @@
         // Every id in `src/lib/theme.ts` THEMES; a missing one here would repaint that theme as blue on every load.
         var t = localStorage.getItem('brainlessmusic.theme');
         document.documentElement.dataset.theme =
-          ['blue', 'red', 'void', 'nord', 'pink', 'pastel'].indexOf(t) >= 0 ? t : 'blue';
+          ['blue', 'red', 'void', 'nord', 'pink', 'pastel', 'lavender', 'voltage', 'candy'].indexOf(t) >= 0 ? t : 'blue';
       } catch (e) {
         document.documentElement.dataset.theme = 'blue';
       }

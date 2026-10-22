@@ -4,6 +4,7 @@ import { AlbumGrid } from '../components/AlbumGrid';
 import { apiClient } from '../lib/apiClient';
 import type { GenreDetail } from '../types/api';
 import { Skeleton, SkeletonAlbumGrid, SkeletonDetailHeader } from '../components/Skeleton';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 /** One genre's albums. An album counts when any of its songs carries the genre. */
 export function GenreDetailPage() {
@@ -15,6 +16,7 @@ export function GenreDetailPage() {
     queryFn: () => apiClient.get<GenreDetail>(`/genres/${genreId}`),
     enabled: Number.isInteger(genreId),
   });
+  usePageTitle(data?.name);
 
   if (isLoading) {
     return (

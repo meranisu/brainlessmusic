@@ -1,10 +1,12 @@
 // import { useEffect, useState, type MouseEvent } from 'react';
 // import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useEffect, useRef, useState, type MouseEvent } from 'react';
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { consumeJustEntered, markAtTitle } from '../lib/boot';
 import { arrivalDuration, interstitialDuration } from '../lib/interstitial';
+import { setSectionTitle } from '../lib/documentTitle';
+import { loadSidebarCollapsed, saveSidebarCollapsed } from '../lib/sidebar';
 import { BrandMark, Wordmark } from './BrandLockup';
 import { GlobalSearch } from './GlobalSearch';
 import { EmailPrompt } from './EmailPrompt';
@@ -12,55 +14,41 @@ import { InviteBanner } from './InviteBanner';
 import { HandoffDialog } from './HandoffDialog';
 import { ArcadeInterstitial, ArrivalVeil } from './ArcadeInterstitial';
 import { ShellBackdrop } from './BackdropDepth';
-import { CloseIcon, ExitIcon, FadersIcon, GearIcon, SearchIcon } from './icons';
-import { Avatar } from './Avatar';
-import { NavOverflow, type NavItem } from './NavOverflow';
+import { CloseIcon, SearchIcon } from './icons';
+import { activeIndex, navSectionsFor, type NavItem } from './navItems';
+import { PhoneTabBar } from './PhoneTabBar';
 import { ScrollTopButton } from './ScrollTopButton';
+import { SideNav } from './SideNav';
 import { Presence } from './Presence';
 
 /** Must match `.options-panel.is-closing` in `index.css`; the search panel reuses the More menu's chrome. */
 const SEARCH_CLOSE_MS = 160;
 
-const navLinkClass = ({ isActive }: { isActive: boolean }) =>
-  `nav-tab ${isActive ? 'nav-tab-active' : ''}`;
+/** Below this the sidebar starts as a rail, until the user opens or folds it themselves (A275). Tailwind's `lg`. */
+const WIDE_QUERY = '(min-width: 1024px)';
+
+/** Width of the open sidebar and of its rail; `main` and the header move over by the same amount. */
+const SIDE_OPEN = '16rem';
+const SIDE_RAIL = '4.5rem';
 
 /**
- * Tab order as data (active tab, click direction, what fits). Six tabs measured 933px at a 390px viewport, so only
- * `primary` sits on the bar from `lg` (at `md` it overflowed 785px into 721px); `overflow` lives behind More.
+ * Lists you come back to, whose window scroll is put back where you left it (A281). Keyed with the query, so Albums
+ * page 3 and page 1 each keep their own. Any other page opens at the top.
  */
-function navItemsFor(isGuest: boolean): { primary: NavItem[]; overflow: NavItem[] } {
-  return {
-    primary: [
-      { to: '/', label: 'Library', end: true, detail: 'Every song on the server' },
-      { to: '/albums', label: 'Albums', detail: 'Browse by cover art' },
-      { to: '/artists', label: 'Artists', detail: 'Everyone with a song here' },
-      // Guests are listen-only (A37), but they see and play other people's public playlists (A163).
-      ...(isGuest ? [] : [{ to: '/favorites', label: 'Favorites', detail: 'The songs you liked' }]),
-      {
-        to: '/playlists',
-        label: 'Playlists',
-        detail: isGuest ? "Other people's public ones" : "Yours, and other people's public ones",
-      },
-    ],
-    // Upload, Users and the Control Center are one dashboard with its own header button now (owner request,
-    // 2026-10-11), so More holds only what doesn't fit the bar.
-    overflow: [
-      // Everyone, guests included (A100). Behind More: a sixth tab doesn't fit the bar (see above).
-      { to: '/together', label: 'Listen together', detail: 'Same song, same moment' },
-      // Behind More with Listen together: the bar is full (v0.4 box 28).
-      { to: '/genres', label: 'Genres', detail: 'Albums by genre tag' },
-      // Everyone's profiles (A172), guests included: they can look, they just have none of their own. Stats and
-      // Friends left this menu to be tabs on your own profile, behind your picture (owner, 2026-10-21).
-      { to: '/people', label: 'People', detail: 'Who listens to what' },
-    ],
-  };
-}
+const REMEMBER_SCROLL = new Set(['/', '/albums', '/artists', '/genres', '/playlists', '/people']);
 
-/** Which tab the current URL belongs to, or -1 for a page that has no tab. */
-function activeIndex(items: NavItem[], pathname: string): number {
-  return items.findIndex((item) =>
-    item.end ? pathname === item.to : pathname === item.to || pathname.startsWith(`${item.to}/`),
-  );
+/** How long a return waits for the page to grow tall enough to scroll back, ms. Lazy pages load in about 1 s. */
+const SCROLL_RESTORE_MS = 2500;
+
+/** Pages with no sidebar item, named for the browser tab. Detail pages name themselves (`usePageTitle`). */
+const OTHER_TITLES: Record<string, string> = {
+  '/options': 'Options',
+  '/search': 'Search',
+  '/control-center': 'Control Center',
+};
+
+function isTyping(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable="true"]') !== null;
 }
 
 /** Deadline for the staged entry, just past the last stage; must stay ahead of the delays in `index.css`. */
@@ -81,9 +69,37 @@ function BootFrame() {
 export function AppShell() {
   const { user, logout } = useAuth();
   const [showHandoff, setShowHandoff] = useState(false);
-  const [showMore, setShowMore] = useState(false);
 
-  /** The mobile search panel: below `lg` the bar has no room for `GlobalSearch`, so this is a phone's only search. */
+  /** Null until the user folds or opens the sidebar on this device; until then the width decides. */
+  const [savedCollapsed, setSavedCollapsed] = useState(loadSidebarCollapsed);
+  const [isWide, setIsWide] = useState(() => window.matchMedia(WIDE_QUERY).matches);
+  useEffect(() => {
+    const query = window.matchMedia(WIDE_QUERY);
+    const sync = () => setIsWide(query.matches);
+    query.addEventListener('change', sync);
+    return () => query.removeEventListener('change', sync);
+  }, []);
+  const collapsed = savedCollapsed ?? !isWide;
+
+  function toggleSidebar() {
+    saveSidebarCollapsed(!collapsed);
+    setSavedCollapsed(!collapsed);
+  }
+
+  // `[` folds or opens the sidebar (A281), as in YT Music. Not while typing, and not on a phone, which has no sidebar.
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key !== '[' || event.ctrlKey || event.metaKey || event.altKey || isTyping(event.target)) return;
+      if (!window.matchMedia('(min-width: 768px)').matches) return;
+      event.preventDefault();
+      saveSidebarCollapsed(!collapsed);
+      setSavedCollapsed(!collapsed);
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [collapsed]);
+
+  /** The phone search panel: below `md` the bar has no room for `GlobalSearch`, so this is a phone's only search. */
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const wasMobileSearchOpen = useRef(showMobileSearch);
   const [isMobileSearchClosing, setIsMobileSearchClosing] = useState(false);
@@ -118,10 +134,52 @@ export function AppShell() {
   // Read on the first render, so the boot classes are on the first paint and nothing flashes.
   const [isBooting, setIsBooting] = useState(consumeJustEntered);
 
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const navigate = useNavigate();
-  const { primary, overflow } = navItemsFor(Boolean(user?.isGuest));
-  const current = activeIndex(primary, pathname);
+  const sections = navSectionsFor(Boolean(user?.isGuest));
+  const items = sections.flatMap((section) => section.items);
+  const current = activeIndex(items, pathname);
+
+  const sectionTitle =
+    current >= 0
+      ? items[current].label
+      : (Object.entries(OTHER_TITLES).find(([path]) => pathname === path || pathname.startsWith(`${path}/`))?.[1] ?? null);
+  useEffect(() => {
+    setSectionTitle(sectionTitle);
+    return () => setSectionTitle(null);
+  }, [sectionTitle]);
+
+  // Scroll memory (A281): the scroll of each remembered list, kept for this tab's life.
+  const scrollMemory = useRef(new Map<string, number>());
+  const scrollKey = `${pathname}${search}`;
+  const scrollKeyRef = useRef(scrollKey);
+  useEffect(() => {
+    function remember() {
+      const key = scrollKeyRef.current;
+      if (REMEMBER_SCROLL.has(key.split('?')[0])) scrollMemory.current.set(key, window.scrollY);
+    }
+    window.addEventListener('scroll', remember, { passive: true });
+    return () => window.removeEventListener('scroll', remember);
+  }, []);
+  useEffect(() => {
+    scrollKeyRef.current = scrollKey;
+    const saved = REMEMBER_SCROLL.has(pathname) ? (scrollMemory.current.get(scrollKey) ?? 0) : 0;
+    if (saved <= 0) {
+      window.scrollTo(0, 0);
+      return;
+    }
+    // The page arrives empty and fills as its data loads; wait until it is tall enough, then put the scroll back.
+    const deadline = performance.now() + SCROLL_RESTORE_MS;
+    let frame = requestAnimationFrame(function tryRestore() {
+      const room = document.documentElement.scrollHeight - window.innerHeight;
+      if (room >= saved || performance.now() > deadline) {
+        window.scrollTo(0, Math.min(saved, room));
+        return;
+      }
+      frame = requestAnimationFrame(tryRestore);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [scrollKey, pathname]);
 
   /** Leaves through a card (type, a held beat, fade to black), then navigates. The app stays mounted underneath. */
   function leaveThrough(card: { text: string; detail?: string }, to: string, onNavigate?: () => void) {
@@ -147,7 +205,7 @@ export function AppShell() {
     }, wait);
   }
 
-  /** Records which way along the bar the click goes, before `startViewTransition` reads it. `forward` off-tab. */
+  /** Records which way along the sidebar the click goes, before `startViewTransition` reads it. `forward` off-tab. */
   function rememberDirection(target: number) {
     /* An effect would run after navigation, too late for the snapshot; a DOM write in a handler is correct here. */
     // oxlint-disable-next-line react/immutability
@@ -155,31 +213,19 @@ export function AppShell() {
   }
 
   /**
-   * Changes tabs through the same card as Exit and Options (1,420ms; a shorter one read as hurried). It replaced the
+   * Changes pages through the same card as Exit and Options (1,420ms; a shorter one read as hurried). It replaced the
    * directional slide; `rememberDirection` and the CSS stay, so the slide can return. Modified clicks pass through.
+   * Shared by the sidebar, its rail and the phone's tab bar.
    */
-  function onTabClick(event: MouseEvent<HTMLAnchorElement>, item: NavItem, index: number) {
+  function onNavClick(event: MouseEvent<HTMLAnchorElement>, item: NavItem) {
     if (event.defaultPrevented || event.button !== 0) return;
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const index = items.indexOf(item);
     // Already here. A card for a navigation that changes nothing is a wait for
     // no reason.
     if (index === current) return;
 
     rememberDirection(index);
-    event.preventDefault();
-    leaveThrough({ text: item.label, detail: item.detail }, item.to);
-  }
-
-  /**
-   * A More menu item: the bar's tabs (repeated there on a phone) go as `onTabClick`; the rest (Listen together) through
-   * the same card, with its line underneath. Modified clicks and the page you're already on pass through.
-   */
-  function onMenuClick(event: MouseEvent<HTMLAnchorElement>, item: NavItem) {
-    const index = primary.indexOf(item);
-    if (index >= 0) return onTabClick(event, item, index);
-    if (event.defaultPrevented || event.button !== 0) return;
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    if (pathname === item.to || pathname.startsWith(`${item.to}/`)) return;
     event.preventDefault();
     leaveThrough({ text: item.label, detail: item.detail }, item.to);
   }
@@ -210,69 +256,45 @@ export function AppShell() {
   const boot = (stage: string) => (isBooting ? `boot-stage ${stage}` : '');
 
   return (
-    <div className="app-ground relative min-h-screen pb-20 text-white">
-      {/* Vivid on the Library, whose cards give text its own ground; other pages keep the restrained backdrop. */}
+    <div
+      className="app-ground relative min-h-screen pb-[calc(5rem+var(--tabbar-h))] text-white md:pb-20"
+      style={{ '--side-w': collapsed ? SIDE_RAIL : SIDE_OPEN } as CSSProperties}
+    >
+      {/* Vivid on Home, whose cards give text its own ground; other pages keep the restrained backdrop. */}
       <ShellBackdrop vivid={pathname === '/'} />
 
+      <SideNav
+        sections={sections}
+        pathname={pathname}
+        collapsed={collapsed}
+        onToggle={toggleSidebar}
+        onNavigate={onNavClick}
+        go={leaveThrough}
+        onExit={handleExit}
+        bootClass={isBooting ? 'boot-nav' : ''}
+      />
+
+      {/* Everything right of the sidebar. The padding follows the sidebar's width as it folds. */}
+      <div className="shell-column md:pl-(--side-w)">
       {/* A floating, sticky panel. The gradient fades content scrolling through the gap above it. */}
       <header className="sticky top-0 z-30 select-none bg-linear-to-b from-blue-950 via-blue-950/90 to-transparent px-3 pb-4 pt-3 sm:px-4">
         <div className="shell-bar page-shell relative flex items-center gap-3 rounded-xl border border-blue-700 bg-blue-950/92 px-3 sm:gap-5 sm:px-5">
-          <Link
-            to="/"
-            className={`flex shrink-0 items-center gap-2.5 ${boot('boot-wordmark')}`}
-          >
+          {/* The sidebar carries the name from `md`; a phone has only this. */}
+          <Link to="/" className={`flex shrink-0 items-center gap-2.5 md:hidden ${boot('boot-wordmark')}`}>
             <BrandMark className="h-8 w-8 border-2 border-blue-200" />
-            {/* The word hides below `sm`; those ~140px decide whether the bar fits a phone. */}
-            <Wordmark className="hidden text-base text-white sm:block" />
+            <Wordmark className="text-base text-white" />
           </Link>
 
-          {/* Separates the name from the controls, like a game's title plate. */}
-          <span aria-hidden className="h-7 w-px shrink-0 bg-blue-700/80" />
-
-          {/* One wrapper so `gap-1` spaces tabs and More evenly; wider gaps here bring back the overflow. Always
-              `flex`: below `lg` only `nav` hides, and More is a phone's only route to the tabs. */}
-          <div className="flex items-center gap-1">
-            {/* `boot-nav` staggers each tab in rather than fading the row as a block. */}
-            <nav className={`hidden items-center gap-1 lg:flex ${isBooting ? 'boot-nav' : ''}`}>
-              {primary.map((item, i) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.end}
-                  onClick={(event) => onTabClick(event, item, i)}
-                  className={navLinkClass}
-                >
-                  {({ isActive }) => (
-                    <>
-                      {item.label}
-                      {/* A real element in the active tab only, so it can carry a `view-transition-name` and slide.
-                          The overflow menu's links get none: a duplicate name disables the transition. */}
-                      {isActive && <span className="nav-underline" />}
-                    </>
-                  )}
-                </NavLink>
-              ))}
-            </nav>
-
-            <NavOverflow
-              className={boot('boot-more')}
-              primary={primary}
-              overflow={overflow}
-              isOpen={showMore}
-              onToggle={() => setShowMore((open) => !open)}
-              onClose={() => setShowMore(false)}
-              onNavigate={onMenuClick}
+          {/* From `md` the bar is search and nothing else: the pages moved to the sidebar (A273). */}
+          <div className={`hidden min-w-0 flex-1 py-3 md:flex ${boot('boot-search')}`}>
+            <GlobalSearch
+              className="relative w-full max-w-md"
+              inputClassName="input w-full select-text py-2 pr-8 text-sm"
             />
           </div>
 
-          {/* Takes the bar's slack with `justify-end` so `GlobalSearch` keeps its width; stretching it would strand
-              its `/` hint 100px from the field. */}
-          <div className={`hidden min-w-0 flex-1 justify-end lg:flex ${boot('boot-search')}`}>
-            <GlobalSearch />
-          </div>
-
-          {/* Below `lg`, search's only way in. `min-w-0` lets it shrink, or it pushes the gear and exit off-screen. */}
-          <div className="flex min-w-0 flex-1 justify-end lg:hidden">
+          {/* Below `md`, search's only way in. `min-w-0` lets it shrink. */}
+          <div className="flex min-w-0 flex-1 justify-end py-3 md:hidden">
             <button
               onClick={() => setShowMobileSearch((open) => !open)}
               aria-label="Search"
@@ -281,68 +303,6 @@ export function AppShell() {
               className="tip btn-ghost btn-sm shrink-0 px-2"
             >
               <SearchIcon className="h-5 w-5" />
-            </button>
-          </div>
-
-          <div className={`relative flex shrink-0 items-center gap-2 py-3 text-sm ${boot('boot-account')}`}>
-            {/* The admin dashboard's own button (owner request, 2026-10-11), where the Admin badge was: it says the
-                same thing and does something. Icon and tip like Options: a text label squeezed search against More at every
-                width, since the bar stops growing at `max-w-6xl`. */}
-            {user?.isAdmin && (
-              <button
-                onClick={() =>
-                  leaveThrough({ text: 'Control Center', detail: 'Health, logs, uploads and accounts' }, '/control-center')
-                }
-                aria-label="Control Center"
-                aria-current={pathname.startsWith('/control-center') ? 'page' : undefined}
-                data-tip="Control Center"
-                className={`tip btn-sm inline-flex shrink-0 items-center rounded-md border px-2 transition-colors ${
-                  pathname.startsWith('/control-center')
-                    ? 'border-orange-600 text-white'
-                    : 'border-transparent text-blue-300 hover:bg-blue-800 hover:text-white'
-                }`}
-              >
-                <FadersIcon className="h-5 w-5" />
-              </button>
-            )}
-
-            {/* Your picture opens your profile (A171). Guests have no profile, so no button. */}
-            {user && !user.isGuest && (
-              <button
-                onClick={() =>
-                  leaveThrough({ text: user.displayName, detail: 'Your profile' }, `/people/${user.id}`)
-                }
-                aria-label="Your profile"
-                aria-current={pathname === `/people/${user.id}` ? 'page' : undefined}
-                data-tip="Your profile"
-                className={`tip shrink-0 rounded-md p-0.5 transition-opacity hover:opacity-80 ${
-                  pathname === `/people/${user.id}` ? 'ring-2 ring-orange-600' : ''
-                }`}
-              >
-                <Avatar userId={user.id} name={user.displayName} avatarId={user.avatarId} size="xs" />
-              </button>
-            )}
-
-            {/* Icons (a gear and a door) to save width. `.tip` shows at once, unlike `title`; `aria-label` carries the text. */}
-            <button
-              onClick={() =>
-                leaveThrough({ text: 'Options', detail: 'Settings for this device' }, '/options')
-              }
-              aria-label="Options"
-              data-tip="Options"
-              className="tip btn-ghost btn-sm shrink-0 px-2"
-            >
-              <GearIcon className="h-5 w-5" />
-            </button>
-
-            {/* Back to the title screen, signed out (see `handleExit`). Orange, the title screen's colour. */}
-            <button
-              onClick={handleExit}
-              aria-label="Log out and exit to the title screen"
-              data-tip="Exit (signs you out)"
-              className="tip btn-primary btn-sm shrink-0 px-2"
-            >
-              <ExitIcon className="h-5 w-5" />
             </button>
           </div>
 
@@ -358,11 +318,11 @@ export function AppShell() {
           {mobileSearchVisible && (
             <>
               <div
-                className="fixed inset-0 z-20 lg:hidden"
+                className="fixed inset-0 z-20 md:hidden"
                 onClick={() => setShowMobileSearch(false)}
                 aria-hidden
               />
-              <div className="absolute inset-x-0 top-full z-30 mt-2 lg:hidden">
+              <div className="absolute inset-x-0 top-full z-30 mt-2 md:hidden">
                 <div
                   className={`options-panel card flex items-center gap-2 p-2 ${
                     isMobileSearchClosing ? 'is-closing' : ''
@@ -402,6 +362,9 @@ export function AppShell() {
           <Outlet />
         </div>
       </main>
+      </div>
+
+      <PhoneTabBar sections={sections} pathname={pathname} onNavigate={onNavClick} go={leaveThrough} onExit={handleExit} />
 
       <ScrollTopButton />
 

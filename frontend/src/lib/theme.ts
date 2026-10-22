@@ -12,6 +12,10 @@ export const THEMES = [
   { id: 'nord', name: 'Nord', detail: 'Flat, after the palette' },
   { id: 'pink', name: 'Magenta', detail: 'After osu!' },
   { id: 'pastel', name: 'Pastel', detail: 'Material, soft and round' },
+  // Phone-only until 2026-10-22, when the owner asked for them here. Android's `ColorTheme` can take these as `webId`.
+  { id: 'lavender', name: 'Lavender', detail: 'After Arcaea' },
+  { id: 'voltage', name: 'Voltage', detail: 'After SOUND VOLTEX' },
+  { id: 'candy', name: 'Candy', detail: 'After maimai' },
 ] as const;
 
 export type ThemeId = (typeof THEMES)[number]['id'];

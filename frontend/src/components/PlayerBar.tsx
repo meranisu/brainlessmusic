@@ -61,6 +61,8 @@ import {
 import type { PlaybackState, TrackSummary } from '../types/api';
 import { useToast } from './ToastProvider';
 import { loadEndlessPreference, radioSource, saveEndlessPreference } from '../lib/mix';
+import { advanceJump, noteJump, sourceForPath, type JumpSource } from '../lib/jumpBackIn';
+import { setPlayingTitle } from '../lib/documentTitle';
 
 export type QueueTrack = Pick<TrackSummary, 'id' | 'title' | 'artist' | 'duration'> &
   Partial<Pick<TrackSummary, 'format' | 'albumId' | 'trackNumber' | 'gainDb'>> & {
@@ -258,14 +260,15 @@ export interface PlayerContextValue {
    * `loadMore` keeps the queue going: when few songs remain it is called for the next batch, and an empty answer
    * means there is no more. Left out, the queue is exactly `tracks`.
    */
-  playQueue: (tracks: QueueTrack[], startIndex: number, loadMore?: LoadMore) => void;
+  /** `source` names the album, playlist or mix for Jump back in (A281) when it isn't the page you're on. */
+  playQueue: (tracks: QueueTrack[], startIndex: number, loadMore?: LoadMore, source?: JumpSource) => void;
   playTrack: (track: QueueTrack) => void;
   /** After the current song, and after anything already put there with Play next. In a room, for everyone. */
   playNext: (track: QueueTrack) => void;
   /** At the end of the queue (A260). In a room, at the end of the room's queue. */
   addToQueue: (track: QueueTrack) => void;
   /** Plays [tracks] (default just [track]), then keeps going with songs like [track] (A234). */
-  startRadio: (track: QueueTrack, tracks?: QueueTrack[]) => void;
+  startRadio: (track: QueueTrack, tracks?: QueueTrack[], source?: JumpSource) => void;
   /** When the queue runs out, keep playing songs like its last one (A235). Per device. */
   endless: boolean;
   setEndless: (enabled: boolean) => void;
@@ -289,6 +292,8 @@ export interface PlayerContextValue {
   canFade: boolean;
   /** In a "Listen together" room: the transport drives the room for everyone, and shuffle and repeat are off. */
   inRoom: boolean;
+  /** Opens Now Playing: the sheet on a phone, the full view from `md`. For the sidebar's now-playing chip (A281). */
+  openPlayer: () => void;
 }
 
 const PlayerContext = createContext<PlayerContextValue | undefined>(undefined);
@@ -428,7 +433,34 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   isBufferingRef.current = isBuffering;
 
   const current = queue[index] ?? null;
+
+  // While the deck shows, `data-deck` on the root lets the sidebar end above it (A273) instead of under it.
+  const deckShown = Boolean(user && current && !onAttractScreen);
+  useEffect(() => {
+    if (!deckShown) return;
+    document.documentElement.dataset.deck = '';
+    return () => {
+      delete document.documentElement.dataset.deck;
+    };
+  }, [deckShown]);
   const swapClass = useSwapClass(current?.id ?? 0, index);
+
+  // The browser tab names the song while it plays (A281); paused, it goes back to the page's name.
+  const playingTitle = isPlaying && current ? `${current.title} · ${current.artist ?? 'Unknown Artist'}` : null;
+  useEffect(() => {
+    setPlayingTitle(playingTitle);
+    return () => setPlayingTitle(null);
+  }, [playingTitle]);
+
+  // Jump back in (A281): the album, playlist or mix this queue was started from, followed song by song so Home can
+  // resume it. Null for a queue started anywhere else. Accounts only, since Home shows it only to them.
+  const sourceRef = useRef<JumpSource | null>(null);
+  const jumpTrackId = current?.id;
+  useEffect(() => {
+    const source = sourceRef.current;
+    if (!source || jumpTrackId === undefined || !user || user.isGuest) return;
+    advanceJump(user.id, source, jumpTrackId);
+  }, [jumpTrackId, user]);
 
   useEffect(() => {
     scrubbingRef.current = isScrubbing;
@@ -957,7 +989,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return room ? room.queue[room.current] : undefined;
   }
 
-  function playQueue(tracks: QueueTrack[], startIndex: number, loadMore?: LoadMore) {
+  function playQueue(tracks: QueueTrack[], startIndex: number, loadMore?: LoadMore, source?: JumpSource) {
     if (tracks.length === 0) return;
     const at = Math.min(Math.max(startIndex, 0), tracks.length - 1);
     if (roomRef.current.room) {
@@ -973,6 +1005,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
     originalQueueRef.current = tracks;
     moreRef.current = loadMore ? { fetch: loadMore, busy: false, done: false } : null;
+    // A single song is not "an album left part way", so only a list counts as a source.
+    sourceRef.current = tracks.length > 1 ? (source ?? sourceForPath(pathname)) : null;
+    if (sourceRef.current && user && !user.isGuest) {
+      noteJump(user.id, sourceRef.current, tracks.map((t) => t.id), tracks[at].id);
+    }
     setIsShuffled(false);
     setQueue(tracks);
     setIndex(at);
@@ -1026,8 +1063,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     showToast(`"${track.title}" added to the queue.`);
   }
 
-  function startRadio(track: QueueTrack, tracks: QueueTrack[] = [track]) {
-    playQueue(tracks, 0, radioSource(track.id, () => stateRef.current.queue.map((queued) => queued.id)));
+  function startRadio(track: QueueTrack, tracks: QueueTrack[] = [track], source?: JumpSource) {
+    playQueue(tracks, 0, radioSource(track.id, () => stateRef.current.queue.map((queued) => queued.id)), source);
   }
 
   function setEndless(enabled: boolean) {
@@ -2056,6 +2093,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setTransitions,
     canFade,
     inRoom,
+    openPlayer: () => setIsExpanded(true),
   };
 
   return (
@@ -2065,7 +2103,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       {/* Phone: a strip that opens the full view. The bar below is the same
           player at a size that only works with a mouse and a wide window. */}
       {user && current && !onAttractScreen && !isSheetOpen && (
-        <div className="player-deck deck-rise no-sweep fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 px-4 py-2.5 md:hidden">
+        <div className="player-deck deck-rise no-sweep fixed inset-x-0 bottom-(--tabbar-h) z-40 flex items-center gap-3 px-4 py-2.5 md:hidden">
           <span
             aria-hidden
             className="absolute inset-x-0 top-0 h-0.5 origin-left bg-orange-600"
