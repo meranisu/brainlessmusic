@@ -1,10 +1,10 @@
 // import { useEffect, useState, type MouseEvent } from 'react';
 // import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { consumeJustEntered, markAtTitle } from '../lib/boot';
-import { arrivalDuration, interstitialDuration } from '../lib/interstitial';
+import { arrivalDuration, interstitialDuration, prefersReducedMotion } from '../lib/interstitial';
 import { setSectionTitle } from '../lib/documentTitle';
 import { loadSidebarCollapsed, saveSidebarCollapsed } from '../lib/sidebar';
 import { BrandMark, Wordmark } from './BrandLockup';
@@ -182,7 +182,7 @@ export function AppShell() {
     return () => cancelAnimationFrame(frame);
   }, [scrollKey, pathname]);
 
-  /** Leaves through a card (type, a held beat, fade to black), then navigates. The app stays mounted underneath. */
+  /** Leaves through a card (type, a held beat, fade to black), then navigates. Exit only (A285). The app stays mounted underneath. */
   function leaveThrough(card: { text: string; detail?: string }, to: string, onNavigate?: () => void) {
     if (leaving) return;
     const wait = interstitialDuration();
@@ -206,6 +206,44 @@ export function AppShell() {
     }, wait);
   }
 
+  /** Resolves the running slide's update once the new route has committed. Null when no slide waits. */
+  const slideCommitted = useRef<(() => void) | null>(null);
+  useLayoutEffect(() => {
+    slideCommitted.current?.();
+    slideCommitted.current = null;
+  }, [pathname, search]);
+
+  /**
+   * Changes pages at once, sliding the old page out and the new one in (A285; it replaced the 1,420ms card, which made
+   * every page change wait). The router commits inside a React transition, so `flushSync` can't force it: the update
+   * callback waits for the commit instead. Without view transitions the new page just fades in (`route-in`).
+   * `data-sliding` keeps `route-in` from fading the page a second time inside the slide.
+   */
+  function slideTo(to: string) {
+    if (!document.startViewTransition || prefersReducedMotion()) {
+      navigate(to);
+      return;
+    }
+    const root = document.documentElement;
+    const slide = document.startViewTransition(
+      () =>
+        new Promise<void>((resolve) => {
+          slideCommitted.current = resolve;
+          navigate(to);
+        }),
+    );
+    root.dataset.sliding = '';
+    slide.finished.finally(() => delete root.dataset.sliding);
+  }
+
+  /** Off the sidebar (profile, Control Center, Options): no position to compare, so it goes forward. */
+  function goTo(to: string) {
+    if (to === pathname) return;
+    // oxlint-disable-next-line react/immutability
+    document.documentElement.dataset.navDir = 'forward';
+    slideTo(to);
+  }
+
   /** Records which way along the sidebar the click goes, before `startViewTransition` reads it. `forward` off-tab. */
   function rememberDirection(target: number) {
     /* An effect would run after navigation, too late for the snapshot; a DOM write in a handler is correct here. */
@@ -213,22 +251,17 @@ export function AppShell() {
     document.documentElement.dataset.navDir = current >= 0 && target < current ? 'back' : 'forward';
   }
 
-  /**
-   * Changes pages through the same card as Exit and Options (1,420ms; a shorter one read as hurried). It replaced the
-   * directional slide; `rememberDirection` and the CSS stay, so the slide can return. Modified clicks pass through.
-   * Shared by the sidebar, its rail and the phone's tab bar.
-   */
+  /** Slides to the clicked tab. Modified clicks pass through. Shared by the sidebar, its rail and the phone's tab bar. */
   function onNavClick(event: MouseEvent<HTMLAnchorElement>, item: NavItem) {
     if (event.defaultPrevented || event.button !== 0) return;
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     const index = items.indexOf(item);
-    // Already here. A card for a navigation that changes nothing is a wait for
-    // no reason.
+    event.preventDefault();
+    // Already here: nothing to slide to.
     if (index === current) return;
 
     rememberDirection(index);
-    event.preventDefault();
-    leaveThrough({ text: item.label, detail: item.detail }, item.to);
+    slideTo(item.to);
   }
 
   /**
@@ -306,7 +339,7 @@ export function AppShell() {
             </button>
           </div>
 
-          <ShellActions pathname={pathname} go={leaveThrough} onExit={handleExit} />
+          <ShellActions pathname={pathname} go={goTo} onExit={handleExit} />
 
           {/* The accent line, on its own clipped layer: `overflow-hidden` on the bar would swallow its dropdowns. */}
           <span
@@ -366,7 +399,7 @@ export function AppShell() {
       </main>
       </div>
 
-      <PhoneTabBar sections={sections} pathname={pathname} onNavigate={onNavClick} go={leaveThrough} onExit={handleExit} />
+      <PhoneTabBar sections={sections} pathname={pathname} onNavigate={onNavClick} go={goTo} onExit={handleExit} />
 
       <ScrollTopButton />
 

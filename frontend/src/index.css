@@ -391,6 +391,47 @@
   body {
     background-color: var(--color-blue-950);
   }
+
+  /* Every scrollbar, the page's included (A287): the browser's grey bar sat on the dark blue like a foreign object.
+     A thin blue thumb, lighter under the pointer and orange while dragged. Always shown: Chromium doesn't repaint the
+     thumb when only a box's `:hover` changes. Chromium ignores these rules on any element with `scrollbar-color` or
+     `scrollbar-width` set, so don't set those except to hide a bar (`.shelf-row`). */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* The transparent border insets the thumb from the edge. */
+  ::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
+    background-color: var(--color-blue-700);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-blue-500);
+  }
+
+  ::-webkit-scrollbar-thumb:active {
+    background-color: var(--color-orange-600);
+  }
+
+  /* Firefox takes only width and colour. `scrollbar-color` inherits; `scrollbar-width` doesn't. */
+  @supports not selector(::-webkit-scrollbar) {
+    html {
+      scrollbar-color: var(--color-blue-700) transparent;
+    }
+
+    * {
+      scrollbar-width: thin;
+    }
+  }
   ::selection {
     background-color: var(--color-orange-600);
     color: var(--color-on-accent);
@@ -881,9 +922,7 @@
   min-height: 0;
   /* The one part whose content varies, so it scrolls on its own. */
   overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-blue-700) transparent;
-  /* Keeps the scrollbar off the text. */
+  /* Keeps the scrollbar off the text. The bar itself is the app-wide one. */
   padding-right: 0.6rem;
 }
 
@@ -2611,8 +2650,6 @@
     flex: 1 1 0%;
     min-height: 0;
     overflow: auto;
-    scrollbar-width: thin;
-    scrollbar-color: var(--color-blue-700) transparent;
   }
 
   .lf-state {
@@ -2829,6 +2866,8 @@
 .motion-toast[data-state='closing'] { animation: motion-toast-out var(--dur-overlay) ease-in both; }
 
 .route-in { animation: route-in 280ms var(--ease-out-expo) both; }
+/* Inside a page slide the slide already fades the page in; set by `slideTo` in `AppShell`. */
+:root[data-sliding] .route-in { animation: none; }
 
 @keyframes motion-fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes motion-fade-out { from { opacity: 1; } to { opacity: 0; } }

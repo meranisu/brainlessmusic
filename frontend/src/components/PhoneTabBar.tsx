@@ -13,7 +13,7 @@ interface PhoneTabBarProps {
   sections: NavSection[];
   pathname: string;
   onNavigate: (event: MouseEvent<HTMLAnchorElement>, item: NavItem) => void;
-  go: (card: { text: string; detail?: string }, to: string) => void;
+  go: (to: string) => void;
   onExit: () => void;
 }
 
@@ -72,9 +72,9 @@ export function PhoneTabBar({ sections, pathname, onNavigate, go, onExit }: Phon
     };
   }, [open]);
 
-  function pick(card: { text: string; detail?: string }, to: string) {
+  function pick(to: string) {
     setOpen(false);
-    go(card, to);
+    go(to);
   }
 
   return (
@@ -87,7 +87,7 @@ export function PhoneTabBar({ sections, pathname, onNavigate, go, onExit }: Phon
           {user && !isGuest && (
             <button
               type="button"
-              onClick={() => pick({ text: user.displayName, detail: 'Your profile' }, `/people/${user.id}`)}
+              onClick={() => pick(`/people/${user.id}`)}
               className={`tab-sheet-item ${onProfile ? 'is-active' : ''}`}
             >
               <Avatar userId={user.id} name={user.displayName} avatarId={user.avatarId} size="xs" />
@@ -125,7 +125,7 @@ export function PhoneTabBar({ sections, pathname, onNavigate, go, onExit }: Phon
               <li>
                 <button
                   type="button"
-                  onClick={() => pick({ text: 'Control Center', detail: 'Health, logs, uploads and accounts' }, '/control-center')}
+                  onClick={() => pick('/control-center')}
                   className={`tab-sheet-item ${pathname.startsWith('/control-center') ? 'is-active' : ''}`}
                 >
                   <FadersIcon className="h-5 w-5 shrink-0" />
@@ -136,7 +136,7 @@ export function PhoneTabBar({ sections, pathname, onNavigate, go, onExit }: Phon
             <li>
               <button
                 type="button"
-                onClick={() => pick({ text: 'Options', detail: 'Settings for this device' }, '/options')}
+                onClick={() => pick('/options')}
                 className={`tab-sheet-item ${pathname === '/options' ? 'is-active' : ''}`}
               >
                 <GearIcon className="h-5 w-5 shrink-0" />

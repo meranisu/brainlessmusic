@@ -4,8 +4,8 @@ import { ExitIcon, FadersIcon, GearIcon } from './icons';
 
 interface ShellActionsProps {
   pathname: string;
-  /** Leaves through the arcade card to a page that has no sidebar item (profile, Options, Control Center). */
-  go: (card: { text: string; detail?: string }, to: string) => void;
+  /** Slides to a page that has no sidebar item (profile, Options, Control Center). */
+  go: (to: string) => void;
   onExit: () => void;
 }
 
@@ -25,7 +25,7 @@ export function ShellActions({ pathname, go, onExit }: ShellActionsProps) {
       {user && !isGuest && (
         <button
           type="button"
-          onClick={() => go({ text: user.displayName, detail: 'Your profile' }, `/people/${user.id}`)}
+          onClick={() => go(`/people/${user.id}`)}
           aria-label="Your profile"
           aria-current={onProfile ? 'page' : undefined}
           data-tip={user.displayName}
@@ -37,7 +37,7 @@ export function ShellActions({ pathname, go, onExit }: ShellActionsProps) {
       {user?.isAdmin && (
         <button
           type="button"
-          onClick={() => go({ text: 'Control Center', detail: 'Health, logs, uploads and accounts' }, '/control-center')}
+          onClick={() => go('/control-center')}
           aria-label="Control Center"
           aria-current={onControlCenter ? 'page' : undefined}
           data-tip="Control Center"
@@ -48,7 +48,7 @@ export function ShellActions({ pathname, go, onExit }: ShellActionsProps) {
       )}
       <button
         type="button"
-        onClick={() => go({ text: 'Options', detail: 'Settings for this device' }, '/options')}
+        onClick={() => go('/options')}
         aria-label="Options"
         aria-current={onOptions ? 'page' : undefined}
         data-tip="Options"

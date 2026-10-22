@@ -4,6 +4,14 @@ Backfilled 2026-09-03 (didn't exist before). Covers functions added/materially c
 
 ---
 
+**Function:** `slideTo()`, `goTo()`, `onNavClick()`, `leaveThrough()` — `frontend/src/components/AppShell.tsx`; `ShellActions()`, `PhoneTabBar()` (`go` prop)
+**Date:** 2026-10-22
+**How added:** UI change
+**Purpose:** page changes slide through a view transition instead of the 1,420ms arcade card (A285).
+**Side effects:** sets `data-nav-dir` and, during a slide, `data-sliding` on `<html>`.
+**Before:** every tab and top-bar page change waited on the card; `go` took card text and a path.
+**After:** navigation is immediate with a slide; `leaveThrough` (the card) is used by Exit only; `go(to)`.
+
 **Function:** `ShellActions()` — `frontend/src/components/ShellActions.tsx`; `SideNav()` — `frontend/src/components/SideNav.tsx`; `AppShell()` — `frontend/src/components/AppShell.tsx`
 **Date:** 2026-10-22
 **How added:** UI change

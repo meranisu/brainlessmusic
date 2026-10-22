@@ -104,6 +104,16 @@ A 304 still makes the 0.2 to 1 s tunnel trip, so it saves data, not time; pages 
 
 ## Answered
 
+### A287 — The custom scrollbar goes app-wide *(asked in chat)*
+**Answered:** 2026-10-22, in chat: "update the entire system using the custom scrollbar". Page and every scroll box.
+
+### A286 — The side menu gets its own scrollbar *(asked in chat)*
+**Answered:** 2026-10-22, in chat: "add custom scroll bar for the sidemenu". Thin blue thumb, orange while dragged.
+
+### A285 — Page changes slide, the card is for Exit only *(asked in chat)*
+**Answered:** 2026-10-22, in chat: the 1,420ms card on every page change "slows the experience"; pages should arrive
+smooth and fluid instead. Tabs, profile, Control Center and Options use a view-transition slide; Exit keeps the card.
+
 ### A284 — Back to top button stays as it is *(was Q279)*
 **Answered:** 2026-10-22 ("no change"): `ScrollTopButton` keeps its 600 px threshold and bottom-right place; nothing in
 the top bar, nothing for the Library's own scroll boxes.

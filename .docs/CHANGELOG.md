@@ -4,6 +4,31 @@ Backfilled 2026-09-03 (didn't exist before). Newest first. Only covers backend/f
 
 ---
 
+## 2026-10-22: Custom scrollbar everywhere (A286, A287)
+
+- Why: the owner asked for a custom scrollbar on the side menu (A286), then for the whole app (A287); the browser's grey
+  bar clashed with the dark blue.
+- `index.css` (`@layer base`): global `::-webkit-scrollbar` rules for the page and every scroll box. 10px bar, rounded
+  blue-700 thumb inset from the edge, blue-500 under the pointer, orange-600 while dragged, transparent track and corner.
+  Firefox: thin blue-700 bar via `scrollbar-color` on `html` and `scrollbar-width: thin` on all.
+- `.arcade-detail` and `.lf-scroll` lose their own `scrollbar-width`/`scrollbar-color`, which made Chromium skip the
+  custom rules. `.shelf-row` still hides its bar.
+- Always shown: Chromium doesn't repaint the thumb on a box's `:hover`, so hide-until-hover didn't work.
+- Checked in Chromium (scrollbars on) on a scratch copy of the dev DB: side menu idle, hover, drag, folded rail; page bar
+  on Options; Library detail box. Firefox, Safari and the other themes not checked.
+
+## 2026-10-22: Page changes slide instead of playing the card (A285)
+
+- Why: the owner said the 1,420ms card made every page change slow, and asked for pages to arrive smoothly instead.
+- `AppShell`: sidebar, rail, phone tab bar, profile, Control Center and Options now navigate at once through
+  `slideTo`, a view transition (old page out, new page in, about 280ms; the sidebar's lit key slides along). The
+  router commits inside a React transition, so the update callback waits on a layout effect for the new route instead
+  of `flushSync`. Browsers without view transitions get the existing `route-in` fade. Reduced motion: no animation.
+- The arcade card stays for Exit only. `ShellActions` and `PhoneTabBar` take `go(to)` with no card text.
+- `index.css`: `:root[data-sliding] .route-in` off, so the page does not fade twice inside the slide.
+- Checked in Chromium on a scratch copy of the dev DB, desktop and phone width: URL changes in 80 to 320ms, no card,
+  `data-sliding` cleared after, no console errors.
+
 ## 2026-10-22: Account, Control Center, Options and Exit move to the top bar (A283)
 
 - Why: the owner asked for them at the right of the search bar, and for the bar to stay put and not move.
