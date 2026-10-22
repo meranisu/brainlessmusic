@@ -19,7 +19,7 @@ enum class ThemeMode(val label: String) {
 }
 
 /**
- * The web's six colour themes (`frontend/src/lib/theme.ts`), plus Android's wallpaper colours. Colour only: layout and
+ * The web's nine colour themes (`frontend/src/lib/theme.ts`), plus Android's wallpaper colours. Colour only: layout and
  * type stay the same (Q19). [webId] is the profile's id for it (A55, `users.theme`).
  */
 enum class ColorTheme(val label: String, val detail: String, val webId: String?) {
@@ -30,14 +30,14 @@ enum class ColorTheme(val label: String, val detail: String, val webId: String?)
     MAGENTA("Magenta", "After osu!", "pink"),
     PASTEL("Pastel", "Material, soft and round", "pastel"),
 
-    /** After Arcaea, Lane's match (A116): phone-only until the web has it, so no web id. */
-    LAVENDER("Lavender", "After Arcaea", null),
+    /** After Arcaea, Lane's match (A116). Phone-only until the web took it (A279, A282). */
+    LAVENDER("Lavender", "After Arcaea", "lavender"),
 
-    /** After SOUND VOLTEX, Gear's match (A127): phone-only, like Lavender. */
-    VOLTAGE("Voltage", "After SOUND VOLTEX", null),
+    /** After SOUND VOLTEX, Gear's match (A127). On the web too, like Lavender. */
+    VOLTAGE("Voltage", "After SOUND VOLTEX", "voltage"),
 
-    /** After maimai, Ring's match (A131): phone-only, like Lavender; made for light as much as dark. */
-    CANDY("Candy", "After maimai", null),
+    /** After maimai, Ring's match (A131); made for light as much as dark. On the web too, like Lavender. */
+    CANDY("Candy", "After maimai", "candy"),
 
     /** Android 12+ only; older phones fall back to Deep blue and do not offer it. Kept on the phone, not the profile (A78). */
     MATERIAL_YOU("Material You", "From your wallpaper", null),

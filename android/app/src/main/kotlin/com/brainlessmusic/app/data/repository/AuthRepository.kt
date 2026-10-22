@@ -315,7 +315,7 @@ class AuthRepository @Inject constructor(
     }
 
     /**
-     * Makes the phone follow the profile's theme (A78), run on every way in. A phone-only theme (Material You, Lavender)
+     * Makes the phone follow the profile's theme (A78), run on every way in. A phone-only theme (Material You)
      * wins, since the profile can't hold it. A profile with no theme yet takes the phone's pick, so a choice made before A78 isn't lost.
      */
     private suspend fun syncTheme(me: MeResponse) {
