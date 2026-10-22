@@ -1,6 +1,6 @@
 # Project Status
 
-_Last updated: 2026-10-22 (top bar now holds profile, Control Center, Options and Exit, A283; web shell redo pushed 9ce62ae and 9e80b71, web 0.5.0, Android v0.4.34 tagged) — live snapshot; older header text in [history/status-last-updated-log.md](history/status-last-updated-log.md), full history frozen in [history/status-archive.md](history/status-archive.md)._
+_Last updated: 2026-10-22 (pages slide instead of the card, A285; custom scrollbar app-wide, A286/A287; pushed bb23802) — live snapshot; older header text in [history/status-last-updated-log.md](history/status-last-updated-log.md), full history frozen in [history/status-archive.md](history/status-archive.md)._
 
 **Keep this file short (target: under 150 lines).** It answers "where are we and what is next" and nothing else.
 When a feature ships, change its row in the table below and, if the next step moved, the *Next* section.
